@@ -5,63 +5,234 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<h2>Faktury</h2>
+<style>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Numer Faktury</th>
-            <th>Sklep</th>
-            <th>Plan</th>
-            <th>Data Wystawienia</th>
-            <th>Data Płatności</th>
-            <th>Czy Opłacona</th>
-            <th>Kwota Netto</th>
-            <th>Ilość Zeskrobań</th>
-            <th>Akcje</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var invoice in Model)
-        {
-            <tr>
-                <td>@invoice.InvoiceId</td>
-                <td>@invoice.Store.StoreName</td>
-                <td>@invoice.Plan.PlanName</td>
-                <td>@invoice.IssueDate.ToString("yyyy-MM-dd")</td>
-                <td>@(invoice.PaymentDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
-                <td>
-                    @if (invoice.IsPaid)
-                    {
-                        <span class="badge badge-success">Tak</span>
-                    }
-                    else
-                    {
-                        <span class="badge badge-secondary">Nie</span>
-                    }
-                </td>
-                <td>@invoice.NetAmount.ToString("C")</td>
-                <td>@invoice.DaysIncluded</td>
-                <td>
-                    @if (!invoice.IsPaid)
-                    {
-                        <form asp-action="MarkAsPaid" method="post" style="display:inline;">
-                            <input type="hidden" name="id" value="@invoice.InvoiceId" />
-                            <button type="submit" class="btn btn-success">Oznacz jako Opłaconą</button>
-                        </form>
-                        <a asp-action="Edit" asp-route-id="@invoice.InvoiceId" class="btn btn-primary">Edytuj</a>
-                        <form asp-action="Delete" asp-route-id="@invoice.InvoiceId" method="post" style="display:inline;" onsubmit="return confirm('Czy na pewno chcesz usunąć tę fakturę?');">
-                            <button type="submit" class="btn btn-danger">Usuń</button>
-                        </form>
-                    }
-                    else
-                    {
-                        <span class="badge badge-success">Opłacona</span>
-                    }
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+    .search-container {
+        margin-bottom: 20px;
+        position: relative;
+    }
 
-<a asp-action="Create" class="btn btn-success">Wystaw Nową Fakturę</a>
+    .search-input {
+        width: 100%;
+        padding: 12px 20px;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    }
+
+    .table-invoices {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 8px; 
+    }
+
+    .table-invoices thead th {
+        border: none;
+        color: #6c757d;
+        font-weight: 600;
+        padding: 15px;
+        background-color: transparent;
+    }
+
+    .table-invoices tbody tr {
+        background-color: #fff;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+
+    }
+
+    .table-invoices tbody tr:hover {
+
+        background-color: #f8f9fa; 
+    }
+
+    .table-invoices td {
+        padding: 15px;
+        vertical-align: middle;
+        border-top: 1px solid #f8f9fa;
+        border-bottom: 1px solid #f8f9fa;
+        color: #212529; 
+    }
+
+    .table-invoices td:first-child {
+        border-left: 1px solid #f8f9fa;
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+    }
+
+    .table-invoices td:last-child {
+        border-right: 1px solid #f8f9fa;
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+    }
+
+    .plan-badge {
+        background-color: #e9ecef; 
+        color: #495057;           
+        border: 1px solid #dee2e6;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-weight: 500;
+        font-size: 0.85em;
+    }
+
+    .status-badge {
+        padding: 6px 12px;
+        border-radius: 50px;
+        font-size: 0.85em;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .status-badge i {
+        margin-right: 5px;
+    }
+
+    .status-paid {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .status-unpaid {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .action-btn-group {
+        display: flex;
+        gap: 5px;
+    }
+</style>
+
+<div class="container-fluid mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Faktury</h2>
+        <a asp-action="Create" class="btn btn-success shadow-sm">
+            <i class="fas fa-plus"></i> Wystaw Nową Fakturę
+        </a>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="invoiceSearch" class="search-input" placeholder="🔍 Szukaj po nazwie sklepu, numerze faktury lub dacie...">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-invoices" id="invoicesTable">
+            <thead>
+                <tr>
+                    <th>Numer Faktury</th>
+                    <th>Sklep</th>
+                    <th>Plan</th>
+                    <th>Daty</th>
+                    <th>Status</th>
+                    <th>Kwota Netto</th>
+                    <th>Analizy</th>
+                    <th>Akcje</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var invoice in Model)
+                {
+                    <tr>
+                        <td style="font-weight: bold; color: #333;">
+                            @(string.IsNullOrEmpty(invoice.InvoiceNumber) ? "#" + invoice.InvoiceId : invoice.InvoiceNumber)
+                        </td>
+
+                        <td>
+                            <div style="font-weight: 600;">@invoice.Store?.StoreName</div>
+                        </td>
+
+                        <td>
+                            <!-- ZMIANA: Użyto nowej klasy .plan-badge -->
+                            <span class="plan-badge">@invoice.Plan?.PlanName</span>
+                        </td>
+
+                        <td>
+                            <div style="font-size: 0.9em; color: #555;">
+                                <div><i class="far fa-calendar-alt"></i> Wyst: @invoice.IssueDate.ToString("yyyy-MM-dd")</div>
+                                @if (invoice.PaymentDate.HasValue)
+                                {
+                                    <div style="color: #28a745;"><i class="far fa-check-circle"></i> Zapł: @invoice.PaymentDate.Value.ToString("yyyy-MM-dd")</div>
+                                }
+                            </div>
+                        </td>
+
+                        <td>
+                            @if (invoice.IsPaid)
+                            {
+                                <span class="status-badge status-paid">
+                                    <i class="fas fa-check"></i> Opłacona
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="status-badge status-unpaid">
+                                    <i class="fas fa-times"></i> Nieopłacona
+                                </span>
+                            }
+                        </td>
+
+                        <td style="font-weight: 600;">@invoice.NetAmount.ToString("C")</td>
+
+                        <td>@invoice.DaysIncluded</td>
+
+                        <td>
+                            <div class="action-btn-group">
+                                <a asp-action="DownloadPdf" asp-route-id="@invoice.InvoiceId" class="btn btn-sm btn-info text-white" title="Pobierz PDF" target="_blank">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+
+                                @if (!invoice.IsPaid)
+                                {
+                                    <form asp-action="MarkAsPaid" method="post" style="display:inline;">
+                                        <input type="hidden" name="id" value="@invoice.InvoiceId" />
+                                        <button type="submit" class="btn btn-sm btn-success" title="Oznacz jako Opłaconą">
+                                            <i class="fas fa-money-bill-wave"></i>
+                                        </button>
+                                    </form>
+
+                                    <a asp-action="Edit" asp-route-id="@invoice.InvoiceId" class="btn btn-sm btn-primary" title="Edytuj">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+
+                                    <form asp-action="Delete" asp-route-id="@invoice.InvoiceId" method="post" style="display:inline;" onsubmit="return confirm('Czy na pewno chcesz usunąć tę fakturę?');">
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Usuń">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+
+            $("#invoiceSearch").on("keyup", function () {
+                var value = $(this).val().toLowerCase();
+                $("#invoicesTable tbody tr").filter(function () {
+                    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                });
+            });
+        });
+    </script>
+}
