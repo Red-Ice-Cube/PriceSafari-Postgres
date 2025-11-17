@@ -5,8 +5,8 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 
-    var safePaymentDataList = Model.PaymentDataList.Select(data => new {
-        data.PaymentDataId,
+    var safePaymentDataList = Model.PaymentDataList.Select(data => new
+    {
         data.CompanyName,
         data.Address,
         data.PostalCode,
@@ -149,11 +149,11 @@
     }
 
     .modal-dialog {
-        min-width: 1000px; 
+        min-width: 1000px;
     }
 
     .modal-content {
-        min-width: 1000px; 
+        min-width: 1000px;
     }
 
     .modal-split {
@@ -170,14 +170,6 @@
         flex: 4;
     }
 
-    .space-100 {
-        display: flex;
-        justify-content: space-between;
-        width: 100%;
-        margin-top: 16px;
-        margin-bottom: 24px;
-    }
-
     .custom-info-table {
         border-collapse: separate;
         border-spacing: 0;
@@ -187,8 +179,7 @@
         overflow: hidden;
     }
 
-        .custom-info-table th,
-        .custom-info-table td {
+        .custom-info-table th, .custom-info-table td {
             padding: 10px 14px;
             border-bottom: 1px solid #e9ecef;
         }
@@ -198,30 +189,22 @@
             text-align: left;
             font-weight: normal;
             color: #6c757d;
-            width: 120px;
+            width: 140px;
         }
 
         .custom-info-table td {
             font-weight: 500;
         }
 
-        .custom-info-table tr:last-child td,
-        .custom-info-table tr:last-child th {
+        .custom-info-table tr:last-child td, .custom-info-table tr:last-child th {
             border-bottom: none;
         }
 
-        .status-box {
+    .status-box {
         display: block;
         width: 100%;
-        height: calc(1.5em + 0.75rem + 2px);
         padding: 0.375rem 0.75rem;
         font-size: 1rem;
-        font-weight: 400;
-        line-height: 1.5;
-        color: #495057;
-        background-color: #fff;
-        background-clip: padding-box;
-        border: 1px solid #ced4da;
         border-radius: 0.25rem;
         display: flex;
         align-items: center;
@@ -229,37 +212,34 @@
         margin-bottom: 16px;
     }
 
-    .status-box.success {
-        border-color: #28a745;
-        color: #155724;
-        background-color: #d4edda;
+        .status-box.success {
+            border: 1px solid #28a745;
+            color: #155724;
+            background-color: #d4edda;
+        }
+
+        .status-box.warning {
+            border: 1px solid #ffc107;
+            color: #856404;
+            background-color: #fff3cd;
+        }
+
+    .btn-danger-custom {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        transition: background-color 0.2s;
+        cursor: pointer;
     }
 
-    .status-box.warning {
-        border-color: #ffc107;
-        color: #856404;
-        background-color: #fff3cd;
-    }
-
-    .is-invalid {
-        border-color: #dc3545 !important;
-    }
-
-    .invalid-feedback {
-        display: none;
-        width: 100%;
-        margin-top: 0.25rem;
-        font-size: 80%;
-        color: #dc3545;
-    }
-
-    .was-validated .form-control:invalid {
-        border-color: #dc3545;
-    }
-
-    .was-validated .form-control:invalid ~ .invalid-feedback {
-        display: block;
-    }
+        .btn-danger-custom:hover {
+            background-color: #c82333;
+            color: white;
+            text-decoration: none;
+        }
 </style>
 
 <div class="Vert">
@@ -268,11 +248,8 @@
             <h2 style="font-size: 26px; font-weight: 300;">Plan @Model.PlanName | <img src="~/images/@planImageFile" alt="@Model.PlanName" style="height:32px; margin-bottom:6px;" /></h2>
 
             <div class="details-container">
-
                 <div class="details-sidebar info-card">
-                    <div class="info-card-header">
-                        Koszt planu
-                    </div>
+                    <div class="info-card-header">Koszt planu</div>
                     <div class="info-card-body">
                         <div class="price-display">
                             <span class="final-price-amount">@discountedPrice.ToString("C")</span>
@@ -284,9 +261,7 @@
                         </div>
                         @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
                         {
-                            <div class="discount-info">
-                                Rabat: @Model.DiscountValue.Value.ToString("F2")%
-                            </div>
+                            <div class="discount-info">Rabat: @Model.DiscountValue.Value.ToString("F2")%</div>
                         }
 
                         @if (!string.IsNullOrWhiteSpace(Model.Info))
@@ -298,28 +273,13 @@
                         }
                     </div>
                     <div class="info-card-footer">
-                        @if (Model.IsTestPlan)
-                        {
-                            <p class="mb-0"><strong>Generowanie faktur niedostępne w planie testowym.</strong></p>
-                        }
-                        else if (Model.HasUnpaidInvoice)
-                        {
-                            @* ZMIANA TEKSTU *@
-                            <p class="mb-0"><strong>Faktura została już wygenerowana.</strong> Sprawdź w historii poniżej.</p>
-                        }
-                        else
-                        {
-                            @* ZMIANA: ID, Tekst, data-target *@
-                            <button type="button" class="Button-Page-Small-bl" data-toggle="modal" data-target="#generateInvoiceModal">
-                                Wygeneruj Fakturę
-                            </button>
-                        }
+                        <button type="button" class="Button-Page-Small-bl" data-toggle="modal" data-target="#managePlanModal">
+                            Zarządzaj moim planem
+                        </button>
                     </div>
                 </div>
                 <div class="details-main info-card">
-                    <div class="info-card-header">
-                        Szczegóły planu
-                    </div>
+                    <div class="info-card-header">Szczegóły planu</div>
                     <div class="info-card-body">
                         <div class="info-row">
                             <span class="info-label">Źródło danych</span>
@@ -358,147 +318,113 @@
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
 
-     @* ZMIANA ID MODALA *@
-     <div class="modal fade" id="generateInvoiceModal" tabindex="-1" role="dialog" aria-labelledby="generateInvoiceModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                @* ZMIANA TYTUŁU I ID *@
-                <h5 class="modal-title" id="generateInvoiceModalLabel">Generowanie Faktury</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div id="serverErrorAlert" class="alert alert-danger" style="display:none;"></div>
-
-                <div class="modal-split">
-                    <div class="modal-split-left">
-
-                        <div id="paymentDataSection">
-
-                            <div id="existingDataHeader" class="status-box success" style="display:none;">
-                                <span><i class="fas fa-check-circle"></i> Dane do faktury uzupełnione</span>
-                                <i class="fas fa-pen" style="opacity: 0.5; font-size: 0.8em;"></i>
-                            </div>
-
-                            <div id="noDataHeader" class="status-box warning" style="display:none;">
-                                <span><i class="fas fa-exclamation-circle"></i> Brak danych do faktury</span>
-                                <span style="font-size: 0.8em;">Wymagane uzupełnienie</span>
-                            </div>
-
-                            <div class="space-100">
-                                <div>
-                                    <button type="button" class="Button-Page-Small-bl" id="addPaymentDataButton" style="display:none;">+ Uzupełnij dane</button>
-                                </div>
-                                <div>
-                                    <button type="button" class="Button-Page-Small" id="editPaymentDataButton" style="display:none;">Edytuj</button>
-                                    <button type="button" class="Button-Page-Small-r" id="deletePaymentDataButton" style="display:none;">Usuń</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="paymentDataDetails" style="display:none;">
-                            <table class="custom-info-table">
-                                <tr><th>Nazwa firmy</th><td id="companyName"></td></tr>
-                                <tr><th>Adres</th><td id="address"></td></tr>
-                                <tr><th>Kod pocztowy</th><td id="postalCode"></td></tr>
-                                <tr><th>Miasto</th><td id="city"></td></tr>
-                                <tr><th>NIP</th><td id="nip"></td></tr>
-                            </table>
-                        </div>
-
-                        <div id="paymentDataFormContainer" style="display:none;">
-                            <form id="paymentDataForm" novalidate>
-                                <input type="hidden" id="StoreId" name="StoreId" value="@Model.StoreId" />
-                                <input type="hidden" id="PaymentDataId" name="PaymentDataId" value="" />
-
-                                <div class="form-group">
-                                    <label for="CompanyName">Nazwa firmy <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="CompanyName" name="CompanyName" required placeholder="Pełna nazwa firmy" />
-                                    <div class="invalid-feedback">Proszę podać nazwę firmy.</div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="Address">Adres <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="Address" name="Address" required placeholder="Ulica i numer" />
-                                    <div class="invalid-feedback">Proszę podać adres.</div>
-                                </div>
-                                <div class="form-group row">
-                                    <div class="col-md-5">
-                                        <label for="PostalCode">Kod pocztowy <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="PostalCode" name="PostalCode" required placeholder="00-000" />
-                                        <div class="invalid-feedback">Kod wymagany.</div>
+        @* --- GŁÓWNY MODAL --- *@
+        <div class="modal fade" id="managePlanModal" tabindex="-1" role="dialog" aria-labelledby="managePlanModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="managePlanModalLabel">Mój Plan i Dane Płatności</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="modal-split">
+                            <div class="modal-split-left">
+                                <div id="paymentDataSection">
+                                    <div id="existingDataHeader" class="status-box success" style="display:none;">
+                                        <span><i class="fas fa-check-circle"></i> Dane do faktury przypisane</span>
                                     </div>
-                                    <div class="col-md-7">
-                                        <label for="City">Miasto <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="City" name="City" required />
-                                        <div class="invalid-feedback">Miasto wymagane.</div>
+
+                                    <div id="noDataHeader" class="status-box warning" style="display:none;">
+                                        <span><i class="fas fa-exclamation-circle"></i> Brak przypisanych danych</span>
+                                        <span style="font-size: 0.8em;">Skontaktuj się z administratorem</span>
+                                    </div>
+
+                                    <div id="paymentDataDetails" style="display:none; margin-top: 20px;">
+                                        <h6 style="color: #6c757d; margin-bottom: 10px;">Dane płatnika:</h6>
+                                        <table class="custom-info-table">
+                                            <tr><th>Nazwa firmy</th><td id="companyName"></td></tr>
+                                            <tr><th>Adres</th><td id="address"></td></tr>
+                                            <tr><th>Kod pocztowy</th><td id="postalCode"></td></tr>
+                                            <tr><th>Miasto</th><td id="city"></td></tr>
+                                            <tr><th>NIP</th><td id="nip"></td></tr>
+                                            <tr><th>E-mail do faktur</th><td id="invoiceAutoMail"></td></tr>
+                                            <tr><th>Automatyczna wysyłka</th><td id="invoiceAutoMailSend"></td></tr>
+                                        </table>
                                     </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="NIP">NIP <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="NIP" name="NIP" required 
-                                           pattern="[0-9]{10}" maxlength="10" 
-                                           oninput="this.value = this.value.replace(/[^0-9]/g, '')" 
-                                           placeholder="Tylko cyfry (10 znaków)" />
-                                    <div class="invalid-feedback">Proszę podać poprawny NIP (10 cyfr).</div>
+                            </div>
+
+                            <div class="modal-split-right">
+                                <div class="info-card" style="height: 100%;">
+                                    <div class="info-card-header">Podsumowanie planu</div>
+                                    <div class="info-card-body">
+                                        <p style="font-weight: 500; font-size: 1.1em; margin-bottom: 14px;">Plan @Model.PlanName</p>
+                                        <div class="price-display">
+                                            <span class="final-price-amount">@discountedPrice.ToString("C")</span>
+                                            <span class="final-price-label">netto</span>
+                                            @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+                                            {
+                                                <span class="original-price">@Model.PlanPrice.ToString("C")</span>
+                                            }
+                                        </div>
+                                        @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+                                        {
+                                            <div class="discount-info" style="margin-bottom: 20px;">Rabat: @Model.DiscountValue.Value.ToString("F2")%</div>
+                                        }
+
+                                        <div style="margin-top: 20px; font-size: 0.9em; color: #6c757d;">
+                                            <i class="fas fa-info-circle"></i> Jeśli potrzebujesz zaktualizować dane płatnika lub zmienić swój plan, skontaktuj się z nami, wysyłając wiadomość na adres <strong>biuro@pricesafari.pl</strong>.
+                                            <br /><br />
+                                            Faktury będą wystawiane i wysyłane automatycznie. Otrzymasz je z adresu faktury@pricesafari.pl.
+                                            <br /><br />
+                                            W przypadku chęci rezygnacji z usługi PriceSafari, możesz to zrobić za pomocą przycisku poniżej.
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="InvoiceAutoMail">E-mail do faktur (opcjonalny)</label>
-                                    <input type="email" class="form-control" id="InvoiceAutoMail" name="InvoiceAutoMail" placeholder="ksiegowosc@firma.pl" />
-                                    <div class="invalid-feedback">Proszę podać poprawny adres e-mail.</div>
-                                </div>
-                                <div class="form-group form-check">
-                                    <input type="checkbox" class="form-check-input" id="InvoiceAutoMailSend" name="InvoiceAutoMailSend" value="true" />
-                                    <label class="form-check-label" for="InvoiceAutoMailSend">Automatyczna wysyłka faktur na e-mail</label>
-                                </div>
-                                <div style="margin-top:16px;">
-                                    <button type="button" class="Button-Page-Small-bl" id="savePaymentDataButton">Zapisz dane</button>
-                                    <button type="button" class="Button-Page-Small" id="cancelPaymentDataButton">Anuluj</button>
-                                </div>
-                            </form>
+                            </div>
                         </div>
                     </div>
+                    @* STOPKA Z DODANYM PRZYCISKIEM REZYGNACJI *@
+                    <div class="modal-footer" style="justify-content: space-between;">
+                        <button type="button" class="btn-danger-custom" id="openResignationModalBtn">
+                            Zrezygnuj z usługi monitoringu cen
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                    <div class="modal-split-right">
-                        <div class="info-card" style="height: 100%;">
-                            <div class="info-card-header">Podsumowanie planu</div>
-                            <div class="info-card-body">
-                                <p style="font-weight: 500; font-size: 1.1em; margin-bottom: 14px;">Plan @Model.PlanName</p>
-                                <div class="price-display">
-                                    <span class="final-price-amount">@discountedPrice.ToString("C")</span>
-                                    <span class="final-price-label">netto</span>
-                                    @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
-                                    {
-                                        <span class="original-price">@Model.PlanPrice.ToString("C")</span>
-                                    }
-                                </div>
-                                @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
-                                {
-                                    <div class="discount-info" style="margin-bottom: 20px;">Rabat: @Model.DiscountValue.Value.ToString("F2")%</div>
-                                }
-                            </div>
+        @* --- DRUGI MODAL: POTWIERDZENIE REZYGNACJI --- *@
+        <div class="modal fade" id="resignationConfirmModal" tabindex="-1" role="dialog" aria-labelledby="resignationConfirmLabel" aria-hidden="true" style="z-index: 1060;">
+            <div class="modal-dialog modal-sm modal-dialog-centered" role="document" style="min-width: 450px;">
+                <div class="modal-content" style="min-width: 450px;">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="resignationConfirmLabel">Rezygnacja z usługi</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body text-center" id="resignationModalBody">
+                        <div class="mb-3">
+                            <i class="fas fa-sad-tear fa-3x text-muted" style="font-size: 3em; color: #6c757d; margin: 15px 0;"></i>
+                        </div>
+                        <p style="font-size: 1.1em; font-weight: 500;">Czy na pewno chcesz zrezygnować z usług monitoringu cen?</p>
+                        <p class="text-muted small" style="font-size: 0.9em; color: #6c757d;">Twoja rezygnacja zostanie przesłana do administratora, a usługa zostanie wyłączona po zakończeniu obecnego okresu rozliczeniowego.</p>
+
+                        <div style="margin-top: 20px;">
+                            <button type="button" class="btn btn-secondary mr-2" data-dismiss="modal" style="margin-right: 10px;">Anuluj</button>
+                            <button type="button" class="btn btn-danger" id="confirmResignationBtn">Potwierdzam rezygnację</button>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
-                @* ZMIANA: ID FORMULARZA, AKCJA GenerateInvoice *@
-                <form id="generateInvoiceForm" method="post" asp-action="GenerateInvoice" style="margin:0;">
-                    <input type="hidden" name="storeId" value="@Model.StoreId" />
-                    @* ZMIANA: ID PRZYCISKU I TEKST *@
-                    <button type="submit" class="btn btn-success" id="generateInvoiceButton" disabled>Generuj Fakturę</button>
-                </form>
-            </div>
         </div>
-    </div>
-
-</div>
 
         @if (Model.Invoices != null && Model.Invoices.Any())
         {
@@ -568,187 +494,88 @@
         }
     </div>
 </div>
+
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
     <script>
         $(document).ready(function () {
-
             var paymentDataList = @Html.Raw(paymentDataListJson);
             var currentPaymentData = null;
 
             if (paymentDataList.length > 0) {
                 currentPaymentData = paymentDataList[0];
-                renderView("VIEW");
+                showData(currentPaymentData);
             } else {
-                currentPaymentData = null;
-                renderView("EMPTY");
+                showEmpty();
             }
 
-            function renderView(state) {
-
-                $("#existingDataHeader").hide();
+            function showData(data) {
+                $("#existingDataHeader").css('display', 'flex');
                 $("#noDataHeader").hide();
-                $("#paymentDataDetails").hide();
-                $("#paymentDataFormContainer").hide();
-                $("#addPaymentDataButton").hide();
-                $("#editPaymentDataButton").hide();
-                $("#deletePaymentDataButton").hide();
-                $("#serverErrorAlert").hide(); 
-                // ZMIANA: Nowe ID przycisku
-                $("#generateInvoiceButton").prop('disabled', true);
+                $("#paymentDataDetails").show();
 
-                $("#paymentDataForm").removeClass('was-validated');
+                $("#companyName").text(data.companyName);
+                $("#address").text(data.address);
+                $("#postalCode").text(data.postalCode);
+                $("#city").text(data.city);
+                $("#nip").text(data.nip);
 
-                if (state === "VIEW" && currentPaymentData) {
-                    $("#existingDataHeader").css('display', 'flex'); 
-                    $("#paymentDataDetails").show();
+                $("#invoiceAutoMail").text(data.invoiceAutoMail ? data.invoiceAutoMail : "-");
 
-                    $("#companyName").text(currentPaymentData.companyName);
-                    $("#address").text(currentPaymentData.address);
-                    $("#postalCode").text(currentPaymentData.postalCode);
-                    $("#city").text(currentPaymentData.city);
-                    $("#nip").text(currentPaymentData.nip);
-
-                    $("#editPaymentDataButton").show();
-                    $("#deletePaymentDataButton").show();
-                    // ZMIANA: Nowe ID przycisku
-                    $("#generateInvoiceButton").prop('disabled', false);
-
-                } else if (state === "EMPTY") {
-                    $("#noDataHeader").css('display', 'flex');
-                    $("#addPaymentDataButton").show();
-
-                } else if (state === "EDIT" || state === "ADD") {
-                    $("#paymentDataFormContainer").show();
-                    if (state === "EDIT") {
-                         fillForm(currentPaymentData);
-                    } else {
-                         resetForm();
-                    }
-                }
-            }
-
-            function fillForm(data) {
-                $("#PaymentDataId").val(data.paymentDataId);
-                $("#CompanyName").val(data.companyName);
-                $("#Address").val(data.address);
-                $("#PostalCode").val(data.postalCode);
-                $("#City").val(data.city);
-                $("#NIP").val(data.nip);
-                $("#InvoiceAutoMail").val(data.invoiceAutoMail || '');
-                $("#InvoiceAutoMailSend").prop('checked', data.invoiceAutoMailSend);
-                toggleAutoMailSendCheckbox($("#InvoiceAutoMail").val());
-            }
-
-            function resetForm() {
-                $("#paymentDataForm")[0].reset();
-                $("#PaymentDataId").val('');
-                toggleAutoMailSendCheckbox("");
-            }
-
-            $("#addPaymentDataButton").click(function () { renderView("ADD"); });
-            $("#editPaymentDataButton").click(function () { renderView("EDIT"); });
-
-            $("#cancelPaymentDataButton").click(function () {
-                if (currentPaymentData) renderView("VIEW");
-                else renderView("EMPTY");
-            });
-
-            function toggleAutoMailSendCheckbox(emailValue) {
-                if (!emailValue || emailValue.trim() === "") {
-                    $("#InvoiceAutoMailSend").prop("checked", false);
-                    $("#InvoiceAutoMailSend").prop("disabled", true);
+                if (data.invoiceAutoMailSend) {
+                    $("#invoiceAutoMailSend").html('<span class="text-success font-weight-bold">Tak</span>');
                 } else {
-                    $("#InvoiceAutoMailSend").prop("disabled", false);
+                    $("#invoiceAutoMailSend").html('<span class="text-muted">Nie</span>');
                 }
             }
 
-            $("#InvoiceAutoMail").on("input", function () {
-                toggleAutoMailSendCheckbox($(this).val());
+            function showEmpty() {
+                $("#existingDataHeader").hide();
+                $("#noDataHeader").css('display', 'flex');
+                $("#paymentDataDetails").hide();
+            }
+
+            $("#openResignationModalBtn").click(function() {
+
+                $("#managePlanModal").modal('hide');
+
+                setTimeout(function() {
+                    $("#resignationConfirmModal").modal('show');
+                }, 300);
             });
 
-            $("#savePaymentDataButton").click(function () {
-                var form = $("#paymentDataForm")[0];
-
-                if (form.checkValidity() === false) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    $("#paymentDataForm").addClass('was-validated'); 
-                    return; 
-                }
-
-                var formData = $("#paymentDataForm").serialize();
-
-                $("#serverErrorAlert").hide().text("");
+            $("#confirmResignationBtn").click(function() {
+                var btn = $(this);
+                btn.prop('disabled', true).text('Przetwarzanie...');
 
                 $.ajax({
                     type: "POST",
-                    url: "@Url.Action("SaveOrUpdatePaymentData", "Payment")",
-                    data: formData,
+                    url: "@Url.Action("RequestResignation", "Payment")",
+                    data: { storeId: @Model.StoreId },
                     success: function (response) {
                         if (response.success) {
-                            currentPaymentData = response.paymentData;
-                            renderView("VIEW");
+
+                            var successHtml = `
+                                <div class="mb-3">
+                                    <i class="fas fa-check-circle fa-3x text-success" style="font-size: 3em; color: #28a745; margin: 15px 0;"></i>
+                                </div>
+                                <h4 style="font-weight: 400;">Dziękujemy za informację.</h4>
+                                <p class="mt-3" style="font-size: 1.1em;">Przykro nam, że odchodzisz.</p>
+                                <p class="text-muted" style="font-size: 0.9em;">Skontaktujemy się z Tobą jak najszybciej, aby sfinalizować proces i zakończyć usługę monitoringu cen.</p>
+
+                            `;
+                            $("#resignationModalBody").html(successHtml);
                         } else {
-                            showError("Wystąpił nieoczekiwany błąd.");
+                            alert("Wystąpił błąd. Spróbuj ponownie później.");
+                            btn.prop('disabled', false).text('Potwierdzam rezygnację');
                         }
                     },
-                    error: function (xhr) {
-
-                        if (xhr.status === 400 && xhr.responseJSON) {
-
-                            var errors = xhr.responseJSON; 
-                            var errorMsg = "<strong>Nie udało się zapisać danych:</strong><ul>";
-
-                            if (errors.errors) { 
-                                $.each(errors.errors, function(key, msgs){
-                                    $.each(msgs, function(i, msg){
-                                         errorMsg += "<li>" + msg + "</li>";
-                                    });
-                                });
-                            } else {
-
-                                $.each(errors, function(key, msgs){
-                                    if(Array.isArray(msgs)) {
-                                        $.each(msgs, function(i, msg){ errorMsg += "<li>" + msg + "</li>"; });
-                                    } else {
-                                        errorMsg += "<li>" + msgs + "</li>";
-                                    }
-                                });
-                            }
-                            errorMsg += "</ul>";
-                            showError(errorMsg);
-                        } else {
-                            showError("Wystąpił błąd komunikacji z serwerem (Kod: " + xhr.status + ")");
-                        }
+                    error: function () {
+                        alert("Wystąpił błąd połączenia z serwerem.");
+                        btn.prop('disabled', false).text('Potwierdzam rezygnację');
                     }
                 });
-            });
-
-            function showError(htmlMessage) {
-                $("#serverErrorAlert").html(htmlMessage).fadeIn();
-
-                $('.modal').animate({ scrollTop: 0 }, 'slow');
-            }
-
-            $("#deletePaymentDataButton").click(function () {
-                if (!currentPaymentData) return;
-                if (confirm("Czy na pewno chcesz usunąć dane do faktury?")) {
-                    $.ajax({
-                        type: "POST",
-                        url: "@Url.Action("DeletePaymentData", "Payment")",
-                        data: { paymentDataId: currentPaymentData.paymentDataId },
-                        success: function (response) {
-                            if (response.success) {
-                                currentPaymentData = null;
-                                renderView("EMPTY");
-                            } else {
-                                alert("Nie udało się usunąć danych.");
-                            }
-                        }
-                    });
-                }
             });
         });
     </script>

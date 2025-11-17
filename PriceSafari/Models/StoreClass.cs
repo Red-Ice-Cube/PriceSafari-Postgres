@@ -42,7 +42,8 @@ namespace PriceSafari.Models
         [Display(Name = "Data rozpoczęcia subskrypcji")]
         [DataType(DataType.Date)]
         public DateTime? SubscriptionStartDate { get; set; }
-        // -----------------
+        [Display(Name = "Użytkownik chce zrezygnować")]
+        public bool UserWantsExit { get; set; } = false;
 
         public bool IsActive => RemainingDays > 0;
 
