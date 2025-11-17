@@ -6,9 +6,6 @@
     var lastScrapDates = ViewBag.LastScrapDates as Dictionary<int, DateTime?>;
 }
 
-
-
-
 @functions {
 
     public string GetPlanImageFile(PriceSafari.Models.StoreClass store)
@@ -38,7 +35,6 @@
         }
     }
 }
-
 
 <style>
     .channel-icons {
@@ -91,20 +87,24 @@
             int productsInPlan = store.Plan?.ProductsToScrap ?? 0;
 
             <tr>
-                <!-- 1) Nazwa sklepu + Plan -->
+     
                 <td>
                     <div>
-                        <!-- Logo sklepu, jeżeli istnieje: -->
+               
                         @if (!string.IsNullOrEmpty(store.StoreLogoUrl))
                         {
                             <img src="@store.StoreLogoUrl" alt="@store.StoreName" style="max-height:30px; margin-right:5px;" />
                         }
 
-                        <!-- Nazwa sklepu -->
+                 
                         <strong>@store.StoreName</strong>
+                        @if (store.UserWantsExit)
+                        {
+                            <span class="resignation-alert" title="KLIENT ZGŁOSIŁ CHĘĆ REZYGNACJI Z USŁUGI">
+                                <i class="fas fa-sad-tear" style="color:red"></i>
+                            </span>
+                        }
                     </div>
-          
-                   
 
                     <div class="channel-icons">
                         <img src="~/images/Ceneo.png"
@@ -130,11 +130,10 @@
                             <span class="Validation Validation-accepted">Free</span>
                         }
                     </div>
-     
-                  
+
                 </td>
 
-                <!-- 2) Parametry planu (ilość w planie, aktywność, pozostałe zeskrobania) -->
+
                 <td>
                     <div>
                         <strong>Ilość w planie:</strong> @productsInPlan
@@ -155,7 +154,6 @@
                     </div>
                 </td>
 
-                <!-- 3) Akcje (wszystkie przyciski) -->
                 <td>
 
                     <div class="mt-1">
@@ -210,7 +208,6 @@
 
                 </td>
 
-                <!-- 4) Ostatnie Scrapowanie -->
                 <td>
                     @if (lastScrapDates != null && lastScrapDates.ContainsKey(store.StoreId) && lastScrapDates[store.StoreId].HasValue)
                     {
@@ -229,7 +226,7 @@
                     }
                 </td>
 
-                <!-- 5) Postęp (progress bar) -->
+             
                 <td>
                     <div class="progress" style="height: 20px;">
                         <div class="progress-bar bg-success"
@@ -244,12 +241,10 @@
                     </div>
                 </td>
 
-                <!-- 6) Status -->
                 <td id="status-@store.StoreId">
                     Oczekiwanie
                 </td>
 
-                <!-- 7) Usuń -->
                 <td>
                     <form asp-controller="Store" asp-action="DeleteStore" method="post"
                           onsubmit="return confirm('Czy na pewno chcesz usunąć ten sklep?');">
