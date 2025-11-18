@@ -9,13 +9,18 @@ namespace PriceSafari.Services.SubscriptionService
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<SubscriptionManagerService> _logger;
+        private readonly IConfiguration _configuration;
 
         private const string REQUIRED_ENV_KEY = "99887766";
 
-        public SubscriptionManagerService(IServiceScopeFactory scopeFactory, ILogger<SubscriptionManagerService> logger)
+        public SubscriptionManagerService(
+            IServiceScopeFactory scopeFactory,
+            ILogger<SubscriptionManagerService> logger,
+            IConfiguration configuration)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _configuration = configuration;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -24,7 +29,7 @@ namespace PriceSafari.Services.SubscriptionService
 
             if (machineKey != REQUIRED_ENV_KEY)
             {
-                _logger.LogWarning($"Maszyna nieautoryzowana. Serwis uśpiony.");
+                _logger.LogWarning($"Maszyna nieautoryzowana (Brak poprawnego SUBSCRIPTION_KEY). Serwis uśpiony.");
                 while (!stoppingToken.IsCancellationRequested) await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
                 return;
             }
@@ -36,7 +41,9 @@ namespace PriceSafari.Services.SubscriptionService
                 try
                 {
                     var now = DateTime.Now;
+
                     var nextRun = now.Date.AddDays(1).AddMinutes(5);
+
                     if (now.Hour == 0 && now.Minute < 5) nextRun = now.Date.AddMinutes(5);
 
                     var delay = nextRun - now;
@@ -58,7 +65,6 @@ namespace PriceSafari.Services.SubscriptionService
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
-
             var imojeService = scope.ServiceProvider.GetRequiredService<IImojeService>();
 
             _logger.LogInformation("Rozpoczynanie przetwarzania subskrypcji...");
@@ -78,6 +84,8 @@ namespace PriceSafari.Services.SubscriptionService
                     LastInvoiceNumber = 0
                 };
                 context.InvoiceCounters.Add(invoiceCounter);
+
+                await context.SaveChangesAsync(ct);
             }
 
             var stores = await context.Stores
@@ -100,7 +108,6 @@ namespace PriceSafari.Services.SubscriptionService
                         if (store.RemainingDays > 0)
                         {
                             store.RemainingDays--;
-                            _logger.LogInformation($"Sklep PŁATNY {store.StoreName}: Zabrano 1 dzień. Pozostało: {store.RemainingDays}.");
                         }
 
                         if (store.RemainingDays <= 0)
@@ -108,7 +115,6 @@ namespace PriceSafari.Services.SubscriptionService
                             if (!store.Plan.IsTestPlan && store.Plan.NetPrice > 0)
                             {
                                 _logger.LogInformation($"Sklep {store.StoreName}: Generowanie faktury...");
-
                                 await GenerateRenewalInvoice(context, store, today, invoiceCounter, imojeService);
                             }
                             else
@@ -116,14 +122,16 @@ namespace PriceSafari.Services.SubscriptionService
                                 _logger.LogWarning($"Sklep {store.StoreName} jest płatnikiem, ale ma plan darmowy. Pomijam.");
                             }
                         }
+
+                        await context.SaveChangesAsync(ct);
                     }
                     else
                     {
                         if (store.RemainingDays > 0)
                         {
                             store.RemainingDays--;
-                            _logger.LogInformation($"Sklep TESTOWY {store.StoreName}: Zabrano dzień. Stan: {store.RemainingDays}.");
                         }
+                        await context.SaveChangesAsync(ct);
                     }
                 }
                 catch (Exception ex)
@@ -132,21 +140,19 @@ namespace PriceSafari.Services.SubscriptionService
                 }
             }
 
-            await context.SaveChangesAsync(ct);
             _logger.LogInformation("Zakończono przetwarzanie subskrypcji.");
         }
 
         private async Task GenerateRenewalInvoice(
-            PriceSafariContext context,
-            StoreClass store,
-            DateTime issueDate,
-            InvoiceCounter counter,
-            IImojeService imojeService)
+             PriceSafariContext context,
+             StoreClass store,
+             DateTime issueDate,
+             InvoiceCounter counter,
+             IImojeService imojeService)
         {
             if (store.Plan.IsTestPlan || store.Plan.NetPrice == 0) return;
 
             var paymentData = store.PaymentData;
-
             decimal netPrice = store.Plan.NetPrice;
             decimal appliedDiscountPercentage = 0;
             decimal appliedDiscountAmount = 0;
@@ -160,7 +166,6 @@ namespace PriceSafari.Services.SubscriptionService
 
             counter.LastInvoiceNumber++;
             int currentInvoiceNumber = counter.LastInvoiceNumber;
-
             string invoiceNumberFormatted = $"PS/{currentInvoiceNumber:D6}/sDB/{issueDate.Year}";
 
             var invoice = new InvoiceClass
@@ -185,17 +190,19 @@ namespace PriceSafari.Services.SubscriptionService
                 InvoiceNumber = invoiceNumberFormatted
             };
 
-            context.Invoices.Add(invoice);
-
             store.RemainingDays += store.Plan.DaysPerInvoice;
             store.ProductsToScrap = store.Plan.ProductsToScrap;
             store.ProductsToScrapAllegro = store.Plan.ProductsToScrapAllegro;
 
+            context.Invoices.Add(invoice);
+
+            await context.SaveChangesAsync();
+
             if (store.IsRecurringActive && !string.IsNullOrEmpty(store.ImojePaymentProfileId))
             {
-                _logger.LogInformation($"Próba automatycznego obciążenia karty dla faktury {invoice.InvoiceNumber} (Sklep: {store.StoreName})...");
+                _logger.LogInformation($"Próba automatycznego obciążenia karty dla faktury {invoice.InvoiceNumber}...");
 
-                string serverIp = "127.0.0.1";
+                string serverIp = _configuration["SERVER_PUBLIC_IP"] ?? "127.0.0.1";
 
                 bool paymentSuccess = await imojeService.ChargeProfileAsync(store.ImojePaymentProfileId, invoice, serverIp);
 
@@ -203,13 +210,13 @@ namespace PriceSafari.Services.SubscriptionService
                 {
                     invoice.IsPaid = true;
                     invoice.PaymentDate = DateTime.Now;
-                    _logger.LogInformation($"SUKCES: Faktura {invoice.InvoiceNumber} została opłacona automatycznie z karty.");
+                    _logger.LogInformation($"SUKCES: Faktura {invoice.InvoiceNumber} opłacona automatycznie z karty.");
+
+                    await context.SaveChangesAsync();
                 }
                 else
                 {
-
-                    _logger.LogWarning($"PORAŻKA: Nie udało się obciążyć karty dla faktury {invoice.InvoiceNumber}. Pozostaje jako nieopłacona.");
-
+                    _logger.LogWarning($"PORAŻKA: Nie udało się obciążyć karty dla faktury {invoice.InvoiceNumber}.");
                 }
             }
         }
