@@ -11,6 +11,7 @@ using System.Security.Claims;
 namespace PriceSafari.Controllers.MemberControllers
 {
     [Authorize(Roles = "Member, PreMember")]
+
     public class PaymentController : Controller
     {
         private readonly PriceSafariContext _context;
@@ -136,6 +137,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 Allegro = store.Plan?.Allegro ?? false,
                 Info = store.Plan?.Info ?? string.Empty,
                 IsRecurringActive = store.IsRecurringActive,
+                CardMaskedNumber = store.CardMaskedNumber,
+                CardBrand = store.CardBrand
             };
 
             return View("~/Views/Panel/Plans/StorePayments.cshtml", viewModel);
@@ -219,7 +222,6 @@ namespace PriceSafari.Controllers.MemberControllers
             string customerEmail = user.Email;
 
             string amount = "100";
-
             string orderId = $"REG-{store.StoreId}-{DateTime.Now.Ticks}";
             string customerId = store.StoreId.ToString();
 
@@ -232,32 +234,42 @@ namespace PriceSafari.Controllers.MemberControllers
                 return StatusCode(500, new { error = "Błąd konfiguracji serwera: Brak kluczy imoje w .env" });
             }
 
-            var domain = $"{Request.Scheme}://{Request.Host}";
+            var urlNotification = Url.Action(
+                action: "Notification",
+                controller: "Payment",
+                values: null,
+                protocol: Request.Scheme);
 
-            var urlNotification = $"{domain}/Member/Payment/Notification";
+            var urlSuccess = Url.Action(
+                action: "StorePayments",
+                controller: "Payment",
+                values: new { storeId = storeId, status = "success" },
+                protocol: Request.Scheme);
 
-            var urlSuccess = $"{domain}/Member/Payment/StorePayments?storeId={storeId}&status=success";
-            var urlFailure = $"{domain}/Member/Payment/StorePayments?storeId={storeId}&status=failure";
+            var urlFailure = Url.Action(
+                action: "StorePayments",
+                controller: "Payment",
+                values: new { storeId = storeId, status = "failure" },
+                protocol: Request.Scheme);
 
             var signatureData = new Dictionary<string, string>
-                {
-                    { "merchantId", merchantId },
-                    { "serviceId", serviceId },
-                    { "amount", amount },
-                    { "currency", "PLN" },
-                    { "orderId", orderId },
-                    { "customerId", customerId },
-                    { "customerFirstName", customerFirstName },
-                    { "customerLastName", customerLastName },
-                    { "customerEmail", customerEmail },
-                    { "widgetType", "recurring" },
-                    { "urlNotification", urlNotification },
-                    { "urlSuccess", urlSuccess },
-                    { "urlFailure", urlFailure }
-                };
+            {
+                { "merchantId", merchantId },
+                { "serviceId", serviceId },
+                { "amount", amount },
+                { "currency", "PLN" },
+                { "orderId", orderId },
+                { "customerId", customerId },
+                { "customerFirstName", customerFirstName },
+                { "customerLastName", customerLastName },
+                { "customerEmail", customerEmail },
+                { "widgetType", "recurring" },
+                { "urlNotification", urlNotification },
+                { "urlSuccess", urlSuccess },
+                { "urlFailure", urlFailure }
+            };
 
             var signature = _imojeService.CalculateSignature(signatureData);
-
             var frontendData = new Dictionary<string, string>(signatureData);
 
             return Json(new
@@ -271,10 +283,9 @@ namespace PriceSafari.Controllers.MemberControllers
 
         [HttpPost]
         [AllowAnonymous]
-        [Route("Member/Payment/Notification")]
+
         public async Task<IActionResult> Notification()
         {
-
             if (!Request.Headers.TryGetValue("X-Imoje-Signature", out var signatureHeader))
             {
                 return BadRequest();
@@ -287,12 +298,10 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (!success)
             {
-
                 return BadRequest("Invalid Signature");
             }
 
             return Ok(new { status = "ok" });
         }
-
     }
 }

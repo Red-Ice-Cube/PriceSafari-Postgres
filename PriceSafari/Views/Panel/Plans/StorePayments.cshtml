@@ -23,7 +23,6 @@
 
     var paymentDataListJson = JsonConvert.SerializeObject(safePaymentDataList, jsonSettings);
 
-    // Logika obrazków (bez zmian)
     string planImageFile = "";
     if (Model.IsTestPlan) planImageFile = "Free.png";
     else if (Model.ProductsToScrap <= 500) planImageFile = "Lite.png";
@@ -41,7 +40,7 @@
 }
 
 <style>
-    /* ... Twoje istniejące style (zachowaj je) ... */
+
     .details-container {
         display: flex;
         gap: 30px;
@@ -246,7 +245,6 @@
         display: none;
     }
 
-    /* NOWY STYL DLA AKTYWNEJ KARTY */
     .active-card-box {
         border: 1px solid #c3e6cb;
         background-color: #d4edda;
@@ -416,15 +414,44 @@
                                         {
                                             <div class="active-card-box">
                                                 <div class="active-card-icon">
-                                                    <i class="fas fa-credit-card"></i> <i class="fas fa-check-circle" style="font-size: 20px; margin-left: -10px; vertical-align: bottom; color: #155724; background: white; border-radius: 50%;"></i>
-                                                </div>
-                                                <div class="active-card-title">Karta podłączona</div>
-                                                <div class="active-card-desc">
-                                                    Twoja karta jest aktywna. Faktury będą opłacane automatycznie.<br />
-                                                    <span style="font-size: 0.85em; color: #555;">(Możesz ją zmienić, klikając "Podłącz kartę" poniżej)</span>
+                                                    @* Dynamiczna ikona *@
+                                                    @if (!string.IsNullOrEmpty(Model.CardBrand) && Model.CardBrand.ToLower().Contains("visa"))
+                                                    {
+                                                        <i class="fab fa-cc-visa" style="font-size: 40px; color: #1a1f71;"></i>
+                                                    }
+                                                    else if (!string.IsNullOrEmpty(Model.CardBrand) && Model.CardBrand.ToLower().Contains("master"))
+                                                    {
+                                                        <i class="fab fa-cc-mastercard" style="font-size: 40px; color: #eb001b;"></i>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="fas fa-credit-card" style="font-size: 40px; color: #28a745;"></i>
+                                                    }
+                                                    @* Znaczek "Check" *@
+                                                    <i class="fas fa-check-circle" style="font-size: 20px; margin-left: -10px; vertical-align: bottom; color: #155724; background: white; border-radius: 50%;"></i>
                                                 </div>
 
-                                                <button id="btnConnectCard" type="button" class="Button-Action-Small" style="width: 100%; justify-content: center; margin-top: 15px; background-color: #fff; color: #333; border: 1px solid #ccc;">
+                                                <div class="active-card-title">
+                                                    @if (!string.IsNullOrEmpty(Model.CardMaskedNumber))
+                                                    {
+                                                        @* Wyświetl markę i ostatnie 4 cyfry *@
+                                                        <span>@(Model.CardBrand ?? "Karta")</span>
+                                                        <span style="letter-spacing: 2px;">
+                                                            @Model.CardMaskedNumber.Substring(Math.Max(0, Model.CardMaskedNumber.Length - 4))
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>Karta podłączona</span>
+                                                    }
+                                                </div>
+
+                                                <div class="active-card-desc">
+                                                    Twoja metoda płatności jest aktywna.<br />
+                                                    Faktury będą opłacane automatycznie.
+                                                </div>
+
+                                                <button id="btnChangeCard" type="button" class="Button-Action-Small btn-connect-card" style="width: 100%; justify-content: center; margin-top: 15px; background-color: #fff; color: #333; border: 1px solid #ccc;">
                                                     <i class="fas fa-sync-alt" style="margin-right: 8px;"></i> Zmień metodę płatności
                                                 </button>
                                             </div>
@@ -539,27 +566,29 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
     <script>
-        $(document).ready(function () {
-            // 1. OBSŁUGA POWROTU Z PŁATNOŚCI (URL Params)
-            const urlParams = new URLSearchParams(window.location.search);
-            const status = urlParams.get('status');
+          $(document).ready(function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const status = urlParams.get('status');
 
-            if (status === 'success') {
-                $("#paymentSuccessAlert").show();
-                // Usuń parametry z URL dla czystości, bez przeładowania
-                window.history.replaceState(null, null, window.location.pathname + "?storeId=@Model.StoreId");
+        const cardNotConnectedSection = $("#cardNotConnectedSection");
+        const cardConnectedSection = $("#cardConnectedSection");
 
-                // Opcjonalnie: Otwórz modal automatycznie, żeby user zobaczył "Aktywna Karta"
-                // $("#managePlanModal").modal('show');
-            } else if (status === 'failure') {
-                $("#paymentFailureAlert").show();
-                window.history.replaceState(null, null, window.location.pathname + "?storeId=@Model.StoreId");
-                 // Otwórz modal, żeby mógł spróbować ponownie
-                $("#managePlanModal").modal('show');
+        if (status === 'success') {
+            $("#paymentSuccessAlert").show();
+
+            if(cardNotConnectedSection.length && cardConnectedSection.length) {
+                cardNotConnectedSection.hide();
+                cardConnectedSection.show();
             }
 
+            window.history.replaceState(null, null, window.location.pathname + "?storeId=@Model.StoreId");
 
-            // 2. WYŚWIETLANIE DANYCH FAKTUROWYCH
+        } else if (status === 'failure') {
+            $("#paymentFailureAlert").show();
+            window.history.replaceState(null, null, window.location.pathname + "?storeId=@Model.StoreId");
+            $("#managePlanModal").modal('show');
+        }
+
             var paymentDataList = @Html.Raw(paymentDataListJson);
             var currentPaymentData = null;
 
@@ -595,7 +624,6 @@
                 $("#paymentDataDetails").hide();
             }
 
-            // 3. LOGIKA WIDGETU
             $("#btnConnectCard").click(function() {
                 var btn = $(this);
                 var originalText = btn.html();
@@ -624,7 +652,6 @@
                         script.setAttribute("data-customer-email", d.customerEmail);
                         script.setAttribute("data-widget-type", d.widgetType);
 
-                        // --- NOWE ATRYBUTY URL (zgodnie z ustaleniami) ---
                         script.setAttribute("data-url-notification", d.urlNotification);
                         script.setAttribute("data-url-success", d.urlSuccess);
                         script.setAttribute("data-url-failure", d.urlFailure);
@@ -634,7 +661,6 @@
 
                         document.getElementById("imoje-widget-container").appendChild(script);
 
-                        // Reset przycisku po chwili (bo widget się ładuje)
                         setTimeout(function() {
                              btn.prop('disabled', false).html(originalText);
                         }, 2000);
@@ -649,7 +675,6 @@
                 });
             });
 
-            // 4. LOGIKA REZYGNACJI
             $("#openResignationModalBtn").click(function() {
                 $("#managePlanModal").modal('hide');
                 setTimeout(function() {

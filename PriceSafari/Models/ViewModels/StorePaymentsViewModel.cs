@@ -19,12 +19,13 @@ namespace PriceSafari.Models.ViewModels
         public List<InvoiceClass> Invoices { get; set; }
         public List<UserPaymentData> PaymentDataList { get; set; }
 
-        // Nowe pola
         public bool Ceneo { get; set; }
         public bool GoogleShopping { get; set; }
         public bool Allegro { get; set; }
         public string Info { get; set; }
 
         public bool IsRecurringActive { get; set; }
+        public string CardMaskedNumber { get; set; }
+        public string CardBrand { get; set; }
     }
 }

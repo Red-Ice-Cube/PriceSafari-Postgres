@@ -117,37 +117,46 @@ namespace PriceSafari.Services.Imoje
         {
             try
             {
-
+                // 1. Weryfikacja podpisu
                 if (!VerifySignature(headerSignature, requestBody))
                 {
                     _logger.LogError("Imoje Webhook: Nieprawidłowy podpis!");
                     return false;
                 }
 
+                // 2. Parsowanie JSON
                 var json = JObject.Parse(requestBody);
                 var transaction = json["transaction"];
 
                 if (transaction == null) return true;
 
+                // 3. Sprawdzenie statusu (interesuje nas tylko sukces)
                 string status = transaction["status"]?.ToString();
                 if (status != "settled") return true;
 
+                // 4. Wyciąganie danych podstawowych
                 string transactionId = transaction["id"]?.ToString();
                 string orderId = transaction["orderId"]?.ToString();
                 string customerIdStr = transaction["customer"]?["id"]?.ToString();
                 int amount = (int)(transaction["amount"] ?? 0);
 
-                string paymentProfileId = json["action"]?["paymentProfile"]?["id"]?.ToString()
-                                       ?? json["paymentProfile"]?["id"]?.ToString();
+                // 5. POBIERANIE DANYCH KARTY (PROFILU)
+                // Profil może być w 'action.paymentProfile' (dla widgetu) lub w głównym 'paymentProfile'
+                var profileObj = json["action"]?["paymentProfile"] ?? json["paymentProfile"];
+
+                // Pobieramy ID profilu (token)
+                string paymentProfileId = profileObj?["id"]?.ToString();
 
                 if (string.IsNullOrEmpty(paymentProfileId))
                 {
                     _logger.LogWarning($"Imoje Webhook: Brak paymentProfileId dla transakcji {transactionId}");
+                    // Jeśli to nie była transakcja recurring, to profilu może nie być - zwracamy true (obsłużono)
                     return true;
                 }
 
                 if (!int.TryParse(customerIdStr, out int storeId)) return true;
 
+                // 6. ZAPIS DO BAZY DANYCH
                 using (var scope = _scopeFactory.CreateScope())
                 {
                     var dbContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
@@ -155,18 +164,34 @@ namespace PriceSafari.Services.Imoje
 
                     if (store != null)
                     {
-
+                        // --- AKTUALIZACJA DANYCH TECHNICZNYCH ---
                         store.ImojePaymentProfileId = paymentProfileId;
                         store.IsRecurringActive = true;
                         store.IsPayingCustomer = true;
 
-                        if (store.SubscriptionStartDate == null) store.SubscriptionStartDate = DateTime.Now;
+                        // --- AKTUALIZACJA DANYCH KARTY (NOWE POLA) ---
+                        if (profileObj != null)
+                        {
+                            // Przychodzi np. "411111******1111"
+                            store.CardMaskedNumber = profileObj["maskedNumber"]?.ToString();
+
+                            // Przychodzi np. "Visa", "MasterCard"
+                            store.CardBrand = profileObj["organization"]?.ToString();
+
+                            // Data ważności
+                            store.CardExpYear = profileObj["year"]?.ToString();
+                            store.CardExpMonth = profileObj["month"]?.ToString();
+                        }
+
+                        if (store.SubscriptionStartDate == null)
+                            store.SubscriptionStartDate = DateTime.Now;
 
                         await dbContext.SaveChangesAsync();
-                        _logger.LogInformation($"Imoje: Zapisano kartę (Token: {paymentProfileId}) dla sklepu {storeId}");
+                        _logger.LogInformation($"Imoje: Zapisano kartę {store.CardMaskedNumber} ({store.CardBrand}) dla sklepu {storeId}");
                     }
                 }
 
+                // 7. ZWROT 1 PLN (jeśli to weryfikacja)
                 if (amount == 100 && orderId != null && orderId.StartsWith("REG-"))
                 {
                     await RefundTransactionPrivateAsync(transactionId, amount, _serviceId);
@@ -177,6 +202,7 @@ namespace PriceSafari.Services.Imoje
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Imoje Webhook: Błąd krytyczny");
+                // Zwracamy false tylko przy błędzie krytycznym, żeby imoje ponowiło próbę
                 return false;
             }
         }

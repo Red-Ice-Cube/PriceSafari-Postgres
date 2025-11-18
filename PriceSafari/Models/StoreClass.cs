@@ -75,6 +75,18 @@ namespace PriceSafari.Models
         public string? ImojePaymentProfileId { get; set; } // Token do obciążania karty
         public bool IsRecurringActive { get; set; } = false;
 
+        [Display(Name = "Numer karty (maskowany)")]
+        public string? CardMaskedNumber { get; set; } // np. "**** 1234"
+
+        [Display(Name = "Wystawca karty")]
+        public string? CardBrand { get; set; } // np. "Visa"
+
+        [Display(Name = "Rok ważności karty")]
+        public string? CardExpYear { get; set; }
+
+        [Display(Name = "Miesiąc ważności karty")]
+        public string? CardExpMonth { get; set; }
+
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
         public ICollection<ProductClass> Products { get; set; } = new List<ProductClass>();
         public ICollection<AllegroProductClass> AllegroProducts { get; set; } = new List<AllegroProductClass>();
