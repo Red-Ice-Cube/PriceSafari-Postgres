@@ -240,6 +240,11 @@
             color: white;
             text-decoration: none;
         }
+
+
+    #imoje-widget-container {
+        display: none;
+    }
 </style>
 
 <div class="Vert">
@@ -355,6 +360,20 @@
                                             <tr><th>E-mail do faktur</th><td id="invoiceAutoMail"></td></tr>
                                             <tr><th>Automatyczna wysyłka</th><td id="invoiceAutoMailSend"></td></tr>
                                         </table>
+                                    </div>
+                                    <div style="margin-top: 30px; border-top: 1px solid #dee2e6; padding-top: 20px;">
+                                        <h6 style="color: #6c757d; margin-bottom: 15px;">Metoda płatności (Subskrypcja)</h6>
+
+                                        <p style="font-size: 0.9em; color: #6c757d; margin-bottom: 15px;">
+                                            Podłącz kartę płatniczą, aby opłacać faktury automatycznie. Pobierzemy 1 PLN w celu weryfikacji.
+                                        </p>
+
+                                        <button id="btnConnectCard" type="button" class="Button-Action-Small" style="width: 100%; justify-content: center;">
+                                            <i class="fas fa-credit-card" style="margin-right: 8px;"></i> Podłącz kartę płatniczą (imoje)
+                                        </button>
+
+                                        @* Kontener techniczny dla widgetu (musi być w DOM, może być tutaj) *@
+                                        <div id="imoje-widget-container"></div>
                                     </div>
                                 </div>
                             </div>
@@ -495,6 +514,9 @@
     </div>
 </div>
 
+
+
+
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
@@ -536,10 +558,74 @@
                 $("#paymentDataDetails").hide();
             }
 
+            // --- LOGIKA IMOJE: START ---
+            $("#btnConnectCard").click(function() {
+                var btn = $(this);
+                // Zablokuj przycisk, żeby user nie klikał 10 razy
+                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Łączenie...');
+
+                // 1. Pobierz dane konfiguracyjne z backendu
+                $.post("@Url.Action("GetImojeWidgetData", "Payment")", { storeId: @Model.StoreId }, function(response) {
+                    if(response.success) {
+                        var d = response.data;
+
+                        // Wyczyść kontener na wszelki wypadek
+                        $("#imoje-widget-container").empty();
+
+                        // 2. Stwórz dynamicznie tag <script>
+                        var script = document.createElement('script');
+                        script.src = response.scriptUrl; // Backend zwraca URL (tu będzie sandbox)
+                        script.id = "imoje-widget__script"; // Wymagane ID przez imoje
+                        script.type = "text/javascript";
+
+                        // 3. Mapuj atrybuty data- z odpowiedzi JSON
+                        // Klucze w response.data (C# Dictionary) są case-sensitive, ale JSON serializer domyślnie w AJAX może zmieniać case.
+                        // Używamy wartości dokładnie takich, jakie zwrócił backend.
+
+                        script.setAttribute("data-merchant-id", d.merchantId);
+                        script.setAttribute("data-service-id", d.serviceId);
+                        script.setAttribute("data-amount", d.amount);
+                        script.setAttribute("data-currency", d.currency);
+                        script.setAttribute("data-order-id", d.orderId);
+                        script.setAttribute("data-customer-id", d.customerId);
+                        script.setAttribute("data-customer-first-name", d.customerFirstName);
+                        script.setAttribute("data-customer-last-name", d.customerLastName);
+                        script.setAttribute("data-customer-email", d.customerEmail);
+                        script.setAttribute("data-widget-type", d.widgetType); // "recurring"
+                        script.setAttribute("data-signature", response.signature);
+
+                        // Opcjonalne - locale (można dodać w backendzie lub tu na sztywno)
+                        script.setAttribute("data-locale", "pl");
+
+                        // Co po sukcesie? Np. przeładowanie strony
+                        // Na sandboxie imoje po sukcesie zamyka okno, ale warto obsłużyć callback
+                        // lub po prostu redirect backendowy (data-url-success)
+                        // UWAGA: Widget imoje standardowo przekierowuje na URL sukcesu/porażki.
+                        // Możesz dodać je w backendzie do słownika lub tutaj.
+                        // Tutaj polegamy na domyślnym zachowaniu widgetu (otwarcie overlay).
+
+                        // 4. Dodaj skrypt do DOM - to automatycznie uruchomi widget imoje
+                        document.getElementById("imoje-widget-container").appendChild(script);
+
+                        // Odblokuj przycisk po chwili (widget się ładuje)
+                        setTimeout(function() {
+                             btn.prop('disabled', false).html('<i class="fas fa-credit-card" style="margin-right: 8px;"></i> Podłącz kartę płatniczą (imoje)');
+                        }, 2000);
+
+                    } else {
+                        alert("Błąd inicjalizacji płatności. Spróbuj ponownie.");
+                        btn.prop('disabled', false).html('<i class="fas fa-credit-card" style="margin-right: 8px;"></i> Podłącz kartę płatniczą (imoje)');
+                    }
+                }).fail(function() {
+                    alert("Błąd połączenia z serwerem.");
+                    btn.prop('disabled', false).html('<i class="fas fa-credit-card" style="margin-right: 8px;"></i> Podłącz kartę płatniczą (imoje)');
+                });
+            });
+            // --- LOGIKA IMOJE: KONIEC ---
+
+
             $("#openResignationModalBtn").click(function() {
-
                 $("#managePlanModal").modal('hide');
-
                 setTimeout(function() {
                     $("#resignationConfirmModal").modal('show');
                 }, 300);
@@ -555,7 +641,6 @@
                     data: { storeId: @Model.StoreId },
                     success: function (response) {
                         if (response.success) {
-
                             var successHtml = `
                                 <div class="mb-3">
                                     <i class="fas fa-check-circle fa-3x text-success" style="font-size: 3em; color: #28a745; margin: 15px 0;"></i>
@@ -563,7 +648,6 @@
                                 <h4 style="font-weight: 400;">Dziękujemy za informację.</h4>
                                 <p class="mt-3" style="font-size: 1.1em;">Przykro nam, że odchodzisz.</p>
                                 <p class="text-muted" style="font-size: 0.9em;">Skontaktujemy się z Tobą jak najszybciej, aby sfinalizować proces i zakończyć usługę monitoringu cen.</p>
-
                             `;
                             $("#resignationModalBody").html(successHtml);
                         } else {
