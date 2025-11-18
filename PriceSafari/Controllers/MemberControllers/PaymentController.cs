@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
+using PriceSafari.Services.Imoje;
 using System.Security.Claims;
 
 namespace PriceSafari.Controllers.MemberControllers
@@ -14,11 +15,20 @@ namespace PriceSafari.Controllers.MemberControllers
     {
         private readonly PriceSafariContext _context;
         private readonly UserManager<PriceSafariUser> _userManager;
+        private readonly IImojeService _imojeService; // Interfejs serwisu
+        private readonly IConfiguration _config;      // Potrzebne do pobrania kluczy z appsettings/.env
 
-        public PaymentController(PriceSafariContext context, UserManager<PriceSafariUser> userManager)
+        // Poprawiony konstruktor
+        public PaymentController(
+            PriceSafariContext context,
+            UserManager<PriceSafariUser> userManager,
+            IImojeService imojeService,
+            IConfiguration config)
         {
             _context = context;
             _userManager = userManager;
+            _imojeService = imojeService;
+            _config = config;
         }
 
         [HttpGet]
@@ -160,14 +170,11 @@ namespace PriceSafari.Controllers.MemberControllers
             return document.GeneratePdf();
         }
 
-
-
         [HttpPost]
         public async Task<IActionResult> RequestResignation(int storeId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // 1. Sprawdź czy użytkownik ma dostęp do tego sklepu
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
 
@@ -176,7 +183,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Unauthorized();
             }
 
-            // 2. Pobierz sklep
             var store = await _context.Stores.FirstOrDefaultAsync(s => s.StoreId == storeId);
 
             if (store == null)
@@ -184,14 +190,54 @@ namespace PriceSafari.Controllers.MemberControllers
                 return NotFound("Sklep nie został znaleziony.");
             }
 
-            // 3. Ustaw flagę rezygnacji
             store.UserWantsExit = true;
-
-            // Opcjonalnie: Możesz tu dodać logikę wysyłania maila do administratora o rezygnacji
 
             await _context.SaveChangesAsync();
 
             return Ok(new { success = true });
+        }
+
+
+
+
+
+        [HttpPost] // Akcja wywoływana AJAX-em, żeby dostać dane do widgetu
+        public IActionResult GetImojeWidgetData(int storeId)
+        {
+            var userId = _userManager.GetUserId(User);
+            var store = _context.Stores.Include(s => s.Plan).FirstOrDefault(s => s.StoreId == storeId);
+
+            // Logika: Pobieramy 1 PLN (lub kwotę planu) w celu autoryzacji.
+            // Jeśli 1 PLN to potem robimy refund, jeśli pełna kwota to przedłużamy ważność.
+            // Przyjmijmy autoryzację na 1.00 PLN
+            string amount = "100"; // 100 groszy = 1 PLN
+            string orderId = $"REG-{store.StoreId}-{DateTime.Now.Ticks}"; // Unikalne ID transakcji rejestrującej
+            string customerId = store.StoreId.ToString(); // CID - ważne dla recurring
+
+            var data = new Dictionary<string, string>
+                {
+                    { "merchantId", _config["Imoje:MerchantId"] },
+                    { "serviceId", _config["Imoje:ServiceId"] },
+                    { "amount", amount },
+                    { "currency", "PLN" },
+                    { "orderId", orderId },
+                    { "customerId", customerId }, // To jest kluczowe!
+                    { "customerFirstName", "Jan" }, // Pobierz z danych usera/sklepu
+                    { "customerLastName", "Kowalski" },
+                    { "customerEmail", "email@sklepu.pl" },
+                    // Ważne: widgetType recurring
+                    { "widgetType", "recurring" }
+                };
+
+            var signature = _imojeService.CalculateSignature(data);
+
+            return Json(new
+            {
+                success = true,
+                data = data,
+                signature = signature,
+                scriptUrl = _config["Imoje:WidgetUrl"] // https://sandbox.paywall.imoje.pl/js/widget.min.js
+            });
         }
     }
 }

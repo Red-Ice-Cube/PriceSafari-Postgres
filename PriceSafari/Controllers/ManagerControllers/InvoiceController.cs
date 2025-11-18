@@ -22,7 +22,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         public async Task<IActionResult> Index()
         {
-            // Sortujemy malejąco po dacie, żeby najnowsze były na górze
+
             var invoices = await _context.Invoices
                 .Include(i => i.Store)
                 .Include(i => i.Plan)
@@ -86,15 +86,12 @@ namespace PriceSafari.Controllers.ManagerControllers
                     _context.Update(invoice);
                     await _context.SaveChangesAsync();
 
-                    // ZMIANA: Usunięto logikę dodawania dni przy edycji
                     if (invoice.IsPaid)
                     {
                         var store = await _context.Stores.Include(s => s.Plan).FirstOrDefaultAsync(s => s.StoreId == invoice.StoreId);
                         if (store != null)
                         {
-                            // Linia usunięta: store.RemainingDays += invoice.DaysIncluded;
 
-                            // Pozostawiono aktualizację limitów (jeśli też ma być usunięta, daj znać)
                             store.ProductsToScrap = store.Plan.ProductsToScrap;
                             await _context.SaveChangesAsync();
                         }
@@ -143,8 +140,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 if (invoice.InvoiceNumber.StartsWith("FP/"))
                 {
 
-
-
                     invoice.OriginalProformaNumber = invoice.InvoiceNumber;
 
                     int invoiceNumber = await GetNextInvoiceNumberAsync();
@@ -156,8 +151,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 if (store != null)
                 {
                     store.PlanId = invoice.PlanId;
-                    // ZMIANA: Linia usunięta - nie dodajemy już dni do konta tutaj
-                    // store.RemainingDays += invoice.DaysIncluded; 
 
                     store.ProductsToScrap = invoice.Plan.ProductsToScrap;
                 }
@@ -189,7 +182,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return _context.Invoices.Any(e => e.InvoiceId == id);
         }
 
-
         [HttpGet]
         public async Task<IActionResult> DownloadPdf(int id)
         {
@@ -203,7 +195,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return NotFound("Faktura nie została znaleziona.");
             }
 
-            // Zakładam, że klasa InvoiceDocument jest dostępna tak jak w kontrolerze klienta
             var logoImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "cid", "signature.png");
             var document = new InvoiceDocument(invoice, logoImagePath);
             var pdfBytes = document.GeneratePdf();
