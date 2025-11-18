@@ -565,29 +565,82 @@
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+
     <script>
-          $(document).ready(function () {
-        const urlParams = new URLSearchParams(window.location.search);
-        const status = urlParams.get('status');
+        $(document).ready(function () {
+            // ==================================================
+            // 2. KONFIGURACJA NASŁUCHU DEBUGOWANIA (SIGNALR)
+            // ==================================================
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/paymentDebugHub")
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
 
-        const cardNotConnectedSection = $("#cardNotConnectedSection");
-        const cardConnectedSection = $("#cardConnectedSection");
+            // Funkcja odbierająca JSON od Imoje
+            connection.on("ReceiveImojeData", function (jsonString) {
+                // Wyświetlamy alert na ekranie
+                alert("⚠️ Otrzymano Webhook od Imoje! Sprawdź konsolę (F12) aby zobaczyć dane.");
 
-        if (status === 'success') {
-            $("#paymentSuccessAlert").show();
+                // Wyświetlamy dane w konsoli w czytelny sposób
+                console.group("%c 🔥🔥🔥 IMOJE WEBHOOK DATA 🔥🔥🔥", "background: #e74c3c; color: white; font-size: 16px; padding: 4px; border-radius: 4px;");
 
-            if(cardNotConnectedSection.length && cardConnectedSection.length) {
-                cardNotConnectedSection.hide();
-                cardConnectedSection.show();
+                console.log("%cSurowy ciąg znaków:", "color: gray;", jsonString);
+
+                try {
+                    const data = JSON.parse(jsonString);
+                    console.log("%cSparsowany Obiekt:", "color: green; font-weight: bold;", data);
+
+                    // Sprawdźmy od razu czy jest transaction lub action
+                    if(data.transaction) console.log("Znaleziono sekcję 'transaction'");
+                    if(data.action) console.log("Znaleziono sekcję 'action'");
+
+                } catch (e) {
+                    console.error("Błąd parsowania JSON:", e);
+                }
+                console.groupEnd();
+            });
+
+            // Funkcja odbierająca logi tekstowe z serwera
+            connection.on("ReceiveImojeLog", function (message) {
+                console.log("%c [SERVER LOG]: " + message, "color: #3498db; font-weight: bold;");
+            });
+
+            // Start połączenia
+            connection.start()
+                .then(function () {
+                    console.log("🟢 Połączono z PaymentDebugHub. Oczekiwanie na płatność...");
+                })
+                .catch(function (err) {
+                    return console.error("🔴 Błąd połączenia z Hubem: " + err.toString());
+                });
+            // ==================================================
+
+
+            // --- PONIŻEJ TWOJA ISTNIEJĄCA LOGIKA ---
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const status = urlParams.get('status');
+
+            const cardNotConnectedSection = $("#cardNotConnectedSection");
+            const cardConnectedSection = $("#cardConnectedSection");
+
+            if (status === 'success') {
+                $("#paymentSuccessAlert").show();
+
+                if (cardNotConnectedSection.length && cardConnectedSection.length) {
+                    cardNotConnectedSection.hide();
+                    cardConnectedSection.show();
+                }
+
+                window.history.replaceState(null, null, window.location.pathname + "?storeId=@Model.StoreId");
+
+            } else if (status === 'failure') {
+                $("#paymentFailureAlert").show();
+                window.history.replaceState(null, null, window.location.pathname + "?storeId=@Model.StoreId");
+                $("#managePlanModal").modal('show');
             }
-
-            window.history.replaceState(null, null, window.location.pathname + "?storeId=@Model.StoreId");
-
-        } else if (status === 'failure') {
-            $("#paymentFailureAlert").show();
-            window.history.replaceState(null, null, window.location.pathname + "?storeId=@Model.StoreId");
-            $("#managePlanModal").modal('show');
-        }
 
             var paymentDataList = @Html.Raw(paymentDataListJson);
             var currentPaymentData = null;
@@ -624,14 +677,14 @@
                 $("#paymentDataDetails").hide();
             }
 
-            $("#btnConnectCard").click(function() {
+            $("#btnConnectCard").click(function () {
                 var btn = $(this);
                 var originalText = btn.html();
 
                 btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Przetwarzanie...');
 
-                $.post("@Url.Action("GetImojeWidgetData", "Payment")", { storeId: @Model.StoreId }, function(response) {
-                    if(response.success) {
+                $.post("@Url.Action("GetImojeWidgetData", "Payment")", { storeId: @Model.StoreId }, function (response) {
+                    if (response.success) {
                         var d = response.data;
 
                         $("#imoje-widget-container").empty();
@@ -641,6 +694,7 @@
                         script.id = "imoje-widget__script";
                         script.type = "text/javascript";
 
+                        // Przepisanie atrybutów
                         script.setAttribute("data-merchant-id", d.merchantId);
                         script.setAttribute("data-service-id", d.serviceId);
                         script.setAttribute("data-amount", d.amount);
@@ -661,28 +715,28 @@
 
                         document.getElementById("imoje-widget-container").appendChild(script);
 
-                        setTimeout(function() {
-                             btn.prop('disabled', false).html(originalText);
+                        setTimeout(function () {
+                            btn.prop('disabled', false).html(originalText);
                         }, 2000);
 
                     } else {
                         alert("Błąd inicjalizacji płatności. Spróbuj ponownie.");
                         btn.prop('disabled', false).html(originalText);
                     }
-                }).fail(function() {
+                }).fail(function () {
                     alert("Błąd połączenia z serwerem.");
                     btn.prop('disabled', false).html(originalText);
                 });
             });
 
-            $("#openResignationModalBtn").click(function() {
+            $("#openResignationModalBtn").click(function () {
                 $("#managePlanModal").modal('hide');
-                setTimeout(function() {
+                setTimeout(function () {
                     $("#resignationConfirmModal").modal('show');
                 }, 300);
             });
 
-            $("#confirmResignationBtn").click(function() {
+            $("#confirmResignationBtn").click(function () {
                 var btn = $(this);
                 btn.prop('disabled', true).text('Przetwarzanie...');
 

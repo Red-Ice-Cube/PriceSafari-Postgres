@@ -87,6 +87,7 @@ public class Program
         builder.Services.AddHostedService<PriceSafari.Services.SubscriptionService.SubscriptionManagerService>();
         builder.Services.AddHttpClient<PriceSafari.Services.Imoje.IImojeService, PriceSafari.Services.Imoje.ImojeService>();
 
+
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 
         builder.Services.AddMemoryCache();
@@ -171,6 +172,8 @@ public class Program
         app.MapHub<ScrapingHub>("/scrapingHub");
         app.MapHub<ReportProgressHub>("/reportProgressHub");
         app.MapHub<DashboardProgressHub>("/dashboardProgressHub");
+        //DO USUNIECIA
+        app.MapHub<PriceSafari.Controllers.MemberControllers.PaymentDebugHub>("/paymentDebugHub");
 
         await app.RunAsync();
     }
