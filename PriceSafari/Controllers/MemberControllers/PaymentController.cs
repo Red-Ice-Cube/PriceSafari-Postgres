@@ -238,7 +238,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 action: "Notification",
                 controller: "Payment",
                 values: null,
-                protocol: Request.Scheme);
+                protocol: "https"
+            );
 
             var urlSuccess = Url.Action(
                 action: "StorePayments",
@@ -283,12 +284,14 @@ namespace PriceSafari.Controllers.MemberControllers
 
         [HttpPost]
         [AllowAnonymous]
-
+        [IgnoreAntiforgeryToken]
+        [Route("Payment/Notification")]
         public async Task<IActionResult> Notification()
         {
+
             if (!Request.Headers.TryGetValue("X-Imoje-Signature", out var signatureHeader))
             {
-                return BadRequest();
+                return BadRequest("Missing Signature Header");
             }
 
             using var reader = new StreamReader(Request.Body);

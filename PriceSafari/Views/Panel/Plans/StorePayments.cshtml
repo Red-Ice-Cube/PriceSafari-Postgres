@@ -277,7 +277,7 @@
 <div class="Vert">
     <div class="Vert-full">
 
-        @* --- ALERTY STATUSOWE (JS je pokaże) --- *@
+     
         <div id="paymentSuccessAlert" class="alert alert-success alert-dismissible fade show" role="alert" style="display:none; margin-bottom: 20px;">
             <strong>Sukces!</strong> Twoja karta została pomyślnie zweryfikowana i podłączona. Subskrypcja jest aktywna.
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
@@ -326,7 +326,7 @@
                     </div>
                 </div>
 
-                @* ... (Sekcja details-main bez zmian) ... *@
+             
                 <div class="details-main info-card">
                     <div class="info-card-header">Szczegóły planu</div>
                     <div class="info-card-body">
@@ -370,7 +370,7 @@
             </div>
         </div>
 
-        @* --- GŁÓWNY MODAL --- *@
+   
         <div class="modal fade" id="managePlanModal" tabindex="-1" role="dialog" aria-labelledby="managePlanModalLabel" aria-hidden="true">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
@@ -409,12 +409,12 @@
                                     <div style="margin-top: 30px; border-top: 1px solid #dee2e6; padding-top: 20px;">
                                         <h6 style="color: #6c757d; margin-bottom: 15px;">Metoda płatności (Subskrypcja)</h6>
 
-                                        @* --- LOGIKA WYŚWIETLANIA KARTY --- *@
+                                      
                                         @if (Model.IsRecurringActive)
                                         {
                                             <div class="active-card-box">
                                                 <div class="active-card-icon">
-                                                    @* Dynamiczna ikona *@
+                                             
                                                     @if (!string.IsNullOrEmpty(Model.CardBrand) && Model.CardBrand.ToLower().Contains("visa"))
                                                     {
                                                         <i class="fab fa-cc-visa" style="font-size: 40px; color: #1a1f71;"></i>
@@ -427,14 +427,14 @@
                                                     {
                                                         <i class="fas fa-credit-card" style="font-size: 40px; color: #28a745;"></i>
                                                     }
-                                                    @* Znaczek "Check" *@
+                                                 
                                                     <i class="fas fa-check-circle" style="font-size: 20px; margin-left: -10px; vertical-align: bottom; color: #155724; background: white; border-radius: 50%;"></i>
                                                 </div>
 
                                                 <div class="active-card-title">
                                                     @if (!string.IsNullOrEmpty(Model.CardMaskedNumber))
                                                     {
-                                                        @* Wyświetl markę i ostatnie 4 cyfry *@
+                                               
                                                         <span>@(Model.CardBrand ?? "Karta")</span>
                                                         <span style="letter-spacing: 2px;">
                                                             @Model.CardMaskedNumber.Substring(Math.Max(0, Model.CardMaskedNumber.Length - 4))
@@ -467,14 +467,13 @@
                                             </button>
                                         }
 
-                                        @* Kontener techniczny dla widgetu *@
                                         <div id="imoje-widget-container"></div>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="modal-split-right">
-                                @* ... (Prawa strona modala bez zmian) ... *@
+                         
                                 <div class="info-card" style="height: 100%;">
                                     <div class="info-card-header">Podsumowanie planu</div>
                                     <div class="info-card-body">
@@ -484,7 +483,9 @@
                                             <span class="final-price-label">netto</span>
                                         </div>
                                         <div style="margin-top: 20px; font-size: 0.9em; color: #6c757d;">
-                                            <i class="fas fa-info-circle"></i> Jeśli potrzebujesz zaktualizować dane płatnika lub zmienić swój plan, skontaktuj się z nami.
+                                            <i class="fas fa-info-circle"></i> Jeśli potrzebujesz zaktualizować dane płatnika lub zmienić swój plan, skontaktuj się z nami, wysyłając wiadomość na adres <strong>biuro@pricesafari.pl</strong>.
+                                            <br /><br />
+                                            Faktury będą wystawiane i wysyłane automatycznie. Otrzymasz je z adresu faktury@pricesafari.pl.
                                             <br /><br />
                                             W przypadku chęci rezygnacji z usługi PriceSafari, możesz to zrobić za pomocą przycisku poniżej.
                                         </div>
@@ -503,7 +504,6 @@
             </div>
         </div>
 
-        @* ... (Modal rezygnacji i Tabela historii bez zmian) ... *@
         <div class="modal fade" id="resignationConfirmModal" tabindex="-1" role="dialog" aria-labelledby="resignationConfirmLabel" aria-hidden="true" style="z-index: 1060;">
             <div class="modal-dialog modal-sm modal-dialog-centered" role="document" style="min-width: 450px;">
                 <div class="modal-content" style="min-width: 450px;">

@@ -35,7 +35,6 @@ namespace PriceSafari.Models
         [Display(Name = "Pozostała Ilość Dni w programie")]
         public int RemainingDays { get; set; } = 0;
 
-        // --- NOWE POLA ---
         [Display(Name = "Czy jest płacącym klientem?")]
         public bool IsPayingCustomer { get; set; } = false;
 
@@ -71,15 +70,14 @@ namespace PriceSafari.Models
 
         public UserPaymentData? PaymentData { get; set; }
 
-
-        public string? ImojePaymentProfileId { get; set; } // Token do obciążania karty
+        public string? ImojePaymentProfileId { get; set; }
         public bool IsRecurringActive { get; set; } = false;
 
         [Display(Name = "Numer karty (maskowany)")]
-        public string? CardMaskedNumber { get; set; } // np. "**** 1234"
+        public string? CardMaskedNumber { get; set; }
 
         [Display(Name = "Wystawca karty")]
-        public string? CardBrand { get; set; } // np. "Visa"
+        public string? CardBrand { get; set; }
 
         [Display(Name = "Rok ważności karty")]
         public string? CardExpYear { get; set; }
