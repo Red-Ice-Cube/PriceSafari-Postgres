@@ -15,10 +15,9 @@ namespace PriceSafari.Controllers.MemberControllers
     {
         private readonly PriceSafariContext _context;
         private readonly UserManager<PriceSafariUser> _userManager;
-        private readonly IImojeService _imojeService; // Interfejs serwisu
-        private readonly IConfiguration _config;      // Potrzebne do pobrania kluczy z appsettings/.env
+        private readonly IImojeService _imojeService;
+        private readonly IConfiguration _config;
 
-        // Poprawiony konstruktor
         public PaymentController(
             PriceSafariContext context,
             UserManager<PriceSafariUser> userManager,
@@ -135,7 +134,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 Ceneo = store.Plan?.Ceneo ?? false,
                 GoogleShopping = store.Plan?.GoogleShopping ?? false,
                 Allegro = store.Plan?.Allegro ?? false,
-                Info = store.Plan?.Info ?? string.Empty
+                Info = store.Plan?.Info ?? string.Empty,
+                IsRecurringActive = store.IsRecurringActive,
             };
 
             return View("~/Views/Panel/Plans/StorePayments.cshtml", viewModel);
@@ -197,47 +197,102 @@ namespace PriceSafari.Controllers.MemberControllers
             return Ok(new { success = true });
         }
 
-
-
-
-
-        [HttpPost] // Akcja wywoływana AJAX-em, żeby dostać dane do widgetu
-        public IActionResult GetImojeWidgetData(int storeId)
+        [HttpPost]
+        public async Task<IActionResult> GetImojeWidgetData(int storeId)
         {
             var userId = _userManager.GetUserId(User);
-            var store = _context.Stores.Include(s => s.Plan).FirstOrDefault(s => s.StoreId == storeId);
 
-            // Logika: Pobieramy 1 PLN (lub kwotę planu) w celu autoryzacji.
-            // Jeśli 1 PLN to potem robimy refund, jeśli pełna kwota to przedłużamy ważność.
-            // Przyjmijmy autoryzację na 1.00 PLN
-            string amount = "100"; // 100 groszy = 1 PLN
-            string orderId = $"REG-{store.StoreId}-{DateTime.Now.Ticks}"; // Unikalne ID transakcji rejestrującej
-            string customerId = store.StoreId.ToString(); // CID - ważne dla recurring
+            var userStore = await _context.UserStores
+                .AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
 
-            var data = new Dictionary<string, string>
+            if (!userStore) return Unauthorized();
+
+            var store = await _context.Stores
+                .Include(s => s.Plan)
+                .FirstOrDefaultAsync(s => s.StoreId == storeId);
+
+            if (store == null) return NotFound();
+
+            var user = await _userManager.GetUserAsync(User);
+            string customerFirstName = user.PartnerName ?? "Jan";
+            string customerLastName = user.PartnerSurname ?? "Kowalski";
+            string customerEmail = user.Email;
+
+            string amount = "100";
+
+            string orderId = $"REG-{store.StoreId}-{DateTime.Now.Ticks}";
+            string customerId = store.StoreId.ToString();
+
+            var merchantId = _config["IMOJE_MERCHANT_ID"];
+            var serviceId = _config["IMOJE_SERVICE_ID"];
+            var widgetUrl = _config["IMOJE_WIDGET_URL"];
+
+            if (string.IsNullOrEmpty(merchantId) || string.IsNullOrEmpty(serviceId) || string.IsNullOrEmpty(widgetUrl))
+            {
+                return StatusCode(500, new { error = "Błąd konfiguracji serwera: Brak kluczy imoje w .env" });
+            }
+
+            var domain = $"{Request.Scheme}://{Request.Host}";
+
+            var urlNotification = $"{domain}/Member/Payment/Notification";
+
+            var urlSuccess = $"{domain}/Member/Payment/StorePayments?storeId={storeId}&status=success";
+            var urlFailure = $"{domain}/Member/Payment/StorePayments?storeId={storeId}&status=failure";
+
+            var signatureData = new Dictionary<string, string>
                 {
-                    { "merchantId", _config["Imoje:MerchantId"] },
-                    { "serviceId", _config["Imoje:ServiceId"] },
+                    { "merchantId", merchantId },
+                    { "serviceId", serviceId },
                     { "amount", amount },
                     { "currency", "PLN" },
                     { "orderId", orderId },
-                    { "customerId", customerId }, // To jest kluczowe!
-                    { "customerFirstName", "Jan" }, // Pobierz z danych usera/sklepu
-                    { "customerLastName", "Kowalski" },
-                    { "customerEmail", "email@sklepu.pl" },
-                    // Ważne: widgetType recurring
-                    { "widgetType", "recurring" }
+                    { "customerId", customerId },
+                    { "customerFirstName", customerFirstName },
+                    { "customerLastName", customerLastName },
+                    { "customerEmail", customerEmail },
+                    { "widgetType", "recurring" },
+                    { "urlNotification", urlNotification },
+                    { "urlSuccess", urlSuccess },
+                    { "urlFailure", urlFailure }
                 };
 
-            var signature = _imojeService.CalculateSignature(data);
+            var signature = _imojeService.CalculateSignature(signatureData);
+
+            var frontendData = new Dictionary<string, string>(signatureData);
 
             return Json(new
             {
                 success = true,
-                data = data,
+                data = frontendData,
                 signature = signature,
-                scriptUrl = _config["Imoje:WidgetUrl"] // https://sandbox.paywall.imoje.pl/js/widget.min.js
+                scriptUrl = widgetUrl
             });
         }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [Route("Member/Payment/Notification")]
+        public async Task<IActionResult> Notification()
+        {
+
+            if (!Request.Headers.TryGetValue("X-Imoje-Signature", out var signatureHeader))
+            {
+                return BadRequest();
+            }
+
+            using var reader = new StreamReader(Request.Body);
+            var body = await reader.ReadToEndAsync();
+
+            bool success = await _imojeService.HandleNotificationAsync(signatureHeader, body);
+
+            if (!success)
+            {
+
+                return BadRequest("Invalid Signature");
+            }
+
+            return Ok(new { status = "ok" });
+        }
+
     }
 }

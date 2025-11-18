@@ -24,5 +24,7 @@ namespace PriceSafari.Models.ViewModels
         public bool GoogleShopping { get; set; }
         public bool Allegro { get; set; }
         public string Info { get; set; }
+
+        public bool IsRecurringActive { get; set; }
     }
 }

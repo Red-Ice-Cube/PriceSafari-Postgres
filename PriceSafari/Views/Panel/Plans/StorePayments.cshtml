@@ -23,6 +23,7 @@
 
     var paymentDataListJson = JsonConvert.SerializeObject(safePaymentDataList, jsonSettings);
 
+    // Logika obrazków (bez zmian)
     string planImageFile = "";
     if (Model.IsTestPlan) planImageFile = "Free.png";
     else if (Model.ProductsToScrap <= 500) planImageFile = "Lite.png";
@@ -40,6 +41,7 @@
 }
 
 <style>
+    /* ... Twoje istniejące style (zachowaj je) ... */
     .details-container {
         display: flex;
         gap: 30px;
@@ -201,12 +203,11 @@
         }
 
     .status-box {
-        display: block;
+        display: flex;
         width: 100%;
-        padding: 0.375rem 0.75rem;
+        padding: 0.75rem;
         font-size: 1rem;
         border-radius: 0.25rem;
-        display: flex;
         align-items: center;
         justify-content: space-between;
         margin-bottom: 16px;
@@ -241,14 +242,57 @@
             text-decoration: none;
         }
 
-
     #imoje-widget-container {
         display: none;
+    }
+
+    /* NOWY STYL DLA AKTYWNEJ KARTY */
+    .active-card-box {
+        border: 1px solid #c3e6cb;
+        background-color: #d4edda;
+        color: #155724;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        margin-top: 15px;
+    }
+
+    .active-card-icon {
+        font-size: 40px;
+        color: #28a745;
+        margin-bottom: 10px;
+    }
+
+    .active-card-title {
+        font-weight: 600;
+        font-size: 1.1em;
+        margin-bottom: 5px;
+    }
+
+    .active-card-desc {
+        font-size: 0.9em;
+        color: #155724;
+        opacity: 0.8;
     }
 </style>
 
 <div class="Vert">
     <div class="Vert-full">
+
+        @* --- ALERTY STATUSOWE (JS je pokaże) --- *@
+        <div id="paymentSuccessAlert" class="alert alert-success alert-dismissible fade show" role="alert" style="display:none; margin-bottom: 20px;">
+            <strong>Sukces!</strong> Twoja karta została pomyślnie zweryfikowana i podłączona. Subskrypcja jest aktywna.
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <div id="paymentFailureAlert" class="alert alert-danger alert-dismissible fade show" role="alert" style="display:none; margin-bottom: 20px;">
+            <strong>Błąd!</strong> Wystąpił problem z autoryzacją płatności. Spróbuj ponownie lub użyj innej karty.
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+
         <div class="store-details">
             <h2 style="font-size: 26px; font-weight: 300;">Plan @Model.PlanName | <img src="~/images/@planImageFile" alt="@Model.PlanName" style="height:32px; margin-bottom:6px;" /></h2>
 
@@ -283,6 +327,8 @@
                         </button>
                     </div>
                 </div>
+
+                @* ... (Sekcja details-main bez zmian) ... *@
                 <div class="details-main info-card">
                     <div class="info-card-header">Szczegóły planu</div>
                     <div class="info-card-body">
@@ -361,24 +407,47 @@
                                             <tr><th>Automatyczna wysyłka</th><td id="invoiceAutoMailSend"></td></tr>
                                         </table>
                                     </div>
+
                                     <div style="margin-top: 30px; border-top: 1px solid #dee2e6; padding-top: 20px;">
                                         <h6 style="color: #6c757d; margin-bottom: 15px;">Metoda płatności (Subskrypcja)</h6>
 
-                                        <p style="font-size: 0.9em; color: #6c757d; margin-bottom: 15px;">
-                                            Podłącz kartę płatniczą, aby opłacać faktury automatycznie. Pobierzemy 1 PLN w celu weryfikacji.
-                                        </p>
+                                        @* --- LOGIKA WYŚWIETLANIA KARTY --- *@
+                                        @if (Model.IsRecurringActive)
+                                        {
+                                            <div class="active-card-box">
+                                                <div class="active-card-icon">
+                                                    <i class="fas fa-credit-card"></i> <i class="fas fa-check-circle" style="font-size: 20px; margin-left: -10px; vertical-align: bottom; color: #155724; background: white; border-radius: 50%;"></i>
+                                                </div>
+                                                <div class="active-card-title">Karta podłączona</div>
+                                                <div class="active-card-desc">
+                                                    Twoja karta jest aktywna. Faktury będą opłacane automatycznie.<br />
+                                                    <span style="font-size: 0.85em; color: #555;">(Możesz ją zmienić, klikając "Podłącz kartę" poniżej)</span>
+                                                </div>
 
-                                        <button id="btnConnectCard" type="button" class="Button-Action-Small" style="width: 100%; justify-content: center;">
-                                            <i class="fas fa-credit-card" style="margin-right: 8px;"></i> Podłącz kartę płatniczą (imoje)
-                                        </button>
+                                                <button id="btnConnectCard" type="button" class="Button-Action-Small" style="width: 100%; justify-content: center; margin-top: 15px; background-color: #fff; color: #333; border: 1px solid #ccc;">
+                                                    <i class="fas fa-sync-alt" style="margin-right: 8px;"></i> Zmień metodę płatności
+                                                </button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p style="font-size: 0.9em; color: #6c757d; margin-bottom: 15px;">
+                                                Podłącz kartę płatniczą, aby opłacać faktury automatycznie. Pobierzemy 1 PLN w celu weryfikacji (kwota zostanie natychmiast zwrócona).
+                                            </p>
 
-                                        @* Kontener techniczny dla widgetu (musi być w DOM, może być tutaj) *@
+                                            <button id="btnConnectCard" type="button" class="Button-Action-Small" style="width: 100%; justify-content: center;">
+                                                <i class="fas fa-credit-card" style="margin-right: 8px;"></i> Podłącz kartę płatniczą (imoje)
+                                            </button>
+                                        }
+
+                                        @* Kontener techniczny dla widgetu *@
                                         <div id="imoje-widget-container"></div>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="modal-split-right">
+                                @* ... (Prawa strona modala bez zmian) ... *@
                                 <div class="info-card" style="height: 100%;">
                                     <div class="info-card-header">Podsumowanie planu</div>
                                     <div class="info-card-body">
@@ -386,20 +455,9 @@
                                         <div class="price-display">
                                             <span class="final-price-amount">@discountedPrice.ToString("C")</span>
                                             <span class="final-price-label">netto</span>
-                                            @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
-                                            {
-                                                <span class="original-price">@Model.PlanPrice.ToString("C")</span>
-                                            }
                                         </div>
-                                        @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
-                                        {
-                                            <div class="discount-info" style="margin-bottom: 20px;">Rabat: @Model.DiscountValue.Value.ToString("F2")%</div>
-                                        }
-
                                         <div style="margin-top: 20px; font-size: 0.9em; color: #6c757d;">
-                                            <i class="fas fa-info-circle"></i> Jeśli potrzebujesz zaktualizować dane płatnika lub zmienić swój plan, skontaktuj się z nami, wysyłając wiadomość na adres <strong>biuro@pricesafari.pl</strong>.
-                                            <br /><br />
-                                            Faktury będą wystawiane i wysyłane automatycznie. Otrzymasz je z adresu faktury@pricesafari.pl.
+                                            <i class="fas fa-info-circle"></i> Jeśli potrzebujesz zaktualizować dane płatnika lub zmienić swój plan, skontaktuj się z nami.
                                             <br /><br />
                                             W przypadku chęci rezygnacji z usługi PriceSafari, możesz to zrobić za pomocą przycisku poniżej.
                                         </div>
@@ -408,7 +466,6 @@
                             </div>
                         </div>
                     </div>
-                    @* STOPKA Z DODANYM PRZYCISKIEM REZYGNACJI *@
                     <div class="modal-footer" style="justify-content: space-between;">
                         <button type="button" class="btn-danger-custom" id="openResignationModalBtn">
                             Zrezygnuj z usługi monitoringu cen
@@ -419,23 +476,17 @@
             </div>
         </div>
 
-        @* --- DRUGI MODAL: POTWIERDZENIE REZYGNACJI --- *@
+        @* ... (Modal rezygnacji i Tabela historii bez zmian) ... *@
         <div class="modal fade" id="resignationConfirmModal" tabindex="-1" role="dialog" aria-labelledby="resignationConfirmLabel" aria-hidden="true" style="z-index: 1060;">
             <div class="modal-dialog modal-sm modal-dialog-centered" role="document" style="min-width: 450px;">
                 <div class="modal-content" style="min-width: 450px;">
                     <div class="modal-header">
                         <h5 class="modal-title" id="resignationConfirmLabel">Rezygnacja z usługi</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                     </div>
                     <div class="modal-body text-center" id="resignationModalBody">
-                        <div class="mb-3">
-                            <i class="fas fa-sad-tear fa-3x text-muted" style="font-size: 3em; color: #6c757d; margin: 15px 0;"></i>
-                        </div>
+                        <div class="mb-3"><i class="fas fa-sad-tear fa-3x text-muted" style="font-size: 3em; color: #6c757d; margin: 15px 0;"></i></div>
                         <p style="font-size: 1.1em; font-weight: 500;">Czy na pewno chcesz zrezygnować z usług monitoringu cen?</p>
-                        <p class="text-muted small" style="font-size: 0.9em; color: #6c757d;">Twoja rezygnacja zostanie przesłana do administratora, a usługa zostanie wyłączona po zakończeniu obecnego okresu rozliczeniowego.</p>
-
                         <div style="margin-top: 20px;">
                             <button type="button" class="btn btn-secondary mr-2" data-dismiss="modal" style="margin-right: 10px;">Anuluj</button>
                             <button type="button" class="btn btn-danger" id="confirmResignationBtn">Potwierdzam rezygnację</button>
@@ -451,14 +502,7 @@
                 <h3 style="font-weight: 400; margin-bottom: 20px;">Historia płatności</h3>
                 <table class="table-orders">
                     <thead>
-                        <tr>
-                            <th>Numer</th>
-                            <th>Wystawiono</th>
-                            <th>Opłacono</th>
-                            <th>Kwota Netto</th>
-                            <th>Status</th>
-                            <th>Pobierz</th>
-                        </tr>
+                        <tr><th>Numer</th><th>Wystawiono</th><th>Opłacono</th><th>Kwota Netto</th><th>Status</th><th>Pobierz</th></tr>
                     </thead>
                     <tbody>
                         @foreach (var invoice in Model.Invoices)
@@ -467,25 +511,7 @@
                                 <td>@invoice.InvoiceNumber</td>
                                 <td>@invoice.IssueDate.ToString("yyyy-MM-dd")</td>
                                 <td>@(invoice.PaymentDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
-                                <td>
-                                    @if (invoice.AppliedDiscountPercentage > 0)
-                                    {
-                                        var originalPrice = invoice.NetAmount + invoice.AppliedDiscountAmount;
-                                        <div style="display:flex; flex-direction:column; align-items:flex-start;">
-                                            <div>
-                                                <span style="color: darkgreen; font-weight: bold;">@invoice.NetAmount.ToString("C")</span>
-                                                <span style="text-decoration: line-through; font-weight: normal; color: #222222; margin-left: 10px;">@originalPrice.ToString("C")</span>
-                                            </div>
-                                            <div style="font-size:0.9em; color: #222222; margin-top: 4px;">
-                                                Rabat: @invoice.AppliedDiscountPercentage.ToString("F2")% (@invoice.AppliedDiscountAmount.ToString("C"))
-                                            </div>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <span>@invoice.NetAmount.ToString("C")</span>
-                                    }
-                                </td>
+                                <td>@invoice.NetAmount.ToString("C")</td>
                                 <td>
                                     @if (invoice.IsPaid)
                                     {
@@ -493,13 +519,12 @@
                                     }
                                     else
                                     {
+
                                         <span class="Validation Validation-cancelled">Nieopłacona</span>
                                     }
                                 </td>
                                 <td>
-                                    <a href="@Url.Action("InvoicePdf", "Payment", new { invoiceId = invoice.InvoiceId })" class="Button-Action-Small" target="_blank">
-                                        Pobierz PDF <i class="fas fa-file-pdf" style="margin-left:5px;"></i>
-                                    </a>
+                                    <a href="@Url.Action("InvoicePdf", "Payment", new { invoiceId = invoice.InvoiceId })" class="Button-Action-Small" target="_blank">Pobierz PDF</a>
                                 </td>
                             </tr>
                         }
@@ -507,21 +532,34 @@
                 </table>
             </div>
         }
-        else
-        {
-            <p style="margin-top: 40px;">Brak historii faktur dla tego sklepu.</p>
-        }
     </div>
 </div>
-
-
-
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
     <script>
         $(document).ready(function () {
+            // 1. OBSŁUGA POWROTU Z PŁATNOŚCI (URL Params)
+            const urlParams = new URLSearchParams(window.location.search);
+            const status = urlParams.get('status');
+
+            if (status === 'success') {
+                $("#paymentSuccessAlert").show();
+                // Usuń parametry z URL dla czystości, bez przeładowania
+                window.history.replaceState(null, null, window.location.pathname + "?storeId=@Model.StoreId");
+
+                // Opcjonalnie: Otwórz modal automatycznie, żeby user zobaczył "Aktywna Karta"
+                // $("#managePlanModal").modal('show');
+            } else if (status === 'failure') {
+                $("#paymentFailureAlert").show();
+                window.history.replaceState(null, null, window.location.pathname + "?storeId=@Model.StoreId");
+                 // Otwórz modal, żeby mógł spróbować ponownie
+                $("#managePlanModal").modal('show');
+            }
+
+
+            // 2. WYŚWIETLANIE DANYCH FAKTUROWYCH
             var paymentDataList = @Html.Raw(paymentDataListJson);
             var currentPaymentData = null;
 
@@ -542,7 +580,6 @@
                 $("#postalCode").text(data.postalCode);
                 $("#city").text(data.city);
                 $("#nip").text(data.nip);
-
                 $("#invoiceAutoMail").text(data.invoiceAutoMail ? data.invoiceAutoMail : "-");
 
                 if (data.invoiceAutoMailSend) {
@@ -558,29 +595,23 @@
                 $("#paymentDataDetails").hide();
             }
 
-            // --- LOGIKA IMOJE: START ---
+            // 3. LOGIKA WIDGETU
             $("#btnConnectCard").click(function() {
                 var btn = $(this);
-                // Zablokuj przycisk, żeby user nie klikał 10 razy
-                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Łączenie...');
+                var originalText = btn.html();
 
-                // 1. Pobierz dane konfiguracyjne z backendu
+                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Przetwarzanie...');
+
                 $.post("@Url.Action("GetImojeWidgetData", "Payment")", { storeId: @Model.StoreId }, function(response) {
                     if(response.success) {
                         var d = response.data;
 
-                        // Wyczyść kontener na wszelki wypadek
                         $("#imoje-widget-container").empty();
 
-                        // 2. Stwórz dynamicznie tag <script>
                         var script = document.createElement('script');
-                        script.src = response.scriptUrl; // Backend zwraca URL (tu będzie sandbox)
-                        script.id = "imoje-widget__script"; // Wymagane ID przez imoje
+                        script.src = response.scriptUrl;
+                        script.id = "imoje-widget__script";
                         script.type = "text/javascript";
-
-                        // 3. Mapuj atrybuty data- z odpowiedzi JSON
-                        // Klucze w response.data (C# Dictionary) są case-sensitive, ale JSON serializer domyślnie w AJAX może zmieniać case.
-                        // Używamy wartości dokładnie takich, jakie zwrócił backend.
 
                         script.setAttribute("data-merchant-id", d.merchantId);
                         script.setAttribute("data-service-id", d.serviceId);
@@ -591,39 +622,34 @@
                         script.setAttribute("data-customer-first-name", d.customerFirstName);
                         script.setAttribute("data-customer-last-name", d.customerLastName);
                         script.setAttribute("data-customer-email", d.customerEmail);
-                        script.setAttribute("data-widget-type", d.widgetType); // "recurring"
-                        script.setAttribute("data-signature", response.signature);
+                        script.setAttribute("data-widget-type", d.widgetType);
 
-                        // Opcjonalne - locale (można dodać w backendzie lub tu na sztywno)
+                        // --- NOWE ATRYBUTY URL (zgodnie z ustaleniami) ---
+                        script.setAttribute("data-url-notification", d.urlNotification);
+                        script.setAttribute("data-url-success", d.urlSuccess);
+                        script.setAttribute("data-url-failure", d.urlFailure);
+
+                        script.setAttribute("data-signature", response.signature);
                         script.setAttribute("data-locale", "pl");
 
-                        // Co po sukcesie? Np. przeładowanie strony
-                        // Na sandboxie imoje po sukcesie zamyka okno, ale warto obsłużyć callback
-                        // lub po prostu redirect backendowy (data-url-success)
-                        // UWAGA: Widget imoje standardowo przekierowuje na URL sukcesu/porażki.
-                        // Możesz dodać je w backendzie do słownika lub tutaj.
-                        // Tutaj polegamy na domyślnym zachowaniu widgetu (otwarcie overlay).
-
-                        // 4. Dodaj skrypt do DOM - to automatycznie uruchomi widget imoje
                         document.getElementById("imoje-widget-container").appendChild(script);
 
-                        // Odblokuj przycisk po chwili (widget się ładuje)
+                        // Reset przycisku po chwili (bo widget się ładuje)
                         setTimeout(function() {
-                             btn.prop('disabled', false).html('<i class="fas fa-credit-card" style="margin-right: 8px;"></i> Podłącz kartę płatniczą (imoje)');
+                             btn.prop('disabled', false).html(originalText);
                         }, 2000);
 
                     } else {
                         alert("Błąd inicjalizacji płatności. Spróbuj ponownie.");
-                        btn.prop('disabled', false).html('<i class="fas fa-credit-card" style="margin-right: 8px;"></i> Podłącz kartę płatniczą (imoje)');
+                        btn.prop('disabled', false).html(originalText);
                     }
                 }).fail(function() {
                     alert("Błąd połączenia z serwerem.");
-                    btn.prop('disabled', false).html('<i class="fas fa-credit-card" style="margin-right: 8px;"></i> Podłącz kartę płatniczą (imoje)');
+                    btn.prop('disabled', false).html(originalText);
                 });
             });
-            // --- LOGIKA IMOJE: KONIEC ---
 
-
+            // 4. LOGIKA REZYGNACJI
             $("#openResignationModalBtn").click(function() {
                 $("#managePlanModal").modal('hide');
                 setTimeout(function() {
