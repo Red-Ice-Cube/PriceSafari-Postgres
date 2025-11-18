@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PdfSharp.Fonts;
 using PriceSafari.Culture;
@@ -22,7 +23,6 @@ public class Program
 {
     public static async Task Main(string[] args)
     {
-
         var root = Directory.GetCurrentDirectory();
         var dotenv = Path.Combine(root, ".env");
         DotEnv.Load(dotenv);
@@ -42,30 +42,27 @@ public class Program
         builder.Services.AddDbContext<PriceSafariContext>(options =>
            options.UseSqlServer(connectionString, sqlServerOptions =>
            {
-          
                sqlServerOptions.EnableRetryOnFailure(
-                   maxRetryCount: 5, 
-                   maxRetryDelay: TimeSpan.FromSeconds(30), 
-                   errorNumbersToAdd: null); 
+                   maxRetryCount: 5,
+                   maxRetryDelay: TimeSpan.FromSeconds(30),
+                   errorNumbersToAdd: null);
 
                sqlServerOptions.UseCompatibilityLevel(110);
-          
-        }));
-
+           }));
 
         builder.Services.AddDefaultIdentity<PriceSafariUser>(options => options.SignIn.RequireConfirmedAccount = true)
        .AddRoles<IdentityRole>()
        .AddErrorDescriber<PolishIdentityErrorDescriber>()
        .AddEntityFrameworkStores<PriceSafariContext>();
+
         builder.Services.AddScoped<AuthorizeStoreAccessAttribute>();
         builder.Services.AddControllersWithViews();
         builder.Services.AddHttpClient();
 
         builder.Services.AddTransient<EmailService>();
-
         builder.Services.AddTransient<IEmailSender>(s => s.GetRequiredService<EmailService>());
-
         builder.Services.AddTransient<IAppEmailSender>(s => s.GetRequiredService<EmailService>());
+
         builder.Services.AddSignalR();
         builder.Services.AddHostedService<KeepAliveService>();
         builder.Services.AddTransient<IViewRenderService, ViewRenderService>();
@@ -87,7 +84,6 @@ public class Program
         builder.Services.AddHostedService<PriceSafari.Services.SubscriptionService.SubscriptionManagerService>();
         builder.Services.AddHttpClient<PriceSafari.Services.Imoje.IImojeService, PriceSafari.Services.Imoje.ImojeService>();
 
-
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 
         builder.Services.AddMemoryCache();
@@ -108,11 +104,15 @@ public class Program
 
         app.UseHttpsRedirection();
         app.UseStaticFiles();
+
+        // TUTAJ USUNIĘTO MIDDLEWARE DEBUGUJĄCY IMOJE
+
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseSession();
         app.MapControllers();
+
         app.MapControllerRoute(
               name: "default",
               pattern: "{controller=Identity}/{action=Login}/{id?}"
@@ -161,7 +161,6 @@ public class Program
 
             foreach (var role in roles)
             {
-
                 if (!await roleManager.RoleExistsAsync(role))
                 {
                     await roleManager.CreateAsync(new IdentityRole(role));
@@ -172,8 +171,7 @@ public class Program
         app.MapHub<ScrapingHub>("/scrapingHub");
         app.MapHub<ReportProgressHub>("/reportProgressHub");
         app.MapHub<DashboardProgressHub>("/dashboardProgressHub");
-        //DO USUNIECIA
-        app.MapHub<PriceSafari.Controllers.MemberControllers.PaymentDebugHub>("/paymentDebugHub");
+        // USUNIĘTO: app.MapHub<...PaymentDebugHub>("/paymentDebugHub");
 
         await app.RunAsync();
     }
@@ -224,5 +222,6 @@ public class Program
             }
         }
     }
-
 }
+
+// USUNIĘTO KLASĘ PaymentLogHistory

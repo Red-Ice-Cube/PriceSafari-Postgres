@@ -118,9 +118,11 @@ namespace PriceSafari.Services.Imoje
             try
             {
 
+                _logger.LogInformation($"[IMOJE] Otrzymano webhook.");
+
                 if (!VerifySignature(headerSignature, requestBody))
                 {
-                    _logger.LogError("Imoje Webhook: Nieprawidłowy podpis!");
+                    _logger.LogError("[IMOJE] BŁĄD: Nieprawidłowy podpis!");
                     return false;
                 }
 
@@ -130,25 +132,45 @@ namespace PriceSafari.Services.Imoje
                 if (transaction == null) return true;
 
                 string status = transaction["status"]?.ToString();
+                string transactionId = transaction["id"]?.ToString();
+
                 if (status != "settled") return true;
 
-                string transactionId = transaction["id"]?.ToString();
-                string orderId = transaction["orderId"]?.ToString();
                 string customerIdStr = transaction["customer"]?["id"]?.ToString();
-                int amount = (int)(transaction["amount"] ?? 0);
 
-                var profileObj = json["action"]?["paymentProfile"] ?? json["paymentProfile"];
+                if (string.IsNullOrEmpty(customerIdStr))
+                {
+                    customerIdStr = transaction["paymentProfile"]?["merchantCustomerId"]?.ToString();
+                }
+
+                if (string.IsNullOrEmpty(customerIdStr))
+                {
+                    customerIdStr = json["action"]?["paymentProfile"]?["merchantCustomerId"]?.ToString();
+                }
+
+                if (string.IsNullOrEmpty(customerIdStr))
+                {
+                    _logger.LogWarning($"[IMOJE] Nie znaleziono ID klienta (StoreId) w transakcji {transactionId}. Ignoruję.");
+                    return true;
+                }
+
+                if (!int.TryParse(customerIdStr, out int storeId))
+                {
+                    _logger.LogError($"[IMOJE] ID klienta '{customerIdStr}' nie jest liczbą.");
+                    return true;
+                }
+
+                var profileObj = json["action"]?["paymentProfile"]
+                                 ?? json["paymentProfile"]
+                                 ?? transaction["paymentProfile"];
 
                 string paymentProfileId = profileObj?["id"]?.ToString();
 
                 if (string.IsNullOrEmpty(paymentProfileId))
                 {
-                    _logger.LogWarning($"Imoje Webhook: Brak paymentProfileId dla transakcji {transactionId}");
-
+                    _logger.LogWarning($"[IMOJE] Brak paymentProfileId dla transakcji {transactionId}.");
                     return true;
                 }
-
-                if (!int.TryParse(customerIdStr, out int storeId)) return true;
 
                 using (var scope = _scopeFactory.CreateScope())
                 {
@@ -157,18 +179,14 @@ namespace PriceSafari.Services.Imoje
 
                     if (store != null)
                     {
-
                         store.ImojePaymentProfileId = paymentProfileId;
                         store.IsRecurringActive = true;
                         store.IsPayingCustomer = true;
 
                         if (profileObj != null)
                         {
-
                             store.CardMaskedNumber = profileObj["maskedNumber"]?.ToString();
-
                             store.CardBrand = profileObj["organization"]?.ToString();
-
                             store.CardExpYear = profileObj["year"]?.ToString();
                             store.CardExpMonth = profileObj["month"]?.ToString();
                         }
@@ -177,10 +195,16 @@ namespace PriceSafari.Services.Imoje
                             store.SubscriptionStartDate = DateTime.Now;
 
                         await dbContext.SaveChangesAsync();
-                        _logger.LogInformation($"Imoje: Zapisano kartę {store.CardMaskedNumber} ({store.CardBrand}) dla sklepu {storeId}");
+                        _logger.LogInformation($"[IMOJE] SUKCES! Zaktualizowano sklep {storeId}. Karta: {store.CardMaskedNumber}");
+                    }
+                    else
+                    {
+                        _logger.LogError($"[IMOJE] BŁĄD: Sklep o ID {storeId} nie istnieje w bazie.");
                     }
                 }
 
+                int amount = (int)(transaction["amount"] ?? 0);
+                string orderId = transaction["orderId"]?.ToString();
                 if (amount == 100 && orderId != null && orderId.StartsWith("REG-"))
                 {
                     await RefundTransactionPrivateAsync(transactionId, amount, _serviceId);
@@ -190,8 +214,7 @@ namespace PriceSafari.Services.Imoje
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Imoje Webhook: Błąd krytyczny");
-
+                _logger.LogError(ex, "[IMOJE] Wyjątek krytyczny w HandleNotificationAsync");
                 return false;
             }
         }

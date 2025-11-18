@@ -40,7 +40,6 @@
 }
 
 <style>
-
     .details-container {
         display: flex;
         gap: 30px;
@@ -277,7 +276,6 @@
 <div class="Vert">
     <div class="Vert-full">
 
-     
         <div id="paymentSuccessAlert" class="alert alert-success alert-dismissible fade show" role="alert" style="display:none; margin-bottom: 20px;">
             <strong>Sukces!</strong> Twoja karta została pomyślnie zweryfikowana i podłączona. Subskrypcja jest aktywna.
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
@@ -326,7 +324,6 @@
                     </div>
                 </div>
 
-             
                 <div class="details-main info-card">
                     <div class="info-card-header">Szczegóły planu</div>
                     <div class="info-card-body">
@@ -370,7 +367,6 @@
             </div>
         </div>
 
-   
         <div class="modal fade" id="managePlanModal" tabindex="-1" role="dialog" aria-labelledby="managePlanModalLabel" aria-hidden="true">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
@@ -409,12 +405,10 @@
                                     <div style="margin-top: 30px; border-top: 1px solid #dee2e6; padding-top: 20px;">
                                         <h6 style="color: #6c757d; margin-bottom: 15px;">Metoda płatności (Subskrypcja)</h6>
 
-                                      
                                         @if (Model.IsRecurringActive)
                                         {
-                                            <div class="active-card-box">
+                                            <div id="cardConnectedSection" class="active-card-box">
                                                 <div class="active-card-icon">
-                                             
                                                     @if (!string.IsNullOrEmpty(Model.CardBrand) && Model.CardBrand.ToLower().Contains("visa"))
                                                     {
                                                         <i class="fab fa-cc-visa" style="font-size: 40px; color: #1a1f71;"></i>
@@ -427,14 +421,12 @@
                                                     {
                                                         <i class="fas fa-credit-card" style="font-size: 40px; color: #28a745;"></i>
                                                     }
-                                                 
                                                     <i class="fas fa-check-circle" style="font-size: 20px; margin-left: -10px; vertical-align: bottom; color: #155724; background: white; border-radius: 50%;"></i>
                                                 </div>
 
                                                 <div class="active-card-title">
                                                     @if (!string.IsNullOrEmpty(Model.CardMaskedNumber))
                                                     {
-                                               
                                                         <span>@(Model.CardBrand ?? "Karta")</span>
                                                         <span style="letter-spacing: 2px;">
                                                             @Model.CardMaskedNumber.Substring(Math.Max(0, Model.CardMaskedNumber.Length - 4))
@@ -458,13 +450,15 @@
                                         }
                                         else
                                         {
-                                            <p style="font-size: 0.9em; color: #6c757d; margin-bottom: 15px;">
-                                                Podłącz kartę płatniczą, aby opłacać faktury automatycznie. Pobierzemy 1 PLN w celu weryfikacji (kwota zostanie natychmiast zwrócona).
-                                            </p>
+                                            <div id="cardNotConnectedSection">
+                                                <p style="font-size: 0.9em; color: #6c757d; margin-bottom: 15px;">
+                                                    Podłącz kartę płatniczą, aby opłacać faktury automatycznie. Pobierzemy 1 PLN w celu weryfikacji (kwota zostanie natychmiast zwrócona).
+                                                </p>
 
-                                            <button id="btnConnectCard" type="button" class="Button-Action-Small" style="width: 100%; justify-content: center;">
-                                                <i class="fas fa-credit-card" style="margin-right: 8px;"></i> Podłącz kartę płatniczą (imoje)
-                                            </button>
+                                                <button id="btnConnectCard" type="button" class="Button-Action-Small" style="width: 100%; justify-content: center;">
+                                                    <i class="fas fa-credit-card" style="margin-right: 8px;"></i> Podłącz kartę płatniczą (imoje)
+                                                </button>
+                                            </div>
                                         }
 
                                         <div id="imoje-widget-container"></div>
@@ -473,7 +467,6 @@
                             </div>
 
                             <div class="modal-split-right">
-                         
                                 <div class="info-card" style="height: 100%;">
                                     <div class="info-card-header">Podsumowanie planu</div>
                                     <div class="info-card-body">
@@ -566,82 +559,67 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
-
     <script>
         $(document).ready(function () {
-            // ==================================================
-            // 2. KONFIGURACJA NASŁUCHU DEBUGOWANIA (SIGNALR)
-            // ==================================================
-            const connection = new signalR.HubConnectionBuilder()
-                .withUrl("/paymentDebugHub")
-                .configureLogging(signalR.LogLevel.Information)
-                .build();
-
-            // Funkcja odbierająca JSON od Imoje
-            connection.on("ReceiveImojeData", function (jsonString) {
-                // Wyświetlamy alert na ekranie
-                alert("⚠️ Otrzymano Webhook od Imoje! Sprawdź konsolę (F12) aby zobaczyć dane.");
-
-                // Wyświetlamy dane w konsoli w czytelny sposób
-                console.group("%c 🔥🔥🔥 IMOJE WEBHOOK DATA 🔥🔥🔥", "background: #e74c3c; color: white; font-size: 16px; padding: 4px; border-radius: 4px;");
-
-                console.log("%cSurowy ciąg znaków:", "color: gray;", jsonString);
-
-                try {
-                    const data = JSON.parse(jsonString);
-                    console.log("%cSparsowany Obiekt:", "color: green; font-weight: bold;", data);
-
-                    // Sprawdźmy od razu czy jest transaction lub action
-                    if(data.transaction) console.log("Znaleziono sekcję 'transaction'");
-                    if(data.action) console.log("Znaleziono sekcję 'action'");
-
-                } catch (e) {
-                    console.error("Błąd parsowania JSON:", e);
-                }
-                console.groupEnd();
-            });
-
-            // Funkcja odbierająca logi tekstowe z serwera
-            connection.on("ReceiveImojeLog", function (message) {
-                console.log("%c [SERVER LOG]: " + message, "color: #3498db; font-weight: bold;");
-            });
-
-            // Start połączenia
-            connection.start()
-                .then(function () {
-                    console.log("🟢 Połączono z PaymentDebugHub. Oczekiwanie na płatność...");
-                })
-                .catch(function (err) {
-                    return console.error("🔴 Błąd połączenia z Hubem: " + err.toString());
-                });
-            // ==================================================
-
-
-            // --- PONIŻEJ TWOJA ISTNIEJĄCA LOGIKA ---
-
             const urlParams = new URLSearchParams(window.location.search);
             const status = urlParams.get('status');
+            const storeId = '@Model.StoreId';
 
             const cardNotConnectedSection = $("#cardNotConnectedSection");
             const cardConnectedSection = $("#cardConnectedSection");
 
             if (status === 'success') {
-                $("#paymentSuccessAlert").show();
+                // Ustawiamy komunikat "oczekiwania", ponieważ nawet przy działającym Webhooku
+                // strona może się załadować ułamek sekundy szybciej niż baza się zaktualizuje.
+                $("#paymentSuccessAlert")
+                    .removeClass("alert-success")
+                    .addClass("alert-warning")
+                    .html('<strong>Weryfikacja...</strong> Czekamy na potwierdzenie z banku. Proszę czekać... <i class="fas fa-spinner fa-spin"></i>')
+                    .show();
 
-                if (cardNotConnectedSection.length && cardConnectedSection.length) {
-                    cardNotConnectedSection.hide();
-                    cardConnectedSection.show();
-                }
+                $("#btnConnectCard").prop('disabled', true);
 
-                window.history.replaceState(null, null, window.location.pathname + "?storeId=@Model.StoreId");
+                // Polling - sprawdzamy status co 2 sekundy
+                let attempts = 0;
+                const maxAttempts = 15; // 30 sekund
+
+                const checkInterval = setInterval(function () {
+                    attempts++;
+
+                    $.get("/Payment/CheckCardStatus?storeId=" + storeId, function (data) {
+                        if (data.isConnected) {
+                            clearInterval(checkInterval);
+
+                            $("#paymentSuccessAlert")
+                                .removeClass("alert-warning")
+                                .addClass("alert-success")
+                                .html('<strong>Sukces!</strong> Twoja karta została pomyślnie zweryfikowana i podłączona. Subskrypcja jest aktywna. Odświeżam...');
+
+                            // Przeładowanie strony, by pobrać świeży Model (już bez parametru ?status=)
+                            setTimeout(function () {
+                                window.location.href = window.location.pathname + "?storeId=" + storeId;
+                            }, 1000);
+                        }
+
+                        if (attempts >= maxAttempts) {
+                            clearInterval(checkInterval);
+                            $("#paymentSuccessAlert")
+                                .removeClass("alert-warning")
+                                .addClass("alert-info")
+                                .html('<strong>Info:</strong> Płatność jest przetwarzana dłużej niż zwykle. Spróbuj odświeżyć stronę ręcznie za chwilę.');
+
+                             window.history.replaceState(null, null, window.location.pathname + "?storeId=" + storeId);
+                        }
+                    });
+                }, 2000);
 
             } else if (status === 'failure') {
                 $("#paymentFailureAlert").show();
-                window.history.replaceState(null, null, window.location.pathname + "?storeId=@Model.StoreId");
+                window.history.replaceState(null, null, window.location.pathname + "?storeId=" + storeId);
                 $("#managePlanModal").modal('show');
             }
 
+            // Logika wyświetlania danych (bez zmian)
             var paymentDataList = @Html.Raw(paymentDataListJson);
             var currentPaymentData = null;
 
@@ -694,7 +672,7 @@
                         script.id = "imoje-widget__script";
                         script.type = "text/javascript";
 
-                        // Przepisanie atrybutów
+                        // Atrybuty Widgetu
                         script.setAttribute("data-merchant-id", d.merchantId);
                         script.setAttribute("data-service-id", d.serviceId);
                         script.setAttribute("data-amount", d.amount);
@@ -705,11 +683,9 @@
                         script.setAttribute("data-customer-last-name", d.customerLastName);
                         script.setAttribute("data-customer-email", d.customerEmail);
                         script.setAttribute("data-widget-type", d.widgetType);
-
                         script.setAttribute("data-url-notification", d.urlNotification);
                         script.setAttribute("data-url-success", d.urlSuccess);
                         script.setAttribute("data-url-failure", d.urlFailure);
-
                         script.setAttribute("data-signature", response.signature);
                         script.setAttribute("data-locale", "pl");
 

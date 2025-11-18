@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR; // WAŻNE: Dodany using
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
@@ -11,11 +10,6 @@ using System.Security.Claims;
 
 namespace PriceSafari.Controllers.MemberControllers
 {
-    // 1. Definicja Huba "na szybko" w tym samym pliku
-    public class PaymentDebugHub : Hub
-    {
-    }
-
     [Authorize(Roles = "Member, PreMember")]
     public class PaymentController : Controller
     {
@@ -23,20 +17,17 @@ namespace PriceSafari.Controllers.MemberControllers
         private readonly UserManager<PriceSafariUser> _userManager;
         private readonly IImojeService _imojeService;
         private readonly IConfiguration _config;
-        private readonly IHubContext<PaymentDebugHub> _hubContext; // 2. Pola dla Huba
 
         public PaymentController(
             PriceSafariContext context,
             UserManager<PriceSafariUser> userManager,
             IImojeService imojeService,
-            IConfiguration config,
-            IHubContext<PaymentDebugHub> hubContext) // 3. Wstrzyknięcie w konstruktorze
+            IConfiguration config)
         {
             _context = context;
             _userManager = userManager;
             _imojeService = imojeService;
             _config = config;
-            _hubContext = hubContext;
         }
 
         [HttpGet]
@@ -196,12 +187,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 return StatusCode(500, new { error = "Błąd konfiguracji serwera: Brak kluczy imoje w .env" });
             }
 
-            // === POPRAWKA URL DLA PRODUKCJI I IMOJE ===
-            // Imoje wymaga absolutnego URL. Wstawiam Twoją domenę na sztywno, 
-            // aby mieć pewność, że nie wygeneruje "localhost" albo wewnętrznego IP.
-            string baseUrl = "https://myjki.com.pricesafari.pl";
-            var urlNotification = $"{baseUrl}/Payment/Notification";
-
+            // Dynamiczne generowanie pełnych adresów URL (działa dla localhost i domeny produkcyjnej)
+            var urlNotification = Url.Action("Notification", "Payment", null, Request.Scheme);
             var urlSuccess = Url.Action("StorePayments", "Payment", new { storeId = storeId, status = "success" }, Request.Scheme);
             var urlFailure = Url.Action("StorePayments", "Payment", new { storeId = storeId, status = "failure" }, Request.Scheme);
 
@@ -240,33 +227,41 @@ namespace PriceSafari.Controllers.MemberControllers
         [Route("Payment/Notification")]
         public async Task<IActionResult> Notification()
         {
-            // 1. Najpierw czytamy body
-            using var reader = new StreamReader(Request.Body);
-            var body = await reader.ReadToEndAsync();
-
-            // 2. WYSYŁAMY SUROWY JSON DO TWOJEJ KONSOLI PRZEGLĄDARKI
-            await _hubContext.Clients.All.SendAsync("ReceiveImojeData", body);
-
             if (!Request.Headers.TryGetValue("X-Imoje-Signature", out var signatureHeader))
             {
-                await _hubContext.Clients.All.SendAsync("ReceiveImojeLog", "BŁĄD: Brak nagłówka X-Imoje-Signature");
                 return BadRequest("Missing Signature Header");
             }
 
-            await _hubContext.Clients.All.SendAsync("ReceiveImojeLog", $"Nagłówek sygnatury: {signatureHeader}");
+            using var reader = new StreamReader(Request.Body);
+            var body = await reader.ReadToEndAsync();
 
-            // 3. Przekazujemy do logiki biznesowej
             bool success = await _imojeService.HandleNotificationAsync(signatureHeader, body);
 
             if (!success)
             {
-                await _hubContext.Clients.All.SendAsync("ReceiveImojeLog", "BŁĄD: Weryfikacja podpisu w ImojeService nie powiodła się.");
-                return BadRequest("Invalid Signature");
+                return BadRequest("Invalid Signature or Logic Error");
             }
 
-            await _hubContext.Clients.All.SendAsync("ReceiveImojeLog", "SUKCES: Przetworzono w ImojeService (zwrócono true). Sprawdź bazę.");
-
             return Ok(new { status = "ok" });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> CheckCardStatus(int storeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var store = await _context.Stores
+                .FirstOrDefaultAsync(s => s.StoreId == storeId
+                                     && s.UserStores.Any(us => us.UserId == userId));
+
+            if (store == null) return NotFound();
+
+            return Json(new
+            {
+                isConnected = store.IsRecurringActive && !string.IsNullOrEmpty(store.CardMaskedNumber),
+                maskedNumber = store.CardMaskedNumber,
+                brand = store.CardBrand
+            });
         }
     }
 }
