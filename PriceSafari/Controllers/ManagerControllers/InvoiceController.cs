@@ -254,5 +254,9 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return RedirectToAction(nameof(Index));
         }
+
+
+
+
     }
 }

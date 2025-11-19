@@ -152,7 +152,7 @@ public class InvoiceDocument
         var dataCell = dataRow.Cells[1];
 
         dataCell.AddParagraph($"PriceSafari {_invoice.Plan.PlanName}");
-        dataCell.AddParagraph($"Ilość dni dostępu: {_invoice.DaysIncluded}");
+        dataCell.AddParagraph($"Dostęp do usługi przez {_invoice.DaysIncluded} dni");
 
         if (_invoice.UrlsIncluded.HasValue && _invoice.UrlsIncluded > 0)
         {

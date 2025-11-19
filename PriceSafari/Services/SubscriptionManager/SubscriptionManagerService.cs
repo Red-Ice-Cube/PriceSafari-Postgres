@@ -42,9 +42,18 @@ namespace PriceSafari.Services.SubscriptionService
                 {
                     var now = DateTime.Now;
 
-                    var nextRun = now.Date.AddDays(1).AddMinutes(5);
+                    // --- USTAWIENIA CZASU ---
+                    // Produkcyjnie:
+                    // var nextRun = now.Date.AddDays(1).AddMinutes(5);
+                    // if (now.Hour == 0 && now.Minute < 5) nextRun = now.Date.AddMinutes(5);
 
-                    if (now.Hour == 0 && now.Minute < 5) nextRun = now.Date.AddMinutes(5);
+                    // Testowo (13:15):
+                    var nextRun = now.Date.AddHours(14).AddMinutes(15);
+                    if (now > nextRun)
+                    {
+                        nextRun = nextRun.AddDays(1);
+                    }
+                    // ------------------------
 
                     var delay = nextRun - now;
                     _logger.LogInformation($"Oczekiwanie na proces subskrypcji: {delay.TotalMinutes:F2} min. Start: {nextRun}");
@@ -66,6 +75,9 @@ namespace PriceSafari.Services.SubscriptionService
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
             var imojeService = scope.ServiceProvider.GetRequiredService<IImojeService>();
+
+            // Pobieramy nazwę urządzenia do logów (tak jak w Scraperach)
+            var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "SubscriptionManager";
 
             _logger.LogInformation("Rozpoczynanie przetwarzania subskrypcji...");
 
@@ -99,7 +111,6 @@ namespace PriceSafari.Services.SubscriptionService
                 {
                     if (store.IsPayingCustomer)
                     {
-
                         if (store.SubscriptionStartDate == null || store.SubscriptionStartDate.Value > today)
                         {
                             continue;
@@ -115,7 +126,8 @@ namespace PriceSafari.Services.SubscriptionService
                             if (!store.Plan.IsTestPlan && store.Plan.NetPrice > 0)
                             {
                                 _logger.LogInformation($"Sklep {store.StoreName}: Generowanie faktury...");
-                                await GenerateRenewalInvoice(context, store, today, invoiceCounter, imojeService);
+                                // Przekazujemy deviceName do metody generującej
+                                await GenerateRenewalInvoice(context, store, today, invoiceCounter, imojeService, deviceName);
                             }
                             else
                             {
@@ -127,7 +139,6 @@ namespace PriceSafari.Services.SubscriptionService
                     }
                     else
                     {
-
                         if (store.RemainingDays > 0)
                         {
                             store.RemainingDays--;
@@ -149,86 +160,145 @@ namespace PriceSafari.Services.SubscriptionService
              StoreClass store,
              DateTime issueDate,
              InvoiceCounter counter,
-             IImojeService imojeService)
+             IImojeService imojeService,
+             string deviceName)
         {
             if (store.Plan.IsTestPlan || store.Plan.NetPrice == 0) return;
 
-            var paymentData = store.PaymentData;
-            decimal netPrice = store.Plan.NetPrice;
-            decimal appliedDiscountPercentage = 0;
-            decimal appliedDiscountAmount = 0;
-
-            if (store.DiscountPercentage.HasValue && store.DiscountPercentage.Value > 0)
+            // --- TWORZENIE LOGU STARTOWEGO ---
+            var logEntry = new TaskExecutionLog
             {
-                appliedDiscountPercentage = store.DiscountPercentage.Value;
-                appliedDiscountAmount = netPrice * (appliedDiscountPercentage / 100m);
-                netPrice = netPrice - appliedDiscountAmount;
-            }
-
-            counter.LastInvoiceNumber++;
-            int currentInvoiceNumber = counter.LastInvoiceNumber;
-            string invoiceNumberFormatted = $"PS/{currentInvoiceNumber:D6}/sDB/{issueDate.Year}";
-
-            var dueDate = issueDate.AddDays(14);
-
-            var invoice = new InvoiceClass
-            {
-                StoreId = store.StoreId,
-                PlanId = store.PlanId.Value,
-                IssueDate = issueDate,
-
-                DueDate = dueDate,
-
-                IsPaidByCard = false,
-
-                NetAmount = netPrice,
-                DaysIncluded = store.Plan.DaysPerInvoice,
-                UrlsIncluded = store.Plan.ProductsToScrap,
-                UrlsIncludedAllegro = store.Plan.ProductsToScrapAllegro,
-                IsPaid = false,
-
-                CompanyName = paymentData?.CompanyName ?? "Brak Danych",
-                Address = paymentData?.Address ?? "",
-                PostalCode = paymentData?.PostalCode ?? "",
-                City = paymentData?.City ?? "",
-                NIP = paymentData?.NIP ?? "",
-
-                AppliedDiscountPercentage = appliedDiscountPercentage,
-                AppliedDiscountAmount = appliedDiscountAmount,
-                InvoiceNumber = invoiceNumberFormatted
+                DeviceName = deviceName,
+                OperationName = "FAKTURA_RENEWAL",
+                StartTime = DateTime.Now,
+                Comment = $"Start generowania faktury dla sklepu: {store.StoreName} (Plan: {store.Plan.PlanName})"
             };
+            context.TaskExecutionLogs.Add(logEntry);
+            await context.SaveChangesAsync(); // Zapisujemy, żeby dostać ID logu
 
-            store.RemainingDays += store.Plan.DaysPerInvoice;
-            store.ProductsToScrap = store.Plan.ProductsToScrap;
-            store.ProductsToScrapAllegro = store.Plan.ProductsToScrapAllegro;
+            int logId = logEntry.Id;
+            bool paymentAttempted = false;
+            bool paymentSuccess = false;
+            string invoiceNumberResult = "Brak";
 
-            context.Invoices.Add(invoice);
-            await context.SaveChangesAsync();
-
-            if (store.IsRecurringActive && !string.IsNullOrEmpty(store.ImojePaymentProfileId))
+            try
             {
-                _logger.LogInformation($"Próba automatycznego obciążenia karty dla faktury {invoice.InvoiceNumber}...");
+                var paymentData = store.PaymentData;
+                decimal netPrice = store.Plan.NetPrice;
+                decimal appliedDiscountPercentage = 0;
+                decimal appliedDiscountAmount = 0;
 
-                string serverIp = _configuration["SERVER_PUBLIC_IP"] ?? "127.0.0.1";
-
-                bool paymentSuccess = await imojeService.ChargeProfileAsync(store.ImojePaymentProfileId, invoice, serverIp);
-
-                if (paymentSuccess)
+                if (store.DiscountPercentage.HasValue && store.DiscountPercentage.Value > 0)
                 {
-                    invoice.IsPaid = true;
-                    invoice.PaymentDate = DateTime.Now;
+                    appliedDiscountPercentage = store.DiscountPercentage.Value;
+                    appliedDiscountAmount = netPrice * (appliedDiscountPercentage / 100m);
+                    netPrice = netPrice - appliedDiscountAmount;
+                }
 
-                    invoice.IsPaidByCard = true;
+                counter.LastInvoiceNumber++;
+                int currentInvoiceNumber = counter.LastInvoiceNumber;
+                string invoiceNumberFormatted = $"PS/{currentInvoiceNumber:D6}/sDB/{issueDate.Year}";
+                invoiceNumberResult = invoiceNumberFormatted;
 
-                    _logger.LogInformation($"SUKCES: Faktura {invoice.InvoiceNumber} opłacona automatycznie z karty.");
+                var dueDate = issueDate.AddDays(14);
+
+                var invoice = new InvoiceClass
+                {
+                    StoreId = store.StoreId,
+                    PlanId = store.PlanId.Value,
+                    IssueDate = issueDate,
+                    DueDate = dueDate,
+                    IsPaidByCard = false,
+                    NetAmount = netPrice,
+                    DaysIncluded = store.Plan.DaysPerInvoice,
+                    UrlsIncluded = store.Plan.ProductsToScrap,
+                    UrlsIncludedAllegro = store.Plan.ProductsToScrapAllegro,
+                    IsPaid = false,
+                    CompanyName = paymentData?.CompanyName ?? "Brak Danych",
+                    Address = paymentData?.Address ?? "",
+                    PostalCode = paymentData?.PostalCode ?? "",
+                    City = paymentData?.City ?? "",
+                    NIP = paymentData?.NIP ?? "",
+                    AppliedDiscountPercentage = appliedDiscountPercentage,
+                    AppliedDiscountAmount = appliedDiscountAmount,
+                    InvoiceNumber = invoiceNumberFormatted
+                };
+
+                store.RemainingDays += store.Plan.DaysPerInvoice;
+                store.ProductsToScrap = store.Plan.ProductsToScrap;
+                store.ProductsToScrapAllegro = store.Plan.ProductsToScrapAllegro;
+
+                context.Invoices.Add(invoice);
+                await context.SaveChangesAsync();
+
+                // --- OBSŁUGA PŁATNOŚCI AUTOMATYCZNEJ ---
+                if (store.IsRecurringActive && !string.IsNullOrEmpty(store.ImojePaymentProfileId))
+                {
+                    paymentAttempted = true;
+                    _logger.LogInformation($"Próba automatycznego obciążenia karty dla faktury {invoice.InvoiceNumber}...");
+
+                    string serverIp = _configuration["SERVER_PUBLIC_IP"] ?? "127.0.0.1";
+
+                    paymentSuccess = await imojeService.ChargeProfileAsync(store.ImojePaymentProfileId, invoice, serverIp);
+
+                    if (paymentSuccess)
+                    {
+                        invoice.IsPaid = true;
+                        invoice.PaymentDate = DateTime.Now;
+                        invoice.IsPaidByCard = true;
+
+                        _logger.LogInformation($"SUKCES: Faktura {invoice.InvoiceNumber} opłacona automatycznie z karty.");
+                        await context.SaveChangesAsync();
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"PORAŻKA: Nie udało się obciążyć karty dla faktury {invoice.InvoiceNumber}.");
+                    }
+                }
+
+                // --- AKTUALIZACJA LOGU (SUKCES) ---
+                // Pobieramy log ponownie, żeby mieć pewność (chociaż w tym scope jest śledzony)
+                var logToUpdate = await context.TaskExecutionLogs.FindAsync(logId);
+                if (logToUpdate != null)
+                {
+                    logToUpdate.EndTime = DateTime.Now;
+
+                    string paymentStatus = "";
+                    if (paymentAttempted)
+                    {
+                        paymentStatus = paymentSuccess ? " | Płatność Kartą: SUKCES" : " | Płatność Kartą: PORAŻKA";
+                    }
+                    else
+                    {
+                        paymentStatus = " | Płatność: Przelew (brak karty)";
+                    }
+
+                    logToUpdate.Comment += $" | Sukces. Wystawiono FV: {invoiceNumberResult}{paymentStatus}. Kwota netto: {netPrice:C}";
+
+                    // Specjalne słowo klucz dla kolorowania w tabeli HTML
+                    if (paymentAttempted && !paymentSuccess)
+                    {
+                        // Jeśli była próba płatności i się nie udała, dopisujemy ostrzeżenie
+                        logToUpdate.Comment += " | UWAGA: Błąd obciążenia karty!";
+                    }
 
                     await context.SaveChangesAsync();
                 }
-                else
-                {
 
-                    _logger.LogWarning($"PORAŻKA: Nie udało się obciążyć karty dla faktury {invoice.InvoiceNumber}.");
+            }
+            catch (Exception ex)
+            {
+                // --- AKTUALIZACJA LOGU (BŁĄD) ---
+                var logError = await context.TaskExecutionLogs.FindAsync(logId);
+                if (logError != null)
+                {
+                    logError.EndTime = DateTime.Now;
+                    logError.Comment += $" | Błąd krytyczny podczas wystawiania: {ex.Message}";
+                    await context.SaveChangesAsync();
                 }
+
+                // Rzucamy dalej, żeby główna pętla obsłużyła błąd sklepu
+                throw;
             }
         }
     }

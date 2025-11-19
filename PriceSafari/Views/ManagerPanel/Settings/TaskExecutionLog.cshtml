@@ -2,7 +2,7 @@
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-    // Wygeneruj listę unikalnych nazw urządzeń
+
     var distinctDeviceNames = Model
         .Where(m => !string.IsNullOrWhiteSpace(m.DeviceName))
         .Select(m => m.DeviceName)
@@ -12,20 +12,18 @@
 
 <style>
 
-
-    /* Kolorowanie wierszy wg stanu */
     .bg-green {
-        background-color: #c6f6c6; /* zielone tło */
+        background-color: #c6f6c6;
         color: #000;
     }
 
     .bg-red {
-        background-color: #f9c6c6; /* czerwone tło */
+        background-color: #f9c6c6;
         color: #000;
     }
 
     .bg-yellow {
-        background-color: #fffcc0; /* żółte tło */
+        background-color: #fffcc0;
         color: #000;
     }
 
@@ -111,16 +109,16 @@
             <tbody>
                 @foreach (var item in Model)
                 {
-                    // Określamy stan, by ustawić klasę wiersza (bg-green, bg-red, bg-yellow)
+
                     var rowClass = "";
                     if (!item.EndTime.HasValue)
                     {
-                        // Zadanie jeszcze trwa (brak EndTime) => żółty
+
                         rowClass = "bg-yellow";
                     }
                     else
                     {
-                        // Zadanie zakończone => zielone jeśli "Sukces" w komentarzu, inaczej czerwone
+
                         if (!string.IsNullOrEmpty(item.Comment) &&
                         (item.Comment.Contains("Sukces", StringComparison.OrdinalIgnoreCase)
                         || item.Comment.Contains("Success", StringComparison.OrdinalIgnoreCase)))
@@ -133,12 +131,11 @@
                         }
                     }
 
-                    // Czas trwania:
                     var durationText = "W trakcie";
                     if (item.EndTime.HasValue)
                     {
                         var timespan = item.EndTime.Value - item.StartTime;
-                        // Format np. "00:05:31"
+
                         durationText = timespan.ToString(@"hh\:mm\:ss");
                     }
                     <tr class="@rowClass">
@@ -164,9 +161,7 @@
 
 @section Scripts {
     <script>
-        /*
-         * Filtrowanie TYLKO po nazwie urządzenia (deviceNameFilter):
-         */
+
         const dropdown = document.getElementById('deviceNameFilter');
         const table    = document.getElementById('logTable');
         const rows     = Array.from(table.querySelectorAll('tbody tr'));
@@ -179,8 +174,6 @@
                 if (!deviceCell) return;
                 const rowDeviceName = deviceCell.textContent.trim().toLowerCase();
 
-                // Jeżeli dropdown jest pusty => pokaż wszystkie
-                // W innym wypadku pokazuj tylko pasujące
                 row.style.display = (selectedName === "" || rowDeviceName === selectedName)
                     ? ""
                     : "none";
