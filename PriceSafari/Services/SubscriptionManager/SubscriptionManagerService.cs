@@ -42,18 +42,13 @@ namespace PriceSafari.Services.SubscriptionService
                 {
                     var now = DateTime.Now;
 
-                    // --- USTAWIENIA CZASU ---
-                    // Produkcyjnie:
-                    // var nextRun = now.Date.AddDays(1).AddMinutes(5);
-                    // if (now.Hour == 0 && now.Minute < 5) nextRun = now.Date.AddMinutes(5);
+                    // --- USTAWIENIA CZASU (PRODUKCYJNE) ---
+                    //var nextRun = now.Date.AddDays(1).AddMinutes(5);
+                    //if (now.Hour == 0 && now.Minute < 5) nextRun = now.Date.AddMinutes(5);
 
-                    // Testowo (13:15):
-                    var nextRun = now.Date.AddHours(14).AddMinutes(57);
-                    if (now > nextRun)
-                    {
-                        nextRun = nextRun.AddDays(1);
-                    }
-                    // ------------------------
+                    // --- TESTOWE (ZAKOMENTOWANE) ---
+                    var nextRun = now.Date.AddHours(15).AddMinutes(40);
+                    if (now > nextRun) nextRun = nextRun.AddDays(1);
 
                     var delay = nextRun - now;
                     _logger.LogInformation($"Oczekiwanie na proces subskrypcji: {delay.TotalMinutes:F2} min. Start: {nextRun}");
@@ -76,7 +71,6 @@ namespace PriceSafari.Services.SubscriptionService
             var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
             var imojeService = scope.ServiceProvider.GetRequiredService<IImojeService>();
 
-            // Pobieramy nazwę urządzenia do logów (tak jak w Scraperach)
             var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "SubscriptionManager";
 
             _logger.LogInformation("Rozpoczynanie przetwarzania subskrypcji...");
@@ -126,7 +120,6 @@ namespace PriceSafari.Services.SubscriptionService
                             if (!store.Plan.IsTestPlan && store.Plan.NetPrice > 0)
                             {
                                 _logger.LogInformation($"Sklep {store.StoreName}: Generowanie faktury...");
-                                // Przekazujemy deviceName do metody generującej
                                 await GenerateRenewalInvoice(context, store, today, invoiceCounter, imojeService, deviceName);
                             }
                             else
@@ -165,7 +158,6 @@ namespace PriceSafari.Services.SubscriptionService
         {
             if (store.Plan.IsTestPlan || store.Plan.NetPrice == 0) return;
 
-            // --- TWORZENIE LOGU STARTOWEGO ---
             var logEntry = new TaskExecutionLog
             {
                 DeviceName = deviceName,
@@ -174,11 +166,12 @@ namespace PriceSafari.Services.SubscriptionService
                 Comment = $"Start generowania faktury dla sklepu: {store.StoreName} (Plan: {store.Plan.PlanName})"
             };
             context.TaskExecutionLogs.Add(logEntry);
-            await context.SaveChangesAsync(); // Zapisujemy, żeby dostać ID logu
+            await context.SaveChangesAsync();
 
             int logId = logEntry.Id;
             bool paymentAttempted = false;
             bool paymentSuccess = false;
+            string paymentResponseMessage = ""; // Zmienna na komunikat z Imoje
             string invoiceNumberResult = "Brak";
 
             try
@@ -235,11 +228,15 @@ namespace PriceSafari.Services.SubscriptionService
                 if (store.IsRecurringActive && !string.IsNullOrEmpty(store.ImojePaymentProfileId))
                 {
                     paymentAttempted = true;
-                    _logger.LogInformation($"Próba automatycznego obciążenia karty dla faktury {invoice.InvoiceNumber}...");
-
                     string serverIp = _configuration["SERVER_PUBLIC_IP"] ?? "127.0.0.1";
 
-                    paymentSuccess = await imojeService.ChargeProfileAsync(store.ImojePaymentProfileId, invoice, serverIp);
+                    _logger.LogInformation($"Próba automatycznego obciążenia karty dla faktury {invoice.InvoiceNumber}. IP: {serverIp}");
+
+                    // ZMIANA: Odbieramy wynik I komunikat
+                    var resultTuple = await imojeService.ChargeProfileAsync(store.ImojePaymentProfileId, invoice, serverIp);
+
+                    paymentSuccess = resultTuple.Success;
+                    paymentResponseMessage = resultTuple.Response; // Zapisujemy odpowiedź JSON
 
                     if (paymentSuccess)
                     {
@@ -252,12 +249,11 @@ namespace PriceSafari.Services.SubscriptionService
                     }
                     else
                     {
-                        _logger.LogWarning($"PORAŻKA: Nie udało się obciążyć karty dla faktury {invoice.InvoiceNumber}.");
+                        _logger.LogWarning($"PORAŻKA: Nie udało się obciążyć karty dla faktury {invoice.InvoiceNumber}. Info: {paymentResponseMessage}");
                     }
                 }
 
                 // --- AKTUALIZACJA LOGU (SUKCES) ---
-                // Pobieramy log ponownie, żeby mieć pewność (chociaż w tym scope jest śledzony)
                 var logToUpdate = await context.TaskExecutionLogs.FindAsync(logId);
                 if (logToUpdate != null)
                 {
@@ -275,11 +271,15 @@ namespace PriceSafari.Services.SubscriptionService
 
                     logToUpdate.Comment += $" | Sukces. Wystawiono FV: {invoiceNumberResult}{paymentStatus}. Kwota netto: {netPrice:C}";
 
-                    // Specjalne słowo klucz dla kolorowania w tabeli HTML
                     if (paymentAttempted && !paymentSuccess)
                     {
-                        // Jeśli była próba płatności i się nie udała, dopisujemy ostrzeżenie
-                        logToUpdate.Comment += " | UWAGA: Błąd obciążenia karty!";
+                        // Zapisujemy dokładny komunikat błędu z Imoje do bazy!
+                        // Skracamy wiadomość, jeśli jest bardzo długa, żeby nie przepełnić kolumny w bazie
+                        string safeMessage = paymentResponseMessage.Length > 200
+                            ? paymentResponseMessage.Substring(0, 200) + "..."
+                            : paymentResponseMessage;
+
+                        logToUpdate.Comment += $" | UWAGA: Błąd obciążenia karty! Szczegóły: {safeMessage}";
                     }
 
                     await context.SaveChangesAsync();
@@ -288,7 +288,6 @@ namespace PriceSafari.Services.SubscriptionService
             }
             catch (Exception ex)
             {
-                // --- AKTUALIZACJA LOGU (BŁĄD) ---
                 var logError = await context.TaskExecutionLogs.FindAsync(logId);
                 if (logError != null)
                 {
@@ -296,8 +295,6 @@ namespace PriceSafari.Services.SubscriptionService
                     logError.Comment += $" | Błąd krytyczny podczas wystawiania: {ex.Message}";
                     await context.SaveChangesAsync();
                 }
-
-                // Rzucamy dalej, żeby główna pętla obsłużyła błąd sklepu
                 throw;
             }
         }

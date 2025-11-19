@@ -5,13 +5,16 @@ using PriceSafari.Data;
 using PriceSafari.Models;
 using System.Security.Cryptography;
 using System.Text;
-
+using System.Net;
 namespace PriceSafari.Services.Imoje
 {
     public interface IImojeService
     {
         string CalculateSignature(Dictionary<string, string> data, string hashMethod = "sha256");
-        Task<bool> ChargeProfileAsync(string profileId, InvoiceClass invoice, string ipAddress);
+
+        // ZMIANA TUTAJ: Zwracamy (bool, string) zamiast samego bool
+        Task<(bool Success, string Response)> ChargeProfileAsync(string profileId, InvoiceClass invoice, string ipAddress);
+
         Task<bool> HandleNotificationAsync(string headerSignature, string requestBody);
         Task<bool> RefundTransactionAsync(string transactionId, int amount, string serviceId);
     }
@@ -57,14 +60,19 @@ namespace PriceSafari.Services.Imoje
             return $"{hashString};{hashMethod}";
         }
 
-        public async Task<bool> ChargeProfileAsync(string profileId, InvoiceClass invoice, string ipAddress)
+        public async Task<(bool Success, string Response)> ChargeProfileAsync(string profileId, InvoiceClass invoice, string ipAddress)
         {
             try
             {
+                // --- POPRAWKA SSL: WYMUSZENIE TLS 1.2 ---
+                // Serwery bankowe odrzucają stare połączenia. To wymusza nowoczesny standard.
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+
                 if (string.IsNullOrEmpty(_merchantId) || string.IsNullOrEmpty(_apiKey))
                 {
-                    _logger.LogError("Brak konfiguracji imoje w .env (MERCHANT_ID lub API_KEY są puste).");
-                    return false;
+                    string msg = "Brak konfiguracji imoje w .env (MERCHANT_ID lub API_KEY są puste).";
+                    _logger.LogError(msg);
+                    return (false, msg);
                 }
 
                 var amountInGrosze = (int)(invoice.NetAmount * 1.23m * 100);
@@ -77,7 +85,7 @@ namespace PriceSafari.Services.Imoje
                     orderId = invoice.InvoiceNumber,
                     title = $"Opłata za fakturę {invoice.InvoiceNumber}",
                     paymentProfileId = profileId,
-                    clientIp = ipAddress // Przekazujemy IP serwera
+                    clientIp = ipAddress
                 };
 
                 var json = JsonConvert.SerializeObject(payload);
@@ -94,19 +102,28 @@ namespace PriceSafari.Services.Imoje
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation($"Płatność cykliczna udana dla faktury {invoice.InvoiceNumber}. Response: {responseString}");
-                    return true;
+                    _logger.LogInformation($"Płatność cykliczna udana. Response: {responseString}");
+                    return (true, responseString);
                 }
                 else
                 {
-                    _logger.LogError($"Błąd płatności cyklicznej dla {invoice.InvoiceNumber}. Status: {response.StatusCode}. Body: {responseString}");
-                    return false;
+                    string errorMsg = $"Status: {response.StatusCode}. Treść: {responseString}";
+                    _logger.LogError($"Błąd płatności dla {invoice.InvoiceNumber}. {errorMsg}");
+                    return (false, errorMsg);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Wyjątek podczas obciążania karty dla faktury {invoice.InvoiceNumber}");
-                return false;
+                // --- ROZSZERZONE LOGOWANIE BŁĘDU SSL ---
+                // Wyciągamy "InnerException", o którym mówił komunikat błędu
+                string fullError = $"Wyjątek: {ex.Message}";
+                if (ex.InnerException != null)
+                {
+                    fullError += $" | INNER: {ex.InnerException.Message}";
+                }
+
+                _logger.LogError(ex, $"Wyjątek podczas obciążania karty.");
+                return (false, fullError);
             }
         }
 

@@ -233,7 +233,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             if (invoice.Store == null || !invoice.Store.IsRecurringActive || string.IsNullOrEmpty(invoice.Store.ImojePaymentProfileId))
             {
-                TempData["Error"] = "Sklep nie posiada aktywnej karty płatniczej (brak flagi Recurring lub ProfileId).";
+                TempData["Error"] = "Sklep nie posiada aktywnej karty płatniczej.";
                 return RedirectToAction(nameof(Index));
             }
 
@@ -243,10 +243,10 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             try
             {
+                // ZMIANA: Odbieramy parę (wynik, wiadomość)
+                var (success, responseMessage) = await _imojeService.ChargeProfileAsync(invoice.Store.ImojePaymentProfileId, invoice, usedIp);
 
-                bool paymentSuccess = await _imojeService.ChargeProfileAsync(invoice.Store.ImojePaymentProfileId, invoice, usedIp);
-
-                if (paymentSuccess)
+                if (success)
                 {
                     invoice.IsPaid = true;
                     invoice.PaymentDate = DateTime.Now;
@@ -258,13 +258,12 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
                 else
                 {
-
-                    TempData["Error"] = $"BŁĄD PŁATNOŚCI (imoje zwróciło false). {debugInfo}. Upewnij się, że IP '{usedIp}' jest na białej liście w panelu Imoje!";
+                    // Wyświetlamy PEŁNY błąd z Imoje w panelu
+                    TempData["Error"] = $"BŁĄD PŁATNOŚCI! Imoje odpowiedziało: {responseMessage} \n {debugInfo}";
                 }
             }
             catch (Exception ex)
             {
-
                 string innerMsg = ex.InnerException != null ? $" | Inner: {ex.InnerException.Message}" : "";
                 TempData["Error"] = $"WYJĄTEK KRYTYCZNY: {ex.Message}{innerMsg}. {debugInfo}";
             }
