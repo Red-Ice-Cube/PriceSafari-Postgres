@@ -203,14 +203,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return File(pdfBytes, "application/pdf", $"{invoice.InvoiceNumber.Replace("/", "_")}.pdf");
         }
 
-
-
-
-
-
-
-
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ForceCharge(int id)
@@ -243,7 +235,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             try
             {
-                // ZMIANA: Odbieramy parę (wynik, wiadomość)
+
                 var (success, responseMessage) = await _imojeService.ChargeProfileAsync(invoice.Store.ImojePaymentProfileId, invoice, usedIp);
 
                 if (success)
@@ -258,7 +250,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
                 else
                 {
-                    // Wyświetlamy PEŁNY błąd z Imoje w panelu
+
                     TempData["Error"] = $"BŁĄD PŁATNOŚCI! Imoje odpowiedziało: {responseMessage} \n {debugInfo}";
                 }
             }
@@ -270,7 +262,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return RedirectToAction(nameof(Index));
         }
-
 
         [HttpGet]
         [AllowAnonymous]
@@ -288,7 +279,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             try
             {
-                // 1. DNS - Szczegółowo
+
                 sb.AppendLine($"\n[1. DNS LOOKUP]");
                 var ipEntry = await System.Net.Dns.GetHostEntryAsync(host);
                 sb.AppendLine($"   HostName: {ipEntry.HostName}");
@@ -304,7 +295,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                     return Content(sb.ToString(), "text/plain");
                 }
 
-                // 2. TEST POŁĄCZENIA DLA RÓŻNYCH PROTOKOŁÓW
                 var protocolsToTest = new[]
                 {
             System.Security.Authentication.SslProtocols.Tls12,
@@ -340,18 +330,16 @@ namespace PriceSafari.Controllers.ManagerControllers
                                     sb.AppendLine($"     Issuer: {cert.Issuer}");
                                     sb.AppendLine($"     Expiration: {cert.GetExpirationDateString()}");
                                     sb.AppendLine($"     Błędy SSL: {errors}");
-                                    return true; // Ignoruj błędy
+                                    return true;
                                 }))
                             {
                                 sb.AppendLine($"   Rozpoczynam SSL Handshake ({protocol})...");
 
-                                // --- ZMIANA TUTAJ: Używamy przeciążenia metody zamiast obiektu Options ---
-                                // Parametry: Host, Certyfikaty Klienta (null), Protokół, Sprawdzanie Revocation (false)
                                 await sslStream.AuthenticateAsClientAsync(
                                     host,
                                     null,
                                     protocol,
-                                    false // To zastępuje CheckCertificateRevocation = false
+                                    false
                                 );
 
                                 sb.AppendLine("   >>> SUKCES HANDSHAKE! <<<");
@@ -385,7 +373,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                     }
                     catch (Exception ex)
                     {
-                        // Ignorujemy błąd o braku obsługi TLS 1.3 na starym Windowsie
+
                         if (ex.Message.Contains("The requested security protocol is not supported"))
                         {
                             sb.AppendLine($"   INFO: Ten system operacyjny nie obsługuje protokołu {protocol}.");
@@ -406,45 +394,5 @@ namespace PriceSafari.Controllers.ManagerControllers
             return Content(sb.ToString(), "text/plain");
         }
 
-
-
-
-        //[HttpGet]
-        //[AllowAnonymous] // Tylko na chwilę, żebyś mógł to łatwo wywołać
-        //public async Task<IActionResult> UpdateImojeIpWhitelist()
-        //{
-        //    // Twoje dane z pliku .env
-        //    var merchantId = "zwy5an0rlp8ejxhgrsvv";
-        //    var apiKey = "6nsfzf0mnfzscu8gmtbagmnlck69nep1moamhz4f38qru7qm8rlq4engdfybv22a";
-        //    var ipToAdd = "194.88.154.185"; // Twój adres serwera
-
-        //    using var client = new HttpClient();
-        //    client.DefaultRequestHeaders.Authorization =
-        //        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-
-        //    var url = $"https://sandbox.api.imoje.pl/v1/merchant/{merchantId}/settings/ips";
-
-        //    // Tworzymy JSON z listą IP (dodaję też localhost dla testów lokalnych)
-        //    var payload = new
-        //    {
-        //        trustedIps = new[] { ipToAdd, "127.0.0.1" }
-        //    };
-
-        //    var json = System.Text.Json.JsonSerializer.Serialize(payload);
-        //    var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-
-        //    // Wysyłamy żądanie PUT
-        //    var response = await client.PutAsync(url, content);
-        //    var responseString = await response.Content.ReadAsStringAsync();
-
-        //    if (response.IsSuccessStatusCode)
-        //    {
-        //        return Content($"SUKCES! Zaktualizowano listę IP. Imoje odpowiedziało: {responseString}");
-        //    }
-        //    else
-        //    {
-        //        return Content($"BŁĄD AKTUALIZACJI IP. Kod: {response.StatusCode}. Treść: {responseString}");
-        //    }
-        //}
     }
 }

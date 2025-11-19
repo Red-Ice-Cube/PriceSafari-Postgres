@@ -468,17 +468,9 @@ namespace PriceSafari.Services.Imoje
         {
             try
             {
-                // 1. KONFIGURACJA GLOBALNA (Dla pewności resetujemy)
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
-                ServicePointManager.CheckCertificateRevocationList = false;
-                ServicePointManager.Expect100Continue = false;
-
                 if (string.IsNullOrEmpty(_merchantId) || string.IsNullOrEmpty(_apiKey))
-                {
                     return (false, "Brak konfiguracji imoje w .env");
-                }
 
-                // 2. PAYLOAD
                 var amountInGrosze = (int)(invoice.NetAmount * 1.23m * 100);
 
                 var payload = new
@@ -495,41 +487,27 @@ namespace PriceSafari.Services.Imoje
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var requestUrl = $"{_apiUrl}/v1/merchant/{_merchantId}/transaction/profile";
 
-                // 3. HANDLER Z OBSŁUGĄ TLS 1.3 (TO JEST KLUCZ DO SUKCESU!)
-                using (var handler = new HttpClientHandler())
+                using var client = new HttpClient(); // albo _httpClient z DI
+                client.Timeout = TimeSpan.FromSeconds(30);
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _apiKey);
+                client.DefaultRequestHeaders.Accept.Add(
+                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+                var response = await client.PostAsync(requestUrl, content);
+                var responseString = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
                 {
-                    // ZMIANA: Włączamy TLS 1.3, bo diagnostyka pokazała, że to działa!
-                    handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13;
-
-                    handler.CheckCertificateRevocationList = false;
-                    handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-
-                    using (var client = new HttpClient(handler))
-                    {
-                        client.Timeout = TimeSpan.FromSeconds(30);
-
-                        // Nagłówki (User-Agent zostawiamy, bo WAF go lubi)
-                        client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-                        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
-                        client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-                        client.DefaultRequestHeaders.ConnectionClose = true;
-
-                        // Wykonanie żądania
-                        var response = await client.PostAsync(requestUrl, content);
-                        var responseString = await response.Content.ReadAsStringAsync();
-
-                        if (response.IsSuccessStatusCode)
-                        {
-                            _logger.LogInformation($"Płatność cykliczna udana. Response: {responseString}");
-                            return (true, responseString);
-                        }
-                        else
-                        {
-                            string errorMsg = $"Status: {response.StatusCode}. Treść: {responseString}";
-                            _logger.LogError($"Błąd płatności dla {invoice.InvoiceNumber}. {errorMsg}");
-                            return (false, errorMsg);
-                        }
-                    }
+                    _logger.LogInformation($"Płatność cykliczna udana. Response: {responseString}");
+                    return (true, responseString);
+                }
+                else
+                {
+                    string errorMsg = $"Status: {response.StatusCode}. Treść: {responseString}";
+                    _logger.LogError($"Błąd płatności dla {invoice.InvoiceNumber}. {errorMsg}");
+                    return (false, errorMsg);
                 }
             }
             catch (Exception ex)
@@ -537,10 +515,11 @@ namespace PriceSafari.Services.Imoje
                 string fullError = $"Wyjątek: {ex.Message}";
                 if (ex.InnerException != null) fullError += $" | INNER: {ex.InnerException.Message}";
 
-                _logger.LogError(ex, $"Krytyczny błąd połączenia z Imoje.");
+                _logger.LogError(ex, "Krytyczny błąd połączenia z Imoje.");
                 return (false, fullError);
             }
         }
+
 
         public async Task<bool> HandleNotificationAsync(string headerSignature, string requestBody)
         {
