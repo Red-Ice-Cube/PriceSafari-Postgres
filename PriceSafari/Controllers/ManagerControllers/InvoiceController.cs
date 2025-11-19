@@ -34,7 +34,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             var invoices = await _context.Invoices
                 .Include(i => i.Store)
                 .Include(i => i.Plan)
-
                 .OrderByDescending(i => i.IssueDate.Year)
                 .ThenByDescending(i => i.InvoiceNumber)
                 .ToListAsync();
@@ -58,7 +57,6 @@ namespace PriceSafari.Controllers.ManagerControllers
         {
             if (ModelState.IsValid)
             {
-
                 invoice.IsPaidByCard = false;
 
                 if (invoice.DueDate == null)
@@ -145,7 +143,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             {
                 invoice.IsPaid = true;
                 invoice.PaymentDate = DateTime.Now;
-
                 invoice.IsPaidByCard = false;
 
                 if (invoice.InvoiceNumber.StartsWith("FP/"))
@@ -228,35 +225,45 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             if (invoice.Store == null || !invoice.Store.IsRecurringActive || string.IsNullOrEmpty(invoice.Store.ImojePaymentProfileId))
             {
-                TempData["Error"] = "Sklep nie posiada aktywnej karty płatniczej.";
+                TempData["Error"] = "Sklep nie posiada aktywnej karty płatniczej (brak flagi Recurring lub ProfileId).";
                 return RedirectToAction(nameof(Index));
             }
 
-            string serverIp = _configuration["SERVER_PUBLIC_IP"] ?? "127.0.0.1";
+            // --- DIAGNOSTYKA IP ---
+            // Pobieramy IP ze zmiennej środowiskowej. Jeśli jest pusta -> ustawiamy 127.0.0.1
+            string configIp = _configuration["SERVER_PUBLIC_IP"];
+            string usedIp = string.IsNullOrEmpty(configIp) ? "127.0.0.1" : configIp;
+            string debugInfo = $"[IP Config: '{configIp}' -> Użyte: '{usedIp}'] [ProfileId: {invoice.Store.ImojePaymentProfileId}]";
 
-            bool paymentSuccess = await _imojeService.ChargeProfileAsync(invoice.Store.ImojePaymentProfileId, invoice, serverIp);
-
-            if (paymentSuccess)
+            try
             {
-                invoice.IsPaid = true;
-                invoice.PaymentDate = DateTime.Now;
+                // Przekazujemy jawnie 'usedIp' do serwisu Imoje
+                bool paymentSuccess = await _imojeService.ChargeProfileAsync(invoice.Store.ImojePaymentProfileId, invoice, usedIp);
 
-                invoice.IsPaidByCard = true;
+                if (paymentSuccess)
+                {
+                    invoice.IsPaid = true;
+                    invoice.PaymentDate = DateTime.Now;
+                    invoice.IsPaidByCard = true;
 
-                await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync();
 
-                TempData["Success"] = $"SUKCES: Pobrano środki z karty dla faktury {invoice.InvoiceNumber}.";
+                    TempData["Success"] = $"SUKCES: Pobrano środki. {debugInfo}";
+                }
+                else
+                {
+                    // To wyświetli się na czerwono w panelu
+                    TempData["Error"] = $"BŁĄD PŁATNOŚCI (imoje zwróciło false). {debugInfo}. Upewnij się, że IP '{usedIp}' jest na białej liście w panelu Imoje!";
+                }
             }
-            else
+            catch (Exception ex)
             {
-                TempData["Error"] = $"BŁĄD: Imoje odrzuciło transakcję dla faktury {invoice.InvoiceNumber}. Sprawdź logi.";
+                // Jeśli wystąpi crash, wyświetlamy wyjątek na ekranie
+                string innerMsg = ex.InnerException != null ? $" | Inner: {ex.InnerException.Message}" : "";
+                TempData["Error"] = $"WYJĄTEK KRYTYCZNY: {ex.Message}{innerMsg}. {debugInfo}";
             }
 
             return RedirectToAction(nameof(Index));
         }
-
-
-
-
     }
 }

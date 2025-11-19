@@ -48,7 +48,7 @@ namespace PriceSafari.Services.SubscriptionService
                     // if (now.Hour == 0 && now.Minute < 5) nextRun = now.Date.AddMinutes(5);
 
                     // Testowo (13:15):
-                    var nextRun = now.Date.AddHours(14).AddMinutes(15);
+                    var nextRun = now.Date.AddHours(14).AddMinutes(25);
                     if (now > nextRun)
                     {
                         nextRun = nextRun.AddDays(1);
