@@ -203,6 +203,14 @@ namespace PriceSafari.Controllers.ManagerControllers
             return File(pdfBytes, "application/pdf", $"{invoice.InvoiceNumber.Replace("/", "_")}.pdf");
         }
 
+
+
+
+
+
+
+
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ForceCharge(int id)
@@ -229,15 +237,13 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // --- DIAGNOSTYKA IP ---
-            // Pobieramy IP ze zmiennej środowiskowej. Jeśli jest pusta -> ustawiamy 127.0.0.1
             string configIp = _configuration["SERVER_PUBLIC_IP"];
             string usedIp = string.IsNullOrEmpty(configIp) ? "127.0.0.1" : configIp;
             string debugInfo = $"[IP Config: '{configIp}' -> Użyte: '{usedIp}'] [ProfileId: {invoice.Store.ImojePaymentProfileId}]";
 
             try
             {
-                // Przekazujemy jawnie 'usedIp' do serwisu Imoje
+
                 bool paymentSuccess = await _imojeService.ChargeProfileAsync(invoice.Store.ImojePaymentProfileId, invoice, usedIp);
 
                 if (paymentSuccess)
@@ -252,18 +258,63 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
                 else
                 {
-                    // To wyświetli się na czerwono w panelu
+
                     TempData["Error"] = $"BŁĄD PŁATNOŚCI (imoje zwróciło false). {debugInfo}. Upewnij się, że IP '{usedIp}' jest na białej liście w panelu Imoje!";
                 }
             }
             catch (Exception ex)
             {
-                // Jeśli wystąpi crash, wyświetlamy wyjątek na ekranie
+
                 string innerMsg = ex.InnerException != null ? $" | Inner: {ex.InnerException.Message}" : "";
                 TempData["Error"] = $"WYJĄTEK KRYTYCZNY: {ex.Message}{innerMsg}. {debugInfo}";
             }
 
             return RedirectToAction(nameof(Index));
         }
+
+
+
+
+
+
+
+
+        //[HttpGet]
+        //[AllowAnonymous] // Tylko na chwilę, żebyś mógł to łatwo wywołać
+        //public async Task<IActionResult> UpdateImojeIpWhitelist()
+        //{
+        //    // Twoje dane z pliku .env
+        //    var merchantId = "zwy5an0rlp8ejxhgrsvv";
+        //    var apiKey = "6nsfzf0mnfzscu8gmtbagmnlck69nep1moamhz4f38qru7qm8rlq4engdfybv22a";
+        //    var ipToAdd = "194.88.154.185"; // Twój adres serwera
+
+        //    using var client = new HttpClient();
+        //    client.DefaultRequestHeaders.Authorization =
+        //        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+
+        //    var url = $"https://sandbox.api.imoje.pl/v1/merchant/{merchantId}/settings/ips";
+
+        //    // Tworzymy JSON z listą IP (dodaję też localhost dla testów lokalnych)
+        //    var payload = new
+        //    {
+        //        trustedIps = new[] { ipToAdd, "127.0.0.1" }
+        //    };
+
+        //    var json = System.Text.Json.JsonSerializer.Serialize(payload);
+        //    var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+        //    // Wysyłamy żądanie PUT
+        //    var response = await client.PutAsync(url, content);
+        //    var responseString = await response.Content.ReadAsStringAsync();
+
+        //    if (response.IsSuccessStatusCode)
+        //    {
+        //        return Content($"SUKCES! Zaktualizowano listę IP. Imoje odpowiedziało: {responseString}");
+        //    }
+        //    else
+        //    {
+        //        return Content($"BŁĄD AKTUALIZACJI IP. Kod: {response.StatusCode}. Treść: {responseString}");
+        //    }
+        //}
     }
 }

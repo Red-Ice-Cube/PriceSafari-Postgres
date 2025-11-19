@@ -117,7 +117,6 @@ namespace PriceSafari.Services.Imoje
         {
             try
             {
-
                 _logger.LogInformation($"[IMOJE] Otrzymano webhook.");
 
                 if (!VerifySignature(headerSignature, requestBody))
@@ -138,27 +137,8 @@ namespace PriceSafari.Services.Imoje
 
                 string customerIdStr = transaction["customer"]?["id"]?.ToString();
 
-                if (string.IsNullOrEmpty(customerIdStr))
-                {
-                    customerIdStr = transaction["paymentProfile"]?["merchantCustomerId"]?.ToString();
-                }
-
-                if (string.IsNullOrEmpty(customerIdStr))
-                {
-                    customerIdStr = json["action"]?["paymentProfile"]?["merchantCustomerId"]?.ToString();
-                }
-
-                if (string.IsNullOrEmpty(customerIdStr))
-                {
-                    _logger.LogWarning($"[IMOJE] Nie znaleziono ID klienta (StoreId) w transakcji {transactionId}. Ignoruję.");
-                    return true;
-                }
-
-                if (!int.TryParse(customerIdStr, out int storeId))
-                {
-                    _logger.LogError($"[IMOJE] ID klienta '{customerIdStr}' nie jest liczbą.");
-                    return true;
-                }
+                if (string.IsNullOrEmpty(customerIdStr)) customerIdStr = transaction["paymentProfile"]?["merchantCustomerId"]?.ToString();
+                if (string.IsNullOrEmpty(customerIdStr)) customerIdStr = json["action"]?["paymentProfile"]?["merchantCustomerId"]?.ToString();
 
                 var profileObj = json["action"]?["paymentProfile"]
                                  ?? json["paymentProfile"]
@@ -166,48 +146,63 @@ namespace PriceSafari.Services.Imoje
 
                 string paymentProfileId = profileObj?["id"]?.ToString();
 
-                if (string.IsNullOrEmpty(paymentProfileId))
+                if (!string.IsNullOrEmpty(customerIdStr) && int.TryParse(customerIdStr, out int storeId) && !string.IsNullOrEmpty(paymentProfileId))
                 {
-                    _logger.LogWarning($"[IMOJE] Brak paymentProfileId dla transakcji {transactionId}.");
-                    return true;
-                }
-
-                using (var scope = _scopeFactory.CreateScope())
-                {
-                    var dbContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
-                    var store = await dbContext.Stores.FirstOrDefaultAsync(s => s.StoreId == storeId);
-
-                    if (store != null)
+                    using (var scope = _scopeFactory.CreateScope())
                     {
-                        store.ImojePaymentProfileId = paymentProfileId;
-                        store.IsRecurringActive = true;
-                        store.IsPayingCustomer = true;
+                        var dbContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+                        var store = await dbContext.Stores.FirstOrDefaultAsync(s => s.StoreId == storeId);
 
-                        if (profileObj != null)
+                        if (store != null)
                         {
-                            store.CardMaskedNumber = profileObj["maskedNumber"]?.ToString();
-                            store.CardBrand = profileObj["organization"]?.ToString();
-                            store.CardExpYear = profileObj["year"]?.ToString();
-                            store.CardExpMonth = profileObj["month"]?.ToString();
+                            store.ImojePaymentProfileId = paymentProfileId;
+                            store.IsRecurringActive = true;
+                            store.IsPayingCustomer = true;
+
+                            if (profileObj != null)
+                            {
+                                store.CardMaskedNumber = profileObj["maskedNumber"]?.ToString();
+                                store.CardBrand = profileObj["organization"]?.ToString();
+                                store.CardExpYear = profileObj["year"]?.ToString();
+                                store.CardExpMonth = profileObj["month"]?.ToString();
+                            }
+
+                            if (store.SubscriptionStartDate == null)
+                                store.SubscriptionStartDate = DateTime.Now;
+
+                            await dbContext.SaveChangesAsync();
+                            _logger.LogInformation($"[IMOJE] SUKCES! Zaktualizowano sklep {storeId}. Karta: {store.CardMaskedNumber}");
                         }
-
-                        if (store.SubscriptionStartDate == null)
-                            store.SubscriptionStartDate = DateTime.Now;
-
-                        await dbContext.SaveChangesAsync();
-                        _logger.LogInformation($"[IMOJE] SUKCES! Zaktualizowano sklep {storeId}. Karta: {store.CardMaskedNumber}");
+                        else
+                        {
+                            _logger.LogError($"[IMOJE] BŁĄD: Sklep o ID {storeId} nie istnieje w bazie.");
+                        }
                     }
-                    else
-                    {
-                        _logger.LogError($"[IMOJE] BŁĄD: Sklep o ID {storeId} nie istnieje w bazie.");
-                    }
+                }
+                else
+                {
+                    _logger.LogWarning($"[IMOJE] Nie udało się zapisać karty. Brak storeId ({customerIdStr}) lub profileId ({paymentProfileId}). Transakcja: {transactionId}");
                 }
 
                 int amount = (int)(transaction["amount"] ?? 0);
                 string orderId = transaction["orderId"]?.ToString();
+
                 if (amount == 100 && orderId != null && orderId.StartsWith("REG-"))
                 {
-                    await RefundTransactionPrivateAsync(transactionId, amount, _serviceId);
+                    _logger.LogInformation($"[IMOJE] Wykryto transakcję weryfikacyjną ({orderId}). Oczekiwanie na zwrot...");
+
+                    await Task.Delay(3000);
+
+                    bool refundSuccess = await RefundTransactionAsync(transactionId, amount, _serviceId);
+
+                    if (refundSuccess)
+                    {
+                        _logger.LogInformation($"[IMOJE] Zwrot autoryzacyjny dla {orderId} zlecony pomyślnie.");
+                    }
+                    else
+                    {
+                        _logger.LogError($"[IMOJE] Błąd podczas zlecenia zwrotu dla {orderId}. Sprawdź logi RefundTransactionAsync.");
+                    }
                 }
 
                 return true;
@@ -240,29 +235,39 @@ namespace PriceSafari.Services.Imoje
             return incomingSig.Equals(calculatedSig, StringComparison.InvariantCultureIgnoreCase);
         }
 
-        private async Task<bool> RefundTransactionPrivateAsync(string transactionId, int amount, string serviceId)
+        public async Task<bool> RefundTransactionAsync(string transactionId, int amount, string serviceId)
         {
-            try
+
+            var merchantId = _config["IMOJE_MERCHANT_ID"];
+            var token = _config["IMOJE_API_KEY"];
+            var apiUrl = _config["IMOJE_API_URL"];
+
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var url = $"{apiUrl}/{merchantId}/transaction/{transactionId}/refund";
+
+            var payload = new
             {
-                var refundUrl = $"{_apiUrl}/v1/merchant/{_merchantId}/transaction/{transactionId}/refund";
-                var payload = new { type = "refund", serviceId, amount, title = "Zwrot weryfikacyjny 1 PLN" };
+                type = "refund",
+                serviceId = serviceId,
+                amount = amount,
+                title = "Zwrot opłaty weryfikacyjnej",
+                sendRefundConfirmationEmail = true
+            };
 
-                var request = new HttpRequestMessage(HttpMethod.Post, refundUrl);
-                request.Headers.Add("Authorization", $"Bearer {_apiKey}");
-                request.Content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
+            var json = System.Text.Json.JsonSerializer.Serialize(payload);
+            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-                var response = await _httpClient.SendAsync(request);
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation($"Imoje: Wykonano zwrot dla {transactionId}");
-                    return true;
-                }
-                _logger.LogError($"Imoje: Błąd zwrotu {transactionId}. {await response.Content.ReadAsStringAsync()}");
-                return false;
+            var response = await client.PostAsync(url, content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogError(ex, "Imoje: Wyjątek przy zwrocie");
+
                 return false;
             }
         }
