@@ -105,8 +105,6 @@ public class Program
         app.UseHttpsRedirection();
         app.UseStaticFiles();
 
-        // TUTAJ USUNIĘTO MIDDLEWARE DEBUGUJĄCY IMOJE
-
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();
@@ -171,7 +169,6 @@ public class Program
         app.MapHub<ScrapingHub>("/scrapingHub");
         app.MapHub<ReportProgressHub>("/reportProgressHub");
         app.MapHub<DashboardProgressHub>("/dashboardProgressHub");
-        // USUNIĘTO: app.MapHub<...PaymentDebugHub>("/paymentDebugHub");
 
         await app.RunAsync();
     }
@@ -224,4 +221,3 @@ public class Program
     }
 }
 
-// USUNIĘTO KLASĘ PaymentLogHistory

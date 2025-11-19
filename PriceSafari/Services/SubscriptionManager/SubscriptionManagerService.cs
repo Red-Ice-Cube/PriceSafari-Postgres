@@ -84,7 +84,6 @@ namespace PriceSafari.Services.SubscriptionService
                     LastInvoiceNumber = 0
                 };
                 context.InvoiceCounters.Add(invoiceCounter);
-
                 await context.SaveChangesAsync(ct);
             }
 
@@ -100,6 +99,7 @@ namespace PriceSafari.Services.SubscriptionService
                 {
                     if (store.IsPayingCustomer)
                     {
+
                         if (store.SubscriptionStartDate == null || store.SubscriptionStartDate.Value > today)
                         {
                             continue;
@@ -127,6 +127,7 @@ namespace PriceSafari.Services.SubscriptionService
                     }
                     else
                     {
+
                         if (store.RemainingDays > 0)
                         {
                             store.RemainingDays--;
@@ -168,11 +169,18 @@ namespace PriceSafari.Services.SubscriptionService
             int currentInvoiceNumber = counter.LastInvoiceNumber;
             string invoiceNumberFormatted = $"PS/{currentInvoiceNumber:D6}/sDB/{issueDate.Year}";
 
+            var dueDate = issueDate.AddDays(14);
+
             var invoice = new InvoiceClass
             {
                 StoreId = store.StoreId,
                 PlanId = store.PlanId.Value,
                 IssueDate = issueDate,
+
+                DueDate = dueDate,
+
+                IsPaidByCard = false,
+
                 NetAmount = netPrice,
                 DaysIncluded = store.Plan.DaysPerInvoice,
                 UrlsIncluded = store.Plan.ProductsToScrap,
@@ -195,7 +203,6 @@ namespace PriceSafari.Services.SubscriptionService
             store.ProductsToScrapAllegro = store.Plan.ProductsToScrapAllegro;
 
             context.Invoices.Add(invoice);
-
             await context.SaveChangesAsync();
 
             if (store.IsRecurringActive && !string.IsNullOrEmpty(store.ImojePaymentProfileId))
@@ -210,12 +217,16 @@ namespace PriceSafari.Services.SubscriptionService
                 {
                     invoice.IsPaid = true;
                     invoice.PaymentDate = DateTime.Now;
+
+                    invoice.IsPaidByCard = true;
+
                     _logger.LogInformation($"SUKCES: Faktura {invoice.InvoiceNumber} opłacona automatycznie z karty.");
 
                     await context.SaveChangesAsync();
                 }
                 else
                 {
+
                     _logger.LogWarning($"PORAŻKA: Nie udało się obciążyć karty dla faktury {invoice.InvoiceNumber}.");
                 }
             }

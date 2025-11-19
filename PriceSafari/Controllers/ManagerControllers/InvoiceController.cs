@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using System.Linq;
 using System;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using PriceSafari.Services.Imoje;
+using Microsoft.Extensions.Configuration;
 
 namespace PriceSafari.Controllers.ManagerControllers
 {
@@ -14,27 +16,36 @@ namespace PriceSafari.Controllers.ManagerControllers
     public class InvoiceController : Controller
     {
         private readonly PriceSafariContext _context;
+        private readonly IImojeService _imojeService;
+        private readonly IConfiguration _configuration;
 
-        public InvoiceController(PriceSafariContext context)
+        public InvoiceController(
+            PriceSafariContext context,
+            IImojeService imojeService,
+            IConfiguration configuration)
         {
             _context = context;
+            _imojeService = imojeService;
+            _configuration = configuration;
         }
 
         public async Task<IActionResult> Index()
         {
-
             var invoices = await _context.Invoices
                 .Include(i => i.Store)
                 .Include(i => i.Plan)
-                .OrderByDescending(i => i.IssueDate)
+
+                .OrderByDescending(i => i.IssueDate.Year)
+                .ThenByDescending(i => i.InvoiceNumber)
                 .ToListAsync();
+
             return View("~/Views/ManagerPanel/Invoices/Index.cshtml", invoices);
         }
+
         public async Task<IActionResult> Create()
         {
             var stores = await _context.Stores.Include(s => s.Plan).ToListAsync();
             ViewBag.Stores = new SelectList(stores, "StoreId", "StoreName");
-
             var plans = await _context.Plans.ToListAsync();
             ViewBag.Plans = new SelectList(plans, "PlanId", "PlanName");
 
@@ -47,6 +58,14 @@ namespace PriceSafari.Controllers.ManagerControllers
         {
             if (ModelState.IsValid)
             {
+
+                invoice.IsPaidByCard = false;
+
+                if (invoice.DueDate == null)
+                {
+                    invoice.DueDate = invoice.IssueDate.AddDays(14);
+                }
+
                 _context.Add(invoice);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
@@ -91,7 +110,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                         var store = await _context.Stores.Include(s => s.Plan).FirstOrDefaultAsync(s => s.StoreId == invoice.StoreId);
                         if (store != null)
                         {
-
                             store.ProductsToScrap = store.Plan.ProductsToScrap;
                             await _context.SaveChangesAsync();
                         }
@@ -99,14 +117,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!InvoiceExists(invoice.InvoiceId))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    if (!InvoiceExists(invoice.InvoiceId)) return NotFound();
+                    else throw;
                 }
 
                 return RedirectToAction(nameof(Index));
@@ -127,23 +139,19 @@ namespace PriceSafari.Controllers.ManagerControllers
                 .Include(i => i.Plan)
                 .FirstOrDefaultAsync(i => i.InvoiceId == id);
 
-            if (invoice == null)
-            {
-                return NotFound();
-            }
+            if (invoice == null) return NotFound();
 
             if (!invoice.IsPaid)
             {
                 invoice.IsPaid = true;
                 invoice.PaymentDate = DateTime.Now;
 
+                invoice.IsPaidByCard = false;
+
                 if (invoice.InvoiceNumber.StartsWith("FP/"))
                 {
-
                     invoice.OriginalProformaNumber = invoice.InvoiceNumber;
-
                     int invoiceNumber = await GetNextInvoiceNumberAsync();
-
                     invoice.InvoiceNumber = $"PS/{invoiceNumber.ToString("D6")}/sDB/{invoice.IssueDate.Year}";
                 }
 
@@ -151,7 +159,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 if (store != null)
                 {
                     store.PlanId = invoice.PlanId;
-
                     store.ProductsToScrap = invoice.Plan.ProductsToScrap;
                 }
 
@@ -190,16 +197,62 @@ namespace PriceSafari.Controllers.ManagerControllers
                 .Include(i => i.Plan)
                 .FirstOrDefaultAsync(i => i.InvoiceId == id);
 
-            if (invoice == null)
-            {
-                return NotFound("Faktura nie została znaleziona.");
-            }
+            if (invoice == null) return NotFound("Faktura nie została znaleziona.");
 
             var logoImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "cid", "signature.png");
             var document = new InvoiceDocument(invoice, logoImagePath);
             var pdfBytes = document.GeneratePdf();
 
             return File(pdfBytes, "application/pdf", $"{invoice.InvoiceNumber.Replace("/", "_")}.pdf");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForceCharge(int id)
+        {
+            var invoice = await _context.Invoices
+                .Include(i => i.Store)
+                .FirstOrDefaultAsync(i => i.InvoiceId == id);
+
+            if (invoice == null)
+            {
+                TempData["Error"] = "Nie znaleziono faktury.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (invoice.IsPaid)
+            {
+                TempData["Warning"] = "Ta faktura jest już opłacona.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (invoice.Store == null || !invoice.Store.IsRecurringActive || string.IsNullOrEmpty(invoice.Store.ImojePaymentProfileId))
+            {
+                TempData["Error"] = "Sklep nie posiada aktywnej karty płatniczej.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            string serverIp = _configuration["SERVER_PUBLIC_IP"] ?? "127.0.0.1";
+
+            bool paymentSuccess = await _imojeService.ChargeProfileAsync(invoice.Store.ImojePaymentProfileId, invoice, serverIp);
+
+            if (paymentSuccess)
+            {
+                invoice.IsPaid = true;
+                invoice.PaymentDate = DateTime.Now;
+
+                invoice.IsPaidByCard = true;
+
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = $"SUKCES: Pobrano środki z karty dla faktury {invoice.InvoiceNumber}.";
+            }
+            else
+            {
+                TempData["Error"] = $"BŁĄD: Imoje odrzuciło transakcję dla faktury {invoice.InvoiceNumber}. Sprawdź logi.";
+            }
+
+            return RedirectToAction(nameof(Index));
         }
     }
 }

@@ -8,7 +8,6 @@ namespace PriceSafari.Models
         [Key]
         public int InvoiceId { get; set; }
 
-        // New property to store the custom invoice number
         [Required]
         [Display(Name = "Numer Faktury")]
         public string InvoiceNumber { get; set; }
@@ -47,11 +46,8 @@ namespace PriceSafari.Models
         public int? UrlsIncluded { get; set; }
 
         [Display(Name = "Maksymalna ilość produktów (Marketplace)")]
-        public int? UrlsIncludedAllegro { get; set; } 
+        public int? UrlsIncludedAllegro { get; set; }
 
-
-
-        // Nowe pola rabatowe
         [Display(Name = "Rabat (%)")]
         public decimal AppliedDiscountPercentage { get; set; } = 0;
 
@@ -60,6 +56,9 @@ namespace PriceSafari.Models
 
         public string? OriginalProformaNumber { get; set; }
 
+        public DateTime? DueDate { get; set; }
+
+        public bool IsPaidByCard { get; set; } = false;
 
         public string CompanyName { get; set; }
         public string Address { get; set; }

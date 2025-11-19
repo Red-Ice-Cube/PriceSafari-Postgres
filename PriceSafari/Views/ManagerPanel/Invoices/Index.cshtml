@@ -9,7 +9,6 @@
 
     .search-container {
         margin-bottom: 20px;
-        position: relative;
     }
 
     .search-input {
@@ -19,201 +18,393 @@
         border-radius: 8px;
         font-size: 16px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-
     }
 
-    .search-input:focus {
-        outline: none;
-        border-color: #28a745;
-        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
-    }
+        .search-input:focus {
+            outline: none;
+            border-color: #4e73df;
+            box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.15);
+        }
 
     .table-invoices {
         width: 100%;
         border-collapse: separate;
-        border-spacing: 0 8px; 
+        border-spacing: 0 0;
     }
 
-    .table-invoices thead th {
-        border: none;
-        color: #6c757d;
-        font-weight: 600;
-        padding: 15px;
-        background-color: transparent;
-    }
+        .table-invoices thead th {
+            border-bottom: 2px solid #e3e6f0;
+            color: #858796;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            padding: 12px;
+        }
 
-    .table-invoices tbody tr {
-        background-color: #fff;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        .table-invoices tbody tr {
+            background-color: #fff;
+            border-bottom: 1px solid #e3e6f0;
+        }
 
-    }
+            .table-invoices tbody tr:hover {
+                background-color: #f8f9fc;
+            }
 
-    .table-invoices tbody tr:hover {
-
-        background-color: #f8f9fa; 
-    }
-
-    .table-invoices td {
-        padding: 15px;
-        vertical-align: middle;
-        border-top: 1px solid #f8f9fa;
-        border-bottom: 1px solid #f8f9fa;
-        color: #212529; 
-    }
-
-    .table-invoices td:first-child {
-        border-left: 1px solid #f8f9fa;
-        border-top-left-radius: 8px;
-        border-bottom-left-radius: 8px;
-    }
-
-    .table-invoices td:last-child {
-        border-right: 1px solid #f8f9fa;
-        border-top-right-radius: 8px;
-        border-bottom-right-radius: 8px;
-    }
-
-    .plan-badge {
-        background-color: #e9ecef; 
-        color: #495057;           
-        border: 1px solid #dee2e6;
-        padding: 5px 10px;
-        border-radius: 5px;
-        font-weight: 500;
-        font-size: 0.85em;
-    }
+        .table-invoices td {
+            padding: 12px;
+            vertical-align: middle;
+            color: #5a5c69;
+            font-size: 0.9rem;
+        }
 
     .status-badge {
-        padding: 6px 12px;
-        border-radius: 50px;
-        font-size: 0.85em;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        display: inline-flex;
-        align-items: center;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        display: inline-block;
+        margin-bottom: 4px;
+        border: 1px solid transparent;
     }
 
-    .status-badge i {
+    .badge-paid-card {
+        background: #f3e5f5;
+        color: #6a1b9a;
+        border-color: #e1bee7;
+    }
+
+    .badge-paid-transfer {
+        background: #d1fae5;
+        color: #065f46;
+        border-color: #a7f3d0;
+    }
+
+    .badge-unpaid {
+        background: #fee2e2;
+        color: #991b1b;
+        border-color: #fecaca;
+    }
+
+    .hint-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-top: 4px;
+    }
+
+    .hint-card {
+        color: #6f42c1;
+        background: #f0ebf9;
+    }
+
+    .hint-transfer {
+        color: #858796;
+        background: #eaecf4;
+    }
+
+    .date-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        margin-bottom: 2px;
+    }
+
+    .date-label {
+        color: #aaa;
         margin-right: 5px;
     }
 
-    .status-paid {
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
+    .date-value {
+        font-weight: 600;
+        color: #444;
     }
 
-    .status-unpaid {
-        background-color: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
+    .deadline-expired {
+        color: #e74a3b;
+        font-weight: 800;
     }
 
-    .action-btn-group {
+    .btn-download {
+        color: #4e73df;
+        border: 1px solid #d1d3e2;
+        background: #fff;
+        font-size: 0.8rem;
+        padding: 4px 10px;
+        border-radius: 4px;
+        display: block;
+        margin-bottom: 6px;
+        text-align: center;
+        width: 100%;
+        text-decoration: none;
+    }
+
+        .btn-download:hover {
+            background-color: #f1f3fd;
+            color: #224abe;
+            text-decoration: none;
+        }
+
+    .btn-mark-paid {
+        background-color: #1cc88a;
+        color: white;
+        border: none;
+        font-weight: 700;
+        font-size: 0.85rem;
+        padding: 10px 0;
+        width: 100%;
+        border-radius: 6px;
+        margin-top: 6px;
         display: flex;
-        gap: 5px;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        cursor: pointer;
+    }
+
+        .btn-mark-paid:hover {
+            background-color: #17a673;
+            color: white;
+        }
+
+    .btn-charge-imoje {
+        background: #6f42c1;
+        color: white;
+        border: none;
+        font-weight: 700;
+        font-size: 0.85rem;
+        padding: 10px 0;
+        width: 100%;
+        border-radius: 6px;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        cursor: pointer;
+    }
+
+        .btn-charge-imoje:hover {
+            background: #5a32a3;
+            color: white;
+        }
+
+    .invoice-nr {
+        font-family: 'Consolas', monospace;
+        font-weight: 700;
+        color: #4e73df;
+        font-size: 0.95rem;
+    }
+
+    .store-name {
+        font-weight: 600;
+        color: #333;
+        font-size: 0.95rem;
+    }
+
+    .nip-text {
+        font-size: 0.75rem;
+        color: #888;
+        display: block;
+        margin-top: 2px;
     }
 </style>
 
 <div class="container-fluid mt-4">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Faktury</h2>
-        <a asp-action="Create" class="btn btn-success shadow-sm">
-            <i class="fas fa-plus"></i> Wystaw Nową Fakturę
+        <h2 class="text-gray-800">Zarządzanie Fakturami</h2>
+        <a asp-action="Create" class="btn btn-primary shadow-sm">
+            <i class="fas fa-plus fa-sm text-white-50 mr-2"></i> Wystaw Nową Fakturę
         </a>
     </div>
 
+    <!-- KOMUNIKATY -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle mr-2"></i> @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle mr-2"></i> @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["Warning"] != null)
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle mr-2"></i> @TempData["Warning"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+ 
     <div class="search-container">
-        <input type="text" id="invoiceSearch" class="search-input" placeholder="🔍 Szukaj po nazwie sklepu, numerze faktury lub dacie...">
+        <input type="text" id="invoiceSearch" class="search-input" placeholder="🔍 Wpisz nazwę sklepu, NIP, numer faktury lub kwotę...">
     </div>
 
     <div class="table-responsive">
         <table class="table table-invoices" id="invoicesTable">
             <thead>
                 <tr>
-                    <th>Numer Faktury</th>
-                    <th>Sklep</th>
-                    <th>Plan</th>
-                    <th>Daty</th>
-                    <th>Status</th>
-                    <th>Kwota Netto</th>
-                    <th>Analizy</th>
-                    <th>Akcje</th>
+                    <th width="15%">Numer</th>
+                    <th width="25%">Sklep / NIP</th>
+                    <th width="15%">Status / Metoda</th>
+                    <th width="15%">Terminy</th>
+                    <th width="10%">Kwota</th>
+                    <th width="20%">Akcje</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var invoice in Model)
                 {
+
+                    var dueDate = invoice.DueDate ?? invoice.IssueDate.AddDays(14);
+                    var daysOverdue = (DateTime.Today - dueDate).TotalDays;
+                    bool isOverdue = !invoice.IsPaid && daysOverdue > 0;
+
                     <tr>
-                        <td style="font-weight: bold; color: #333;">
-                            @(string.IsNullOrEmpty(invoice.InvoiceNumber) ? "#" + invoice.InvoiceId : invoice.InvoiceNumber)
-                        </td>
-
+                    
                         <td>
-                            <div style="font-weight: 600;">@invoice.Store?.StoreName</div>
-                        </td>
-
-                        <td>
-                            <!-- ZMIANA: Użyto nowej klasy .plan-badge -->
-                            <span class="plan-badge">@invoice.Plan?.PlanName</span>
-                        </td>
-
-                        <td>
-                            <div style="font-size: 0.9em; color: #555;">
-                                <div><i class="far fa-calendar-alt"></i> Wyst: @invoice.IssueDate.ToString("yyyy-MM-dd")</div>
-                                @if (invoice.PaymentDate.HasValue)
-                                {
-                                    <div style="color: #28a745;"><i class="far fa-check-circle"></i> Zapł: @invoice.PaymentDate.Value.ToString("yyyy-MM-dd")</div>
-                                }
+                            <div class="invoice-nr">
+                                @(string.IsNullOrEmpty(invoice.InvoiceNumber) ? "#" + invoice.InvoiceId : invoice.InvoiceNumber)
                             </div>
+                            <small class="text-muted">@invoice.Plan?.PlanName</small>
+                        </td>
+
+                  
+                        <td>
+                            <div class="store-name">@invoice.Store?.StoreName</div>
+                            @if (!string.IsNullOrEmpty(invoice.NIP))
+                            {
+                                <span class="nip-text">NIP: @invoice.NIP</span>
+                            }
+                            else
+                            {
+                                <span class="nip-text">-</span>
+                            }
                         </td>
 
                         <td>
                             @if (invoice.IsPaid)
                             {
-                                <span class="status-badge status-paid">
-                                    <i class="fas fa-check"></i> Opłacona
-                                </span>
+
+                                if (invoice.IsPaidByCard)
+                                {
+                                    <span class="status-badge badge-paid-card">
+                                        <i class="fas fa-check-circle"></i> KARTA
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="status-badge badge-paid-transfer">
+                                        <i class="fas fa-university"></i> PRZELEW
+                                    </span>
+                                }
+                                <div style="font-size: 0.75rem; color: #1cc88a; margin-top: 2px; font-weight: 600;">Opłacono</div>
                             }
                             else
                             {
-                                <span class="status-badge status-unpaid">
-                                    <i class="fas fa-times"></i> Nieopłacona
+
+                                <span class="status-badge badge-unpaid">
+                                    <i class="fas fa-clock"></i> OCZEKUJE
                                 </span>
+
+                                @if (invoice.Store != null && invoice.Store.IsRecurringActive)
+                                {
+                                    <div class="hint-badge hint-card" title="Sklep ma podpiętą kartę">
+                                        <i class="fas fa-credit-card"></i> Klient: Karta
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="hint-badge hint-transfer" title="Sklep płaci tradycyjnie">
+                                        <i class="fas fa-university"></i> Klient: Przelew
+                                    </div>
+                                }
                             }
                         </td>
 
-                        <td style="font-weight: 600;">@invoice.NetAmount.ToString("C")</td>
-
-                        <td>@invoice.DaysIncluded</td>
-
+           
                         <td>
-                            <div class="action-btn-group">
-                                <a asp-action="DownloadPdf" asp-route-id="@invoice.InvoiceId" class="btn btn-sm btn-info text-white" title="Pobierz PDF" target="_blank">
-                                    <i class="fas fa-file-pdf"></i>
-                                </a>
+                            <div class="date-row">
+                                <span class="date-label">Wyst:</span>
+                                <span class="date-value">@invoice.IssueDate.ToString("dd.MM.yyyy")</span>
+                            </div>
+                            <div class="date-row">
+                                <span class="date-label">Termin:</span>
+                                <span class="date-value @(isOverdue ? "deadline-expired" : "")">
+                                    @dueDate.ToString("dd.MM.yyyy")
+                                </span>
+                            </div>
 
-                                @if (!invoice.IsPaid)
+                            @if (isOverdue)
+                            {
+                                <div class="text-danger" style="font-size: 0.75rem; font-weight: 800; text-align: right; margin-top: 2px;">
+                                    @Math.Ceiling(daysOverdue) dni po!
+                                </div>
+                            }
+
+                            @if (invoice.PaymentDate.HasValue)
+                            {
+                                <div class="text-success" style="font-size: 0.75rem; text-align: right; margin-top: 2px;">
+                                    Zapł: @invoice.PaymentDate.Value.ToString("dd.MM.yyyy")
+                                </div>
+                            }
+                        </td>
+
+                     
+                        <td>
+                      
+                            <div style="font-weight: 700; font-size: 1rem; color: #333;">
+                                @invoice.NetAmount.ToString("N2") zł
+                                <span style="font-size:0.7em; color:#888; font-weight: 400;">netto</span>
+                            </div>
+                     
+                            <div style="font-weight: 600; font-size: 0.85rem; color: #888; margin-top: 4px;">
+                                @((invoice.NetAmount * 1.23m).ToString("N2")) zł
+                                <span style="font-size:0.7em; font-weight: 400;">brutto</span>
+                            </div>
+                        </td>
+
+                   
+                        <td>
+                      
+                            <a asp-action="DownloadPdf" asp-route-id="@invoice.InvoiceId" class="btn-download" target="_blank">
+                                <i class="fas fa-file-pdf"></i> Pobierz PDF
+                            </a>
+
+                            @if (!invoice.IsPaid)
+                            {
+                            
+                                @if (invoice.Store != null && invoice.Store.IsRecurringActive && !string.IsNullOrEmpty(invoice.Store.ImojePaymentProfileId))
                                 {
-                                    <form asp-action="MarkAsPaid" method="post" style="display:inline;">
+                                    <form asp-action="ForceCharge" method="post" onsubmit="return confirm('Czy na pewno chcesz spróbować obciążyć kartę klienta?');">
                                         <input type="hidden" name="id" value="@invoice.InvoiceId" />
-                                        <button type="submit" class="btn btn-sm btn-success" title="Oznacz jako Opłaconą">
-                                            <i class="fas fa-money-bill-wave"></i>
-                                        </button>
-                                    </form>
-
-                                    <a asp-action="Edit" asp-route-id="@invoice.InvoiceId" class="btn btn-sm btn-primary" title="Edytuj">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-
-                                    <form asp-action="Delete" asp-route-id="@invoice.InvoiceId" method="post" style="display:inline;" onsubmit="return confirm('Czy na pewno chcesz usunąć tę fakturę?');">
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Usuń">
-                                            <i class="fas fa-trash"></i>
+                                        <button type="submit" class="btn-charge-imoje">
+                                            <i class="fas fa-bolt"></i> OBCIĄŻ KARTĘ
                                         </button>
                                     </form>
                                 }
+
+                          
+                                <form asp-action="MarkAsPaid" method="post" onsubmit="return confirm('Potwierdzasz wpłatę przelewem?');">
+                                    <input type="hidden" name="id" value="@invoice.InvoiceId" />
+                                    <button type="submit" class="btn-mark-paid">
+                                        <i class="fas fa-check-double"></i> ZATWIERDŹ WPŁATĘ
+                                    </button>
+                                </form>
+                            }
+
+                         
+                            <div class="text-center mt-2">
+                                <a asp-action="Edit" asp-route-id="@invoice.InvoiceId" style="font-size: 0.75rem; color: #bbb; text-decoration: underline;">Edycja</a>
                             </div>
                         </td>
                     </tr>
@@ -230,6 +421,7 @@
             $("#invoiceSearch").on("keyup", function () {
                 var value = $(this).val().toLowerCase();
                 $("#invoicesTable tbody tr").filter(function () {
+
                     $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
                 });
             });

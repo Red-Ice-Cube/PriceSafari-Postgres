@@ -152,7 +152,7 @@ public class InvoiceDocument
         var dataCell = dataRow.Cells[1];
 
         dataCell.AddParagraph($"PriceSafari {_invoice.Plan.PlanName}");
-        dataCell.AddParagraph($"Ilość analiz: {_invoice.DaysIncluded}");
+        dataCell.AddParagraph($"Ilość dni dostępu: {_invoice.DaysIncluded}");
 
         if (_invoice.UrlsIncluded.HasValue && _invoice.UrlsIncluded > 0)
         {
@@ -253,7 +253,7 @@ public class InvoiceDocument
         if (!_invoice.IsPaid)
         {
             section.AddParagraph().AddLineBreak();
-            var paymentInfo = section.AddParagraph("Prosimy o dokonanie płatności na poniższy rachunek bankowy w terminie 7 dni:");
+            var paymentInfo = section.AddParagraph("Prosimy o dokonanie płatności na poniższy rachunek bankowy w terminie 14 dni:");
             paymentInfo.Style = "Bold";
             paymentInfo.Format.SpaceBefore = "1cm";
             section.AddParagraph("PKO Bank Polski");
