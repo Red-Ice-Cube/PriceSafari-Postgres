@@ -31,6 +31,8 @@ public class ScheduledTaskService : BackgroundService
         var urlScalAleKey = Environment.GetEnvironmentVariable("URL_SCAL_ALE");
         var aleCrawKey = Environment.GetEnvironmentVariable("ALE_CRAW");
         var aleApiBotKey = Environment.GetEnvironmentVariable("ALE_API_BOT");
+        var subKey = Environment.GetEnvironmentVariable("SUBSCRIPTION_KEY");
+        var payKey = Environment.GetEnvironmentVariable("GRAB_PAYMENT");
 
         var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "UnknownDevice";
 
@@ -165,8 +167,15 @@ public class ScheduledTaskService : BackgroundService
                 if (DateTime.Now - _lastDeviceCheck >= _deviceCheckInterval)
                 {
                     _lastDeviceCheck = DateTime.Now;
-                    await UpdateDeviceStatusAsync(context, deviceName, baseScalKey, urlScalKey,
-                        gooCrawKey, cenCrawKey, aleBaseScalKey, urlScalAleKey, aleCrawKey, aleApiBotKey, stoppingToken);
+
+                    // Przekazujemy nowe klucze do metody
+                    await UpdateDeviceStatusAsync(
+                        context,
+                        deviceName,
+                        baseScalKey, urlScalKey, gooCrawKey, cenCrawKey,
+                        aleBaseScalKey, urlScalAleKey, aleCrawKey, aleApiBotKey,
+                        subKey, payKey, // <-- Nowe argumenty
+                        stoppingToken);
                 }
             }
             catch (Exception ex)
@@ -611,18 +620,21 @@ public class ScheduledTaskService : BackgroundService
     }
 
     private async Task UpdateDeviceStatusAsync(
-         PriceSafariContext context,
-         string deviceName,
-         string baseScalKey,
-         string urlScalKey,
-         string gooCrawKey,
-         string cenCrawKey,
-         string aleBaseScalKey,
-         string urlScalAleKey,
-         string aleCrawKey,
-         string aleApiBotKey,
-         CancellationToken ct)
+             PriceSafariContext context,
+             string deviceName,
+             string baseScalKey,
+             string urlScalKey,
+             string gooCrawKey,
+             string cenCrawKey,
+             string aleBaseScalKey,
+             string urlScalAleKey,
+             string aleCrawKey,
+             string aleApiBotKey,
+             string subKey,      // Nowy argument
+             string payKey,      // Nowy argument
+             CancellationToken ct)
     {
+        // Oczekiwane klucze scraperów
         const string BASE_SCAL_EXPECTED = "55380981";
         const string URL_SCAL_EXPECTED = "83208716";
         const string GOO_CRAW_EXPECTED = "63891743";
@@ -632,6 +644,11 @@ public class ScheduledTaskService : BackgroundService
         const string ALE_CRAW_EXPECTED = "13894389";
         const string ALE_API_BOT_EXPECTED = "00937384";
 
+        // Oczekiwane klucze Faktur i Płatności
+        const string SUB_KEY_EXPECTED = "99887766";
+        const string PAY_KEY_EXPECTED = "38401048";
+
+        // Weryfikacja uprawnień
         bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
         bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
         bool hasGooCraw = (gooCrawKey == GOO_CRAW_EXPECTED);
@@ -640,6 +657,10 @@ public class ScheduledTaskService : BackgroundService
         bool hasUrlScalAle = (urlScalAleKey == URL_SCAL_ALE_EXPECTED);
         bool hasAleCraw = (aleCrawKey == ALE_CRAW_EXPECTED);
         bool hasAleApiBot = (aleApiBotKey == ALE_API_BOT_EXPECTED);
+
+        // Weryfikacja nowych uprawnień
+        bool hasInvoiceGen = (subKey == SUB_KEY_EXPECTED);
+        bool hasPaymentProc = (payKey == PAY_KEY_EXPECTED);
 
         var newStatus = new DeviceStatus
         {
@@ -653,12 +674,17 @@ public class ScheduledTaskService : BackgroundService
             AleBaseScalEnabled = hasAleBaseScal,
             UrlScalAleEnabled = hasUrlScalAle,
             AleCrawEnabled = hasAleCraw,
-            AleApiBotEnabled = hasAleApiBot
+            AleApiBotEnabled = hasAleApiBot,
+
+            // Przypisanie nowych flag
+            InvoiceGeneratorEnabled = hasInvoiceGen,
+            PaymentProcessorEnabled = hasPaymentProc
         };
 
         await context.DeviceStatuses.AddAsync(newStatus, ct);
         await context.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Zaktualizowano status urządzenia '{DeviceName}'.", deviceName);
+        _logger.LogInformation("Zaktualizowano status urządzenia '{DeviceName}'. Faktury: {Inv}, Płatności: {Pay}",
+            deviceName, hasInvoiceGen, hasPaymentProc);
     }
 }

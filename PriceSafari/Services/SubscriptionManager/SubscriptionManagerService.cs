@@ -302,6 +302,14 @@
 //}
 
 
+
+
+
+
+
+
+
+
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
@@ -385,7 +393,7 @@ namespace PriceSafari.Services.SubscriptionService
                     else // isPayer
                     {
                         // Ustawiamy na godzinę 20:45
-                        nextRun = now.Date.AddHours(20).AddMinutes(45);
+                        nextRun = now.Date.AddHours(20).AddMinutes(35);
 
                         if (now > nextRun) nextRun = nextRun.AddDays(1);
                     }

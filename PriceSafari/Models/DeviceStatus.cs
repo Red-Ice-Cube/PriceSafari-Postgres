@@ -22,5 +22,8 @@
         public bool UrlScalAleEnabled { get; set; }
         public bool AleCrawEnabled { get; set; }
         public bool AleApiBotEnabled { get; set; }
+
+        public bool InvoiceGeneratorEnabled { get; set; } // Czy ma SUBSCRIPTION_KEY
+        public bool PaymentProcessorEnabled { get; set; } // Czy ma GRAB_PAYMENT
     }
 }
