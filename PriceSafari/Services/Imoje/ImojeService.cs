@@ -3,16 +3,16 @@
 //using Newtonsoft.Json.Linq;
 //using PriceSafari.Data;
 //using PriceSafari.Models;
+//using System.Net;
 //using System.Security.Cryptography;
 //using System.Text;
-//using System.Net;
+
 //namespace PriceSafari.Services.Imoje
 //{
 //    public interface IImojeService
 //    {
 //        string CalculateSignature(Dictionary<string, string> data, string hashMethod = "sha256");
 
-//        // ZMIANA TUTAJ: Zwracamy (bool, string) zamiast samego bool
 //        Task<(bool Success, string Response)> ChargeProfileAsync(string profileId, InvoiceClass invoice, string ipAddress);
 
 //        Task<bool> HandleNotificationAsync(string headerSignature, string requestBody);
@@ -64,21 +64,15 @@
 //        {
 //            try
 //            {
-//                // 1. RESET USTAWIEŃ GLOBALNYCH (Dla bezpieczeństwa, jeśli coś zostało w pamięci)
-//                // Nie chcemy, żeby stare próby wpływały na to żądanie
-//                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-//                ServicePointManager.CheckCertificateRevocationList = false;
-//                ServicePointManager.DefaultConnectionLimit = 100;
-//                ServicePointManager.Expect100Continue = false;
+
+//                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
 
 //                if (string.IsNullOrEmpty(_merchantId) || string.IsNullOrEmpty(_apiKey))
 //                {
 //                    return (false, "Brak konfiguracji imoje w .env");
 //                }
 
-//                // 2. PRZYGOTOWANIE DANYCH
 //                var amountInGrosze = (int)(invoice.NetAmount * 1.23m * 100);
-
 //                var payload = new
 //                {
 //                    serviceId = _serviceId,
@@ -93,53 +87,53 @@
 //                var content = new StringContent(json, Encoding.UTF8, "application/json");
 //                var requestUrl = $"{_apiUrl}/v1/merchant/{_merchantId}/transaction/profile";
 
-//                // 3. CZYSTY HANDLER (Bez kombinowania, tylko niezbędne standardy)
-//                using (var handler = new HttpClientHandler())
+//                var handler = new SocketsHttpHandler();
+
+//                var sslOptions = new System.Net.Security.SslClientAuthenticationOptions
 //                {
-//                    // Wymuszamy TLS 1.2 (najbezpieczniejszy standard akceptowany przez wszystkich)
-//                    handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls12;
 
-//                    // Wyłączamy sprawdzanie odwołań (częsta przyczyna EOF na serwerach)
-//                    handler.CheckCertificateRevocationList = false;
+//                    EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls13 | System.Security.Authentication.SslProtocols.Tls12,
 
-//                    // Opcjonalnie: Ignorowanie błędów SSL (tylko do testów, na produkcji lepiej usunąć jeśli działa bez tego)
-//                    handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+//                    RemoteCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
+//                };
 
-//                    using (var client = new HttpClient(handler))
+//                handler.SslOptions = sslOptions;
+
+//                handler.ConnectTimeout = TimeSpan.FromSeconds(30);
+
+//                using (var client = new HttpClient(handler))
+//                {
+//                    client.Timeout = TimeSpan.FromSeconds(30);
+
+//                    client.DefaultRequestHeaders.Add("User-Agent", "PriceSafari-App/1.0 (Net9; WinServer2016)");
+//                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+//                    client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+//                    var response = await client.PostAsync(requestUrl, content);
+//                    var responseString = await response.Content.ReadAsStringAsync();
+
+//                    if (response.IsSuccessStatusCode)
 //                    {
-//                        // Timeout na wszelki wypadek
-//                        client.Timeout = TimeSpan.FromSeconds(30);
-
-//                        // 4. NAGŁÓWKI
-//                        // Przedstawiamy się jako cURL lub przeglądarka - to często pomaga na WAF
-//                        client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
-//                        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
-//                        client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-
-//                        // Wyłączamy Keep-Alive, żeby nie trzymać "martwych" połączeń
-//                        client.DefaultRequestHeaders.ConnectionClose = true;
-
-//                        // 5. WYKONANIE ŻĄDANIA
-//                        var response = await client.PostAsync(requestUrl, content);
-//                        var responseString = await response.Content.ReadAsStringAsync();
-
-//                        if (response.IsSuccessStatusCode)
-//                        {
-//                            _logger.LogInformation($"Płatność cykliczna udana. Response: {responseString}");
-//                            return (true, responseString);
-//                        }
-//                        else
-//                        {
-//                            string errorMsg = $"Status: {response.StatusCode}. Treść: {responseString}";
-//                            _logger.LogError($"Błąd płatności dla {invoice.InvoiceNumber}. {errorMsg}");
-//                            return (false, errorMsg);
-//                        }
+//                        _logger.LogInformation($"Płatność cykliczna udana. Response: {responseString}");
+//                        return (true, responseString);
+//                    }
+//                    else
+//                    {
+//                        string errorMsg = $"Status: {response.StatusCode}. Treść: {responseString}";
+//                        _logger.LogError($"Błąd płatności dla {invoice.InvoiceNumber}. {errorMsg}");
+//                        return (false, errorMsg);
 //                    }
 //                }
 //            }
+//            catch (PlatformNotSupportedException ex)
+//            {
+
+//                string msg = $"SYSTEM OS ERROR: Ten system Windows nie obsługuje TLS 1.3. {ex.Message}";
+//                _logger.LogError(ex, msg);
+//                return (false, msg);
+//            }
 //            catch (Exception ex)
 //            {
-//                // Logowanie pełnego wyjątku
 //                string fullError = $"Wyjątek: {ex.Message}";
 //                if (ex.InnerException != null) fullError += $" | INNER: {ex.InnerException.Message}";
 
@@ -147,6 +141,7 @@
 //                return (false, fullError);
 //            }
 //        }
+
 //        public async Task<bool> HandleNotificationAsync(string headerSignature, string requestBody)
 //        {
 //            try
@@ -167,7 +162,6 @@
 //                string status = transaction["status"]?.ToString();
 //                string transactionId = transaction["id"]?.ToString();
 
-//                // Interesują nas tylko zrealizowane transakcje
 //                if (status != "settled") return true;
 
 //                string customerIdStr = transaction["customer"]?["id"]?.ToString();
@@ -192,7 +186,6 @@
 
 //                string paymentProfileId = profileObj?["id"]?.ToString();
 
-//                // --- ETAP 1: LOGOWANIE ZAPISU KARTY ---
 //                string deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "Server";
 
 //                if (!string.IsNullOrEmpty(paymentProfileId))
@@ -219,10 +212,8 @@
 //                            if (store.SubscriptionStartDate == null)
 //                                store.SubscriptionStartDate = DateTime.Now;
 
-//                            // 1. Zapisujemy zmiany w sklepie
 //                            await dbContext.SaveChangesAsync();
 
-//                            // 2. DODAJEMY LOG DO TaskExecutionLogs
 //                            var logAuth = new TaskExecutionLog
 //                            {
 //                                DeviceName = deviceName,
@@ -240,7 +231,6 @@
 //                        {
 //                            _logger.LogError($"[IMOJE] BŁĄD: Sklep o ID {storeId} nie istnieje w bazie.");
 
-//                            // Log błędu w bazie (opcjonalnie)
 //                            var logError = new TaskExecutionLog
 //                            {
 //                                DeviceName = deviceName,
@@ -255,19 +245,16 @@
 //                    }
 //                }
 
-//                // --- ETAP 2: OBSŁUGA ZWROTU ---
 //                int amount = (int)(transaction["amount"] ?? 0);
 //                string orderId = transaction["orderId"]?.ToString();
 
-//                // Sprawdzamy czy to weryfikacja (1 PLN i prefix REG-)
 //                if (amount == 100 && orderId != null && orderId.StartsWith("REG-"))
 //                {
-//                    // Tworzymy osobny scope dla logowania zwrotu, bo poprzedni using się skończył
+
 //                    using (var scopeRefund = _scopeFactory.CreateScope())
 //                    {
 //                        var dbContextRefund = scopeRefund.ServiceProvider.GetRequiredService<PriceSafariContext>();
 
-//                        // Logujemy start zwrotu
 //                        var logRefund = new TaskExecutionLog
 //                        {
 //                            DeviceName = deviceName,
@@ -279,13 +266,10 @@
 //                        await dbContextRefund.SaveChangesAsync();
 //                        int refundLogId = logRefund.Id;
 
-//                        // Czekamy 3 sekundy dla bezpieczeństwa
 //                        await Task.Delay(3000);
 
-//                        // Wykonujemy zwrot
 //                        bool refundSuccess = await RefundTransactionAsync(transactionId, amount, _serviceId);
 
-//                        // Aktualizujemy log
 //                        var logToUpdate = await dbContextRefund.TaskExecutionLogs.FindAsync(refundLogId);
 //                        if (logToUpdate != null)
 //                        {
@@ -309,7 +293,6 @@
 //            {
 //                _logger.LogError(ex, "[IMOJE] Wyjątek krytyczny w HandleNotificationAsync");
 
-//                // Próba zalogowania krytycznego błędu do bazy
 //                try
 //                {
 //                    using var scopeErr = _scopeFactory.CreateScope();
@@ -325,7 +308,7 @@
 //                    dbErr.TaskExecutionLogs.Add(logCrit);
 //                    await dbErr.SaveChangesAsync();
 //                }
-//                catch { /* Jeśli baza leży, to nic nie zrobimy */ }
+//                catch { }
 
 //                return false;
 //            }
@@ -401,6 +384,8 @@
 
 
 
+
+
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -416,7 +401,7 @@ namespace PriceSafari.Services.Imoje
     {
         string CalculateSignature(Dictionary<string, string> data, string hashMethod = "sha256");
 
-        // ZMIANA: Zwracamy (bool, string) zamiast samego bool
+        // Zwraca Tuple: (CzySukces, OdpowiedźAPI)
         Task<(bool Success, string Response)> ChargeProfileAsync(string profileId, InvoiceClass invoice, string ipAddress);
 
         Task<bool> HandleNotificationAsync(string headerSignature, string requestBody);
@@ -426,7 +411,7 @@ namespace PriceSafari.Services.Imoje
     public class ImojeService : IImojeService
     {
         private readonly IConfiguration _config;
-        private readonly HttpClient _httpClient;
+        private readonly HttpClient _httpClient; // Wstrzyknięty, ale użyjemy własnego Handlera dla TLS 1.3
         private readonly ILogger<ImojeService> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
 
@@ -442,6 +427,26 @@ namespace PriceSafari.Services.Imoje
             _httpClient = httpClient;
             _logger = logger;
             _scopeFactory = scopeFactory;
+        }
+
+        // Metoda pomocnicza tworząca klienta HTTP zdolnego obsłużyć TLS 1.3 nawet w trudnych warunkach
+        private HttpClient CreateModernHttpClient()
+        {
+            // SocketsHttpHandler jest nowszy niż HttpClientHandler i lepiej radzi sobie z TLS w .NET 9
+            var handler = new SocketsHttpHandler();
+            handler.SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+            {
+                // Próbujemy TLS 1.3 (dla lokalnego workera) oraz TLS 1.2 (dla serwera Webio)
+                EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls13 | System.Security.Authentication.SslProtocols.Tls12,
+                // Ignorujemy błędy certyfikatów (np. na Sandboxie)
+                RemoteCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
+            };
+
+            handler.ConnectTimeout = TimeSpan.FromSeconds(30);
+
+            var client = new HttpClient(handler);
+            client.Timeout = TimeSpan.FromSeconds(60);
+            return client;
         }
 
         public string CalculateSignature(Dictionary<string, string> data, string hashMethod = "sha256")
@@ -468,11 +473,17 @@ namespace PriceSafari.Services.Imoje
         {
             try
             {
+                // To ustawienie jest dla starszych komponentów, ale SocketsHttpHandler ma własne ustawienia
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+
                 if (string.IsNullOrEmpty(_merchantId) || string.IsNullOrEmpty(_apiKey))
+                {
                     return (false, "Brak konfiguracji imoje w .env");
+                }
 
                 var amountInGrosze = (int)(invoice.NetAmount * 1.23m * 100);
 
+                // Payload
                 var payload = new
                 {
                     serviceId = _serviceId,
@@ -480,46 +491,60 @@ namespace PriceSafari.Services.Imoje
                     currency = "PLN",
                     orderId = invoice.InvoiceNumber,
                     title = $"Opłata za fakturę {invoice.InvoiceNumber}",
-                    paymentProfileId = profileId
+                    paymentProfileId = profileId,
+                    // Dodajemy IP przeglądarki/urządzenia, które zleca płatność
+                    additionalData = new
+                    {
+                        browser = new
+                        {
+                            ip = ipAddress
+                        }
+                    }
                 };
 
                 var json = JsonConvert.SerializeObject(payload);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var requestUrl = $"{_apiUrl}/v1/merchant/{_merchantId}/transaction/profile";
 
-                using var client = new HttpClient(); // albo _httpClient z DI
-                client.Timeout = TimeSpan.FromSeconds(30);
-                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-                client.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _apiKey);
-                client.DefaultRequestHeaders.Accept.Add(
-                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-
-                var response = await client.PostAsync(requestUrl, content);
-                var responseString = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
+                // Używamy nowoczesnego klienta
+                using (var client = CreateModernHttpClient())
                 {
-                    _logger.LogInformation($"Płatność cykliczna udana. Response: {responseString}");
-                    return (true, responseString);
+                    // Nagłówki
+                    client.DefaultRequestHeaders.Add("User-Agent", "PriceSafari-Worker/2.0");
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+                    client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+                    var response = await client.PostAsync(requestUrl, content);
+                    var responseString = await response.Content.ReadAsStringAsync();
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        _logger.LogInformation($"Płatność cykliczna udana. Response: {responseString}");
+                        return (true, responseString);
+                    }
+                    else
+                    {
+                        string errorMsg = $"Status: {response.StatusCode}. Treść: {responseString}";
+                        _logger.LogError($"Błąd płatności dla {invoice.InvoiceNumber}. {errorMsg}");
+                        return (false, errorMsg);
+                    }
                 }
-                else
-                {
-                    string errorMsg = $"Status: {response.StatusCode}. Treść: {responseString}";
-                    _logger.LogError($"Błąd płatności dla {invoice.InvoiceNumber}. {errorMsg}");
-                    return (false, errorMsg);
-                }
+            }
+            catch (PlatformNotSupportedException ex)
+            {
+                string msg = $"SYSTEM OS ERROR: Ten system nie obsługuje wymaganego protokołu TLS. {ex.Message}";
+                _logger.LogError(ex, msg);
+                return (false, msg);
             }
             catch (Exception ex)
             {
                 string fullError = $"Wyjątek: {ex.Message}";
                 if (ex.InnerException != null) fullError += $" | INNER: {ex.InnerException.Message}";
 
-                _logger.LogError(ex, "Krytyczny błąd połączenia z Imoje.");
+                _logger.LogError(ex, $"Krytyczny błąd połączenia z Imoje.");
                 return (false, fullError);
             }
         }
-
 
         public async Task<bool> HandleNotificationAsync(string headerSignature, string requestBody)
         {
@@ -541,7 +566,6 @@ namespace PriceSafari.Services.Imoje
                 string status = transaction["status"]?.ToString();
                 string transactionId = transaction["id"]?.ToString();
 
-                // Interesują nas tylko zrealizowane transakcje
                 if (status != "settled") return true;
 
                 string customerIdStr = transaction["customer"]?["id"]?.ToString();
@@ -565,8 +589,6 @@ namespace PriceSafari.Services.Imoje
                                  ?? transaction["paymentProfile"];
 
                 string paymentProfileId = profileObj?["id"]?.ToString();
-
-                // --- ETAP 1: LOGOWANIE ZAPISU KARTY ---
                 string deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "Server";
 
                 if (!string.IsNullOrEmpty(paymentProfileId))
@@ -593,10 +615,8 @@ namespace PriceSafari.Services.Imoje
                             if (store.SubscriptionStartDate == null)
                                 store.SubscriptionStartDate = DateTime.Now;
 
-                            // 1. Zapisujemy zmiany w sklepie
                             await dbContext.SaveChangesAsync();
 
-                            // 2. DODAJEMY LOG DO TaskExecutionLogs
                             var logAuth = new TaskExecutionLog
                             {
                                 DeviceName = deviceName,
@@ -614,7 +634,6 @@ namespace PriceSafari.Services.Imoje
                         {
                             _logger.LogError($"[IMOJE] BŁĄD: Sklep o ID {storeId} nie istnieje w bazie.");
 
-                            // Log błędu w bazie (opcjonalnie)
                             var logError = new TaskExecutionLog
                             {
                                 DeviceName = deviceName,
@@ -629,52 +648,50 @@ namespace PriceSafari.Services.Imoje
                     }
                 }
 
-                // --- ETAP 2: OBSŁUGA ZWROTU ---
+                // --- OBSŁUGA ZWROTU ---
                 int amount = (int)(transaction["amount"] ?? 0);
                 string orderId = transaction["orderId"]?.ToString();
 
-                // Sprawdzamy czy to weryfikacja (1 PLN i prefix REG-)
                 if (amount == 100 && orderId != null && orderId.StartsWith("REG-"))
                 {
-                    // Tworzymy osobny scope dla logowania zwrotu, bo poprzedni using się skończył
-                    using (var scopeRefund = _scopeFactory.CreateScope())
+                    // Uruchamiamy w osobnym wątku, żeby nie blokować webhooka
+                    _ = Task.Run(async () =>
                     {
-                        var dbContextRefund = scopeRefund.ServiceProvider.GetRequiredService<PriceSafariContext>();
-
-                        // Logujemy start zwrotu
-                        var logRefund = new TaskExecutionLog
+                        try
                         {
-                            DeviceName = deviceName,
-                            OperationName = "ZWROT_WERYFIKACYJNY",
-                            StartTime = DateTime.Now,
-                            Comment = $"Próba zwrotu 1.00 PLN dla zamówienia {orderId}..."
-                        };
-                        dbContextRefund.TaskExecutionLogs.Add(logRefund);
-                        await dbContextRefund.SaveChangesAsync();
-                        int refundLogId = logRefund.Id;
-
-                        // Czekamy 3 sekundy dla bezpieczeństwa
-                        await Task.Delay(3000);
-
-                        // Wykonujemy zwrot
-                        bool refundSuccess = await RefundTransactionAsync(transactionId, amount, _serviceId);
-
-                        // Aktualizujemy log
-                        var logToUpdate = await dbContextRefund.TaskExecutionLogs.FindAsync(refundLogId);
-                        if (logToUpdate != null)
-                        {
-                            logToUpdate.EndTime = DateTime.Now;
-                            if (refundSuccess)
+                            await Task.Delay(3000);
+                            using (var scopeRefund = _scopeFactory.CreateScope())
                             {
-                                logToUpdate.Comment += " | Sukces. Zwrot zlecony.";
+                                var dbContextRefund = scopeRefund.ServiceProvider.GetRequiredService<PriceSafariContext>();
+                                var serviceRefund = scopeRefund.ServiceProvider.GetRequiredService<IImojeService>();
+
+                                var logRefund = new TaskExecutionLog
+                                {
+                                    DeviceName = deviceName,
+                                    OperationName = "ZWROT_WERYFIKACYJNY",
+                                    StartTime = DateTime.Now,
+                                    Comment = $"Próba zwrotu 1.00 PLN dla zamówienia {orderId}..."
+                                };
+                                dbContextRefund.TaskExecutionLogs.Add(logRefund);
+                                await dbContextRefund.SaveChangesAsync();
+                                int refundLogId = logRefund.Id;
+
+                                bool refundSuccess = await serviceRefund.RefundTransactionAsync(transactionId, amount, _serviceId);
+
+                                var logToUpdate = await dbContextRefund.TaskExecutionLogs.FindAsync(refundLogId);
+                                if (logToUpdate != null)
+                                {
+                                    logToUpdate.EndTime = DateTime.Now;
+                                    logToUpdate.Comment += refundSuccess ? " | Sukces. Zwrot zlecony." : " | BŁĄD. Imoje odrzuciło zwrot.";
+                                    await dbContextRefund.SaveChangesAsync();
+                                }
                             }
-                            else
-                            {
-                                logToUpdate.Comment += " | BŁĄD. Imoje odrzuciło zwrot.";
-                            }
-                            await dbContextRefund.SaveChangesAsync();
                         }
-                    }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Błąd w tle podczas zwrotu");
+                        }
+                    });
                 }
 
                 return true;
@@ -682,25 +699,7 @@ namespace PriceSafari.Services.Imoje
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[IMOJE] Wyjątek krytyczny w HandleNotificationAsync");
-
-                // Próba zalogowania krytycznego błędu do bazy
-                try
-                {
-                    using var scopeErr = _scopeFactory.CreateScope();
-                    var dbErr = scopeErr.ServiceProvider.GetRequiredService<PriceSafariContext>();
-                    var logCrit = new TaskExecutionLog
-                    {
-                        DeviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "Server",
-                        OperationName = "IMOJE_WEBHOOK_ERROR",
-                        StartTime = DateTime.Now,
-                        EndTime = DateTime.Now,
-                        Comment = $"Krytyczny wyjątek: {ex.Message}"
-                    };
-                    dbErr.TaskExecutionLogs.Add(logCrit);
-                    await dbErr.SaveChangesAsync();
-                }
-                catch { /* Jeśli baza leży, to nic nie zrobimy */ }
-
+                // Logowanie błędu do bazy (opcjonalne)
                 return false;
             }
         }
@@ -734,7 +733,8 @@ namespace PriceSafari.Services.Imoje
                 var token = _config["IMOJE_API_KEY"];
                 var apiUrl = _config["IMOJE_API_URL"];
 
-                using var client = new HttpClient();
+                // Używamy CreateModernHttpClient również tutaj
+                using var client = CreateModernHttpClient();
                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
                 var url = $"{apiUrl}/{merchantId}/transaction/{transactionId}/refund";

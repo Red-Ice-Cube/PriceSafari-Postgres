@@ -263,136 +263,280 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction(nameof(Index));
         }
 
+        //[HttpGet]
+        //[AllowAnonymous]
+        //public async Task<IActionResult> TestConnectivity()
+        //{
+        //    var sb = new System.Text.StringBuilder();
+        //    sb.AppendLine($"--- ROZSZERZONA DIAGNOSTYKA SIECIOWA [v2.1 - Kompatybilna] ---");
+        //    sb.AppendLine($"Czas serwera: {DateTime.Now}");
+        //    sb.AppendLine($"System OS: {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
+        //    sb.AppendLine($"Framework: {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
+        //    sb.AppendLine("------------------------------------------------");
+
+        //    string host = "sandbox.api.imoje.pl";
+        //    int port = 443;
+
+        //    try
+        //    {
+
+        //        sb.AppendLine($"\n[1. DNS LOOKUP]");
+        //        var ipEntry = await System.Net.Dns.GetHostEntryAsync(host);
+        //        sb.AppendLine($"   HostName: {ipEntry.HostName}");
+        //        foreach (var ip in ipEntry.AddressList)
+        //        {
+        //            sb.AppendLine($"   -> Adres IP: {ip} (Rodzina: {ip.AddressFamily})");
+        //        }
+
+        //        var targetIp = ipEntry.AddressList.FirstOrDefault(x => x.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+        //        if (targetIp == null)
+        //        {
+        //            sb.AppendLine("   BŁĄD: Brak adresu IPv4! Kończę test.");
+        //            return Content(sb.ToString(), "text/plain");
+        //        }
+
+        //        var protocolsToTest = new[]
+        //        {
+        //    System.Security.Authentication.SslProtocols.Tls12,
+        //    System.Security.Authentication.SslProtocols.Tls13
+        //};
+
+        //        foreach (var protocol in protocolsToTest)
+        //        {
+        //            sb.AppendLine($"\n[TESTOWANIE PROTOKOŁU: {protocol}]");
+        //            try
+        //            {
+        //                using (var tcpClient = new System.Net.Sockets.TcpClient())
+        //                {
+        //                    tcpClient.ReceiveBufferSize = 8192;
+        //                    tcpClient.SendBufferSize = 8192;
+
+        //                    sb.Append($"   Łączenie TCP z {targetIp}:{port}... ");
+        //                    var connectTask = tcpClient.ConnectAsync(targetIp, port);
+
+        //                    if (await Task.WhenAny(connectTask, Task.Delay(5000)) != connectTask)
+        //                    {
+        //                        sb.AppendLine("TIMEOUT TCP!");
+        //                        continue;
+        //                    }
+        //                    await connectTask;
+        //                    sb.AppendLine("OK.");
+
+        //                    using (var sslStream = new System.Net.Security.SslStream(tcpClient.GetStream(), false,
+        //                        (sender, cert, chain, errors) =>
+        //                        {
+        //                            sb.AppendLine($"   [Walidacja Certyfikatu Serwera]");
+        //                            sb.AppendLine($"     Subject: {cert.Subject}");
+        //                            sb.AppendLine($"     Issuer: {cert.Issuer}");
+        //                            sb.AppendLine($"     Expiration: {cert.GetExpirationDateString()}");
+        //                            sb.AppendLine($"     Błędy SSL: {errors}");
+        //                            return true;
+        //                        }))
+        //                    {
+        //                        sb.AppendLine($"   Rozpoczynam SSL Handshake ({protocol})...");
+
+        //                        await sslStream.AuthenticateAsClientAsync(
+        //                            host,
+        //                            null,
+        //                            protocol,
+        //                            false
+        //                        );
+
+        //                        sb.AppendLine("   >>> SUKCES HANDSHAKE! <<<");
+        //                        sb.AppendLine($"   Wynegocjowany Protokół: {sslStream.SslProtocol}");
+        //                        sb.AppendLine($"   Szyfr (Cipher): {sslStream.CipherAlgorithm} (Siła: {sslStream.CipherStrength})");
+        //                        sb.AppendLine($"   Hash: {sslStream.HashAlgorithm} (Siła: {sslStream.HashStrength})");
+        //                        sb.AppendLine($"   KeyExchange: {sslStream.KeyExchangeAlgorithm} (Siła: {sslStream.KeyExchangeStrength})");
+        //                        sb.AppendLine($"   IsAuthenticated: {sslStream.IsAuthenticated}");
+        //                        sb.AppendLine($"   IsEncrypted: {sslStream.IsEncrypted}");
+        //                    }
+        //                }
+        //            }
+        //            catch (System.IO.IOException ioEx)
+        //            {
+        //                sb.AppendLine("   BŁĄD IO (Zerwanie połączenia):");
+        //                sb.AppendLine($"   {ioEx.Message}");
+        //                if (ioEx.InnerException != null)
+        //                {
+        //                    sb.AppendLine($"   Inner: {ioEx.InnerException.GetType().Name}: {ioEx.InnerException.Message}");
+        //                    if (ioEx.InnerException is System.Net.Sockets.SocketException sockEx)
+        //                    {
+        //                        sb.AppendLine($"   SocketErrorCode: {sockEx.SocketErrorCode} (Kod: {sockEx.ErrorCode})");
+        //                    }
+        //                }
+        //            }
+        //            catch (System.Security.Authentication.AuthenticationException authEx)
+        //            {
+        //                sb.AppendLine("   BŁĄD UWIERZYTELNIANIA SSL:");
+        //                sb.AppendLine($"   {authEx.Message}");
+        //                if (authEx.InnerException != null) sb.AppendLine($"   Inner: {authEx.InnerException.Message}");
+        //            }
+        //            catch (Exception ex)
+        //            {
+
+        //                if (ex.Message.Contains("The requested security protocol is not supported"))
+        //                {
+        //                    sb.AppendLine($"   INFO: Ten system operacyjny nie obsługuje protokołu {protocol}.");
+        //                }
+        //                else
+        //                {
+        //                    sb.AppendLine($"   INNY BŁĄD: {ex.GetType().Name}: {ex.Message}");
+        //                }
+        //            }
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        sb.AppendLine($"\n!!! KRYTYCZNY BŁĄD GŁÓWNY !!!");
+        //        sb.AppendLine(ex.ToString());
+        //    }
+
+        //    return Content(sb.ToString(), "text/plain");
+        //}
+
+
+
+
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> TestConnectivity()
         {
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"--- ROZSZERZONA DIAGNOSTYKA SIECIOWA [v2.1 - Kompatybilna] ---");
-            sb.AppendLine($"Czas serwera: {DateTime.Now}");
+            sb.AppendLine($"--- DIAGNOSTYKA OSTATECZNA [v3.0 - SocketsHttpHandler] ---");
+            sb.AppendLine($"Czas: {DateTime.Now}");
             sb.AppendLine($"System OS: {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
+            sb.AppendLine($"Architektura OS: {System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}");
             sb.AppendLine($"Framework: {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
             sb.AppendLine("------------------------------------------------");
 
             string host = "sandbox.api.imoje.pl";
             int port = 443;
+            string testUrl = $"https://{host}/v1/merchant/settings/ips"; // Endpoint testowy
 
             try
             {
-
+                // --- 1. DNS ---
                 sb.AppendLine($"\n[1. DNS LOOKUP]");
                 var ipEntry = await System.Net.Dns.GetHostEntryAsync(host);
-                sb.AppendLine($"   HostName: {ipEntry.HostName}");
                 foreach (var ip in ipEntry.AddressList)
                 {
-                    sb.AppendLine($"   -> Adres IP: {ip} (Rodzina: {ip.AddressFamily})");
+                    sb.AppendLine($"   -> IP: {ip} ({ip.AddressFamily})");
                 }
 
                 var targetIp = ipEntry.AddressList.FirstOrDefault(x => x.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
                 if (targetIp == null)
                 {
-                    sb.AppendLine("   BŁĄD: Brak adresu IPv4! Kończę test.");
+                    sb.AppendLine("   BŁĄD: Brak IPv4.");
                     return Content(sb.ToString(), "text/plain");
                 }
 
+                // --- 2. NISKOPOZIOMOWY TEST SSLSTREAM (Systemowy Schannel) ---
                 var protocolsToTest = new[]
                 {
-            System.Security.Authentication.SslProtocols.Tls12,
-            System.Security.Authentication.SslProtocols.Tls13
-        };
+                    System.Security.Authentication.SslProtocols.Tls12,
+                    System.Security.Authentication.SslProtocols.Tls13
+                };
 
                 foreach (var protocol in protocolsToTest)
                 {
-                    sb.AppendLine($"\n[TESTOWANIE PROTOKOŁU: {protocol}]");
+                    sb.AppendLine($"\n[2. TEST SYSTEMOWY: {protocol}]");
                     try
                     {
                         using (var tcpClient = new System.Net.Sockets.TcpClient())
                         {
-                            tcpClient.ReceiveBufferSize = 8192;
-                            tcpClient.SendBufferSize = 8192;
-
-                            sb.Append($"   Łączenie TCP z {targetIp}:{port}... ");
-                            var connectTask = tcpClient.ConnectAsync(targetIp, port);
-
-                            if (await Task.WhenAny(connectTask, Task.Delay(5000)) != connectTask)
+                            await tcpClient.ConnectAsync(targetIp, port);
+                            using (var sslStream = new System.Net.Security.SslStream(tcpClient.GetStream(), false, (s, c, ch, e) => true))
                             {
-                                sb.AppendLine("TIMEOUT TCP!");
-                                continue;
-                            }
-                            await connectTask;
-                            sb.AppendLine("OK.");
-
-                            using (var sslStream = new System.Net.Security.SslStream(tcpClient.GetStream(), false,
-                                (sender, cert, chain, errors) =>
-                                {
-                                    sb.AppendLine($"   [Walidacja Certyfikatu Serwera]");
-                                    sb.AppendLine($"     Subject: {cert.Subject}");
-                                    sb.AppendLine($"     Issuer: {cert.Issuer}");
-                                    sb.AppendLine($"     Expiration: {cert.GetExpirationDateString()}");
-                                    sb.AppendLine($"     Błędy SSL: {errors}");
-                                    return true;
-                                }))
-                            {
-                                sb.AppendLine($"   Rozpoczynam SSL Handshake ({protocol})...");
-
-                                await sslStream.AuthenticateAsClientAsync(
-                                    host,
-                                    null,
-                                    protocol,
-                                    false
-                                );
-
-                                sb.AppendLine("   >>> SUKCES HANDSHAKE! <<<");
-                                sb.AppendLine($"   Wynegocjowany Protokół: {sslStream.SslProtocol}");
-                                sb.AppendLine($"   Szyfr (Cipher): {sslStream.CipherAlgorithm} (Siła: {sslStream.CipherStrength})");
-                                sb.AppendLine($"   Hash: {sslStream.HashAlgorithm} (Siła: {sslStream.HashStrength})");
-                                sb.AppendLine($"   KeyExchange: {sslStream.KeyExchangeAlgorithm} (Siła: {sslStream.KeyExchangeStrength})");
-                                sb.AppendLine($"   IsAuthenticated: {sslStream.IsAuthenticated}");
-                                sb.AppendLine($"   IsEncrypted: {sslStream.IsEncrypted}");
+                                sb.Append($"   Próba handshake {protocol}... ");
+                                await sslStream.AuthenticateAsClientAsync(host, null, protocol, false);
+                                sb.AppendLine("SUKCES!");
+                                sb.AppendLine($"   Szyfr: {sslStream.CipherAlgorithm} | Protokół: {sslStream.SslProtocol}");
                             }
                         }
-                    }
-                    catch (System.IO.IOException ioEx)
-                    {
-                        sb.AppendLine("   BŁĄD IO (Zerwanie połączenia):");
-                        sb.AppendLine($"   {ioEx.Message}");
-                        if (ioEx.InnerException != null)
-                        {
-                            sb.AppendLine($"   Inner: {ioEx.InnerException.GetType().Name}: {ioEx.InnerException.Message}");
-                            if (ioEx.InnerException is System.Net.Sockets.SocketException sockEx)
-                            {
-                                sb.AppendLine($"   SocketErrorCode: {sockEx.SocketErrorCode} (Kod: {sockEx.ErrorCode})");
-                            }
-                        }
-                    }
-                    catch (System.Security.Authentication.AuthenticationException authEx)
-                    {
-                        sb.AppendLine("   BŁĄD UWIERZYTELNIANIA SSL:");
-                        sb.AppendLine($"   {authEx.Message}");
-                        if (authEx.InnerException != null) sb.AppendLine($"   Inner: {authEx.InnerException.Message}");
                     }
                     catch (Exception ex)
                     {
-
-                        if (ex.Message.Contains("The requested security protocol is not supported"))
-                        {
-                            sb.AppendLine($"   INFO: Ten system operacyjny nie obsługuje protokołu {protocol}.");
-                        }
-                        else
-                        {
-                            sb.AppendLine($"   INNY BŁĄD: {ex.GetType().Name}: {ex.Message}");
-                        }
+                        sb.AppendLine($"   BŁĄD: {ex.Message}");
+                        if (ex.InnerException != null) sb.AppendLine($"   Inner: {ex.InnerException.Message}");
                     }
                 }
+
+                // --- 3. NOWOCZESNY TEST .NET 9 (SocketsHttpHandler - To co sugeruje Webio) ---
+                sb.AppendLine($"\n[3. TEST .NET 9 HTTP CLIENT (Wymuszenie TLS 1.3)]");
+                sb.AppendLine("   Testujemy czy SocketsHttpHandler potrafi wymusić TLS 1.3 na tym systemie...");
+
+                try
+                {
+                    var handler = new SocketsHttpHandler();
+                    handler.SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+                    {
+                        // WYMUSZAMY TYLKO TLS 1.3 - To kluczowy test
+                        EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls13,
+                        RemoteCertificateValidationCallback = (s, c, ch, e) => true // Ignoruj błędy certyfikatu
+                    };
+                    handler.ConnectTimeout = TimeSpan.FromSeconds(5);
+
+                    using (var client = new HttpClient(handler))
+                    {
+                        client.Timeout = TimeSpan.FromSeconds(5);
+                        client.DefaultRequestHeaders.Add("User-Agent", "TestAgent");
+
+                        sb.Append("   Wysyłam GET... ");
+                        var response = await client.GetAsync(testUrl);
+                        sb.AppendLine($"SUKCES! Status: {response.StatusCode}");
+                    }
+                }
+                catch (PlatformNotSupportedException platEx)
+                {
+                    sb.AppendLine("\n   !!! DOWÓD DLA WEBIO !!!");
+                    sb.AppendLine($"   BŁĄD: PlatformNotSupportedException");
+                    sb.AppendLine($"   Treść: {platEx.Message}");
+                    sb.AppendLine("   WNIOSEK: Ten system operacyjny NIE WSPIERA TLS 1.3 w .NET 9.");
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"   BŁĄD: {ex.GetType().Name}");
+                    sb.AppendLine($"   Treść: {ex.Message}");
+                    if (ex.InnerException != null) sb.AppendLine($"   Inner: {ex.InnerException.Message}");
+                }
+
+                // --- 4. TEST MIESZANY (To co sugerowali na StackOverflow) ---
+                sb.AppendLine($"\n[4. TEST .NET 9 (Mieszany Tls12 | Tls13)]");
+                try
+                {
+                    var handler = new SocketsHttpHandler();
+                    handler.SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+                    {
+                        EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
+                        RemoteCertificateValidationCallback = (s, c, ch, e) => true
+                    };
+
+                    using (var client = new HttpClient(handler))
+                    {
+                        client.DefaultRequestHeaders.Add("User-Agent", "TestAgent");
+                        sb.Append("   Wysyłam GET... ");
+                        var response = await client.GetAsync(testUrl);
+                        sb.AppendLine($"SUKCES! Status: {response.StatusCode}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"   BŁĄD: {ex.Message}");
+                    if (ex.Message.Contains("EOF"))
+                    {
+                        sb.AppendLine("   INTERPRETACJA: Serwer (My) wysłał TLS 1.2, Bank odrzucił połączenie (EOF).");
+                    }
+                }
+
             }
             catch (Exception ex)
             {
-                sb.AppendLine($"\n!!! KRYTYCZNY BŁĄD GŁÓWNY !!!");
-                sb.AppendLine(ex.ToString());
+                sb.AppendLine($"\n!!! KRYTYCZNY BŁĄD SKRYPTU !!!\n{ex}");
             }
 
             return Content(sb.ToString(), "text/plain");
         }
+
 
     }
 }
