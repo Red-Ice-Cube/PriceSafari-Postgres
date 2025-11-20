@@ -385,7 +385,7 @@ namespace PriceSafari.Services.SubscriptionService
                     if (isGenerator)
                     {
                         // Ustawiamy na godzinę 20:30
-                        nextRun = now.Date.AddHours(20).AddMinutes(30);
+                        nextRun = now.Date.AddHours(20).AddMinutes(45);
 
                         // Jeśli jest już po 20:30, przenieś na jutro (żeby nie odpaliło się od razu jeśli spóźnisz się z wdrożeniem)
                         if (now > nextRun) nextRun = nextRun.AddDays(1);
@@ -393,7 +393,7 @@ namespace PriceSafari.Services.SubscriptionService
                     else // isPayer
                     {
                         // Ustawiamy na godzinę 20:45
-                        nextRun = now.Date.AddHours(20).AddMinutes(35);
+                        nextRun = now.Date.AddHours(20).AddMinutes(50);
 
                         if (now > nextRun) nextRun = nextRun.AddDays(1);
                     }
@@ -487,7 +487,6 @@ namespace PriceSafari.Services.SubscriptionService
             decimal appliedDiscountPercentage = 0;
             decimal appliedDiscountAmount = 0;
 
-            // Obsługa zniżek
             if (store.DiscountPercentage.HasValue && store.DiscountPercentage.Value > 0)
             {
                 appliedDiscountPercentage = store.DiscountPercentage.Value;
@@ -501,15 +500,13 @@ namespace PriceSafari.Services.SubscriptionService
                 PlanId = store.PlanId.Value,
                 IssueDate = DateTime.Now,
                 DueDate = DateTime.Now.AddDays(14),
-                IsPaid = false,      // WAŻNE: Faktura nieopłacona
+                IsPaid = false,
                 IsPaidByCard = false,
                 InvoiceNumber = invNum,
                 NetAmount = netPrice,
                 DaysIncluded = store.Plan.DaysPerInvoice,
                 UrlsIncluded = store.Plan.ProductsToScrap,
                 UrlsIncludedAllegro = store.Plan.ProductsToScrapAllegro,
-
-                // Dane adresowe
                 CompanyName = store.PaymentData?.CompanyName ?? "Brak Danych",
                 Address = store.PaymentData?.Address ?? "",
                 PostalCode = store.PaymentData?.PostalCode ?? "",
@@ -519,20 +516,20 @@ namespace PriceSafari.Services.SubscriptionService
                 AppliedDiscountAmount = appliedDiscountAmount
             };
 
-            // Odnawiamy dni w sklepie
             store.RemainingDays += store.Plan.DaysPerInvoice;
             store.ProductsToScrap = store.Plan.ProductsToScrap;
             store.ProductsToScrapAllegro = store.Plan.ProductsToScrapAllegro;
 
             context.Invoices.Add(invoice);
 
-            // Logujemy tylko wystawienie
+            // ZMIANA: Logujemy od razu Sukces
             context.TaskExecutionLogs.Add(new TaskExecutionLog
             {
                 DeviceName = deviceName,
                 OperationName = "FAKTURA_AUTO",
                 StartTime = DateTime.Now,
-                Comment = $"Wystawiono FV {invNum}. Oczekuje na Workera Płatności (Localhost)."
+                EndTime = DateTime.Now, // Od razu zakończone
+                Comment = $"Sukces. Wystawiono FV: {invNum}. Kwota netto: {netPrice:C}. Płatność zostanie pobrana przez Workera."
             });
         }
 

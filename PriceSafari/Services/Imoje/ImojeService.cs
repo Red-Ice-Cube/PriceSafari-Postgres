@@ -411,7 +411,7 @@ namespace PriceSafari.Services.Imoje
     public class ImojeService : IImojeService
     {
         private readonly IConfiguration _config;
-        private readonly HttpClient _httpClient; // Wstrzyknięty, ale użyjemy własnego Handlera dla TLS 1.3
+        private readonly HttpClient _httpClient;
         private readonly ILogger<ImojeService> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
 
@@ -429,16 +429,12 @@ namespace PriceSafari.Services.Imoje
             _scopeFactory = scopeFactory;
         }
 
-        // Metoda pomocnicza tworząca klienta HTTP zdolnego obsłużyć TLS 1.3 nawet w trudnych warunkach
         private HttpClient CreateModernHttpClient()
         {
-            // SocketsHttpHandler jest nowszy niż HttpClientHandler i lepiej radzi sobie z TLS w .NET 9
             var handler = new SocketsHttpHandler();
             handler.SslOptions = new System.Net.Security.SslClientAuthenticationOptions
             {
-                // Próbujemy TLS 1.3 (dla lokalnego workera) oraz TLS 1.2 (dla serwera Webio)
                 EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls13 | System.Security.Authentication.SslProtocols.Tls12,
-                // Ignorujemy błędy certyfikatów (np. na Sandboxie)
                 RemoteCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
             };
 
@@ -464,16 +460,14 @@ namespace PriceSafari.Services.Imoje
 
             using var sha256 = SHA256.Create();
             var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(sb.ToString()));
-            var hashString = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
-
-            return $"{hashString};{hashMethod}";
+            return $"{BitConverter.ToString(hashBytes).Replace("-", "").ToLower()};{hashMethod}";
         }
 
         public async Task<(bool Success, string Response)> ChargeProfileAsync(string profileId, InvoiceClass invoice, string ipAddress)
         {
             try
             {
-                // To ustawienie jest dla starszych komponentów, ale SocketsHttpHandler ma własne ustawienia
+                // Pozostawiamy dla kompatybilności wstecznej, choć SocketsHttpHandler to ignoruje
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
 
                 if (string.IsNullOrEmpty(_merchantId) || string.IsNullOrEmpty(_apiKey))
@@ -483,7 +477,7 @@ namespace PriceSafari.Services.Imoje
 
                 var amountInGrosze = (int)(invoice.NetAmount * 1.23m * 100);
 
-                // Payload
+                // --- POPRAWKA: Usunięto additionalData, które powodowało błąd 422 ---
                 var payload = new
                 {
                     serviceId = _serviceId,
@@ -491,25 +485,15 @@ namespace PriceSafari.Services.Imoje
                     currency = "PLN",
                     orderId = invoice.InvoiceNumber,
                     title = $"Opłata za fakturę {invoice.InvoiceNumber}",
-                    paymentProfileId = profileId,
-                    // Dodajemy IP przeglądarki/urządzenia, które zleca płatność
-                    additionalData = new
-                    {
-                        browser = new
-                        {
-                            ip = ipAddress
-                        }
-                    }
+                    paymentProfileId = profileId
                 };
 
                 var json = JsonConvert.SerializeObject(payload);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var requestUrl = $"{_apiUrl}/v1/merchant/{_merchantId}/transaction/profile";
 
-                // Używamy nowoczesnego klienta
                 using (var client = CreateModernHttpClient())
                 {
-                    // Nagłówki
                     client.DefaultRequestHeaders.Add("User-Agent", "PriceSafari-Worker/2.0");
                     client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
                     client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
@@ -532,7 +516,7 @@ namespace PriceSafari.Services.Imoje
             }
             catch (PlatformNotSupportedException ex)
             {
-                string msg = $"SYSTEM OS ERROR: Ten system nie obsługuje wymaganego protokołu TLS. {ex.Message}";
+                string msg = $"SYSTEM OS ERROR: TLS nieobsługiwany. {ex.Message}";
                 _logger.LogError(ex, msg);
                 return (false, msg);
             }
@@ -540,7 +524,6 @@ namespace PriceSafari.Services.Imoje
             {
                 string fullError = $"Wyjątek: {ex.Message}";
                 if (ex.InnerException != null) fullError += $" | INNER: {ex.InnerException.Message}";
-
                 _logger.LogError(ex, $"Krytyczny błąd połączenia z Imoje.");
                 return (false, fullError);
             }
