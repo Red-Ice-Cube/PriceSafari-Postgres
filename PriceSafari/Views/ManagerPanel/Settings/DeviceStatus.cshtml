@@ -98,6 +98,8 @@
                         <th>Allegro URL</th>
                         <th>Allegro Crawler</th>
                         <th>Allegro API Bot</th>
+                        <th>Faktury (Generator)</th>
+                        <th>Płatności (Worker)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -133,6 +135,12 @@
                             <td class="@(item.AleApiBotEnabled ? "bg-yes" : "bg-no")">
                                 @(item.AleApiBotEnabled ? "tak" : "nie")
                             </td>
+                            <td class="@(item.InvoiceGeneratorEnabled ? "bg-yes" : "bg-no")">
+                                @(item.InvoiceGeneratorEnabled ? "tak" : "nie")
+                            </td>
+                            <td class="@(item.PaymentProcessorEnabled ? "bg-yes" : "bg-no")">
+                                @(item.PaymentProcessorEnabled ? "tak" : "nie")
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -143,7 +151,6 @@
 
 @section Scripts {
     <script>
-        // ... skrypt bez zmian ...
         const dropdown = document.getElementById('deviceNameFilter');
         const table = document.getElementById('deviceTable');
         const rows = Array.from(table.querySelectorAll('tbody tr'));

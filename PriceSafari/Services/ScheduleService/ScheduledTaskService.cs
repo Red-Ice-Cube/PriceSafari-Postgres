@@ -168,13 +168,12 @@ public class ScheduledTaskService : BackgroundService
                 {
                     _lastDeviceCheck = DateTime.Now;
 
-                    // Przekazujemy nowe klucze do metody
                     await UpdateDeviceStatusAsync(
                         context,
                         deviceName,
                         baseScalKey, urlScalKey, gooCrawKey, cenCrawKey,
                         aleBaseScalKey, urlScalAleKey, aleCrawKey, aleApiBotKey,
-                        subKey, payKey, // <-- Nowe argumenty
+                        subKey, payKey,
                         stoppingToken);
                 }
             }
@@ -630,11 +629,11 @@ public class ScheduledTaskService : BackgroundService
              string urlScalAleKey,
              string aleCrawKey,
              string aleApiBotKey,
-             string subKey,      // Nowy argument
-             string payKey,      // Nowy argument
+             string subKey,
+             string payKey,
              CancellationToken ct)
     {
-        // Oczekiwane klucze scraperów
+
         const string BASE_SCAL_EXPECTED = "55380981";
         const string URL_SCAL_EXPECTED = "83208716";
         const string GOO_CRAW_EXPECTED = "63891743";
@@ -644,11 +643,9 @@ public class ScheduledTaskService : BackgroundService
         const string ALE_CRAW_EXPECTED = "13894389";
         const string ALE_API_BOT_EXPECTED = "00937384";
 
-        // Oczekiwane klucze Faktur i Płatności
         const string SUB_KEY_EXPECTED = "99887766";
         const string PAY_KEY_EXPECTED = "38401048";
 
-        // Weryfikacja uprawnień
         bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
         bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
         bool hasGooCraw = (gooCrawKey == GOO_CRAW_EXPECTED);
@@ -658,7 +655,6 @@ public class ScheduledTaskService : BackgroundService
         bool hasAleCraw = (aleCrawKey == ALE_CRAW_EXPECTED);
         bool hasAleApiBot = (aleApiBotKey == ALE_API_BOT_EXPECTED);
 
-        // Weryfikacja nowych uprawnień
         bool hasInvoiceGen = (subKey == SUB_KEY_EXPECTED);
         bool hasPaymentProc = (payKey == PAY_KEY_EXPECTED);
 
@@ -676,7 +672,6 @@ public class ScheduledTaskService : BackgroundService
             AleCrawEnabled = hasAleCraw,
             AleApiBotEnabled = hasAleApiBot,
 
-            // Przypisanie nowych flag
             InvoiceGeneratorEnabled = hasInvoiceGen,
             PaymentProcessorEnabled = hasPaymentProc
         };

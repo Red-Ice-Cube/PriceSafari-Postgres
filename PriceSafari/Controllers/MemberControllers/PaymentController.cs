@@ -187,7 +187,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return StatusCode(500, new { error = "Błąd konfiguracji serwera: Brak kluczy imoje w .env" });
             }
 
-            // Dynamiczne generowanie pełnych adresów URL (działa dla localhost i domeny produkcyjnej)
             var urlNotification = Url.Action("Notification", "Payment", null, Request.Scheme);
             var urlSuccess = Url.Action("StorePayments", "Payment", new { storeId = storeId, status = "success" }, Request.Scheme);
             var urlFailure = Url.Action("StorePayments", "Payment", new { storeId = storeId, status = "failure" }, Request.Scheme);
@@ -262,6 +261,32 @@ namespace PriceSafari.Controllers.MemberControllers
                 maskedNumber = store.CardMaskedNumber,
                 brand = store.CardBrand
             });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RemoveCard(int storeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // 1. Pobieramy sklep i sprawdzamy uprawnienia
+            var store = await _context.Stores
+                .Include(s => s.UserStores)
+                .FirstOrDefaultAsync(s => s.StoreId == storeId && s.UserStores.Any(us => us.UserId == userId));
+
+            if (store == null) return NotFound("Nie znaleziono sklepu.");
+
+            // 2. Czyścimy dane karty (zgodnie z modelem StoreClass)
+            store.IsRecurringActive = false;
+            store.ImojePaymentProfileId = null; // Kluczowe - usuwamy token płatniczy
+            store.CardMaskedNumber = null;
+            store.CardBrand = null;
+            store.CardExpYear = null;
+            store.CardExpMonth = null;
+
+            // 3. Zapisujemy zmiany
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true });
         }
     }
 }

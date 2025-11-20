@@ -1,4 +1,4 @@
-﻿@using Newtonsoft.Json
+﻿@* @using Newtonsoft.Json
 @using Newtonsoft.Json.Serialization
 @model PriceSafari.Models.ViewModels.StorePaymentsViewModel
 
@@ -37,34 +37,23 @@
         var discountAmount = Model.PlanPrice * (Model.DiscountValue.Value / 100);
         discountedPrice = Model.PlanPrice - discountAmount;
     }
-
-    // Określenie domyślnego widoku
-    string defaultView = Model.IsRecurringActive ? "card" : "transfer";
 }
 
 <style>
     .details-container {
         display: flex;
-        gap: 20px;
+        gap: 30px;
         width: 100%;
         margin-top: 24px;
         align-items: stretch;
     }
 
-    /* NOWY UKŁAD KOLUMN: 25% | 25% | 50% */
-    .details-sidebar {
-        flex: 0 0 25%;
-        max-width: 25%;
-    }
-
-    .details-middle {
-        flex: 0 0 25%;
-        max-width: 25%;
-    }
-
     .details-main {
-        flex: 0 0 50%;
-        max-width: 50%;
+        flex: 3;
+    }
+
+    .details-sidebar {
+        flex: 2;
     }
 
     .info-card {
@@ -73,7 +62,6 @@
         background-color: #fff;
         display: flex;
         flex-direction: column;
-        height: 100%;
     }
 
     .info-card-header {
@@ -82,16 +70,11 @@
         border-bottom: 1px solid #e9ecef;
         font-size: 17px;
         font-weight: 500;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
     }
 
     .info-card-body {
         padding: 20px;
         flex-grow: 1;
-        display: flex;
-        flex-direction: column;
     }
 
     .info-card-footer {
@@ -165,90 +148,6 @@
         color: #28a745;
     }
 
-    /* Switcher Płatności */
-    .payment-switcher {
-        display: flex;
-        background-color: #e9ecef;
-        border-radius: 6px;
-        padding: 4px;
-        margin-bottom: 20px;
-    }
-
-    .payment-option {
-        flex: 1;
-        text-align: center;
-        padding: 8px;
-        font-size: 0.9rem;
-        cursor: pointer;
-        border-radius: 4px;
-        transition: all 0.2s;
-        color: #6c757d;
-        font-weight: 500;
-    }
-
-        .payment-option.active {
-            background-color: #fff;
-            color: #212529;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            font-weight: 600;
-        }
-
-    /* Sekcja Karty */
-    #imoje-widget-container {
-        display: none;
-        margin-top: 20px;
-    }
-
-    .active-card-box {
-        border: 1px solid #c3e6cb;
-        background-color: #d4edda;
-        color: #155724;
-        padding: 20px;
-        border-radius: 8px;
-        text-align: center;
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .active-card-icon {
-        font-size: 40px;
-        color: #28a745;
-        margin-bottom: 15px;
-        position: relative;
-        display: inline-block;
-    }
-
-    .active-card-title {
-        font-weight: 600;
-        font-size: 1.1em;
-        margin-bottom: 5px;
-    }
-
-    .active-card-desc {
-        font-size: 0.85em;
-        color: #155724;
-        opacity: 0.9;
-        margin-bottom: 15px;
-    }
-
-    .btn-link-danger {
-        color: #dc3545;
-        background: none;
-        border: none;
-        font-size: 0.85em;
-        text-decoration: underline;
-        margin-top: 10px;
-        cursor: pointer;
-    }
-
-        .btn-link-danger:hover {
-            color: #bd2130;
-        }
-
-    /* Modal Styles */
     .modal-dialog {
         min-width: 1000px;
     }
@@ -340,19 +239,902 @@
             color: white;
             text-decoration: none;
         }
+
+    #imoje-widget-container {
+        display: none;
+    }
+
+    .active-card-box {
+        border: 1px solid #c3e6cb;
+        background-color: #d4edda;
+        color: #155724;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        margin-top: 15px;
+    }
+
+    .active-card-icon {
+        font-size: 40px;
+        color: #28a745;
+        margin-bottom: 10px;
+    }
+
+    .active-card-title {
+        font-weight: 600;
+        font-size: 1.1em;
+        margin-bottom: 5px;
+    }
+
+    .active-card-desc {
+        font-size: 0.9em;
+        color: #155724;
+        opacity: 0.8;
+    }
 </style>
 
 <div class="Vert">
     <div class="Vert-full">
 
         <div id="paymentSuccessAlert" class="alert alert-success alert-dismissible fade show" role="alert" style="display:none; margin-bottom: 20px;">
-            <strong>Sukces!</strong> Twoja karta została pomyślnie zweryfikowana i podłączona.
+            <strong>Sukces!</strong> Twoja karta została pomyślnie zweryfikowana i podłączona. Subskrypcja jest aktywna.
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
             </button>
         </div>
         <div id="paymentFailureAlert" class="alert alert-danger alert-dismissible fade show" role="alert" style="display:none; margin-bottom: 20px;">
-            <strong>Błąd!</strong> Wystąpił problem z autoryzacją płatności.
+            <strong>Błąd!</strong> Wystąpił problem z autoryzacją płatności. Spróbuj ponownie lub użyj innej karty.
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+
+        <div class="store-details">
+            <h2 style="font-size: 26px; font-weight: 300;">Plan @Model.PlanName | <img src="~/images/@planImageFile" alt="@Model.PlanName" style="height:32px; margin-bottom:6px;" /></h2>
+
+            <div class="details-container">
+                <div class="details-sidebar info-card">
+                    <div class="info-card-header">Koszt planu</div>
+                    <div class="info-card-body">
+                        <div class="price-display">
+                            <span class="final-price-amount">@discountedPrice.ToString("C")</span>
+                            <span class="final-price-label">netto</span>
+                            @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+                            {
+                                <span class="original-price">@Model.PlanPrice.ToString("C")</span>
+                            }
+                        </div>
+                        @if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+                        {
+                            <div class="discount-info">Rabat: @Model.DiscountValue.Value.ToString("F2")%</div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(Model.Info))
+                        {
+                            <hr style="margin: 20px 0;">
+                            <div class="info-description">
+                                <p style="color: #6c757d; font-size: 0.9em; margin-bottom: 0;">@Model.Info</p>
+                            </div>
+                        }
+                    </div>
+                    <div class="info-card-footer">
+                        <button type="button" class="Button-Page-Small-bl" data-toggle="modal" data-target="#managePlanModal">
+                            Zarządzaj moim planem
+                        </button>
+                    </div>
+                </div>
+
+                <div class="details-main info-card">
+                    <div class="info-card-header">Szczegóły planu</div>
+                    <div class="info-card-body">
+                        <div class="info-row">
+                            <span class="info-label">Źródło danych</span>
+                            <span class="info-value">
+                                @if (Model.Ceneo)
+                                {
+                                    <img src="~/images/Ceneo.png" alt="Ceneo" title="Ceneo" />
+                                }
+                                @if (Model.GoogleShopping)
+                                {
+                                    <img src="~/images/GoogleShopping.png" alt="Google Shopping" title="Google Shopping" />
+                                }
+                                @if (Model.Allegro)
+                                {
+                                    <img src="~/images/AllegroIcon.png" alt="Allegro" title="Allegro" />
+                                }
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Limity produktów</span>
+                            <span class="info-value">
+                                <div>Do <b>@Model.ProductsToScrap</b> SKU w porównywarkach</div>
+                                @if (Model.Allegro)
+                                {
+                                    <div class="mt-1">Do <b>@Model.ProductsToScrapAllegro</b> SKU na marketplace</div>
+                                }
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Czas usługi</span>
+                            <span class="info-value">@Model.ScrapesPerInvoice dni</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Dane historyczne</span>
+                            <span class="info-value">30 analiz historycznych</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="managePlanModal" tabindex="-1" role="dialog" aria-labelledby="managePlanModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="managePlanModalLabel">Mój Plan i Dane Płatności</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="modal-split">
+                            <div class="modal-split-left">
+                                <div id="paymentDataSection">
+                                    <div id="existingDataHeader" class="status-box success" style="display:none;">
+                                        <span><i class="fas fa-check-circle"></i> Dane do faktury przypisane</span>
+                                    </div>
+
+                                    <div id="noDataHeader" class="status-box warning" style="display:none;">
+                                        <span><i class="fas fa-exclamation-circle"></i> Brak przypisanych danych</span>
+                                        <span style="font-size: 0.8em;">Skontaktuj się z administratorem</span>
+                                    </div>
+
+                                    <div id="paymentDataDetails" style="display:none; margin-top: 20px;">
+                                        <h6 style="color: #6c757d; margin-bottom: 10px;">Dane płatnika:</h6>
+                                        <table class="custom-info-table">
+                                            <tr><th>Nazwa firmy</th><td id="companyName"></td></tr>
+                                            <tr><th>Adres</th><td id="address"></td></tr>
+                                            <tr><th>Kod pocztowy</th><td id="postalCode"></td></tr>
+                                            <tr><th>Miasto</th><td id="city"></td></tr>
+                                            <tr><th>NIP</th><td id="nip"></td></tr>
+                                            <tr><th>E-mail do faktur</th><td id="invoiceAutoMail"></td></tr>
+                                            <tr><th>Automatyczna wysyłka</th><td id="invoiceAutoMailSend"></td></tr>
+                                        </table>
+                                    </div>
+
+                                    <div style="margin-top: 30px; border-top: 1px solid #dee2e6; padding-top: 20px;">
+                                        <h6 style="color: #6c757d; margin-bottom: 15px;">Metoda płatności (Subskrypcja)</h6>
+
+                                        @if (Model.IsRecurringActive)
+                                        {
+                                            <div id="cardConnectedSection" class="active-card-box">
+                                                <div class="active-card-icon">
+                                                    @if (!string.IsNullOrEmpty(Model.CardBrand) && Model.CardBrand.ToLower().Contains("visa"))
+                                                    {
+                                                        <i class="fab fa-cc-visa" style="font-size: 40px; color: #1a1f71;"></i>
+                                                    }
+                                                    else if (!string.IsNullOrEmpty(Model.CardBrand) && Model.CardBrand.ToLower().Contains("master"))
+                                                    {
+                                                        <i class="fab fa-cc-mastercard" style="font-size: 40px; color: #eb001b;"></i>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="fas fa-credit-card" style="font-size: 40px; color: #28a745;"></i>
+                                                    }
+                                                    <i class="fas fa-check-circle" style="font-size: 20px; margin-left: -10px; vertical-align: bottom; color: #155724; background: white; border-radius: 50%;"></i>
+                                                </div>
+
+                                                <div class="active-card-title">
+                                                    @if (!string.IsNullOrEmpty(Model.CardMaskedNumber))
+                                                    {
+                                                        <span>@(Model.CardBrand ?? "Karta")</span>
+                                                        <span style="letter-spacing: 2px;">
+                                                            @Model.CardMaskedNumber.Substring(Math.Max(0, Model.CardMaskedNumber.Length - 4))
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>Karta podłączona</span>
+                                                    }
+                                                </div>
+
+                                                <div class="active-card-desc">
+                                                    Twoja metoda płatności jest aktywna.<br />
+                                                    Faktury będą opłacane automatycznie.
+                                                </div>
+
+                                                <button id="btnChangeCard" type="button" class="Button-Action-Small btn-connect-card" style="width: 100%; justify-content: center; margin-top: 15px; background-color: #fff; color: #333; border: 1px solid #ccc;">
+                                                    <i class="fas fa-sync-alt" style="margin-right: 8px;"></i> Zmień metodę płatności
+                                                </button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div id="cardNotConnectedSection">
+                                                <p style="font-size: 0.9em; color: #6c757d; margin-bottom: 15px;">
+                                                    Podłącz kartę płatniczą, aby opłacać faktury automatycznie. Pobierzemy 1 PLN w celu weryfikacji (kwota zostanie natychmiast zwrócona).
+                                                </p>
+
+                                                <button id="btnConnectCard" type="button" class="Button-Action-Small" style="width: 100%; justify-content: center;">
+                                                    <i class="fas fa-credit-card" style="margin-right: 8px;"></i> Podłącz kartę płatniczą (imoje)
+                                                </button>
+                                            </div>
+                                        }
+
+                                        <div id="imoje-widget-container"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="modal-split-right">
+                                <div class="info-card" style="height: 100%;">
+                                    <div class="info-card-header">Podsumowanie planu</div>
+                                    <div class="info-card-body">
+                                        <p style="font-weight: 500; font-size: 1.1em; margin-bottom: 14px;">Plan @Model.PlanName</p>
+                                        <div class="price-display">
+                                            <span class="final-price-amount">@discountedPrice.ToString("C")</span>
+                                            <span class="final-price-label">netto</span>
+                                        </div>
+                                        <div style="margin-top: 20px; font-size: 0.9em; color: #6c757d;">
+                                            <i class="fas fa-info-circle"></i> Jeśli potrzebujesz zaktualizować dane płatnika lub zmienić swój plan, skontaktuj się z nami, wysyłając wiadomość na adres <strong>biuro@pricesafari.pl</strong>.
+                                            <br /><br />
+                                            Faktury będą wystawiane i wysyłane automatycznie. Otrzymasz je z adresu faktury@pricesafari.pl.
+                                            <br /><br />
+                                            W przypadku chęci rezygnacji z usługi PriceSafari, możesz to zrobić za pomocą przycisku poniżej.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="justify-content: space-between;">
+                        <button type="button" class="btn-danger-custom" id="openResignationModalBtn">
+                            Zrezygnuj z usługi monitoringu cen
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="resignationConfirmModal" tabindex="-1" role="dialog" aria-labelledby="resignationConfirmLabel" aria-hidden="true" style="z-index: 1060;">
+            <div class="modal-dialog modal-sm modal-dialog-centered" role="document" style="min-width: 450px;">
+                <div class="modal-content" style="min-width: 450px;">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="resignationConfirmLabel">Rezygnacja z usługi</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    </div>
+                    <div class="modal-body text-center" id="resignationModalBody">
+                        <div class="mb-3"><i class="fas fa-sad-tear fa-3x text-muted" style="font-size: 3em; color: #6c757d; margin: 15px 0;"></i></div>
+                        <p style="font-size: 1.1em; font-weight: 500;">Czy na pewno chcesz zrezygnować z usług monitoringu cen?</p>
+                        <div style="margin-top: 20px;">
+                            <button type="button" class="btn btn-secondary mr-2" data-dismiss="modal" style="margin-right: 10px;">Anuluj</button>
+                            <button type="button" class="btn btn-danger" id="confirmResignationBtn">Potwierdzam rezygnację</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.Invoices != null && Model.Invoices.Any())
+        {
+            <div class="Vert-table" style="margin-top: 30px;">
+                <h3 style="font-weight: 400; margin-bottom: 20px;">Historia płatności</h3>
+                <table class="table-orders">
+                    <thead>
+                        <tr><th>Numer</th><th>Wystawiono</th><th>Opłacono</th><th>Kwota Netto</th><th>Status</th><th>Pobierz</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var invoice in Model.Invoices)
+                        {
+                            <tr class="store-row">
+                                <td>@invoice.InvoiceNumber</td>
+                                <td>@invoice.IssueDate.ToString("yyyy-MM-dd")</td>
+                                <td>@(invoice.PaymentDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
+                                <td>@invoice.NetAmount.ToString("C")</td>
+                                <td>
+                                    @if (invoice.IsPaid)
+                                    {
+                                        <span class="Validation Validation-accepted">Opłacona</span>
+                                    }
+                                    else
+                                    {
+
+                                        <span class="Validation Validation-cancelled">Nieopłacona</span>
+                                    }
+                                </td>
+                                <td>
+                                    <a href="@Url.Action("InvoicePdf", "Payment", new { invoiceId = invoice.InvoiceId })" class="Button-Action-Small" target="_blank">Pobierz PDF</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const status = urlParams.get('status');
+            const storeId = '@Model.StoreId';
+
+            const cardNotConnectedSection = $("#cardNotConnectedSection");
+            const cardConnectedSection = $("#cardConnectedSection");
+
+            if (status === 'success') {
+                // Ustawiamy komunikat "oczekiwania", ponieważ nawet przy działającym Webhooku
+                // strona może się załadować ułamek sekundy szybciej niż baza się zaktualizuje.
+                $("#paymentSuccessAlert")
+                    .removeClass("alert-success")
+                    .addClass("alert-warning")
+                    .html('<strong>Weryfikacja...</strong> Czekamy na potwierdzenie z banku. Proszę czekać... <i class="fas fa-spinner fa-spin"></i>')
+                    .show();
+
+                $("#btnConnectCard").prop('disabled', true);
+
+                // Polling - sprawdzamy status co 2 sekundy
+                let attempts = 0;
+                const maxAttempts = 15; // 30 sekund
+
+                const checkInterval = setInterval(function () {
+                    attempts++;
+
+                    $.get("/Payment/CheckCardStatus?storeId=" + storeId, function (data) {
+                        if (data.isConnected) {
+                            clearInterval(checkInterval);
+
+                            $("#paymentSuccessAlert")
+                                .removeClass("alert-warning")
+                                .addClass("alert-success")
+                                .html('<strong>Sukces!</strong> Twoja karta została pomyślnie zweryfikowana i podłączona. Subskrypcja jest aktywna. Odświeżam...');
+
+                            // Przeładowanie strony, by pobrać świeży Model (już bez parametru ?status=)
+                            setTimeout(function () {
+                                window.location.href = window.location.pathname + "?storeId=" + storeId;
+                            }, 1000);
+                        }
+
+                        if (attempts >= maxAttempts) {
+                            clearInterval(checkInterval);
+                            $("#paymentSuccessAlert")
+                                .removeClass("alert-warning")
+                                .addClass("alert-info")
+                                .html('<strong>Info:</strong> Płatność jest przetwarzana dłużej niż zwykle. Spróbuj odświeżyć stronę ręcznie za chwilę.');
+
+                             window.history.replaceState(null, null, window.location.pathname + "?storeId=" + storeId);
+                        }
+                    });
+                }, 2000);
+
+            } else if (status === 'failure') {
+                $("#paymentFailureAlert").show();
+                window.history.replaceState(null, null, window.location.pathname + "?storeId=" + storeId);
+                $("#managePlanModal").modal('show');
+            }
+
+            // Logika wyświetlania danych (bez zmian)
+            var paymentDataList = @Html.Raw(paymentDataListJson);
+            var currentPaymentData = null;
+
+            if (paymentDataList.length > 0) {
+                currentPaymentData = paymentDataList[0];
+                showData(currentPaymentData);
+            } else {
+                showEmpty();
+            }
+
+            function showData(data) {
+                $("#existingDataHeader").css('display', 'flex');
+                $("#noDataHeader").hide();
+                $("#paymentDataDetails").show();
+
+                $("#companyName").text(data.companyName);
+                $("#address").text(data.address);
+                $("#postalCode").text(data.postalCode);
+                $("#city").text(data.city);
+                $("#nip").text(data.nip);
+                $("#invoiceAutoMail").text(data.invoiceAutoMail ? data.invoiceAutoMail : "-");
+
+                if (data.invoiceAutoMailSend) {
+                    $("#invoiceAutoMailSend").html('<span class="text-success font-weight-bold">Tak</span>');
+                } else {
+                    $("#invoiceAutoMailSend").html('<span class="text-muted">Nie</span>');
+                }
+            }
+
+            function showEmpty() {
+                $("#existingDataHeader").hide();
+                $("#noDataHeader").css('display', 'flex');
+                $("#paymentDataDetails").hide();
+            }
+
+            $("#btnConnectCard").click(function () {
+                var btn = $(this);
+                var originalText = btn.html();
+
+                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Przetwarzanie...');
+
+                $.post("@Url.Action("GetImojeWidgetData", "Payment")", { storeId: @Model.StoreId }, function (response) {
+                    if (response.success) {
+                        var d = response.data;
+
+                        $("#imoje-widget-container").empty();
+
+                        var script = document.createElement('script');
+                        script.src = response.scriptUrl;
+                        script.id = "imoje-widget__script";
+                        script.type = "text/javascript";
+
+                        // Atrybuty Widgetu
+                        script.setAttribute("data-merchant-id", d.merchantId);
+                        script.setAttribute("data-service-id", d.serviceId);
+                        script.setAttribute("data-amount", d.amount);
+                        script.setAttribute("data-currency", d.currency);
+                        script.setAttribute("data-order-id", d.orderId);
+                        script.setAttribute("data-customer-id", d.customerId);
+                        script.setAttribute("data-customer-first-name", d.customerFirstName);
+                        script.setAttribute("data-customer-last-name", d.customerLastName);
+                        script.setAttribute("data-customer-email", d.customerEmail);
+                        script.setAttribute("data-widget-type", d.widgetType);
+                        script.setAttribute("data-url-notification", d.urlNotification);
+                        script.setAttribute("data-url-success", d.urlSuccess);
+                        script.setAttribute("data-url-failure", d.urlFailure);
+                        script.setAttribute("data-signature", response.signature);
+                        script.setAttribute("data-locale", "pl");
+
+                        document.getElementById("imoje-widget-container").appendChild(script);
+
+                        setTimeout(function () {
+                            btn.prop('disabled', false).html(originalText);
+                        }, 2000);
+
+                    } else {
+                        alert("Błąd inicjalizacji płatności. Spróbuj ponownie.");
+                        btn.prop('disabled', false).html(originalText);
+                    }
+                }).fail(function () {
+                    alert("Błąd połączenia z serwerem.");
+                    btn.prop('disabled', false).html(originalText);
+                });
+            });
+
+            $("#openResignationModalBtn").click(function () {
+                $("#managePlanModal").modal('hide');
+                setTimeout(function () {
+                    $("#resignationConfirmModal").modal('show');
+                }, 300);
+            });
+
+            $("#confirmResignationBtn").click(function () {
+                var btn = $(this);
+                btn.prop('disabled', true).text('Przetwarzanie...');
+
+                $.ajax({
+                    type: "POST",
+                    url: "@Url.Action("RequestResignation", "Payment")",
+                    data: { storeId: @Model.StoreId },
+                    success: function (response) {
+                        if (response.success) {
+                            var successHtml = `
+                                <div class="mb-3">
+                                    <i class="fas fa-check-circle fa-3x text-success" style="font-size: 3em; color: #28a745; margin: 15px 0;"></i>
+                                </div>
+                                <h4 style="font-weight: 400;">Dziękujemy za informację.</h4>
+                                <p class="mt-3" style="font-size: 1.1em;">Przykro nam, że odchodzisz.</p>
+                                <p class="text-muted" style="font-size: 0.9em;">Skontaktujemy się z Tobą jak najszybciej, aby sfinalizować proces i zakończyć usługę monitoringu cen.</p>
+                            `;
+                            $("#resignationModalBody").html(successHtml);
+                        } else {
+                            alert("Wystąpił błąd. Spróbuj ponownie później.");
+                            btn.prop('disabled', false).text('Potwierdzam rezygnację');
+                        }
+                    },
+                    error: function () {
+                        alert("Wystąpił błąd połączenia z serwerem.");
+                        btn.prop('disabled', false).text('Potwierdzam rezygnację');
+                    }
+                });
+            });
+        });
+    </script>
+} *@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@using Newtonsoft.Json
+@using Newtonsoft.Json.Serialization
+@model PriceSafari.Models.ViewModels.StorePaymentsViewModel
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+    var safePaymentDataList = Model.PaymentDataList.Select(data => new
+    {
+        data.CompanyName,
+        data.Address,
+        data.PostalCode,
+        data.City,
+        data.NIP,
+        data.InvoiceAutoMail,
+        data.InvoiceAutoMailSend
+    }).ToList();
+
+    var jsonSettings = new JsonSerializerSettings
+    {
+        ContractResolver = new CamelCasePropertyNamesContractResolver()
+    };
+
+    var paymentDataListJson = JsonConvert.SerializeObject(safePaymentDataList, jsonSettings);
+
+    string planImageFile = "";
+    if (Model.IsTestPlan) planImageFile = "Free.png";
+    else if (Model.ProductsToScrap <= 500) planImageFile = "Lite.png";
+    else if (Model.ProductsToScrap <= 1000) planImageFile = "Basic.png";
+    else if (Model.ProductsToScrap <= 4000) planImageFile = "Pro.png";
+    else if (Model.ProductsToScrap <= 10000) planImageFile = "Ultimate.png";
+    else planImageFile = "Enterprise.png";
+
+    decimal discountedPrice = Model.PlanPrice;
+    if (Model.DiscountValue.HasValue && Model.DiscountValue.Value > 0)
+    {
+        var discountAmount = Model.PlanPrice * (Model.DiscountValue.Value / 100);
+        discountedPrice = Model.PlanPrice - discountAmount;
+    }
+
+    string defaultView = Model.IsRecurringActive ? "card" : "transfer";
+
+    string formattedCardNumber = "**** **** **** ****";
+    if (!string.IsNullOrEmpty(Model.CardMaskedNumber) && Model.CardMaskedNumber.Length >= 4)
+    {
+        string last4 = Model.CardMaskedNumber.Substring(Model.CardMaskedNumber.Length - 4);
+        formattedCardNumber = $"**** **** **** {last4}";
+    }
+}
+
+<style>
+    .details-container {
+        display: flex;
+        gap: 20px;
+        width: 100%;
+        margin-top: 24px;
+        align-items: stretch;
+    }
+
+    .details-sidebar {
+        flex: 0 0 25%;
+        max-width: 25%;
+    }
+
+    .details-middle {
+        flex: 0 0 25%;
+        max-width: 25%;
+    }
+
+    .details-main {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+
+    .info-card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        background-color: #fff;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .info-card-header {
+        padding: 16px 20px;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 17px;
+        font-weight: 500;
+    }
+
+    .info-card-body {
+        padding: 20px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .info-card-footer {
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+        margin-top: auto;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid #f1f3f5;
+    }
+
+        .info-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .info-row:first-child {
+            padding-top: 0;
+        }
+
+    .info-label {
+        color: #6c757d;
+    }
+
+    .info-value {
+        color: #212529;
+        font-weight: 500;
+        text-align: right;
+    }
+
+        .info-value img {
+            height: 20px;
+            width: 20px;
+            margin-left: 5px;
+        }
+
+    .price-display {
+        display: flex;
+        align-items: baseline;
+        margin-bottom: 8px;
+    }
+
+        .price-display .final-price-amount {
+            color: #212529;
+            font-weight: 600;
+            font-size: 28px;
+            line-height: 1;
+        }
+
+        .price-display .final-price-label {
+            font-size: 16px;
+            font-weight: 400;
+            color: #6c757d;
+            margin-left: 8px;
+        }
+
+        .price-display .original-price {
+            text-decoration: line-through;
+            font-size: 18px;
+            color: #6c757d;
+            margin-left: 12px;
+        }
+
+    .discount-info {
+        font-weight: 500;
+        color: #28a745;
+    }
+
+    .payment-switcher {
+        display: flex;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        padding: 10px 15px 0 15px;
+        gap: 5px;
+        margin: -20px -20px 20px -20px;
+    }
+
+    .payment-tab {
+        flex: 1;
+        text-align: center;
+        padding: 10px 5px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        border-radius: 6px 6px 0 0;
+        border: 1px solid transparent;
+        border-bottom: none;
+        color: #6c757d;
+        font-weight: 500;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+        .payment-tab:hover {
+            background-color: #e9ecef;
+        }
+
+        .payment-tab.view-active {
+            background-color: #fff;
+            border-color: #e9ecef;
+            color: #212529;
+            font-weight: 600;
+            box-shadow: 0 4px 0 0 #fff;
+            margin-bottom: -1px;
+            z-index: 1;
+            border-top: 3px solid #28a745;
+        }
+
+    .active-method-tick {
+        color: #28a745;
+        margin-left: 5px;
+        font-size: 1.1em;
+        vertical-align: middle;
+    }
+
+    .card-view-container {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+    }
+
+    .card-number-display {
+        font-family: monospace;
+        font-size: 1.2em;
+        letter-spacing: 1px;
+        color: #333;
+        font-weight: 600;
+        margin-bottom: 5px;
+        margin-top: 10px;
+    }
+
+    .btn-danger-outline {
+        background-color: white;
+        color: #dc3545;
+        border: 1px solid #dc3545;
+        padding: 6px 14px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        transition: all 0.2s;
+        cursor: pointer;
+        margin-top: 15px;
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+    }
+
+        .btn-danger-outline:hover {
+            background-color: #dc3545;
+            color: white;
+            text-decoration: none;
+        }
+
+    .locked-view {
+        text-align: center;
+        color: #6c757d;
+        padding: 20px 0;
+    }
+
+    .modal-dialog {
+        min-width: 1000px;
+    }
+
+    .modal-content {
+        min-width: 1000px;
+    }
+
+    .modal-split {
+        display: flex;
+        gap: 24px;
+        padding: 1rem;
+    }
+
+    .modal-split-left {
+        flex: 5;
+    }
+
+    .modal-split-right {
+        flex: 4;
+    }
+
+    .custom-info-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+        .custom-info-table th, .custom-info-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .custom-info-table th {
+            background-color: #f8f9fa;
+            text-align: left;
+            font-weight: normal;
+            color: #6c757d;
+            width: 140px;
+        }
+
+        .custom-info-table td {
+            font-weight: 500;
+        }
+
+        .custom-info-table tr:last-child td, .custom-info-table tr:last-child th {
+            border-bottom: none;
+        }
+
+    .status-box {
+        display: flex;
+        width: 100%;
+        padding: 0.75rem;
+        font-size: 1rem;
+        border-radius: 0.25rem;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+        .status-box.success {
+            border: 1px solid #28a745;
+            color: #155724;
+            background-color: #d4edda;
+        }
+
+        .status-box.warning {
+            border: 1px solid #ffc107;
+            color: #856404;
+            background-color: #fff3cd;
+        }
+
+    .btn-danger-custom {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        transition: background-color 0.2s;
+        cursor: pointer;
+    }
+
+        .btn-danger-custom:hover {
+            background-color: #c82333;
+            color: white;
+            text-decoration: none;
+        }
+
+    #imoje-widget-container {
+        display: none;
+        margin-top: 15px;
+    }
+</style>
+
+<div class="Vert">
+    <div class="Vert-full">
+
+        <div id="paymentSuccessAlert" class="alert alert-success alert-dismissible fade show" role="alert" style="display:none; margin-bottom: 20px;">
+            <strong>Sukces!</strong> Twoja karta została pomyślnie zweryfikowana i podłączona. Subskrypcja jest aktywna.
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <div id="paymentFailureAlert" class="alert alert-danger alert-dismissible fade show" role="alert" style="display:none; margin-bottom: 20px;">
+            <strong>Błąd!</strong> Wystąpił problem z autoryzacją płatności. Spróbuj ponownie lub użyj innej karty.
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
             </button>
@@ -389,174 +1171,158 @@
                     </div>
                     <div class="info-card-footer">
                         <button type="button" class="Button-Page-Small-bl" data-toggle="modal" data-target="#managePlanModal">
-                            Dane do faktury
+                            Zarządzaj moim planem
                         </button>
                     </div>
                 </div>
 
                 <div class="details-middle info-card">
-                    <div class="info-card-header">
-                        Metoda płatności
-                    </div>
-                    <div class="info-card-body" style="padding-top: 15px;">
+                    <div class="info-card-header">Metoda płatności</div>
 
+                    <div class="info-card-body">
                         <div class="payment-switcher">
-                            <div class="payment-option @(defaultView == "transfer" ? "active" : "")" data-target="transfer">
-                                <i class="fas fa-university"></i> Przelewy
+                            <div class="payment-tab @(defaultView == "transfer" ? "view-active" : "")" data-target="transfer">
+                                Przelew
+                                @if (!Model.IsRecurringActive)
+                                {
+                                    <i class="fas fa-check-circle active-method-tick" title="Aktywna metoda"></i>
+                                }
                             </div>
-                            <div class="payment-option @(defaultView == "card" ? "active" : "")" data-target="card">
-                                <i class="fas fa-credit-card"></i> Karta
-                            </div>
-                        </div>
-
-                        <div id="view-transfer" style="display: @(defaultView == "transfer" ? "block" : "none"); text-align: center;">
-                            <div style="margin-top: 20px; color: #6c757d;">
-                                <i class="fas fa-file-invoice-dollar fa-3x" style="margin-bottom: 15px; color: #adb5bd;"></i>
-                                <p style="font-size: 0.95em;">
-                                    Faktury są wysyłane na adres e-mail. Należy je opłacać przelewem tradycyjnym.
-                                </p>
-                                <p style="font-size: 0.85em; margin-top: 10px;">
-                                    Aby zautomatyzować płatności, przełącz się na kartę płatniczą.
-                                </p>
+                            <div class="payment-tab @(defaultView == "card" ? "view-active" : "")" data-target="card">
+                                Karta
+                                @if (Model.IsRecurringActive)
+                                {
+                                    <i class="fas fa-check-circle active-method-tick" title="Aktywna metoda"></i>
+                                }
                             </div>
                         </div>
 
-                        <div id="view-card" style="display: @(defaultView == "card" ? "block" : "none");">
+                        <div id="view-transfer" style="display: @(defaultView == "transfer" ? "block" : "none"); height: 100%;">
+                            @if (Model.IsRecurringActive)
+                            {
+                                <div class="card-view-container" style="color: #6c757d;">
+                                    <i class="fas fa-lock fa-2x mb-3" style="color: #dee2e6;"></i>
+                                    <p style="font-size: 0.9em;">
+                                        <b>Płatności automatyczne są aktywne.</b>
+                                        <br>
+                                        Twoje faktury opłacane są automatycznie z podpiętej karty.
+                                    </p>
+                                    <p style="font-size: 0.8em; margin-top: 10px;">
+                                        Aby wrócić do przelewów, usuń kartę w zakładce obok.
+                                    </p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="card-view-container" style="color: #6c757d;">
+                                    <i class="fas fa-university fa-3x mb-3" style="color: #e9ecef;"></i>
+                                    <p style="font-size: 0.9em;">
+                                        Faktury otrzymasz na e-mail. Opłacaj je tradycyjnym przelewem.
+                                    </p>
+                                </div>
+                            }
+                        </div>
+
+                        <div id="view-card" style="display: @(defaultView == "card" ? "block" : "none"); height: 100%;">
 
                             @if (Model.IsRecurringActive)
                             {
-                                <div id="cardConnectedSection" class="active-card-box" style="width: 100%;">
-                                    <div class="active-card-icon">
+                                <div class="card-view-container">
+                                    <div style="font-size: 40px; margin-bottom: 10px;">
                                         @if (!string.IsNullOrEmpty(Model.CardBrand) && Model.CardBrand.ToLower().Contains("visa"))
                                         {
-                                            <i class="fab fa-cc-visa" style="font-size: 40px; color: #1a1f71;"></i>
+                                            <i class="fab fa-cc-visa" style="color: #1a1f71;"></i>
                                         }
                                         else if (!string.IsNullOrEmpty(Model.CardBrand) && Model.CardBrand.ToLower().Contains("master"))
                                         {
-                                            <i class="fab fa-cc-mastercard" style="font-size: 40px; color: #eb001b;"></i>
+                                            <i class="fab fa-cc-mastercard" style="color: #eb001b;"></i>
                                         }
                                         else
                                         {
-                                            <i class="fas fa-credit-card" style="font-size: 40px; color: #28a745;"></i>
-                                        }
-                                        <i class="fas fa-check-circle" style="font-size: 18px; position: absolute; bottom: -5px; right: -8px; color: #155724; background: white; border-radius: 50%;"></i>
-                                    </div>
-
-                                    <div class="active-card-title">
-                                        @if (!string.IsNullOrEmpty(Model.CardMaskedNumber))
-                                        {
-                                            <span>@(Model.CardBrand ?? "Karta")</span>
-                                    
-                                            <br>
-                                            <span style="letter-spacing: 1px; font-size: 0.9em;">
-                                                @Model.CardMaskedNumber.Substring(Math.Max(0, Model.CardMaskedNumber.Length - 4))
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <span>Karta podłączona</span>
+                                            <i class="fas fa-credit-card" style="color: #28a745;"></i>
                                         }
                                     </div>
 
-                                    <div class="active-card-desc">
-                                        Płatności automatyczne aktywne.
+                                    <div class="card-number-display">
+                                        @formattedCardNumber
                                     </div>
 
-                                    <button id="btnRemoveCard" type="button" class="btn-link-danger">
-                                        <i class="fas fa-trash-alt"></i> Usuń kartę
+                                    <div style="font-size: 0.8em; color: #28a745; font-weight: 600;">
+                                        <i class="fas fa-check"></i> Podłączona
+                                    </div>
+
+                                    <button id="btnRemoveCard" type="button" class="btn-danger-outline">
+                                        <i class="fas fa-trash-alt" style="margin-right: 6px;"></i> Usuń kartę
                                     </button>
                                 </div>
                             }
                             else
                             {
-                                <div id="cardConnectContainer">
-                                    <div style="text-align: center; margin-bottom: 15px;">
-                                        <p style="font-size: 0.9em; color: #6c757d;">
-                                            Podłącz kartę, aby nie martwić się terminami.
-                                        </p>
-                                    </div>
+                                <div id="cardConnectContainer" class="card-view-container">
+                                    <p style="font-size: 0.9em; color: #6c757d; margin-bottom: 15px;">
+                                        Włącz płatności automatyczne.
+                                    </p>
 
-                                    <button id="btnConnectCard" type="button" class="Button-Action-Small" style="width: 100%; justify-content: center; padding: 10px;">
-                                        <i class="fas fa-plus-circle" style="margin-right: 8px;"></i> Podłącz kartę
+                                    <button id="btnConnectCard" type="button" class="Button-Action-Small" style="width: 100%; justify-content: center;">
+                                        <i class="fas fa-plus" style="margin-right: 6px;"></i> Podłącz kartę
                                     </button>
 
                                     <div id="imoje-widget-container"></div>
                                 </div>
                             }
                         </div>
-
                     </div>
                 </div>
 
                 <div class="details-main info-card">
                     <div class="info-card-header">Szczegóły planu</div>
                     <div class="info-card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="info-row">
-                                    <span class="info-label">Źródło danych</span>
-                                    <span class="info-value">
-                                        @if (Model.Ceneo)
-                                        {
-                                            <img src="~/images/Ceneo.png" alt="Ceneo" title="Ceneo" />
-                                        }
-                                        @if (Model.GoogleShopping)
-                                        {
-                                            <img src="~/images/GoogleShopping.png" alt="Google Shopping" />
-                                        }
-                                        @if (Model.Allegro)
-                                        {
-                                            <img src="~/images/AllegroIcon.png" alt="Allegro" title="Allegro" />
-                                        }
-                                    </span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Czas usługi</span>
-                                    <span class="info-value">@Model.ScrapesPerInvoice dni</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Dane historyczne</span>
-                                    <span class="info-value">30 analiz</span>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="info-row">
-                                    <span class="info-label">Limit porównywarek</span>
-                                    <span class="info-value"><b>@Model.ProductsToScrap</b> SKU</span>
-                                </div>
+                        <div class="info-row">
+                            <span class="info-label">Źródło danych</span>
+                            <span class="info-value">
+                                @if (Model.Ceneo)
+                                {
+                                    <img src="~/images/Ceneo.png" alt="Ceneo" title="Ceneo" />
+                                }
+                                @if (Model.GoogleShopping)
+                                {
+                                    <img src="~/images/GoogleShopping.png" alt="Google Shopping" title="Google Shopping" />
+                                }
                                 @if (Model.Allegro)
                                 {
-                                    <div class="info-row">
-                                        <span class="info-label">Limit Allegro</span>
-                                        <span class="info-value"><b>@Model.ProductsToScrapAllegro</b> SKU</span>
-                                    </div>
+                                    <img src="~/images/AllegroIcon.png" alt="Allegro" title="Allegro" />
                                 }
-                                <div class="info-row">
-                                    <span class="info-label">Status faktur</span>
-                                    <span class="info-value">
-                                        @if (Model.HasUnpaidInvoice)
-                                        {
-                                            <span class="text-danger">Zaległości</span>
-                                        }
-                                        else
-                                        {
-
-                                            <span class="text-success">OK</span>
-                                        }
-                                    </span>
-                                </div>
-                            </div>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Limity produktów</span>
+                            <span class="info-value">
+                                <div>Do <b>@Model.ProductsToScrap</b> SKU w porównywarkach</div>
+                                @if (Model.Allegro)
+                                {
+                                    <div class="mt-1">Do <b>@Model.ProductsToScrapAllegro</b> SKU na marketplace</div>
+                                }
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Czas usługi</span>
+                            <span class="info-value">@Model.ScrapesPerInvoice dni</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Dane historyczne</span>
+                            <span class="info-value">30 analiz historycznych</span>
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
 
-        <div class="modal fade" id="managePlanModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal fade" id="managePlanModal" tabindex="-1" role="dialog" aria-labelledby="managePlanModalLabel" aria-hidden="true">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Dane Płatnika</h5>
+                        <h5 class="modal-title" id="managePlanModalLabel">Mój Plan i Dane Płatności</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                             <span aria-hidden="true">&times;</span>
                         </button>
@@ -564,24 +1330,47 @@
                     <div class="modal-body">
                         <div class="modal-split">
                             <div class="modal-split-left">
-                                <div id="paymentDataDetails" style="margin-top: 10px;">
-                                    <table class="custom-info-table">
-                                        <tr><th>Nazwa firmy</th><td>@Model.PaymentDataList.FirstOrDefault()?.CompanyName</td></tr>
-                                        <tr><th>Adres</th><td>@Model.PaymentDataList.FirstOrDefault()?.Address</td></tr>
-                                        <tr><th>Kod pocztowy</th><td>@Model.PaymentDataList.FirstOrDefault()?.PostalCode</td></tr>
-                                        <tr><th>Miasto</th><td>@Model.PaymentDataList.FirstOrDefault()?.City</td></tr>
-                                        <tr><th>NIP</th><td>@Model.PaymentDataList.FirstOrDefault()?.NIP</td></tr>
-                                        <tr><th>E-mail</th><td>@Model.PaymentDataList.FirstOrDefault()?.InvoiceAutoMail</td></tr>
-                                    </table>
+                                <div id="paymentDataSection">
+                                    <div id="existingDataHeader" class="status-box success" style="display:none;">
+                                        <span><i class="fas fa-check-circle"></i> Dane do faktury przypisane</span>
+                                    </div>
+
+                                    <div id="noDataHeader" class="status-box warning" style="display:none;">
+                                        <span><i class="fas fa-exclamation-circle"></i> Brak przypisanych danych</span>
+                                        <span style="font-size: 0.8em;">Skontaktuj się z administratorem</span>
+                                    </div>
+
+                                    <div id="paymentDataDetails" style="display:none; margin-top: 20px;">
+                                        <h6 style="color: #6c757d; margin-bottom: 10px;">Dane płatnika:</h6>
+                                        <table class="custom-info-table">
+                                            <tr><th>Nazwa firmy</th><td id="companyName"></td></tr>
+                                            <tr><th>Adres</th><td id="address"></td></tr>
+                                            <tr><th>Kod pocztowy</th><td id="postalCode"></td></tr>
+                                            <tr><th>Miasto</th><td id="city"></td></tr>
+                                            <tr><th>NIP</th><td id="nip"></td></tr>
+                                            <tr><th>E-mail do faktur</th><td id="invoiceAutoMail"></td></tr>
+                                            <tr><th>Automatyczna wysyłka</th><td id="invoiceAutoMailSend"></td></tr>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
+
                             <div class="modal-split-right">
                                 <div class="info-card" style="height: 100%;">
-                                    <div class="info-card-header">Kontakt</div>
+                                    <div class="info-card-header">Podsumowanie planu</div>
                                     <div class="info-card-body">
-                                        <p style="font-size: 0.9em; color: #6c757d;">
-                                            W celu zmiany danych lub rezygnacji, skontaktuj się z: <strong>biuro@pricesafari.pl</strong>.
-                                        </p>
+                                        <p style="font-weight: 500; font-size: 1.1em; margin-bottom: 14px;">Plan @Model.PlanName</p>
+                                        <div class="price-display">
+                                            <span class="final-price-amount">@discountedPrice.ToString("C")</span>
+                                            <span class="final-price-label">netto</span>
+                                        </div>
+                                        <div style="margin-top: 20px; font-size: 0.9em; color: #6c757d;">
+                                            <i class="fas fa-info-circle"></i> Jeśli potrzebujesz zaktualizować dane płatnika lub zmienić swój plan, skontaktuj się z nami, wysyłając wiadomość na adres <strong>biuro@pricesafari.pl</strong>.
+                                            <br /><br />
+                                            Faktury będą wystawiane i wysyłane automatycznie. Otrzymasz je z adresu faktury@pricesafari.pl.
+                                            <br /><br />
+                                            W przypadku chęci rezygnacji z usługi PriceSafari, możesz to zrobić za pomocą przycisku poniżej.
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -589,7 +1378,7 @@
                     </div>
                     <div class="modal-footer" style="justify-content: space-between;">
                         <button type="button" class="btn-danger-custom" id="openResignationModalBtn">
-                            Zrezygnuj z usługi
+                            Zrezygnuj z usługi monitoringu cen
                         </button>
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
                     </div>
@@ -597,15 +1386,19 @@
             </div>
         </div>
 
-        <div class="modal fade" id="resignationConfirmModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal fade" id="resignationConfirmModal" tabindex="-1" role="dialog" aria-labelledby="resignationConfirmLabel" aria-hidden="true" style="z-index: 1060;">
             <div class="modal-dialog modal-sm modal-dialog-centered" role="document" style="min-width: 450px;">
-                <div class="modal-content">
+                <div class="modal-content" style="min-width: 450px;">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="resignationConfirmLabel">Rezygnacja z usługi</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    </div>
                     <div class="modal-body text-center" id="resignationModalBody">
-                        <div class="mb-3"><i class="fas fa-sad-tear fa-3x text-muted" style="margin: 15px 0;"></i></div>
-                        <p style="font-size: 1.1em; font-weight: 500;">Czy na pewno chcesz zrezygnować?</p>
+                        <div class="mb-3"><i class="fas fa-sad-tear fa-3x text-muted" style="font-size: 3em; color: #6c757d; margin: 15px 0;"></i></div>
+                        <p style="font-size: 1.1em; font-weight: 500;">Czy na pewno chcesz zrezygnować z usług monitoringu cen?</p>
                         <div style="margin-top: 20px;">
-                            <button type="button" class="btn btn-secondary mr-2" data-dismiss="modal">Anuluj</button>
-                            <button type="button" class="btn btn-danger" id="confirmResignationBtn">Potwierdzam</button>
+                            <button type="button" class="btn btn-secondary mr-2" data-dismiss="modal" style="margin-right: 10px;">Anuluj</button>
+                            <button type="button" class="btn btn-danger" id="confirmResignationBtn">Potwierdzam rezygnację</button>
                         </div>
                     </div>
                 </div>
@@ -618,7 +1411,7 @@
                 <h3 style="font-weight: 400; margin-bottom: 20px;">Historia płatności</h3>
                 <table class="table-orders">
                     <thead>
-                        <tr><th>Numer</th><th>Wystawiono</th><th>Opłacono</th><th>Kwota</th><th>Status</th><th>Pobierz</th></tr>
+                        <tr><th>Numer</th><th>Wystawiono</th><th>Opłacono</th><th>Kwota Netto</th><th>Status</th><th>Pobierz</th></tr>
                     </thead>
                     <tbody>
                         @foreach (var invoice in Model.Invoices)
@@ -626,7 +1419,7 @@
                             <tr class="store-row">
                                 <td>@invoice.InvoiceNumber</td>
                                 <td>@invoice.IssueDate.ToString("yyyy-MM-dd")</td>
-                                <td>@(invoice.PaymentDate?.ToString("yyyy-MM-dd") ?? "-")</td>
+                                <td>@(invoice.PaymentDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
                                 <td>@invoice.NetAmount.ToString("C")</td>
                                 <td>
                                     @if (invoice.IsPaid)
@@ -635,17 +1428,25 @@
                                     }
                                     else
                                     {
-
                                         <span class="Validation Validation-cancelled">Nieopłacona</span>
                                     }
                                 </td>
                                 <td>
-                                    <a href="@Url.Action("InvoicePdf", "Payment", new { invoiceId = invoice.InvoiceId })" class="Button-Action-Small" target="_blank">PDF</a>
+                                    <a href="@Url.Action("InvoicePdf", "Payment", new { invoiceId = invoice.InvoiceId })" class="Button-Action-Small" target="_blank">Pobierz PDF</a>
                                 </td>
                             </tr>
                         }
                     </tbody>
                 </table>
+            </div>
+        }
+        else
+        {
+            <div class="Vert-table" style="margin-top: 30px;">
+                <h3 style="font-weight: 400; margin-bottom: 20px;">Historia płatności</h3>
+                <div style="padding: 30px; text-align: center; color: #adb5bd; border: 1px solid #eee; border-radius: 8px;">
+                    Brak faktur w historii.
+                </div>
             </div>
         }
     </div>
@@ -661,13 +1462,10 @@
             const status = urlParams.get('status');
             const storeId = '@Model.StoreId';
 
-            // --- OBSŁUGA PRZEŁĄCZNIKA (SWITCHER) ---
-            $(".payment-option").click(function() {
-                // Zmiana aktywnej klasy
-                $(".payment-option").removeClass("active");
-                $(this).addClass("active");
+            $(".payment-tab").click(function() {
+                $(".payment-tab").removeClass("view-active");
+                $(this).addClass("view-active");
 
-                // Pokazywanie/ukrywanie widoków
                 var target = $(this).data("target");
                 if(target === "transfer") {
                     $("#view-transfer").show();
@@ -678,98 +1476,213 @@
                 }
             });
 
-            // --- OBSŁUGA USUWANIA KARTY ---
             $("#btnRemoveCard").click(function() {
                 if(confirm("Czy na pewno chcesz odłączyć kartę płatniczą? System powróci do płatności przelewem.")) {
                     var btn = $(this);
+                    var originalHtml = btn.html();
                     btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Usuwanie...');
 
                     $.post("/Payment/RemoveCard", { storeId: storeId }, function(response) {
                         if(response.success) {
-                             // Przeładowanie strony - backend powinien ustawić flagę RecurringActive na false
                              window.location.reload();
                         } else {
                             alert("Błąd podczas usuwania karty. Spróbuj ponownie.");
-                            btn.prop('disabled', false).html('<i class="fas fa-trash-alt"></i> Usuń kartę');
+                            btn.prop('disabled', false).html(originalHtml);
                         }
                     }).fail(function() {
                         alert("Błąd połączenia z serwerem.");
-                        btn.prop('disabled', false).html('<i class="fas fa-trash-alt"></i> Usuń kartę');
+                        btn.prop('disabled', false).html(originalHtml);
                     });
                 }
             });
 
-            // --- LOGIKA IMOJE (PODPINANIE KARTY) ---
-            // (Tylko jeśli status = success, bez zmian w logice)
             if (status === 'success') {
-                $("#paymentSuccessAlert").show().html('<strong>Weryfikacja...</strong> Czekam na bank... <i class="fas fa-spinner fa-spin"></i>');
-                // Tutaj upewniamy się, że widoczna jest zakładka karty
-                $(".payment-option[data-target='card']").click();
+                $("#paymentSuccessAlert")
+                    .removeClass("alert-success")
+                    .addClass("alert-warning")
+                    .html('<strong>Weryfikacja...</strong> Czekamy na potwierdzenie z banku. Proszę czekać... <i class="fas fa-spinner fa-spin"></i>')
+                    .show();
+
+                $(".payment-tab[data-target='card']").click();
+                $("#btnConnectCard").prop('disabled', true);
 
                 let attempts = 0;
+                const maxAttempts = 15;
+
                 const checkInterval = setInterval(function () {
                     attempts++;
                     $.get("/Payment/CheckCardStatus?storeId=" + storeId, function (data) {
                         if (data.isConnected) {
                             clearInterval(checkInterval);
-                            window.location.href = window.location.pathname + "?storeId=" + storeId;
+                            $("#paymentSuccessAlert")
+                                .removeClass("alert-warning")
+                                .addClass("alert-success")
+                                .html('<strong>Sukces!</strong> Twoja karta została pomyślnie zweryfikowana. Odświeżam...');
+
+                            setTimeout(function () {
+                                window.location.href = window.location.pathname + "?storeId=" + storeId;
+                            }, 1000);
                         }
-                        if (attempts >= 15) {
+
+                        if (attempts >= maxAttempts) {
                             clearInterval(checkInterval);
-                            $("#paymentSuccessAlert").removeClass("alert-success").addClass("alert-info").text("Płatność przetwarzana, odśwież za chwilę.");
+                            $("#paymentSuccessAlert")
+                                .removeClass("alert-warning")
+                                .addClass("alert-info")
+                                .html('<strong>Info:</strong> Płatność jest przetwarzana dłużej niż zwykle. Odśwież stronę za chwilę.');
+                             window.history.replaceState(null, null, window.location.pathname + "?storeId=" + storeId);
                         }
                     });
                 }, 2000);
+
             } else if (status === 'failure') {
                 $("#paymentFailureAlert").show();
-                $(".payment-option[data-target='card']").click(); // Pokaż zakładkę karty żeby user widział błąd tam
+                window.history.replaceState(null, null, window.location.pathname + "?storeId=" + storeId);
+                $(".payment-tab[data-target='card']").click();
             }
 
-            $("#btnConnectCard").click(function () {
-                var btn = $(this);
-                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> ...');
-                $("#imoje-widget-container").show();
+            var paymentDataList = @Html.Raw(paymentDataListJson);
+            var currentPaymentData = null;
 
-                $.post("@Url.Action("GetImojeWidgetData", "Payment")", { storeId: @Model.StoreId }, function (response) {
-                    if (response.success) {
-                        var d = response.data;
-                        $("#imoje-widget-container").empty();
-                        var script = document.createElement('script');
-                        script.src = response.scriptUrl;
-                        script.type = "text/javascript";
+            if (paymentDataList.length > 0) {
+                currentPaymentData = paymentDataList[0];
+                showData(currentPaymentData);
+            } else {
+                showEmpty();
+            }
 
-                        // Atrybuty
-                        script.setAttribute("data-merchant-id", d.merchantId);
-                        script.setAttribute("data-service-id", d.serviceId);
-                        script.setAttribute("data-amount", d.amount);
-                        script.setAttribute("data-currency", d.currency);
-                        script.setAttribute("data-order-id", d.orderId);
-                        script.setAttribute("data-customer-id", d.customerId);
-                        script.setAttribute("data-customer-first-name", d.customerFirstName);
-                        script.setAttribute("data-customer-last-name", d.customerLastName);
-                        script.setAttribute("data-customer-email", d.customerEmail);
-                        script.setAttribute("data-widget-type", d.widgetType);
-                        script.setAttribute("data-url-notification", d.urlNotification);
-                        script.setAttribute("data-url-success", d.urlSuccess);
-                        script.setAttribute("data-url-failure", d.urlFailure);
-                        script.setAttribute("data-signature", response.signature);
-                        script.setAttribute("data-locale", "pl");
+            function showData(data) {
+                $("#existingDataHeader").css('display', 'flex');
+                $("#noDataHeader").hide();
+                $("#paymentDataDetails").show();
+                $("#companyName").text(data.companyName);
+                $("#address").text(data.address);
+                $("#postalCode").text(data.postalCode);
+                $("#city").text(data.city);
+                $("#nip").text(data.nip);
+                $("#invoiceAutoMail").text(data.invoiceAutoMail ? data.invoiceAutoMail : "-");
+                if (data.invoiceAutoMailSend) {
+                    $("#invoiceAutoMailSend").html('<span class="text-success font-weight-bold">Tak</span>');
+                } else {
+                    $("#invoiceAutoMailSend").html('<span class="text-muted">Nie</span>');
+                }
+            }
 
-                        document.getElementById("imoje-widget-container").appendChild(script);
-                        setTimeout(function () { btn.hide(); }, 1000);
-                    } else {
-                        alert("Błąd inicjalizacji.");
-                        btn.prop('disabled', false).html('<i class="fas fa-plus-circle"></i> Podłącz kartę');
+            function showEmpty() {
+                $("#existingDataHeader").hide();
+                $("#noDataHeader").css('display', 'flex');
+                $("#paymentDataDetails").hide();
+            }
+                    $("#btnConnectCard").click(function () {
+            var btn = $(this);
+            var originalText = btn.html();
+
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Przetwarzanie...');
+            $("#imoje-widget-container").show();
+
+            $.post("/Payment/GetImojeWidgetData", { storeId: storeId }, function (response) {
+                if (response.success) {
+                    if (!response.scriptUrl) {
+                        alert("Błąd konfiguracji: Brak adresu URL widgetu imoje.");
+                        btn.prop('disabled', false).html(originalText);
+                        return;
                     }
-                });
+
+                    var d = response.data;
+                    $("#imoje-widget-container").empty();
+
+                    var script = document.createElement('script');
+                    script.type = "text/javascript";
+
+                    // -----------------------------------------------------
+                    // TO JEST LINIA, KTÓREJ BRAKOWAŁO W TWOIM KODZIE:
+                    script.id = "imoje-widget__script";
+                    // Bez tego widget nie widzi samego siebie i wyrzuca błąd null
+                    // -----------------------------------------------------
+
+                    // Ustawiamy atrybuty
+                    var attrs = {
+                        "data-merchant-id": d.merchantId,
+                        "data-service-id": d.serviceId,
+                        "data-amount": d.amount,
+                        "data-currency": d.currency,
+                        "data-order-id": d.orderId,
+                        "data-customer-id": d.customerId,
+                        "data-customer-first-name": d.customerFirstName,
+                        "data-customer-last-name": d.customerLastName,
+                        "data-customer-email": d.customerEmail,
+                        "data-widget-type": d.widgetType,
+                        "data-url-notification": d.urlNotification,
+                        "data-url-success": d.urlSuccess,
+                        "data-url-failure": d.urlFailure,
+                        "data-signature": response.signature,
+                        "data-locale": "pl"
+                    };
+
+                    for(var k in attrs) {
+                        if(attrs[k]) {
+                            script.setAttribute(k, attrs[k]);
+                        }
+                    }
+
+                    script.src = response.scriptUrl;
+
+                    script.onerror = function() {
+                        alert("Nie udało się załadować skryptu płatności. Wyłącz AdBlock.");
+                        btn.prop('disabled', false).html(originalText);
+                    };
+
+                    document.getElementById("imoje-widget-container").appendChild(script);
+
+                    setTimeout(function () {
+                        btn.hide();
+                    }, 500);
+
+                } else {
+                    alert("Błąd inicjalizacji danych płatności.");
+                    btn.prop('disabled', false).html(originalText);
+                }
+            }).fail(function (xhr, status, error) {
+                console.error(error);
+                alert("Błąd połączenia z serwerem.");
+                btn.prop('disabled', false).html(originalText);
+            });
+        });
+
+            $("#openResignationModalBtn").click(function () {
+                $("#managePlanModal").modal('hide');
+                setTimeout(function () {
+                    $("#resignationConfirmModal").modal('show');
+                }, 300);
             });
 
-            // Obsługa rezygnacji (bez zmian)
-            $("#openResignationModalBtn").click(function () { $("#managePlanModal").modal('hide'); setTimeout(function(){ $("#resignationConfirmModal").modal('show');},300); });
-            $("#confirmResignationBtn").click(function(){
-                 $.post("@Url.Action("RequestResignation", "Payment")", { storeId: @Model.StoreId }, function(r){
-                     if(r.success) $("#resignationModalBody").html("<h4>Dziękujemy.</h4><p>Skontaktujemy się wkrótce.</p>");
-                 });
+            $("#confirmResignationBtn").click(function () {
+                var btn = $(this);
+                btn.prop('disabled', true).text('Przetwarzanie...');
+
+                $.ajax({
+                    type: "POST",
+                    url: "@Url.Action("RequestResignation", "Payment")",
+                    data: { storeId: @Model.StoreId },
+                    success: function (response) {
+                        if (response.success) {
+                            var successHtml = `
+                                <div class="mb-3"><i class="fas fa-check-circle fa-3x text-success" style="font-size: 3em; color: #28a745; margin: 15px 0;"></i></div>
+                                <h4 style="font-weight: 400;">Dziękujemy za informację.</h4>
+                                <p class="mt-3" style="font-size: 1.1em;">Przykro nam, że odchodzisz.</p>
+                                <p class="text-muted" style="font-size: 0.9em;">Skontaktujemy się z Tobą jak najszybciej.</p>
+                            `;
+                            $("#resignationModalBody").html(successHtml);
+                        } else {
+                            alert("Wystąpił błąd.");
+                            btn.prop('disabled', false).text('Potwierdzam rezygnację');
+                        }
+                    },
+                    error: function () {
+                        alert("Wystąpił błąd połączenia.");
+                        btn.prop('disabled', false).text('Potwierdzam rezygnację');
+                    }
+                });
             });
         });
     </script>

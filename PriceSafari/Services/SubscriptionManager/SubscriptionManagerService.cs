@@ -324,10 +324,7 @@ namespace PriceSafari.Services.SubscriptionService
         private readonly IConfiguration _configuration;
 
         // Klucze autoryzacyjne
-        // 99887766 -> Uruchamia logikę GENEROWANIA FAKTUR (Na serwer Webio)
         private const string REQUIRED_GENERATOR_KEY = "99887766";
-
-        // 38401048 -> Uruchamia logikę PŁATNOŚCI KARTĄ (Na maszynę lokalną)
         private const string REQUIRED_PAYMENT_KEY = "38401048";
 
         public SubscriptionManagerService(
@@ -342,7 +339,6 @@ namespace PriceSafari.Services.SubscriptionService
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // Sprawdzamy, która to maszyna na podstawie zmiennych ENV
             var genKey = Environment.GetEnvironmentVariable("SUBSCRIPTION_KEY");
             var payKey = Environment.GetEnvironmentVariable("GRAB_PAYMENT");
 
@@ -352,7 +348,6 @@ namespace PriceSafari.Services.SubscriptionService
             if (!isGenerator && !isPayer)
             {
                 _logger.LogWarning("Serwis uśpiony: Brak kluczy SUBSCRIPTION_KEY lub GRAB_PAYMENT.");
-                // Usypiamy na długo, żeby nie obciążać serwera
                 while (!stoppingToken.IsCancellationRequested) await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
                 return;
             }
@@ -364,9 +359,6 @@ namespace PriceSafari.Services.SubscriptionService
                 try
                 {
                     var now = DateTime.Now;
-
-
-
                     DateTime nextRun;
 
                     //if (isGenerator)
@@ -380,12 +372,10 @@ namespace PriceSafari.Services.SubscriptionService
                     //    if (now.Hour == 0 && now.Minute < 15) nextRun = now.Date.AddMinutes(15);
                     //}
 
-
-
                     if (isGenerator)
                     {
                         // Ustawiamy na godzinę 20:30
-                        nextRun = now.Date.AddHours(20).AddMinutes(45);
+                        nextRun = now.Date.AddHours(22).AddMinutes(00);
 
                         // Jeśli jest już po 20:30, przenieś na jutro (żeby nie odpaliło się od razu jeśli spóźnisz się z wdrożeniem)
                         if (now > nextRun) nextRun = nextRun.AddDays(1);
@@ -393,7 +383,7 @@ namespace PriceSafari.Services.SubscriptionService
                     else // isPayer
                     {
                         // Ustawiamy na godzinę 20:45
-                        nextRun = now.Date.AddHours(20).AddMinutes(50);
+                        nextRun = now.Date.AddHours(22).AddMinutes(05);
 
                         if (now > nextRun) nextRun = nextRun.AddDays(1);
                     }
@@ -403,16 +393,8 @@ namespace PriceSafari.Services.SubscriptionService
 
                     await Task.Delay(delay, stoppingToken);
 
-                    if (isGenerator)
-                    {
-                        await RunInvoiceGenerationLogic(stoppingToken);
-                    }
-
-               
-                    if (isPayer)
-                    {
-                        await RunPaymentExecutionLogic(stoppingToken);
-                    }
+                    if (isGenerator) await RunInvoiceGenerationLogic(stoppingToken);
+                    if (isPayer) await RunPaymentExecutionLogic(stoppingToken);
                 }
                 catch (TaskCanceledException) { }
                 catch (Exception ex)
@@ -424,7 +406,6 @@ namespace PriceSafari.Services.SubscriptionService
         }
 
         // --- LOGIKA A: GENERATOR (Serwer Webio) ---
-        // Ta metoda tylko wystawia faktury w bazie danych. NIE łączy się z Imoje.
         private async Task RunInvoiceGenerationLogic(CancellationToken ct)
         {
             using var scope = _scopeFactory.CreateScope();
@@ -444,6 +425,7 @@ namespace PriceSafari.Services.SubscriptionService
             }
 
             // 2. Pobranie sklepów do odnowienia
+            // WAŻNE: Pobieramy WSZYSTKIE płacące sklepy z planem. Nie filtrujemy tu po karcie!
             var stores = await context.Stores
                 .Include(s => s.Plan)
                 .Include(s => s.PaymentData)
@@ -465,14 +447,16 @@ namespace PriceSafari.Services.SubscriptionService
                 // Jeśli dni się skończyły -> Wystawiamy nową fakturę
                 if (store.RemainingDays <= 0)
                 {
+                    // Fakturujemy tylko płatne plany (nie testowe i nie darmowe)
                     if (!store.Plan.IsTestPlan && store.Plan.NetPrice > 0)
                     {
-                        // Wywołujemy metodę, która tylko tworzy rekord w bazie
                         await GenerateInvoiceOnly(context, store, invoiceCounter, deviceName);
                         count++;
                     }
                 }
             }
+
+            // Zapisujemy zmiany w dniach i liczniku faktur
             await context.SaveChangesAsync(ct);
             _logger.LogInformation($"<<< [GENERATOR] Zakończono. Wystawiono faktur: {count}");
         }
@@ -516,25 +500,32 @@ namespace PriceSafari.Services.SubscriptionService
                 AppliedDiscountAmount = appliedDiscountAmount
             };
 
+            // Odnawiamy dni w sklepie
             store.RemainingDays += store.Plan.DaysPerInvoice;
             store.ProductsToScrap = store.Plan.ProductsToScrap;
             store.ProductsToScrapAllegro = store.Plan.ProductsToScrapAllegro;
 
             context.Invoices.Add(invoice);
 
-            // ZMIANA: Logujemy od razu Sukces
+            // --- ROZPOZNAWANIE TYPU PŁATNOŚCI DLA LOGÓW ---
+            bool hasCard = store.IsRecurringActive && !string.IsNullOrEmpty(store.ImojePaymentProfileId);
+            string paymentInfo = hasCard
+                ? "Metoda: KARTA (Czekam na Workera Płatności)"
+                : "Metoda: PRZELEW (Oczekuje na wpłatę klienta)";
+
+            // Logujemy sukces wystawienia
             context.TaskExecutionLogs.Add(new TaskExecutionLog
             {
                 DeviceName = deviceName,
                 OperationName = "FAKTURA_AUTO",
                 StartTime = DateTime.Now,
-                EndTime = DateTime.Now, // Od razu zakończone
-                Comment = $"Sukces. Wystawiono FV: {invNum}. Kwota netto: {netPrice:C}. Płatność zostanie pobrana przez Workera."
+                EndTime = DateTime.Now,
+                Comment = $"Sukces. Wystawiono FV: {invNum}. Kwota netto: {netPrice:C}. {paymentInfo}"
             });
         }
 
         // --- LOGIKA B: PŁATNIK (Maszyna Lokalna) ---
-        // Ta metoda działa tylko na lokalnym PC, który obsługuje TLS 1.3
+        // --- LOGIKA B: PŁATNIK (Maszyna Lokalna) ---
         private async Task RunPaymentExecutionLogic(CancellationToken ct)
         {
             using var scope = _scopeFactory.CreateScope();
@@ -542,7 +533,6 @@ namespace PriceSafari.Services.SubscriptionService
             var imojeService = scope.ServiceProvider.GetRequiredService<IImojeService>();
             var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "LocalWorker";
 
-            // Próba pobrania publicznego IP (opcjonalne, dla logów)
             string myIp = "127.0.0.1";
             try
             {
@@ -554,10 +544,6 @@ namespace PriceSafari.Services.SubscriptionService
 
             _logger.LogInformation($">>> [PŁATNIK] Szukam nieopłaconych faktur... (Moje IP: {myIp})");
 
-            // Pobieramy faktury, które:
-            // 1. Są nieopłacone
-            // 2. Sklep ma aktywną subskrypcję (Recurring)
-            // 3. Zostały wystawione w ciągu ostatnich 3 dni (żeby nie próbować starych w nieskończoność)
             var invoicesToPay = await context.Invoices
                 .Include(i => i.Store)
                 .Where(i => !i.IsPaid
@@ -570,7 +556,6 @@ namespace PriceSafari.Services.SubscriptionService
             {
                 _logger.LogInformation($"Próba obciążenia karty dla FV: {invoice.InvoiceNumber}");
 
-                // Wywołujemy serwis Imoje (Teraz zadziała, bo jesteśmy na Windows 10/11 z TLS 1.3)
                 var (success, response) = await imojeService.ChargeProfileAsync(
                     invoice.Store.ImojePaymentProfileId,
                     invoice,
@@ -583,29 +568,31 @@ namespace PriceSafari.Services.SubscriptionService
                     invoice.PaymentDate = DateTime.Now;
                     invoice.IsPaidByCard = true;
 
-                    // Log sukcesu
+                    // ZMIANA: Dodano EndTime = DateTime.Now
                     context.TaskExecutionLogs.Add(new TaskExecutionLog
                     {
                         DeviceName = deviceName,
                         OperationName = "WORKER_PLATNOSC",
                         StartTime = DateTime.Now,
+                        EndTime = DateTime.Now, // <--- TO NAPRAWIA PROBLEM "W TRAKCIE"
                         Comment = $"SUKCES. FV: {invoice.InvoiceNumber} opłacona. IP Workera: {myIp}"
                     });
                 }
                 else
                 {
-                    // Log błędu (ale kontynuujemy z następną fakturą)
                     string safeMsg = response.Length > 200 ? response.Substring(0, 200) : response;
+
+                    // ZMIANA: Dodano EndTime = DateTime.Now również dla błędu
                     context.TaskExecutionLogs.Add(new TaskExecutionLog
                     {
                         DeviceName = deviceName,
                         OperationName = "WORKER_BLAD",
                         StartTime = DateTime.Now,
+                        EndTime = DateTime.Now, // <--- TO NAPRAWIA PROBLEM "W TRAKCIE"
                         Comment = $"BŁĄD. FV: {invoice.InvoiceNumber}. Info: {safeMsg}"
                     });
                 }
 
-                // Zapisujemy stan po każdej fakturze (bezpieczeństwo danych)
                 await context.SaveChangesAsync(ct);
             }
 
