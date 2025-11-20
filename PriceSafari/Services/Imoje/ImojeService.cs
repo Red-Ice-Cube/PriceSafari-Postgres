@@ -141,6 +141,7 @@ namespace PriceSafari.Services.Imoje
 
         public async Task<bool> HandleNotificationAsync(string headerSignature, string requestBody)
         {
+
             try
             {
                 _logger.LogInformation($"[IMOJE] Otrzymano webhook.");
@@ -210,16 +211,24 @@ namespace PriceSafari.Services.Imoje
 
                             await dbContext.SaveChangesAsync();
 
-                            var logAuth = new TaskExecutionLog
+                            var existsLog = await dbContext.TaskExecutionLogs
+                                .AnyAsync(l => l.OperationName == "AUTORYZACJA_KARTY"
+                                            && l.Comment.Contains(paymentProfileId)
+                                            && l.StartTime > DateTime.Now.AddMinutes(-10));
+
+                            if (!existsLog)
                             {
-                                DeviceName = deviceName,
-                                OperationName = "AUTORYZACJA_KARTY",
-                                StartTime = DateTime.Now,
-                                EndTime = DateTime.Now,
-                                Comment = $"Sukces. Sklep: {store.StoreName}. Karta: {store.CardMaskedNumber} ({store.CardBrand}). ProfileId: {paymentProfileId}"
-                            };
-                            dbContext.TaskExecutionLogs.Add(logAuth);
-                            await dbContext.SaveChangesAsync();
+                                var logAuth = new TaskExecutionLog
+                                {
+                                    DeviceName = deviceName,
+                                    OperationName = "AUTORYZACJA_KARTY",
+                                    StartTime = DateTime.Now,
+                                    EndTime = DateTime.Now,
+                                    Comment = $"Sukces. Sklep: {store.StoreName}. Karta: {store.CardMaskedNumber} ({store.CardBrand}). ProfileId: {paymentProfileId}"
+                                };
+                                dbContext.TaskExecutionLogs.Add(logAuth);
+                                await dbContext.SaveChangesAsync();
+                            }
 
                             _logger.LogInformation($"[IMOJE] SUKCES! Zaktualizowano sklep {storeId}. Karta: {store.CardMaskedNumber}");
                         }
@@ -227,16 +236,6 @@ namespace PriceSafari.Services.Imoje
                         {
                             _logger.LogError($"[IMOJE] BŁĄD: Sklep o ID {storeId} nie istnieje w bazie.");
 
-                            var logError = new TaskExecutionLog
-                            {
-                                DeviceName = deviceName,
-                                OperationName = "AUTORYZACJA_KARTY",
-                                StartTime = DateTime.Now,
-                                EndTime = DateTime.Now,
-                                Comment = $"BŁĄD: Otrzymano płatność dla nieistniejącego sklepu ID: {storeId}."
-                            };
-                            dbContext.TaskExecutionLogs.Add(logError);
-                            await dbContext.SaveChangesAsync();
                         }
                     }
                 }
@@ -246,7 +245,6 @@ namespace PriceSafari.Services.Imoje
 
                 if (amount == 100 && orderId != null && orderId.StartsWith("REG-"))
                 {
-
                     _ = Task.Run(async () =>
                     {
                         try
@@ -290,9 +288,9 @@ namespace PriceSafari.Services.Imoje
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[IMOJE] Wyjątek krytyczny w HandleNotificationAsync");
 
-                return false;
+                _logger.LogError(ex, "[IMOJE] Wyjątek krytyczny w HandleNotificationAsync (zignorowany dla Imoje).");
+                return true;
             }
         }
 

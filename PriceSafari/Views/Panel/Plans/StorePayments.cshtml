@@ -569,8 +569,7 @@
             const cardConnectedSection = $("#cardConnectedSection");
 
             if (status === 'success') {
-                // Ustawiamy komunikat "oczekiwania", ponieważ nawet przy działającym Webhooku
-                // strona może się załadować ułamek sekundy szybciej niż baza się zaktualizuje.
+
                 $("#paymentSuccessAlert")
                     .removeClass("alert-success")
                     .addClass("alert-warning")
@@ -579,9 +578,8 @@
 
                 $("#btnConnectCard").prop('disabled', true);
 
-                // Polling - sprawdzamy status co 2 sekundy
                 let attempts = 0;
-                const maxAttempts = 15; // 30 sekund
+                const maxAttempts = 15; 
 
                 const checkInterval = setInterval(function () {
                     attempts++;
@@ -595,7 +593,6 @@
                                 .addClass("alert-success")
                                 .html('<strong>Sukces!</strong> Twoja karta została pomyślnie zweryfikowana i podłączona. Subskrypcja jest aktywna. Odświeżam...');
 
-                            // Przeładowanie strony, by pobrać świeży Model (już bez parametru ?status=)
                             setTimeout(function () {
                                 window.location.href = window.location.pathname + "?storeId=" + storeId;
                             }, 1000);
@@ -619,7 +616,6 @@
                 $("#managePlanModal").modal('show');
             }
 
-            // Logika wyświetlania danych (bez zmian)
             var paymentDataList = @Html.Raw(paymentDataListJson);
             var currentPaymentData = null;
 
@@ -672,7 +668,6 @@
                         script.id = "imoje-widget__script";
                         script.type = "text/javascript";
 
-                        // Atrybuty Widgetu
                         script.setAttribute("data-merchant-id", d.merchantId);
                         script.setAttribute("data-service-id", d.serviceId);
                         script.setAttribute("data-amount", d.amount);
@@ -745,24 +740,6 @@
         });
     </script>
 } *@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 @using Newtonsoft.Json
 @using Newtonsoft.Json.Serialization
@@ -1594,13 +1571,8 @@
                     var script = document.createElement('script');
                     script.type = "text/javascript";
 
-                    // -----------------------------------------------------
-                    // TO JEST LINIA, KTÓREJ BRAKOWAŁO W TWOIM KODZIE:
                     script.id = "imoje-widget__script";
-                    // Bez tego widget nie widzi samego siebie i wyrzuca błąd null
-                    // -----------------------------------------------------
 
-                    // Ustawiamy atrybuty
                     var attrs = {
                         "data-merchant-id": d.merchantId,
                         "data-service-id": d.serviceId,

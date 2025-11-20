@@ -268,22 +268,19 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // 1. Pobieramy sklep i sprawdzamy uprawnienia
             var store = await _context.Stores
                 .Include(s => s.UserStores)
                 .FirstOrDefaultAsync(s => s.StoreId == storeId && s.UserStores.Any(us => us.UserId == userId));
 
             if (store == null) return NotFound("Nie znaleziono sklepu.");
 
-            // 2. Czyścimy dane karty (zgodnie z modelem StoreClass)
             store.IsRecurringActive = false;
-            store.ImojePaymentProfileId = null; // Kluczowe - usuwamy token płatniczy
+            store.ImojePaymentProfileId = null;
             store.CardMaskedNumber = null;
             store.CardBrand = null;
             store.CardExpYear = null;
             store.CardExpMonth = null;
 
-            // 3. Zapisujemy zmiany
             await _context.SaveChangesAsync();
 
             return Ok(new { success = true });
