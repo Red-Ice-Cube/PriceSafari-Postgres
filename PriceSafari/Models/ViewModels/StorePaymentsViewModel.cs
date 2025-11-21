@@ -27,5 +27,8 @@ namespace PriceSafari.Models.ViewModels
         public bool IsRecurringActive { get; set; }
         public string CardMaskedNumber { get; set; }
         public string CardBrand { get; set; }
+
+        public string? CardExpYear { get; set; }
+        public string? CardExpMonth { get; set; }
     }
 }

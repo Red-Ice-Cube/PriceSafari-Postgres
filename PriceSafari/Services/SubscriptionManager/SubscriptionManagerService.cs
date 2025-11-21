@@ -34,6 +34,10 @@ namespace PriceSafari.Services.SubscriptionService
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
 
+            var timeGenerator = new TimeSpan(15, 45, 0);
+            var timePayer = new TimeSpan(15, 50, 0);
+            var timeMailer = new TimeSpan(15, 55, 0);
+
             var genKey = Environment.GetEnvironmentVariable("SUBSCRIPTION_KEY");
             var payKey = Environment.GetEnvironmentVariable("GRAB_PAYMENT");
             var emailKey = Environment.GetEnvironmentVariable("SEND_EMAILS");
@@ -56,61 +60,59 @@ namespace PriceSafari.Services.SubscriptionService
                 try
                 {
                     var now = DateTime.Now;
+
+                    var schedule = new List<DateTime>();
+
+                    if (isGenerator) schedule.Add(now.Date + timeGenerator);
+                    if (isPayer) schedule.Add(now.Date + timePayer);
+                    if (isEmailSender) schedule.Add(now.Date + timeMailer);
+
+                    var nextTaskTime = schedule
+                        .Where(t => t > now)
+                        .OrderBy(t => t)
+                        .FirstOrDefault();
+
                     DateTime nextRun;
 
-                    int targetHour;
-                    int targetMinute;
+                    if (nextTaskTime == default)
+                    {
 
-                    if (isGenerator)
-                    {
-                        targetHour = 12;
-                        targetMinute = 30;
-                    }
-                    else if (isPayer)
-                    {
-                        targetHour = 12;
-                        targetMinute = 35;
+                        var tomorrowSchedule = new List<DateTime>();
+                        if (isGenerator) tomorrowSchedule.Add(now.Date.AddDays(1) + timeGenerator);
+                        if (isPayer) tomorrowSchedule.Add(now.Date.AddDays(1) + timePayer);
+                        if (isEmailSender) tomorrowSchedule.Add(now.Date.AddDays(1) + timeMailer);
+
+                        nextRun = tomorrowSchedule.Min();
                     }
                     else
                     {
-
-                        targetHour = 12;
-                        targetMinute = 40;
-                    }
-
-                    DateTime candidateTime = now.Date.AddHours(targetHour).AddMinutes(targetMinute);
-
-                    if (now > candidateTime)
-                    {
-                        nextRun = candidateTime.AddDays(1);
-                    }
-                    else
-                    {
-                        nextRun = candidateTime;
+                        nextRun = nextTaskTime;
                     }
 
                     var delay = nextRun - now;
-                    string roleName = isGenerator ? "GENERATOR" : (isPayer ? "PŁATNIK" : "MAILER");
-
-                    _logger.LogInformation($"[{roleName}] Czekam {delay.TotalMinutes:F2} min. Start planowany na: {nextRun}");
+                    _logger.LogInformation($"Czekam {delay.TotalMinutes:F2} min. Następny start: {nextRun:HH:mm:ss}");
 
                     await Task.Delay(delay, stoppingToken);
 
-                    if (isGenerator)
+                    var checkTime = DateTime.Now.TimeOfDay;
+
+                    if (isGenerator && checkTime >= timeGenerator && checkTime < timePayer)
                     {
+
                         await RunInvoiceGenerationLogic(stoppingToken);
                     }
 
-                    if (isPayer)
+                    if (isPayer && checkTime >= timePayer && checkTime < timeMailer)
                     {
                         await RunPaymentExecutionLogic(stoppingToken);
                     }
 
-                    if (isEmailSender)
+                    if (isEmailSender && checkTime >= timeMailer && checkTime < timeMailer.Add(TimeSpan.FromMinutes(30)))
                     {
-
                         await RunEmailSendingLogic(stoppingToken);
                     }
+
+                    await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
                 }
                 catch (TaskCanceledException) { }
                 catch (Exception ex)
@@ -320,7 +322,6 @@ namespace PriceSafari.Services.SubscriptionService
             {
                 try
                 {
-
                     var paymentData = await context.Set<UserPaymentData>()
                         .FirstOrDefaultAsync(p => p.StoreId == invoice.StoreId, ct);
 
@@ -328,8 +329,7 @@ namespace PriceSafari.Services.SubscriptionService
 
                     if (string.IsNullOrWhiteSpace(invoiceEmail))
                     {
-
-                        _logger.LogWarning($"Pominięto FV: {invoice.InvoiceNumber}. Brak skonfigurowanego adresu 'InvoiceAutoMail' w danych płatności sklepu.");
+                        _logger.LogWarning($"Pominięto FV: {invoice.InvoiceNumber}. Brak skonfigurowanego adresu 'InvoiceAutoMail'.");
                         continue;
                     }
 
@@ -358,7 +358,7 @@ namespace PriceSafari.Services.SubscriptionService
                     }
                     else
                     {
-                        _logger.LogError($"Błąd SMTP dla FV: {invoice.InvoiceNumber} (adres: {invoiceEmail})");
+                        _logger.LogError($"Błąd SMTP dla FV: {invoice.InvoiceNumber}");
                     }
                 }
                 catch (Exception ex)
@@ -376,7 +376,7 @@ namespace PriceSafari.Services.SubscriptionService
                     OperationName = "EMAIL_SEND",
                     StartTime = DateTime.Now,
                     EndTime = DateTime.Now,
-                    Comment = $"Wysłano {sentCount} faktur na adresy księgowe."
+                    Comment = $"Sukces. Wysłano {sentCount} faktur na adresy księgowe."
                 });
                 await context.SaveChangesAsync(ct);
             }
@@ -386,11 +386,8 @@ namespace PriceSafari.Services.SubscriptionService
 
         private string GenerateInvoiceEmailBody(InvoiceClass invoice, bool isPaid)
         {
-
             var headerColor = "#41C7C7";
-
             var statusColor = isPaid ? "#41C7C7" : "#E74C3C";
-
             var statusText = isPaid ? "OPŁACONA" : "DO ZAPŁATY";
 
             string message;
@@ -401,48 +398,48 @@ namespace PriceSafari.Services.SubscriptionService
             else
             {
                 message = $"Przesyłamy fakturę VAT za usługi w serwisie PriceSafari. Termin płatności mija: <strong>{invoice.DueDate?.ToString("yyyy-MM-dd") ?? "wkrótce"}</strong>.<br><br>" +
-                          "Aby uniknąć konieczności ręcznych przelewów, możesz włączyć automatyczne płatności kartą w panelu PriceSafari (zakładka Plan).";
+                          "Aby uniknąć konieczności ręcznych przelewów, możesz włączyć automatyczne płatności kartą w panelu PriceSafari (zakładka Płatności).";
             }
 
             return $@"
-    <!DOCTYPE html>
-    <html lang=""pl"">
-    <head>
-        <meta charset=""UTF-8"">
-        <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f7; }}
-            .container {{ max-width: 560px; margin: 40px auto; background-color: #ffffff; overflow: hidden; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
-            .top-bar {{ height: 4px; background-color: {headerColor}; }} 
-            .header {{ padding: 30px 40px 10px 40px; text-align: center; }}
-            .content {{ padding: 20px 40px 40px 40px; line-height: 1.6; color: #1d1d1f; font-size: 16px; }}
-            .invoice-box {{ background-color: #f9f9f9; border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin: 20px 0; }}
-            .amount {{ font-size: 24px; font-weight: 700; color: #1d1d1f; }}
-            .status {{ font-weight: bold; color: {statusColor}; }} 
-            .footer {{ background-color: #f5f5f7; color: #86868b; padding: 20px 40px; text-align: center; font-size: 12px; }}
-        </style>
-    </head>
-    <body>
-        <div class=""container"">
-            <div class=""top-bar""></div>
-            <div class=""header"">
-                <img src=""cid:PriceSafariLogo"" alt=""Price Safari"" style=""height: 32px; width: auto;"">
-            </div>
-            <div class=""content"">
-                <h2 style=""margin-top: 0;"">Faktura nr {invoice.InvoiceNumber}</h2>
-                <p>Cześć {invoice.Store.StoreName},</p>
-                <p>{message}</p>
-                <div class=""invoice-box"">
-                    <table width=""100%"">
-                        <tr><td>Kwota brutto:</td><td align=""right"" class=""amount"">{(invoice.NetAmount * 1.23m):C}</td></tr>
-                        <tr><td>Status:</td><td align=""right"" class=""status"">{statusText}</td></tr>
-                    </table>
+            <!DOCTYPE html>
+            <html lang=""pl"">
+            <head>
+                <meta charset=""UTF-8"">
+                <style>
+                    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f7; }}
+                    .container {{ max-width: 560px; margin: 40px auto; background-color: #ffffff; overflow: hidden; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
+                    .top-bar {{ height: 4px; background-color: {headerColor}; }} 
+                    .header {{ padding: 30px 40px 10px 40px; text-align: center; }}
+                    .content {{ padding: 20px 40px 40px 40px; line-height: 1.6; color: #1d1d1f; font-size: 16px; }}
+                    .invoice-box {{ background-color: #f9f9f9; border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin: 20px 0; }}
+                    .amount {{ font-size: 24px; font-weight: 700; color: #1d1d1f; }}
+                    .status {{ font-weight: bold; color: {statusColor}; }} 
+                    .footer {{ background-color: #f5f5f7; color: #86868b; padding: 20px 40px; text-align: center; font-size: 12px; }}
+                </style>
+            </head>
+            <body>
+                <div class=""container"">
+                    <div class=""top-bar""></div>
+                    <div class=""header"">
+                        <img src=""cid:PriceSafariLogo"" alt=""Price Safari"" style=""height: 32px; width: auto;"">
+                    </div>
+                    <div class=""content"">
+                        <h2 style=""margin-top: 0;"">Faktura nr {invoice.InvoiceNumber}</h2>
+                        <p>Cześć {invoice.Store.StoreName},</p>
+                        <p>{message}</p>
+                        <div class=""invoice-box"">
+                            <table width=""100%"">
+                                <tr><td>Kwota brutto:</td><td align=""right"" class=""amount"">{(invoice.NetAmount * 1.23m):C}</td></tr>
+                                <tr><td>Status:</td><td align=""right"" class=""status"">{statusText}</td></tr>
+                            </table>
+                        </div>
+                        <p style=""font-size: 14px; color: #666;"">Dokument w formacie PDF znajduje się w załączniku tej wiadomości.</p>
+                    </div>
+                    <div class=""footer""><p>&copy; {DateTime.Now.Year} Price Safari<br>Heated Box Sp. z o.o.</p></div>
                 </div>
-                <p style=""font-size: 14px; color: #666;"">Dokument w formacie PDF znajduje się w załączniku tej wiadomości.</p>
-            </div>
-            <div class=""footer""><p>&copy; {DateTime.Now.Year} Price Safari<br>Heated Box Sp. z o.o.</p></div>
-        </div>
-    </body>
-    </html>";
+            </body>
+            </html>";
         }
     }
 }

@@ -792,36 +792,38 @@
 }
 
 <style>
+    /* Układ główny - Równe wysokości */
     .details-container {
         display: flex;
         gap: 20px;
         width: 100%;
         margin-top: 24px;
-        align-items: stretch;
+        align-items: stretch; /* To kluczowa linia: rozciąga kolumny do równej wysokości */
     }
 
     .details-sidebar {
-        flex: 0 0 25%;
-        max-width: 25%;
+        display: flex;
+        min-width: 360px;
     }
 
     .details-middle {
-        flex: 0 0 25%;
-        max-width: 25%;
+        display:flex;
+        min-width: 360px;
     }
 
     .details-main {
-        flex: 0 0 50%;
-        max-width: 50%;
+     display:flex;
+        width: 100%;
     }
 
+    /* Wygląd białych kafelków */
     .info-card {
         border: 1px solid #e9ecef;
         border-radius: 8px;
         background-color: #fff;
         display: flex;
         flex-direction: column;
-        height: 100%;
+        height: 400px; /* To sprawia, że białe tło wypełnia całą wysokość kolumny */
     }
 
     .info-card-header {
@@ -843,9 +845,10 @@
         padding: 20px;
         background-color: #f8f9fa;
         border-top: 1px solid #e9ecef;
-        margin-top: auto;
+        margin-top: auto; /* Dopycha footer do dołu, jeśli jest różnica w treści */
     }
 
+    /* Wiersze informacyjne */
     .info-row {
         display: flex;
         justify-content: space-between;
@@ -879,6 +882,7 @@
             margin-left: 5px;
         }
 
+    /* Ceny */
     .price-display {
         display: flex;
         align-items: baseline;
@@ -911,6 +915,7 @@
         color: #28a745;
     }
 
+    /* Zakładki płatności */
     .payment-switcher {
         display: flex;
         background-color: #f8f9fa;
@@ -957,35 +962,118 @@
         vertical-align: middle;
     }
 
+    /* Kontener widoku karty */
     .card-view-container {
         height: 100%;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: center; /* Wyśrodkowanie w pionie */
         align-items: center;
         text-align: center;
     }
 
-    .card-number-display {
-        font-family: monospace;
-        font-size: 1.2em;
-        letter-spacing: 1px;
-        color: #333;
-        font-weight: 600;
-        margin-bottom: 5px;
-        margin-top: 10px;
+    /* --- NOWY STYL KARTY KREDYTOWEJ (Zmniejszony i bez animacji) --- */
+    .credit-card-visual {
+        width: 290px; /* Zmniejszono z 340px */
+        height: 185px; /* Zmniejszono z 215px */
+        background: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
+        border-radius: 12px;
+        padding: 20px; /* Mniejszy padding */
+        color: white;
+        position: relative;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.20);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        margin: 0 auto; /* Wyśrodkowanie */
+        font-family: 'Courier New', Courier, monospace;
+        /* Usunięto transition i hover transform */
     }
 
+    .card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    /* Srebrny Chip */
+    .card-chip {
+        width: 42px; /* Mniejszy chip */
+        height: 30px;
+        /* Zmiana na srebrny gradient */
+        background: linear-gradient(135deg, #bdc3c7 0%, #ecf0f1 50%, #bdc3c7 100%);
+        border-radius: 5px;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .card-chip::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: rgba(0,0,0,0.15);
+        }
+
+        .card-chip::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 1px;
+            height: 100%;
+            background: rgba(0,0,0,0.15);
+        }
+
+    .card-brand-logo {
+        font-size: 32px; /* Mniejsze logo */
+        opacity: 0.9;
+    }
+
+    .card-number-visual {
+        font-size: 18px; /* Mniejsza czcionka numeru */
+        letter-spacing: 2px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+        margin-top: 5px;
+        text-align: center;
+    }
+
+    .card-bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+
+    .card-expiry-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .card-label {
+        font-size: 7px; /* Mniejsza etykieta */
+        text-transform: uppercase;
+        color: #ccc;
+        margin-bottom: 2px;
+    }
+
+    .card-expiry-value {
+        font-size: 13px;
+        font-weight: bold;
+    }
+
+    /* Przyciski i inne */
     .btn-danger-outline {
         background-color: white;
         color: #dc3545;
         border: 1px solid #dc3545;
-        padding: 6px 14px;
+        padding: 5px 12px;
         border-radius: 4px;
-        font-size: 0.85em;
+        font-size: 0.8em;
         transition: all 0.2s;
         cursor: pointer;
-        margin-top: 15px;
+        margin-top: 20px; /* Odstęp od karty */
         display: inline-flex;
         align-items: center;
         text-decoration: none;
@@ -997,12 +1085,7 @@
             text-decoration: none;
         }
 
-    .locked-view {
-        text-align: center;
-        color: #6c757d;
-        padding: 20px 0;
-    }
-
+    /* Style modala (bez zmian) */
     .modal-dialog {
         min-width: 1000px;
     }
@@ -1205,27 +1288,46 @@
                             @if (Model.IsRecurringActive)
                             {
                                 <div class="card-view-container">
-                                    <div style="font-size: 40px; margin-bottom: 10px;">
-                                        @if (!string.IsNullOrEmpty(Model.CardBrand) && Model.CardBrand.ToLower().Contains("visa"))
-                                        {
-                                            <i class="fab fa-cc-visa" style="color: #1a1f71;"></i>
-                                        }
-                                        else if (!string.IsNullOrEmpty(Model.CardBrand) && Model.CardBrand.ToLower().Contains("master"))
-                                        {
-                                            <i class="fab fa-cc-mastercard" style="color: #eb001b;"></i>
-                                        }
-                                        else
-                                        {
-                                            <i class="fas fa-credit-card" style="color: #28a745;"></i>
-                                        }
-                                    </div>
 
-                                    <div class="card-number-display">
-                                        @formattedCardNumber
-                                    </div>
+                                    <div class="credit-card-visual">
+                                        <div class="card-top">
+                                            <div class="card-chip"></div>
 
-                                    <div style="font-size: 0.8em; color: #28a745; font-weight: 600;">
-                                        <i class="fas fa-check"></i> Podłączona
+                                            <div class="card-brand-logo">
+                                                @if (!string.IsNullOrEmpty(Model.CardBrand) && Model.CardBrand.ToLower().Contains("visa"))
+                                                {
+                                                    <i class="fab fa-cc-visa" style="color: #fff;"></i>
+                                                }
+                                                else if (!string.IsNullOrEmpty(Model.CardBrand) && Model.CardBrand.ToLower().Contains("master"))
+                                                {
+                                                    <i class="fab fa-cc-mastercard" style="color: #fff;"></i>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-credit-card" style="color: #fff;"></i>
+                                                }
+                                            </div>
+                                        </div>
+
+                                        <div class="card-number-visual">
+                                            @formattedCardNumber
+                                        </div>
+
+                                        <div class="card-bottom">
+                                            <div class="card-expiry-group">
+                                                <span class="card-label">Valid Thru</span>
+                                                <span class="card-expiry-value">
+                                                    @if (!string.IsNullOrEmpty(Model.CardExpMonth) && !string.IsNullOrEmpty(Model.CardExpYear))
+                                                    {
+                                                        @($"{Model.CardExpMonth}/{Model.CardExpYear.Substring(Model.CardExpYear.Length - 2)}")
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>--/--</span>
+                                                    }
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <button id="btnRemoveCard" type="button" class="btn-danger-outline">

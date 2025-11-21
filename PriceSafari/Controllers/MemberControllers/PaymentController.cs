@@ -117,7 +117,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 Info = store.Plan?.Info ?? string.Empty,
                 IsRecurringActive = store.IsRecurringActive,
                 CardMaskedNumber = store.CardMaskedNumber,
-                CardBrand = store.CardBrand
+                CardBrand = store.CardBrand,
+                CardExpYear = store.CardExpYear,
+                CardExpMonth = store.CardExpMonth
             };
 
             return View("~/Views/Panel/Plans/StorePayments.cshtml", viewModel);
