@@ -21,5 +21,6 @@
 
         public bool InvoiceGeneratorEnabled { get; set; }
         public bool PaymentProcessorEnabled { get; set; }
+        public bool EmailSenderEnabled { get; set; }
     }
 }

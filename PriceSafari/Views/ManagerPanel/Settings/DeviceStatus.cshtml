@@ -100,6 +100,7 @@
                         <th>Allegro API Bot</th>
                         <th>Faktury (Generator)</th>
                         <th>Płatności (Worker)</th>
+                        <th>Wysyłka Maili</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -140,6 +141,9 @@
                             </td>
                             <td class="@(item.PaymentProcessorEnabled ? "bg-yes" : "bg-no")">
                                 @(item.PaymentProcessorEnabled ? "tak" : "nie")
+                            </td>
+                            <td class="@(item.EmailSenderEnabled ? "bg-yes" : "bg-no")">
+                                @(item.EmailSenderEnabled ? "tak" : "nie")
                             </td>
                         </tr>
                     }

@@ -33,7 +33,7 @@ public class ScheduledTaskService : BackgroundService
         var aleApiBotKey = Environment.GetEnvironmentVariable("ALE_API_BOT");
         var subKey = Environment.GetEnvironmentVariable("SUBSCRIPTION_KEY");
         var payKey = Environment.GetEnvironmentVariable("GRAB_PAYMENT");
-
+        var emailKey = Environment.GetEnvironmentVariable("SEND_EMAILS");
         var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "UnknownDevice";
 
         while (!stoppingToken.IsCancellationRequested)
@@ -169,12 +169,12 @@ public class ScheduledTaskService : BackgroundService
                     _lastDeviceCheck = DateTime.Now;
 
                     await UpdateDeviceStatusAsync(
-                        context,
-                        deviceName,
-                        baseScalKey, urlScalKey, gooCrawKey, cenCrawKey,
-                        aleBaseScalKey, urlScalAleKey, aleCrawKey, aleApiBotKey,
-                        subKey, payKey,
-                        stoppingToken);
+                         context,
+                         deviceName,
+                         baseScalKey, urlScalKey, gooCrawKey, cenCrawKey,
+                         aleBaseScalKey, urlScalAleKey, aleCrawKey, aleApiBotKey,
+                         subKey, payKey, emailKey, // <--- Przekazujemy emailKey
+                         stoppingToken);
                 }
             }
             catch (Exception ex)
@@ -631,6 +631,7 @@ public class ScheduledTaskService : BackgroundService
              string aleApiBotKey,
              string subKey,
              string payKey,
+             string emailKey, // <--- DODANY PARAMETR
              CancellationToken ct)
     {
 
@@ -645,6 +646,7 @@ public class ScheduledTaskService : BackgroundService
 
         const string SUB_KEY_EXPECTED = "99887766";
         const string PAY_KEY_EXPECTED = "38401048";
+        const string EMAIL_KEY_EXPECTED = "55443322"; // <--- OCZEKIWANY KLUCZ
 
         bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
         bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
@@ -657,6 +659,7 @@ public class ScheduledTaskService : BackgroundService
 
         bool hasInvoiceGen = (subKey == SUB_KEY_EXPECTED);
         bool hasPaymentProc = (payKey == PAY_KEY_EXPECTED);
+        bool hasEmailSender = (emailKey == EMAIL_KEY_EXPECTED); // <--- SPRAWDZENIE
 
         var newStatus = new DeviceStatus
         {
@@ -673,13 +676,15 @@ public class ScheduledTaskService : BackgroundService
             AleApiBotEnabled = hasAleApiBot,
 
             InvoiceGeneratorEnabled = hasInvoiceGen,
-            PaymentProcessorEnabled = hasPaymentProc
+            PaymentProcessorEnabled = hasPaymentProc,
+            EmailSenderEnabled = hasEmailSender // <--- ZAPIS
         };
 
         await context.DeviceStatuses.AddAsync(newStatus, ct);
         await context.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Zaktualizowano status urządzenia '{DeviceName}'. Faktury: {Inv}, Płatności: {Pay}",
-            deviceName, hasInvoiceGen, hasPaymentProc);
+        _logger.LogInformation("Zaktualizowano status urządzenia '{DeviceName}'. Faktury: {Inv}, Płatności: {Pay}, Maile: {Mail}",
+            deviceName, hasInvoiceGen, hasPaymentProc, hasEmailSender);
     }
+
 }
