@@ -792,13 +792,13 @@
 }
 
 <style>
-    /* Układ główny - Równe wysokości */
+
     .details-container {
         display: flex;
         gap: 20px;
         width: 100%;
         margin-top: 24px;
-        align-items: stretch; /* To kluczowa linia: rozciąga kolumny do równej wysokości */
+        align-items: stretch;
     }
 
     .details-sidebar {
@@ -807,23 +807,22 @@
     }
 
     .details-middle {
-        display:flex;
+        display: flex;
         min-width: 360px;
     }
 
     .details-main {
-     display:flex;
+        display: flex;
         width: 100%;
     }
 
-    /* Wygląd białych kafelków */
     .info-card {
         border: 1px solid #e9ecef;
         border-radius: 8px;
         background-color: #fff;
         display: flex;
         flex-direction: column;
-        height: 400px; /* To sprawia, że białe tło wypełnia całą wysokość kolumny */
+        height: 400px;
     }
 
     .info-card-header {
@@ -845,10 +844,9 @@
         padding: 20px;
         background-color: #f8f9fa;
         border-top: 1px solid #e9ecef;
-        margin-top: auto; /* Dopycha footer do dołu, jeśli jest różnica w treści */
+        margin-top: auto;
     }
 
-    /* Wiersze informacyjne */
     .info-row {
         display: flex;
         justify-content: space-between;
@@ -882,7 +880,6 @@
             margin-left: 5px;
         }
 
-    /* Ceny */
     .price-display {
         display: flex;
         align-items: baseline;
@@ -915,7 +912,6 @@
         color: #28a745;
     }
 
-    /* Zakładki płatności */
     .payment-switcher {
         display: flex;
         background-color: #f8f9fa;
@@ -962,32 +958,29 @@
         vertical-align: middle;
     }
 
-    /* Kontener widoku karty */
     .card-view-container {
         height: 100%;
         display: flex;
         flex-direction: column;
-        justify-content: center; /* Wyśrodkowanie w pionie */
+        justify-content: center;
         align-items: center;
         text-align: center;
     }
 
-    /* --- NOWY STYL KARTY KREDYTOWEJ (Zmniejszony i bez animacji) --- */
     .credit-card-visual {
-        width: 290px; /* Zmniejszono z 340px */
-        height: 185px; /* Zmniejszono z 215px */
-        background: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
+        width: 290px;
+        height: 185px;
+        background: linear-gradient(135deg, #222222 0%, #222222 100%);
         border-radius: 12px;
-        padding: 20px; /* Mniejszy padding */
+        padding: 20px;
         color: white;
         position: relative;
         box-shadow: 0 5px 15px rgba(0,0,0,0.20);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        margin: 0 auto; /* Wyśrodkowanie */
+        margin: 0 auto;
         font-family: 'Courier New', Courier, monospace;
-        /* Usunięto transition i hover transform */
     }
 
     .card-top {
@@ -996,11 +989,9 @@
         align-items: flex-start;
     }
 
-    /* Srebrny Chip */
     .card-chip {
-        width: 42px; /* Mniejszy chip */
+        width: 42px;
         height: 30px;
-        /* Zmiana na srebrny gradient */
         background: linear-gradient(135deg, #bdc3c7 0%, #ecf0f1 50%, #bdc3c7 100%);
         border-radius: 5px;
         position: relative;
@@ -1028,12 +1019,12 @@
         }
 
     .card-brand-logo {
-        font-size: 32px; /* Mniejsze logo */
+        font-size: 32px;
         opacity: 0.9;
     }
 
     .card-number-visual {
-        font-size: 18px; /* Mniejsza czcionka numeru */
+        font-size: 18px;
         letter-spacing: 2px;
         text-shadow: 0 1px 2px rgba(0,0,0,0.6);
         margin-top: 5px;
@@ -1052,7 +1043,7 @@
     }
 
     .card-label {
-        font-size: 7px; /* Mniejsza etykieta */
+        font-size: 7px;
         text-transform: uppercase;
         color: #ccc;
         margin-bottom: 2px;
@@ -1063,7 +1054,6 @@
         font-weight: bold;
     }
 
-    /* Przyciski i inne */
     .btn-danger-outline {
         background-color: white;
         color: #dc3545;
@@ -1073,7 +1063,7 @@
         font-size: 0.8em;
         transition: all 0.2s;
         cursor: pointer;
-        margin-top: 20px; /* Odstęp od karty */
+        margin-top: 20px;
         display: inline-flex;
         align-items: center;
         text-decoration: none;
@@ -1085,7 +1075,6 @@
             text-decoration: none;
         }
 
-    /* Style modala (bez zmian) */
     .modal-dialog {
         min-width: 1000px;
     }
@@ -1185,7 +1174,7 @@
 </style>
 
 <div class="Vert">
-    <div class="Vert-full">
+    <div class="Vert-fluid">
 
         <div id="paymentSuccessAlert" class="alert alert-success alert-dismissible fade show" role="alert" style="display:none; margin-bottom: 20px;">
             <strong>Sukces!</strong> Twoja karta została pomyślnie zweryfikowana i podłączona. Subskrypcja jest aktywna.
@@ -1356,6 +1345,7 @@
                 <div class="details-main info-card">
                     <div class="info-card-header">Szczegóły planu</div>
                     <div class="info-card-body">
+
                         <div class="info-row">
                             <span class="info-label">Źródło danych</span>
                             <span class="info-value">
@@ -1373,24 +1363,48 @@
                                 }
                             </span>
                         </div>
+
                         <div class="info-row">
-                            <span class="info-label">Limity produktów</span>
-                            <span class="info-value">
-                                <div>Do <b>@Model.ProductsToScrap</b> SKU w porównywarkach</div>
-                                @if (Model.Allegro)
-                                {
-                                    <div class="mt-1">Do <b>@Model.ProductsToScrapAllegro</b> SKU na marketplace</div>
-                                }
-                            </span>
+                            <span class="info-label">Max produktów w porównywarkach</span>
+                            <span class="info-value">@Model.ProductsToScrap SKU</span>
                         </div>
+
+                        @if (Model.Allegro)
+                        {
+                            <div class="info-row">
+                                <span class="info-label">Max produktów na marketplace</span>
+                                <span class="info-value">@Model.ProductsToScrapAllegro SKU</span>
+                            </div>
+                        }
+
                         <div class="info-row">
                             <span class="info-label">Czas usługi</span>
                             <span class="info-value">@Model.ScrapesPerInvoice dni</span>
                         </div>
+
                         <div class="info-row">
                             <span class="info-label">Dane historyczne</span>
                             <span class="info-value">30 analiz historycznych</span>
                         </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Status konta</span>
+                            <span class="info-value">
+                                @if (Model.UserWantsExit)
+                                {
+                                    <span style="color: #dc3545; font-weight: 600;">
+                                        <i class="fas fa-times-circle"></i> Subskrypcja anulowana
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span style="color: #28a745; font-weight: 600;">
+                                        <i class="fas fa-check-circle"></i> Konto aktywne
+                                    </span>
+                                }
+                            </span>
+                        </div>
+
                     </div>
                 </div>
 
@@ -1484,6 +1498,8 @@
             </div>
         </div>
 
+    </div>
+    <div class="Vert-full">
         @if (Model.Invoices != null && Model.Invoices.Any())
         {
             <div class="Vert-table" style="margin-top: 30px;">

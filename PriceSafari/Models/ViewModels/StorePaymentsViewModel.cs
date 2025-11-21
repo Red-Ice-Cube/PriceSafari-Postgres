@@ -30,5 +30,6 @@ namespace PriceSafari.Models.ViewModels
 
         public string? CardExpYear { get; set; }
         public string? CardExpMonth { get; set; }
+        public bool UserWantsExit { get; set; }
     }
 }

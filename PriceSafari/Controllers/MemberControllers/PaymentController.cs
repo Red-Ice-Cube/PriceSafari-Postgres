@@ -119,7 +119,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 CardMaskedNumber = store.CardMaskedNumber,
                 CardBrand = store.CardBrand,
                 CardExpYear = store.CardExpYear,
-                CardExpMonth = store.CardExpMonth
+                CardExpMonth = store.CardExpMonth,
+                UserWantsExit = store.UserWantsExit
             };
 
             return View("~/Views/Panel/Plans/StorePayments.cshtml", viewModel);
