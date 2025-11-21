@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Identity.UI.Services;
-using PriceSafari.Services.EmailService;
 using System.Net;
 using System.Net.Mail;
 using System.Net.Mime;
+using PriceSafari.Services.EmailService;
 
 public class EmailService : IEmailSender, IAppEmailSender
 {
@@ -30,7 +30,9 @@ public class EmailService : IEmailSender, IAppEmailSender
     }
 
     // NOWA, GŁÓWNA implementacja z obsługą obrazków
-    public async Task<bool> SendEmailAsync(string email, string subject, string htmlMessage, Dictionary<string, string> inlineImages = null)
+    public async Task<bool> SendEmailAsync(string email, string subject, string htmlMessage,
+                                         Dictionary<string, string> inlineImages = null,
+                                         Dictionary<string, byte[]> attachments = null)
     {
         try
         {
@@ -45,48 +47,46 @@ public class EmailService : IEmailSender, IAppEmailSender
             {
                 From = new MailAddress(_sender, _senderName),
                 Subject = subject,
-                IsBodyHtml = true, // Ważne, aby IsBodyHtml było tutaj
+                IsBodyHtml = true,
             };
             mailMessage.To.Add(email);
 
-            // Używamy AlternateView dla poprawnego osadzania obrazków w HTML
             var alternateView = AlternateView.CreateAlternateViewFromString(htmlMessage, null, MediaTypeNames.Text.Html);
 
-            // NOWA, GENERYCZNA PĘTLA DLA OBRAZKÓW
+            // 1. Obrazki w treści (Inline Images)
             if (inlineImages != null)
             {
                 foreach (var image in inlineImages)
                 {
-                    var contentId = image.Key;
-                    var imagePath = image.Value;
-
-                    if (File.Exists(imagePath))
+                    if (File.Exists(image.Value))
                     {
-                        var linkedResource = new LinkedResource(imagePath)
-                        {
-                            ContentId = contentId
-                        };
+                        var linkedResource = new LinkedResource(image.Value) { ContentId = image.Key };
                         alternateView.LinkedResources.Add(linkedResource);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Inline image not found at path: {ImagePath}", imagePath);
                     }
                 }
             }
-
             mailMessage.AlternateViews.Add(alternateView);
-
-            // UWAGA: Ustawiamy treść Body po utworzeniu AlternateViews
             mailMessage.Body = htmlMessage;
 
+            // 2. ZAŁĄCZNIKI (PDF) - TO JEST NOWA CZĘŚĆ
+            if (attachments != null)
+            {
+                foreach (var attachment in attachments)
+                {
+                    // Tworzymy strumień z bajtów
+                    var stream = new MemoryStream(attachment.Value);
+                    // Dodajemy do wiadomości
+                    mailMessage.Attachments.Add(new Attachment(stream, attachment.Key, "application/pdf"));
+                }
+            }
+
             await client.SendMailAsync(mailMessage);
-            _logger.LogInformation("Email to {Email} sent successfully.", email);
+            _logger.LogInformation("Email sent to {Email}", email);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send email to {Email}.", email);
+            _logger.LogError(ex, "Failed to send email to {Email}", email);
             return false;
         }
     }

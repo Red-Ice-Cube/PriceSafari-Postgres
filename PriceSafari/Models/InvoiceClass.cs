@@ -60,6 +60,9 @@ namespace PriceSafari.Models
 
         public bool IsPaidByCard { get; set; } = false;
 
+        [Display(Name = "Wysłano e-mailem")]
+        public bool IsSentByEmail { get; set; } = false;
+
         public string CompanyName { get; set; }
         public string Address { get; set; }
         public string PostalCode { get; set; }
