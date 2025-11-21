@@ -327,26 +327,24 @@ namespace PriceSafari.Services.SubscriptionService
                     var now = DateTime.Now;
                     DateTime nextRun;
 
-                    // 3. KONFIGURACJA CZASU (zależna od roli)
-                    // Dzięki temu każde urządzenie budzi się o swojej godzinie
-                    int targetHour = 10;   // Wartość domyślna
-                    int targetMinute = 0;  // Wartość domyślna
+                    int targetHour;
+                    int targetMinute;
 
                     if (isGenerator)
                     {
-                        targetHour = 10;
-                        targetMinute = 45;
+                        targetHour = 11;
+                        targetMinute = 30;
                     }
                     else if (isPayer)
                     {
                         targetHour = 10;
-                        targetMinute = 50;
+                        targetMinute = 35;
                     }
-                    else if (isEmailSender)
+                    else
                     {
-                        // Tutaj ustawiamy 11:30 dla wysyłki maili
+                        //maile
                         targetHour = 11;
-                        targetMinute = 30;
+                        targetMinute = 40;
                     }
 
                     // 4. Obliczanie daty uruchomienia
