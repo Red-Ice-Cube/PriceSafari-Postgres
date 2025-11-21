@@ -63,18 +63,18 @@ namespace PriceSafari.Services.SubscriptionService
 
                     if (isGenerator)
                     {
-                        targetHour = 11;
+                        targetHour = 12;
                         targetMinute = 30;
                     }
                     else if (isPayer)
                     {
-                        targetHour = 10;
+                        targetHour = 12;
                         targetMinute = 35;
                     }
                     else
                     {
 
-                        targetHour = 11;
+                        targetHour = 12;
                         targetMinute = 40;
                     }
 
