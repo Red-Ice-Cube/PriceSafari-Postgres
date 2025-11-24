@@ -47,6 +47,9 @@ public class PriceSafariUser : IdentityUser
     public DateTime? CeneoFeedSubmittedOn { get; set; }
     public DateTime? GoogleFeedSubmittedOn { get; set; }
 
+    public string? PendingStoreNameAllegro { get; set; }
+    public DateTime? AllegroSubmittedOn { get; set; }
+
     public PriceSafariUser()
     {
         CodePAR = GenerateUniqueCodePAR();

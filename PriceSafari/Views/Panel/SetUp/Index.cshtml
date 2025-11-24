@@ -576,6 +576,74 @@
                         </div>
                     </div>
 
+                    <div class="setup-option">
+                        <div class="setup-option-header" data-target="#allegro-content">
+                            <img src="~/images/AllegroIcon.png" alt="Allegro" class="source-logo" />
+                            <div class="header-text">
+                                <h4>Monitoring Allegro</h4>
+                                @if (Model.IsAllegroSubmitted)
+                                {
+                                    <p>
+                                        <i class="fas fa-check-circle" style="color: #41C7C7;"></i> Zgłoszenie przyjęte. Oczekuj na kontakt.
+                                    </p>
+                                }
+                                else
+                                {
+                                    <p>Podaj nazwę swojego sklepu na Allegro.</p>
+                                }
+                            </div>
+                            @if (Model.IsAllegroSubmitted)
+                            {
+                                <div class="status-in-progress ms-auto">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                    <span>Weryfikacja...</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <i class="fas fa-chevron-down arrow-icon"></i>
+                            }
+                        </div>
+                        <div class="setup-option-content" id="allegro-content">
+                            <div class="setup-content-grid">
+                                <form id="allegro-form" style="display:flex; max-width:100%; flex-direction:column;">
+                                    @Html.AntiForgeryToken()
+                                    <div class="mb-3">
+                                        <label for="allegroStoreName" class="form-label">Jak nazywa się Twój sklep na Allegro?</label>
+                                        <input type="text" class="form-control" name="StoreName" id="allegroStoreName" value="@Model.PendingStoreNameAllegro" required @(Model.IsAllegroSubmitted ? "readonly" : "")>
+                                    </div>
+
+                                    <div id="allegro-message" class="form-message"></div>
+
+                                    @if (!Model.IsAllegroSubmitted)
+                                    {
+                                        <button type="submit" class="Button-Page-Small-bl" style="height:38.18px;">Rozpocznij monitoring Allegro</button>
+                                    }
+                                    else
+                                    {
+                                        <div class="form-submitted-info">
+                                            <p class="mb-0">
+                                                Dziękujemy za przesłanie nazwy sklepu! Nasz zespół wkrótce skontaktuje się z Tobą, aby dokończyć proces konfiguracji integracji z Allegro.
+                                            </p>
+                                        </div>
+                                    }
+                                </form>
+
+                                <div class="setup-description">
+                                    <h5>Informacja o konfiguracji Allegro</h5>
+                                    <p>W przypadku Allegro nie wymagamy przesyłania pliku XML (feedu produktowego).</p>
+                                    <p>Przygotowanie monitoringu danych na Allegro wymaga kontaktu z naszym zespołem technicznym. <strong>Po zapisaniu nazwy sklepu odezwiemy się do Ciebie celem ukończenia konfiguracji konta.</strong></p>
+
+                                    <div style="background-color: #fff3cd; border: 1px solid #ffecb5; padding: 10px; border-radius: 4px; color: #856404; margin-top: 15px;">
+                                        <p style="margin:0; font-size: 0.9rem;">
+                                            <i class="fas fa-exclamation-triangle"></i> <strong>Ważne:</strong> Podawaj tylko nazwę <u>Twojego</u> sklepu na Allegro. Podanie sklepu, który do Ciebie nie należy, uniemożliwi weryfikację i uruchomienie konta.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
             </div>
@@ -620,19 +688,17 @@
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+        function sanitizeInputs() {
 
-             function sanitizeInputs() {
+                        const inputsToSanitize = document.querySelectorAll('#ceneo-form input[type="text"], #ceneo-form input[type="url"], #google-form input[type="text"], #google-form input[type="url"], #allegro-form input[type="text"]');
 
-                const inputsToSanitize = document.querySelectorAll('#ceneo-form input[type="text"], #ceneo-form input[type="url"], #google-form input[type="text"], #google-form input[type="url"]');
-
-                inputsToSanitize.forEach(input => {
-
-                    input.addEventListener('blur', () => {
-                        input.value = input.value.trim();
-                    });
-                });
-            }
-            sanitizeInputs();
+                        inputsToSanitize.forEach(input => {
+                            input.addEventListener('blur', () => {
+                                input.value = input.value.trim();
+                            });
+                        });
+                    }
+                    sanitizeInputs();
 
             document.querySelectorAll('.setup-option-header').forEach(header => {
                 header.addEventListener('click', () => {
@@ -646,16 +712,26 @@
             });
 
         const modalOverlay = document.getElementById('confirmation-modal');
-        const confirmBtn = document.getElementById('modal-confirm');
-        const cancelBtn = document.getElementById('modal-cancel');
-        let formToSubmit = null;
+            const confirmBtn = document.getElementById('modal-confirm');
+            const cancelBtn = document.getElementById('modal-cancel');
+            const modalDetails = modalOverlay.querySelector('.modal-details');
+            const modalText = document.getElementById('modal-text');
+            let formToSubmit = null;
 
-        const showConfirmationModal = (formElement) => {
-            if (formElement) {
-                formToSubmit = formElement;
-            }
-            modalOverlay.classList.add('visible');
-        };
+            const showConfirmationModal = (formElement) => {
+                if (formElement) {
+                    formToSubmit = formElement;
+
+                    if (formElement.id === 'allegro-form') {
+                        modalDetails.style.display = 'none';
+                        modalText.innerHTML = `Czy na pewno chcesz zapisać nazwę sklepu Allegro? <br><br> <strong>Pamiętaj:</strong> Podaj nazwę należącą wyłącznie do Ciebie. Po zapisaniu skontaktujemy się z Tobą w celu finalizacji.`;
+                    } else {
+                        modalDetails.style.display = 'block';
+                        modalText.innerText = "Czy na pewno chcesz zapisać tę konfigurację? Po zapisaniu, jej edycja nie będzie możliwa.";
+                    }
+                }
+                modalOverlay.classList.add('visible');
+            };
 
         const hideConfirmationModal = () => {
             modalOverlay.classList.remove('visible');
@@ -921,48 +997,54 @@
         });
 
         async function submitForm(form) {
-            const messageDiv = form.querySelector('.form-message');
-            const formData = new FormData(form);
-            const url = form.id === 'ceneo-form'
-                ? '@Url.Action("SaveCeneo", "SetUp")'
-                : '@Url.Action("SaveGoogleShopping", "SetUp")';
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'RequestVerificationToken': document.querySelector('form input[name="__RequestVerificationToken"]').value },
-                    body: new URLSearchParams(formData)
-                });
-                const data = await response.json();
+                 const messageDiv = form.querySelector('.form-message');
+                 const formData = new FormData(form);
 
-                if (data.success) {
+                 let url = '';
+                 if (form.id === 'ceneo-form') {
+                     url = '@Url.Action("SaveCeneo", "SetUp")';
+                 } else if (form.id === 'google-form') {
+                     url = '@Url.Action("SaveGoogleShopping", "SetUp")';
+                 } else if (form.id === 'allegro-form') {
+                     url = '@Url.Action("SaveAllegro", "SetUp")';
+                 }
 
-                    window.location.reload();
-                } else {
-                    messageDiv.textContent = data.message;
-                    messageDiv.className = 'form-message error';
-                }
-            } catch (error) {
-                messageDiv.textContent = 'Wystąpił błąd sieci. Spróbuj ponownie.';
-                messageDiv.className = 'form-message error';
-                console.error('Submit form error:', error);
-            }
-        }
+                 try {
+                     const response = await fetch(url, {
+                         method: 'POST',
+                         headers: { 'RequestVerificationToken': document.querySelector('form input[name="__RequestVerificationToken"]').value },
+                         body: new URLSearchParams(formData)
+                     });
+                     const data = await response.json();
 
-            setupFormListener('ceneo-form');
-            setupFormListener('google-form');
-        });
+                     if (data.success) {
+                         window.location.reload();
+                     } else {
+                         messageDiv.textContent = data.message;
+                         messageDiv.className = 'form-message error';
+                     }
+                 } catch (error) {
+                     messageDiv.textContent = 'Wystąpił błąd sieci. Spróbuj ponownie.';
+                     messageDiv.className = 'form-message error';
+                     console.error('Submit form error:', error);
+                 }
+             }
+
+             setupFormListener('ceneo-form');
+             setupFormListener('google-form');
+             setupFormListener('allegro-form');
+         });
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const markAsReadBtn = document.getElementById('mark-as-read-btn');
 
-            if (markAsReadBtn && !markAsReadBtn.disabled) { // Sprawdzamy, czy przycisk nie jest już wyłączony
+            if (markAsReadBtn && !markAsReadBtn.disabled) {
                 markAsReadBtn.addEventListener('click', function () {
-                    const button = this; // Zapisujemy referencję do przycisku
+                    const button = this;
                     const messageId = parseInt(button.dataset.messageId, 10);
                     const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
-                    // Zablokuj przycisk na czas wysyłania, aby uniknąć podwójnych kliknięć
                     button.disabled = true;
                     button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Zapisywanie...';
 
@@ -976,14 +1058,14 @@
                     })
                     .then(response => {
                         if (response.ok) {
-                            // Zmień styl i tekst przycisku po udanej operacji
-                            button.style.backgroundColor = '#28a745'; // Zielony kolor
+
+                            button.style.backgroundColor = '#28a745';
                             button.style.borderColor = '#28a745';
                             button.style.cursor = 'default';
                             button.innerHTML = '<i class="fas fa-check"></i> Dziękujemy za informację';
-                            // Atrybut disabled pozostaje true
+
                         } else {
-                            // W razie błędu odblokuj przycisk i przywróć tekst
+
                             alert('Wystąpił błąd. Spróbuj odświeżyć stronę.');
                             button.disabled = false;
                             button.textContent = 'Oznacz jako przeczytaną';

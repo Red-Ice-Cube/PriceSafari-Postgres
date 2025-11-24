@@ -17,18 +17,18 @@ namespace PriceSafari.Controllers
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly UserManager<PriceSafariUser> _userManager;
         private readonly ILogger<SetUpController> _logger;
-        private readonly PriceSafariContext _context; // <-- DODAJ TO POLE
+        private readonly PriceSafariContext _context;
 
         public SetUpController(
             UserManager<PriceSafariUser> userManager,
             IHttpClientFactory httpClientFactory,
             ILogger<SetUpController> logger,
-            PriceSafariContext context) // <-- DODAJ W KONSTRUKTORZE
+            PriceSafariContext context)
         {
             _httpClientFactory = httpClientFactory;
             _userManager = userManager;
             _logger = logger;
-            _context = context; // <-- ZAINICJALIZUJ POLE
+            _context = context;
         }
 
         public async Task<IActionResult> Index()
@@ -41,16 +41,24 @@ namespace PriceSafari.Controllers
                   .OrderByDescending(m => m.CreatedAt)
                   .FirstOrDefaultAsync();
 
-
             var viewModel = new SetUpViewModel
             {
                 UserName = user.PartnerName,
+
+                // Ceneo
                 PendingStoreNameCeneo = user.PendingStoreNameCeneo,
                 PendingCeneoFeedUrl = user.PendingCeneoFeedUrl,
+                IsCeneoSubmitted = user.CeneoFeedSubmittedOn.HasValue,
+
+                // Google
                 PendingStoreNameGoogle = user.PendingStoreNameGoogle,
                 PendingGoogleFeedUrl = user.PendingGoogleFeedUrl,
-                IsCeneoSubmitted = user.CeneoFeedSubmittedOn.HasValue,
                 IsGoogleSubmitted = user.GoogleFeedSubmittedOn.HasValue,
+
+                // NOWE: Allegro
+                PendingStoreNameAllegro = user.PendingStoreNameAllegro,
+                IsAllegroSubmitted = user.AllegroSubmittedOn.HasValue,
+
                 AdminMessageId = latestMessage?.Id,
                 AdminMessageContent = latestMessage?.Content,
                 IsAdminMessageRead = latestMessage?.IsRead ?? false
@@ -58,6 +66,10 @@ namespace PriceSafari.Controllers
 
             return View("~/Views/Panel/SetUp/Index.cshtml", viewModel);
         }
+
+
+
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -105,8 +117,27 @@ namespace PriceSafari.Controllers
             return Json(new { success = false, message = "Wystąpił błąd podczas zapisu." });
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveAllegro(AllegroSetupModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return Json(new { success = false, message = "Proszę podać nazwę sklepu." });
+            }
 
-        // Dodaj tę nową akcję na końcu klasy SetUpController
+            var user = await _userManager.GetUserAsync(User);
+            user.PendingStoreNameAllegro = model.StoreName;
+            user.AllegroSubmittedOn = DateTime.UtcNow;
+
+            var result = await _userManager.UpdateAsync(user);
+            if (result.Succeeded)
+            {
+                return Json(new { success = true, message = "Konfiguracja Allegro została przyjęta do realizacji." });
+            }
+
+            return Json(new { success = false, message = "Wystąpił błąd podczas zapisu." });
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -127,12 +158,10 @@ namespace PriceSafari.Controllers
             return Ok(new { success = true, message = "Wiadomość została oznaczona jako przeczytana." });
         }
 
-        // Dodaj klasę pomocniczą dla żądania
         public class MarkAsReadRequest
         {
             public int MessageId { get; set; }
         }
-
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -245,5 +274,11 @@ namespace PriceSafari.Controllers
         public string StoreName { get; set; }
         [Required, Url]
         public string FeedUrl { get; set; }
+    }
+
+    public class AllegroSetupModel
+    {
+        [Required]
+        public string StoreName { get; set; }
     }
 }
