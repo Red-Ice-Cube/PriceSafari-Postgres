@@ -95,7 +95,11 @@ namespace PriceSafari.Controllers.ManagerControllers
                 Status = user.IsActive,
                 Verification = user.AffiliateVerification?.IsVerified ?? false,
                 Role = string.Join(", ", _userManager.GetRolesAsync(user).Result),
-                EmailConfirmed = user.EmailConfirmed
+                EmailConfirmed = user.EmailConfirmed,
+
+                HasSubmittedAnyFeed = !string.IsNullOrEmpty(user.PendingStoreNameCeneo) ||
+                          !string.IsNullOrEmpty(user.PendingStoreNameGoogle) ||
+                          !string.IsNullOrEmpty(user.PendingStoreNameAllegro)
             }).ToList();
 
             var model = new ManagerAffiliateViewModel
@@ -152,7 +156,9 @@ namespace PriceSafari.Controllers.ManagerControllers
                 UserMessageId = message?.Id,
                 UserMessageContent = message?.Content,
                 UserMessageCreatedAt = message?.CreatedAt, // <-- Przypisz datę utworzenia
-                UserMessageIsRead = message?.IsRead ?? false
+                UserMessageIsRead = message?.IsRead ?? false,
+                AllegroStoreName = user.PendingStoreNameAllegro,
+                AllegroSubmittedOn = user.AllegroSubmittedOn,
             };
 
             return View("~/Views/ManagerPanel/Affiliates/UserProfile.cshtml", managerUserProfileViewModel);

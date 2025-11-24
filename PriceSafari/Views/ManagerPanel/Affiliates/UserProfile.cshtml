@@ -340,6 +340,31 @@
                                 </div>
                             }
                         </div>
+                        <h5>Allegro</h5>
+                        <hr />
+                        @if (Model.AllegroSubmittedOn.HasValue)
+                        {
+                            <div class="info-line">
+                                <div class="info-line-icon"><i class="fas fa-check-circle" style="color: green;"></i></div>
+                                <strong>Status:</strong> <span>Dane przesłane</span>
+                            </div>
+                            <div class="info-line">
+                                <div class="info-line-icon"><i class="fas fa-calendar-alt"></i></div>
+                                <strong>Data przesłania:</strong> <span>@Model.AllegroSubmittedOn.Value.ToString("g")</span>
+                            </div>
+                            <div class="info-line">
+                                <div class="info-line-icon"><img src="~/images/AllegroIcon.png" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\'fas fa-shopping-bag\'></i>';" /></div>
+                                <strong>Nazwa sklepu:</strong> <span>@Model.AllegroStoreName</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="info-line">
+                                <div class="info-line-icon"><i class="fas fa-hourglass-half"></i></div>
+                                Użytkownik nie podał jeszcze danych dla Allegro.
+                            </div>
+                        }
+                    </div>
                     </div>
                 </div>
 

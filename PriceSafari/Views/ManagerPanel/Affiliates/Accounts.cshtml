@@ -55,6 +55,13 @@
                             <tr data-codepar="@affiliate.CodePAR">
                                 <td>
                                     @affiliate.Name @affiliate.Surname
+
+                                    @if (affiliate.Role.Contains("PreMember") && affiliate.HasSubmittedAnyFeed)
+                                    {
+                                        <i class="fas fa-exclamation-circle"
+                                           style="color: #28a745; margin-left: 8px; font-size: 1.1em;"
+                                           title="Użytkownik przesłał dane konfiguracyjne i oczekuje na obsługę"></i>
+                                    }
                                 </td>
                                 <td>
                                     @affiliate.CodePAR
