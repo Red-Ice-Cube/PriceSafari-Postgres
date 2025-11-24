@@ -4,6 +4,8 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+<script src="https://cdn.tiny.cloud/1/rsom30sn5tjqgz1iq9v5dkrz3lh5neqdcxvhewzzttaolkgh/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+
 <div class="Page-Box">
     <div class="Page-Box-Container">
         <div class="Page-Box-Category">
@@ -14,50 +16,29 @@
         </div>
         <div class="Horizontal">
 
-
-
-            
-
-
-
-
-
-            <!-- Formularz wysyłający wybrane typy maila do ConfirmSendEmails -->
             <form method="post" asp-action="ConfirmSendEmails">
                 @Html.AntiForgeryToken()
 
-                <!-- Ukryte ID klientów -->
                 @foreach (var clientId in Model.SelectedClientIds)
                 {
                     <input type="hidden" name="SelectedClientIds" value="@clientId" />
                 }
 
-
-
-                <!-- Ukryte pole dla EmailContent -->
-                <input type="hidden" name="EmailContent" value="@Model.EmailContent" />
-
-
                 <div class="Vert-table" style="height:20vh;">
-
-
                     <table class="table-orders">
                         <thead>
                             <tr>
-
                                 <th>Klienci (@Model.Clients.Count)</th>
                                 <th>E-mail</th>
                                 <th>Ilość produktów</th>
                                 <th>Liczba Wysłanych Emaili</th>
                                 <th>Data Ostatniego Emaila</th>
-
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var client in Model.Clients)
                             {
                                 <tr>
-
                                     <td>@client.CeneoProfileName</td>
                                     <td>
                                         @{
@@ -77,44 +58,36 @@
                                             <span>Brak adresu email</span>
                                         }
                                     </td>
-
                                     <td>@client.CeneoProfileProductCount</td>
                                     <td>@client.EmailSentCount</td>
-                                    <td>@(client.LastEmailSentDate.HasValue ? client.LastEmailSentDate.Value.ToString("dd-MM-yyyy HH:mm") : "Brak")</td>
-
-
-
+                                    <td>@(client.LastEmailSentDate.HasValue? client.LastEmailSentDate.Value.ToString("dd-MM-yyyy HH:mm") : "Brak")</td>
                                 </tr>
-
                             }
                         </tbody>
                     </table>
                 </div>
 
-
-                <!-- Ukryte pole do SelectedMailType (zostanie wypełnione w JS) -->
                 <input type="hidden" id="HiddenSelectedMailType" name="SelectedMailType" value="@Model.SelectedMailType" />
 
-                <!-- Kontener, w którym utworzymy dropdown z JS -->
-                <div id="mailTypeDropdownContainer" style="margin-bottom: 2px;">
-                    
-                </div>
-                <div>
-               
-                    <div id="mailContentPreview" style="border: 1px solid #ccc; padding: 10px; max-height: 700px; overflow-y: auto;">
-                        @Html.Raw(Model.EmailContent)
-                    </div>
+                <div id="mailTypeDropdownContainer" style="margin-bottom: 10px; margin-top: 10px;">
                 </div>
 
+                <div>
+                    <label>Treść wiadomości (edytowalna):</label>
+                    <textarea id="EmailContentEditor" name="EmailContent">
+                        @Html.Raw(Model.EmailContent)
+                    </textarea>
+                </div>
 
                 <div style="margin-top: 20px;">
                     <label for="EmailSubject">Temat Emaila:</label><br />
-                    <input type="text" name="EmailSubject" id="EmailSubject" value="@Model.EmailSubject" />
+                    <input type="text" name="EmailSubject" id="EmailSubject" value="@Model.EmailSubject" style="width: 100%; padding: 5px;" />
                 </div>
 
                 <p style="margin-top: 10px;">
                     Treść wiadomości zawiera zastępniki, np.:<br />
-                    <strong>{ProductCount}</strong> – zostanie zastąpione liczbą produktów klienta (tylko w tych mailach, gdzie to ma sens)
+                    <strong>{ProductCount}</strong> – zostanie zastąpione liczbą produktów klienta (tylko w tych mailach, gdzie to ma sens)<br />
+                    <strong>{ClientName}</strong> – zostanie zastąpione nazwą klienta.
                 </p>
 
                 <button type="submit" class="Button-Page-Small-r">Wyślij E-maile</button>
@@ -122,7 +95,18 @@
         </div>
     </div>
 </div>
+
 <script>
+    // Inicjalizacja TinyMCE - musi być poza document.ready w niektórych przypadkach, ale tutaj jest OK
+    // Ważne: Selector musi pasować do ID textarea powyżej (#EmailContentEditor)
+    tinymce.init({
+        selector: '#EmailContentEditor',
+        height: 600,
+        plugins: 'image link code lists',
+        toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | code',
+        verify_html: false
+    });
+
     $(document).ready(function() {
         console.log("document.ready - start!");
 
@@ -132,8 +116,8 @@
             { value: 2, text: 'Mail 2' },
             { value: 3, text: 'Mail 3' }
         ];
-        var dropdownHtml = '<label>Wybierz rodzaj maila (JS):</label><br />' +
-                           '<select id="SelectedMailType">';
+        var dropdownHtml = '<label>Wybierz szablon:</label><br />' +
+                           '<select id="SelectedMailType" style="padding: 5px;">';
         mailTypes.forEach(function(item) {
             dropdownHtml += '<option value="' + item.value + '">' + item.text + '</option>';
         });
@@ -141,52 +125,54 @@
 
         $('#mailTypeDropdownContainer').html(dropdownHtml);
 
+        // Ustawienie początkowej wartości selecta
+        var initialType = $('#HiddenSelectedMailType').val();
+        if(initialType) {
+            $('#SelectedMailType').val(initialType);
+        }
+
         // Obsługa zmiany rodzaju maila
         $('#SelectedMailType').change(function() {
             var selectedMailType = $(this).val();
             console.log("Zmieniono mailType na:", selectedMailType);
 
-            // Ustaw hidden input w formularzu:
+            // Ustaw hidden input dla typu maila
             $('#HiddenSelectedMailType').val(selectedMailType);
 
-            // Zbierz ID klientów:
             var selectedClientIds = [];
             $('input[name="SelectedClientIds"]').each(function() {
                 selectedClientIds.push(parseInt($(this).val()));
             });
 
-               $.ajax({
-        url: '/ClientProfile/ChangeMailTypeAjax',
-        type: 'POST',
-        data: {
-            mailType: parseInt(selectedMailType),
-            selectedClientIds: selectedClientIds
-        },
-        traditional: true, // <- aby listy przesyłały się w formacie ?selectedClientIds=2&selectedClientIds=3
-        success: function (response) {
-            // Tutaj mamy dostęp do danych zwróconych przez kontroler
-            console.log("Odebrano z serwera:", response);
-            if (response && response.content) {
-                // 1) Podmień w <div id="mailContentPreview"> nową treść
-                $('#mailContentPreview').html(response.content);
+            // Pobieranie nowej treści AJAXem
+            $.ajax({
+                url: '/ClientProfile/ChangeMailTypeAjax',
+                type: 'POST',
+                data: {
+                    mailType: parseInt(selectedMailType),
+                    selectedClientIds: selectedClientIds
+                },
+                traditional: true,
+                success: function (response) {
+                    console.log("Odebrano z serwera:", response);
+                    if (response && response.content) {
 
-                // 2) Podmień w hidden input name="EmailContent", by wysłać poprawną treść w ConfirmSendEmails
-                $('input[name="EmailContent"]').val(response.content);
-            } else {
-                console.warn("W odpowiedzi brak klucza 'content'.", response);
-            }
-        },
-        error: function (xhr) {
-            console.error("Błąd AJAX:", xhr);
-            alert('Błąd podczas pobierania treści maila.');
-        }
-    });
+                        // Aktualizacja TinyMCE
+                        if (tinymce.get('EmailContentEditor')) {
+                            tinymce.get('EmailContentEditor').setContent(response.content);
+                        } else {
+                            $('#EmailContentEditor').val(response.content);
+                        }
 
-
+                    } else {
+                        console.warn("W odpowiedzi brak klucza 'content'.", response);
+                    }
+                },
+                error: function (xhr) {
+                    console.error("Błąd AJAX:", xhr);
+                    alert('Błąd podczas pobierania treści maila.');
+                }
+            });
         });
-
-        // Ustaw wartość dropdownu z modelu i wywołaj .change(), aby wstępnie pobrać treść
-        var initialSelectedType = parseInt($('#HiddenSelectedMailType').val());
-        $('#SelectedMailType').val(initialSelectedType).trigger('change');
     });
 </script>

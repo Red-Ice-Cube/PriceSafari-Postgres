@@ -361,6 +361,7 @@ public class ClientProfileController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ConfirmSendEmails(SendEmailViewModel model)
     {
+        // 1. Walidacja (bez zmian)
         if (model.SelectedClientIds == null || !model.SelectedClientIds.Any())
         {
             ModelState.AddModelError("", "Nie wybrano żadnych klientów.");
@@ -373,27 +374,34 @@ public class ClientProfileController : Controller
             return View("PrepareEmails", model);
         }
 
-        string baseContent;
-        switch (model.SelectedMailType)
+        // ---------------------------------------------------------
+        // ZMIANA 1: Pobieranie treści
+        // ---------------------------------------------------------
+
+        // Najpierw próbujemy wziąć to, co przyszło z edytora TinyMCE
+        string baseContent = model.EmailContent;
+
+        // Jeśli edytor był pusty (zabezpieczenie), generujemy treść z szablonu jak dawniej
+        if (string.IsNullOrWhiteSpace(baseContent))
         {
-            case 1:
-
-                baseContent = GetEmailContent1();
-                break;
-            case 2:
-
-                baseContent = GetEmailContent2();
-                break;
-            case 3:
-
-                baseContent = GetEmailContent3();
-                break;
-            default:
-
-                baseContent = GetEmailContent1();
-                break;
+            switch (model.SelectedMailType)
+            {
+                case 1:
+                    baseContent = GetEmailContent1();
+                    break;
+                case 2:
+                    baseContent = GetEmailContent2();
+                    break;
+                case 3:
+                    baseContent = GetEmailContent3();
+                    break;
+                default:
+                    baseContent = GetEmailContent1();
+                    break;
+            }
         }
 
+        // Pobieranie klientów (bez zmian)
         var allClients = await _context.ClientProfiles.ToListAsync();
         var clientsToEmail = allClients
             .Where(cp => model.SelectedClientIds.Contains(cp.ClientProfileId))
@@ -403,22 +411,30 @@ public class ClientProfileController : Controller
         {
             try
             {
+                // ---------------------------------------------------------
+                // ZMIANA 2: Podmiana zmiennych (bardziej elastyczna)
+                // ---------------------------------------------------------
 
                 var personalizedContent = baseContent
                     .Replace("{ClientName}", client.CeneoProfileName);
 
-                if (model.SelectedMailType == 1 || model.SelectedMailType == 3)
+                // Zamiast sprawdzać SelectedMailType, po prostu podstawiamy liczbę.
+                // Jeśli w treści (HTML) nie ma znacznika {ProductCount}, ta funkcja nic nie zepsuje.
+                // A jeśli dodałeś go ręcznie w TinyMCE, to się ładnie podstawi.
+                if (client.CeneoProfileProductCount.HasValue)
                 {
                     personalizedContent = personalizedContent.Replace("{ProductCount}", client.CeneoProfileProductCount.ToString());
                 }
                 else
                 {
-
+                    // Jeśli klient nie ma liczby produktów, czyścimy znacznik żeby nie straszył
                     personalizedContent = personalizedContent.Replace("{ProductCount}", "");
                 }
 
+                // Doklejenie stopki (bez zmian)
                 var emailBody = personalizedContent + GetEmailFooter();
 
+                // Wysyłka (bez zmian)
                 var emailAddresses = client.CeneoProfileEmail
                     .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(e => e.Trim())
@@ -430,6 +446,7 @@ public class ClientProfileController : Controller
                     await _emailSender.SendEmailAsync(email, model.EmailSubject, emailBody);
                 }
 
+                // Aktualizacja statusu (bez zmian)
                 client.Status = ClientStatus.Mail;
                 client.EmailSentCount += 1;
                 client.LastEmailSentDate = DateTime.Now;
@@ -437,7 +454,6 @@ public class ClientProfileController : Controller
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Błąd podczas wysyłania maila do {Email}", client.CeneoProfileEmail);
-
             }
         }
 
