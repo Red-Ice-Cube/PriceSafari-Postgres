@@ -31,12 +31,12 @@
                 <a asp-action="Create" class="Button-Page-Small">Dodaj profil</a>
                 <button type="button" class="Button-Page-Small-gr" onclick="exportToCsv()">Eksportuj do CSV</button>
                 <a asp-action="Index" asp-controller="ClientProfileScraper" class="Button-Page-Small-r">Scraper Klientów</a>
-                <a asp-controller="EmailTemplates" asp-action="Index" class="Button-Page-Small-b">Szablony Wiadomości</a>
+                <a asp-controller="EmailTemplates" asp-action="Index" class="Button-Page-Small-b" style="background-color:blueviolet">Szablony Wiadomości</a>
                 <input type="text" id="accountSearch" placeholder="Wyszukaj firmę">
 
                 <div style="display:flex; flex-direction:column;">
                     <input type="date" class="dateSelect" id="startDate" placeholder="Data od (Nadanie)" />
-                    <input type="date" class="dateSelect" id="endDate" placeholder="Data do (Nadanie)" />
+                    <input type="date" class="dateSelect" id="endDate" placeholder="Data do (Nadanie)" />Wprowa
                 </div>
 
                 <select id="createdByFilter" class="DropDown">

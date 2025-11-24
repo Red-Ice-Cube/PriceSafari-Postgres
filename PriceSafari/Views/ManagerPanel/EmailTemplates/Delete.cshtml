@@ -1,0 +1,23 @@
+﻿@model PriceSafari.Models.EmailTemplate
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Horizontal" style="padding: 20px;">
+            <h3>Czy na pewno chcesz usunąć ten szablon?</h3>
+            <div style="background-color: #f8d7da; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                <h4>@Model.Name</h4>
+                <p>Temat: @Model.Subject</p>
+            </div>
+
+            <form asp-action="Delete">
+                <input type="hidden" asp-for="Id" />
+                <input type="submit" value="Usuń" class="Button-Page-Small-r" />
+                <a asp-action="Index" class="Button-Page-Small-gr">Anuluj</a>
+            </form>
+        </div>
+    </div>
+</div>

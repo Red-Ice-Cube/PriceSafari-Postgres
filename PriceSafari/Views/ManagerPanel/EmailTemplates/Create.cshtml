@@ -1,0 +1,55 @@
+﻿@model PriceSafari.Models.EmailTemplate
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+<script src="https://cdn.tiny.cloud/1/rsom30sn5tjqgz1iq9v5dkrz3lh5neqdcxvhewzzttaolkgh/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">Nowy Szablon</div>
+            <partial name="_ContactNavCol" />
+        </div>
+        <div class="Horizontal">
+            <h3 style="margin-bottom: 20px;">Dodaj nowy szablon wiadomości</h3>
+
+            <form asp-action="Create" style="max-width: 1000px;">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <div style="margin-bottom: 15px;">
+                    <label asp-for="Name" class="control-label" style="font-weight:bold;">Nazwa Szablonu (widoczna w systemie)</label>
+                    <input asp-for="Name" class="form-control" style="width: 100%; padding: 8px; margin-top:5px;" placeholder="np. Powitanie Ceneo" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label asp-for="Subject" class="control-label" style="font-weight:bold;">Temat Wiadomości (widoczny dla klienta)</label>
+                    <input asp-for="Subject" class="form-control" style="width: 100%; padding: 8px; margin-top:5px;" placeholder="np. Propozycja współpracy..." />
+                    <span asp-validation-for="Subject" class="text-danger"></span>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label asp-for="Content" class="control-label" style="font-weight:bold;">Treść Wiadomości</label>
+                    <textarea asp-for="Content" id="TemplateContentEditor" style="height: 500px;"></textarea>
+                    <span asp-validation-for="Content" class="text-danger"></span>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <input type="submit" value="Zapisz Szablon" class="Button-Page-Small" />
+                    <a asp-action="Index" class="Button-Page-Small-gr">Anuluj</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    tinymce.init({
+        selector: '#TemplateContentEditor',
+        height: 600,
+        plugins: 'image link code lists',
+        toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | code',
+        verify_html: false
+    });
+</script>

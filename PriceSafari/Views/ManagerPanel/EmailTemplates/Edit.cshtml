@@ -1,0 +1,57 @@
+﻿@model PriceSafari.Models.EmailTemplate
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+<script src="https://cdn.tiny.cloud/1/rsom30sn5tjqgz1iq9v5dkrz3lh5neqdcxvhewzzttaolkgh/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">Edycja Szablonu</div>
+            <partial name="_ContactNavCol" />
+        </div>
+        <div class="Horizontal">
+           
+            <form asp-action="Edit" style="max-width: 1500px;">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <input type="hidden" asp-for="Id" />
+
+                <div style="margin-bottom: 15px;">
+                    <label asp-for="Name" style="font-weight:bold;">Nazwa Szablonu</label>
+                    <input asp-for="Name" class="form-control" style="width: 100%; padding: 8px;" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label asp-for="Subject" style="font-weight:bold;">Temat Wiadomości</label>
+                    <input asp-for="Subject" class="form-control" style="width: 100%; padding: 8px;" />
+                    <span asp-validation-for="Subject" class="text-danger"></span>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label asp-for="Content" style="font-weight:bold;">Treść</label>
+                    <textarea asp-for="Content" id="TemplateContentEditor">
+                         @Html.Raw(Model.Content)
+                    </textarea>
+                    <span asp-validation-for="Content" class="text-danger"></span>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <input type="submit" value="Zapisz Zmiany" class="Button-Page-Small" />
+                    <a asp-action="Index" class="Button-Page-Small-gr">Wróć do listy</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    tinymce.init({
+        selector: '#TemplateContentEditor',
+        height: 600,
+        plugins: 'image link code lists',
+        toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | code',
+        verify_html: false
+    });
+</script>

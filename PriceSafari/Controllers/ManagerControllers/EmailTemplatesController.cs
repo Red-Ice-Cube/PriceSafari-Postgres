@@ -19,13 +19,14 @@ namespace PriceSafari.Controllers.ManagerControllers
         // Lista szablonów
         public async Task<IActionResult> Index()
         {
-            return View(await _context.EmailTemplates.ToListAsync());
+            // Pełna ścieżka do widoku
+            return View("~/Views/ManagerPanel/EmailTemplates/Index.cshtml", await _context.EmailTemplates.ToListAsync());
         }
 
         // Tworzenie - GET
         public IActionResult Create()
         {
-            return View();
+            return View("~/Views/ManagerPanel/EmailTemplates/Create.cshtml");
         }
 
         // Tworzenie - POST
@@ -39,7 +40,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
-            return View(emailTemplate);
+            return View("~/Views/ManagerPanel/EmailTemplates/Create.cshtml", emailTemplate);
         }
 
         // Edycja - GET
@@ -50,7 +51,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             var emailTemplate = await _context.EmailTemplates.FindAsync(id);
             if (emailTemplate == null) return NotFound();
 
-            return View(emailTemplate);
+            return View("~/Views/ManagerPanel/EmailTemplates/Edit.cshtml", emailTemplate);
         }
 
         // Edycja - POST
@@ -74,10 +75,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            return View(emailTemplate);
+            return View("~/Views/ManagerPanel/EmailTemplates/Edit.cshtml", emailTemplate);
         }
 
-        // Usuwanie
+        // Usuwanie - GET
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null) return NotFound();
@@ -85,9 +86,10 @@ namespace PriceSafari.Controllers.ManagerControllers
             var emailTemplate = await _context.EmailTemplates.FirstOrDefaultAsync(m => m.Id == id);
             if (emailTemplate == null) return NotFound();
 
-            return View(emailTemplate);
+            return View("~/Views/ManagerPanel/EmailTemplates/Delete.cshtml", emailTemplate);
         }
 
+        // Usuwanie - POST
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)

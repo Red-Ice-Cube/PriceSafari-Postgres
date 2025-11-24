@@ -1,0 +1,48 @@
+﻿@model IEnumerable<PriceSafari.Models.EmailTemplate>
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">
+                Ustawienia
+            </div>
+            <partial name="_ContactNavCol" />
+        </div>
+        <div class="Horizontal">
+
+            <div class="product-upper-box" style="justify-content: flex-start; gap:16px;">
+                <a asp-action="Create" class="Button-Page-Small">Dodaj Nowy Szablon</a>
+                <a asp-controller="ClientProfile" asp-action="Index" class="Button-Page-Small-gr">Wróć do Kontaktów</a>
+            </div>
+
+            <div class="Vert-table">
+                <table class="table-orders">
+                    <thead>
+                        <tr>
+                            <th>Nazwa Szablonu</th>
+                            <th>Temat Emaila</th>
+                            <th>Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td><strong>@item.Name</strong></td>
+                                <td>@item.Subject</td>
+                                <td>
+                                    <a asp-action="Edit" asp-route-id="@item.Id" class="Button-Page-Small-b" style="padding: 5px 10px; font-size: 12px;">Edytuj</a>
+                                    <a asp-action="Delete" asp-route-id="@item.Id" class="Button-Page-Small-r" style="padding: 5px 10px; font-size: 12px;">Usuń</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
