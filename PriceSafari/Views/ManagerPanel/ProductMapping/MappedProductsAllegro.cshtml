@@ -1,0 +1,252 @@
+﻿@using PriceSafari.Controllers.ManagerControllers
+@model IEnumerable<PriceSafari.Controllers.ManagerControllers.ProductMappingController.MappedProductAllegroViewModel>
+@using System.Globalization
+
+@{
+    ViewData["Title"] = "Produkty Allegro";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+    var storeId = ViewBag.StoreId ?? 0;
+    var storeName = ViewBag.StoreName as string ?? "(Brak nazwy sklepu)";
+
+    var totalCount = Model.Count();
+    var activeCount = Model.Count(p => p.IsScrapable && !p.IsRejected);
+    var rejectedCount = Model.Count(p => p.IsRejected);
+    var inactiveCount = Model.Count(p => !p.IsScrapable && !p.IsRejected);
+
+    var eanCount = Model.Count(p => !string.IsNullOrEmpty(p.Ean));
+    var marginPriceCount = Model.Count(p => p.MarginPrice.HasValue);
+}
+
+<div class="container-fluid">
+    <h2 class="mt-4">Produkty Allegro dla sklepu: <span class="text-warning">@storeName</span></h2>
+
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <i class="fas fa-chart-pie me-1"></i> Statystyki Allegro
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <ul>
+                        <li>Łącznie produktów: <strong>@totalCount</strong></li>
+                        <li class="text-success">Aktywne (Scrapable): @activeCount</li>
+                        <li class="text-danger">Odrzucone (Rejected): @rejectedCount</li>
+                        <li class="text-muted">Nieaktywne: @inactiveCount</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <ul>
+                        <li>Zdefiniowany EAN: @eanCount</li>
+                        <li>Z ceną minimalną (Margin): @marginPriceCount</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i> Filtry Wyświetlania
+        </div>
+        <div class="card-body">
+            <div class="filter-section">
+                <h5>Status produktu</h5>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input status-filter" type="checkbox" id="statusActive" data-status="active" checked>
+                    <label class="form-check-label text-success fw-bold" for="statusActive">Aktywne</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input status-filter" type="checkbox" id="statusInactive" data-status="inactive" checked>
+                    <label class="form-check-label text-muted" for="statusInactive">Nieaktywne</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input status-filter" type="checkbox" id="statusRejected" data-status="rejected" checked>
+                    <label class="form-check-label text-danger fw-bold" for="statusRejected">Odrzucone</label>
+                </div>
+            </div>
+
+            <div class="mt-3 border-top pt-3">
+                <button id="remove-filtered" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-trash-alt me-1"></i> Usuń widoczne na liście
+                </button>
+                <span id="visible-count" class="ms-3 text-muted">(@totalCount widocznych)</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fab fa-allegro me-1 text-warning"></i> Lista Produktów Allegro
+        </div>
+        <div class="card-body table-responsive">
+            <table class="table table-bordered table-hover" id="allegro-table" style="width: 100%;">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40%">Nazwa Produktu</th>
+                        <th>EAN</th>
+                        <th>Cena Margin</th>
+                        <th>Data dodania</th>
+                        <th>Scrap?</th>
+                        <th>Reject?</th>
+                        <th>Link</th>
+                        <th>ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted p-4">Brak produktów Allegro dla tego sklepu.</td>
+                        </tr>
+                    }
+                    @foreach (var item in Model)
+                    {
+
+                        string statusCategory = "inactive";
+                        if (item.IsRejected) { statusCategory = "rejected"; }
+                        else if (item.IsScrapable) { statusCategory = "active"; }
+
+                        <tr data-product-id="@item.AllegroProductId" data-status="@statusCategory">
+                            <td>
+                                <strong>@item.ProductName</strong>
+                            </td>
+                            <td>@(item.Ean ?? "-")</td>
+                            <td>
+                                @(item.MarginPrice.HasValue? item.MarginPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")
+                            </td>
+                            <td>@item.AddedDate.ToString("yyyy-MM-dd")</td>
+
+                            <td class="text-center">
+                                @if (item.IsScrapable)
+                                {
+                                    <i class="fas fa-check-circle text-success"></i>
+                                }
+                                else
+                                {
+
+                                    <i class="fas fa-times-circle text-muted"></i>
+                                }
+                            </td>
+                            <td class="text-center">
+                                @if (item.IsRejected)
+                                {
+                                    <i class="fas fa-ban text-danger"></i>
+                                }
+                                else
+                                {
+
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+
+                            <td class="text-center">
+                                @if (!string.IsNullOrEmpty(item.Url))
+                                {
+                                    <a href="@item.Url" target="_blank" class="btn btn-sm btn-outline-warning" title="Idź do oferty Allegro">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                }
+                            </td>
+                            <td class="text-muted small">@item.AllegroProductId</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const statusCheckboxes = document.querySelectorAll('.status-filter');
+            const tableRows = document.querySelectorAll('#allegro-table tbody tr');
+            const visibleCountSpan = document.getElementById('visible-count');
+            const removeFilteredBtn = document.getElementById('remove-filtered');
+            const storeNameForJs = @Json.Serialize(storeName);
+            const currentStoreId = @Json.Serialize(storeId);
+
+            function applyFilters() {
+                const selectedStatuses = Array.from(statusCheckboxes)
+                    .filter(ch => ch.checked).map(ch => ch.dataset.status);
+
+                let visibleRowCount = 0;
+
+                tableRows.forEach(row => {
+
+                    if (!row.dataset.status) return;
+
+                    const rowStatus = row.dataset.status;
+
+                    let shouldShow = false;
+
+                    if (rowStatus === 'rejected') {
+                        shouldShow = selectedStatuses.includes('rejected');
+                    } else {
+                        shouldShow = selectedStatuses.includes(rowStatus);
+                    }
+
+                    if (shouldShow) {
+                        row.style.display = '';
+                        visibleRowCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                if (visibleCountSpan) {
+                    visibleCountSpan.textContent = `(${visibleRowCount} widocznych)`;
+                }
+            }
+
+            statusCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
+
+            if (removeFilteredBtn) {
+                removeFilteredBtn.addEventListener('click', () => {
+                    const visibleIds = [];
+                    tableRows.forEach(row => {
+                        if (row.style.display !== 'none' && row.dataset.productId) {
+                            visibleIds.push(parseInt(row.dataset.productId, 10));
+                        }
+                    });
+
+                    if (visibleIds.length === 0) {
+                        alert("Brak widocznych produktów do usunięcia.");
+                        return;
+                    }
+
+                    if (!confirm(`Czy na pewno usunąć ${visibleIds.length} widocznych produktów Allegro ze sklepu ${storeNameForJs}?`)) {
+                        return;
+                    }
+
+                    const removeUrl = `@Url.Action("RemoveSelectedAllegroProducts", "ProductMapping")?storeId=${currentStoreId}`;
+
+                    fetch(removeUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(visibleIds)
+                    })
+                    .then(async response => {
+                        const data = await response.json();
+                        if (data.success) {
+                            alert(`Usunięto ${data.count} produktów.`);
+
+                            tableRows.forEach(row => {
+                                if (row.dataset.productId && visibleIds.includes(parseInt(row.dataset.productId))) {
+                                    row.remove();
+                                }
+                            });
+                            applyFilters();
+                        } else {
+                            alert("Błąd: " + data.message);
+                        }
+                    })
+                    .catch(err => alert("Błąd komunikacji: " + err));
+                });
+            }
+
+            applyFilters();
+        });
+    </script>
+}

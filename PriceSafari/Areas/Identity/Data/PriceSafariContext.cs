@@ -102,11 +102,11 @@ namespace PriceSafari.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<ProductFlag>()
-                .HasOne(pf => pf.AllegroProduct)
-                .WithMany(ap => ap.ProductFlags)
-                .HasForeignKey(pf => pf.AllegroProductId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
+    .HasOne(pf => pf.AllegroProduct)
+    .WithMany(ap => ap.ProductFlags)
+    .HasForeignKey(pf => pf.AllegroProductId)
+    .IsRequired(false)
+    .OnDelete(DeleteBehavior.Cascade); // <--- ZMIANA TUTAJ
 
             modelBuilder.Entity<ProductFlag>()
                 .HasOne(pf => pf.Flag)

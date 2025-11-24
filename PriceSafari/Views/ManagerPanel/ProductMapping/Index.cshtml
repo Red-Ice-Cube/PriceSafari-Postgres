@@ -52,6 +52,12 @@
                                     {
                                         <span>Brak URL do mapowania produktów</span>
                                     }
+                                    @if (store.OnAllegro)
+                                    {
+                                        <a asp-action="MappedProductsAllegro" asp-route-storeId="@store.StoreId" class="btn btn-warning text-dark fw-bold" title="Zarządzaj produktami Allegro">
+                                            <i class="fab fa-allegro"></i> Produkty Allegro
+                                        </a>
+                                    }
                                 </td>
                                 <td>
                                     @if (!string.IsNullOrEmpty(store.ProductMapXmlUrl))

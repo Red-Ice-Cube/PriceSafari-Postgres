@@ -34,7 +34,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("LabelsId");
 
-                    b.ToTable("ClientProfileContactLabel");
+                    b.ToTable("ClientProfileContactLabel", (string)null);
                 });
 
             modelBuilder.Entity("CoOfrClass", b =>
@@ -96,7 +96,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("CoOfrs");
+                    b.ToTable("CoOfrs", (string)null);
                 });
 
             modelBuilder.Entity("GlobalPriceReport", b =>
@@ -146,7 +146,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("RegionId");
 
-                    b.ToTable("GlobalPriceReports");
+                    b.ToTable("GlobalPriceReports", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -310,7 +310,7 @@ namespace PriceSafari.Migrations
                     b.HasIndex("ProductId", "ScrapHistoryId")
                         .IsUnique();
 
-                    b.ToTable("PriceHistoryExtendedInfos");
+                    b.ToTable("PriceHistoryExtendedInfos", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.AffiliateVerification", b =>
@@ -333,7 +333,7 @@ namespace PriceSafari.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("AffiliateVerification");
+                    b.ToTable("AffiliateVerification", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.AllegroOfferToScrape", b =>
@@ -404,7 +404,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("AllegroOffersToScrape");
+                    b.ToTable("AllegroOffersToScrape", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.AllegroPriceBridgeBatch", b =>
@@ -441,7 +441,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AllegroPriceBridgeBatches");
+                    b.ToTable("AllegroPriceBridgeBatches", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.AllegroPriceBridgeItem", b =>
@@ -504,7 +504,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("AllegroProductId");
 
-                    b.ToTable("AllegroPriceBridgeItems");
+                    b.ToTable("AllegroPriceBridgeItems", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.AllegroPriceHistory", b =>
@@ -567,7 +567,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("AllegroScrapeHistoryId");
 
-                    b.ToTable("AllegroPriceHistories");
+                    b.ToTable("AllegroPriceHistories", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.AllegroPriceHistoryExtendedInfoClass", b =>
@@ -611,7 +611,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("ScrapHistoryId");
 
-                    b.ToTable("AllegroPriceHistoryExtendedInfos");
+                    b.ToTable("AllegroPriceHistoryExtendedInfos", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.AllegroProductClass", b =>
@@ -652,7 +652,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("AllegroProducts");
+                    b.ToTable("AllegroProducts", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.AllegroScrapeHistory", b =>
@@ -679,7 +679,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("AllegroScrapeHistories");
+                    b.ToTable("AllegroScrapeHistories", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.AllegroScrapedOffer", b =>
@@ -737,7 +737,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("AllegroOfferToScrapeId");
 
-                    b.ToTable("AllegroScrapedOffers");
+                    b.ToTable("AllegroScrapedOffers", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.CategoryClass", b =>
@@ -766,7 +766,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ClientProfile", b =>
@@ -820,7 +820,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("CreatedByUserId");
 
-                    b.ToTable("ClientProfiles");
+                    b.ToTable("ClientProfiles", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.CoOfrPriceHistoryClass", b =>
@@ -877,7 +877,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("CoOfrClassId");
 
-                    b.ToTable("CoOfrPriceHistories");
+                    b.ToTable("CoOfrPriceHistories", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.CompetitorPresetClass", b =>
@@ -914,7 +914,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("CompetitorPresets");
+                    b.ToTable("CompetitorPresets", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.CompetitorPresetItem", b =>
@@ -942,7 +942,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("PresetId");
 
-                    b.ToTable("CompetitorPresetItems");
+                    b.ToTable("CompetitorPresetItems", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ContactLabel", b =>
@@ -963,7 +963,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ContactLabels");
+                    b.ToTable("ContactLabels", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.DeviceStatus", b =>
@@ -1019,7 +1019,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DeviceStatuses");
+                    b.ToTable("DeviceStatuses", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.EmailTemplate", b =>
@@ -1044,7 +1044,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("EmailTemplates");
+                    b.ToTable("EmailTemplates", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.FlagsClass", b =>
@@ -1073,7 +1073,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("Flags");
+                    b.ToTable("Flags", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.GoogleScrapingProduct", b =>
@@ -1112,7 +1112,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("RegionId");
 
-                    b.ToTable("GoogleScrapingProducts");
+                    b.ToTable("GoogleScrapingProducts", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.InvoiceClass", b =>
@@ -1198,7 +1198,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("Invoices");
+                    b.ToTable("Invoices", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.InvoiceCounter", b =>
@@ -1220,7 +1220,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("InvoiceCounterId");
 
-                    b.ToTable("InvoiceCounters");
+                    b.ToTable("InvoiceCounters", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PlanClass", b =>
@@ -1265,7 +1265,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("PlanId");
 
-                    b.ToTable("Plans");
+                    b.ToTable("Plans", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PriceData", b =>
@@ -1302,7 +1302,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("ScrapingProductId");
 
-                    b.ToTable("PriceData");
+                    b.ToTable("PriceData", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PriceHistoryClass", b =>
@@ -1353,7 +1353,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("ScrapHistoryId");
 
-                    b.ToTable("PriceHistories");
+                    b.ToTable("PriceHistories", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PriceSafariReport", b =>
@@ -1391,7 +1391,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("PriceSafariReports");
+                    b.ToTable("PriceSafariReports", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PriceSafariUserStore", b =>
@@ -1409,7 +1409,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("UserStores");
+                    b.ToTable("UserStores", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.PriceValueClass", b =>
@@ -1504,7 +1504,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("PriceValues");
+                    b.ToTable("PriceValues", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ProductClass", b =>
@@ -1615,7 +1615,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("Products");
+                    b.ToTable("Products", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ProductFlag", b =>
@@ -1643,7 +1643,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("ProductFlags");
+                    b.ToTable("ProductFlags", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ProductMap", b =>
@@ -1708,7 +1708,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("ProductMapId");
 
-                    b.ToTable("ProductMaps");
+                    b.ToTable("ProductMaps", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ProductXML.CeneoFieldMapping", b =>
@@ -1732,7 +1732,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("CeneoFieldMappings");
+                    b.ToTable("CeneoFieldMappings", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ProductXML.GoogleFieldMapping", b =>
@@ -1756,7 +1756,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("GoogleFieldMappings");
+                    b.ToTable("GoogleFieldMappings", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.Region", b =>
@@ -1784,7 +1784,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("RegionId");
 
-                    b.ToTable("Regions");
+                    b.ToTable("Regions", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.SchedulePlan.DayDetail", b =>
@@ -1797,7 +1797,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DayDetails");
+                    b.ToTable("DayDetails", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.SchedulePlan.SchedulePlan", b =>
@@ -1859,7 +1859,7 @@ namespace PriceSafari.Migrations
                         .IsUnique()
                         .HasFilter("[WednesdayId] IS NOT NULL");
 
-                    b.ToTable("SchedulePlans");
+                    b.ToTable("SchedulePlans", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.SchedulePlan.ScheduleTask", b =>
@@ -1914,7 +1914,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("DayDetailId");
 
-                    b.ToTable("ScheduleTasks");
+                    b.ToTable("ScheduleTasks", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.SchedulePlan.ScheduleTaskStore", b =>
@@ -1937,7 +1937,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("ScheduleTaskStores");
+                    b.ToTable("ScheduleTaskStores", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.ScrapHistoryClass", b =>
@@ -1964,7 +1964,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("ScrapHistories");
+                    b.ToTable("ScrapHistories", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.Settings", b =>
@@ -2007,7 +2007,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("SettingsId");
 
-                    b.ToTable("Settings");
+                    b.ToTable("Settings", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.StoreClass", b =>
@@ -2119,7 +2119,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("PlanId");
 
-                    b.ToTable("Stores");
+                    b.ToTable("Stores", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.TaskExecutionLog", b =>
@@ -2150,7 +2150,7 @@ namespace PriceSafari.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TaskExecutionLogs");
+                    b.ToTable("TaskExecutionLogs", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.UserMessage", b =>
@@ -2179,7 +2179,7 @@ namespace PriceSafari.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserMessages");
+                    b.ToTable("UserMessages", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafari.Models.UserPaymentData", b =>
@@ -2224,7 +2224,7 @@ namespace PriceSafari.Migrations
                     b.HasIndex("StoreId")
                         .IsUnique();
 
-                    b.ToTable("UserPaymentDatas");
+                    b.ToTable("UserPaymentDatas", (string)null);
                 });
 
             modelBuilder.Entity("PriceSafariUser", b =>

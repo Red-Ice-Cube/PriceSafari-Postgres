@@ -393,7 +393,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 mainProduct.ProducerCode = duplicateProduct.ProducerCode;
             }
 
-
             mainProduct.PriceHistories ??= new List<PriceHistoryClass>();
             foreach (var priceHistory in duplicateProduct.PriceHistories ?? Enumerable.Empty<PriceHistoryClass>())
             {
@@ -719,7 +718,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             {
                 product.Producer = producerToSet;
             }
-            // Poprawne dodanie mapowania dla ProducerCode
+
             if (!string.IsNullOrEmpty(mappedProduct.GoogleExportedProducerCode))
             {
                 if (string.IsNullOrEmpty(product.ProducerCode))
@@ -734,7 +733,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                     product.ProducerCode = mappedProduct.CeneoExportedProducerCode;
                 }
             }
-
 
         }
 
@@ -760,6 +758,117 @@ namespace PriceSafari.Controllers.ManagerControllers
                 TempData["ErrorMessage"] = $"Błąd przy usuwaniu produktów dla StoreId={storeId}: {ex.Message}";
                 return RedirectToAction("MappedProducts", new { storeId });
             }
+        }
+
+        public async Task<IActionResult> MappedProductsAllegro(int storeId)
+        {
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
+            {
+                return NotFound("Sklep nie znaleziony.");
+            }
+
+            var allegroProducts = await _context.AllegroProducts
+                .Where(p => p.StoreId == storeId)
+                .ToListAsync();
+
+            var vmList = new List<MappedProductAllegroViewModel>();
+
+            foreach (var p in allegroProducts)
+            {
+                var vm = new MappedProductAllegroViewModel
+                {
+                    AllegroProductId = p.AllegroProductId,
+                    ProductName = p.AllegroProductName,
+                    Url = p.AllegroOfferUrl,
+                    Ean = p.AllegroEan,
+                    MarginPrice = p.AllegroMarginPrice,
+                    IsScrapable = p.IsScrapable,
+                    IsRejected = p.IsRejected,
+                    AddedDate = p.AddedDate
+                };
+                vmList.Add(vm);
+            }
+
+            ViewBag.StoreName = store.StoreName;
+            ViewBag.StoreId = storeId;
+
+            return View("~/Views/ManagerPanel/ProductMapping/MappedProductsAllegro.cshtml", vmList);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RemoveSelectedAllegroProducts(int storeId, [FromBody] List<int> productIds)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+
+                    var flagsToRemove = await _context.ProductFlags
+                        .Where(f => f.AllegroProductId.HasValue && productIds.Contains(f.AllegroProductId.Value))
+                        .ToListAsync();
+
+                    if (flagsToRemove.Any())
+                    {
+                        _context.ProductFlags.RemoveRange(flagsToRemove);
+                    }
+
+                    var extendedInfosToRemove = await _context.AllegroPriceHistoryExtendedInfos
+                        .Where(x => productIds.Contains(x.AllegroProductId))
+                        .ToListAsync();
+
+                    if (extendedInfosToRemove.Any())
+                    {
+                        _context.AllegroPriceHistoryExtendedInfos.RemoveRange(extendedInfosToRemove);
+                    }
+
+                    var historiesToRemove = await _context.AllegroPriceHistories
+                        .Where(h => productIds.Contains(h.AllegroProductId))
+                        .ToListAsync();
+
+                    if (historiesToRemove.Any())
+                    {
+                        _context.AllegroPriceHistories.RemoveRange(historiesToRemove);
+                    }
+
+                    await _context.SaveChangesAsync();
+
+                    var productsToRemove = await _context.AllegroProducts
+                        .Where(p => p.StoreId == storeId && productIds.Contains(p.AllegroProductId))
+                        .ToListAsync();
+
+                    if (productsToRemove.Any())
+                    {
+                        _context.AllegroProducts.RemoveRange(productsToRemove);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    await transaction.CommitAsync();
+
+                    return Json(new { success = true, count = productsToRemove.Count });
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    var msg = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                    return Json(new { success = false, message = $"Błąd: {msg}" });
+                }
+            });
+        }
+
+        public class MappedProductAllegroViewModel
+        {
+            public int AllegroProductId { get; set; }
+            public string ProductName { get; set; }
+            public string Url { get; set; }
+            public string Ean { get; set; }
+            public decimal? MarginPrice { get; set; }
+            public bool IsScrapable { get; set; }
+            public bool IsRejected { get; set; }
+            public DateTime AddedDate { get; set; }
         }
     }
 }
