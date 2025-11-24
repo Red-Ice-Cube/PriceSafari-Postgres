@@ -31,8 +31,8 @@
                                 <th>Klienci (@Model.Clients.Count)</th>
                                 <th>E-mail</th>
                                 <th>Ilość produktów</th>
-                                <th>Liczba Wysłanych Emaili</th>
-                                <th>Data Ostatniego Emaila</th>
+                                <th>Wysłane</th>
+                                <th>Data</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -40,27 +40,10 @@
                             {
                                 <tr>
                                     <td>@client.CeneoProfileName</td>
-                                    <td>
-                                        @{
-                                            var emailAddresses = client.CeneoProfileEmail
-                                            ?.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                                            .Select(e => e.Trim());
-                                        }
-                                        @if (emailAddresses != null && emailAddresses.Any())
-                                        {
-                                            foreach (var email in emailAddresses)
-                                            {
-                                                <div>@email</div>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <span>Brak adresu email</span>
-                                        }
-                                    </td>
+                                    <td>@client.CeneoProfileEmail</td>
                                     <td>@client.CeneoProfileProductCount</td>
                                     <td>@client.EmailSentCount</td>
-                                    <td>@(client.LastEmailSentDate.HasValue? client.LastEmailSentDate.Value.ToString("dd-MM-yyyy HH:mm") : "Brak")</td>
+                                    <td>@(client.LastEmailSentDate.HasValue? client.LastEmailSentDate.Value.ToString("dd-MM-yyyy HH:mm") : "-")</td>
                                 </tr>
                             }
                         </tbody>
@@ -69,36 +52,49 @@
 
                 <input type="hidden" id="HiddenSelectedMailType" name="SelectedMailType" value="@Model.SelectedMailType" />
 
-                <div id="mailTypeDropdownContainer" style="margin-bottom: 10px; margin-top: 10px;">
+                <div style="margin-bottom: 15px; margin-top: 15px;">
+                    <label style="font-weight:bold;">Wybierz szablon wiadomości:</label><br />
+                    <select id="SelectedMailType" style="padding: 8px; width: 100%; border: 1px solid #ccc; border-radius: 4px;">
+                        @if (Model.AvailableTemplates != null)
+                        {
+                            foreach (var template in Model.AvailableTemplates)
+                            {
+                                <!option value="@template.Id" @(template.Id == Model.SelectedMailType ? "selected" : "")>
+                                @template.Name
+                                </!option>
+                            }
+                        }
+                        else
+                        {
+                            <option value="0">Brak szablonów w bazie</option>
+                        }
+                    </select>
                 </div>
 
                 <div>
-                    <label>Treść wiadomości (edytowalna):</label>
+                    <label style="font-weight:bold;">Treść wiadomości (edytowalna):</label>
                     <textarea id="EmailContentEditor" name="EmailContent">
                         @Html.Raw(Model.EmailContent)
                     </textarea>
                 </div>
 
                 <div style="margin-top: 20px;">
-                    <label for="EmailSubject">Temat Emaila:</label><br />
-                    <input type="text" name="EmailSubject" id="EmailSubject" value="@Model.EmailSubject" style="width: 100%; padding: 5px;" />
+                    <label for="EmailSubject" style="font-weight:bold;">Temat Emaila:</label><br />
+                    <input type="text" name="EmailSubject" id="EmailSubject" value="@Model.EmailSubject" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
                 </div>
 
-                <p style="margin-top: 10px;">
-                    Treść wiadomości zawiera zastępniki, np.:<br />
-                    <strong>{ProductCount}</strong> – zostanie zastąpione liczbą produktów klienta (tylko w tych mailach, gdzie to ma sens)<br />
-                    <strong>{ClientName}</strong> – zostanie zastąpione nazwą klienta.
+                <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
+                    Dostępne zmienne: <strong>{ProductCount}</strong> (liczba produktów), <strong>{ClientName}</strong> (nazwa firmy).
                 </p>
 
-                <button type="submit" class="Button-Page-Small-r">Wyślij E-maile</button>
+                <button type="submit" class="Button-Page-Small-r" style="margin-top:10px;">Wyślij E-maile</button>
             </form>
         </div>
     </div>
 </div>
 
 <script>
-    // Inicjalizacja TinyMCE - musi być poza document.ready w niektórych przypadkach, ale tutaj jest OK
-    // Ważne: Selector musi pasować do ID textarea powyżej (#EmailContentEditor)
+    // Inicjalizacja TinyMCE
     tinymce.init({
         selector: '#EmailContentEditor',
         height: 600,
@@ -108,69 +104,48 @@
     });
 
     $(document).ready(function() {
-        console.log("document.ready - start!");
-
-        // Generowanie dropdown
-        var mailTypes = [
-            { value: 1, text: 'Mail 1' },
-            { value: 2, text: 'Mail 2' },
-            { value: 3, text: 'Mail 3' }
-        ];
-        var dropdownHtml = '<label>Wybierz szablon:</label><br />' +
-                           '<select id="SelectedMailType" style="padding: 5px;">';
-        mailTypes.forEach(function(item) {
-            dropdownHtml += '<option value="' + item.value + '">' + item.text + '</option>';
-        });
-        dropdownHtml += '</select>';
-
-        $('#mailTypeDropdownContainer').html(dropdownHtml);
-
-        // Ustawienie początkowej wartości selecta
-        var initialType = $('#HiddenSelectedMailType').val();
-        if(initialType) {
-            $('#SelectedMailType').val(initialType);
-        }
-
-        // Obsługa zmiany rodzaju maila
+        // Obsługa zmiany szablonu
         $('#SelectedMailType').change(function() {
-            var selectedMailType = $(this).val();
-            console.log("Zmieniono mailType na:", selectedMailType);
+            var selectedTemplateId = $(this).val();
+            console.log("Wybrano ID szablonu:", selectedTemplateId);
 
-            // Ustaw hidden input dla typu maila
-            $('#HiddenSelectedMailType').val(selectedMailType);
+            // Aktualizujemy hidden input (żeby formularz wiedział co wysłać, choć teraz ważniejszy jest Content)
+            $('#HiddenSelectedMailType').val(selectedTemplateId);
 
             var selectedClientIds = [];
             $('input[name="SelectedClientIds"]').each(function() {
                 selectedClientIds.push(parseInt($(this).val()));
             });
 
-            // Pobieranie nowej treści AJAXem
+            // Pobieramy treść i temat z bazy
             $.ajax({
                 url: '/ClientProfile/ChangeMailTypeAjax',
                 type: 'POST',
                 data: {
-                    mailType: parseInt(selectedMailType),
+                    mailType: parseInt(selectedTemplateId), // To teraz ID z bazy
                     selectedClientIds: selectedClientIds
                 },
                 traditional: true,
                 success: function (response) {
-                    console.log("Odebrano z serwera:", response);
-                    if (response && response.content) {
-
-                        // Aktualizacja TinyMCE
-                        if (tinymce.get('EmailContentEditor')) {
-                            tinymce.get('EmailContentEditor').setContent(response.content);
-                        } else {
-                            $('#EmailContentEditor').val(response.content);
+                    if (response) {
+                        // 1. Aktualizacja TinyMCE
+                        if (response.content) {
+                            if (tinymce.get('EmailContentEditor')) {
+                                tinymce.get('EmailContentEditor').setContent(response.content);
+                            } else {
+                                $('#EmailContentEditor').val(response.content);
+                            }
                         }
 
-                    } else {
-                        console.warn("W odpowiedzi brak klucza 'content'.", response);
+                        // 2. Aktualizacja Tematu
+                        if (response.subject) {
+                            $('#EmailSubject').val(response.subject);
+                        }
                     }
                 },
                 error: function (xhr) {
                     console.error("Błąd AJAX:", xhr);
-                    alert('Błąd podczas pobierania treści maila.');
+                    alert('Nie udało się pobrać treści szablonu.');
                 }
             });
         });

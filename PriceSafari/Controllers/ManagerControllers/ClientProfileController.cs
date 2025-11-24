@@ -301,7 +301,6 @@ public class ClientProfileController : Controller
 
         return View("~/Views/ManagerPanel/ClientProfiles/Edit.cshtml", model);
     }
-
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> PrepareEmails(SelectedClientIdsModel model)
@@ -312,7 +311,6 @@ public class ClientProfileController : Controller
         }
 
         var selectedClientIds = model.SelectedClientIds;
-
         var allClients = await _context.ClientProfiles.ToListAsync();
         var clients = allClients.Where(cp => selectedClientIds.Contains(cp.ClientProfileId)).ToList();
 
@@ -321,87 +319,72 @@ public class ClientProfileController : Controller
             return BadRequest("Nie znaleziono wybranych klientów.");
         }
 
+        // 1. Pobieramy szablony z bazy danych
+        var templates = await _context.EmailTemplates.ToListAsync();
+
+        // 2. Pobieramy pierwszy domyślny szablon (jeśli istnieje)
+        var defaultTemplate = templates.FirstOrDefault();
+
         var sendEmailViewModel = new SendEmailViewModel
         {
             Clients = clients,
             SelectedClientIds = selectedClientIds,
-            EmailSubject = "",
-            EmailContent = GetEmailContent1(),
-            SelectedMailType = 1
+            AvailableTemplates = templates, // Przekazujemy listę do dropdowna w widoku
+
+            // Ustawiamy wartości domyślne z pierwszego szablonu w bazie
+            SelectedMailType = defaultTemplate?.Id ?? 0,
+            EmailSubject = defaultTemplate?.Subject ?? "",
+            EmailContent = defaultTemplate?.Content ?? ""
         };
 
         return View("~/Views/ManagerPanel/ClientProfiles/PrepareEmails.cshtml", sendEmailViewModel);
     }
 
     [HttpPost]
-    public IActionResult ChangeMailTypeAjax(int mailType, List<int> selectedClientIds)
+    public async Task<IActionResult> ChangeMailTypeAjax(int mailType, List<int> selectedClientIds)
     {
+        // 1. Szukamy szablonu w bazie po ID (mailType to teraz ID szablonu)
+        var template = await _context.EmailTemplates.FindAsync(mailType);
 
-        string baseContent;
-        switch (mailType)
+        if (template != null)
         {
-            case 1:
-                baseContent = GetEmailContent1();
-                break;
-            case 2:
-                baseContent = GetEmailContent2();
-                break;
-            case 3:
-                baseContent = GetEmailContent3();
-                break;
-            default:
-                baseContent = GetEmailContent1();
-                break;
+            // Zwracamy treść oraz temat z bazy
+            return Json(new { content = template.Content, subject = template.Subject });
         }
 
-        return Json(new { content = baseContent });
+        return Json(new { content = "", subject = "" });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ConfirmSendEmails(SendEmailViewModel model)
     {
-        // 1. Walidacja (bez zmian)
         if (model.SelectedClientIds == null || !model.SelectedClientIds.Any())
         {
             ModelState.AddModelError("", "Nie wybrano żadnych klientów.");
+            // Musimy ponownie załadować szablony, jeśli wracamy do widoku z błędem
+            model.AvailableTemplates = await _context.EmailTemplates.ToListAsync();
             return View("PrepareEmails", model);
         }
 
         if (string.IsNullOrWhiteSpace(model.EmailSubject))
         {
             ModelState.AddModelError("", "Temat emaila nie może być pusty.");
+            model.AvailableTemplates = await _context.EmailTemplates.ToListAsync();
             return View("PrepareEmails", model);
         }
 
-        // ---------------------------------------------------------
-        // ZMIANA 1: Pobieranie treści
-        // ---------------------------------------------------------
-
-        // Najpierw próbujemy wziąć to, co przyszło z edytora TinyMCE
+        // 1. Bierzemy treść BEZPOŚREDNIO z edytora (model.EmailContent)
+        // Usunęliśmy stary switch/case i hardcodowane metody.
         string baseContent = model.EmailContent;
 
-        // Jeśli edytor był pusty (zabezpieczenie), generujemy treść z szablonu jak dawniej
         if (string.IsNullOrWhiteSpace(baseContent))
         {
-            switch (model.SelectedMailType)
-            {
-                case 1:
-                    baseContent = GetEmailContent1();
-                    break;
-                case 2:
-                    baseContent = GetEmailContent2();
-                    break;
-                case 3:
-                    baseContent = GetEmailContent3();
-                    break;
-                default:
-                    baseContent = GetEmailContent1();
-                    break;
-            }
+            ModelState.AddModelError("", "Treść wiadomości jest pusta.");
+            model.AvailableTemplates = await _context.EmailTemplates.ToListAsync();
+            return View("PrepareEmails", model);
         }
 
-        // Pobieranie klientów (bez zmian)
         var allClients = await _context.ClientProfiles.ToListAsync();
         var clientsToEmail = allClients
             .Where(cp => model.SelectedClientIds.Contains(cp.ClientProfileId))
@@ -411,30 +394,22 @@ public class ClientProfileController : Controller
         {
             try
             {
-                // ---------------------------------------------------------
-                // ZMIANA 2: Podmiana zmiennych (bardziej elastyczna)
-                // ---------------------------------------------------------
-
                 var personalizedContent = baseContent
                     .Replace("{ClientName}", client.CeneoProfileName);
 
-                // Zamiast sprawdzać SelectedMailType, po prostu podstawiamy liczbę.
-                // Jeśli w treści (HTML) nie ma znacznika {ProductCount}, ta funkcja nic nie zepsuje.
-                // A jeśli dodałeś go ręcznie w TinyMCE, to się ładnie podstawi.
                 if (client.CeneoProfileProductCount.HasValue)
                 {
                     personalizedContent = personalizedContent.Replace("{ProductCount}", client.CeneoProfileProductCount.ToString());
                 }
                 else
                 {
-                    // Jeśli klient nie ma liczby produktów, czyścimy znacznik żeby nie straszył
                     personalizedContent = personalizedContent.Replace("{ProductCount}", "");
                 }
 
-                // Doklejenie stopki (bez zmian)
+                // Stopka zostaje jako metoda pomocnicza (poniżej), 
+                // chyba że też chcesz ją przenieść do treści w bazie danych.
                 var emailBody = personalizedContent + GetEmailFooter();
 
-                // Wysyłka (bez zmian)
                 var emailAddresses = client.CeneoProfileEmail
                     .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(e => e.Trim())
@@ -446,7 +421,6 @@ public class ClientProfileController : Controller
                     await _emailSender.SendEmailAsync(email, model.EmailSubject, emailBody);
                 }
 
-                // Aktualizacja statusu (bez zmian)
                 client.Status = ClientStatus.Mail;
                 client.EmailSentCount += 1;
                 client.LastEmailSentDate = DateTime.Now;
@@ -463,229 +437,6 @@ public class ClientProfileController : Controller
         return RedirectToAction("Index");
     }
 
-    private string GetEmailContent1()
-    {
-        return @"
-        <html>
-          <head>
-            <meta charset=""UTF-8""/>
-            <style>
-                body {
-                    font-size: 17px; 
-                    font-family: Arial, sans-serif;
-                    line-height: 1.5; 
-                    margin: 0;
-                    padding: 0;
-                }
-                p {
-                    margin: 0 0 0px 0; 
-                }
-                ul {
-                    margin: 0 0 10px 20px;
-                    padding: 0;
-                }
-                li {
-                    margin: 5px 0; 
-                }
-                img {
-                    max-width: 100%; 
-                    height: auto;
-                }
-            </style>
-            </head>
-            <body>
-
-            <p>Dzień dobry,</p>
-
-            <p>Monitorujemy ceny produktów na Google Shopping i Ceneo.</p>
-            <p>Spojrzenie na cały rynek z jednego panelu pozwoli Państwu strategicznie zarządzać cenami własnych produktów, maksymalizować zyski i wyprzedzać konkurentów.</p>
-            <p>Na samym Ceneo zaindeksowaliśmy <strong>{ProductCount}</strong> produktów dostępnych w Państwa sklepie, które moglibyśmy zacząć monitorować.</p>
-            <br>
-            <p>Dzięki śledzeniu cen, możemy szybko sprawdzić:</p>
-
-            <ul>
-                <li>Kto ma najlepszą cenę na danym produkcie?</li>
-                <li>Gdzie w rankingu cenowym znajduje się Państwa oferta?</li>
-                <li>Kto i gdzie promuje oferty?</li>
-                <li>Jak szeroka jest konkurencja?</li>
-                <li>Jaki czas wysyłki oferują poszczególni konkurenci?</li>
-                <li>Które ceny produktów można podnieść, aby maksymalizować zyski, wiedząc, że są najtańszymi ofertami na całym rynku?</li>
-                <li>Na jakich produktach wybrany konkurent zmienił wczoraj cenę?</li>
-            </ul>
-
-            <p>Funkcja Co-Pilota cenowego pozwala masowo wprowdzać zmiany, symulować wyniki i eksportować nowe ceny dla setek produktów kilkoma kliknięciami.</p>
-            <br>
-
-            <p>Panel PriceSafari prezentuje aktualną sytuację rynkową ofert z Państwa sklepu na tle konkurencji.</p> 
-            <p>Dzięki zaawansowanym filtrom można precyzyjnie wybrać kanały oraz sklepy, z którymi chcą Państwo konkurować cenowo – i wykluczyć te, z którymi nie.</p>
-            <br>
-            <img src=""https:
-            <br>
-            <br>
-            <br>
-            <p>Po kliknięciu w wybrany produkt, uzyskujemy podgląd wszystkich sklepów sprzedających dokładnie ten sam produkt w Polsce.</p>
-            <p>Możemy sprawdzić, kto oferuje najniższą cenę, jakie są koszty dostawy oraz dostępność towaru.</p>
-            <p>Dodatkowo zobaczymy, jak nasza oferta wypada na tle konkurencji – w zależności od źródła danych, takiego jak Ceneo czy Google Shopping.</p>
-            <br>
-            <img src=""https:
-            <br>
-            <br>
-            <br>
-            <p>Od momentu rozpoczęcia analizy cenowej zaczynamy gromadzić dane o cenach i zapisywać historię 30 ostatnich analiz. </p>
-            <p>Dzięki temu można śledzić, jak zmieniała się cena oraz dostępność danego produktu w czasie.</p>
-            <p>Pozwala to m.in. sprawdzić, którzy z konkurentów modyfikują ceny w weekendy.</p>
-            <br>
-            <img src=""https:
-            <br>
-            <br>
-            <br>
-            <p>PriceSafari umożliwia tworzenie zaawansowanych presetów widoków z danymi, dopasowanych do konkretnych potrzeb.</p>
-            <p>Czasami nie chcemy konkurować z własnym sklepem czy np. z Amazonem – dlatego możemy łatwo wykluczyć wybrane źródła danych i skupić się tylko na tych konkurentach, którzy naprawdę nas interesują.</p>
-            <br>
-            <img src=""https:
-            <br>
-
-            <p>Do programu możemy zaimportować ceny zakupu towarów oraz skonfigurować wiele funkcji, które pozwalają precyzyjnie zarządzać zmianami cen w naszych ofertach.</p>
-            <p>Przykładowo, możemy ustawić minimalną marżę na poziomie 8%, przeprowadzić symulację cenową dla wybranej grupy produktów, a następnie wyeksportować nowe ceny do pliku CSV lub XLSX.</p>
-            <p>Potem wystarczy już tylko zaimportować je do sklepu internetowego i obserwować, jak rośnie sprzedaż – a cały proces, zamiast zajmować godziny żmudnej pracy, trwa dosłownie kilka minut.</p>
-            <br>
-            <img src=""https:
-
-            <p>Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 1000 własnych produktów. Wystarczy przesłać feed produktowy z Państwa sklepu zawierający produkty, które mamy monitorować.</p>
-            <p>Na tej podstawie przygotujemy konto, a podczas krótkiego spotkania online pokażemy, jak korzystać z Panelu PriceSafari w praktyce i przekażemy dostępy do konta.</p>
-            <p>Jeśli są Państwo zainteresowani, prosimy o odpowiedź na tego maila – za Państwa zgodą z przyjemnością prześlemy szczegółową ofertę oraz przygotujemy darmowe konto demo.</p>
-            <br>
-            <br>
-            <br>
-        </body>
-        </html>
-        ";
-    }
-
-    private string GetEmailContent2()
-    {
-        return @"
-        <html>
-        <head>
-            <meta charset=""UTF-8""/>
-            <style>
-                body {
-                    font-size: 17px; 
-                    font-family: Arial, sans-serif;
-                    line-height: 1.5; 
-                    margin: 0;
-                    padding: 0;
-                }
-                p {
-                    margin: 0 0 0px 0; 
-                }
-                ul {
-                    margin: 0 0 10px 20px;
-                    padding: 0;
-                }
-                li {
-                    margin: 5px 0; 
-                }
-                img {
-                    max-width: 100%; 
-                    height: auto;
-                }
-            </style>
-            </head>
-            <body>
-
-            <p>Dzień dobry,</p>
-
-            <p>Monitorujemy ceny produktów na Google Shopping i Ceneo.</p>
-            <p>Spojrzenie na cały rynek z jednego panelu pozwoli Państwu strategicznie zarządzać cenami własnych produktów, maksymalizować zyski i wyprzedzać konkurentów.</p>
-
-            <br>
-            <p>Dzięki śledzeniu cen, możemy szybko sprawdzić:</p>
-
-            <ul>
-                <li>Kto ma najlepszą cenę na danym produkcie?</li>
-                <li>Gdzie w rankingu cenowym znajduje się Państwa oferta?</li>
-                <li>Kto i gdzie promuje oferty?</li>
-                <li>Jak szeroka jest konkurencja?</li>
-                <li>Jaki czas wysyłki oferują poszczególni konkurenci?</li>
-                <li>Które ceny produktów można podnieść, aby maksymalizować zyski, wiedząc, że są najtańszymi ofertami na całym rynku?</li>
-                <li>Na jakich produktach wybrany konkurent zmienił wczoraj cenę?</li>
-            </ul>
-
-            <p>Funkcja Co-Pilota cenowego pozwala masowo wprowdzać zmiany, symulować wyniki i eksportować nowe ceny dla setek produktów kilkoma kliknięciami.</p>
-            <br>
-
-            <p>Panel PriceSafari prezentuje aktualną sytuację rynkową ofert z Państwa sklepu na tle konkurencji.</p> 
-            <p>Dzięki zaawansowanym filtrom można precyzyjnie wybrać kanały oraz sklepy, z którymi chcą Państwo konkurować cenowo – i wykluczyć te, z którymi nie.</p>
-            <br>
-            <img src=""https:
-            <br>
-            <br>
-            <br>
-            <p>Po kliknięciu w wybrany produkt, uzyskujemy podgląd wszystkich sklepów sprzedających dokładnie ten sam produkt w Polsce.</p>
-            <p>Możemy sprawdzić, kto oferuje najniższą cenę, jakie są koszty dostawy oraz dostępność towaru.</p>
-            <p>Dodatkowo zobaczymy, jak nasza oferta wypada na tle konkurencji – w zależności od źródła danych, takiego jak Ceneo czy Google Shopping.</p>
-            <br>
-            <img src=""https:
-            <br>
-            <br>
-            <br>
-            <p>Od momentu rozpoczęcia analizy cenowej zaczynamy gromadzić dane o cenach i zapisywać historię 30 ostatnich analiz. </p>
-            <p>Dzięki temu można śledzić, jak zmieniała się cena oraz dostępność danego produktu w czasie.</p>
-            <p>Pozwala to m.in. sprawdzić, którzy z konkurentów modyfikują ceny w weekendy.</p>
-            <br>
-            <img src=""https:
-            <br>
-            <br>
-            <br>
-            <p>PriceSafari umożliwia tworzenie zaawansowanych presetów widoków z danymi, dopasowanych do konkretnych potrzeb.</p>
-            <p>Czasami nie chcemy konkurować z własnym sklepem czy np. z Amazonem – dlatego możemy łatwo wykluczyć wybrane źródła danych i skupić się tylko na tych konkurentach, którzy naprawdę nas interesują.</p>
-            <br>
-            <img src=""https:
-            <br>
-
-            <p>Do programu możemy zaimportować ceny zakupu towarów oraz skonfigurować wiele funkcji, które pozwalają precyzyjnie zarządzać zmianami cen w naszych ofertach.</p>
-            <p>Przykładowo, możemy ustawić minimalną marżę na poziomie 8%, przeprowadzić symulację cenową dla wybranej grupy produktów, a następnie wyeksportować nowe ceny do pliku CSV lub XLSX.</p>
-            <p>Potem wystarczy już tylko zaimportować je do sklepu internetowego i obserwować, jak rośnie sprzedaż – a cały proces, zamiast zajmować godziny żmudnej pracy, trwa dosłownie kilka minut.</p>
-            <br>
-            <img src=""https:
-
-            <p>Oferujemy bezpłatne konto demo, na którym mogą Państwo przetestować nasz program na 1000 własnych produktów. Wystarczy przesłać feed produktowy z Państwa sklepu zawierający produkty, które mamy monitorować.</p>
-            <p>Na tej podstawie przygotujemy konto, a podczas krótkiego spotkania online pokażemy, jak korzystać z Panelu PriceSafari w praktyce i przekażemy dostępy do konta.</p>
-            <p>Jeśli są Państwo zainteresowani, prosimy o odpowiedź na tego maila – za Państwa zgodą z przyjemnością prześlemy szczegółową ofertę oraz przygotujemy darmowe konto demo.</p>
-            <br>
-            <br>
-            <br>
-        </body>
-        </html>
-        ";
-    }
-    private string GetEmailContent3()
-    {
-        return @"
-        <p>Dzień dobry,</p>
-        <p>Czy tracą Państwo czas na ręcznym śledzeniu cen konkurencji na <strong>Google Shopping</strong> i <strong>Ceneo</strong>?</p>
-        <p>Nasze narzędzie, PriceSafari, automatyzuje proces zbierania cen i pozwala spojrzeć na cały rynek z jednego panelu.</p> 
-        <p>Umożliwia to strategiczne zarządzanie cenami, maksymalizację zysków i wyprzedzenie konkurentów.</p>
-        <br>
-        <p>Dzięki automatycznemu monitoringowi cen konkurencji szybko sprawdzą Państwo:</p>
-        <ul>
-            <li>Kto ma najlepszą cenę na danym produkcie?</li>
-            <li>Gdzie w rankingu cenowym znajduje się Państwa oferta?</li>
-            <li>Kto, gdzie i jak promuje swoje oferty?</li>
-            <li>Jak szeroka jest realna konkurencja?</li>
-            <li>Jakie ceny i czas wysyłki oferują inni?</li>
-            <li>Które ceny można bezpiecznie podnieść, aby zwiększyć zysk?</li>
-            <li>Jakie ruchy cenowe wykonał wczoraj wybrany konkurent?</li>
-        </ul>
-
-        <p>Już pierwsza analiza potrafi przynieść wymierne korzyści. Z doświadczenia naszych klientów wiemy, że w przypadku <strong>7-13% asortymentu</strong> ceny są na tyle niskie, że można je podnieść — <strong>zwiększając zysk, a jednocześnie nadal pozostając najtańszą ofertą na rynku.</strong></p>
-        <p><strong>Czy byliby Państwo zainteresowani bezpłatnym przetestowaniem naszego narzędzia na 500 własnych produktach przez 7 dni?</strong></p>
-        <p>Jeśli tak, wystarczy krótka odpowiedź na tę wiadomość, a ja prześlę więcej szczegółów i pokażę, jak możemy pomóc w rozwoju Państwa biznesu.</p>
-
-   
-    ";
-    }
     private string GetEmailFooter()
     {
         return @"
