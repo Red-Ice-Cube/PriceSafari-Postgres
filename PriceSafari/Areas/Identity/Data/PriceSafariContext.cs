@@ -61,6 +61,7 @@ namespace PriceSafari.Data
         public DbSet<AllegroPriceBridgeBatch> AllegroPriceBridgeBatches { get; set; }
         public DbSet<AllegroPriceBridgeItem> AllegroPriceBridgeItems { get; set; }
         public DbSet<EmailTemplate> EmailTemplates { get; set; }
+        public DbSet<ContactLabel> ContactLabels { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

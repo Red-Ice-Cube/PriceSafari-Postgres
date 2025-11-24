@@ -26,10 +26,167 @@ public class ClientProfileController : Controller
     {
         var clientProfiles = _context.ClientProfiles
             .Include(cp => cp.CreatedByUser)
+            .Include(cp => cp.Labels) // <--- WAŻNE: Załaduj etykiety
             .ToList();
 
         return View("~/Views/ManagerPanel/ClientProfiles/Index.cshtml", clientProfiles);
     }
+
+    // -----------------------------------------------------------
+    // 2. Dodaj nowe metody API (AJAX) do obsługi etykiet
+    // -----------------------------------------------------------
+
+    // Pobierz wszystkie dostępne etykiety (do sidebarów i modali)
+    [HttpGet]
+    public JsonResult GetAllLabels()
+    {
+        var labels = _context.ContactLabels.OrderBy(l => l.Name).ToList();
+        return Json(labels);
+    }
+
+    // Utwórz lub edytuj definicję etykiety
+    [HttpPost]
+    public async Task<JsonResult> SaveLabel(int id, string name, string color)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return Json(new { success = false, message = "Nazwa wymagana" });
+
+        if (id == 0)
+        {
+            // Nowa etykieta
+            var newLabel = new ContactLabel { Name = name, HexColor = color };
+            _context.ContactLabels.Add(newLabel);
+        }
+        else
+        {
+            // Edycja istniejącej
+            var label = await _context.ContactLabels.FindAsync(id);
+            if (label == null) return Json(new { success = false, message = "Nie znaleziono" });
+            label.Name = name;
+            label.HexColor = color;
+        }
+
+        await _context.SaveChangesAsync();
+        return Json(new { success = true });
+    }
+
+    // Usuń definicję etykiety
+    [HttpPost]
+    public async Task<JsonResult> DeleteLabelDefinition(int id)
+    {
+        var label = await _context.ContactLabels.FindAsync(id);
+        if (label != null)
+        {
+            _context.ContactLabels.Remove(label);
+            await _context.SaveChangesAsync();
+        }
+        return Json(new { success = true });
+    }
+
+    // Przypisz etykiety do wybranych klientów (Bulk Action)
+    [HttpPost]
+    public async Task<JsonResult> AssignLabelsToClients(List<int> clientIds, List<int> labelIds)
+    {
+        if (clientIds == null || !clientIds.Any()) return Json(new { success = false, message = "Nie wybrano klientów" });
+
+        var clients = await _context.ClientProfiles
+            .Include(cp => cp.Labels)
+            .Where(cp => clientIds.Contains(cp.ClientProfileId))
+            .ToListAsync();
+
+        var labelsToAdd = await _context.ContactLabels
+            .Where(l => labelIds.Contains(l.Id))
+            .ToListAsync();
+
+        foreach (var client in clients)
+        {
+            foreach (var label in labelsToAdd)
+            {
+                // Dodaj tylko jeśli jeszcze nie ma
+                if (!client.Labels.Any(l => l.Id == label.Id))
+                {
+                    client.Labels.Add(label);
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return Json(new { success = true });
+    }
+
+    // Usuń konkretną etykietę z konkretnego klienta (opcjonalne, np. kliknięcie 'x' na etykiecie w tabeli)
+    [HttpPost]
+    public async Task<JsonResult> RemoveLabelFromClient(int clientId, int labelId)
+    {
+        var client = await _context.ClientProfiles.Include(cp => cp.Labels).FirstOrDefaultAsync(c => c.ClientProfileId == clientId);
+        var label = client?.Labels.FirstOrDefault(l => l.Id == labelId);
+
+        if (client != null && label != null)
+        {
+            client.Labels.Remove(label);
+            await _context.SaveChangesAsync();
+            return Json(new { success = true });
+        }
+        return Json(new { success = false });
+    }
+
+
+
+
+    [HttpPost]
+    public async Task<JsonResult> BatchUpdateLabels(List<int> clientIds, List<int> labelIdsToAdd, List<int> labelIdsToRemove)
+    {
+        if (clientIds == null || !clientIds.Any())
+            return Json(new { success = false, message = "Nie wybrano klientów" });
+
+        var clients = await _context.ClientProfiles
+            .Include(cp => cp.Labels)
+            .Where(cp => clientIds.Contains(cp.ClientProfileId))
+            .ToListAsync();
+
+        // Pobierz potrzebne encje etykiet
+        var labelsToAdd = new List<ContactLabel>();
+        if (labelIdsToAdd != null && labelIdsToAdd.Any())
+        {
+            labelsToAdd = await _context.ContactLabels
+                .Where(l => labelIdsToAdd.Contains(l.Id))
+                .ToListAsync();
+        }
+
+        foreach (var client in clients)
+        {
+            // 1. Usuwanie
+            if (labelIdsToRemove != null && labelIdsToRemove.Any())
+            {
+                var toRemove = client.Labels.Where(l => labelIdsToRemove.Contains(l.Id)).ToList();
+                foreach (var l in toRemove)
+                {
+                    client.Labels.Remove(l);
+                }
+            }
+
+            // 2. Dodawanie
+            foreach (var label in labelsToAdd)
+            {
+                if (!client.Labels.Any(l => l.Id == label.Id))
+                {
+                    client.Labels.Add(label);
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return Json(new { success = true });
+    }
+
+
+
+
+
+
+
+
+
+
 
     public IActionResult Create()
     {

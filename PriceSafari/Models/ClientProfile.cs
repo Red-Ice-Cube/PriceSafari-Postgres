@@ -48,6 +48,8 @@ namespace PriceSafari.Models
         public DateTime? LastEmailSentDate { get; set; }
 
         public ClientSource Source { get; set; } = ClientSource.Ceneo;
+
+        public virtual ICollection<ContactLabel> Labels { get; set; } = new List<ContactLabel>();
     }
 
     public enum ClientSource

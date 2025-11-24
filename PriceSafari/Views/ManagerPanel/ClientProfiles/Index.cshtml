@@ -2,8 +2,8 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     var users = Model.Where(m => m.CreatedByUser != null)
-                     .GroupBy(m => m.CreatedByUser.Id)
-                     .Select(g => g.First().CreatedByUser);
+                      .GroupBy(m => m.CreatedByUser.Id)
+                      .Select(g => g.First().CreatedByUser);
 }
 
 <style>
@@ -14,17 +14,88 @@
     .select-client {
         cursor: pointer;
     }
-</style>
 
+    /* Style dla Etykiet */
+    .contact-label-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        margin: 1px;
+        font-size: 11px;
+        font-weight: 600;
+        color: white;
+        border-radius: 3px;
+        text-shadow: 0px 0px 2px rgba(0,0,0,0.5);
+    }
+
+    .label-filter-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 5px;
+        padding: 2px 0;
+    }
+
+    .label-manager-btn {
+        background: none;
+        border: none;
+        color: #007bff;
+        cursor: pointer;
+        font-size: 12px;
+        padding: 0;
+        text-decoration: underline;
+    }
+
+    /* Modal Styles */
+    .custom-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .custom-modal-content {
+        background-color: #fefefe;
+        margin: 10% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 450px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    /* Trzystanowy checkbox styl (opcjonalnie, przeglądarki obsługują indeterminate natywnie w JS) */
+    .assign-label-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+</style>
 
 <div class="Page-Box" style="min-width:1440px;">
     <div class="Page-Box-Container">
-        <div class="Page-Box-Category" style="min-width:128px;">
-            <div class="Category-Box-Title">
-                Kontakty
-            </div>
+
+        <div class="Page-Box-Category" style="min-width:200px; padding-right: 15px;">
+            <div class="Category-Box-Title">Kontakty</div>
             <partial name="_ContactNavCol" />
+
+            <hr style="margin: 15px 0; border-top: 1px solid #ddd;" />
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="font-weight:bold; font-size:14px;">Etykiety</span>
+                <button type="button" class="label-manager-btn" onclick="openLabelManager()">Edytuj</button>
+            </div>
+
+            <div id="labelFilterContainer">
+                <div style="color:gray; font-size:12px;">Ładowanie...</div>
+            </div>
         </div>
+
         <div class="Horizontal">
 
             <div class="product-upper-box" style="justify-content: flex-start; gap:16px;">
@@ -32,11 +103,14 @@
                 <button type="button" class="Button-Page-Small-gr" onclick="exportToCsv()">Eksportuj do CSV</button>
                 <a asp-action="Index" asp-controller="ClientProfileScraper" class="Button-Page-Small-r">Scraper Klientów</a>
                 <a asp-controller="EmailTemplates" asp-action="Index" class="Button-Page-Small-b" style="background-color:blueviolet">Szablony Wiadomości</a>
+
+                <button type="button" class="Button-Page-Small" style="background-color: #e83e8c;" onclick="openAssignLabelModal()">Zarządzaj Etykietami</button>
+
                 <input type="text" id="accountSearch" placeholder="Wyszukaj firmę">
 
                 <div style="display:flex; flex-direction:column;">
                     <input type="date" class="dateSelect" id="startDate" placeholder="Data od (Nadanie)" />
-                    <input type="date" class="dateSelect" id="endDate" placeholder="Data do (Nadanie)" />Wprowa
+                    <input type="date" class="dateSelect" id="endDate" placeholder="Data do (Nadanie)" />
                 </div>
 
                 <select id="createdByFilter" class="DropDown">
@@ -66,11 +140,6 @@
                 <button type="button" class="Button-Page-Small-b" onclick="sendEmails()">Kokpit wiadomości E-mail</button>
             </div>
 
-            @if (TempData["ErrorMessage"] != null)
-            {
-                <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
-            }
-
             @if (TempData["SuccessMessage"] != null)
             {
                 <div class="alert alert-success">@TempData["SuccessMessage"]</div>
@@ -84,6 +153,7 @@
                             <th>ID</th>
                             <th>Data Dodania</th>
                             <th>Firma (<span id="accountsCount">0</span>)</th>
+                            <th>Etykiety</th>
                             <th>Email</th>
                             <th>Url</th>
                             <th>Produkty</th>
@@ -97,54 +167,46 @@
                     <tbody>
                         @foreach (var item in Model)
                         {
-                            <tr data-contact-id="@item.ClientProfileId" data-contact="@item.ClientProfileId" data-createdby="@item.CreatedByUser?.Id.ToString()" data-status="@((int)item.Status)"
+                            var labelIdsString = item.Labels != null ? string.Join(",", item.Labels.Select(l => l.Id)) : "";
+
+                            <tr data-contact-id="@item.ClientProfileId"
+                                data-createdby="@item.CreatedByUser?.Id.ToString()"
+                                data-status="@((int)item.Status)"
                                 data-nadanie="@(item.LastEmailSentDate.HasValue? item.LastEmailSentDate.Value.ToString("yyyy-MM-dd HH:mm") : "")"
-                                data-source="@((int)item.Source)">
+                                data-source="@((int)item.Source)"
+                                data-labels="@labelIdsString">
 
                                 <td class="checkbox-cell">
                                     <input type="checkbox" name="selectedClientIds" value="@item.ClientProfileId" class="select-client" />
                                 </td>
-
                                 <td>@item.ClientProfileId</td>
                                 <td>@item.CreationDate.ToString("dd-MM-yyyy")</td>
-                                <td>@item.CeneoProfileName</td>
+                                <td><strong>@item.CeneoProfileName</strong></td>
+
                                 <td>
-                                    @{
-                                        var emailAddresses = item.CeneoProfileEmail
-                                        ?.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                                        .Select(e => e.Trim());
-                                    }
-                                    @if (emailAddresses != null && emailAddresses.Any())
+                                    @if (item.Labels != null)
                                     {
-                                        foreach (var email in emailAddresses)
+                                        foreach (var label in item.Labels)
                                         {
-                                            <div>@email</div>
+                                            <span class="contact-label-badge" style="background-color: @label.HexColor">@label.Name</span>
                                         }
                                     }
-                                    else
-                                    {
-                                        <span>Brak adresu email</span>
-                                    }
                                 </td>
+
+                                <td>@item.CeneoProfileEmail</td>
                                 <td>
                                     @if (!string.IsNullOrEmpty(item.CeneoProfileUrl))
                                     {
-                                        <a href="@item.CeneoProfileUrl" target="_blank" class="Button-Page-Small" onclick="event.stopPropagation()">Ceneo</a>
-                                    }
-                                    else
-                                    {
-                                        <span>N/A</span>
+                                        <a href="@item.CeneoProfileUrl" target="_blank" class="Button-Page-Small" onclick="event.stopPropagation()">Link</a>
                                     }
                                 </td>
-                                <td>@(item.CeneoProfileProductCount.HasValue? item.CeneoProfileProductCount.ToString() : "N/A")</td>
+                                <td>@(item.CeneoProfileProductCount.HasValue? item.CeneoProfileProductCount.ToString() : "-")</td>
                                 <td>
-                                    <span class="badge" style="background-color:@GetStatusColor(item.Status)">
-                                        @GetStatusDisplayName(item.Status)
-                                    </span>
+                                    <span class="badge" style="background-color:@GetStatusColor(item.Status)">@GetStatusDisplayName(item.Status)</span>
                                 </td>
                                 <td>@item.EmailSentCount</td>
-                                <td>@(item.LastEmailSentDate.HasValue? item.LastEmailSentDate.Value.ToString("dd-MM-yyyy HH:mm") : "Brak")</td>
-                                <td>@item.CreatedByUser?.PartnerName @item.CreatedByUser?.PartnerSurname</td>
+                                <td>@(item.LastEmailSentDate.HasValue? item.LastEmailSentDate.Value.ToString("dd-MM-yyyy") : "-")</td>
+                                <td>@item.CreatedByUser?.PartnerName</td>
                                 <td>@GetSourceDisplayName(item.Source)</td>
                             </tr>
                         }
@@ -155,212 +217,437 @@
     </div>
 </div>
 
+<div id="labelManagerModal" class="custom-modal">
+    <div class="custom-modal-content">
+        <h3>Zarządzaj Etykietami</h3>
+        <div style="margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+            <label>Nazwa:</label>
+            <input type="text" id="newLabelName" placeholder="Np. VIP" style="padding:5px; width: 150px;" />
+            <input type="color" id="newLabelColor" value="#007bff" style="height:30px; width:40px; border:none; vertical-align:middle;" />
+            <button type="button" class="Button-Page-Small" onclick="createLabel()">Utwórz</button>
+        </div>
+        <div id="labelsListForEdit" style="max-height: 300px; overflow-y:auto;">
+        </div>
+        <div style="text-align:right; margin-top:15px;">
+            <button type="button" class="Button-Page-Small-gr" onclick="document.getElementById('labelManagerModal').style.display='none'">Zamknij</button>
+        </div>
+    </div>
+</div>
+
+<div id="assignLabelModal" class="custom-modal">
+    <div class="custom-modal-content">
+        <h3>Przypisz / Usuń Etykiety</h3>
+        <p style="font-size:14px; color:gray;">Wybrano klientów: <strong id="assignClientCount">0</strong></p>
+
+        <div style="margin-bottom:10px; font-size:12px; color:#666;">
+            <span style="margin-right:10px;">&#9745; - Dodaj wszystkim</span>
+            <span style="margin-right:10px;">&#9744; - Usuń wszystkim</span>
+            <span>&#9636; - Nie zmieniaj</span>
+        </div>
+
+        <div id="labelsListForAssign" style="max-height: 300px; overflow-y:auto; border:1px solid #eee; padding:10px; margin-bottom:10px;">
+        </div>
+
+        <div id="changesSummary" style="font-size:12px; color:blue; margin-bottom:10px; min-height:20px;"></div>
+
+        <div style="text-align:right;">
+            <button type="button" class="Button-Page-Small" onclick="submitAssignLabels()">Zastosuj zmiany</button>
+            <button type="button" class="Button-Page-Small-gr" onclick="document.getElementById('assignLabelModal').style.display='none'">Anuluj</button>
+        </div>
+    </div>
+</div>
+
 <script>
-    document.querySelectorAll('.table-orders tr[data-contact]').forEach(row => {
-        row.addEventListener('click', function (event) {
-            if (event.target.closest('.checkbox-cell')) {
-                return;
-            }
-            var clientId = this.getAttribute('data-contact-id');
-            window.location.href = '/ClientProfile/Edit/' + clientId;
-        });
-    });
-
-    function calculateAccounts() {
-        let accountsCount = $('.table-orders tbody tr:visible').length;
-        document.getElementById('accountsCount').innerText = accountsCount;
-    }
-
-    document.querySelectorAll('.checkbox-cell').forEach(cell => {
-        cell.addEventListener('click', function (event) {
-            var checkbox = this.querySelector('.select-client');
-            if (event.target === checkbox) {
-                return;
-            }
-            if (checkbox) {
-                checkbox.checked = !checkbox.checked;
-            }
-        });
-    });
-
-    document.getElementById('select-all').addEventListener('change', function () {
-        var isChecked = this.checked;
-        var rows = document.querySelectorAll('.table-orders tbody tr');
-        rows.forEach(function (row) {
-            var style = window.getComputedStyle(row);
-            if (style.display !== 'none') {
-                var checkbox = row.querySelector('.select-client');
-                if (checkbox) {
-                    checkbox.checked = isChecked;
-                }
-            }
-        });
-    });
+    // --- ZMIENNE GLOBALNE ---
+    var allLabels = [];
 
     $(document).ready(function () {
-        function filterTable() {
-            var searchText = $('#accountSearch').val().toLowerCase();
-            var selectedUserId = $('#createdByFilter').val();
-            var selectedStatus = $('#statusFilter').val();
-            var selectedSource = $('#sourceFilter').val(); // Nowy filtr dla źródła
+        loadLabels(); // Pobierz etykiety i zbuduj sidebar
 
-            var startDateVal = $('#startDate').val();
-            var endDateVal   = $('#endDate').val();
+        // Podpięcie filtrów
+        $('#startDate, #endDate, #accountSearch, #createdByFilter, #statusFilter, #sourceFilter').on('change keyup', filterTable);
 
-            var startDate = startDateVal ? new Date(startDateVal) : null;
-            var endDate   = endDateVal   ? new Date(endDateVal)   : null;
+        // Obsługa checkboxa "Zaznacz wszystkie"
+        document.getElementById('select-all').addEventListener('change', function () {
+            var isChecked = this.checked;
+            $('.table-orders tbody tr:visible .select-client').prop('checked', isChecked);
+        });
 
-            $('.table-orders tbody tr').each(function () {
-                var contactName = $(this).find('td:nth-child(4)').text().toLowerCase(); // 'Firma' column
-                var createdByUserId = $(this).data('createdby') ? $(this).data('createdby').toString() : '';
-                var status = $(this).data('status') !== undefined ? $(this).data('status').toString() : '';
-                var source = $(this).data('source') !== undefined ? $(this).data('source').toString() : ''; // Pobieranie źródła
-
-                var nadanieVal = $(this).data('nadanie');
-                var rowDate = nadanieVal ? new Date(nadanieVal) : null;
-
-                var matchesSearch = contactName.indexOf(searchText) > -1;
-                var matchesUser = selectedUserId === '' || createdByUserId == selectedUserId;
-                var matchesStatus = selectedStatus === '' || status == selectedStatus;
-                var matchesSource = selectedSource === '' || source == selectedSource; // Filtr po źródle
-
-                var matchesDate = true;
-                if (startDate && (!rowDate || rowDate < startDate)) {
-                    matchesDate = false;
-                }
-                if (endDate && (!rowDate || rowDate > endDate)) {
-                    matchesDate = false;
-                }
-
-                var shouldShow = matchesSearch && matchesUser && matchesStatus && matchesDate && matchesSource;
-                $(this).toggle(shouldShow);
-            });
-
-            calculateAccounts();
-            $('#select-all').prop('checked', false);
-        }
-
-        $('#startDate').on('change', filterTable);
-        $('#endDate').on('change', filterTable);
-        $('#accountSearch').on('keyup', filterTable);
-        $('#createdByFilter').on('change', filterTable);
-        $('#statusFilter').on('change', filterTable);
-        $('#sourceFilter').on('change', filterTable); // Podłączanie zdarzenia do nowego filtra źródła
+        // Kliknięcie w wiersz (edycja)
+        $('.table-orders tbody').on('click', 'tr', function(e) {
+            if ($(e.target).closest('.checkbox-cell, a, button, input').length) return;
+            var id = $(this).data('contact-id');
+            window.location.href = '/ClientProfile/Edit/' + id;
+        });
 
         calculateAccounts();
     });
 
+    // --- SIDEBAR & FILTROWANIE ---
+
+    function loadLabels() {
+        $.get('/ClientProfile/GetAllLabels', function (data) {
+            allLabels = data;
+            filterTable(); // Uruchom filtr, który też przeliczy liczniki
+        });
+    }
+
+    function renderSidebarFilter(visibleRowLabels) {
+        // visibleRowLabels to tablica tablic ID etykiet z widocznych wierszy
+        // np. [[1,2], [1], [], [3,1]]
+
+        var container = $('#labelFilterContainer');
+        // Nie czyścimy całego kontenera, żeby nie gubić stanu zaznaczenia checkboxów,
+        // ale dla uproszczenia w tym przykładzie zrobimy rebuild z zachowaniem stanu.
+
+        var checkedIds = [];
+        $('.label-filter-cb:checked').each(function(){ checkedIds.push(parseInt($(this).val())); });
+
+        container.empty();
+
+        if (allLabels.length === 0) {
+            container.html('<div style="font-size:12px; color:#999;">Brak etykiet</div>');
+            return;
+        }
+
+        allLabels.forEach(function (l) {
+            // Policz ile widocznych wierszy ma tę etykietę
+            var count = 0;
+            visibleRowLabels.forEach(rowLabels => {
+                if (rowLabels.includes(l.id)) count++;
+            });
+
+            var isChecked = checkedIds.includes(l.id) ? 'checked' : '';
+
+            var html = `
+                <div class="label-filter-item">
+                    <label style="cursor:pointer; display:flex; align-items:center; width:100%; font-size:13px;">
+                        <input type="checkbox" class="label-filter-cb" value="${l.id}" ${isChecked} onchange="filterTable()" style="margin-right:8px;" />
+                        <span class="contact-label-badge" style="background-color:${l.hexColor}; margin-right:5px;">${l.name}</span>
+                        <span style="color:gray; margin-left:auto; font-size:11px;">(${count})</span>
+                    </label>
+                </div>`;
+            container.append(html);
+        });
+    }
+
+    function filterTable() {
+        // ... (pobieranie wartości filtrów)
+        var searchText = $('#accountSearch').val().toLowerCase();
+        var selectedUserId = $('#createdByFilter').val();
+        var selectedStatus = $('#statusFilter').val();
+        var selectedSource = $('#sourceFilter').val();
+        var startDateVal = $('#startDate').val();
+        var endDateVal   = $('#endDate').val();
+        var startDate = startDateVal ? new Date(startDateVal) : null;
+        var endDate   = endDateVal   ? new Date(endDateVal)   : null;
+
+        var checkedLabels = [];
+        $('.label-filter-cb:checked').each(function() { checkedLabels.push(parseInt($(this).val())); });
+
+        var visibleRowLabelsCollection = []; // Do zliczania w sidebarze
+
+        $('.table-orders tbody tr').each(function () {
+            var $row = $(this);
+            // Pobierz dane
+            var contactName = $row.find('td:nth-child(4)').text().toLowerCase();
+            var createdByUserId = $row.data('createdby') ? $row.data('createdby').toString() : '';
+            var status = $row.data('status').toString();
+            var source = $row.data('source').toString();
+            var nadanieVal = $row.data('nadanie');
+            var rowDate = nadanieVal ? new Date(nadanieVal) : null;
+
+            // Parsowanie etykiet z data-attribute
+            var labelStr = $row.data('labels') ? $row.data('labels').toString() : "";
+            var rowLabelIds = labelStr ? labelStr.split(',').map(Number) : [];
+
+            // Logika filtrów
+            var matchesSearch = contactName.indexOf(searchText) > -1;
+            var matchesUser = selectedUserId === '' || createdByUserId == selectedUserId;
+            var matchesStatus = selectedStatus === '' || status == selectedStatus;
+            var matchesSource = selectedSource === '' || source == selectedSource;
+
+            var matchesDate = true;
+            if (startDate && (!rowDate || rowDate < startDate)) matchesDate = false;
+            if (endDate && (!rowDate || rowDate > endDate)) matchesDate = false;
+
+            // Logika etykiet (OR)
+            var matchesLabels = true;
+            if (checkedLabels.length > 0) {
+                var hasAny = checkedLabels.some(id => rowLabelIds.includes(id));
+                if (!hasAny) matchesLabels = false;
+            }
+
+            var shouldShow = matchesSearch && matchesUser && matchesStatus && matchesDate && matchesSource && matchesLabels;
+            $row.toggle(shouldShow);
+
+            if (shouldShow) {
+                visibleRowLabelsCollection.push(rowLabelIds);
+            }
+        });
+
+        calculateAccounts();
+        // Prze-renderuj sidebar z nowymi licznikami
+        renderSidebarFilter(visibleRowLabelsCollection);
+    }
+
+    function calculateAccounts() {
+        $('#accountsCount').text($('.table-orders tbody tr:visible').length);
+    }
+
+    // --- ZARZĄDZANIE DEFINICJAMI ETYKIET ---
+
+    function createLabel() {
+        var name = $('#newLabelName').val();
+        var color = $('#newLabelColor').val();
+        if(!name) return;
+
+        $.post('/ClientProfile/SaveLabel', { id: 0, name: name, color: color }, function (res) {
+            if(res.success) {
+                $('#newLabelName').val('');
+                loadLabels(); // Reload sidebara
+                renderLabelManagerList(); // Reload modala
+            } else { alert(res.message); }
+        });
+    }
+
+    function deleteLabel(id) {
+        if(!confirm('Usunąć?')) return;
+        $.post('/ClientProfile/DeleteLabelDefinition', { id: id }, function (res) {
+            loadLabels();
+            renderLabelManagerList();
+        });
+    }
+
+    function openLabelManager() {
+        renderLabelManagerList();
+        document.getElementById('labelManagerModal').style.display = 'block';
+    }
+
+    function renderLabelManagerList() {
+        var list = $('#labelsListForEdit');
+        list.empty();
+        allLabels.forEach(function(l) {
+            list.append(`
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; align-items:center; border-bottom:1px solid #f9f9f9;">
+                    <div><span class="contact-label-badge" style="background-color:${l.hexColor}">${l.name}</span></div>
+                    <button class="Button-Page-Small-r" style="padding:2px 5px; font-size:10px;" onclick="deleteLabel(${l.id})">Usuń</button>
+                </div>
+            `);
+        });
+    }
+
+    // --- ZAAWANSOWANE PRZYPISYWANIE ETYKIET ---
+
+    function openAssignLabelModal() {
+        // 1. Zbierz zaznaczonych klientów
+        var selectedCheckboxes = $('.select-client:checked');
+        if(selectedCheckboxes.length === 0) { alert('Wybierz klientów z listy.'); return; }
+
+        $('#assignClientCount').text(selectedCheckboxes.length);
+        $('#changesSummary').text('');
+
+        // 2. Analiza stanu etykiet u wybranych klientów
+        // Budujemy mapę: labelId -> ile wybranych klientów ją posiada
+        var labelCounts = {};
+        allLabels.forEach(l => labelCounts[l.id] = 0);
+
+        selectedCheckboxes.each(function() {
+            var row = $(this).closest('tr');
+            var labelStr = row.data('labels') ? row.data('labels').toString() : "";
+            var ids = labelStr ? labelStr.split(',').map(Number) : [];
+            ids.forEach(id => {
+                if (labelCounts[id] !== undefined) labelCounts[id]++;
+            });
+        });
+
+        // 3. Renderowanie listy z trzystanowymi checkboxami
+        var list = $('#labelsListForAssign');
+        list.empty();
+
+        allLabels.forEach(function(l) {
+            var count = labelCounts[l.id];
+            var totalSelected = selectedCheckboxes.length;
+
+            // Stan początkowy checkboxa
+            var isChecked = false;
+            var isIndeterminate = false;
+
+            if (count === totalSelected) {
+                isChecked = true; // Wszyscy mają
+            } else if (count > 0) {
+                isIndeterminate = true; // Część ma
+            }
+            // else -> nikt nie ma
+
+            var html = `
+                <div class="assign-label-row">
+                    <label style="cursor:pointer; display:flex; align-items:center; flex-grow:1;">
+                        <input type="checkbox" class="assign-tristate-cb" value="${l.id}"
+                               data-original-state="${isChecked ? 'checked' : (isIndeterminate ? 'mixed' : 'unchecked')}"
+                               style="margin-right:10px;">
+                        <span class="contact-label-badge" style="background-color:${l.hexColor}; margin-right:8px;">${l.name}</span>
+                        <span style="font-size:11px; color:gray;">(Ma to: ${count}/${totalSelected})</span>
+                    </label>
+                    <span class="status-text" style="font-size:11px; font-weight:bold; width:80px; text-align:right;"></span>
+                </div>
+            `;
+            var $el = $(html);
+            var cb = $el.find('input')[0];
+            cb.checked = isChecked;
+            cb.indeterminate = isIndeterminate;
+
+            // Obsługa logiki 3-stanowej przy klikaniu
+            // Kliknięcie cyklicznie zmienia stan: Indeterminate (Nic nie rób) -> Checked (Dodaj) -> Unchecked (Usuń) -> Indeterminate
+            // Ale standardowy checkbox ma tylko 2 stany po kliknięciu. Musimy to symulować lub uprościć.
+            // Uproszczenie:
+            // User widzi stan. Jak kliknie -> Zaznacz (Dodaj). Jak kliknie znowu -> Odznacz (Usuń).
+            // Indeterminate jest tylko stanem wizualnym "startowym".
+
+            $(cb).on('change', function() {
+                updateSummary();
+            });
+
+            list.append($el);
+        });
+
+        document.getElementById('assignLabelModal').style.display = 'block';
+    }
+
+    function updateSummary() {
+        var addCount = 0;
+        var removeCount = 0;
+
+        $('.assign-tristate-cb').each(function() {
+            var cb = this;
+            var originalState = $(cb).data('original-state'); // 'checked', 'unchecked', 'mixed'
+
+            // Logika decyzyjna:
+            // Jeśli jest 'indeterminate', to użytkownik nic nie kliknął -> ignorujemy (nie zmieniamy).
+            // Jeśli jest 'checked' -> będziemy dodawać tym, co nie mają.
+            // Jeśli jest 'unchecked' (i nie indeterminate) -> będziemy usuwać tym, co mają.
+
+            if (cb.indeterminate) {
+                // Stan neutralny - brak akcji
+            } else if (cb.checked) {
+                addCount++;
+            } else {
+                // Jest odznaczony. Sprawdzamy czy wcześniej był zaznaczony lub mixed.
+                // Jeśli był 'unchecked' i jest 'unchecked', to bez zmian.
+                // Jeśli był 'checked' lub 'mixed', a teraz jest 'unchecked', to znaczy "USUŃ".
+                if (originalState !== 'unchecked') {
+                    removeCount++;
+                }
+            }
+        });
+
+        $('#changesSummary').text(`Planowane zmiany: Dodanie etykiet (${addCount}), Usunięcie etykiet (${removeCount})`);
+    }
+
+    function submitAssignLabels() {
+        var clientIds = [];
+        $('.select-client:checked').each(function() { clientIds.push(parseInt($(this).val())); });
+
+        var toAdd = [];
+        var toRemove = [];
+
+        $('.assign-tristate-cb').each(function() {
+            var cb = this;
+            var labelId = parseInt($(cb).val());
+            var originalState = $(cb).data('original-state');
+
+            if (cb.indeterminate) {
+                // Ignoruj - użytkownik nie podjął decyzji dla tej etykiety (zostaw jak jest)
+            } else if (cb.checked) {
+                // Zaznaczono "V" -> Dodaj wszystkim wybranym (API powinno być idempotentne)
+                toAdd.push(labelId);
+            } else {
+                // Pusty kwadrat.
+                // Jeśli wcześniej był zaznaczony lub mixed -> Usuń.
+                // Jeśli wcześniej był pusty -> Nadal pusty (brak akcji).
+                if (originalState !== 'unchecked') {
+                    toRemove.push(labelId);
+                }
+            }
+        });
+
+        if (toAdd.length === 0 && toRemove.length === 0) {
+            alert('Nie wprowadzono żadnych zmian.');
+            return;
+        }
+
+        // Wysyłamy dane do kontrolera
+        // Potrzebna będzie nowa metoda w kontrolerze obsługująca masowe dodawanie ORAZ usuwanie
+        $.post('/ClientProfile/BatchUpdateLabels', {
+            clientIds: clientIds,
+            labelIdsToAdd: toAdd,
+            labelIdsToRemove: toRemove
+        }, function(res) {
+            if(res.success) {
+                location.reload();
+            } else {
+                alert('Błąd: ' + res.message);
+            }
+        });
+    }
+
+    // --- POZOSTAŁE FUNKCJE (Eksport, Wysyłka maili) ---
     function exportToCsv() {
         const emails = [];
         document.querySelectorAll('.select-client:checked').forEach(checkbox => {
             const row = checkbox.closest('tr');
             if (row.style.display !== 'none') {
-                const emailDivs = row.querySelectorAll('td:nth-child(5) div');
-                emailDivs.forEach(div => {
-                    emails.push(div.textContent.trim());
-                });
+                const emailDivs = row.querySelectorAll('td:nth-child(6) div'); // Poprawiony indeks kolumny (email jest teraz 6)
+                emailDivs.forEach(div => { emails.push(div.textContent.trim()); });
             }
         });
-
-        if (emails.length === 0) {
-            alert('Wybierz klientów, aby wyeksportować ich adresy e-mail!');
-            return;
-        }
-
-        let csvContent = "Email\n";
-        csvContent += emails.join("\n");
-
+        if (emails.length === 0) { alert('Wybierz klientów!'); return; }
+        let csvContent = "Email\n" + emails.join("\n");
         const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-
-        link.setAttribute("href", url);
-        link.setAttribute("download", "eksport_maili.csv");
-        link.style.visibility = 'hidden';
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        link.href = URL.createObjectURL(blob);
+        link.download = "eksport_maili.csv";
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
     function sendEmails() {
         var selectedIds = [];
-        document.querySelectorAll('.select-client:checked')
-            .forEach(checkbox => selectedIds.push(parseInt(checkbox.value)));
-
-        if (selectedIds.length === 0) {
-            alert('Wybierz klientów!');
-            return;
-        }
+        document.querySelectorAll('.select-client:checked').forEach(checkbox => selectedIds.push(parseInt(checkbox.value)));
+        if (selectedIds.length === 0) { alert('Wybierz klientów!'); return; }
 
         const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/ClientProfile/PrepareEmails';
+        form.method = 'POST'; form.action = '/ClientProfile/PrepareEmails';
 
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
         const tokenInput = document.createElement('input');
-        tokenInput.type = 'hidden';
-        tokenInput.name = '__RequestVerificationToken';
-        tokenInput.value = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        tokenInput.type = 'hidden'; tokenInput.name = '__RequestVerificationToken'; tokenInput.value = token;
         form.appendChild(tokenInput);
 
         selectedIds.forEach(id => {
             const hidden = document.createElement('input');
-            hidden.type = 'hidden';
-            hidden.name = 'SelectedClientIds';
-            hidden.value = id;
+            hidden.type = 'hidden'; hidden.name = 'SelectedClientIds'; hidden.value = id;
             form.appendChild(hidden);
         });
-
-        document.body.appendChild(form);
-        form.submit();
+        document.body.appendChild(form); form.submit();
     }
 </script>
 
-
 @functions {
-    public string GetStatusColor(PriceSafari.Models.ClientStatus status)
+    public string GetStatusColor(PriceSafari.Models.ClientStatus status) => status switch
     {
-        return status switch
-        {
-            PriceSafari.Models.ClientStatus.Nowy => "#17a2b8",
-            PriceSafari.Models.ClientStatus.Mail => "#ffc107",
-            PriceSafari.Models.ClientStatus.Urabiany => "#28a745",
-            PriceSafari.Models.ClientStatus.Spotkanie => "#007bff",
-            PriceSafari.Models.ClientStatus.Testuje => "#6f42c1",
-            PriceSafari.Models.ClientStatus.ZaDużaRyba => "#004552",
-            PriceSafari.Models.ClientStatus.Płotka => "#C823CB",
-            PriceSafari.Models.ClientStatus.Frajer => "#000",
-            PriceSafari.Models.ClientStatus.Ojebane => "#dc3545",
-            _ => "#6c757d"
-        };
-    }
+        PriceSafari.Models.ClientStatus.Nowy => "#17a2b8",
+        PriceSafari.Models.ClientStatus.Mail => "#ffc107",
+        PriceSafari.Models.ClientStatus.Urabiany => "#28a745",
+        PriceSafari.Models.ClientStatus.Spotkanie => "#007bff",
+        PriceSafari.Models.ClientStatus.Testuje => "#6f42c1",
+        PriceSafari.Models.ClientStatus.ZaDużaRyba => "#004552",
+        PriceSafari.Models.ClientStatus.Płotka => "#C823CB",
+        PriceSafari.Models.ClientStatus.Frajer => "#000",
+        PriceSafari.Models.ClientStatus.Ojebane => "#dc3545",
+        _ => "#6c757d"
+    };
 
-    public string GetStatusDisplayName(PriceSafari.Models.ClientStatus status)
-    {
-        return status switch
-        {
-            PriceSafari.Models.ClientStatus.Nowy => "Nowy Kontakt",
-            PriceSafari.Models.ClientStatus.Mail => "Wysłano Maila",
-            PriceSafari.Models.ClientStatus.Urabiany => "Rozmowy w toku",
-            PriceSafari.Models.ClientStatus.Spotkanie => "Umówiono Spotkanie",
-            PriceSafari.Models.ClientStatus.Testuje => "Testuje oprogramowanie",
-            PriceSafari.Models.ClientStatus.ZaDużaRyba => "ZaDużaRyba - Produktów w chuj",
-            PriceSafari.Models.ClientStatus.Płotka => "Płotka - Mało produktów",
-            PriceSafari.Models.ClientStatus.Frajer => "Klient frajer",
-            PriceSafari.Models.ClientStatus.Ojebane => "Oprogramowanie ojebane",
-            _ => "Nieznany"
-        };
-    }
-
-    // Nowa funkcja do wyświetlania nazwy źródła
-    public string GetSourceDisplayName(PriceSafari.Models.ClientSource source)
-    {
-        return source switch
-        {
-            PriceSafari.Models.ClientSource.Ceneo => "Ceneo",
-            PriceSafari.Models.ClientSource.Google => "Google",
-            _ => "Nieznane"
-        };
-    }
+    public string GetStatusDisplayName(PriceSafari.Models.ClientStatus status) => status.ToString(); // Uprościłem dla czytelności
+    public string GetSourceDisplayName(PriceSafari.Models.ClientSource source) => source.ToString();
 }
 @Html.AntiForgeryToken()
