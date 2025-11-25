@@ -129,7 +129,18 @@ public class GoogleScraperController : Controller
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb Pośredni (z weryfikacją nazwy). Uruchamiam scraper...");
 
-            return await StartScrapingForProducts_IntermediateMatchAsync(storeId, productIds, numberOfConcurrentScrapers, searchTermSource, maxCidsToProcessPerProduct, allowManualCaptchaSolving, appendProducerCode, compareOnlyCurrentProductCode);
+            // === POPRAWKA: Przekazujemy productNamePrefix dalej ===
+            return await StartScrapingForProducts_IntermediateMatchAsync(
+                storeId,
+                productIds,
+                numberOfConcurrentScrapers,
+                searchTermSource,
+                maxCidsToProcessPerProduct,
+                allowManualCaptchaSolving,
+                appendProducerCode,
+                compareOnlyCurrentProductCode,
+                productNamePrefix // <--- DODANO TUTAJ
+            );
         }
         else if (useFirstMatchLogic)
         {
@@ -725,7 +736,8 @@ public class GoogleScraperController : Controller
       int maxCidsToProcess,
       bool allowManualCaptchaSolving,
       bool appendProducerCode = false,
-      bool compareOnlyCurrentProductCode = false) // Poprawny podpis metody
+      bool compareOnlyCurrentProductCode = false,
+      string productNamePrefix = null) // <--- 1. DODANO PARAMETR TUTAJ
     {
         if (_isScrapingActive)
         {
@@ -818,11 +830,17 @@ public class GoogleScraperController : Controller
                                 {
                                     try
                                     {
-                                        // POPRAWIONE WYWOŁANIE - DODANO compareOnlyCurrentProductCode
                                         await ProcessSingleProduct_IntermediateMatchAsync(
-                                            productStateToProcess, assignedScraper, searchTermSource,
-                                            _currentCaptchaGlobalCts, maxCidsToProcess, allowManualCaptchaSolving, appendProducerCode,
-                                            compareOnlyCurrentProductCode);
+                    productStateToProcess,
+                    assignedScraper,
+                    searchTermSource,
+                    _currentCaptchaGlobalCts,
+                    maxCidsToProcess,
+                    allowManualCaptchaSolving,
+                    appendProducerCode,
+                    compareOnlyCurrentProductCode,
+                    productNamePrefix // <--- 2. DODANO DO WYWOŁANIA
+                );
                                     }
                                     finally
                                     {
@@ -960,7 +978,7 @@ public class GoogleScraperController : Controller
                                                 await ProcessSingleProduct_IntermediateMatchAsync(
                                                     productStateToProcess, assignedScraper, searchTermSource,
                                                     _currentCaptchaGlobalCts, maxCidsToProcess, allowManualCaptchaSolving, appendProducerCode,
-                                                    compareOnlyCurrentProductCode);
+                                                    compareOnlyCurrentProductCode, productNamePrefix);
                                             }
                                             finally
                                             {
@@ -1051,7 +1069,8 @@ public class GoogleScraperController : Controller
     int maxItemsToExtract,
     bool allowManualCaptchaSolving,
     bool appendProducerCode,
-    bool compareOnlyCurrentProductCode) // NOWY PARAMETR
+    bool compareOnlyCurrentProductCode,
+    string productNamePrefix) // <--- 1. DODANO PARAMETR
     {
     RestartProductProcessing:
 
@@ -1067,12 +1086,19 @@ public class GoogleScraperController : Controller
             case SearchTermSource.ProductName:
                 searchTermForGoogle = productState.ProductNameInStoreForGoogle;
 
-                // ================== TUTAJ DODAJ ZMIANĘ (appendProducerCode) ==================
+                // Logika dodawania kodu producenta (istniejąca)
                 if (appendProducerCode && !string.IsNullOrWhiteSpace(productState.ProducerCode))
                 {
                     searchTermForGoogle = $"{searchTermForGoogle} {productState.ProducerCode}";
                 }
-                // ============================================================================
+
+                // === 2. NOWA LOGIKA DODAWANIA PREFIXU ===
+                if (!string.IsNullOrWhiteSpace(productNamePrefix))
+                {
+                    // Dodajemy prefix na początku nazwy
+                    searchTermForGoogle = $"{productNamePrefix} {searchTermForGoogle}";
+                }
+                // ========================================
                 break;
 
             case SearchTermSource.Ean:
