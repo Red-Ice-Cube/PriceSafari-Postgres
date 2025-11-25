@@ -7,9 +7,7 @@ using PriceSafari.Data;
 using PriceSafari.Hubs;
 using PriceSafari.Models;
 using PriceSafari.Models.ManagerViewModels;
-// ZMIANA: Usunięto using PriceSafari.Scrapers; (lub zmieniono na nową przestrzeń nazw)
-// Należy się upewnić, że nowa klasa GoogleGlobalScraper jest widoczna
-// using PriceSafari.Scrapers; // Jeśli nowa klasa jest w tym samym miejscu
+
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -20,15 +18,15 @@ namespace PriceSafari.Controllers
     public class GoogleScrapingController : Controller
     {
         private readonly PriceSafariContext _context;
-        // --- ZMIANA 1 ---
-        private readonly GoogleGlobalScraper _scraper; // Zmieniono typ z GooglePriceScraper
+
+        private readonly GoogleGlobalScraper _scraper;
         private readonly IHubContext<ScrapingHub> _hubContext;
 
         public GoogleScrapingController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext)
         {
             _context = context;
-            // --- ZMIANA 2 ---
-            _scraper = new GoogleGlobalScraper(); // Utworzono instancję nowej klasy
+
+            _scraper = new GoogleGlobalScraper();
             _hubContext = hubContext;
         }
 
@@ -337,16 +335,12 @@ namespace PriceSafari.Controllers
                 {
                     await semaphore.WaitAsync();
 
-                    // --- ZMIANA 3 ---
-                    var scraper = new GoogleGlobalScraper(); // Używamy nowej klasy
+                    var scraper = new GoogleGlobalScraper();
                     if (scraper == null)
                     {
                         Console.WriteLine("Scraper object is null.");
                         return;
                     }
-
-                    // --- ZMIANA 4: USUNIĘTO ---
-                    // await scraper.InitializeAsync(settings); // Już niepotrzebne
 
                     while (true)
                     {
@@ -401,7 +395,6 @@ namespace PriceSafari.Controllers
                         }
                     }
 
-              
                     semaphore.Release();
                 }));
             }
@@ -463,16 +456,12 @@ namespace PriceSafari.Controllers
                 {
                     await semaphore.WaitAsync();
 
-                    // --- ZMIANA 6 ---
-                    var scraper = new GoogleGlobalScraper(); // Używamy nowej klasy
+                    var scraper = new GoogleGlobalScraper();
                     if (scraper == null)
                     {
                         Console.WriteLine("Scraper object is null.");
                         return;
                     }
-
-                    // --- ZMIANA 7: USUNIĘTO ---
-                    // await scraper.InitializeAsync(settings); // Już niepotrzebne
 
                     while (true)
                     {
