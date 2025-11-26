@@ -596,6 +596,7 @@
                     const imageUrl = prodDetail ? prodDetail.imageUrl : "";
                     const ean = eanMapGlobal[productIdStr] || (prodDetail ? String(prodDetail.ean || '') : '');
                     const externalId = externalIdMapGlobal[productIdStr] || (prodDetail ? String(prodDetail.externalId || '') : '');
+                    const producer = simResult ? simResult.producer : null;
                     const producerCode = simResult ? simResult.producerCode : (prodDetail ? prodDetail.producerCode : null);
 
                     const currentPriceNum = parseFloat(item.currentPrice);
@@ -685,6 +686,7 @@
                         ean,
                         externalId,
                         producerCode,
+                        producer,
                         diff,
                         diffPercent,
                         arrow,
@@ -768,6 +770,7 @@
             let eanInfo = row.ean ? `<div class="price-info-item">EAN: ${row.ean}</div>` : "";
             let extIdInfo = row.externalId ? `<div class="price-info-item">ID: ${row.externalId}</div>` : "";
             let producerCodeInfo = row.producerCode ? `<div class="price-info-item">Kod: ${row.producerCode}</div>` : "";
+            let producerInfo = row.producer ? `<div class="price-info-item" style="color: #555; font-style: italic;">Prod: ${row.producer}</div>` : "";
 
             const formattedDiff = formatPricePL(Math.abs(row.diff), false);
             const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
@@ -787,6 +790,7 @@
                                     ${eanInfo}
                                     ${extIdInfo}
                                     ${producerCodeInfo}
+                                    ${producerInfo}
                                 </td>
                                 <td class="align-middle">${row.currentBlock}</td> <td class="align-middle" style="font-size: 1em; white-space: nowrap; text-align: center;"> <div>${row.arrow} ${formattedDiff} PLN</div>
                                     <div style="font-size: 0.9em; color: #555;">(${formattedDiffPercent}%)</div>
@@ -894,7 +898,7 @@
 
         if (isExtended) {
 
-            const baseHeaders = ["ID", "EAN", "KOD", "Nazwa produktu", "Obecna poz. Google", "Oferty Google", "Obecna poz. Ceneo", "Oferty Ceneo", "Obecna cena oferty"];
+            const baseHeaders = ["ID", "EAN", "KOD", "Producent", "Nazwa produktu", "Obecna poz. Google", "Oferty Google", "Obecna poz. Ceneo", "Oferty Ceneo", "Obecna cena oferty"];
             const shippingHeaders = ["Obecny koszt wysyłki", "Obecna cena z wysyłką"];
             const marginHeadersCurrent = ["Obecny narzut (%)", "Obecny narzut (PLN)"];
             const newPriceHeader = ["Nowa cena oferty"];
@@ -920,6 +924,7 @@
                     `="${String(row.externalId || '')}"`,
                     `="${String(row.ean || '')}"`,
                     `="${String(row.producerCode || '')}"`,
+                    `"${String(row.producer || '')}"`,
                     `"${row.productName.replace(/"/g, '""')}"`,
                     `"${formatCsvRank(row.currentGoogleRanking)}"`,
                     `"${formatCsvRank(row.totalGoogleOffers)}"`,
@@ -997,6 +1002,7 @@
                     { header: "ID", key: "externalId", width: 18, style: { numFmt: "@" } },
                     { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
                     { header: "KOD", key: "producerCode", width: 20, style: { numFmt: "@" } },
+                    { header: "Producent", key: "producer", width: 25, style: { numFmt: "@" } },
                     { header: "Nazwa produktu", key: "productName", width: 40 },
                     { header: "Obecna poz. Google", key: "currentGoogleRanking", width: 20 },
                     { header: "Oferty Google", key: "totalGoogleOffers", width: 15, style: { numFmt: '0' } },
@@ -1051,6 +1057,7 @@
                         externalId: String(row.externalId || ''),
                         ean: String(row.ean || ''),
                         producerCode: String(row.producerCode || ''),
+                        producer: String(row.producer || ''),
                         productName: row.productName,
 
                         currentGoogleRanking: row.currentGoogleRanking !== null ? String(row.currentGoogleRanking) : '',
