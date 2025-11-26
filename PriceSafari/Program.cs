@@ -70,6 +70,7 @@ public class Program
         builder.Services.AddScoped<StoreProcessingService>();
         builder.Services.AddHostedService<ScheduledTaskService>();
         builder.Services.AddScoped<UrlGroupingService>();
+        builder.Services.AddScoped<ApiBotService>();
         builder.Services.AddHttpClient<CeneoScraper>();
         builder.Services.AddScoped<CeneoScraper>();
         builder.Services.AddScoped<GoogleScraperService>();

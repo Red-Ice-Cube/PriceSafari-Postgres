@@ -10,6 +10,7 @@ using PriceSafari.Services.ControlXY;
 using PriceSafari.Services.ScheduleService;
 using PuppeteerSharp;
 using System.Diagnostics;
+using PriceSafari.Services.ScheduleService;
 
 [Authorize(Roles = "Admin")]
 public class PriceScrapingController : Controller
@@ -23,8 +24,8 @@ public class PriceScrapingController : Controller
     private readonly StoreProcessingService _storeProcessingService;
     private readonly ControlXYService _controlXYService;
     private readonly CeneoScraperService _ceneoScraperService;
-
-    public PriceScrapingController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, IServiceProvider serviceProvider, HttpClient httpClient, IHttpClientFactory httpClientFactory, StoreProcessingService storeProcessingService, ControlXYService controlXYService, CeneoScraperService ceneoScraperService)
+    private readonly ApiBotService _apiBotService;
+    public PriceScrapingController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, IServiceProvider serviceProvider, HttpClient httpClient, IHttpClientFactory httpClientFactory, StoreProcessingService storeProcessingService, ControlXYService controlXYService, CeneoScraperService ceneoScraperService, ApiBotService apiBotService)
     {
         _context = context;
         _hubContext = hubContext;
@@ -34,6 +35,7 @@ public class PriceScrapingController : Controller
         _storeProcessingService = storeProcessingService;
         _controlXYService = controlXYService;
         _ceneoScraperService = ceneoScraperService;
+        _apiBotService = apiBotService;
     }
 
     [HttpPost]
@@ -285,24 +287,38 @@ public class PriceScrapingController : Controller
     public async Task<IActionResult> GetStoreProductsWithCoOfrIds(int storeId)
     {
         var store = await _context.Stores.FindAsync(storeId);
-        if (store == null)
-        {
-            return NotFound();
-        }
+        if (store == null) return NotFound();
 
+        // Pobieramy produkty (bez Include Category)
         var products = await _context.Products
             .Where(p => p.StoreId == storeId)
             .ToListAsync();
 
-        var coOfrClasses = await _context.CoOfrs.ToListAsync();
+        // Pobieramy CoOfr wraz z danymi StoreData
+        var coOfrClasses = await _context.CoOfrs
+            .Include(c => c.StoreData.Where(sd => sd.StoreId == storeId))
+            .ToListAsync();
 
-        var productCoOfrViewModels = products.Select(product => new ProductCoOfrViewModel
+        var productCoOfrViewModels = products.Select(product =>
         {
-            ProductId = product.ProductId,
-            ProductName = product.ProductName,
-            Category = product.Category,
-            OfferUrl = product.OfferUrl,
-            CoOfrId = coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(product.ProductId))?.Id
+            var coOfr = coOfrClasses.FirstOrDefault(co => co.ProductIds.Contains(product.ProductId));
+            var storeData = coOfr?.StoreData.FirstOrDefault();
+
+            return new ProductCoOfrViewModel
+            {
+                ProductId = product.ProductId,
+                ProductName = product.ProductName,
+                // Category = ..., // USUNIĘTE
+
+                OfferUrl = product.OfferUrl,
+                GoogleOfferUrl = product.GoogleUrl, // Mapujemy URL Google
+
+                CoOfrId = coOfr?.Id,
+                HasApiDataEntry = storeData != null,
+                ApiExternalId = storeData?.ProductExternalId,
+                ApiPrice = storeData?.ExtendedDataApiPrice,
+                ApiProcessed = storeData?.IsApiProcessed ?? false
+            };
         }).ToList();
 
         var viewModel = new StoreProductsViewModel
@@ -312,8 +328,41 @@ public class PriceScrapingController : Controller
         };
 
         ViewBag.StoreId = storeId;
+        ViewBag.FetchExtendedData = store.FetchExtendedData;
 
         return View("~/Views/ManagerPanel/Store/GetStoreProductsWithCoOfrIds.cshtml", viewModel);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RunApiBotForStore(int storeId)
+    {
+        // Przekazujemy storeId, aby przetworzyć tylko ten konkretny sklep
+        await _apiBotService.ProcessPendingApiRequestsAsync(storeId);
+
+        return RedirectToAction("GetStoreProductsWithCoOfrIds", new { storeId });
+    }
+
+    // 5. Nowa akcja: Resetowanie danych API (do testów)
+    [HttpPost]
+    public async Task<IActionResult> ClearApiDataForStore(int storeId)
+    {
+        // Znajdź wszystkie wpisy StoreData dla tego sklepu
+        var entries = await _context.CoOfrStoreDatas
+            .Where(sd => sd.StoreId == storeId)
+            .ToListAsync();
+
+        if (entries.Any())
+        {
+            foreach (var entry in entries)
+            {
+                // Resetujemy stan do "dziewiczego"
+                entry.ExtendedDataApiPrice = null;
+                entry.IsApiProcessed = false;
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        return RedirectToAction("GetStoreProductsWithCoOfrIds", new { storeId });
     }
 
     [HttpPost]

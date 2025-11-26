@@ -20,23 +20,43 @@ namespace PriceSafari.Services.ScheduleService
             _logger = logger;
         }
 
-        public async Task ProcessPendingApiRequestsAsync()
+        /// <summary>
+        /// Przetwarza oczekujące zadania API.
+        /// </summary>
+        /// <param name="targetStoreId">Opcjonalne ID sklepu. Jeśli podane, przetworzy tylko ten sklep. Jeśli null, przetworzy wszystkie.</param>
+        public async Task ProcessPendingApiRequestsAsync(int? targetStoreId = null)
         {
-            _logger.LogInformation("Rozpoczynam przetwarzanie kolejek API dla sklepów...");
+            if (targetStoreId.HasValue)
+            {
+                _logger.LogInformation($"Rozpoczynam przetwarzanie zadań API TYLKO dla sklepu ID: {targetStoreId.Value}...");
+            }
+            else
+            {
+                _logger.LogInformation("Rozpoczynam GLOBALNE przetwarzanie kolejek API dla wszystkich sklepów...");
+            }
 
-            // 1. Pobieramy nieprzetworzone rekordy, które mają zewnętrzne ID (bez ID nie zapytamy API)
-            // Używamy Include, by mieć dostęp do danych powiązanych, jeśli będą potrzebne, ale tutaj kluczowe jest StoreId
-            var pendingItems = await _context.CoOfrStoreDatas
-                .Where(d => !d.IsApiProcessed && d.ProductExternalId != null)
-                .ToListAsync();
+            // 1. Budujemy zapytanie bazowe
+            var query = _context.CoOfrStoreDatas
+                .Where(d => !d.IsApiProcessed && d.ProductExternalId != null);
+
+            // 2. Jeśli podano konkretny sklep, zawężamy wyniki
+            if (targetStoreId.HasValue)
+            {
+                query = query.Where(d => d.StoreId == targetStoreId.Value);
+            }
+
+            // 3. Pobieramy dane
+            var pendingItems = await query.ToListAsync();
 
             if (!pendingItems.Any())
             {
-                _logger.LogInformation("Brak oczekujących zadań API.");
+                _logger.LogInformation("Brak oczekujących zadań API do przetworzenia.");
                 return;
             }
 
-            // 2. Grupujemy po StoreId, aby dla każdego sklepu utworzyć klienta HTTP tylko raz
+            _logger.LogInformation($"Znaleziono łącznie {pendingItems.Count} zadań do przetworzenia.");
+
+            // 4. Grupujemy po StoreId (nawet jeśli to jeden sklep, logika pozostaje uniwersalna)
             var groupedItems = pendingItems.GroupBy(d => d.StoreId);
 
             foreach (var group in groupedItems)
@@ -44,7 +64,7 @@ namespace PriceSafari.Services.ScheduleService
                 int storeId = group.Key;
                 var itemsToProcess = group.ToList();
 
-                // 3. Pobieramy konfigurację sklepu
+                // 5. Pobieramy konfigurację sklepu
                 var store = await _context.Stores
                     .AsNoTracking()
                     .FirstOrDefaultAsync(s => s.StoreId == storeId);
@@ -62,7 +82,7 @@ namespace PriceSafari.Services.ScheduleService
 
                 try
                 {
-                    // 4. Router systemów sklepowych oparty na Enumie
+                    // 6. Router systemów sklepowych
                     switch (store.StoreSystemType)
                     {
                         case StoreSystemType.PrestaShop:
@@ -71,7 +91,7 @@ namespace PriceSafari.Services.ScheduleService
 
                         case StoreSystemType.Shoper:
                             _logger.LogWarning($"Implementacja dla Shoper/ClickShop nie jest jeszcze gotowa.");
-                            MarkAsProcessed(itemsToProcess); // Oznaczamy, żeby nie wisiały w nieskończoność
+                            MarkAsProcessed(itemsToProcess);
                             break;
 
                         case StoreSystemType.WooCommerce:
@@ -91,79 +111,106 @@ namespace PriceSafari.Services.ScheduleService
                     _logger.LogError(ex, $"Krytyczny błąd podczas przetwarzania batcha API dla sklepu {store.StoreName}");
                 }
 
-                // Zapisujemy zmiany w bazie (ceny i statusy IsApiProcessed)
+                // Zapisujemy zmiany w bazie po każdym sklepie
                 await _context.SaveChangesAsync();
             }
 
             _logger.LogInformation("Zakończono przetwarzanie kolejek API.");
         }
 
-        // --- IMPLEMENTACJA PRESTASHOP ---
         private async Task ProcessPrestaShopBatchAsync(StoreClass store, List<CoOfrStoreData> items)
         {
             var client = _httpClientFactory.CreateClient();
 
-            // Konfiguracja Basic Auth dla PrestaShop
-            // W PrestaShop API Key to "Login", a hasło zostawiamy puste.
+            // Konfiguracja Basic Auth
             var authToken = Encoding.ASCII.GetBytes($"{store.StoreApiKey}:");
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(authToken));
 
-            // Upewniamy się, że URL nie ma podwójnego slash na końcu
             string baseUrl = store.StoreApiUrl.TrimEnd('/');
 
-            foreach (var item in items)
+            // 1. Dzielimy listę na paczki po 50 sztuk (Batching)
+            // PrestaShop zazwyczaj radzi sobie z ~50-100 ID w filtrze URL.
+            var chunks = items.Chunk(50).ToList();
+
+            _logger.LogInformation($"[PrestaShop] Rozpoczynam pobieranie w trybie BATCH. Ilość paczek: {chunks.Count}");
+
+            foreach (var chunk in chunks)
             {
                 try
                 {
-                    // Budujemy URL. PrestaShop domyślnie zwraca XML, wymuszamy JSON parametrem output_format
-                    string requestUrl = $"{baseUrl}/api/products/{item.ProductExternalId}?output_format=JSON";
+                    // 2. Budujemy listę ID do filtru: [1|2|3|4]
+                    var idsToFetch = string.Join("|", chunk.Select(x => x.ProductExternalId));
+
+                    // 3. Budujemy URL zoptymalizowany:
+                    // display=[id,price] -> pobiera TYLKO id i cenę (oszczędność transferu)
+                    // filter[id]=[...] -> pobiera wiele produktów na raz
+                    string requestUrl = $"{baseUrl}/products?display=[id,price]&filter[id]=[{idsToFetch}]&output_format=JSON";
 
                     var response = await client.GetAsync(requestUrl);
 
                     if (response.IsSuccessStatusCode)
                     {
                         var jsonString = await response.Content.ReadAsStringAsync();
+                        var rootNode = JsonNode.Parse(jsonString);
 
-                        // Parsowanie JSON
-                        // Przykładowa struktura: { "product": { "id": 1, "price": "123.000000", ... } }
-                        var jsonNode = JsonNode.Parse(jsonString);
-                        var priceStr = jsonNode?["product"]?["price"]?.ToString();
+                        // Presta przy liście zwraca tablicę "products": [ {id:1, price:...}, {id:2, price:...} ]
+                        var productsArray = rootNode?["products"]?.AsArray();
 
-                        if (decimal.TryParse(priceStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal price))
+                        if (productsArray != null)
                         {
-                            // Sukces - zapisujemy cenę
-                            // UWAGA: PrestaShop w polu 'price' zazwyczaj zwraca cenę NETTO.
-                            // Jeśli potrzebujesz brutto, może być konieczna dodatkowa logika lub konfiguracja API sklepu.
-                            item.ExtendedDataApiPrice = Math.Round(price, 2);
-                            _logger.LogInformation($"[PrestaShop] ID {item.ProductExternalId}: Pobrano cenę {item.ExtendedDataApiPrice}");
+                            // Mapujemy wyniki z API do naszych obiektów w pamięci
+                            foreach (var productNode in productsArray)
+                            {
+                                var idStr = productNode?["id"]?.ToString();
+                                var priceStr = productNode?["price"]?.ToString();
+
+                                // Znajdź odpowiedni obiekt w chunku po ID
+                                var itemToUpdate = chunk.FirstOrDefault(x => x.ProductExternalId == idStr);
+
+                                if (itemToUpdate != null && decimal.TryParse(priceStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal price))
+                                {
+                                    itemToUpdate.ExtendedDataApiPrice = Math.Round(price, 2);
+                                    // Oznaczamy sukces
+                                    itemToUpdate.IsApiProcessed = true;
+                                }
+                            }
                         }
-                        else
+
+                        // WAŻNE: Obsługa produktów, których API nie zwróciło (np. usunięte w sklepie, ale my mamy ID)
+                        // Oznaczamy je jako przetworzone, żeby nie pytać o nie w nieskończoność.
+                        foreach (var item in chunk)
                         {
-                            _logger.LogWarning($"[PrestaShop] Nie udało się sparsować ceny dla produktu ID {item.ProductExternalId}.");
+                            if (!item.IsApiProcessed)
+                            {
+                                // Jeśli po przetworzeniu odpowiedzi nadal false, to znaczy, że API nie zwróciło tego ID
+                                // (np. produkt usunięty/nieaktywny w PrestaShop)
+                                item.IsApiProcessed = true;
+                                _logger.LogWarning($"[PrestaShop] ID {item.ProductExternalId} nie zostało zwrócone przez API (może być nieaktywne).");
+                            }
                         }
+
+                        _logger.LogInformation($"[PrestaShop] Przetworzono paczkę {chunk.Length} produktów.");
                     }
                     else
                     {
-                        _logger.LogWarning($"[PrestaShop] Błąd HTTP {response.StatusCode} dla produktu ID {item.ProductExternalId}. URL: {requestUrl}");
+                        _logger.LogWarning($"[PrestaShop] Błąd HTTP {response.StatusCode} dla paczki ID: {idsToFetch}");
+                        // W przypadku błędu całej paczki (np. URL za długi), oznaczamy jako przetworzone "na siłę"
+                        // lub zostawiamy false, by spróbować pojedynczo (tutaj oznaczamy, by nie blokować).
+                        foreach (var item in chunk) item.IsApiProcessed = true;
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"[PrestaShop] Wyjątek połączenia dla produktu ID {item.ProductExternalId}");
-                }
-                finally
-                {
-                    // Zawsze oznaczamy jako przetworzone, nawet jeśli był błąd (np. 404 - produkt usunięty).
-                    // W przeciwnym razie bot będzie próbował w nieskończoność dla błędnych ID.
-                    item.IsApiProcessed = true;
+                    _logger.LogError(ex, "[PrestaShop] Błąd krytyczny podczas przetwarzania paczki.");
+                    // Zabezpieczenie przed pętlą
+                    foreach (var item in chunk) item.IsApiProcessed = true;
                 }
 
-                // Krótkie opóźnienie, aby nie zablokować serwera klienta (Rate Limiting)
-                await Task.Delay(100);
+                // Krótkie opóźnienie między paczkami, żeby nie zabić serwera
+                await Task.Delay(200);
             }
         }
 
-        // Pomocnicza metoda do masowego oznaczania rekordów jako przetworzone (np. w przypadku błędów konfiguracji)
         private void MarkAsProcessed(List<CoOfrStoreData> items)
         {
             foreach (var item in items)
