@@ -167,9 +167,14 @@ namespace PriceSafari.Services.ScheduleService
                                 // Znajdź odpowiedni obiekt w chunku po ID
                                 var itemToUpdate = chunk.FirstOrDefault(x => x.ProductExternalId == idStr);
 
+                                // --- Fragment metody ProcessPrestaShopBatchAsync ---
+
                                 if (itemToUpdate != null && decimal.TryParse(priceStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal price))
                                 {
-                                    itemToUpdate.ExtendedDataApiPrice = Math.Round(price, 2);
+                                    // POPRAWKA: Presta zwraca netto, mnożymy przez 1.23 (VAT 23%)
+                                    // Używamy sufiksu 'm' dla typu decimal (1.23m)
+                                    itemToUpdate.ExtendedDataApiPrice = Math.Round(price * 1.23m, 2);
+
                                     // Oznaczamy sukces
                                     itemToUpdate.IsApiProcessed = true;
                                 }
