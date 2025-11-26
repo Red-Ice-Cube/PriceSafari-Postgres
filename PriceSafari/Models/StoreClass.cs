@@ -51,6 +51,11 @@ namespace PriceSafari.Models
 
         public bool UseGoogleXMLFeedPrice { get; set; } = false;
 
+        //nowa zmienna
+
+        [Display(Name = "Pobieraj dane z API Sklepu")]
+        public bool FetchExtendedData { get; set; } = false;
+
         public string? StoreNameAllegro { get; set; }
 
         public bool OnCeneo { get; set; } = false;

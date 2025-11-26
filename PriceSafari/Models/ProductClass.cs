@@ -61,8 +61,8 @@ namespace PriceSafari.Models
 
         public bool OnGoogle { get; set; } = false;
         public string? Url { get; set; }
-        public string? GoogleUrl { get; set; } //google cid 
-        public string? GoogleGid { get; set; } //google id 
+        public string? GoogleUrl { get; set; }
+        public string? GoogleGid { get; set; }
         public string? ProductNameInStoreForGoogle { get; set; }
         public string? EanGoogle { get; set; }
         public string? ImgUrlGoogle { get; set; }

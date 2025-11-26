@@ -92,6 +92,53 @@ namespace PriceSafari.Services.ScheduleService
             return (totalProducts, distinctStoreNames);
         }
 
+        //private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl, string? googleGid)
+        //{
+        //    if (string.IsNullOrEmpty(offerUrl)) offerUrl = null;
+        //    if (string.IsNullOrEmpty(googleUrl)) googleUrl = null;
+        //    if (string.IsNullOrEmpty(googleGid)) googleGid = null;
+
+        //    var coOfr = new CoOfrClass
+        //    {
+        //        OfferUrl = offerUrl,
+        //        GoogleOfferUrl = googleUrl,
+        //        GoogleGid = googleGid,
+        //        ProductIds = new List<int>(),
+        //        ProductIdsGoogle = new List<int>(),
+        //        StoreNames = new List<string>(),
+        //        StoreProfiles = new List<string>(),
+        //        IsScraped = false,
+        //        GoogleIsScraped = false,
+        //        IsRejected = false,
+        //        GoogleIsRejected = false
+        //    };
+
+        //    var uniqueStoreNames = new HashSet<string>();
+        //    var uniqueStoreProfiles = new HashSet<string>();
+
+        //    foreach (var product in productList)
+        //    {
+        //        coOfr.ProductIds.Add(product.ProductId);
+
+        //        if (!string.IsNullOrEmpty(googleUrl) && product.GoogleUrl == googleUrl)
+        //        {
+        //            coOfr.ProductIdsGoogle.Add(product.ProductId);
+        //        }
+
+        //        if (product.Store != null)
+        //        {
+        //            uniqueStoreNames.Add(product.Store.StoreName);
+        //            uniqueStoreProfiles.Add(product.Store.StoreProfile);
+        //        }
+        //    }
+
+        //    coOfr.StoreNames = uniqueStoreNames.ToList();
+        //    coOfr.StoreProfiles = uniqueStoreProfiles.ToList();
+
+        //    return coOfr;
+        //}
+
+
         private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl, string? googleGid)
         {
             if (string.IsNullOrEmpty(offerUrl)) offerUrl = null;
@@ -107,6 +154,9 @@ namespace PriceSafari.Services.ScheduleService
                 ProductIdsGoogle = new List<int>(),
                 StoreNames = new List<string>(),
                 StoreProfiles = new List<string>(),
+                // Inicjalizacja nowej listy
+                StoreData = new List<CoOfrStoreData>(),
+
                 IsScraped = false,
                 GoogleIsScraped = false,
                 IsRejected = false,
@@ -129,8 +179,30 @@ namespace PriceSafari.Services.ScheduleService
                 {
                     uniqueStoreNames.Add(product.Store.StoreName);
                     uniqueStoreProfiles.Add(product.Store.StoreProfile);
+
+                    // LOGIKA FILTRACJI:
+                    // 1. Czy sklep ma włączone pobieranie (FetchExtendedData)?
+                    // 2. Czy produkt MA ExternalId (product.ExternalId.HasValue)?
+                    //    (Jeśli ExternalId jest nullem, nie ma sensu tworzyć zadania dla bota API)
+
+                    if (product.Store.FetchExtendedData && product.ExternalId.HasValue)
+                    {
+                        var storeData = new CoOfrStoreData
+                        {
+                            StoreId = product.StoreId,
+                            // Tutaj już wiemy, że nie jest nullem, więc ToString() jest bezpieczne
+                            ProductExternalId = product.ExternalId.Value.ToString(),
+
+                            IsApiProcessed = false,
+                            ExtendedDataApiPrice = null
+                        };
+
+                        coOfr.StoreData.Add(storeData);
+                    }
                 }
+                // -------------------
             }
+            
 
             coOfr.StoreNames = uniqueStoreNames.ToList();
             coOfr.StoreProfiles = uniqueStoreProfiles.ToList();

@@ -1,12 +1,14 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using PriceSafari.Models;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 public class CoOfrClass
 {
     [Key]
     public int Id { get; set; }
-    public string? OfferUrl { get; set; } //Ceneo ofer
-    public string? GoogleOfferUrl { get; set; } 
-    public string? GoogleGid { get; set; } 
+    public string? OfferUrl { get; set; }
+    public string? GoogleOfferUrl { get; set; }
+    public string? GoogleGid { get; set; }
     public List<int> ProductIds { get; set; } = new List<int>();
     public List<int> ProductIdsGoogle { get; set; } = new List<int>();
     public bool IsScraped { get; set; }
@@ -17,10 +19,15 @@ public class CoOfrClass
     public bool GoogleIsRejected { get; set; }
     public bool IsGoogle { get; set; }
 
-    // Wartposci Brudonopisu nastepnie przepisane do extendedInfo
     public int? CeneoSalesCount { get; set; }
 
-    // Add these two new properties
+
+
+
     public List<string> StoreNames { get; set; } = new List<string>();
     public List<string> StoreProfiles { get; set; } = new List<string>();
+
+    // NOWA RELACJA:
+    public virtual ICollection<CoOfrStoreData> StoreData { get; set; } = new List<CoOfrStoreData>();
+
 }

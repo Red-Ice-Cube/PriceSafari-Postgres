@@ -63,6 +63,10 @@ namespace PriceSafari.Data
         public DbSet<EmailTemplate> EmailTemplates { get; set; }
         public DbSet<ContactLabel> ContactLabels { get; set; }
 
+
+        // W PriceSafariContext.cs dodaj:
+        public DbSet<CoOfrStoreData> CoOfrStoreDatas { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -294,6 +298,13 @@ namespace PriceSafari.Data
                     .HasForeignKey(i => i.AllegroProductId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+
+
+            modelBuilder.Entity<CoOfrStoreData>()
+                .HasOne(sd => sd.CoOfr)          // Dziecko ma jednego Rodzica
+                .WithMany(co => co.StoreData)    // Rodzic ma wiele Dzieci
+                .HasForeignKey(sd => sd.CoOfrClassId)
+                .OnDelete(DeleteBehavior.Cascade); // <-- TO JEST KLUCZOWE
         }
     }
 }
