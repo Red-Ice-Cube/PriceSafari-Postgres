@@ -770,7 +770,7 @@
             let eanInfo = row.ean ? `<div class="price-info-item">EAN: ${row.ean}</div>` : "";
             let extIdInfo = row.externalId ? `<div class="price-info-item">ID: ${row.externalId}</div>` : "";
             let producerCodeInfo = row.producerCode ? `<div class="price-info-item">Kod: ${row.producerCode}</div>` : "";
-            let producerInfo = row.producer ? `<div class="price-info-item" style="color: #555; font-style: italic;">Prod: ${row.producer}</div>` : "";
+            let producerInfo = row.producer ? `<div class="price-info-item" style="color: #555; font-style: italic;">Producent: ${row.producer}</div>` : "";
 
             const formattedDiff = formatPricePL(Math.abs(row.diff), false);
             const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);

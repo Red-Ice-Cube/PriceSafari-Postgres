@@ -214,7 +214,7 @@
             </div>
         </div>
     </div>
-<div class="card border-info">
+    <div class="card border-info">
         <div class="card-header bg-info text-white">
             <h4 class="mb-0"><i class="fas fa-file-invoice"></i> Dane do Faktury (Płatnik)</h4>
         </div>
@@ -231,8 +231,8 @@
                 </div>
                 <div class="form-group col-md-6">
                     <label asp-for="PaymentData.NIP">NIP</label>
-                    <input asp-for="PaymentData.NIP" 
-                           class="form-control" 
+                    <input asp-for="PaymentData.NIP"
+                           class="form-control"
                            placeholder="Tylko cyfry (10 znaków)"
                            maxlength="10"
                            pattern="\d{10}"
@@ -383,7 +383,7 @@
     @await Html.PartialAsync("_ValidationScriptsPartial")
 
     <script>
-        // Funkcja do pokazywania hasła API sklepu
+
         function toggleStoreKey() {
             var x = document.getElementById("storeApiKeyInput");
             if (x.type === "password") {
@@ -394,7 +394,7 @@
         }
 
         $(document).ready(function () {
-            // --- Logika dla API Sklepu ---
+
             const apiSwitch = $('#fetchApiSwitch');
             const apiSection = $('#apiConfigurationSection');
 
@@ -406,17 +406,12 @@
                 }
             }
 
-            // Uruchom przy starcie (żeby ustawić dobry stan w zależności od danych z bazy)
             toggleApiSection();
 
-            // Nasłuchuj zmian
             apiSwitch.on('change', function () {
                 toggleApiSection();
             });
-            // -----------------------------
 
-
-            // --- Istniejąca logika dla Tokenu Allegro i Faktur ---
             $('#clearTokenBtn').on('click', function () {
                 if (confirm('Czy na pewno chcesz wyczyścić pole tokenu? Musisz zapisać zmiany, aby zatwierdzić usunięcie.')) {
                     $('#allegroTokenInput').val('').trigger('change');

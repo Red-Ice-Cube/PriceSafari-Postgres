@@ -8,33 +8,33 @@ namespace PriceSafari.Models
         [Key]
         public int PaymentDataId { get; set; }
 
-        // --- NOWA LOGIKA (RELACJA 1:1 ZE SKLEPEM) ---
+        // --- RELACJA ---
         [Required]
         public int StoreId { get; set; }
 
         [ForeignKey("StoreId")]
-        public StoreClass Store { get; set; }
-        // -------------------------------------------
+        public StoreClass? Store { get; set; } // Tu też warto dodać '?' aby uniknąć ostrzeżeń kompilatora
+        // ----------------
 
-        [Required]
+        // USUNIĘTO [Required]
         [Display(Name = "Nazwa firmy")]
-        public string CompanyName { get; set; }
+        public string? CompanyName { get; set; } // Dodano '?' (Nullable)
 
-        [Required]
+        // USUNIĘTO [Required]
         [Display(Name = "Adres")]
-        public string Address { get; set; }
+        public string? Address { get; set; } // Dodano '?'
 
-        [Required]
+        // USUNIĘTO [Required]
         [Display(Name = "Kod pocztowy")]
-        public string PostalCode { get; set; }
+        public string? PostalCode { get; set; } // Dodano '?'
 
-        [Required]
+        // USUNIĘTO [Required]
         [Display(Name = "Miasto")]
-        public string City { get; set; }
+        public string? City { get; set; } // Dodano '?'
 
-        [Required]
+        // USUNIĘTO [Required]
         [Display(Name = "NIP")]
-        public string NIP { get; set; }
+        public string? NIP { get; set; } // Dodano '?'
 
         public string? InvoiceAutoMail { get; set; }
         public bool InvoiceAutoMailSend { get; set; } = false;
