@@ -56,6 +56,9 @@ namespace PriceSafari.Models
         [Display(Name = "Pobieraj dane z API Sklepu")]
         public bool FetchExtendedData { get; set; } = false;
 
+        [Display(Name = "System Sklepowy (Silnik)")]
+        public StoreSystemType StoreSystemType { get; set; } = StoreSystemType.Custom;
+
         public string? StoreNameAllegro { get; set; }
 
         public bool OnCeneo { get; set; } = false;

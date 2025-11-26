@@ -64,22 +64,47 @@
     </div>
 
     <div class="card">
-        <div class="card-header">
-            <h4>Konfiguracja API i Plików XML</h4>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Konfiguracja API i Plików XML</h4>
+            <div class="custom-control custom-switch">
+                <input asp-for="FetchExtendedData" type="checkbox" class="custom-control-input" id="fetchApiSwitch">
+                <label class="custom-control-label font-weight-bold" for="fetchApiSwitch">
+                    Pobieraj dane cenowe z API Sklepu
+                </label>
+            </div>
         </div>
         <div class="card-body">
-            <div class="form-row">
-                <div class="form-group col-md-6">
-                    <label asp-for="StoreApiUrl">URL API</label>
-                    <input asp-for="StoreApiUrl" class="form-control" placeholder="Adres bazowy API sklepu" />
-                    <span asp-validation-for="StoreApiUrl" class="text-danger"></span>
+            <div id="apiConfigurationSection" style="display: none; background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; border: 1px solid #dee2e6;">
+                <h6 class="text-primary mb-3"><i class="fas fa-robot"></i> Ustawienia połączenia API</h6>
+
+                <div class="form-group">
+                    <label asp-for="StoreSystemType">System Sklepowy (Silnik)</label>
+                    <select asp-for="StoreSystemType" class="form-control" asp-items="Html.GetEnumSelectList<PriceSafari.Models.StoreSystemType>()">
+                    </select>
+                    <span asp-validation-for="StoreSystemType" class="text-danger"></span>
+                    <small class="text-muted">Wybór odpowiedniego systemu pozwoli botowi na poprawną komunikację.</small>
                 </div>
-                <div class="form-group col-md-6">
-                    <label asp-for="StoreApiKey">Klucz API</label>
-                    <input asp-for="StoreApiKey" class="form-control" />
-                    <span asp-validation-for="StoreApiKey" class="text-danger"></span>
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label asp-for="StoreApiUrl">URL API</label>
+                        <input asp-for="StoreApiUrl" class="form-control" placeholder="https://sklep.pl/api" />
+                        <span asp-validation-for="StoreApiUrl" class="text-danger"></span>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label asp-for="StoreApiKey">Klucz API</label>
+                        <div class="input-group">
+                            <input asp-for="StoreApiKey" class="form-control" type="password" id="storeApiKeyInput" />
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button" onclick="toggleStoreKey()">👁️</button>
+                            </div>
+                        </div>
+                        <span asp-validation-for="StoreApiKey" class="text-danger"></span>
+                    </div>
                 </div>
             </div>
+
+            <h6 class="text-secondary mb-3"><i class="fas fa-file-code"></i> Pliki XML (Feed Produktowy)</h6>
             <div class="form-row">
                 <div class="form-group col-md-6">
                     <label asp-for="ProductMapXmlUrl">URL pliku XML (Ceneo)</label>
@@ -346,6 +371,7 @@
             </div>
         </div>
     </div>
+
     <div class="form-group mt-4">
         <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
         <a asp-action="Index" class="btn btn-secondary">Anuluj</a>
@@ -357,8 +383,40 @@
     @await Html.PartialAsync("_ValidationScriptsPartial")
 
     <script>
-        $(document).ready(function () {
+        // Funkcja do pokazywania hasła API sklepu
+        function toggleStoreKey() {
+            var x = document.getElementById("storeApiKeyInput");
+            if (x.type === "password") {
+                x.type = "text";
+            } else {
+                x.type = "password";
+            }
+        }
 
+        $(document).ready(function () {
+            // --- Logika dla API Sklepu ---
+            const apiSwitch = $('#fetchApiSwitch');
+            const apiSection = $('#apiConfigurationSection');
+
+            function toggleApiSection() {
+                if (apiSwitch.is(':checked')) {
+                    apiSection.slideDown();
+                } else {
+                    apiSection.slideUp();
+                }
+            }
+
+            // Uruchom przy starcie (żeby ustawić dobry stan w zależności od danych z bazy)
+            toggleApiSection();
+
+            // Nasłuchuj zmian
+            apiSwitch.on('change', function () {
+                toggleApiSection();
+            });
+            // -----------------------------
+
+
+            // --- Istniejąca logika dla Tokenu Allegro i Faktur ---
             $('#clearTokenBtn').on('click', function () {
                 if (confirm('Czy na pewno chcesz wyczyścić pole tokenu? Musisz zapisać zmiany, aby zatwierdzić usunięcie.')) {
                     $('#allegroTokenInput').val('').trigger('change');

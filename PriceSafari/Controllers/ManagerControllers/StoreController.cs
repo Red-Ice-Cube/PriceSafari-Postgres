@@ -138,6 +138,8 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.StoreNameAllegro = store.StoreNameAllegro;
             existingStore.StoreNameGoogle = store.StoreNameGoogle;
             existingStore.StoreNameCeneo = store.StoreNameCeneo;
+            existingStore.FetchExtendedData = store.FetchExtendedData;
+            existingStore.StoreSystemType = store.StoreSystemType;
 
             existingStore.UseGoogleXMLFeedPrice = store.UseGoogleXMLFeedPrice;
             existingStore.OnCeneo = store.OnCeneo;
