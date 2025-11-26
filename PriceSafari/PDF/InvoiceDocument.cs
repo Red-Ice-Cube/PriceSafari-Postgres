@@ -88,10 +88,7 @@ public class InvoiceDocument
         var cell = dateRow.Cells[0];
         cell.AddParagraph($"Data wystawienia: {_invoice.IssueDate:yyyy-MM-dd}");
 
-        if (_invoice.PaymentDate != null)
-        {
-            cell.AddParagraph($"Data sprzedaży: {_invoice.PaymentDate:yyyy-MM-dd}");
-        }
+        cell.AddParagraph($"Data sprzedaży: {_invoice.IssueDate:yyyy-MM-dd}");
 
         cell.AddParagraph($"Status: {(_invoice.IsPaid ? "Opłacona" : "DO ZAPŁATY")}");
 
