@@ -343,8 +343,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (string.IsNullOrEmpty(mainProduct.MainUrl) && !string.IsNullOrEmpty(duplicateProduct.MainUrl))
                 mainProduct.MainUrl = duplicateProduct.MainUrl;
 
-            if (!mainProduct.ExternalPrice.HasValue && duplicateProduct.ExternalPrice.HasValue)
-                mainProduct.ExternalPrice = duplicateProduct.ExternalPrice;
+   
 
             if (string.IsNullOrEmpty(mainProduct.ExportedNameCeneo) && !string.IsNullOrEmpty(duplicateProduct.ExportedNameCeneo))
                 mainProduct.ExportedNameCeneo = duplicateProduct.ExportedNameCeneo;

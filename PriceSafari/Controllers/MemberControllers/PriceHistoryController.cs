@@ -270,7 +270,6 @@ namespace PriceSafari.Controllers.MemberControllers
                .Select(p => new {
                    p.ProductId,
                    p.ExternalId,
-                   p.ExternalPrice,
                    p.MainUrl,
                    p.MarginPrice,
                    p.Ean,
@@ -279,7 +278,7 @@ namespace PriceSafari.Controllers.MemberControllers
                .ToListAsync();
             var productExternalInfoDictionary = productsWithExternalInfo.ToDictionary(
                 p => p.ProductId,
-                p => new { p.ExternalId, p.ExternalPrice, p.MainUrl, p.MarginPrice, p.Ean, p.ProducerCode }
+                p => new { p.ExternalId, p.MainUrl, p.MarginPrice, p.Ean, p.ProducerCode }
             );
 
             Dictionary<(string Store, DataSourceType Source), bool> competitorItemsDict = null;
@@ -552,7 +551,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         BestEntryInStock = bestEntryStockStatus,
                         MyEntryInStock = myEntryStockStatus,
                         ExternalId = extInfo?.ExternalId,
-                        ExternalPrice = extInfo?.ExternalPrice,
                         MarginPrice = extInfo?.MarginPrice,
                         ImgUrl = extInfo?.MainUrl,
                         Ean = extInfo?.Ean,
@@ -571,6 +569,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         SalesTrendStatus = salesTrendStatus.ToString(),
                         SalesDifference = salesDifference,
                         SalesPercentageChange = salesPercentageChange,
+                        ExternalApiPrice = extendedInfo?.ExtendedDataApiPrice,
                         MyPricePosition = myPricePositionString
                     };
                 })
@@ -829,7 +828,6 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.SetPrice2 = priceValues.SetPrice2;
             ViewBag.ProductId = productId;
             ViewBag.ExternalId = product.ExternalId;
-            ViewBag.ExternalPrice = product.ExternalPrice;
             ViewBag.Img = product.MainUrl;
             ViewBag.Ean = product.Ean;
             ViewBag.CatalogNum = product.CatalogNumber;

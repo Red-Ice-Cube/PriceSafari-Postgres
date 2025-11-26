@@ -390,11 +390,7 @@ public class StoreProcessingService
             .Where(p => p.StoreId == storeId)
             .ToListAsync();
 
-        foreach (var product in products)
-        {
-            product.ExternalPrice = null;
-        }
-
+       
         var coOfrClasses = await _context.CoOfrs.AsNoTracking().ToListAsync();
         var coOfrPriceHistories = await _context.CoOfrPriceHistories.AsNoTracking().ToListAsync();
 
