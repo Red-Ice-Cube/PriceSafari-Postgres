@@ -19,5 +19,6 @@ public class PriceHistoryExtendedInfoClass
     // Informacja o sprzedaży z Ceneo
     public int? CeneoSalesCount { get; set; }
 
-
+    [Column(TypeName = "decimal(18, 2)")]
+    public decimal? ExtendedDataApiPrice { get; set; }
 }
