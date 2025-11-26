@@ -130,7 +130,7 @@ namespace PriceSafari.Services.ScheduleService
 
             // 1. Dzielimy listę na paczki po 50 sztuk (Batching)
             // PrestaShop zazwyczaj radzi sobie z ~50-100 ID w filtrze URL.
-            var chunks = items.Chunk(50).ToList();
+            var chunks = items.Chunk(100).ToList();
 
             _logger.LogInformation($"[PrestaShop] Rozpoczynam pobieranie w trybie BATCH. Ilość paczek: {chunks.Count}");
 
