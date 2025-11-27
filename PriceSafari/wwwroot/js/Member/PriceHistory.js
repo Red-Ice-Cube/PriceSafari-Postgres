@@ -1284,11 +1284,6 @@
             filteredPrices = filteredPrices.filter(item => selectedStockCompetitor.includes(item.bestEntryInStock));
         }
 
-        if (selectedExternalPrice.includes("yes")) {
-            filteredPrices = filteredPrices.filter(item => item.externalPrice !== null);
-        } else if (selectedExternalPrice.includes("no")) {
-            filteredPrices = filteredPrices.filter(item => item.externalPrice === null);
-        }
 
         return filteredPrices;
     }
@@ -2144,6 +2139,14 @@
             priceBoxColumnMyPrice.className = 'price-box-column';
 
             if (item.colorClass !== 'prNoOffer' && myPrice != null) {
+
+
+
+
+
+
+
+
                 const myIconHtml = (item.myIsGoogle != null ?
                     '<span class="data-channel" style="display: inline-block; vertical-align: middle; margin-right: 4px;"><img src="' +
                     (item.myIsGoogle ? '/images/GoogleShopping.png' : '/images/Ceneo.png') +
@@ -2153,152 +2156,72 @@
                 const priceBoxMyText = document.createElement('div');
                 priceBoxMyText.className = 'price-box-column-text';
 
-                if (item.externalPrice !== null) {
-                    const externalPriceDifference = (item.externalPrice - myPrice).toFixed(2);
-                    const isPriceDecrease = item.externalPrice < myPrice;
-                    const priceChangeContainer = document.createElement('div');
-                    priceChangeContainer.style.display = 'flex';
-                    priceChangeContainer.style.justifyContent = 'space-between';
-                    priceChangeContainer.style.alignItems = 'center';
+                // 1. ZAWSZE RENDERUJEMY NORMALNĄ CENĘ (bez logiki externalPrice)
+                const myPriceLine = document.createElement('div');
+                myPriceLine.style.display = 'flex';
+                myPriceLine.style.alignItems = 'center';
 
-                    const storeName = document.createElement('span');
-                    storeName.style.fontWeight = '500';
-                    storeName.style.marginRight = '20px';
-                    storeName.style.display = 'flex';
-                    storeName.style.alignItems = 'center';
-                    storeName.innerHTML = myIconHtml + `<span style="display: inline-block; vertical-align: middle;">${myStoreName}</span>`;
+                const myPriceSpan = document.createElement('span');
+                myPriceSpan.style.fontWeight = '500';
+                myPriceSpan.style.fontSize = '17px';
+                myPriceSpan.textContent = formatPricePL(myPrice);
+                myPriceLine.appendChild(myPriceSpan);
 
-                    const priceDifferenceElem = document.createElement('span');
-                    priceDifferenceElem.style.fontWeight = '500';
-                    const arrow = '<span class="' + (isPriceDecrease ? 'arrow-down' : 'arrow-up') + '"></span>';
-                    priceDifferenceElem.innerHTML = arrow + (isPriceDecrease ? '-' : '') + parseFloat(externalPriceDifference).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN ';
+                const storeNameDiv = document.createElement('div');
+                storeNameDiv.style.display = 'flex';
+                storeNameDiv.style.alignItems = 'center';
+                storeNameDiv.innerHTML = myIconHtml + `<span style="display: inline-block; vertical-align: middle;">${myStoreName}</span>`;
 
-                    priceChangeContainer.appendChild(storeName);
-                    priceChangeContainer.appendChild(priceDifferenceElem);
+                priceBoxMyText.appendChild(myPriceLine);
+                priceBoxMyText.appendChild(storeNameDiv);
 
-                    const priceContainer = document.createElement('div');
-                    priceContainer.style.display = 'flex';
-                    priceContainer.style.justifyContent = 'space-between';
-                    priceContainer.style.alignItems = 'center';
-
-                    const oldPrice = document.createElement('span');
-                    oldPrice.style.fontWeight = '500';
-                    oldPrice.style.textDecoration = 'line-through';
-                    oldPrice.style.marginRight = '10px';
-                    oldPrice.textContent = formatPricePL(myPrice);
-
-                    const newPrice = document.createElement('span');
-                    newPrice.style.fontWeight = '500';
-                    newPrice.textContent = formatPricePL(item.externalPrice);
-
-                    priceContainer.appendChild(oldPrice);
-                    priceContainer.appendChild(newPrice);
-
-                    priceBoxMyText.appendChild(priceContainer);
-                    priceBoxMyText.appendChild(priceChangeContainer);
-
-                    if (marginSettings.usePriceWithDelivery) {
-                        const myPriceDeliveryInfo = createDeliveryInfoDisplay(
-                            myPrice,
-                            item.myPriceDeliveryCost,
-                            item.myPriceIncludesDelivery
-                        );
-                        if (myPriceDeliveryInfo) {
-                            priceBoxMyText.appendChild(myPriceDeliveryInfo);
-                        }
-                    }
-
-                    if (marginPrice != null) {
-                        const formattedMarginPrice = formatPricePL(marginPrice);
-                        const badgeClass = getMarginBadgeClass(marginClass);
-                        let bgMarginClass = 'price-box-diff-margin-ib-neutral';
-                        if (marginClass === 'priceBox-diff-margin-ins') {
-                            bgMarginClass = 'price-box-diff-margin-ib-positive';
-                        } else if (marginClass === 'priceBox-diff-margin-minus-ins') {
-                            bgMarginClass = 'price-box-diff-margin-ib-negative';
-                        }
-
-                        const purchasePriceBox = document.createElement('div');
-                        purchasePriceBox.className = 'price-box-diff-margin-ib ' + bgMarginClass;
-                        purchasePriceBox.style.marginTop = '4px';
-                        purchasePriceBox.innerHTML = `<span class="price-badge ${badgeClass}">Cena zakupu</span><p>${formattedMarginPrice}</p>`;
-
-                        const formattedMarginAmount = marginSign + formatPricePL(Math.abs(marginAmount), false) + ' PLN';
-                        const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }) + '%)';
-                        const marginBox = document.createElement('div');
-                        marginBox.className = 'price-box-diff-margin-ib ' + bgMarginClass;
-                        marginBox.style.marginTop = '3px';
-                        marginBox.innerHTML = `<span class="price-badge ${badgeClass}">Zysk (narzut)</span><p>${formattedMarginAmount} ${formattedMarginPercentage}</p>`;
-
-                        priceBoxMyText.appendChild(purchasePriceBox);
-                        priceBoxMyText.appendChild(marginBox);
-                    }
-
-                } else {
-                    const myPriceLine = document.createElement('div');
-                    myPriceLine.style.display = 'flex';
-                    myPriceLine.style.alignItems = 'center';
-
-                    const myPriceSpan = document.createElement('span');
-                    myPriceSpan.style.fontWeight = '500';
-                    myPriceSpan.style.fontSize = '17px';
-                    myPriceSpan.textContent = formatPricePL(myPrice);
-                    myPriceLine.appendChild(myPriceSpan);
-
-                    const storeNameDiv = document.createElement('div');
-                    storeNameDiv.style.display = 'flex';
-                    storeNameDiv.style.alignItems = 'center';
-                    storeNameDiv.innerHTML = myIconHtml + `<span style="display: inline-block; vertical-align: middle;">${myStoreName}</span>`;
-
-                    priceBoxMyText.appendChild(myPriceLine);
-                    priceBoxMyText.appendChild(storeNameDiv);
-
-                    if (marginSettings.usePriceWithDelivery) {
-                        const myPriceDeliveryInfo = createDeliveryInfoDisplay(
-                            myPrice,
-                            item.myPriceDeliveryCost,
-                            item.myPriceIncludesDelivery
-                        );
-                        if (myPriceDeliveryInfo) {
-                            priceBoxMyText.appendChild(myPriceDeliveryInfo);
-                        }
-                    }
-
-                    if (marginPrice != null) {
-                        const formattedMarginPrice = formatPricePL(marginPrice);
-                        const badgeClass = getMarginBadgeClass(marginClass);
-                        let bgMarginClass = 'price-box-diff-margin-ib-neutral';
-                        if (marginClass === 'priceBox-diff-margin-ins') {
-                            bgMarginClass = 'price-box-diff-margin-ib-positive';
-                        } else if (marginClass === 'priceBox-diff-margin-minus-ins') {
-                            bgMarginClass = 'price-box-diff-margin-ib-negative';
-                        }
-
-                        const purchasePriceBox = document.createElement('div');
-                        purchasePriceBox.className = 'price-box-diff-margin-ib ' + bgMarginClass;
-                        purchasePriceBox.style.marginTop = '4px';
-                        purchasePriceBox.innerHTML = `<span class="price-badge ${badgeClass}">Cena zakupu</span><p>${formattedMarginPrice}</p>`;
-
-                        const formattedMarginAmount = marginSign + formatPricePL(Math.abs(marginAmount), false) + ' PLN';
-                        const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }) + '%)';
-                        const marginBox = document.createElement('div');
-                        marginBox.className = 'price-box-diff-margin-ib ' + bgMarginClass;
-                        marginBox.style.marginTop = '3px';
-                        marginBox.innerHTML = `<span class="price-badge ${badgeClass}">Zysk (narzut)</span><p>${formattedMarginAmount} ${formattedMarginPercentage}</p>`;
-
-                        priceBoxMyText.appendChild(purchasePriceBox);
-                        priceBoxMyText.appendChild(marginBox);
+                // 2. Obsługa kosztów dostawy (jeśli włączona)
+                if (marginSettings.usePriceWithDelivery) {
+                    const myPriceDeliveryInfo = createDeliveryInfoDisplay(
+                        myPrice,
+                        item.myPriceDeliveryCost,
+                        item.myPriceIncludesDelivery
+                    );
+                    if (myPriceDeliveryInfo) {
+                        priceBoxMyText.appendChild(myPriceDeliveryInfo);
                     }
                 }
 
+                // 3. Obsługa Marży/Zysku
+                if (marginPrice != null) {
+                    const formattedMarginPrice = formatPricePL(marginPrice);
+                    const badgeClass = getMarginBadgeClass(marginClass);
+                    let bgMarginClass = 'price-box-diff-margin-ib-neutral';
+                    if (marginClass === 'priceBox-diff-margin-ins') {
+                        bgMarginClass = 'price-box-diff-margin-ib-positive';
+                    } else if (marginClass === 'priceBox-diff-margin-minus-ins') {
+                        bgMarginClass = 'price-box-diff-margin-ib-negative';
+                    }
+
+                    const purchasePriceBox = document.createElement('div');
+                    purchasePriceBox.className = 'price-box-diff-margin-ib ' + bgMarginClass;
+                    purchasePriceBox.style.marginTop = '4px';
+                    purchasePriceBox.innerHTML = `<span class="price-badge ${badgeClass}">Cena zakupu</span><p>${formattedMarginPrice}</p>`;
+
+                    const formattedMarginAmount = marginSign + formatPricePL(Math.abs(marginAmount), false) + ' PLN';
+                    const formattedMarginPercentage = '(' + marginSign + Math.abs(marginPercentage).toLocaleString('pl-PL', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) + '%)';
+                    const marginBox = document.createElement('div');
+                    marginBox.className = 'price-box-diff-margin-ib ' + bgMarginClass;
+                    marginBox.style.marginTop = '3px';
+                    marginBox.innerHTML = `<span class="price-badge ${badgeClass}">Zysk (narzut)</span><p>${formattedMarginAmount} ${formattedMarginPercentage}</p>`;
+
+                    priceBoxMyText.appendChild(purchasePriceBox);
+                    priceBoxMyText.appendChild(marginBox);
+                }
+
+                // Dodanie kontenera tekstowego do kolumny
                 const priceBoxMyDetails = document.createElement('div');
                 priceBoxMyDetails.className = 'price-box-column-text';
+
+                // Budowanie szczegółów (pozycja, bid, stock)
                 let detailsHtmlParts = [];
 
                 if (myPosition !== null) {
@@ -2311,22 +2234,28 @@
                     detailsHtmlParts.push('<span class="Position" style="background-color: #414141;">Schowany</span>');
                 }
 
-   
                 if (item.myIsBidding === "1") {
                     detailsHtmlParts.push('<span class="Bidding">Bid</span>');
                 } else if (item.myIsBidding === "bpg") {
-                    // Badge dla Google - ten sam styl co Bid, opcjonalnie inny kolor
                     detailsHtmlParts.push('<span class="Bidding" style="background-color: #0F9D58; border-color: #0F9D58;" title="Twoja oferta ma oznaczenie Najlepsza cena">Odz. ceny Google</span>');
                 } else if (item.myIsBidding === "hpg") {
                     detailsHtmlParts.push('<span class="Bidding" style="background-color: #4285F4; border-color: #4285F4;" title="Twoja oferta ma oznaczenie Najpopularniejsze">Popularne</span>');
                 }
 
                 detailsHtmlParts.push(getStockStatusBadge(item.myEntryInStock));
-
                 priceBoxMyDetails.innerHTML = detailsHtmlParts.join(' ');
 
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
                 priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
+
+
+
+
+
+
+
+
+
 
             } else {
                 const priceBoxMyText = document.createElement('div');
