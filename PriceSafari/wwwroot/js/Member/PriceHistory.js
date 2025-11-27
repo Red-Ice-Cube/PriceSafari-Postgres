@@ -3391,32 +3391,21 @@
         debouncedFilterPrices();
     });
 
-    const exportButton = document.getElementById("exportToExcelButton");
-    if (exportButton) {
-        exportButton.addEventListener("click", function () {
-            exportToExcelXLSX(currentlyFilteredPrices);
-        });
-    }
-
-
     //const exportButton = document.getElementById("exportToExcelButton");
     //if (exportButton) {
     //    exportButton.addEventListener("click", function () {
-    //        // Jeśli chcesz uwzględnić obecne filtry w eksporcie, musiałbyś je przesłać POSTem.
-    //        // W wersji podstawowej (zrzut wszystkiego) wystarczy proste przekierowanie:
-
-    //        const url = `/PriceHistory/ExportToExcel?storeId=${storeId}`;
-
-    //        // Opcjonalnie: Pokaż spinner ładowania, choć przeglądarka sama obsłuży pobieranie
-    //        // showLoading(); 
-
-    //        window.location.href = url;
-
-    //        // Jeśli używasz spinnera, ukrycie go jest tricky przy window.location,
-    //        // bo strona się nie przeładowuje przy pobieraniu pliku. 
-    //        // Lepiej zostawić bez spinnera lub użyć "tricku z cookie" do wykrycia końca pobierania.
+    //        exportToExcelXLSX(currentlyFilteredPrices);
     //    });
     //}
+
+
+    const exportButton = document.getElementById("exportToExcelButton");
+    if (exportButton) {
+        exportButton.addEventListener("click", function () {
+            const url = `/PriceHistory/ExportToExcel?storeId=${storeId}`;
+            window.location.href = url;
+        });
+    }
 
     document.getElementById('savePriceValues').addEventListener('click', function () {
         const price1 = parseFloat(document.getElementById('price1').value);
