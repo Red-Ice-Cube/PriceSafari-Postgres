@@ -8,7 +8,6 @@
 @{
     ViewData["Title"] = "Kalendarz Maszyn";
 
-    // 7 kolumn (pon-nd)
     var days = new[]
     {
         new { Name = "Monday",    Detail = Model.Monday,    DayDetailId = Model.MondayId },
@@ -20,14 +19,12 @@
         new { Name = "Sunday",    Detail = Model.Sunday,    DayDetailId = Model.SundayId }
     };
 
-    // Funkcja pomocnicza, znajdująca zadanie, które STARTUJE dokładnie w danym slocie
     Func<DayDetail, int, int, ScheduleTask> findTask = (dd, hr, mn) =>
     {
         if (dd == null || dd.Tasks == null) return null;
         return dd.Tasks.FirstOrDefault(t => t.StartTime.Hours == hr && t.StartTime.Minutes == mn);
     };
 
-    // Zbieramy wszystkie zadania z całego tygodnia (Pon–Nd):
     var allTasks = new List<ScheduleTask>();
     if (Model.Monday?.Tasks != null) allTasks.AddRange(Model.Monday.Tasks);
     if (Model.Tuesday?.Tasks != null) allTasks.AddRange(Model.Tuesday.Tasks);
@@ -37,12 +34,11 @@
     if (Model.Saturday?.Tasks != null) allTasks.AddRange(Model.Saturday.Tasks);
     if (Model.Sunday?.Tasks != null) allTasks.AddRange(Model.Sunday.Tasks);
 
-    // Grupujemy wszystkie sklepy i zliczamy, ile razy dany sklep pojawia się w zadaniach
     var storeCounts = allTasks
-        .SelectMany(t => t.TaskStores)  // przechodzimy przez wszystkie sklepy w każdym Tasku
+        .SelectMany(t => t.TaskStores)
         .GroupBy(ts => ts.Store.StoreName)
         .Select(g => new { StoreName = g.Key, Count = g.Count() })
-        .OrderByDescending(x => x.Count)   // opcjonalnie: sortujemy po liczbie
+        .OrderByDescending(x => x.Count)
         .ToList();
 }
 
@@ -50,7 +46,7 @@
     .excel-table {
         border-collapse: collapse;
         font-family: Arial, sans-serif;
-        margin-bottom: 20px; /* odległość od tabeli głównej */
+        margin-bottom: 20px;
     }
 
         .excel-table th {
@@ -71,19 +67,18 @@
             padding: 6px 12px;
         }
 
-    /* Style dla flag T/F */
     .flag-container {
         display: flex;
-        gap: 8px; /* Odstęp między flagami */
+        gap: 8px;
         align-items: center;
-        flex-wrap: wrap; /* Zawijanie wierszy w razie potrzeby */
+        flex-wrap: wrap;
         margin-top: 4px;
     }
 
     .flag {
         display: inline-flex;
         align-items: center;
-        gap: 4px; /* Odstęp między etykietą a kwadratem */
+        gap: 4px;
     }
 
     .flag-box {
@@ -97,11 +92,11 @@
     }
 
     .flag-true {
-        background-color: #28a745; /* Zielony */
+        background-color: #28a745;
     }
 
     .flag-false {
-        background-color: #dc3545; /* Czerwony */
+        background-color: #dc3545;
     }
 </style>
 
@@ -151,7 +146,7 @@
     <tbody>
         @for (int hour = 0; hour < 24; hour++)
         {
-            // Zmieniaj co 10 lub co 5 minut, w zależności od potrzeb
+
             for (int minute = 0; minute < 60; minute += 5)
             {
                 <tr>
@@ -163,7 +158,7 @@
 
                         if (task == null)
                         {
-                            // sprawdzamy, czy w tym slocie jest KOLIZJA z zadaniem (czy ktoś ma w tym przedziale)
+
                             bool isOccupied = day.Detail?.Tasks?.Any(t =>
                             new TimeSpan(hour, minute, 0) >= t.StartTime &&
                             new TimeSpan(hour, minute, 0) < t.EndTime
@@ -190,37 +185,46 @@
                         }
                         else
                         {
-                            // Zadanie, które startuje EXACT w tym slocie
+
                             <td style="background:#ffecb3;">
                                 <strong>@task.SessionName</strong><br />
                                 @($"{task.StartTime:hh\\:mm} - {task.EndTime:hh\\:mm}")<br />
                                 Sklepy: @string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))<br />
 
                                 <div class="flag-container">
-                                    <div class="flag">
-                                        Base Scal: <span class="flag-box @(task.BaseEnabled ? "flag-true" : "flag-false")">@(task.BaseEnabled ? "T" : "F")</span>
-                                    </div>
+                                   
                                     <div class="flag">
                                         Url Grupowanie: <span class="flag-box @(task.UrlEnabled ? "flag-true" : "flag-false")">@(task.UrlEnabled ? "T" : "F")</span>
                                     </div>
-                                    <div class="flag">
-                                        Google Scrap: <span class="flag-box @(task.GoogleEnabled ? "flag-true" : "flag-false")">@(task.GoogleEnabled ? "T" : "F")</span>
-                                    </div>
+                                    
                                     <div class="flag">
                                         Ceneo Scrap: <span class="flag-box @(task.CeneoEnabled ? "flag-true" : "flag-false")">@(task.CeneoEnabled ? "T" : "F")</span>
                                     </div>
                                     <div class="flag">
-                                        Allegro Base Scal: <span class="flag-box @(task.AleBaseEnabled ? "flag-true" : "flag-false")">@(task.AleBaseEnabled ? "T" : "F")</span>
+                                        Google Scrap: <span class="flag-box @(task.GoogleEnabled ? "flag-true" : "flag-false")">@(task.GoogleEnabled ? "T" : "F")</span>
+                                    </div>
+
+                                    <div class="flag">
+                                        Store API Bot: <span class="flag-box @(task.ApiBotEnabled ? "flag-true" : "flag-false")">@(task.ApiBotEnabled ? "T" : "F")</span>
                                     </div>
                                     <div class="flag">
+                                        Base Scal: <span class="flag-box @(task.BaseEnabled ? "flag-true" : "flag-false")">@(task.BaseEnabled ? "T" : "F")</span>
+                                    </div>
+
+                                 
+                                    <div class="flag">
                                         Allegro URL Grupowanie: <span class="flag-box @(task.UrlScalAleEnabled ? "flag-true" : "flag-false")">@(task.UrlScalAleEnabled ? "T" : "F")</span>
+                                    </div>
+                                    <div class="flag">
+                                        Allegro Scrap: <span class="flag-box @(task.AleCrawEnabled ? "flag-true" : "flag-false")">@(task.AleCrawEnabled ? "T" : "F")</span>
                                     </div>
                                     <div class="flag">
                                         Allegro Api BOT: <span class="flag-box @(task.AleApiBotEnabled ? "flag-true" : "flag-false")">@(task.AleApiBotEnabled ? "T" : "F")</span>
                                     </div>
                                     <div class="flag">
-                                        Allegro Scrap: <span class="flag-box @(task.AleCrawEnabled ? "flag-true" : "flag-false")">@(task.AleCrawEnabled ? "T" : "F")</span>
+                                        Allegro Base Scal: <span class="flag-box @(task.AleBaseEnabled ? "flag-true" : "flag-false")">@(task.AleBaseEnabled ? "T" : "F")</span>
                                     </div>
+                                 
                                 </div>
 
                                 <hr />

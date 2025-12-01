@@ -6,23 +6,23 @@ namespace PriceSafari.Models.ViewModels.SchedulePlanViewModels
     {
         public string SessionName { get; set; }
 
-        // W formacie HH:mm (np. "01:00")
         public string StartTime { get; set; }
 
-        // W formacie HH:mm (np. "02:30")
         public string EndTime { get; set; }
 
-        public bool BaseEnabled { get; set; }
         public bool UrlEnabled { get; set; }
-        public bool GoogleEnabled { get; set; }
         public bool CeneoEnabled { get; set; }
-        public bool AleBaseEnabled { get; set; }
+        public bool GoogleEnabled { get; set; }
+        public bool ApiBotEnabled { get; set; }
+        public bool BaseEnabled { get; set; }
+
         public bool UrlScalAleEnabled { get; set; }
         public bool AleCrawEnabled { get; set; }
 
         public bool AleApiBotEnabled { get; set; }
 
-        // Lista sklepów (checkboxy)
+        public bool AleBaseEnabled { get; set; }
+
         public List<StoreCheckboxItem> Stores { get; set; }
             = new List<StoreCheckboxItem>();
     }
@@ -34,3 +34,4 @@ namespace PriceSafari.Models.ViewModels.SchedulePlanViewModels
         public bool IsSelected { get; set; }
     }
 }
+

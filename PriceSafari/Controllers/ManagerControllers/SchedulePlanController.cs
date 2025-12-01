@@ -169,14 +169,19 @@ namespace PriceSafari.Controllers
                 SessionName = model.SessionName,
                 StartTime = startTs,
                 EndTime = endTs,
-                BaseEnabled = model.BaseEnabled,
-                UrlEnabled = model.UrlEnabled,
-                GoogleEnabled = model.GoogleEnabled,
+                
+                UrlEnabled = model.UrlEnabled,               
                 CeneoEnabled = model.CeneoEnabled,
-                AleBaseEnabled = model.AleBaseEnabled,
+                GoogleEnabled = model.GoogleEnabled,
+                ApiBotEnabled = model.ApiBotEnabled,
+                BaseEnabled = model.BaseEnabled,
+
+
                 UrlScalAleEnabled = model.UrlScalAleEnabled,
                 AleCrawEnabled = model.AleCrawEnabled,
                 AleApiBotEnabled = model.AleApiBotEnabled,
+                AleBaseEnabled = model.AleBaseEnabled,
+
                 DayDetailId = dayDetailId
             };
             _context.ScheduleTasks.Add(newTask);
@@ -217,14 +222,19 @@ namespace PriceSafari.Controllers
                 SessionName = task.SessionName,
                 StartTime = task.StartTime.ToString(@"hh\:mm"),
                 EndTime = task.EndTime.ToString(@"hh\:mm"),
-                BaseEnabled = task.BaseEnabled,
+                
                 UrlEnabled = task.UrlEnabled,
-                GoogleEnabled = task.GoogleEnabled,
                 CeneoEnabled = task.CeneoEnabled,
-                AleBaseEnabled = task.AleBaseEnabled,
+                GoogleEnabled = task.GoogleEnabled,
+                ApiBotEnabled = task.ApiBotEnabled,
+                BaseEnabled = task.BaseEnabled,
+
+                
                 UrlScalAleEnabled = task.UrlScalAleEnabled,
                 AleCrawEnabled = task.AleCrawEnabled,
                 AleApiBotEnabled = task.AleApiBotEnabled,
+                AleBaseEnabled = task.AleBaseEnabled,
+
                 Stores = allStores.Select(s => new StoreCheckboxItem
                 {
                     StoreId = s.StoreId,
@@ -306,14 +316,19 @@ namespace PriceSafari.Controllers
             task.SessionName = model.SessionName;
             task.StartTime = startTs;
             task.EndTime = endTs;
-            task.BaseEnabled = model.BaseEnabled;
+            
+
             task.UrlEnabled = model.UrlEnabled;
-            task.GoogleEnabled = model.GoogleEnabled;
             task.CeneoEnabled = model.CeneoEnabled;
-            task.AleBaseEnabled = model.AleBaseEnabled;
+            task.GoogleEnabled = model.GoogleEnabled;
+            task.ApiBotEnabled = model.ApiBotEnabled;
+            task.BaseEnabled = model.BaseEnabled;
+
+            
             task.UrlScalAleEnabled = model.UrlScalAleEnabled;
             task.AleCrawEnabled = model.AleCrawEnabled;
             task.AleApiBotEnabled = model.AleApiBotEnabled;
+            task.AleBaseEnabled = model.AleBaseEnabled;
 
             foreach (var existingRel in task.TaskStores.ToList())
             {

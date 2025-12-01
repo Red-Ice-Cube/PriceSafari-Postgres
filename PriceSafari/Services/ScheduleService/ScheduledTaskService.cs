@@ -23,19 +23,18 @@ public class ScheduledTaskService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // 1. Pobranie zmiennych środowiskowych
+
         var baseScalKey = Environment.GetEnvironmentVariable("BASE_SCAL");
         var urlScalKey = Environment.GetEnvironmentVariable("URL_SCAL");
         var gooCrawKey = Environment.GetEnvironmentVariable("GOO_CRAW");
         var cenCrawKey = Environment.GetEnvironmentVariable("CEN_CRAW");
 
-        // NOWY KLUCZ DLA API BOTA
         var apiBotKey = Environment.GetEnvironmentVariable("API_BOT_KEY");
 
         var aleBaseScalKey = Environment.GetEnvironmentVariable("ALE_BASE_SCAL");
         var urlScalAleKey = Environment.GetEnvironmentVariable("URL_SCAL_ALE");
         var aleCrawKey = Environment.GetEnvironmentVariable("ALE_CRAW");
-        var aleApiBotKey = Environment.GetEnvironmentVariable("ALE_API_BOT"); // To jest bot Allegro, nie mylić ze sklepowym
+        var aleApiBotKey = Environment.GetEnvironmentVariable("ALE_API_BOT");
 
         var subKey = Environment.GetEnvironmentVariable("SUBSCRIPTION_KEY");
         var payKey = Environment.GetEnvironmentVariable("GRAB_PAYMENT");
@@ -84,7 +83,6 @@ public class ScheduledTaskService : BackgroundService
 
                             _logger.LogInformation("Sprawdzanie zadań dla dnia {DayOfWeek} o {Time}.", dayOfWeek, DateTime.Now);
 
-                            // Logowanie o nadchodzących zadaniach (bez zmian)
                             foreach (var t in dayDetail.Tasks)
                             {
                                 if ((t.LastRunDateOfTask == null || t.LastRunDateOfTask.Value.Date < today)
@@ -107,12 +105,13 @@ public class ScheduledTaskService : BackgroundService
 
                             foreach (var t in tasksToRun)
                             {
-                                // 2. Walidacja uprawnień - Dodano ApiBotEnabled i apiBotKey
+
                                 bool canRunAnything =
                                 (t.UrlEnabled && urlScalKey == "83208716") ||
                                 (t.CeneoEnabled && cenCrawKey == "84011233") ||
                                 (t.GoogleEnabled && gooCrawKey == "63891743") ||
-                                (t.ApiBotEnabled && apiBotKey == "11223344") || // <--- NOWY WARUNEK
+                                (t.ApiBotEnabled && apiBotKey == "11223344") ||
+
                                 (t.BaseEnabled && baseScalKey == "55380981") ||
                                 (t.UrlScalAleEnabled && urlScalAleKey == "74902379") ||
                                 (t.AleCrawEnabled && aleCrawKey == "13894389") ||
@@ -135,8 +134,6 @@ public class ScheduledTaskService : BackgroundService
                                 context.ScheduleTasks.Update(t);
                                 await context.SaveChangesAsync(stoppingToken);
 
-                                // --- SEKCJA WYKONYWANIA ZADAŃ ---
-
                                 if (t.UrlEnabled && urlScalKey == "83208716")
                                     await RunUrlScalAsync(context, deviceName, t, stoppingToken);
 
@@ -146,7 +143,6 @@ public class ScheduledTaskService : BackgroundService
                                 if (t.GoogleEnabled && gooCrawKey == "63891743")
                                     await RunGoogleAsync(context, deviceName, t, stoppingToken);
 
-                                // 3. KOLEJNOŚĆ KRYTYCZNA: API BOT musi być PO Crawlerach, a PRZED BaseScal
                                 if (t.ApiBotEnabled && apiBotKey == "11223344")
                                 {
                                     await RunApiBotAsync(context, deviceName, t, stoppingToken);
@@ -155,7 +151,6 @@ public class ScheduledTaskService : BackgroundService
                                 if (t.BaseEnabled && baseScalKey == "55380981")
                                     await RunBaseScalAsync(context, deviceName, t, stoppingToken);
 
-                                // --- Sekcja Allegro ---
                                 if (t.UrlScalAleEnabled && urlScalAleKey == "74902379")
                                     await RunUrlScalAleAsync(context, deviceName, t, stoppingToken);
 
@@ -182,7 +177,8 @@ public class ScheduledTaskService : BackgroundService
                           context,
                           deviceName,
                           baseScalKey, urlScalKey, gooCrawKey, cenCrawKey,
-                          apiBotKey, // Przekazujemy nowy klucz do sprawdzenia statusu
+                          apiBotKey,
+
                           aleBaseScalKey, urlScalAleKey, aleCrawKey, aleApiBotKey,
                           subKey, payKey, emailKey,
                           stoppingToken);
@@ -382,15 +378,14 @@ public class ScheduledTaskService : BackgroundService
 
         try
         {
-            // Pobieramy serwis z kontenera DI
+
             var apiBotService = context.GetService<ApiBotService>();
 
             int processedStores = 0;
 
-            // Iterujemy tylko po sklepach przypisanych do tego zadania
             foreach (var taskStore in task.TaskStores)
             {
-                // Wywołujemy serwis tylko dla konkretnego ID sklepu
+
                 await apiBotService.ProcessPendingApiRequestsAsync(taskStore.StoreId);
                 processedStores++;
             }
@@ -687,7 +682,8 @@ public class ScheduledTaskService : BackgroundService
              string urlScalKey,
              string gooCrawKey,
              string cenCrawKey,
-             string apiBotKey, // NOWY ARGUMENT
+             string apiBotKey,
+
              string aleBaseScalKey,
              string urlScalAleKey,
              string aleCrawKey,
@@ -701,7 +697,7 @@ public class ScheduledTaskService : BackgroundService
         const string URL_SCAL_EXPECTED = "83208716";
         const string GOO_CRAW_EXPECTED = "63891743";
         const string CEN_CRAW_EXPECTED = "84011233";
-        const string API_BOT_EXPECTED = "11223344"; // OCZEKIWANA WARTOŚĆ NOWEGO KLUCZA
+        const string API_BOT_EXPECTED = "11223344";
 
         const string ALE_BASE_SCAL_EXPECTED = "64920067";
         const string URL_SCAL_ALE_EXPECTED = "74902379";
@@ -716,7 +712,7 @@ public class ScheduledTaskService : BackgroundService
         bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
         bool hasGooCraw = (gooCrawKey == GOO_CRAW_EXPECTED);
         bool hasCenCraw = (cenCrawKey == CEN_CRAW_EXPECTED);
-        bool hasApiBot = (apiBotKey == API_BOT_EXPECTED); // SPRAWDZENIE
+        bool hasApiBot = (apiBotKey == API_BOT_EXPECTED);
 
         bool hasAleBaseScal = (aleBaseScalKey == ALE_BASE_SCAL_EXPECTED);
         bool hasUrlScalAle = (urlScalAleKey == URL_SCAL_ALE_EXPECTED);
@@ -737,7 +733,7 @@ public class ScheduledTaskService : BackgroundService
             UrlScalEnabled = hasUrlScal,
             GooCrawEnabled = hasGooCraw,
             CenCrawEnabled = hasCenCraw,
-            ApiBotEnabled = hasApiBot, // ZAPIS DO BAZY (wymaga dodania kolumny w DeviceStatus!)
+            ApiBotEnabled = hasApiBot,
 
             AleBaseScalEnabled = hasAleBaseScal,
             UrlScalAleEnabled = hasUrlScalAle,
