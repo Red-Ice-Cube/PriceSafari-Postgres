@@ -11,26 +11,30 @@
 }
 
 <style>
-    /* ... style bez zmian ... */
+
     .table-orders {
         width: 100%;
         border-collapse: collapse;
+        font-size: 13px;
     }
 
     .bg-yes {
         background-color: #c6f6c6;
         color: #000;
         font-weight: bold;
+        text-align: center;
     }
 
     .bg-no {
         background-color: #f9c6c6;
         color: #000;
         font-weight: bold;
+        text-align: center;
     }
 
     .Vert-table {
         margin-top: 20px;
+        overflow-x: auto;
     }
 
     .sort-container {
@@ -56,6 +60,19 @@
         .Button-ClearAll:hover {
             background-color: #ff4c4c;
         }
+
+    th {
+        background-color: #444444;
+        border: 1px solid #dee2e6;
+        padding: 8px;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    td {
+        border: 1px solid #dee2e6;
+        padding: 6px;
+    }
 </style>
 
 <div class="Page-Box">
@@ -87,20 +104,28 @@
             <table class="table-orders" id="deviceTable">
                 <thead>
                     <tr>
-                        <th>Nazwa urządzenia</th>
-                        <th>Ostatni meldunek</th>
-                        <th>Online</th>
-                        <th>BaseScal</th>
-                        <th>URL</th>
-                        <th>Google Crawler</th>
-                        <th>Ceneo Crawler</th>
-                        <th>Allegro Scalanie</th>
-                        <th>Allegro URL</th>
-                        <th>Allegro Crawler</th>
-                        <th>Allegro API Bot</th>
-                        <th>Faktury (Generator)</th>
-                        <th>Płatności (Worker)</th>
-                        <th>Wysyłka Maili</th>
+                        <th rowspan="2">Nazwa urządzenia</th>
+                        <th rowspan="2">Ostatni meldunek</th>
+                        <th rowspan="2">Online</th>
+                        <th colspan="5" style="background-color: royalblue;">Etap 1: Sklepy</th>
+                        <th colspan="4" style="background-color: orange;">Etap 2: Allegro</th>
+                        <th colspan="3" style="background-color: darkgreen;">Usługi</th>
+                    </tr>
+                    <tr>
+                        <th title="URL Scalanie">URL</th>
+                        <th title="Ceneo Crawler">Ceneo</th>
+                        <th title="Google Crawler">Google</th>
+                        <th title="API Bot Sklepu (Ceny)">API Bot</th>
+                        <th title="Scalanie Bazy">Scalanie</th>
+
+                        <th title="Allegro URL Scalanie">Ale URL</th>
+                        <th title="Allegro Crawler">Ale Craw</th>
+                        <th title="Allegro API Bot">Ale API</th>
+                        <th title="Allegro Scalanie">Ale Scal</th>
+
+                        <th>Faktury</th>
+                        <th>Płatności</th>
+                        <th>Maile</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -108,25 +133,27 @@
                     {
                         <tr>
                             <td class="td-deviceName">@item.DeviceName</td>
-                            <td>@item.LastCheck</td>
+                            <td style="text-align:center;">@item.LastCheck.ToString("dd.MM HH:mm")</td>
                             <td class="@(item.IsOnline ? "bg-yes" : "bg-no")">
                                 @(item.IsOnline ? "tak" : "nie")
                             </td>
-                            <td class="@(item.BaseScalEnabled ? "bg-yes" : "bg-no")">
-                                @(item.BaseScalEnabled ? "tak" : "nie")
-                            </td>
+
                             <td class="@(item.UrlScalEnabled ? "bg-yes" : "bg-no")">
                                 @(item.UrlScalEnabled ? "tak" : "nie")
-                            </td>
-                            <td class="@(item.GooCrawEnabled ? "bg-yes" : "bg-no")">
-                                @(item.GooCrawEnabled ? "tak" : "nie")
                             </td>
                             <td class="@(item.CenCrawEnabled ? "bg-yes" : "bg-no")">
                                 @(item.CenCrawEnabled ? "tak" : "nie")
                             </td>
-                            <td class="@(item.AleBaseScalEnabled ? "bg-yes" : "bg-no")">
-                                @(item.AleBaseScalEnabled ? "tak" : "nie")
+                            <td class="@(item.GooCrawEnabled ? "bg-yes" : "bg-no")">
+                                @(item.GooCrawEnabled ? "tak" : "nie")
                             </td>
+                            <td class="@(item.ApiBotEnabled ? "bg-yes" : "bg-no")">
+                                @(item.ApiBotEnabled ? "tak" : "nie")
+                            </td>
+                            <td class="@(item.BaseScalEnabled ? "bg-yes" : "bg-no")">
+                                @(item.BaseScalEnabled ? "tak" : "nie")
+                            </td>
+
                             <td class="@(item.UrlScalAleEnabled ? "bg-yes" : "bg-no")">
                                 @(item.UrlScalAleEnabled ? "tak" : "nie")
                             </td>
@@ -136,6 +163,10 @@
                             <td class="@(item.AleApiBotEnabled ? "bg-yes" : "bg-no")">
                                 @(item.AleApiBotEnabled ? "tak" : "nie")
                             </td>
+                            <td class="@(item.AleBaseScalEnabled ? "bg-yes" : "bg-no")">
+                                @(item.AleBaseScalEnabled ? "tak" : "nie")
+                            </td>
+
                             <td class="@(item.InvoiceGeneratorEnabled ? "bg-yes" : "bg-no")">
                                 @(item.InvoiceGeneratorEnabled ? "tak" : "nie")
                             </td>

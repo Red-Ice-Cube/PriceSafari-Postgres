@@ -60,6 +60,12 @@
 
                     <span class="fs-4 mx-2 text-muted">→</span>
 
+                    <div class="form-check me-3">
+                        <input asp-for="ApiBotEnabled" class="form-check-input" />
+                        <label class="form-check-label fw-bold">2a. API Sklepu (Ceny)</label>
+                    </div>
+                    <span class="fs-4 mx-2 text-muted">→</span>
+
                     <div class="form-check">
                         <input asp-for="BaseEnabled" class="form-check-input" />
                         <label class="form-check-label fw-bold">3. Scal wyniki</label>
@@ -129,7 +135,7 @@
             </div>
 
             <div class="card-footer bg-transparent text-end mt-4 border-0 px-0">
-                <a asp-action="Details" asp-route-id="@ViewBag.DayDetailId" class="btn btn-secondary me-2">
+                <a asp-action="Index" class="btn btn-secondary me-2">
                     <i class="fas fa-times me-2"></i>Anuluj
                 </a>
                 <button type="submit" class="btn btn-primary">
