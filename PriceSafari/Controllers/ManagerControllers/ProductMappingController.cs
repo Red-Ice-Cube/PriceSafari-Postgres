@@ -121,6 +121,15 @@ namespace PriceSafari.Controllers.ManagerControllers
                );
             }
 
+            var extendedInfoLookup = new Dictionary<int, decimal?>();
+            if (latestScrapId > 0)
+            {
+                extendedInfoLookup = await _context.PriceHistoryExtendedInfos
+                    .Where(e => e.ScrapHistoryId == latestScrapId)
+                    .Select(e => new { e.ProductId, e.ExtendedDataApiPrice })
+                    .ToDictionaryAsync(k => k.ProductId, v => v.ExtendedDataApiPrice);
+            }
+
             var productsData = await _context.Products
              .Where(p => p.StoreId == storeId)
              .Select(p => new
@@ -149,12 +158,16 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             foreach (var pData in productsData)
             {
-
                 var prices = priceLookup.TryGetValue(pData.ProductId, out var foundPrices) ? foundPrices : new ProductPrices();
                 var googlePrice = prices.GooglePrice;
                 var ceneoPrice = prices.CeneoPrice;
+
+                // 2. NOWE: Pobieramy cenę API ze słownika
+                var apiPrice = extendedInfoLookup.TryGetValue(pData.ProductId, out var extPrice) ? extPrice : null;
+
                 decimal? diff = (googlePrice.HasValue && ceneoPrice.HasValue) ? googlePrice.Value - ceneoPrice.Value : (decimal?)null;
 
+                // Logika filtrowania (bez zmian)
                 bool satisfiesMismatch = !onlyMismatch
                     || (googlePrice.HasValue && ceneoPrice.HasValue
                         && googlePrice.Value != ceneoPrice.Value);
@@ -193,6 +206,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                     PriceDifference = diff,
                     ScrapId = latestScrapId,
                     ProducerCode = pData.ProducerCode,
+                    // 3. NOWE: Przypisanie ceny API
+                    ExternalApiPrice = apiPrice
                 };
                 vmList.Add(vm);
             }
@@ -235,6 +250,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             public decimal? CeneoXMLPrice { get; set; }
             public decimal? PriceDifference { get; set; }
             public int ScrapId { get; set; }
+            public decimal? ExternalApiPrice { get; set; }
 
             public string? ProducerCode { get; set; }
             public string? GoogleProducerCode { get; set; }
@@ -342,8 +358,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             if (string.IsNullOrEmpty(mainProduct.MainUrl) && !string.IsNullOrEmpty(duplicateProduct.MainUrl))
                 mainProduct.MainUrl = duplicateProduct.MainUrl;
-
-   
 
             if (string.IsNullOrEmpty(mainProduct.ExportedNameCeneo) && !string.IsNullOrEmpty(duplicateProduct.ExportedNameCeneo))
                 mainProduct.ExportedNameCeneo = duplicateProduct.ExportedNameCeneo;
@@ -629,7 +643,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             try
             {
-                // Pobieramy produkty sklepu, które mają jakikolwiek kod producenta
+
                 var products = await _context.Products
                     .Where(p => p.StoreId == storeId && p.ProducerCode != null)
                     .ToListAsync();
@@ -638,10 +652,10 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 foreach (var product in products)
                 {
-                    // Sprawdzamy, czy kod producenta zawiera szukany ciąg
+
                     if (product.ProducerCode.Contains(stringToRemove))
                     {
-                        // Zamieniamy szukany ciąg na pusty string (usuwamy go)
+
                         product.ProducerCode = product.ProducerCode.Replace(stringToRemove, "");
                         updatedCount++;
                     }

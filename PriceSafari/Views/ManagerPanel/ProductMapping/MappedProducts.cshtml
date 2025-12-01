@@ -36,6 +36,10 @@
     var googleProducerCodeCount = Model.Count(p => !string.IsNullOrEmpty(p.GoogleProducerCode));
     var ceneoProducerCodeCount = Model.Count(p => !string.IsNullOrEmpty(p.CeneoProducerCode));
     var producerCodeMismatchCount = Model.Count(p => !string.IsNullOrEmpty(p.GoogleProducerCode) && !string.IsNullOrEmpty(p.CeneoProducerCode) && p.GoogleProducerCode != p.CeneoProducerCode);
+
+    var apiPriceMismatchCount = Model.Count(p => p.ExternalApiPrice.HasValue &&
+    ((p.LastGooglePrice.HasValue && p.LastGooglePrice != p.ExternalApiPrice) ||
+     (p.LastCeneoPrice.HasValue && p.LastCeneoPrice != p.ExternalApiPrice)));
 }
 
 <div class="container-fluid">
@@ -220,6 +224,11 @@
                             <input class="form-check-input mismatch-filter" type="checkbox" id="show-ean-mismatch">
                             <label class="form-check-label" for="show-ean-mismatch">Pokaż różnice EAN(G) &ne; EAN(C)</label>
                         </div>
+
+                        <div class="form-check">
+                            <input class="form-check-input mismatch-filter" type="checkbox" id="show-api-mismatch">
+                            <label class="form-check-label text-danger fw-bold" for="show-api-mismatch">Pokaż różnice Scrap &ne; API</label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -257,6 +266,7 @@
                         <th>Scrap?</th>
                         <th>Reject?</th>
                         <th class="id-cell">Ext.ID <small>(@externalIdCount)</small></th>
+                        <th class="price-cell bg-light">Cena API</th>
                         <th class="price-cell">Cena G(Scrap)</th>
                         <th class="price-cell">Cena C(Scrap)</th>
                         <th class="diff-cell">Różn. (G-C)</th>
@@ -286,6 +296,10 @@
                         bool ceneoScrapXmlMismatch = productVm.LastCeneoPrice.HasValue && productVm.CeneoXMLPrice.HasValue && productVm.LastCeneoPrice.Value != productVm.CeneoXMLPrice.Value;
                         bool xmlPricesMismatch = productVm.GoogleXMLPrice.HasValue && productVm.CeneoXMLPrice.HasValue && productVm.GoogleXMLPrice.Value != productVm.CeneoXMLPrice.Value;
                         bool eanMismatch = !string.IsNullOrEmpty(productVm.EanGoogle) && !string.IsNullOrEmpty(productVm.EanCeneo) && productVm.EanGoogle != productVm.EanCeneo;
+                        bool apiMismatch = productVm.ExternalApiPrice.HasValue &&
+                        ((productVm.LastGooglePrice.HasValue && productVm.LastGooglePrice != productVm.ExternalApiPrice) ||
+                        (productVm.LastCeneoPrice.HasValue && productVm.LastCeneoPrice != productVm.ExternalApiPrice));
+
 
                         string rowClass = "";
                         if (gcScrapMismatch) rowClass += " gc-scrap-mismatch";
@@ -293,6 +307,7 @@
                         if (ceneoScrapXmlMismatch) rowClass += " ceneo-scrap-xml-mismatch";
                         if (xmlPricesMismatch) rowClass += " xml-prices-mismatch";
                         if (eanMismatch) rowClass += " ean-mismatch";
+                        if (apiMismatch) rowClass += " api-mismatch";
 
                         <tr data-product-id="@productVm.ProductId"
                             data-platform="@platformCategory"
@@ -301,7 +316,8 @@
                             data-google-scrap-xml-mismatch="@(googleScrapXmlMismatch.ToString().ToLower())"
                             data-ceneo-scrap-xml-mismatch="@(ceneoScrapXmlMismatch.ToString().ToLower())" @* NOWY atrybut *@
                             data-xml-prices-mismatch="@(xmlPricesMismatch.ToString().ToLower())" @* NOWY atrybut *@
-                            data-ean-mismatch="@(eanMismatch.ToString().ToLower())" @* NOWY atrybut *@
+                            data-ean-mismatch="@(eanMismatch.ToString().ToLower())"
+                            data-api-mismatch="@(apiMismatch.ToString().ToLower())"
                             class="@rowClass.Trim()">
                             @* Trim() usuwa ewentualny wiodący spacja *@
                             <td>
@@ -326,7 +342,7 @@
                             </td>
                             <td class="name-cell">@(productVm.NameCeneo ?? "(brak)")</td>
                             <td class="name-cell">@(productVm.NameGoogle ?? "(brak)")</td>
-                            @* Dodanie klasy dla EAN mismatch - wizualne wyróżnienie *@
+                        
                             <td class="@(eanMismatch ? "ean-mismatch-cell text-danger fw-bold" : "")">@(productVm.EanCeneo ?? "(brak)")</td>
                             <td class="@(eanMismatch ? "ean-mismatch-cell text-danger fw-bold" : "")">@(productVm.EanGoogle ?? "(brak)")</td>
                             <td class="text-primary fw-bold">@(productVm.ProducerCode ?? "(brak)")</td>
@@ -365,8 +381,16 @@
                             <td><input class="form-check-input" type="checkbox" checked="@productVm.IsScrapable" disabled /></td>
                             <td><input class="form-check-input" type="checkbox" checked="@productVm.IsRejected" disabled /></td>
                             <td class="id-cell">@(productVm.ExternalId.HasValue? productVm.ExternalId.Value.ToString() : "-")</td>
-                            <td class="price-cell @(gcScrapMismatch ? "text-warning fw-bold" : "")">@(productVm.LastGooglePrice.HasValue? productVm.LastGooglePrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
-                            <td class="price-cell @(gcScrapMismatch ? "text-warning fw-bold" : "")">@(productVm.LastCeneoPrice.HasValue? productVm.LastCeneoPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
+                            <td class="price-cell bg-light text-center fw-bold text-secondary">
+                                @(productVm.ExternalApiPrice.HasValue? productVm.ExternalApiPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")
+                            </td>
+                        
+                            <td class="price-cell @(gcScrapMismatch ? "text-warning fw-bold" : "") @(productVm.ExternalApiPrice.HasValue && productVm.LastGooglePrice.HasValue && productVm.LastGooglePrice != productVm.ExternalApiPrice ? "text-danger fw-bolder border border-danger" : "")">
+                                @(productVm.LastGooglePrice.HasValue? productVm.LastGooglePrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")
+                            </td>
+                            <td class="price-cell @(gcScrapMismatch ? "text-warning fw-bold" : "") @(productVm.ExternalApiPrice.HasValue && productVm.LastCeneoPrice.HasValue && productVm.LastCeneoPrice != productVm.ExternalApiPrice ? "text-danger fw-bolder border border-danger" : "")">
+                                @(productVm.LastCeneoPrice.HasValue? productVm.LastCeneoPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")
+                            </td>
                             <td class="diff-cell @(gcScrapMismatch ? "fw-bold" : "")">@(productVm.PriceDifference.HasValue? productVm.PriceDifference.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
                             <td class="price-cell @(googleScrapXmlMismatch ? "text-danger fw-bold" : "") @(xmlPricesMismatch ? "text-info fw-bold" : "")">@(productVm.GoogleXMLPrice.HasValue? productVm.GoogleXMLPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
                             <td class="price-cell @(ceneoScrapXmlMismatch ? "text-danger fw-bold" : "") @(xmlPricesMismatch ? "text-info fw-bold" : "")">@(productVm.CeneoXMLPrice.HasValue? productVm.CeneoXMLPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")</td>
@@ -399,7 +423,7 @@
             const showCeneoScrapXmlMismatchCheckbox = document.getElementById('show-ceneo-scrap-xml-mismatch');
             const showXmlPricesMismatchCheckbox = document.getElementById('show-xml-prices-mismatch');
             const showEanMismatchCheckbox = document.getElementById('show-ean-mismatch');
-
+            const showApiMismatchCheckbox = document.getElementById('show-api-mismatch');
             const removeFilteredBtn = document.getElementById('remove-filtered');
             const tableRows = document.querySelectorAll('#product-table tbody tr');
             const visibleCountSpan = document.getElementById('visible-count');
@@ -417,6 +441,7 @@
                 const showCeneoScrapXmlMismatch = showCeneoScrapXmlMismatchCheckbox?.checked ?? false;
                 const showXmlPricesMismatch = showXmlPricesMismatchCheckbox?.checked ?? false;
                 const showEanMismatch = showEanMismatchCheckbox?.checked ?? false;
+                const showApiMismatch = showApiMismatchCheckbox?.checked ?? false;
 
                 let visibleRowCount = 0;
 
@@ -430,7 +455,7 @@
                     const ceneoScrapXmlMismatchStr = row.dataset.ceneoScrapXmlMismatch;
                     const xmlPricesMismatchStr = row.dataset.xmlPricesMismatch;
                     const eanMismatchStr = row.dataset.eanMismatch;
-
+                    const apiMismatchStr = row.dataset.apiMismatch;
                     const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(rowStatus);
                     const platformMatch = selectedPlatforms.length === 0 || selectedPlatforms.includes(rowPlatform);
 
@@ -459,18 +484,25 @@
                         eanMismatchMatch = eanMismatchStr === 'true';
                     }
 
+                    let apiMismatchMatch = true;
+        if (showApiMismatch) {
+            apiMismatchMatch = apiMismatchStr === 'true';
+        }
+
                     if (statusMatch &&
-                        platformMatch &&
-                        gcScrapMismatchMatch &&
-                        googleScrapXmlMismatchMatch &&
-                        ceneoScrapXmlMismatchMatch &&
-                        xmlPricesMismatchMatch &&
-                        eanMismatchMatch) {
-                        row.style.display = '';
-                        visibleRowCount++;
-                    } else {
-                        row.style.display = 'none';
-                    }
+            platformMatch &&
+            gcScrapMismatchMatch &&
+            googleScrapXmlMismatchMatch &&
+            ceneoScrapXmlMismatchMatch &&
+            xmlPricesMismatchMatch &&
+            eanMismatchMatch &&
+            apiMismatchMatch) { // 5. Dodaj do warunku końcowego
+
+            row.style.display = '';
+            visibleRowCount++;
+        } else {
+            row.style.display = 'none';
+        }
                 });
 
                 if (visibleCountSpan) {
@@ -489,6 +521,7 @@
             if(showCeneoScrapXmlMismatchCheckbox) showCeneoScrapXmlMismatchCheckbox.addEventListener('change', applyFilters);
             if(showXmlPricesMismatchCheckbox) showXmlPricesMismatchCheckbox.addEventListener('change', applyFilters);
             if(showEanMismatchCheckbox) showEanMismatchCheckbox.addEventListener('change', applyFilters);
+            if(showApiMismatchCheckbox) showApiMismatchCheckbox.addEventListener('change', applyFilters);
 
          if (removeFilteredBtn) {
                 removeFilteredBtn.addEventListener('click', () => {
