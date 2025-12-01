@@ -119,14 +119,28 @@
                 </div>
             </div>
             <div class="row">
-                <div class="col-md-8">
-                    <form asp-action="RemoveWordFromProductNamesCeneo" method="post" class="form-inline-group">
-                        <div class="form-group flex-grow-1">
-                            <label for="wordToRemove" class="visually-hidden">Słowo do usunięcia</label>
+                <div class="col-md-6 mb-3">
+                    <form asp-action="RemoveWordFromProductNamesCeneo" method="post" class="d-flex gap-2">
+                        <input type="hidden" name="storeId" value="@storeId" />
+                        <div class="flex-grow-1">
+                            <label for="wordToRemove" class="visually-hidden">Słowo do usunięcia z nazw</label>
                             <input type="text" class="form-control" id="wordToRemove" name="wordToRemove" placeholder="Słowo do usunięcia z nazw Ceneo" required>
                         </div>
-                        <button type="submit" class="btn btn-warning">
-                            <i class="fas fa-cut me-1"></i> Usuń słowo z nazw Ceneo
+                        <button type="submit" class="btn btn-warning text-nowrap">
+                            <i class="fas fa-cut me-1"></i> Usuń z nazw Ceneo
+                        </button>
+                    </form>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <form asp-action="RemoveStringFromProducerCodes" method="post" class="d-flex gap-2" onsubmit="return confirm('Czy na pewno usunąć wpisany ciąg ze WSZYSTKICH kodów producenta w tym sklepie?');">
+                        <input type="hidden" name="storeId" value="@storeId" />
+                        <div class="flex-grow-1">
+                            <label for="stringToRemove" class="visually-hidden">Ciąg do usunięcia z kodu</label>
+                            <input type="text" class="form-control" id="stringToRemove" name="stringToRemove" placeholder="Np. -std (usuń z kodu prod.)" required>
+                        </div>
+                        <button type="submit" class="btn btn-danger text-nowrap">
+                            <i class="fas fa-eraser me-1"></i> Usuń z Kodów Prod.
                         </button>
                     </form>
                 </div>

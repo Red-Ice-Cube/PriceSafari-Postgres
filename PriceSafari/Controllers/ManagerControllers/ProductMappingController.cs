@@ -612,6 +612,59 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("MappedProducts", new { storeId });
         }
 
+        [HttpPost]
+        public async Task<IActionResult> RemoveStringFromProducerCodes(int storeId, string stringToRemove)
+        {
+            if (storeId <= 0)
+            {
+                TempData["ErrorMessage"] = "Nieprawidłowy identyfikator sklepu.";
+                return RedirectToAction("Index");
+            }
+
+            if (string.IsNullOrEmpty(stringToRemove))
+            {
+                TempData["ErrorMessage"] = "Musisz podać ciąg znaków do usunięcia.";
+                return RedirectToAction("MappedProducts", new { storeId });
+            }
+
+            try
+            {
+                // Pobieramy produkty sklepu, które mają jakikolwiek kod producenta
+                var products = await _context.Products
+                    .Where(p => p.StoreId == storeId && p.ProducerCode != null)
+                    .ToListAsync();
+
+                int updatedCount = 0;
+
+                foreach (var product in products)
+                {
+                    // Sprawdzamy, czy kod producenta zawiera szukany ciąg
+                    if (product.ProducerCode.Contains(stringToRemove))
+                    {
+                        // Zamieniamy szukany ciąg na pusty string (usuwamy go)
+                        product.ProducerCode = product.ProducerCode.Replace(stringToRemove, "");
+                        updatedCount++;
+                    }
+                }
+
+                if (updatedCount > 0)
+                {
+                    await _context.SaveChangesAsync();
+                    TempData["SuccessMessage"] = $"Pomyślnie usunięto ciąg '{stringToRemove}' z kodów producenta dla {updatedCount} produktów.";
+                }
+                else
+                {
+                    TempData["InfoMessage"] = $"Nie znaleziono produktów zawierających ciąg '{stringToRemove}' w kodzie producenta.";
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Wystąpił błąd podczas aktualizacji kodów producenta: {ex.Message}";
+            }
+
+            return RedirectToAction("MappedProducts", new { storeId });
+        }
+
         private void MapProductFields(ProductClass product, ProductMap mappedProduct, bool addGooglePrices)
         {
 
