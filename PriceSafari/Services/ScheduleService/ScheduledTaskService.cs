@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AngleSharp.Dom;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using PriceSafari.Data;
 using PriceSafari.Models;
@@ -6,6 +7,8 @@ using PriceSafari.Models.SchedulePlan;
 using PriceSafari.ScrapersControllers;
 using PriceSafari.Services.AllegroServices;
 using PriceSafari.Services.ScheduleService;
+using System.Text;
+using static PriceSafari.Services.ScheduleService.ApiBotService;
 
 public class ScheduledTaskService : BackgroundService
 {
@@ -369,32 +372,78 @@ public class ScheduledTaskService : BackgroundService
             DeviceName = deviceName,
             OperationName = "API_BOT_STORE",
             StartTime = DateTime.Now,
-            Comment = $"Pobieranie danych API Sklepu | SessionName={task.SessionName}; Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
+            Comment = $"Pobieranie danych API Sklepu | SessionName={task.SessionName}"
         };
 
         context.TaskExecutionLogs.Add(log);
         await context.SaveChangesAsync(ct);
         int logId = log.Id;
 
+        // Używamy stopera do precyzyjnego pomiaru czasu
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        var results = new List<ApiBotStoreResult>();
+        int totalProductsFetched = 0;
+
         try
         {
-
             var apiBotService = context.GetService<ApiBotService>();
-
-            int processedStores = 0;
 
             foreach (var taskStore in task.TaskStores)
             {
+                // Pobieramy szczegółowy wynik dla każdego sklepu
+                var result = await apiBotService.ProcessPendingApiRequestsAsync(taskStore.StoreId);
+                results.Add(result);
 
-                await apiBotService.ProcessPendingApiRequestsAsync(taskStore.StoreId);
-                processedStores++;
+                if (!result.WasSkipped)
+                {
+                    totalProductsFetched += result.ProductsProcessed;
+                }
             }
+
+            stopwatch.Stop();
+            var elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
+
+            // Obliczamy prędkość
+            double speed = (elapsedSeconds > 0 && totalProductsFetched > 0)
+                ? totalProductsFetched / elapsedSeconds
+                : 0;
 
             var endLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
             if (endLog != null)
             {
                 endLog.EndTime = DateTime.Now;
-                endLog.Comment += $" | Sukces. Pobrano dane API dla {processedStores} sklepów.";
+
+                // Budowanie szczegółowego raportu
+                // 1. Wybieramy tylko sklepy, które faktycznie coś robiły (nie zostały pominięte)
+                var activeStores = results.Where(r => !r.WasSkipped && r.ProductsProcessed > 0).ToList();
+                var skippedStores = results.Where(r => r.WasSkipped).ToList();
+
+                var sb = new StringBuilder();
+
+                if (activeStores.Any())
+                {
+                    sb.Append($" | Sukces. Pobrano: {totalProductsFetched} produktów.");
+                    sb.Append($" Prędkość: {speed:F2} prod/sek.");
+                    sb.Append(" Sklepy aktywne: ");
+
+                    // Wypisujemy: "myjki.com (PrestaShop: 1200)", "inny.pl (Woo: 500)"
+                    var activeDetails = activeStores.Select(s => $"{s.StoreName} ({s.SystemType}: {s.ProductsProcessed})");
+                    sb.Append(string.Join(", ", activeDetails));
+                }
+                else
+                {
+                    sb.Append(" | Brak danych do pobrania (wszystkie sklepy pominięte lub brak produktów).");
+                }
+
+                // Opcjonalnie: informacja o pominiętych, jeśli chcesz mieć pełną jasność
+                if (skippedStores.Any())
+                {
+                    sb.Append($" | Pominięto: {skippedStores.Count} sklepów (wyłączone API/brak konfigu).");
+                }
+
+                endLog.Comment += sb.ToString();
+
                 context.TaskExecutionLogs.Update(endLog);
                 await context.SaveChangesAsync(ct);
             }
@@ -411,7 +460,6 @@ public class ScheduledTaskService : BackgroundService
             }
         }
     }
-
     private async Task RunBaseScalAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
         int storeCount = task.TaskStores.Count;

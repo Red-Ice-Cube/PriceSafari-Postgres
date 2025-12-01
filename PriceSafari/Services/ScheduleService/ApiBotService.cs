@@ -20,121 +20,108 @@ namespace PriceSafari.Services.ScheduleService
             _logger = logger;
         }
 
-        // <summary>
-
-        // Przetwarza oczekujące zadania API.
-
-        // </summary>
-
-        // <param name="targetStoreId">Opcjonalne ID sklepu. Jeśli podane, przetworzy tylko ten sklep. Jeśli null, przetworzy wszystkie.</param>
-
-        public async Task ProcessPendingApiRequestsAsync(int? targetStoreId = null)
+        // ZMIANA: Zwracamy wynik przetwarzania
+        public async Task<ApiBotStoreResult> ProcessPendingApiRequestsAsync(int targetStoreId)
         {
-            if (targetStoreId.HasValue)
+            var result = new ApiBotStoreResult
             {
-                _logger.LogInformation($"Rozpoczynam przetwarzanie zadań API TYLKO dla sklepu ID: {targetStoreId.Value}...");
-            }
-            else
+                StoreId = targetStoreId,
+                ProductsProcessed = 0,
+                WasSkipped = false
+            };
+
+            var store = await _context.Stores
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.StoreId == targetStoreId);
+
+            if (store == null)
             {
-                _logger.LogInformation("Rozpoczynam GLOBALNE przetwarzanie kolejek API dla wszystkich sklepów...");
-            }
-
-            var query = _context.CoOfrStoreDatas
-                .Where(d => !d.IsApiProcessed && d.ProductExternalId != null);
-
-            if (targetStoreId.HasValue)
-            {
-                query = query.Where(d => d.StoreId == targetStoreId.Value);
-            }
-
-            var pendingItems = await query.ToListAsync();
-
-            if (!pendingItems.Any())
-            {
-                _logger.LogInformation("Brak oczekujących zadań API do przetworzenia.");
-                return;
+                result.WasSkipped = true;
+                result.Message = "Sklep nie istnieje.";
+                return result;
             }
 
-            _logger.LogInformation($"Znaleziono łącznie {pendingItems.Count} zadań do przetworzenia.");
+            result.StoreName = store.StoreName;
+            result.SystemType = store.StoreSystemType.ToString();
 
-            var groupedItems = pendingItems.GroupBy(d => d.StoreId);
-
-            foreach (var group in groupedItems)
+            // 1. Sprawdzenie czy sklep ma włączoną obsługę API
+            if (!store.FetchExtendedData || string.IsNullOrEmpty(store.StoreApiUrl) || string.IsNullOrEmpty(store.StoreApiKey))
             {
-                int storeId = group.Key;
-                var itemsToProcess = group.ToList();
+                // Pobieramy itemy tylko po to, by je oznaczyć jako pominięte (żeby nie wisiały)
+                var itemsToSkip = await _context.CoOfrStoreDatas
+                    .Where(d => d.StoreId == targetStoreId && !d.IsApiProcessed && d.ProductExternalId != null)
+                    .ToListAsync();
 
-                var store = await _context.Stores
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.StoreId == storeId);
-
-                if (store == null || !store.FetchExtendedData || string.IsNullOrEmpty(store.StoreApiUrl) || string.IsNullOrEmpty(store.StoreApiKey))
+                if (itemsToSkip.Any())
                 {
-                    _logger.LogWarning($"Sklep ID {storeId} ma zadania API, ale brakuje konfiguracji lub opcja jest wyłączona. Oznaczam zadania jako pominięte.");
-                    MarkAsProcessed(itemsToProcess);
+                    MarkAsProcessed(itemsToSkip);
                     await _context.SaveChangesAsync();
-                    continue;
                 }
 
-                _logger.LogInformation($"Przetwarzanie {itemsToProcess.Count} produktów dla sklepu: {store.StoreName} (System: {store.StoreSystemType})");
-
-                try
-                {
-
-                    switch (store.StoreSystemType)
-                    {
-                        case StoreSystemType.PrestaShop:
-                            await ProcessPrestaShopBatchAsync(store, itemsToProcess);
-                            break;
-
-                        case StoreSystemType.Shoper:
-                            _logger.LogWarning($"Implementacja dla Shoper/ClickShop nie jest jeszcze gotowa.");
-                            MarkAsProcessed(itemsToProcess);
-                            break;
-
-                        case StoreSystemType.WooCommerce:
-                            _logger.LogWarning($"Implementacja dla WooCommerce nie jest jeszcze gotowa.");
-                            MarkAsProcessed(itemsToProcess);
-                            break;
-
-                        case StoreSystemType.Custom:
-                        default:
-                            _logger.LogWarning($"Nieobsługiwany typ systemu: {store.StoreSystemType} dla sklepu {store.StoreName}.");
-                            MarkAsProcessed(itemsToProcess);
-                            break;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"Krytyczny błąd podczas przetwarzania batcha API dla sklepu {store.StoreName}");
-                }
-
-                await _context.SaveChangesAsync();
+                result.WasSkipped = true;
+                result.Message = "Wyłączone w ustawieniach lub brak kluczy API.";
+                return result;
             }
 
-            _logger.LogInformation("Zakończono przetwarzanie kolejek API.");
+            // 2. Pobranie itemów do przetworzenia
+            var itemsToProcess = await _context.CoOfrStoreDatas
+                .Where(d => d.StoreId == targetStoreId && !d.IsApiProcessed && d.ProductExternalId != null)
+                .ToListAsync();
+
+            if (!itemsToProcess.Any())
+            {
+                result.Message = "Brak produktów do przetworzenia.";
+                return result;
+            }
+
+            result.ProductsProcessed = itemsToProcess.Count; // Zakładamy, że spróbujemy pobrać wszystkie
+            _logger.LogInformation($"[{store.StoreName}] Rozpoczynam pobieranie {itemsToProcess.Count} produktów API.");
+
+            try
+            {
+                switch (store.StoreSystemType)
+                {
+                    case StoreSystemType.PrestaShop:
+                        await ProcessPrestaShopBatchAsync(store, itemsToProcess);
+                        break;
+
+                    case StoreSystemType.Shoper:
+                    case StoreSystemType.WooCommerce:
+                    case StoreSystemType.Custom:
+                    default:
+                        // Dla nieobsługiwanych tylko oznaczamy, ale nie liczymy jako "pobrane dane"
+                        _logger.LogWarning($"[{store.StoreName}] System {store.StoreSystemType} nieobsługiwany.");
+                        MarkAsProcessed(itemsToProcess);
+                        result.ProductsProcessed = 0; // Resetujemy licznik, bo nic nie pobraliśmy
+                        result.Message = "System nieobsługiwany.";
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Błąd krytyczny API dla sklepu {store.StoreName}");
+                result.Message = $"Błąd: {ex.Message}";
+                // Mimo błędu zapisujemy stan (te co przeszły, przeszły)
+            }
+
+            await _context.SaveChangesAsync();
+            return result;
         }
 
         private async Task ProcessPrestaShopBatchAsync(StoreClass store, List<CoOfrStoreData> items)
         {
             var client = _httpClientFactory.CreateClient();
-
             var authToken = Encoding.ASCII.GetBytes($"{store.StoreApiKey}:");
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(authToken));
 
             string baseUrl = store.StoreApiUrl.TrimEnd('/');
-
             var chunks = items.Chunk(100).ToList();
-
-            _logger.LogInformation($"[PrestaShop] Rozpoczynam pobieranie w trybie BATCH. Ilość paczek: {chunks.Count}");
 
             foreach (var chunk in chunks)
             {
                 try
                 {
-
                     var idsToFetch = string.Join("|", chunk.Select(x => x.ProductExternalId));
-
                     string requestUrl = $"{baseUrl}/products?display=[id,price]&filter[id]=[{idsToFetch}]&output_format=JSON";
 
                     var response = await client.GetAsync(requestUrl);
@@ -143,12 +130,10 @@ namespace PriceSafari.Services.ScheduleService
                     {
                         var jsonString = await response.Content.ReadAsStringAsync();
                         var rootNode = JsonNode.Parse(jsonString);
-
                         var productsArray = rootNode?["products"]?.AsArray();
 
                         if (productsArray != null)
                         {
-
                             foreach (var productNode in productsArray)
                             {
                                 var idStr = productNode?["id"]?.ToString();
@@ -158,50 +143,47 @@ namespace PriceSafari.Services.ScheduleService
 
                                 if (itemToUpdate != null && decimal.TryParse(priceStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal price))
                                 {
-
                                     itemToUpdate.ExtendedDataApiPrice = Math.Round(price * 1.23m, 2);
-
                                     itemToUpdate.IsApiProcessed = true;
                                 }
                             }
                         }
 
+                        // Oznaczamy resztę (których API nie zwróciło) jako przetworzone
                         foreach (var item in chunk)
                         {
-                            if (!item.IsApiProcessed)
-                            {
-
-                                item.IsApiProcessed = true;
-                                _logger.LogWarning($"[PrestaShop] ID {item.ProductExternalId} nie zostało zwrócone przez API (może być nieaktywne).");
-                            }
+                            if (!item.IsApiProcessed) item.IsApiProcessed = true;
                         }
-
-                        _logger.LogInformation($"[PrestaShop] Przetworzono paczkę {chunk.Length} produktów.");
                     }
                     else
                     {
-                        _logger.LogWarning($"[PrestaShop] Błąd HTTP {response.StatusCode} dla paczki ID: {idsToFetch}");
-
-                        foreach (var item in chunk) item.IsApiProcessed = true;
+                        foreach (var item in chunk) item.IsApiProcessed = true; // Błąd HTTP, pomijamy
                     }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    _logger.LogError(ex, "[PrestaShop] Błąd krytyczny podczas przetwarzania paczki.");
-
-                    foreach (var item in chunk) item.IsApiProcessed = true;
+                    foreach (var item in chunk) item.IsApiProcessed = true; // Błąd Exception, pomijamy
                 }
 
-                await Task.Delay(200);
+                await Task.Delay(200); // Małe opóźnienie między paczkami
             }
         }
 
         private void MarkAsProcessed(List<CoOfrStoreData> items)
         {
-            foreach (var item in items)
-            {
-                item.IsApiProcessed = true;
-            }
+            foreach (var item in items) item.IsApiProcessed = true;
+        }
+    
+
+
+        public class ApiBotStoreResult
+        {
+            public int StoreId { get; set; }
+            public string StoreName { get; set; }
+            public string SystemType { get; set; } // np. PrestaShop, WooCommerce
+            public int ProductsProcessed { get; set; } // Ile faktycznie pobrano z API
+            public bool WasSkipped { get; set; } // Czy sklep był wyłączony/pominięty
+            public string Message { get; set; } // Ewentualny błąd lub info
         }
     }
 }
