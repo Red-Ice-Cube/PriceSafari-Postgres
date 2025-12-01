@@ -23,14 +23,20 @@ public class ScheduledTaskService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // 1. Pobranie zmiennych środowiskowych
         var baseScalKey = Environment.GetEnvironmentVariable("BASE_SCAL");
         var urlScalKey = Environment.GetEnvironmentVariable("URL_SCAL");
         var gooCrawKey = Environment.GetEnvironmentVariable("GOO_CRAW");
         var cenCrawKey = Environment.GetEnvironmentVariable("CEN_CRAW");
+
+        // NOWY KLUCZ DLA API BOTA
+        var apiBotKey = Environment.GetEnvironmentVariable("API_BOT_KEY");
+
         var aleBaseScalKey = Environment.GetEnvironmentVariable("ALE_BASE_SCAL");
         var urlScalAleKey = Environment.GetEnvironmentVariable("URL_SCAL_ALE");
         var aleCrawKey = Environment.GetEnvironmentVariable("ALE_CRAW");
-        var aleApiBotKey = Environment.GetEnvironmentVariable("ALE_API_BOT");
+        var aleApiBotKey = Environment.GetEnvironmentVariable("ALE_API_BOT"); // To jest bot Allegro, nie mylić ze sklepowym
+
         var subKey = Environment.GetEnvironmentVariable("SUBSCRIPTION_KEY");
         var payKey = Environment.GetEnvironmentVariable("GRAB_PAYMENT");
         var emailKey = Environment.GetEnvironmentVariable("SEND_EMAILS");
@@ -76,9 +82,9 @@ public class ScheduledTaskService : BackgroundService
                             var nowTime = DateTime.Now.TimeOfDay;
                             var today = DateTime.Today;
 
-                            _logger.LogInformation("Sprawdzanie zadań dla dnia {DayOfWeek} o {Time}.",
-                                dayOfWeek, DateTime.Now);
+                            _logger.LogInformation("Sprawdzanie zadań dla dnia {DayOfWeek} o {Time}.", dayOfWeek, DateTime.Now);
 
+                            // Logowanie o nadchodzących zadaniach (bez zmian)
                             foreach (var t in dayDetail.Tasks)
                             {
                                 if ((t.LastRunDateOfTask == null || t.LastRunDateOfTask.Value.Date < today)
@@ -87,9 +93,7 @@ public class ScheduledTaskService : BackgroundService
                                     double minutesToStart = (t.StartTime - nowTime).TotalMinutes;
                                     if (minutesToStart <= 180)
                                     {
-                                        _logger.LogInformation(
-                                            "Zadanie '{SessionName}' wystartuje za {MinutesToStart:F1} minut.",
-                                            t.SessionName, minutesToStart);
+                                        _logger.LogInformation("Zadanie '{SessionName}' wystartuje za {MinutesToStart:F1} minut.", t.SessionName, minutesToStart);
                                     }
                                 }
                             }
@@ -103,10 +107,12 @@ public class ScheduledTaskService : BackgroundService
 
                             foreach (var t in tasksToRun)
                             {
+                                // 2. Walidacja uprawnień - Dodano ApiBotEnabled i apiBotKey
                                 bool canRunAnything =
                                 (t.UrlEnabled && urlScalKey == "83208716") ||
                                 (t.CeneoEnabled && cenCrawKey == "84011233") ||
                                 (t.GoogleEnabled && gooCrawKey == "63891743") ||
+                                (t.ApiBotEnabled && apiBotKey == "11223344") || // <--- NOWY WARUNEK
                                 (t.BaseEnabled && baseScalKey == "55380981") ||
                                 (t.UrlScalAleEnabled && urlScalAleKey == "74902379") ||
                                 (t.AleCrawEnabled && aleCrawKey == "13894389") ||
@@ -122,13 +128,14 @@ public class ScheduledTaskService : BackgroundService
                                 }
 
                                 _logger.LogInformation(
-                             "Rozpoczynam wykonywanie zadania '{SessionName}' (StartTime: {StartTime}) na urządzeniu '{DeviceName}'.",
-                             t.SessionName, t.StartTime, deviceName);
+                                    "Rozpoczynam wykonywanie zadania '{SessionName}' (StartTime: {StartTime}) na urządzeniu '{DeviceName}'.",
+                                    t.SessionName, t.StartTime, deviceName);
 
                                 t.LastRunDateOfTask = DateTime.Now;
                                 context.ScheduleTasks.Update(t);
-
                                 await context.SaveChangesAsync(stoppingToken);
+
+                                // --- SEKCJA WYKONYWANIA ZADAŃ ---
 
                                 if (t.UrlEnabled && urlScalKey == "83208716")
                                     await RunUrlScalAsync(context, deviceName, t, stoppingToken);
@@ -139,9 +146,16 @@ public class ScheduledTaskService : BackgroundService
                                 if (t.GoogleEnabled && gooCrawKey == "63891743")
                                     await RunGoogleAsync(context, deviceName, t, stoppingToken);
 
+                                // 3. KOLEJNOŚĆ KRYTYCZNA: API BOT musi być PO Crawlerach, a PRZED BaseScal
+                                if (t.ApiBotEnabled && apiBotKey == "11223344")
+                                {
+                                    await RunApiBotAsync(context, deviceName, t, stoppingToken);
+                                }
+
                                 if (t.BaseEnabled && baseScalKey == "55380981")
                                     await RunBaseScalAsync(context, deviceName, t, stoppingToken);
 
+                                // --- Sekcja Allegro ---
                                 if (t.UrlScalAleEnabled && urlScalAleKey == "74902379")
                                     await RunUrlScalAleAsync(context, deviceName, t, stoppingToken);
 
@@ -149,14 +163,10 @@ public class ScheduledTaskService : BackgroundService
                                     await RunAleCrawAsync(context, deviceName, t, stoppingToken);
 
                                 if (t.AleApiBotEnabled && aleApiBotKey == "00937384")
-                                {
                                     await RunAleApiBotAsync(context, deviceName, t, stoppingToken);
-                                }
 
                                 if (t.AleBaseEnabled && aleBaseScalKey == "64920067")
-                                {
                                     await RunAleBaseScalAsync(context, deviceName, t, stoppingToken);
-                                }
 
                                 await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
                             }
@@ -169,12 +179,13 @@ public class ScheduledTaskService : BackgroundService
                     _lastDeviceCheck = DateTime.Now;
 
                     await UpdateDeviceStatusAsync(
-                         context,
-                         deviceName,
-                         baseScalKey, urlScalKey, gooCrawKey, cenCrawKey,
-                         aleBaseScalKey, urlScalAleKey, aleCrawKey, aleApiBotKey,
-                         subKey, payKey, emailKey, // <--- Przekazujemy emailKey
-                         stoppingToken);
+                          context,
+                          deviceName,
+                          baseScalKey, urlScalKey, gooCrawKey, cenCrawKey,
+                          apiBotKey, // Przekazujemy nowy klucz do sprawdzenia statusu
+                          aleBaseScalKey, urlScalAleKey, aleCrawKey, aleApiBotKey,
+                          subKey, payKey, emailKey,
+                          stoppingToken);
                 }
             }
             catch (Exception ex)
@@ -350,6 +361,57 @@ public class ScheduledTaskService : BackgroundService
                 finishedLog.EndTime = DateTime.Now;
                 finishedLog.Comment += $" | Wystąpił błąd w GoogleScraper: {ex.Message}";
                 context.TaskExecutionLogs.Update(finishedLog);
+                await context.SaveChangesAsync(ct);
+            }
+        }
+    }
+
+    private async Task RunApiBotAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
+    {
+        var log = new TaskExecutionLog
+        {
+            DeviceName = deviceName,
+            OperationName = "API_BOT_STORE",
+            StartTime = DateTime.Now,
+            Comment = $"Pobieranie danych API Sklepu | SessionName={task.SessionName}; Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
+        };
+
+        context.TaskExecutionLogs.Add(log);
+        await context.SaveChangesAsync(ct);
+        int logId = log.Id;
+
+        try
+        {
+            // Pobieramy serwis z kontenera DI
+            var apiBotService = context.GetService<ApiBotService>();
+
+            int processedStores = 0;
+
+            // Iterujemy tylko po sklepach przypisanych do tego zadania
+            foreach (var taskStore in task.TaskStores)
+            {
+                // Wywołujemy serwis tylko dla konkretnego ID sklepu
+                await apiBotService.ProcessPendingApiRequestsAsync(taskStore.StoreId);
+                processedStores++;
+            }
+
+            var endLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            if (endLog != null)
+            {
+                endLog.EndTime = DateTime.Now;
+                endLog.Comment += $" | Sukces. Pobrano dane API dla {processedStores} sklepów.";
+                context.TaskExecutionLogs.Update(endLog);
+                await context.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            var endLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            if (endLog != null)
+            {
+                endLog.EndTime = DateTime.Now;
+                endLog.Comment += $" | Krytyczny błąd (API_BOT): {ex.Message}";
+                context.TaskExecutionLogs.Update(endLog);
                 await context.SaveChangesAsync(ct);
             }
         }
@@ -625,20 +687,22 @@ public class ScheduledTaskService : BackgroundService
              string urlScalKey,
              string gooCrawKey,
              string cenCrawKey,
+             string apiBotKey, // NOWY ARGUMENT
              string aleBaseScalKey,
              string urlScalAleKey,
              string aleCrawKey,
              string aleApiBotKey,
              string subKey,
              string payKey,
-             string emailKey, // <--- DODANY PARAMETR
+             string emailKey,
              CancellationToken ct)
     {
-
         const string BASE_SCAL_EXPECTED = "55380981";
         const string URL_SCAL_EXPECTED = "83208716";
         const string GOO_CRAW_EXPECTED = "63891743";
         const string CEN_CRAW_EXPECTED = "84011233";
+        const string API_BOT_EXPECTED = "11223344"; // OCZEKIWANA WARTOŚĆ NOWEGO KLUCZA
+
         const string ALE_BASE_SCAL_EXPECTED = "64920067";
         const string URL_SCAL_ALE_EXPECTED = "74902379";
         const string ALE_CRAW_EXPECTED = "13894389";
@@ -646,12 +710,14 @@ public class ScheduledTaskService : BackgroundService
 
         const string SUB_KEY_EXPECTED = "99887766";
         const string PAY_KEY_EXPECTED = "38401048";
-        const string EMAIL_KEY_EXPECTED = "55443322"; // <--- OCZEKIWANY KLUCZ
+        const string EMAIL_KEY_EXPECTED = "55443322";
 
         bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
         bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
         bool hasGooCraw = (gooCrawKey == GOO_CRAW_EXPECTED);
         bool hasCenCraw = (cenCrawKey == CEN_CRAW_EXPECTED);
+        bool hasApiBot = (apiBotKey == API_BOT_EXPECTED); // SPRAWDZENIE
+
         bool hasAleBaseScal = (aleBaseScalKey == ALE_BASE_SCAL_EXPECTED);
         bool hasUrlScalAle = (urlScalAleKey == URL_SCAL_ALE_EXPECTED);
         bool hasAleCraw = (aleCrawKey == ALE_CRAW_EXPECTED);
@@ -659,17 +725,20 @@ public class ScheduledTaskService : BackgroundService
 
         bool hasInvoiceGen = (subKey == SUB_KEY_EXPECTED);
         bool hasPaymentProc = (payKey == PAY_KEY_EXPECTED);
-        bool hasEmailSender = (emailKey == EMAIL_KEY_EXPECTED); // <--- SPRAWDZENIE
+        bool hasEmailSender = (emailKey == EMAIL_KEY_EXPECTED);
 
         var newStatus = new DeviceStatus
         {
             DeviceName = deviceName,
             IsOnline = true,
             LastCheck = DateTime.Now,
+
             BaseScalEnabled = hasBaseScal,
             UrlScalEnabled = hasUrlScal,
             GooCrawEnabled = hasGooCraw,
             CenCrawEnabled = hasCenCraw,
+            ApiBotEnabled = hasApiBot, // ZAPIS DO BAZY (wymaga dodania kolumny w DeviceStatus!)
+
             AleBaseScalEnabled = hasAleBaseScal,
             UrlScalAleEnabled = hasUrlScalAle,
             AleCrawEnabled = hasAleCraw,
@@ -677,14 +746,14 @@ public class ScheduledTaskService : BackgroundService
 
             InvoiceGeneratorEnabled = hasInvoiceGen,
             PaymentProcessorEnabled = hasPaymentProc,
-            EmailSenderEnabled = hasEmailSender // <--- ZAPIS
+            EmailSenderEnabled = hasEmailSender
         };
 
         await context.DeviceStatuses.AddAsync(newStatus, ct);
         await context.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Zaktualizowano status urządzenia '{DeviceName}'. Faktury: {Inv}, Płatności: {Pay}, Maile: {Mail}",
-            deviceName, hasInvoiceGen, hasPaymentProc, hasEmailSender);
+        _logger.LogInformation("Zaktualizowano status urządzenia '{DeviceName}'. ApiBot: {ApiBot}, Faktury: {Inv}, Płatności: {Pay}, Maile: {Mail}",
+            deviceName, hasApiBot, hasInvoiceGen, hasPaymentProc, hasEmailSender);
     }
 
 }
