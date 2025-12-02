@@ -157,6 +157,22 @@ namespace PriceSafari.Controllers.MemberControllers
                 });
             }
 
+
+            var bridgeItems = await _context.PriceBridgeItems
+        .Include(i => i.Batch)
+        .Where(i => i.Batch.StoreId == storeId.Value &&
+                    i.Batch.ScrapHistoryId == latestScrap.Id)
+        .ToListAsync();
+
+            // Grupujemy po ProductId, aby wziąć tylko NAJNOWSZĄ zmianę dla danego produktu 
+            // (w przypadku gdy użytkownik generował kilka plików eksportu po kolei)
+            var committedLookup = bridgeItems
+                .GroupBy(i => i.ProductId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(i => i.Batch.ExecutionDate).First()
+                );
+
             var previousScrapId = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId && sh.Date < latestScrap.Date)
                 .OrderByDescending(sh => sh.Date)
@@ -305,6 +321,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     var allCompetitorEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower() != storeNameLower).ToList();
                     var presetFilteredCompetitorPrices = new List<PriceRowDto>();
+                    var committedItem = committedLookup.GetValueOrDefault(g.Key);
 
                     if (competitorItemsDict != null)
                     {
@@ -570,7 +587,13 @@ namespace PriceSafari.Controllers.MemberControllers
                         SalesDifference = salesDifference,
                         SalesPercentageChange = salesPercentageChange,
                         ExternalApiPrice = extendedInfo?.ExtendedDataApiPrice,
-                        MyPricePosition = myPricePositionString
+                        MyPricePosition = myPricePositionString,
+                        Committed = committedItem == null ? null : new
+                        {
+                            NewPrice = committedItem.PriceAfter,
+                            NewGoogleRanking = committedItem.RankingGoogleAfterSimulated,
+                            NewCeneoRanking = committedItem.RankingCeneoAfterSimulated
+                        }
                     };
                 })
                 .Where(p => p != null)
@@ -1714,6 +1737,85 @@ namespace PriceSafari.Controllers.MemberControllers
             }
         }
 
+
+        [HttpPost]
+        public async Task<IActionResult> LogExportAsChange(int storeId, string exportType, [FromBody] List<PriceBridgeItemRequest> items)
+        {
+            if (!await UserHasAccessToStore(storeId)) return Forbid();
+            if (items == null || !items.Any()) return BadRequest("Brak danych do zapisu.");
+
+            var userId = _userManager.GetUserId(User);
+
+            // 1. Parsowanie typu eksportu (csv, excel, api) na Enum
+            // Jeśli przyjdzie coś nieznanego, domyślnie ustawiamy np. Csv lub rzucamy błąd (tu fallback na Csv)
+            PriceExportMethod method;
+            if (!Enum.TryParse(exportType, true, out method))
+            {
+                method = PriceExportMethod.Csv; // Domyślna wartość w razie błędu
+            }
+
+            // Pobierz ID ostatniego scrapu dla spójności danych
+            var latestScrapId = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => sh.Id)
+                .FirstOrDefaultAsync();
+
+            if (latestScrapId == 0) return BadRequest("Brak historii scrapowania.");
+
+            // Tworzymy nową paczkę zmian
+            var batch = new PriceBridgeBatch
+            {
+                StoreId = storeId,
+                ScrapHistoryId = latestScrapId,
+                UserId = userId,
+                ExecutionDate = DateTime.Now,
+                SuccessfulCount = items.Count,
+
+                // 2. Zapisujemy metodę eksportu
+                ExportMethod = method,
+
+                BridgeItems = new List<PriceBridgeItem>()
+            };
+
+            foreach (var item in items)
+            {
+                batch.BridgeItems.Add(new PriceBridgeItem
+                {
+                    ProductId = item.ProductId,
+                    PriceBefore = item.CurrentPrice,
+                    PriceAfter = item.NewPrice,
+                    MarginPrice = item.MarginPrice,
+
+                    // Informacyjne rankingi przed zmianą
+                    RankingGoogleBefore = item.CurrentGoogleRanking,
+                    RankingCeneoBefore = item.CurrentCeneoRanking,
+
+                    // Symulowane rankingi po zmianie
+                    RankingGoogleAfterSimulated = item.NewGoogleRanking,
+                    RankingCeneoAfterSimulated = item.NewCeneoRanking,
+
+                    Success = true
+                });
+            }
+
+            _context.PriceBridgeBatches.Add(batch);
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, count = items.Count });
+        }
+        // Klasa pomocnicza do odbierania danych z JS
+        public class PriceBridgeItemRequest
+        {
+            public int ProductId { get; set; }
+            public decimal CurrentPrice { get; set; }
+            public decimal NewPrice { get; set; }
+            public decimal? MarginPrice { get; set; }
+            public string? CurrentGoogleRanking { get; set; }
+            public string? CurrentCeneoRanking { get; set; }
+            public string? NewGoogleRanking { get; set; }
+            public string? NewCeneoRanking { get; set; }
+        }
 
     }
 }
