@@ -1746,15 +1746,14 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var userId = _userManager.GetUserId(User);
 
-            // 1. Parsowanie typu eksportu (csv, excel, api) na Enum
-            // Jeśli przyjdzie coś nieznanego, domyślnie ustawiamy np. Csv lub rzucamy błąd (tu fallback na Csv)
+
             PriceExportMethod method;
             if (!Enum.TryParse(exportType, true, out method))
             {
-                method = PriceExportMethod.Csv; // Domyślna wartość w razie błędu
+                method = PriceExportMethod.Csv; 
             }
 
-            // Pobierz ID ostatniego scrapu dla spójności danych
+       
             var latestScrapId = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -1763,7 +1762,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (latestScrapId == 0) return BadRequest("Brak historii scrapowania.");
 
-            // Tworzymy nową paczkę zmian
+      
             var batch = new PriceBridgeBatch
             {
                 StoreId = storeId,
@@ -1772,7 +1771,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 ExecutionDate = DateTime.Now,
                 SuccessfulCount = items.Count,
 
-                // 2. Zapisujemy metodę eksportu
+           
                 ExportMethod = method,
 
                 BridgeItems = new List<PriceBridgeItem>()
@@ -1787,11 +1786,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     PriceAfter = item.NewPrice,
                     MarginPrice = item.MarginPrice,
 
-                    // Informacyjne rankingi przed zmianą
+               
                     RankingGoogleBefore = item.CurrentGoogleRanking,
                     RankingCeneoBefore = item.CurrentCeneoRanking,
 
-                    // Symulowane rankingi po zmianie
                     RankingGoogleAfterSimulated = item.NewGoogleRanking,
                     RankingCeneoAfterSimulated = item.NewCeneoRanking,
 
@@ -1804,7 +1802,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return Json(new { success = true, count = items.Count });
         }
-        // Klasa pomocnicza do odbierania danych z JS
+
         public class PriceBridgeItemRequest
         {
             public int ProductId { get; set; }
@@ -1821,43 +1819,43 @@ namespace PriceSafari.Controllers.MemberControllers
         [HttpGet]
         public async Task<IActionResult> GetScrapPriceChangeHistory(int storeId, int scrapHistoryId)
         {
-            // 1. Sprawdzenie uprawnień
+         
             if (!await UserHasAccessToStore(storeId)) return Forbid();
 
             if (scrapHistoryId == 0) return BadRequest("Invalid Scrap History ID.");
 
-            // 2. Pobranie paczek zmian z bazy (PriceBridgeBatches)
+        
             var batches = await _context.PriceBridgeBatches
                 .AsNoTracking()
                 .Where(b => b.StoreId == storeId && b.ScrapHistoryId == scrapHistoryId)
                 .Include(b => b.User)
                 .Include(b => b.BridgeItems)
-                    .ThenInclude(i => i.Product) // Dołączenie produktu, aby mieć jego nazwę
+                    .ThenInclude(i => i.Product) 
                 .OrderByDescending(b => b.ExecutionDate)
                 .ToListAsync();
 
-            // 3. Mapowanie na prosty obiekt JSON dla widoku
+       
             var result = batches.Select(b => new
             {
                 executionDate = b.ExecutionDate,
                 userName = b.User?.UserName ?? "Nieznany",
                 successfulCount = b.SuccessfulCount,
-                // Dodajemy metodę eksportu, żeby wyświetlić np. ikonkę Excela/CSV w historii
+             
                 exportMethod = b.ExportMethod.ToString(),
                 items = b.BridgeItems.Select(i => new
                 {
                     productId = i.ProductId,
-                    // Upewnij się, że Product nie jest nullem (np. usunięty produkt)
+                 
                     productName = i.Product?.ProductName ?? "Produkt usunięty lub nieznany",
                     ean = i.Product?.Ean,
 
-                    // Pola potrzebne do wyświetlenia tabeli w historii
+            
                     priceBefore = i.PriceBefore,
-                    priceAfter_Verified = i.PriceAfter, // Tutaj Verified to po prostu cena z eksportu
+                    priceAfter_Verified = i.PriceAfter, 
 
                     marginPrice = i.MarginPrice,
 
-                    // Rankingi historyczne (opcjonalne do wyświetlenia)
+             
                     rankingGoogleBefore = i.RankingGoogleBefore,
                     rankingCeneoBefore = i.RankingCeneoBefore,
                     rankingGoogleAfter = i.RankingGoogleAfterSimulated,

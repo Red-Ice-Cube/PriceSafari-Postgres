@@ -869,9 +869,7 @@
             CurrentPrice: parseFloat(row.baseCurrentPrice),
             NewPrice: parseFloat(row.baseNewPrice),
 
-            // --- POPRAWKA TUTAJ ---
-            // Pobieramy marginPrice z wiersza danych. 
-            // Jeśli jest null/undefined, wysyłamy null, w przeciwnym razie parsujemy na float.
+
             MarginPrice: (row.marginPrice !== null && row.marginPrice !== undefined) ? parseFloat(row.marginPrice) : null,
 
             CurrentGoogleRanking: formatFullRanking(row.currentGoogleRanking, row.totalGoogleOffers),
@@ -990,7 +988,8 @@
         const historyContainer = document.getElementById("historyModalBody");
         if (!historyContainer) return;
 
-        function buildHistoryPriceBlock(price, googleRank, ceneoRank, isConfirmed = false) {
+        
+        function buildHistoryPriceBlock(price, googleRank, ceneoRank, marginPrice, isConfirmed = false) {
             const formattedPrice = formatPricePL(price);
 
             const confirmedStyle = 'background: #dff0d8; border: 1px solid #c1e2b3;';
@@ -1000,14 +999,45 @@
 
             let block = '<div class="price-info-box">';
 
+           
             block += `<div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px; margin-bottom: 5px;">${headerText} | ${formattedPrice}</div>`;
 
+            
             if (googleRank && googleRank !== "-" && googleRank !== "null") {
                 block += `<div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px; margin-bottom: 5px;">Poz. Google | <img src="/images/GoogleShopping.png" alt="Google" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${googleRank}</div>`;
             }
 
+            
             if (ceneoRank && ceneoRank !== "-" && ceneoRank !== "null") {
                 block += `<div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px; margin-bottom: 5px;">Poz. Ceneo | <img src="/images/Ceneo.png" alt="Ceneo" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${ceneoRank}</div>`;
+            }
+
+            if (marginPrice !== null && marginPrice !== undefined && price !== null && marginPrice > 0) {
+                const priceVal = parseFloat(price);
+                const costVal = parseFloat(marginPrice);
+
+                if (!isNaN(priceVal) && !isNaN(costVal)) {
+                    const marginValue = priceVal - costVal;
+                
+                    const marginPercent = (marginValue / costVal) * 100;
+
+                    const formattedMarginValue = formatPricePL(marginValue);
+                    const formattedMarginPercent = marginPercent.toFixed(2);
+                    const sign = marginValue >= 0 ? "+" : "";
+
+                    
+                    const cls = marginValue >= 0
+                        ? "priceBox-diff-margin"
+                        : "priceBox-diff-margin-minus";
+
+                    
+                    block += `
+                      <div class="price-info-item"> 
+                          <div class="price-box-diff-margin ${cls}">
+                                <p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p>
+                          </div>
+                      </div>`;
+                }
             }
 
             block += '</div>';
@@ -1052,11 +1082,12 @@
         `;
 
             batch.items.forEach(item => {
-
+                
                 const blockBefore = buildHistoryPriceBlock(
                     item.priceBefore,
                     item.rankingGoogleBefore,
                     item.rankingCeneoBefore,
+                    item.marginPrice,
                     false
                 );
 
@@ -1064,6 +1095,7 @@
                     item.priceAfter_Verified,
                     item.rankingGoogleAfter,
                     item.rankingCeneoAfter,
+                    item.marginPrice,
                     true
                 );
 
