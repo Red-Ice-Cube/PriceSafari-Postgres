@@ -845,33 +845,33 @@
     }
 
 
-    // --- 1. FUNKCJA LOGUJĄCA ZMIANY DO BAZY I WYWOŁUJĄCA EKSPORT ---
     function logChangesToDbAndRefresh(exportType) {
         if (originalRowsData.length === 0) {
             alert("Brak danych do zapisania/eksportu.");
             return;
         }
 
-        // Mapujemy dane z tabeli symulacji na obiekt oczekiwany przez kontroler
+        function formatFullRanking(rank, totalOffers) {
+            if (!rank || rank === "-" || rank === "null") return null;
+            if (!totalOffers || totalOffers === 0 || totalOffers === "0") return String(rank);
+            return `${rank} / ${totalOffers}`;
+        }
+
         const itemsToLog = originalRowsData.map(row => ({
             ProductId: parseInt(row.productId),
-            // Używamy effectivePrice (z dostawą) lub basePrice w zależności od ustawień,
-            // ale zazwyczaj do API/sklepu wysyła się cenę bazową (NewPrice).
-            // Tutaj zakładam, że do historii zapisujemy to co faktycznie zmieniamy (Cena Produktu).
             CurrentPrice: parseFloat(row.baseCurrentPrice),
             NewPrice: parseFloat(row.baseNewPrice),
             MarginPrice: row.marginPrice ? parseFloat(row.marginPrice) : null,
 
-            // Rankingi
-            CurrentGoogleRanking: row.currentGoogleRanking ? String(row.currentGoogleRanking) : null,
-            CurrentCeneoRanking: row.currentCeneoRanking ? String(row.currentCeneoRanking) : null,
-            NewGoogleRanking: row.newGoogleRanking ? String(row.newGoogleRanking) : null,
-            NewCeneoRanking: row.newCeneoRanking ? String(row.newCeneoRanking) : null
+            CurrentGoogleRanking: formatFullRanking(row.currentGoogleRanking, row.totalGoogleOffers),
+            CurrentCeneoRanking: formatFullRanking(row.currentCeneoRanking, row.totalCeneoOffers),
+
+            NewGoogleRanking: formatFullRanking(row.newGoogleRanking, row.totalGoogleOffers),
+            NewCeneoRanking: formatFullRanking(row.newCeneoRanking, row.totalCeneoOffers)
         }));
 
         showLoading();
 
-        // Wywołanie nowego endpointu w PriceHistoryController
         fetch(`/PriceHistory/LogExportAsChange?storeId=${storeId}&exportType=${exportType}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -880,32 +880,36 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // 1. Generowanie fizycznego pliku po udanym zapisie w bazie
+
                     if (exportType === 'csv') {
                         exportToCsv(document.getElementById("extendedExportCheckbox")?.checked);
                     } else if (exportType === 'excel') {
                         exportToExcelXLSX(document.getElementById("extendedExportCheckbox")?.checked);
                     }
 
-                    // 2. Wyświetlenie komunikatu
                     if (typeof showGlobalUpdate === 'function') {
                         showGlobalUpdate(`<p style="font-weight:bold;">Zapisano ${data.count} zmian cen w historii.</p>`);
                     }
 
-                    // 3. Czyszczenie LocalStorage i stanu symulacji
                     localStorage.removeItem(localStorageKey);
                     selectedPriceChanges = [];
                     originalRowsData = [];
                     sessionScrapId = null;
                     updatePriceChangeSummary();
 
-                    // Czyścimy tabelę w modalu
                     const tableContainer = document.getElementById("simulationModalBody");
                     if (tableContainer) tableContainer.innerHTML = '<p style="text-align: center; padding: 20px;">Zmiany zostały zapisane.</p>';
 
-                    // 4. Odświeżenie cen (pobierze status "Committed") i zamknięcie modali
-                    loadPrices();
-                    $('#simulationModal').modal('hide');
+                    if (typeof window.loadPrices === 'function') {
+                        window.loadPrices();
+                    }
+
+                    const simModal = document.getElementById('simulationModal');
+                    if (simModal) {
+                        simModal.style.display = 'none';
+                        simModal.classList.remove('show');
+                    }
+
                     closeExportDisclaimer();
                 } else {
                     alert("Błąd zapisu zmian do bazy danych.");
@@ -919,12 +923,10 @@
                 hideLoading();
             });
     }
-
     function showExportDisclaimer(type) {
         pendingExportType = type;
         const disclaimerModal = document.getElementById("exportDisclaimerModal");
         if (disclaimerModal) {
-
 
             disclaimerModal.style.display = 'block';
             disclaimerModal.classList.add('show');
@@ -942,22 +944,16 @@
         }
     }
 
-    // --- AKTUALIZACJA LISTENERA W TWOIM KODZIE ---
     const disclaimerConfirmButton = document.getElementById("disclaimerConfirmButton");
     if (disclaimerConfirmButton) {
         disclaimerConfirmButton.addEventListener("click", function () {
-            // ZAMIAST BEZPOŚREDNIEGO WYWOŁANIA exportTo..., WOŁAMY LOGOWANIE:
+
             if (pendingExportType) {
                 logChangesToDbAndRefresh(pendingExportType);
             }
-            // closeExportDisclaimer() jest wołane wewnątrz logChanges... po sukcesie, 
-            // ale można też zostawić tutaj, jeśli chcesz zamknąć modal od razu (choć lepiej poczekać na response).
+
         });
     }
-
-    // --- 2. OBSŁUGA HISTORII ---
-
-    
 
     function fetchAndRenderHistory() {
         if (!globalLatestScrapId || globalLatestScrapId == 0) {
@@ -981,87 +977,130 @@
     }
 
     function renderHistoryView(batches) {
-        const container = document.getElementById("historyModalBody");
-        if (!batches || batches.length === 0) {
-            container.innerHTML = '<p style="text-align:center; padding:20px;">Brak historii zmian dla tego scrapu.</p>';
-            document.getElementById("historyTabCounter").textContent = "0";
-            return;
+        const historyContainer = document.getElementById("historyModalBody");
+        if (!historyContainer) return;
+
+        function buildHistoryPriceBlock(price, googleRank, ceneoRank, isConfirmed = false) {
+            const formattedPrice = formatPricePL(price);
+
+            const confirmedStyle = 'background: #dff0d8; border: 1px solid #c1e2b3;';
+            const normalStyle = 'background: #f5f5f5; border: 1px solid #e3e3e3;';
+            const currentStyle = isConfirmed ? confirmedStyle : normalStyle;
+            const headerText = isConfirmed ? 'Cena wgrana' : 'Cena oferty';
+
+            let block = '<div class="price-info-box">';
+
+            block += `<div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px; margin-bottom: 5px;">${headerText} | ${formattedPrice}</div>`;
+
+            if (googleRank && googleRank !== "-" && googleRank !== "null") {
+                block += `<div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px; margin-bottom: 5px;">Poz. Google | <img src="/images/GoogleShopping.png" alt="Google" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${googleRank}</div>`;
+            }
+
+            if (ceneoRank && ceneoRank !== "-" && ceneoRank !== "null") {
+                block += `<div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px; margin-bottom: 5px;">Poz. Ceneo | <img src="/images/Ceneo.png" alt="Ceneo" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${ceneoRank}</div>`;
+            }
+
+            block += '</div>';
+            return block;
         }
 
         let totalItems = 0;
-        let html = '';
+        if (!batches || batches.length === 0) {
+            historyContainer.innerHTML = '<p style="text-align: center; padding: 20px; font-size: 16px;">Brak historii wgranych zmian dla tej analizy.</p>';
+            document.getElementById('historyTabCounter').textContent = 0;
+            return;
+        }
 
+        let html = '';
         batches.forEach(batch => {
             totalItems += batch.items.length;
-            const dateStr = new Date(batch.executionDate).toLocaleString('pl-PL');
+            const executionDate = new Date(batch.executionDate).toLocaleString('pl-PL');
 
-            // Ikona metody eksportu
-            let methodIcon = '<i class="fas fa-file-alt"></i>'; // domyślna
+            let methodIcon = '<i class="fas fa-file-alt"></i>';
             if (batch.exportMethod === 'Csv') methodIcon = '<i class="fa-solid fa-file-csv" style="color:green;"></i> CSV';
             else if (batch.exportMethod === 'Excel') methodIcon = '<i class="fas fa-file-excel" style="color:green;"></i> Excel';
             else if (batch.exportMethod === 'Api') methodIcon = '<i class="fas fa-cloud-upload-alt" style="color:#0d6efd;"></i> API';
 
             html += `
-        <div class="history-batch" style="margin-bottom: 20px; border: 1px solid #ddd; border-radius: 5px; overflow: hidden;">
-            <div class="history-header" style="background: #f8f9fa; padding: 10px; border-bottom: 1px solid #ddd; display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                    <strong>Data:</strong> ${dateStr} | 
-                    <strong>Użytkownik:</strong> ${batch.userName} | 
-                    <strong>Metoda:</strong> ${methodIcon}
-                </div>
-                <div>
-                    <span style="color:green; font-weight:bold;">Liczba zmian: ${batch.successfulCount}</span>
-                </div>
-            </div>
-            <div class="table-responsive">
-                <table class="table-orders" style="width:100%; margin:0;">
-                    <thead>
-                        <tr>
-                            <th>Produkt</th>
-                            <th>Cena Przed</th>
-                            <th>Nowa Cena</th>
-                            <th>Rankingi (Symulacja)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+        <div class="history-batch-header" style="margin-top: 0px; margin-bottom: 4px; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 5px;">
+            <strong>Paczka z dnia:</strong> ${executionDate} | 
+            <strong>Wgrał:</strong> ${batch.userName} | 
+            <strong>Metoda:</strong> ${methodIcon} | 
+            <strong style="color: #28a745;">Sukces: ${batch.successfulCount}</strong>
+        </div>
+        <table class="table-orders" style="margin-bottom: 20px; width: 100%;">
+            <thead>
+                <tr>
+                    <th>Produkt</th>
+                    <th>Przed zmianą</th>
+                    <th>Zmiana</th>
+                    <th>Zaktualizowana cena</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
         `;
 
             batch.items.forEach(item => {
-                const diff = item.priceAfter_Verified - item.priceBefore;
-                const diffClass = diff > 0 ? 'color:red;' : (diff < 0 ? 'color:green;' : 'color:gray;');
-                const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '●');
+
+                const blockBefore = buildHistoryPriceBlock(
+                    item.priceBefore,
+                    item.rankingGoogleBefore,
+                    item.rankingCeneoBefore,
+                    false
+                );
+
+                const blockUpdated = buildHistoryPriceBlock(
+                    item.priceAfter_Verified,
+                    item.rankingGoogleAfter,
+                    item.rankingCeneoAfter,
+                    true
+                );
+
+                const statusBlock = '<span style="color: #28a745; font-weight: bold;"><i class="fas fa-check-circle"></i> Wgrano</span>';
+
+                let eanInfo = item.ean ? `<div class="price-info-item small-text">EAN: ${item.ean}</div>` : `<div class="price-info-item small-text" style="color:#888;">EAN: Brak</div>`;
+
+                let diffBlock = '-';
+                if (item.priceAfter_Verified != null && item.priceBefore != null) {
+                    const diff = item.priceAfter_Verified - item.priceBefore;
+                    const diffPercent = (item.priceBefore > 0) ? (diff / item.priceBefore) * 100 : 0;
+
+                    let arrow = '<span style="color: gray;">●</span>';
+                    if (diff > 0.005) arrow = '<span style="color: red;">▲</span>';
+                    else if (diff < -0.005) arrow = '<span style="color: green;">▼</span>';
+
+                    diffBlock = `
+                    <div style="font-size: 1em; white-space: nowrap;">
+                        <div>${arrow} ${formatPricePL(Math.abs(diff), false)} PLN</div>
+                        <div style="font-size: 0.9em; color: #555; margin-left:19px;">(${Math.abs(diffPercent).toFixed(2)}%)</div>
+                    </div>`;
+                }
 
                 html += `
-                <tr>
-                    <td>
-                        <div style="font-weight:500;">${item.productName}</div>
-                        <div style="font-size:12px; color:#888;">EAN: ${item.ean || '-'}</div>
-                    </td>
-                    <td>${formatPricePL(item.priceBefore)}</td>
-                    <td>
-                        <span style="font-weight:bold;">${formatPricePL(item.priceAfter_Verified)}</span>
-                        <div style="font-size:12px; ${diffClass}">
-                            ${arrow} ${formatPricePL(Math.abs(diff), false)}
-                        </div>
-                    </td>
-                    <td>
-                        <div style="font-size:12px;">
-                            ${item.rankingGoogleAfter ? `Google: ${item.rankingGoogleAfter}` : ''}
-                            ${item.rankingCeneoAfter ? `Ceneo: ${item.rankingCeneoAfter}` : ''}
-                        </div>
-                    </td>
-                </tr>
-            `;
+            <tr>
+                <td class="align-middle">
+                     <a href="/PriceHistory/Details?scrapId=${globalLatestScrapId || 0}&productId=${item.productId || 0}"
+                        target="_blank"
+                        class="simulationProductTitle"
+                        style="text-decoration: none; color: inherit;">
+                        <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;">${item.productName}</div>
+                    </a>
+                    ${eanInfo}
+                </td>
+                <td class="align-middle">${blockBefore}</td>
+                <td class="align-middle">${diffBlock}</td>
+                <td class="align-middle">${blockUpdated}</td>
+                <td class="align-middle text-center">${statusBlock}</td>
+            </tr>`;
             });
-
-            html += `</tbody></table></div></div>`;
+            html += `</tbody></table>`;
         });
 
-        container.innerHTML = html;
-        document.getElementById("historyTabCounter").textContent = totalItems;
+        historyContainer.innerHTML = html;
+        document.getElementById('historyTabCounter').textContent = totalItems;
     }
 
-    // Obsługa zakładek w modalu
     document.getElementById('showPriceChangeCart').addEventListener('click', function () {
         document.getElementById('simulationModalBody').style.display = 'block';
         document.getElementById('historyModalBody').style.display = 'none';
