@@ -59,6 +59,14 @@
 
 
 
+
+        /* Opcjonalnie: upewnij się, że tabela wewnątrz nie robi podwójnego scrolla
+        .modal-simulation .table-scroll {
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+        } */
+
 </style>
 
 <div class="Vert">
@@ -328,7 +336,7 @@
             <div class="modal-body">
                 <div class="table-scroll" id="simulationModalBody"></div>
 
-                <div class="table-scroll" id="historyModalBody" style="display: none; max-height: 75vh; overflow-y: auto;"></div>
+                <div class="table-scroll" id="historyModalBody" style="display: none;"></div>
             </div>
 
             <div class="modal-footer">

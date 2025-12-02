@@ -436,18 +436,18 @@
         let block = '<div class="price-info-box">';
 
         block += `
-              <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
+              <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
                   Cena oferty | ${formattedBasePrice}
               </div>`;
 
         if (usePriceWithDeliveryFlag && effectivePrice !== null && shippingCost !== null && basePrice !== null) {
             block += `
-                          <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
+                          <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
                                 Cena z wysyłką | ${formattedEffectivePrice}
                           </div>`;
 
             block += `
-                          <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
+                          <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
                                 Składowe | ${formatPricePL(basePrice, false)} PLN + ${formatPricePL(shippingCost, false)} PLN
                           </div>`;
         }
@@ -455,7 +455,7 @@
         if (googleRank && googleRank !== "-") {
             const googleOffersText = googleOffers > 0 ? googleOffers : '-';
             block += `
-              <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
+              <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
                   Poz. cenowa | <img src="/images/GoogleShopping.png" alt="Google Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" />
                   ${googleRank} / ${googleOffersText}
               </div>`;
@@ -464,7 +464,7 @@
         if (ceneoRank && ceneoRank !== "-") {
             const ceneoOffersText = ceneoOffers > 0 ? ceneoOffers : '-';
             block += `
-                  <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px; margin-bottom: 5px;">
+                  <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
                       Poz. cenowa | <img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" />
                       ${ceneoRank} / ${ceneoOffersText}
                   </div>`;
@@ -479,7 +479,7 @@
                 ? "priceBox-diff-margin"
                 : "priceBox-diff-margin-minus";
             block += `
-                      <div class="price-info-item"> <div class="price-box-diff-margin ${cls}" style="margin-top: 5px;"> <p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p>
+                      <div class="price-info-item"> <div class="price-box-diff-margin ${cls}" <p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p>
                           </div>
                       </div>`;
         }
@@ -577,7 +577,7 @@
                 tableHtml += '<th>Obecne</th>';
                 tableHtml += '<th>Zmiana</th>';
                 tableHtml += '<th>Po zmianie</th>';
-                tableHtml += '<th>Opłacalność zmiany</th>';
+                tableHtml += '<th>Opłacalność</th>';
                 tableHtml += '<th>Usuń</th>';
                 tableHtml += '</tr></thead><tbody id="simulationTbody"></tbody></table>';
 
@@ -784,7 +784,7 @@
                                         title="Zobacz szczegóły produktu"
                                         style="text-decoration: none; color: inherit;"
                                     >
-                                        <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;"> ${row.productName}
+                                        <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500; width: 600px; white-space: normal;"> ${row.productName}
                                         </div>
                                     </a>
                                     ${eanInfo}
@@ -1084,7 +1084,7 @@
                         target="_blank"
                         class="simulationProductTitle"
                         style="text-decoration: none; color: inherit;">
-                        <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;">${item.productName}</div>
+                        <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500; width: 600px; white-space: normal;">${item.productName}</div>
                     </a>
                     ${eanInfo}
                 </td>
