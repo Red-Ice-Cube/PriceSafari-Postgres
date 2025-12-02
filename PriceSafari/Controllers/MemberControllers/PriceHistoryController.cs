@@ -1472,8 +1472,6 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool Source { get; set; }
         }
 
-
-
         [HttpGet]
         public async Task<IActionResult> ExportToExcel(int? storeId)
         {
@@ -1484,7 +1482,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Content("Brak dostępu do sklepu");
             }
 
-            // 1. Pobierz ID ostatniego scrapu
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -1493,7 +1490,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (latestScrap == null) return Content("Brak danych scrapowania.");
 
-            // Pobierz nazwę Twojego sklepu
             var storeName = await _context.Stores
                 .Where(s => s.StoreId == storeId)
                 .Select(s => s.StoreName)
@@ -1501,20 +1497,19 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var myStoreNameLower = storeName?.ToLower().Trim() ?? "";
 
-            // Sprawdź czy doliczać dostawę
             var priceValues = await _context.PriceValues
                 .Where(pv => pv.StoreId == storeId)
                 .Select(pv => new { pv.UsePriceWithDelivery })
                 .FirstOrDefaultAsync() ?? new { UsePriceWithDelivery = false };
 
-            // 2. Pobierz surowe dane z bazy
             var rawData = await (from p in _context.Products
                                  join ph in _context.PriceHistories on p.ProductId equals ph.ProductId
                                  where p.StoreId == storeId && ph.ScrapHistoryId == latestScrap.Id
                                  select new
                                  {
                                      p.ProductName,
-                                     p.Producer, // Pobieramy producenta
+                                     p.Producer,
+
                                      p.Ean,
                                      p.ExternalId,
                                      p.MarginPrice,
@@ -1524,7 +1519,6 @@ namespace PriceSafari.Controllers.MemberControllers
                                      ph.ShippingCostNum
                                  }).ToListAsync();
 
-            // 3. Grupowanie i logika biznesowa
             var groupedData = rawData
                 .GroupBy(x => new { x.ProductName, x.Producer, x.Ean, x.ExternalId, x.MarginPrice })
                 .Select(g =>
@@ -1584,12 +1578,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 .OrderBy(x => x.Product.ProductName)
                 .ToList();
 
-            // 4. Generowanie Excela (NPOI)
             using (var workbook = new XSSFWorkbook())
             {
                 var sheet = workbook.CreateSheet("Monitoring Cen");
 
-                // --- STYLE ---
                 var headerStyle = workbook.CreateCellStyle();
                 var headerFont = workbook.CreateFont();
                 headerFont.IsBold = true;
@@ -1613,11 +1605,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 styleRed.FillForegroundColor = IndexedColors.Rose.Index;
                 styleRed.FillPattern = FillPattern.SolidForeground;
 
-                // --- NAGŁÓWKI ---
                 var headerRow = sheet.CreateRow(0);
                 int colIndex = 0;
 
-                // <--- ZMIANA: Dodano "Producent" do tablicy nagłówków
                 string[] staticHeaders = { "ID Produktu", "Nazwa Produktu", "Producent", "EAN", "Cena Zakupu", "Twoja Cena", "Pozycja", "Różnica" };
 
                 foreach (var h in staticHeaders) headerRow.CreateCell(colIndex++).SetCellValue(h);
@@ -1631,26 +1621,20 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 for (int i = 0; i < colIndex; i++) headerRow.GetCell(i).CellStyle = headerStyle;
 
-                // --- WYPEŁNIANIE DANYCH ---
                 int rowIndex = 1;
                 foreach (var item in groupedData)
                 {
                     var row = sheet.CreateRow(rowIndex++);
                     colIndex = 0;
 
-                    // ID
                     row.CreateCell(colIndex++).SetCellValue(item.Product.ExternalId?.ToString() ?? "");
 
-                    // Nazwa Produktu (już bez doklejania producenta)
                     row.CreateCell(colIndex++).SetCellValue(item.Product.ProductName);
 
-                    // <--- ZMIANA: Osobna kolumna dla Producenta
                     row.CreateCell(colIndex++).SetCellValue(item.Product.Producer ?? "");
 
-                    // EAN
                     row.CreateCell(colIndex++).SetCellValue(item.Product.Ean);
 
-                    // Cena Zakupu
                     var cellMargin = row.CreateCell(colIndex++);
                     if (item.Product.MarginPrice.HasValue)
                     {
@@ -1658,7 +1642,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         cellMargin.CellStyle = currencyStyle;
                     }
 
-                    // Twoja Cena
                     var cellMyPrice = row.CreateCell(colIndex++);
                     if (item.MyPrice.HasValue)
                     {
@@ -1673,10 +1656,8 @@ namespace PriceSafari.Controllers.MemberControllers
                         cellMyPrice.SetCellValue("-");
                     }
 
-                    // Pozycja
                     row.CreateCell(colIndex++).SetCellValue(item.Position);
 
-                    // Różnica
                     var cellDiff = row.CreateCell(colIndex++);
                     if (item.DiffToLowest.HasValue)
                     {
@@ -1688,7 +1669,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         cellDiff.SetCellValue("");
                     }
 
-                    // Konkurencja
                     for (int i = 0; i < maxCompetitors; i++)
                     {
                         if (i < item.Competitors.Count)
@@ -1707,15 +1687,18 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                 }
 
-                // AutoSize dla głównych kolumn
-                sheet.AutoSizeColumn(0); // ID
-                sheet.AutoSizeColumn(1); // Nazwa
-                sheet.AutoSizeColumn(2); // Producent (dostosuj szerokość nowej kolumny)
-                sheet.AutoSizeColumn(3); // EAN
-                sheet.AutoSizeColumn(5); // Twoja Cena
-                sheet.AutoSizeColumn(6); // Pozycja
+                sheet.AutoSizeColumn(0);
 
-                // Stała szerokość dla konkurencji (od indeksu 8, bo doszła jedna kolumna)
+                sheet.AutoSizeColumn(1);
+
+                sheet.AutoSizeColumn(2);
+
+                sheet.AutoSizeColumn(3);
+
+                sheet.AutoSizeColumn(5);
+
+                sheet.AutoSizeColumn(6);
+
                 for (int i = 8; i < colIndex; i++)
                 {
                     sheet.SetColumnWidth(i, 4000);
@@ -1730,6 +1713,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
         }
+
 
     }
 }

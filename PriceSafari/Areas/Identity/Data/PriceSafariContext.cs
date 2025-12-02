@@ -60,11 +60,14 @@ namespace PriceSafari.Data
 
         public DbSet<AllegroPriceBridgeBatch> AllegroPriceBridgeBatches { get; set; }
         public DbSet<AllegroPriceBridgeItem> AllegroPriceBridgeItems { get; set; }
+
+        public DbSet<PriceBridgeBatch> PriceBridgeBatches { get; set; }
+        public DbSet<PriceBridgeItem> PriceBridgeItems { get; set; }
+
         public DbSet<EmailTemplate> EmailTemplates { get; set; }
         public DbSet<ContactLabel> ContactLabels { get; set; }
 
 
-        // W PriceSafariContext.cs dodaj:
         public DbSet<CoOfrStoreData> CoOfrStoreDatas { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -305,6 +308,34 @@ namespace PriceSafari.Data
                 .WithMany(co => co.StoreData)    // Rodzic ma wiele Dzieci
                 .HasForeignKey(sd => sd.CoOfrClassId)
                 .OnDelete(DeleteBehavior.Cascade); // <-- TO JEST KLUCZOWE
+
+
+            modelBuilder.Entity<PriceBridgeBatch>(entity =>
+            {
+                entity.HasOne(b => b.Store)
+                      .WithMany() // Zakładam, że Store nie ma kolekcji Batches, jeśli ma - zmień to
+                      .HasForeignKey(b => b.StoreId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(b => b.User)
+                      .WithMany()
+                      .HasForeignKey(b => b.UserId)
+                      .OnDelete(DeleteBehavior.SetNull); // Jeśli użytkownik zniknie, historia zostaje (bez usera)
+            });
+
+            // Konfiguracja dla PriceBridgeItem
+            modelBuilder.Entity<PriceBridgeItem>(entity =>
+            {
+                entity.HasOne(i => i.Batch)
+                      .WithMany(b => b.BridgeItems)
+                      .HasForeignKey(i => i.PriceBridgeBatchId)
+                      .OnDelete(DeleteBehavior.Cascade); // Usunięcie paczki usuwa jej elementy
+
+                entity.HasOne(i => i.Product)
+                      .WithMany()
+                      .HasForeignKey(i => i.ProductId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 }
