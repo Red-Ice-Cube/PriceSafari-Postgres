@@ -189,8 +189,10 @@
         updatePriceChangeSummary(); 
     });
 
+    // ZMIANA: Odbiór i zapis marginPrice do LocalStorage
     document.addEventListener('priceBoxChange', function (event) {
-        const { productId, productName, currentPrice, newPrice, scrapId, stepPriceApplied, stepUnitApplied } = event.detail;
+        // 1. Dodajemy marginPrice do pobieranych zmiennych
+        const { productId, productName, currentPrice, newPrice, scrapId, stepPriceApplied, stepUnitApplied, marginPrice } = event.detail;
 
         if (selectedPriceChanges.length === 0) {
             sessionScrapId = scrapId;
@@ -210,7 +212,9 @@
             currentPrice: parseFloat(currentPrice),
             newPrice: parseFloat(newPrice),
             stepPriceApplied: parseFloat(stepPriceApplied),
-            stepUnitApplied
+            stepUnitApplied,
+            // 2. Zapisujemy marginPrice do obiektu zmiany
+            marginPrice: marginPrice
         };
 
         if (existingIndex > -1) {
@@ -591,7 +595,9 @@
 
                     const prodDetail = productDetails.find(x => String(x.productId) === productIdStr);
                     const simResult = simulationResults.find(x => String(x.productId) === productIdStr);
-
+                    const marginPrice = (item.marginPrice !== undefined && item.marginPrice !== null)
+                        ? parseFloat(item.marginPrice)
+                        : (simResult ? simResult.marginPrice : null);
                     const name = prodDetail ? prodDetail.productName : item.productName || 'Brak nazwy';
                     const imageUrl = prodDetail ? prodDetail.imageUrl : "";
                     const ean = eanMapGlobal[productIdStr] || (prodDetail ? String(prodDetail.ean || '') : '');
@@ -713,6 +719,7 @@
                         currentCeneoRanking: simResult ? simResult.currentCeneoRanking : null,
                         newCeneoRanking: simResult ? simResult.newCeneoRanking : null,
                         totalCeneoOffers: simResult ? simResult.totalCeneoOffers : null,
+                        marginPrice: marginPrice
                     };
                 });
 
@@ -861,7 +868,11 @@
             ProductId: parseInt(row.productId),
             CurrentPrice: parseFloat(row.baseCurrentPrice),
             NewPrice: parseFloat(row.baseNewPrice),
-            MarginPrice: row.marginPrice ? parseFloat(row.marginPrice) : null,
+
+            // --- POPRAWKA TUTAJ ---
+            // Pobieramy marginPrice z wiersza danych. 
+            // Jeśli jest null/undefined, wysyłamy null, w przeciwnym razie parsujemy na float.
+            MarginPrice: (row.marginPrice !== null && row.marginPrice !== undefined) ? parseFloat(row.marginPrice) : null,
 
             CurrentGoogleRanking: formatFullRanking(row.currentGoogleRanking, row.totalGoogleOffers),
             CurrentCeneoRanking: formatFullRanking(row.currentCeneoRanking, row.totalCeneoOffers),
@@ -880,7 +891,6 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-
                     if (exportType === 'csv') {
                         exportToCsv(document.getElementById("extendedExportCheckbox")?.checked);
                     } else if (exportType === 'excel') {

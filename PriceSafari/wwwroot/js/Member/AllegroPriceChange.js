@@ -333,12 +333,12 @@
         const normalStyle = 'background: #f5f5f5; border: 1px solid #e3e3e3;';
 
         let headerStyle = isConfirmedBlock ? confirmedStyle : normalStyle;
-        block += `<div class="price-info-item" style="padding: 4px 12px; ${headerStyle} border-radius: 5px; margin-bottom: 5px;">${headerText} | ${formattedBasePrice}</div>`;
+        block += `<div class="price-info-item" style="padding: 4px 12px; ${headerStyle} border-radius: 5px;">${headerText} | ${formattedBasePrice}</div>`;
 
         if (allegroRank && allegroRank !== "-") {
            
             let rankStyle = isConfirmedBlock ? confirmedStyle : normalStyle;
-            block += `<div class="price-info-item" style="padding: 4px 12px; ${rankStyle} border-radius: 5px; margin-bottom: 5px;">Poz. cenowa | <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${allegroRank}</div>`;
+            block += `<div class="price-info-item" style="padding: 4px 12px; ${rankStyle} border-radius: 5px;">Poz. cenowa | <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${allegroRank}</div>`;
         }
 
         const effectiveIncludeCommission = includeCommissionOverride !== null ? includeCommissionOverride : globalIncludeCommissionSetting;
@@ -349,7 +349,7 @@
                 '<span style="font-weight: 400; color: #555;"> | uwzględniona</span>' :
                 '<span style="font-weight: 400; color: #999;"> | nieuwzględniona</span>';
             let commissionStyle = isConfirmedBlock ? confirmedStyle : normalStyle;
-            block += `<div class="price-info-item" style="padding: 4px 12px; ${commissionStyle} border-radius: 5px; margin-bottom: 5px;">Prowizja | ${formattedCommission} PLN${commissionStatusText}</div>`;
+            block += `<div class="price-info-item" style="padding: 4px 12px; ${commissionStyle} border-radius: 5px;">Prowizja | ${formattedCommission} PLN${commissionStatusText}</div>`;
         }
         let marginValue = null;
         let marginPercent = null;
@@ -528,7 +528,7 @@
         if (simulationsExecuted) {
             tableHtml += '<th>Potwierdzenie API</th>';
         }
-        tableHtml += '<th>Opłacalność zmiany</th>';
+        tableHtml += '<th>Opłacalność</th>';
         tableHtml += '<th>Usuń</th>';
         tableHtml += '</tr></thead><tbody id="simulationTbody"></tbody></table>';
 
@@ -914,7 +914,7 @@
                     }
 
                     if (result.successfulChangesDetails && result.successfulChangesDetails.length > 0) {
-                        // ZMODYFIKOWANA: ustawienie flagi i przerysowanie tabeli z nową kolumną
+                 
                         simulationsExecuted = true;
                         const hasImage = originalRowsData.length > 0 && originalRowsData[0].hasImage;
                         renderSimulationTableHeader(hasImage);

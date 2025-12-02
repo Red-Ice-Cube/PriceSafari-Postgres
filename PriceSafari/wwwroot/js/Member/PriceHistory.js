@@ -365,7 +365,8 @@
                     storeId: storeId,
                     scrapId: item.scrapId,
                     stepPriceApplied: currentSetStepPrice,
-                    stepUnitApplied: stepUnit
+                    stepUnitApplied: stepUnit,
+                    marginPrice: item.marginPrice
                 }
             });
             document.dispatchEvent(priceChangeEvent);
@@ -1562,7 +1563,8 @@
                     storeId: storeId,
                     scrapId: item.scrapId,
                     stepPriceApplied: currentSetStepPrice,
-                    stepUnitApplied: stepUnit
+                    stepUnitApplied: stepUnit,
+                    marginPrice: item.marginPrice
                 }
             });
             document.dispatchEvent(priceChangeEvent);
