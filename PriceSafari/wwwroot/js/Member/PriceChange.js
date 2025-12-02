@@ -102,7 +102,7 @@
     let currentOurStoreName = storeId || "Sklep";
     let globalLatestScrapId = null;
     let usePriceWithDeliverySetting = false;
-
+    let historyLoaded = false;
     let eanMapGlobal = {};
     let externalIdMapGlobal = {};
 
@@ -844,6 +844,82 @@
         });
     }
 
+
+    // --- 1. FUNKCJA LOGUJĄCA ZMIANY DO BAZY I WYWOŁUJĄCA EKSPORT ---
+    function logChangesToDbAndRefresh(exportType) {
+        if (originalRowsData.length === 0) {
+            alert("Brak danych do zapisania/eksportu.");
+            return;
+        }
+
+        // Mapujemy dane z tabeli symulacji na obiekt oczekiwany przez kontroler
+        const itemsToLog = originalRowsData.map(row => ({
+            ProductId: parseInt(row.productId),
+            // Używamy effectivePrice (z dostawą) lub basePrice w zależności od ustawień,
+            // ale zazwyczaj do API/sklepu wysyła się cenę bazową (NewPrice).
+            // Tutaj zakładam, że do historii zapisujemy to co faktycznie zmieniamy (Cena Produktu).
+            CurrentPrice: parseFloat(row.baseCurrentPrice),
+            NewPrice: parseFloat(row.baseNewPrice),
+            MarginPrice: row.marginPrice ? parseFloat(row.marginPrice) : null,
+
+            // Rankingi
+            CurrentGoogleRanking: row.currentGoogleRanking ? String(row.currentGoogleRanking) : null,
+            CurrentCeneoRanking: row.currentCeneoRanking ? String(row.currentCeneoRanking) : null,
+            NewGoogleRanking: row.newGoogleRanking ? String(row.newGoogleRanking) : null,
+            NewCeneoRanking: row.newCeneoRanking ? String(row.newCeneoRanking) : null
+        }));
+
+        showLoading();
+
+        // Wywołanie nowego endpointu w PriceHistoryController
+        fetch(`/PriceHistory/LogExportAsChange?storeId=${storeId}&exportType=${exportType}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(itemsToLog)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 1. Generowanie fizycznego pliku po udanym zapisie w bazie
+                    if (exportType === 'csv') {
+                        exportToCsv(document.getElementById("extendedExportCheckbox")?.checked);
+                    } else if (exportType === 'excel') {
+                        exportToExcelXLSX(document.getElementById("extendedExportCheckbox")?.checked);
+                    }
+
+                    // 2. Wyświetlenie komunikatu
+                    if (typeof showGlobalUpdate === 'function') {
+                        showGlobalUpdate(`<p style="font-weight:bold;">Zapisano ${data.count} zmian cen w historii.</p>`);
+                    }
+
+                    // 3. Czyszczenie LocalStorage i stanu symulacji
+                    localStorage.removeItem(localStorageKey);
+                    selectedPriceChanges = [];
+                    originalRowsData = [];
+                    sessionScrapId = null;
+                    updatePriceChangeSummary();
+
+                    // Czyścimy tabelę w modalu
+                    const tableContainer = document.getElementById("simulationModalBody");
+                    if (tableContainer) tableContainer.innerHTML = '<p style="text-align: center; padding: 20px;">Zmiany zostały zapisane.</p>';
+
+                    // 4. Odświeżenie cen (pobierze status "Committed") i zamknięcie modali
+                    loadPrices();
+                    $('#simulationModal').modal('hide');
+                    closeExportDisclaimer();
+                } else {
+                    alert("Błąd zapisu zmian do bazy danych.");
+                }
+            })
+            .catch(err => {
+                console.error("Błąd API:", err);
+                alert("Wystąpił błąd podczas zapisywania zmian.");
+            })
+            .finally(() => {
+                hideLoading();
+            });
+    }
+
     function showExportDisclaimer(type) {
         pendingExportType = type;
         const disclaimerModal = document.getElementById("exportDisclaimerModal");
@@ -866,30 +942,142 @@
         }
     }
 
+    // --- AKTUALIZACJA LISTENERA W TWOIM KODZIE ---
     const disclaimerConfirmButton = document.getElementById("disclaimerConfirmButton");
     if (disclaimerConfirmButton) {
         disclaimerConfirmButton.addEventListener("click", function () {
-            console.log("[DEBUG] Kliknięto 'Kontynuuj' w modalu ostrzeżenia.");
-
-            const isExtendedExport = document.getElementById("extendedExportCheckbox")?.checked === true;
-
-            const currentExportType = pendingExportType;
-
-            console.log(`[DEBUG] Zmienne przed sprawdzeniem typu: currentExportType = ${currentExportType}, isExtendedExport = ${isExtendedExport}`);
-
-            if (currentExportType === "csv") {
-                console.log("[DEBUG] Wywołuję exportToCsv...");
-                exportToCsv(isExtendedExport);
-            } else if (currentExportType === "excel") {
-                console.log("[DEBUG] Wywołuję exportToExcelXLSX...");
-                exportToExcelXLSX(isExtendedExport);
-            } else {
-                console.warn("[DEBUG] Nieznany lub pusty currentExportType:", currentExportType);
+            // ZAMIAST BEZPOŚREDNIEGO WYWOŁANIA exportTo..., WOŁAMY LOGOWANIE:
+            if (pendingExportType) {
+                logChangesToDbAndRefresh(pendingExportType);
             }
-
-            closeExportDisclaimer();
+            // closeExportDisclaimer() jest wołane wewnątrz logChanges... po sukcesie, 
+            // ale można też zostawić tutaj, jeśli chcesz zamknąć modal od razu (choć lepiej poczekać na response).
         });
     }
+
+    // --- 2. OBSŁUGA HISTORII ---
+
+    
+
+    function fetchAndRenderHistory() {
+        if (!globalLatestScrapId || globalLatestScrapId == 0) {
+            document.getElementById("historyModalBody").innerHTML = '<p style="text-align:center; padding:20px;">Brak ID scrapu.</p>';
+            return;
+        }
+
+        const historyContainer = document.getElementById("historyModalBody");
+        historyContainer.innerHTML = '<div class="loader" style="margin: 20px auto;"></div>';
+
+        fetch(`/PriceHistory/GetScrapPriceChangeHistory?storeId=${storeId}&scrapHistoryId=${globalLatestScrapId}`)
+            .then(res => res.json())
+            .then(batches => {
+                renderHistoryView(batches);
+                historyLoaded = true;
+            })
+            .catch(err => {
+                console.error(err);
+                historyContainer.innerHTML = '<p style="text-align:center; color:red; padding:20px;">Błąd pobierania historii.</p>';
+            });
+    }
+
+    function renderHistoryView(batches) {
+        const container = document.getElementById("historyModalBody");
+        if (!batches || batches.length === 0) {
+            container.innerHTML = '<p style="text-align:center; padding:20px;">Brak historii zmian dla tego scrapu.</p>';
+            document.getElementById("historyTabCounter").textContent = "0";
+            return;
+        }
+
+        let totalItems = 0;
+        let html = '';
+
+        batches.forEach(batch => {
+            totalItems += batch.items.length;
+            const dateStr = new Date(batch.executionDate).toLocaleString('pl-PL');
+
+            // Ikona metody eksportu
+            let methodIcon = '<i class="fas fa-file-alt"></i>'; // domyślna
+            if (batch.exportMethod === 'Csv') methodIcon = '<i class="fa-solid fa-file-csv" style="color:green;"></i> CSV';
+            else if (batch.exportMethod === 'Excel') methodIcon = '<i class="fas fa-file-excel" style="color:green;"></i> Excel';
+            else if (batch.exportMethod === 'Api') methodIcon = '<i class="fas fa-cloud-upload-alt" style="color:#0d6efd;"></i> API';
+
+            html += `
+        <div class="history-batch" style="margin-bottom: 20px; border: 1px solid #ddd; border-radius: 5px; overflow: hidden;">
+            <div class="history-header" style="background: #f8f9fa; padding: 10px; border-bottom: 1px solid #ddd; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <strong>Data:</strong> ${dateStr} | 
+                    <strong>Użytkownik:</strong> ${batch.userName} | 
+                    <strong>Metoda:</strong> ${methodIcon}
+                </div>
+                <div>
+                    <span style="color:green; font-weight:bold;">Liczba zmian: ${batch.successfulCount}</span>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table-orders" style="width:100%; margin:0;">
+                    <thead>
+                        <tr>
+                            <th>Produkt</th>
+                            <th>Cena Przed</th>
+                            <th>Nowa Cena</th>
+                            <th>Rankingi (Symulacja)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+            batch.items.forEach(item => {
+                const diff = item.priceAfter_Verified - item.priceBefore;
+                const diffClass = diff > 0 ? 'color:red;' : (diff < 0 ? 'color:green;' : 'color:gray;');
+                const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '●');
+
+                html += `
+                <tr>
+                    <td>
+                        <div style="font-weight:500;">${item.productName}</div>
+                        <div style="font-size:12px; color:#888;">EAN: ${item.ean || '-'}</div>
+                    </td>
+                    <td>${formatPricePL(item.priceBefore)}</td>
+                    <td>
+                        <span style="font-weight:bold;">${formatPricePL(item.priceAfter_Verified)}</span>
+                        <div style="font-size:12px; ${diffClass}">
+                            ${arrow} ${formatPricePL(Math.abs(diff), false)}
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-size:12px;">
+                            ${item.rankingGoogleAfter ? `Google: ${item.rankingGoogleAfter}` : ''}
+                            ${item.rankingCeneoAfter ? `Ceneo: ${item.rankingCeneoAfter}` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+            });
+
+            html += `</tbody></table></div></div>`;
+        });
+
+        container.innerHTML = html;
+        document.getElementById("historyTabCounter").textContent = totalItems;
+    }
+
+    // Obsługa zakładek w modalu
+    document.getElementById('showPriceChangeCart').addEventListener('click', function () {
+        document.getElementById('simulationModalBody').style.display = 'block';
+        document.getElementById('historyModalBody').style.display = 'none';
+        this.classList.add('button-active'); this.classList.remove('button-inactive');
+        document.getElementById('showPriceChangeHistory').classList.add('button-inactive');
+        document.getElementById('showPriceChangeHistory').classList.remove('button-active');
+    });
+
+    document.getElementById('showPriceChangeHistory').addEventListener('click', function () {
+        document.getElementById('simulationModalBody').style.display = 'none';
+        document.getElementById('historyModalBody').style.display = 'block';
+        this.classList.add('button-active'); this.classList.remove('button-inactive');
+        document.getElementById('showPriceChangeCart').classList.add('button-inactive');
+        document.getElementById('showPriceChangeCart').classList.remove('button-active');
+        fetchAndRenderHistory();
+    });
 
     function exportToCsv(isExtended = false) {
         let csvContent = "";

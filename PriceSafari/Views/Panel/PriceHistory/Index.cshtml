@@ -305,16 +305,32 @@
 <div class="modal-sim fade" id="simulationModal" tabindex="-1" role="dialog" aria-labelledby="simulationModalLabel">
     <div class="modal-dialog-sim" role="document">
         <div class="modal-simulation">
-            <div class="modal-header" style="border:none;">
-                <div class="price-box-column-name" id="simulationModalLabel">Symuluj ceny</div>
+            <div class="modal-header" style="border:none; flex-direction: column; align-items: stretch;">
 
-                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div class="price-box-column-name" id="simulationModalLabel">Symuluj ceny</div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-tab-toggle" style="margin-top: 15px;">
+                    <button id="showPriceChangeCart" class="button-active" type="button">
+                        Obecne Zmiany (<span id="simulationTabCounter">0</span>)
+                    </button>
+                    <button id="showPriceChangeHistory" class="button-inactive" type="button">
+                        Historia Zmian (<span id="historyTabCounter">0</span>)
+                    </button>
+                </div>
+
             </div>
+
             <div class="modal-body">
                 <div class="table-scroll" id="simulationModalBody"></div>
+
+                <div class="table-scroll" id="historyModalBody" style="display: none; max-height: 75vh; overflow-y: auto;"></div>
             </div>
+
             <div class="modal-footer">
                 <div style="display:flex; width:100%; justify-content:space-between; align-items: center;">
                     <div style="display:inline-flex;">
@@ -331,7 +347,6 @@
                     </div>
 
                 </div>
-
             </div>
         </div>
     </div>

@@ -563,7 +563,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         Position = finalBestPriceEntry?.Position,
                         MyIsBidding = myPriceEntry?.IsBidding,
                         MyIsGoogle = myPriceEntry?.IsGoogle,
-                        MyPosition = myPosition,
+                        MyPosition = myPosition,   
                         FlagIds = flagIds,
                         BestEntryInStock = bestEntryStockStatus,
                         MyEntryInStock = myEntryStockStatus,
@@ -1817,5 +1817,57 @@ namespace PriceSafari.Controllers.MemberControllers
             public string? NewCeneoRanking { get; set; }
         }
 
+
+        [HttpGet]
+        public async Task<IActionResult> GetScrapPriceChangeHistory(int storeId, int scrapHistoryId)
+        {
+            // 1. Sprawdzenie uprawnień
+            if (!await UserHasAccessToStore(storeId)) return Forbid();
+
+            if (scrapHistoryId == 0) return BadRequest("Invalid Scrap History ID.");
+
+            // 2. Pobranie paczek zmian z bazy (PriceBridgeBatches)
+            var batches = await _context.PriceBridgeBatches
+                .AsNoTracking()
+                .Where(b => b.StoreId == storeId && b.ScrapHistoryId == scrapHistoryId)
+                .Include(b => b.User)
+                .Include(b => b.BridgeItems)
+                    .ThenInclude(i => i.Product) // Dołączenie produktu, aby mieć jego nazwę
+                .OrderByDescending(b => b.ExecutionDate)
+                .ToListAsync();
+
+            // 3. Mapowanie na prosty obiekt JSON dla widoku
+            var result = batches.Select(b => new
+            {
+                executionDate = b.ExecutionDate,
+                userName = b.User?.UserName ?? "Nieznany",
+                successfulCount = b.SuccessfulCount,
+                // Dodajemy metodę eksportu, żeby wyświetlić np. ikonkę Excela/CSV w historii
+                exportMethod = b.ExportMethod.ToString(),
+                items = b.BridgeItems.Select(i => new
+                {
+                    productId = i.ProductId,
+                    // Upewnij się, że Product nie jest nullem (np. usunięty produkt)
+                    productName = i.Product?.ProductName ?? "Produkt usunięty lub nieznany",
+                    ean = i.Product?.Ean,
+
+                    // Pola potrzebne do wyświetlenia tabeli w historii
+                    priceBefore = i.PriceBefore,
+                    priceAfter_Verified = i.PriceAfter, // Tutaj Verified to po prostu cena z eksportu
+
+                    marginPrice = i.MarginPrice,
+
+                    // Rankingi historyczne (opcjonalne do wyświetlenia)
+                    rankingGoogleBefore = i.RankingGoogleBefore,
+                    rankingCeneoBefore = i.RankingCeneoBefore,
+                    rankingGoogleAfter = i.RankingGoogleAfterSimulated,
+                    rankingCeneoAfter = i.RankingCeneoAfterSimulated,
+
+                    success = i.Success
+                }).ToList()
+            }).ToList();
+
+            return Ok(result);
+        }
     }
 }
