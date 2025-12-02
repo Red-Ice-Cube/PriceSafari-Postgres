@@ -36,7 +36,7 @@ namespace PriceSafari.Services.SubscriptionService
 
             var timeGenerator = new TimeSpan(0, 5, 0);
             var timePayer = new TimeSpan(0, 10, 0);
-            var timeMailer = new TimeSpan(0, 15, 0);
+            var timeMailer = new TimeSpan(10, 0, 0);
 
             var genKey = Environment.GetEnvironmentVariable("SUBSCRIPTION_KEY");
             var payKey = Environment.GetEnvironmentVariable("GRAB_PAYMENT");
@@ -308,6 +308,9 @@ namespace PriceSafari.Services.SubscriptionService
             var emailSender = scope.ServiceProvider.GetRequiredService<IAppEmailSender>();
             var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "LocalWorker";
 
+            // Adres archiwum
+            const string ARCHIVE_EMAIL = "faktury@pricesafari.pl";
+
             _logger.LogInformation(">>> [MAILER] Szukam faktur do wysyłki...");
 
             var pendingInvoices = await context.Invoices
@@ -333,10 +336,12 @@ namespace PriceSafari.Services.SubscriptionService
                         continue;
                     }
 
+                    // Generowanie PDF
                     var logoPath = Path.Combine(_webHostEnvironment.WebRootPath, "cid", "signature.png");
                     var invoiceDoc = new InvoiceDocument(invoice, logoPath);
                     byte[] pdfBytes = invoiceDoc.GeneratePdf();
 
+                    // Przygotowanie treści
                     string subject = invoice.IsPaid
                         ? $"Faktura {invoice.InvoiceNumber} - PriceSafari (Opłacona)"
                         : $"Faktura {invoice.InvoiceNumber} - PriceSafari (Do zapłaty)";
@@ -348,17 +353,34 @@ namespace PriceSafari.Services.SubscriptionService
                     string fileName = $"Faktura_{invoice.InvoiceNumber.Replace("/", "_")}.pdf";
                     var attachments = new Dictionary<string, byte[]> { { fileName, pdfBytes } };
 
+                    // 1. WYSYŁKA DO KLIENTA
                     bool success = await emailSender.SendEmailAsync(invoiceEmail, subject, body, inlineImages, attachments);
 
                     if (success)
                     {
+                        // Oznaczamy jako wysłane, bo klient otrzymał maila
                         invoice.IsSentByEmail = true;
                         sentCount++;
                         _logger.LogInformation($"Sukces. Wysłano FV: {invoice.InvoiceNumber} na adres księgowy: {invoiceEmail}");
+
+                        // 2. WYSYŁKA KOPII DO ARCHIWUM (faktury@pricesafari.pl)
+                        // Robimy to w osobnym bloku try/catch, żeby błąd wysyłki do Ciebie 
+                        // nie powodował ponownej wysyłki do klienta w następnej pętli.
+                        try
+                        {
+                            // Używamy tego samego tematu, treści i załączników
+                            await emailSender.SendEmailAsync(ARCHIVE_EMAIL, subject, body, inlineImages, attachments);
+                            _logger.LogInformation($"[KOPIA] Wysłano kopię FV: {invoice.InvoiceNumber} na {ARCHIVE_EMAIL}");
+                        }
+                        catch (Exception copyEx)
+                        {
+                            // Logujemy warning, ale nie przerywamy procesu, bo klient już dostał fakturę
+                            _logger.LogWarning(copyEx, $"Nie udało się wysłać kopii archiwalnej dla FV: {invoice.InvoiceNumber}");
+                        }
                     }
                     else
                     {
-                        _logger.LogError($"Błąd SMTP dla FV: {invoice.InvoiceNumber}");
+                        _logger.LogError($"Błąd SMTP dla FV: {invoice.InvoiceNumber} (Klient: {invoiceEmail})");
                     }
                 }
                 catch (Exception ex)
@@ -376,7 +398,7 @@ namespace PriceSafari.Services.SubscriptionService
                     OperationName = "EMAIL_SEND",
                     StartTime = DateTime.Now,
                     EndTime = DateTime.Now,
-                    Comment = $"Sukces. Wysłano {sentCount} faktur na adresy księgowe."
+                    Comment = $"Sukces. Wysłano {sentCount} faktur na adresy księgowe (+ kopie na {ARCHIVE_EMAIL})."
                 });
                 await context.SaveChangesAsync(ct);
             }
