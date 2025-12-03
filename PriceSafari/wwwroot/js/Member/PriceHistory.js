@@ -443,70 +443,19 @@
         }, 4000);
     }
 
-    function exportToExcelXLSX(dataToExport) {
-        if (!dataToExport || dataToExport.length === 0) {
-            alert("Brak danych do wyeksportowania po zastosowaniu filtrów.");
-            return;
+    function getMarginBadgeClass(marginClass) {
+        switch (marginClass) {
+            case 'priceBox-diff-margin-ins':
+                return 'price-badge-positive';
+            case 'priceBox-diff-margin-minus-ins':
+                return 'price-badge-negative';
+            case 'priceBox-diff-margin-neutral-ins':
+            default:
+                return 'price-badge-neutral';
         }
-
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet("Dane");
-
-        worksheet.addRow(["ID", "Nazwa Produktu", "EAN", "Ilość ofert", "Najniższa Konkurencyjna Cena", "Twoja Cena"]);
-
-        const fontRed = { color: { argb: "FFAA0000" } };
-        const fontGreen = { color: { argb: "FF006400" } };
-        const fontGray = { color: { argb: "FF7E7E7E" } };
-
-        dataToExport.forEach((item) => {
-            const rowData = [
-                item.externalId || "",
-                item.productName || "",
-                item.ean || "",
-                item.storeCount || "",
-                item.lowestPrice || "",
-                item.myPrice || ""
-            ];
-
-            const row = worksheet.addRow(rowData);
-
-            const lowestPriceCell = row.getCell(5);
-            const myPriceCell = row.getCell(6);
-
-            const lowest = parseFloat(item.lowestPrice) || 0;
-            const mine = parseFloat(item.myPrice) || 0;
-
-            if (lowest > 0 && mine > 0) {
-                if (mine < lowest) {
-                    lowestPriceCell.font = fontRed;
-                    myPriceCell.font = fontGreen;
-                } else if (mine > lowest) {
-                    lowestPriceCell.font = fontGreen;
-                    myPriceCell.font = fontRed;
-                } else {
-                    lowestPriceCell.font = fontGreen;
-                    myPriceCell.font = fontGreen;
-                }
-            } else {
-                lowestPriceCell.font = fontGray;
-                myPriceCell.font = fontGray;
-            }
-        });
-
-        workbook.xlsx.writeBuffer().then((buffer) => {
-            const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-            const fileName = `PriceSafari-${scrapDateJS}-${myStoreNameJS}.xlsx`;
-
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = fileName;
-            link.click();
-
-            setTimeout(() => {
-                URL.revokeObjectURL(link.href);
-            }, 1000);
-        });
     }
+
+
 
     let currentPage = 1;
     const itemsPerPage = 1000;
@@ -516,7 +465,6 @@
         window.scrollTo(0, 0);
     }
     function refreshPriceBoxStates() {
-
         const currentStoredChangesJSON = localStorage.getItem('selectedPriceChanges_' + storeId);
         let currentActiveChangesMap = new Map();
 
@@ -524,21 +472,16 @@
             try {
                 const parsedData = JSON.parse(currentStoredChangesJSON);
                 if (parsedData && parsedData.scrapId && Array.isArray(parsedData.changes)) {
-
                     selectedPriceChanges = parsedData.changes;
-
                     parsedData.changes.forEach(change => currentActiveChangesMap.set(String(change.productId), change));
                 } else {
-
                     selectedPriceChanges = [];
-                    console.warn("Niepoprawny format danych w localStorage, czyszczenie selectedPriceChanges.");
                 }
             } catch (err) {
-                console.error("Błąd parsowania selectedPriceChanges na początku refreshPriceBoxStates:", err);
+                console.error("Błąd parsowania selectedPriceChanges:", err);
                 selectedPriceChanges = [];
             }
         } else {
-
             selectedPriceChanges = [];
         }
 
@@ -548,65 +491,81 @@
             const productId = priceBox.dataset.productId;
             if (!productId) return;
 
+            const item = allPrices.find(p => String(p.productId) === String(productId));
+            if (!item) return;
+
             const activeChange = currentActiveChangesMap.get(String(productId));
+            const priceBoxMyColumn = priceBox.querySelector('.price-box-column:nth-child(3)');
+            const priceBoxActionColumn = priceBox.querySelector('.price-box-column-action');
 
-            if (activeChange) {
+            if (priceBoxMyColumn) {
+                const myPriceTextDiv = priceBoxMyColumn.querySelector('.price-box-column-text');
+                if (myPriceTextDiv) {
+                    const priceLineDiv = myPriceTextDiv.querySelector('div[style*="display: flex"]');
+                    if (priceLineDiv) {
+                        const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+                        const myPriceFormatted = formatPricePL(myPrice);
 
-                if (!priceBox.classList.contains('price-changed')) {
+                        if (activeChange) {
+
+                            const newPriceFormatted = formatPricePL(activeChange.newPrice);
+                            priceLineDiv.innerHTML = `
+                                <s style="color: #999; font-size: 17px; font-weight: 500;">${myPriceFormatted}</s>
+                                <span style="font-weight: 700; font-size: 17px; color: #0d6efd; margin-left: 6px;">${newPriceFormatted}</span>
+                            `;
+                        } else if (item.committed && item.committed.newPrice) {
+
+                            const newCommittedPrice = parseFloat(item.committed.newPrice);
+                            priceLineDiv.innerHTML = `
+                                <s style="color: #999; font-size: 15px; margin-right: 6px;">${formatPricePL(myPrice)}</s>
+                                <span style="font-weight: 700; font-size: 17px; color: #0d6efd;">${formatPricePL(newCommittedPrice)}</span>
+                            `;
+                        } else {
+
+                            priceLineDiv.innerHTML = `
+                                <span style="font-weight: 500; font-size: 17px;">${myPriceFormatted}</span>
+                            `;
+                        }
+                    }
+                }
+            }
+
+            if (priceBoxActionColumn) {
+                if (activeChange) {
+
+                    const suggestionRenderResult = renderSuggestionBlockHTML(item, null, activeChange);
+                    priceBoxActionColumn.innerHTML = suggestionRenderResult.html;
+
+                    const removeBtn = priceBoxActionColumn.querySelector('.remove-change-link');
+                    if (removeBtn) {
+                        removeBtn.addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            const removeEvent = new CustomEvent('priceBoxChangeRemove', { detail: { productId: productId } });
+                            document.dispatchEvent(removeEvent);
+                        });
+                    }
                     priceBox.classList.add('price-changed');
-                }
-                const isActiveButtonPresent = priceBox.querySelector('.simulate-change-btn.active');
-                if (!isActiveButtonPresent) {
-                    const firstButton = priceBox.querySelector('.simulate-change-btn');
-                    if (firstButton) {
-                        const actionLine = firstButton.closest('.price-action-line');
 
-                        if (actionLine) {
-                            activateChangeButton(firstButton, actionLine, priceBox, activeChange.stepPriceApplied, activeChange.stepUnitApplied);
-                        } else {
-                            console.error("Nie znaleziono actionLine dla przycisku w refreshPriceBoxStates (stan aktywny). ProductId:", productId);
-                        }
-                    } else {
-                        console.error("Nie znaleziono przycisku .simulate-change-btn w refreshPriceBoxStates (stan aktywny). ProductId:", productId);
-                    }
-                }
-            } else if (priceBox.classList.contains('price-changed')) {
-
-                priceBox.classList.remove('price-changed');
-
-                const item = allPrices.find(p => String(p.productId) === String(productId));
-                const priceBoxColumnInfo = priceBox.querySelector('.price-box-column-action');
-
-                if (item && priceBoxColumnInfo) {
-                    const newSuggestionData = calculateCurrentSuggestion(item);
-
-                    if (newSuggestionData) {
-                        const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData);
-                        priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
-
-                        const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
-                        if (newActionLine) {
-                            const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-
-                            attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
-                        } else {
-                            console.error("Nie znaleziono .price-action-line po re-renderowaniu sugestii (w refreshPriceBoxStates - reset) dla ID:", productId);
-                        }
-                    } else {
-
-                        priceBoxColumnInfo.innerHTML = '';
-                        console.warn("Nie udało się obliczyć nowej sugestii (w refreshPriceBoxStates - reset) dla ID:", productId);
-                    }
                 } else {
 
-                    console.warn("Nie znaleziono itemu lub priceBoxColumnInfo (w refreshPriceBoxStates - reset) dla ID:", productId, ". Resetuję tylko przyciski.");
-                    const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
-                    activeButtons.forEach(button => {
-                        button.classList.remove('active');
+                    priceBox.classList.remove('price-changed');
 
-                        const originalContent = button.dataset.originalText || '<span class="color-square-turquoise"></span> Dodaj zmianę ceny';
-                        button.innerHTML = originalContent;
-                    });
+                    if (item.committed) {
+                        return;
+                    }
+
+                    const newSuggestionData = calculateCurrentSuggestion(item);
+                    if (newSuggestionData) {
+                        const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData, null);
+                        priceBoxActionColumn.innerHTML = suggestionRenderResult.html;
+                        const newActionLine = priceBoxActionColumn.querySelector(suggestionRenderResult.actionLineSelector);
+                        if (newActionLine) {
+                            const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+                            attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
+                        }
+                    } else {
+                        priceBoxActionColumn.innerHTML = '';
+                    }
                 }
             }
         });
@@ -1757,9 +1716,72 @@
         };
     }
 
-    function renderSuggestionBlockHTML(item, suggestionData) {
-        if (!suggestionData) {
+    function renderSuggestionBlockHTML(item, suggestionData, activeChange = null) {
 
+        if (activeChange) {
+            const newPrice = parseFloat(activeChange.newPrice);
+            const oldPrice = item.myPrice != null ? parseFloat(item.myPrice) : 0;
+            const diffAmount = newPrice - oldPrice;
+            const diffPercent = (oldPrice > 0) ? (diffAmount / oldPrice) * 100 : 0;
+
+            let badgeText = diffAmount > 0 ? 'Podwyżka ceny' : (diffAmount < 0 ? 'Obniżka ceny' : 'Brak zmiany ceny');
+
+            const priceDiffHtml = `
+                <div class="price-diff-stack" style="text-align: left; margin-top: 3px;">
+                    <div class="price-diff-stack-badge">${badgeText}</div>
+                    <span class="diff-amount small-font">${diffAmount >= 0 ? '+' : ''}${formatPricePL(diffAmount, false)} PLN</span>
+                    <span class="diff-percentage small-font" style="margin-left: 6px;">(${diffPercent >= 0 ? '+' : ''}${diffPercent.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>
+                </div>`;
+
+           
+            let newMarginHtml = '';
+            if (item.marginPrice != null) {
+                const marginPriceVal = parseFloat(item.marginPrice);
+                let netPrice = newPrice;
+                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                    const deliveryCost = item.myPriceDeliveryCost != null ? parseFloat(item.myPriceDeliveryCost) : 0;
+                    netPrice = newPrice - deliveryCost;
+                }
+
+                const newMarginAmount = netPrice - marginPriceVal;
+                const newMarginPercent = (marginPriceVal !== 0) ? (newMarginAmount / marginPriceVal) * 100 : 0;
+                const marginSign = newMarginAmount >= 0 ? '+' : '';
+                const marginClass = newMarginAmount > 0 ? 'priceBox-diff-margin-ins' : (newMarginAmount < 0 ? 'priceBox-diff-margin-minus-ins' : 'priceBox-diff-margin-neutral-ins');
+                const badgeClass = getMarginBadgeClass(marginClass);
+
+                let bgMarginClass = 'price-box-diff-margin-ib-neutral';
+                if (marginClass === 'priceBox-diff-margin-ins') bgMarginClass = 'price-box-diff-margin-ib-positive';
+                else if (marginClass === 'priceBox-diff-margin-minus-ins') bgMarginClass = 'price-box-diff-margin-ib-negative';
+
+                newMarginHtml = `
+                <div class="price-box-diff-margin-ib ${bgMarginClass}" style="margin-top: 3px;">
+                    <span class="price-badge ${badgeClass}">Nowy narzut</span>
+                    <p>${marginSign}${formatPricePL(Math.abs(newMarginAmount), false)} PLN (${marginSign}${Math.abs(newMarginPercent).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</p>
+                </div>`;
+            }
+
+            const html = `
+                <div class="price-box-column">
+                    <div class="price-box-column-text" style="padding: 0;">
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 600; color: #212529;">
+                            <i class="fas fa-check-circle" style="color: #198754;"></i> ${formatPricePL(newPrice)}
+                        </div>
+                        <div style="font-size: 14px; color: #212529;">Zaktualizowane dane Twojej oferty</div>
+                        ${priceDiffHtml}
+                        ${newMarginHtml}
+                    </div>
+                    <div style="color: #198754; font-weight: 600; display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 14px;">
+                        <span class="remove-change-link" style="cursor:pointer; color: #dc3545; font-size: 12px; margin-left: auto;">
+                            <i class="fas fa-trash"></i> Usuń zmianę
+                        </span>
+                    </div>
+                </div>`;
+
+            return { html: html, actionLineSelector: null };
+        }
+
+        // 2. SCENARIUSZ: Standardowa sugestia (Brak w koszyku)
+        if (!suggestionData) {
             return { html: '', actionLineSelector: null, suggestedPrice: null, myPrice: null };
         }
 
@@ -1768,10 +1790,6 @@
         const marginPrice = item.marginPrice != null ? parseFloat(item.marginPrice) : null;
 
         let squareColorClass = 'color-square-turquoise';
-
-        if (priceType === 'raise') squareColorClass = 'color-square-turquoise';
-        else if (priceType === 'lower') squareColorClass = 'color-square-turquoise';
-        else if (priceType && priceType.startsWith('good')) squareColorClass = 'color-square-turquoise';
 
         const strategicPriceBox = document.createElement('div');
         strategicPriceBox.className = 'price-box-column';
@@ -1809,7 +1827,6 @@
 
         if (marginPrice !== null && suggestedPrice !== null) {
             let newPriceForMarginCalculation = suggestedPrice;
-
             if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
                 const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
                 newPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
@@ -1820,7 +1837,6 @@
 
             if (newMarginPercentage !== null) {
                 const newMarginSign = newMarginAmount >= 0 ? '+' : '-';
-
                 const newMarginClass = newMarginAmount >= 0 ? 'priceBox-diff-margin-ins' : 'priceBox-diff-margin-minus-ins';
                 const newBadgeClass = getMarginBadgeClass(newMarginClass);
                 let newBgMarginClass = 'price-box-diff-margin-ib-neutral';
@@ -1851,13 +1867,11 @@
 
         const strategicPriceBtn = document.createElement('button');
         strategicPriceBtn.className = 'simulate-change-btn';
-
         const strategicBtnContent = `<span class="${squareColorClass}"></span> Dodaj zmianę ceny`;
         strategicPriceBtn.innerHTML = strategicBtnContent;
         strategicPriceBtn.dataset.originalText = strategicBtnContent;
 
         strategicPriceLine.appendChild(strategicPriceBtn);
-
         strategicPriceBox.appendChild(contentWrapper);
         strategicPriceBox.appendChild(strategicPriceLine);
 
@@ -1869,6 +1883,7 @@
         };
     }
 
+        
     function renderPrices(data) {
         const storedChangesJSON = localStorage.getItem('selectedPriceChanges_' + storeId);
         if (storedChangesJSON) {
@@ -2111,14 +2126,13 @@
 
                 let badgeHtml = '';
                 if (item.isBidding === "1") {
-                    // Standardowy Bid Ceneo
+
                     badgeHtml = ' <span class="Bidding">Bid</span>';
                 } else if (item.isBidding === "bpg") {
-                    // Odznaka Google "Najlepsza cena" / "Niska cena"
-                    // Używamy klasy Bidding dla stylu, ale możemy nadpisać kolor tła (np. na zielony Google)
+
                     badgeHtml = ' <span class="Bidding" style="background-color: #0F9D58; border-color: #0F9D58;" title="Google: Najlepsza cena">Odz. ceny Google</span>';
                 } else if (item.isBidding === "hpg") {
-                    // Opcjonalnie: Obsługa "Najpopularniejsze" (jeśli chciałbyś to też wyświetlać)
+
                     badgeHtml = ' <span class="Bidding" style="background-color: #4285F4; border-color: #4285F4;" title="Google: Najpopularniejsze">Popularne</span>';
                 }
 
@@ -2130,7 +2144,8 @@
                         ) :
                         '<span class="Position" style="background-color: #414141;">Schowany</span>'
                     ) +
-                    badgeHtml + // Dodajemy tutaj wygenerowany HTML badge'a
+                    badgeHtml +
+
                     ' ' + getStockStatusBadge(item.bestEntryInStock);
 
                 priceBoxColumnLowestPrice.appendChild(priceBoxLowestText);
@@ -2142,13 +2157,6 @@
 
             if (item.colorClass !== 'prNoOffer' && myPrice != null) {
 
-
-
-
-
-
-
-
                 const myIconHtml = (item.myIsGoogle != null ?
                     '<span class="data-channel" style="display: inline-block; vertical-align: middle; margin-right: 4px;"><img src="' +
                     (item.myIsGoogle ? '/images/GoogleShopping.png' : '/images/Ceneo.png') +
@@ -2158,16 +2166,24 @@
                 const priceBoxMyText = document.createElement('div');
                 priceBoxMyText.className = 'price-box-column-text';
 
-                // 1. ZAWSZE RENDERUJEMY NORMALNĄ CENĘ (bez logiki externalPrice)
                 const myPriceLine = document.createElement('div');
                 myPriceLine.style.display = 'flex';
                 myPriceLine.style.alignItems = 'center';
 
-                const myPriceSpan = document.createElement('span');
-                myPriceSpan.style.fontWeight = '500';
-                myPriceSpan.style.fontSize = '17px';
-                myPriceSpan.textContent = formatPricePL(myPrice);
-                myPriceLine.appendChild(myPriceSpan);
+                if (item.committed && item.committed.newPrice) {
+                    const newCommittedPrice = parseFloat(item.committed.newPrice);
+                    myPriceLine.innerHTML = `
+        <s style="color: #999; font-size: 17px; font-weight: 500;">${formatPricePL(myPrice)}</s>
+     
+    `;
+                } else {
+
+                    const myPriceSpan = document.createElement('span');
+                    myPriceSpan.style.fontWeight = '500';
+                    myPriceSpan.style.fontSize = '17px';
+                    myPriceSpan.textContent = formatPricePL(myPrice);
+                    myPriceLine.appendChild(myPriceSpan);
+                }
 
                 const storeNameDiv = document.createElement('div');
                 storeNameDiv.style.display = 'flex';
@@ -2177,7 +2193,6 @@
                 priceBoxMyText.appendChild(myPriceLine);
                 priceBoxMyText.appendChild(storeNameDiv);
 
-                // 2. Obsługa kosztów dostawy (jeśli włączona)
                 if (marginSettings.usePriceWithDelivery) {
                     const myPriceDeliveryInfo = createDeliveryInfoDisplay(
                         myPrice,
@@ -2189,7 +2204,6 @@
                     }
                 }
 
-                // 3. Obsługa Marży/Zysku
                 if (marginPrice != null) {
                     const formattedMarginPrice = formatPricePL(marginPrice);
                     const badgeClass = getMarginBadgeClass(marginClass);
@@ -2219,11 +2233,9 @@
                     priceBoxMyText.appendChild(marginBox);
                 }
 
-                // Dodanie kontenera tekstowego do kolumny
                 const priceBoxMyDetails = document.createElement('div');
                 priceBoxMyDetails.className = 'price-box-column-text';
 
-                // Budowanie szczegółów (pozycja, bid, stock)
                 let detailsHtmlParts = [];
 
                 if (myPosition !== null) {
@@ -2249,15 +2261,6 @@
 
                 priceBoxColumnMyPrice.appendChild(priceBoxMyText);
                 priceBoxColumnMyPrice.appendChild(priceBoxMyDetails);
-
-
-
-
-
-
-
-
-
 
             } else {
                 const priceBoxMyText = document.createElement('div');
@@ -2309,164 +2312,211 @@
             priceBoxColumnInfo.className = 'price-box-column-action';
             priceBoxColumnInfo.innerHTML = '';
 
-            const existingChange = selectedPriceChanges.find(change =>
-                String(change.productId) === String(item.productId)
-            );
+            if (item.committed) {
 
-            if (item.colorClass !== 'prNoOffer') {
-                let displaySuggestedPrice = null;
+                const newPrice = parseFloat(item.committed.newPrice);
+                const oldPrice = myPrice != null ? parseFloat(myPrice) : 0;
 
-                if (existingChange) {
-                    displaySuggestedPrice = existingChange.newPrice;
+                const diffAmount = newPrice - oldPrice;
+                const diffPercent = (oldPrice > 0) ? (diffAmount / oldPrice) * 100 : 0;
+                let badgeText = diffAmount > 0 ? 'Podwyżka ceny' : (diffAmount < 0 ? 'Obniżka ceny' : 'Brak zmiany ceny');
 
-                }
+                const priceDiffHtml = `
+        <div class="price-diff-stack" style="text-align: left; margin-top: 3px;">
+            <div class="price-diff-stack-badge">${badgeText}</div>
+            <span class="diff-amount small-font">${diffAmount >= 0 ? '+' : ''}${formatPricePL(diffAmount, false)} PLN</span>
+            <span class="diff-percentage small-font" style="margin-left: 6px;">(${diffPercent >= 0 ? '+' : ''}${diffPercent.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>
+        </div>`;
 
-                if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
-                    if (myPrice != null && savings != null) {
-                        let strategicPrice;
-
-                        if (existingChange) {
-                            strategicPrice = displaySuggestedPrice;
-                        } else {
-
-                            const suggestionData = calculateCurrentSuggestion(item);
-                            if (suggestionData) {
-                                strategicPrice = suggestionData.suggestedPrice;
-                            } else {
-                                strategicPrice = null;
-                            }
-                        }
-
-                        if (strategicPrice !== null) {
-
-                            const totalChangeAmount = strategicPrice - myPrice;
-                            const percentageChange = myPrice > 0 ? (totalChangeAmount / myPrice) * 100 : 0;
-
-                            let arrowClassStrategic;
-
-                            if (totalChangeAmount > 0) {
-                                arrowClassStrategic = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
-                            } else if (totalChangeAmount < 0) {
-                                arrowClassStrategic = 'arrow-down-turquoise';
-                            } else {
-                                arrowClassStrategic = 'no-change-icon-turquoise';
-                            }
-
-                            const suggestionDataForRender = {
-                                suggestedPrice: strategicPrice,
-                                totalChangeAmount: totalChangeAmount,
-                                percentageChange: percentageChange,
-                                arrowClass: arrowClassStrategic,
-                                priceType: 'raise'
-                            };
-                            const suggestionRenderResult = renderSuggestionBlockHTML(item, suggestionDataForRender);
-                            priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
-
-                            const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
-                            if (newActionLine) {
-
-                                const currentSuggestionOnClick = calculateCurrentSuggestion(item);
-                                const priceToAddOnClick = currentSuggestionOnClick ? currentSuggestionOnClick.suggestedPrice : strategicPrice;
-
-                                attachPriceChangeListener(newActionLine, priceToAddOnClick, box, item.productId, item.productName, myPrice, item);
-                            }
-                        }
+                let newMarginHtml = '';
+                if (marginPrice != null) {
+                    let netPrice = newPrice;
+                    if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                        const delCost = item.myPriceDeliveryCost != null ? parseFloat(item.myPriceDeliveryCost) : 0;
+                        netPrice = newPrice - delCost;
                     }
+                    const newMarginAmount = netPrice - marginPrice;
+                    const newMarginPercent = (marginPrice !== 0) ? (newMarginAmount / marginPrice) * 100 : 0;
+                    const mSign = newMarginAmount >= 0 ? '+' : '';
+                    const mClass = newMarginAmount > 0 ? 'priceBox-diff-margin-ins' : (newMarginAmount < 0 ? 'priceBox-diff-margin-minus-ins' : 'priceBox-diff-margin-neutral-ins');
+                    const bClass = getMarginBadgeClass(mClass);
+                    let bgClass = 'price-box-diff-margin-ib-neutral';
+                    if (mClass === 'priceBox-diff-margin-ins') bgClass = 'price-box-diff-margin-ib-positive';
+                    else if (mClass === 'priceBox-diff-margin-minus-ins') bgClass = 'price-box-diff-margin-ib-negative';
+
+                    newMarginHtml = `
+        <div class="price-box-diff-margin-ib ${bgClass}" style="margin-top: 3px;">
+            <span class="price-badge ${bClass}">Nowy narzut</span>
+            <p>${mSign}${formatPricePL(Math.abs(newMarginAmount), false)} PLN (${mSign}${Math.abs(newMarginPercent).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</p>
+        </div>`;
                 }
 
-                else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-                    if (myPrice != null && lowestPrice != null) {
-                        let strategicPrice;
+                priceBoxColumnInfo.innerHTML = `
+        <div class="price-box-column">
+            <div class="price-box-column-text" style="padding: 0;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 600; color: #212529;">
+                    <i class="fas fa-check-circle" style="color: #198754;"></i> ${formatPricePL(newPrice)}
+                </div>
+                <div style="font-size: 14px; color: #212529;">Zaktualizowane dane Twojej oferty</div>
+                ${priceDiffHtml}
+                ${newMarginHtml}
+            </div>
+            <div style="color: #198754; font-weight: 600; display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 14px;">
+                <i class="fas fa-check-circle"></i> Aktualizacja ceny wprowadzona
+            </div>
+        </div>`;
 
-                        if (existingChange) {
-                            strategicPrice = displaySuggestedPrice;
-                        } else {
+            } else {
 
-                            const suggestionData = calculateCurrentSuggestion(item);
-                            if (suggestionData) {
-                                strategicPrice = suggestionData.suggestedPrice;
-                            } else {
-                                strategicPrice = null;
-                            }
-                        }
+                const existingChange = selectedPriceChanges.find(change =>
+                    String(change.productId) === String(item.productId)
+                );
 
-                        if (strategicPrice !== null) {
-                            const totalChangeAmount = strategicPrice - myPrice;
-                            const percentageChange = myPrice > 0 ? (totalChangeAmount / myPrice) * 100 : 0;
+                if (item.colorClass !== 'prNoOffer') {
+                    let displaySuggestedPrice = null;
 
-                            let arrowClass;
-                            if (totalChangeAmount > 0) {
-                                arrowClass = item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red";
-                            } else if (totalChangeAmount < 0) {
-                                arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
-                            } else {
-                                arrowClass = 'no-change-icon';
-                            }
-
-                            const suggestionDataForRender = {
-                                suggestedPrice: strategicPrice,
-                                totalChangeAmount: totalChangeAmount,
-                                percentageChange: percentageChange,
-                                arrowClass: arrowClass,
-                                priceType: 'lower'
-                            };
-                            const suggestionRenderResult = renderSuggestionBlockHTML(item, suggestionDataForRender);
-                            priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
-
-                            const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
-                            if (newActionLine) {
-                                const currentSuggestionOnClick = calculateCurrentSuggestion(item);
-                                const priceToAddOnClick = currentSuggestionOnClick ? currentSuggestionOnClick.suggestedPrice : strategicPrice;
-                                attachPriceChangeListener(newActionLine, priceToAddOnClick, box, item.productId, item.productName, myPrice, item);
-                            }
-                        }
+                    if (existingChange) {
+                        displaySuggestedPrice = existingChange.newPrice;
                     }
-                }
 
-                else if (item.colorClass === "prGood") {
-                    if (myPrice != null) {
-                        let suggestedPrice2;
+                    if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+                        if (myPrice != null && savings != null) {
+                            let strategicPrice;
 
-                        if (existingChange) {
-                            suggestedPrice2 = displaySuggestedPrice;
-                        } else {
-
-                            const suggestionData = calculateCurrentSuggestion(item);
-                            if (suggestionData) {
-                                suggestedPrice2 = suggestionData.suggestedPrice;
+                            if (existingChange) {
+                                strategicPrice = displaySuggestedPrice;
                             } else {
-                                suggestedPrice2 = null;
+                                const suggestionData = calculateCurrentSuggestion(item);
+                                if (suggestionData) {
+                                    strategicPrice = suggestionData.suggestedPrice;
+                                } else {
+                                    strategicPrice = null;
+                                }
+                            }
+
+                            if (strategicPrice !== null) {
+                                const totalChangeAmount = strategicPrice - myPrice;
+                                const percentageChange = myPrice > 0 ? (totalChangeAmount / myPrice) * 100 : 0;
+
+                                let arrowClassStrategic;
+
+                                if (totalChangeAmount > 0) {
+                                    arrowClassStrategic = item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise';
+                                } else if (totalChangeAmount < 0) {
+                                    arrowClassStrategic = 'arrow-down-turquoise';
+                                } else {
+                                    arrowClassStrategic = 'no-change-icon-turquoise';
+                                }
+
+                                const suggestionDataForRender = {
+                                    suggestedPrice: strategicPrice,
+                                    totalChangeAmount: totalChangeAmount,
+                                    percentageChange: percentageChange,
+                                    arrowClass: arrowClassStrategic,
+                                    priceType: 'raise'
+                                };
+                                const suggestionRenderResult = renderSuggestionBlockHTML(item, suggestionDataForRender);
+                                priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
+
+                                const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
+                                if (newActionLine) {
+                                    const currentSuggestionOnClick = calculateCurrentSuggestion(item);
+                                    const priceToAddOnClick = currentSuggestionOnClick ? currentSuggestionOnClick.suggestedPrice : strategicPrice;
+
+                                    attachPriceChangeListener(newActionLine, priceToAddOnClick, box, item.productId, item.productName, myPrice, item);
+                                }
                             }
                         }
+                    } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+                        if (myPrice != null && lowestPrice != null) {
+                            let strategicPrice;
 
-                        if (suggestedPrice2 !== null) {
-                            const amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
-                            const percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
-
-                            let arrowClassStrategic;
-                            if (amountToSuggestedPrice2 > 0) {
-                                arrowClassStrategic = 'arrow-up-green';
-                            } else if (amountToSuggestedPrice2 < 0) {
-                                arrowClassStrategic = 'arrow-down-green';
+                            if (existingChange) {
+                                strategicPrice = displaySuggestedPrice;
                             } else {
-                                arrowClassStrategic = 'no-change-icon-turquoise';
+                                const suggestionData = calculateCurrentSuggestion(item);
+                                if (suggestionData) {
+                                    strategicPrice = suggestionData.suggestedPrice;
+                                } else {
+                                    strategicPrice = null;
+                                }
                             }
 
-                            const suggestionDataForRender = {
-                                suggestedPrice: suggestedPrice2,
-                                totalChangeAmount: amountToSuggestedPrice2,
-                                percentageChange: percentageToSuggestedPrice2,
-                                arrowClass: arrowClassStrategic,
-                                priceType: 'good'
-                            };
-                            const suggestionRenderResult = renderSuggestionBlockHTML(item, suggestionDataForRender);
-                            priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
+                            if (strategicPrice !== null) {
+                                const totalChangeAmount = strategicPrice - myPrice;
+                                const percentageChange = myPrice > 0 ? (totalChangeAmount / myPrice) * 100 : 0;
 
-                            const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
-                            if (newActionLine) {
-                                const currentSuggestionOnClick = calculateCurrentSuggestion(item);
-                                const priceToAddOnClick = currentSuggestionOnClick ? currentSuggestionOnClick.suggestedPrice : suggestedPrice2;
-                                attachPriceChangeListener(newActionLine, priceToAddOnClick, box, item.productId, item.productName, myPrice, item);
+                                let arrowClass;
+                                if (totalChangeAmount > 0) {
+                                    arrowClass = item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red";
+                                } else if (totalChangeAmount < 0) {
+                                    arrowClass = item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red";
+                                } else {
+                                    arrowClass = 'no-change-icon';
+                                }
+
+                                const suggestionDataForRender = {
+                                    suggestedPrice: strategicPrice,
+                                    totalChangeAmount: totalChangeAmount,
+                                    percentageChange: percentageChange,
+                                    arrowClass: arrowClass,
+                                    priceType: 'lower'
+                                };
+                                const suggestionRenderResult = renderSuggestionBlockHTML(item, suggestionDataForRender);
+                                priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
+
+                                const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
+                                if (newActionLine) {
+                                    const currentSuggestionOnClick = calculateCurrentSuggestion(item);
+                                    const priceToAddOnClick = currentSuggestionOnClick ? currentSuggestionOnClick.suggestedPrice : strategicPrice;
+                                    attachPriceChangeListener(newActionLine, priceToAddOnClick, box, item.productId, item.productName, myPrice, item);
+                                }
+                            }
+                        }
+                    } else if (item.colorClass === "prGood") {
+                        if (myPrice != null) {
+                            let suggestedPrice2;
+
+                            if (existingChange) {
+                                suggestedPrice2 = displaySuggestedPrice;
+                            } else {
+                                const suggestionData = calculateCurrentSuggestion(item);
+                                if (suggestionData) {
+                                    suggestedPrice2 = suggestionData.suggestedPrice;
+                                } else {
+                                    suggestedPrice2 = null;
+                                }
+                            }
+
+                            if (suggestedPrice2 !== null) {
+                                const amountToSuggestedPrice2 = suggestedPrice2 - myPrice;
+                                const percentageToSuggestedPrice2 = myPrice > 0 ? (amountToSuggestedPrice2 / myPrice) * 100 : 0;
+
+                                let arrowClassStrategic;
+                                if (amountToSuggestedPrice2 > 0) {
+                                    arrowClassStrategic = 'arrow-up-green';
+                                } else if (amountToSuggestedPrice2 < 0) {
+                                    arrowClassStrategic = 'arrow-down-green';
+                                } else {
+                                    arrowClassStrategic = 'no-change-icon-turquoise';
+                                }
+
+                                const suggestionDataForRender = {
+                                    suggestedPrice: suggestedPrice2,
+                                    totalChangeAmount: amountToSuggestedPrice2,
+                                    percentageChange: percentageToSuggestedPrice2,
+                                    arrowClass: arrowClassStrategic,
+                                    priceType: 'good'
+                                };
+                                const suggestionRenderResult = renderSuggestionBlockHTML(item, suggestionDataForRender);
+                                priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
+
+                                const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
+                                if (newActionLine) {
+                                    const currentSuggestionOnClick = calculateCurrentSuggestion(item);
+                                    const priceToAddOnClick = currentSuggestionOnClick ? currentSuggestionOnClick.suggestedPrice : suggestedPrice2;
+                                    attachPriceChangeListener(newActionLine, priceToAddOnClick, box, item.productId, item.productName, myPrice, item);
+                                }
                             }
                         }
                     }

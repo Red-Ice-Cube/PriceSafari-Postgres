@@ -101,6 +101,10 @@
     let pendingExportType = null;
     let currentOurStoreName = storeId || "Sklep";
     let globalLatestScrapId = null;
+    const initialScrapIdInput = document.getElementById("initialScrapId");
+    if (initialScrapIdInput && initialScrapIdInput.value) {
+        globalLatestScrapId = parseInt(initialScrapIdInput.value);
+    }
     let usePriceWithDeliverySetting = false;
     let historyLoaded = false;
     let eanMapGlobal = {};
@@ -129,7 +133,6 @@
 
         var totalCount = selectedPriceChanges.length;
 
-        // Aktualizacja licznika w zakładce "Obecne Zmiany"
         const cartTabCounter = document.getElementById("cartTabCounter");
         if (cartTabCounter) {
             cartTabCounter.textContent = totalCount;
@@ -142,12 +145,14 @@
                 `<div class='price-change-down' style='display: inline-block;'><span style='color: green;'>▼</span> ${decreasedCount}</div>`;
         }
 
-        // --- ZMIANA: Przycisk jest teraz zawsze aktywny ---
         var simulateButton = document.getElementById("simulateButton");
         if (simulateButton) {
-            simulateButton.disabled = false; // Zawsze false, czyli przycisk działa
-            simulateButton.style.opacity = '1'; // Pełna widoczność
-            simulateButton.style.cursor = 'pointer'; // Kursor rączki
+            simulateButton.disabled = false;
+
+            simulateButton.style.opacity = '1';
+
+            simulateButton.style.cursor = 'pointer';
+
         }
     }
 
@@ -192,12 +197,11 @@
         console.log("Otrzymano 'simulationDataCleared': Czyszczenie danych symulacji w skrypcie modala.");
         selectedPriceChanges = [];
         sessionScrapId = null;
-        updatePriceChangeSummary(); 
+        updatePriceChangeSummary();
     });
 
-    // ZMIANA: Odbiór i zapis marginPrice do LocalStorage
     document.addEventListener('priceBoxChange', function (event) {
-        // 1. Dodajemy marginPrice do pobieranych zmiennych
+
         const { productId, productName, currentPrice, newPrice, scrapId, stepPriceApplied, stepUnitApplied, marginPrice } = event.detail;
 
         if (selectedPriceChanges.length === 0) {
@@ -219,7 +223,7 @@
             newPrice: parseFloat(newPrice),
             stepPriceApplied: parseFloat(stepPriceApplied),
             stepUnitApplied,
-            // 2. Zapisujemy marginPrice do obiektu zmiany
+
             marginPrice: marginPrice
         };
 
@@ -878,13 +882,9 @@
             ProductId: parseInt(row.productId),
             CurrentPrice: parseFloat(row.baseCurrentPrice),
             NewPrice: parseFloat(row.baseNewPrice),
-
-
             MarginPrice: (row.marginPrice !== null && row.marginPrice !== undefined) ? parseFloat(row.marginPrice) : null,
-
             CurrentGoogleRanking: formatFullRanking(row.currentGoogleRanking, row.totalGoogleOffers),
             CurrentCeneoRanking: formatFullRanking(row.currentCeneoRanking, row.totalCeneoOffers),
-
             NewGoogleRanking: formatFullRanking(row.newGoogleRanking, row.totalGoogleOffers),
             NewCeneoRanking: formatFullRanking(row.newCeneoRanking, row.totalCeneoOffers)
         }));
@@ -899,6 +899,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+
                     if (exportType === 'csv') {
                         exportToCsv(document.getElementById("extendedExportCheckbox")?.checked);
                     } else if (exportType === 'excel') {
@@ -916,25 +917,32 @@
                     updatePriceChangeSummary();
 
                     const tableContainer = document.getElementById("simulationModalBody");
-                    if (tableContainer) tableContainer.innerHTML = '<p style="text-align: center; padding: 20px;">Zmiany zostały zapisane.</p>';
+                    if (tableContainer) {
+                        tableContainer.innerHTML = '<p style="text-align: center; padding: 20px;">Zmiany zostały zapisane.</p>';
+                    }
+                    closeExportDisclaimer();
 
-                    if (typeof window.loadPrices === 'function') {
-                        window.loadPrices();
+                    if (typeof window.refreshPriceBoxStates === 'function') {
+                        window.refreshPriceBoxStates();
                     }
 
-                   
-
-                    closeExportDisclaimer();
+                    if (typeof window.loadPrices === 'function') {
+                        console.log("Eksport udany -> Odświeżam ceny w tle (loadPrices)");
+                        window.loadPrices();
+                    } else {
+                        console.warn("Nie znaleziono funkcji window.loadPrices - widok nie odświeży się automatycznie.");
+                    }
 
                     const historyTabBtn = document.getElementById('showPriceChangeHistory');
                     if (historyTabBtn) {
                         historyTabBtn.click();
                     } else {
-                        // Fallback, gdyby przycisk nie został znaleziony (ręczna zmiana stylów)
+
                         document.getElementById('simulationModalBody').style.display = 'none';
                         document.getElementById('historyModalBody').style.display = 'block';
                         fetchAndRenderHistory();
                     }
+
                 } else {
                     alert("Błąd zapisu zmian do bazy danych.");
                 }
