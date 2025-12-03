@@ -468,6 +468,7 @@
         const currentStoredChangesJSON = localStorage.getItem('selectedPriceChanges_' + storeId);
         let currentActiveChangesMap = new Map();
 
+        // 1. Wczytanie zmian z LocalStorage
         if (currentStoredChangesJSON) {
             try {
                 const parsedData = JSON.parse(currentStoredChangesJSON);
@@ -498,6 +499,9 @@
             const priceBoxMyColumn = priceBox.querySelector('.price-box-column:nth-child(3)');
             const priceBoxActionColumn = priceBox.querySelector('.price-box-column-action');
 
+            // ---------------------------------------------------------
+            // 2. Aktualizacja kolumny "Twoja Cena" (przekreślenia)
+            // ---------------------------------------------------------
             if (priceBoxMyColumn) {
                 const myPriceTextDiv = priceBoxMyColumn.querySelector('.price-box-column-text');
                 if (myPriceTextDiv) {
@@ -507,21 +511,21 @@
                         const myPriceFormatted = formatPricePL(myPrice);
 
                         if (activeChange) {
-
+                            // Jeśli jest aktywna zmiana (Masowa lub pojedyncza) -> Pokaż przekreśloną
                             const newPriceFormatted = formatPricePL(activeChange.newPrice);
                             priceLineDiv.innerHTML = `
                                 <s style="color: #999; font-size: 17px; font-weight: 500;">${myPriceFormatted}</s>
                                 <span style="font-weight: 700; font-size: 17px; color: #0d6efd; margin-left: 6px;">${newPriceFormatted}</span>
                             `;
                         } else if (item.committed && item.committed.newPrice) {
-
+                            // Jeśli zatwierdzono w API -> Pokaż przekreśloną (Fix z poprzedniego pytania)
                             const newCommittedPrice = parseFloat(item.committed.newPrice);
                             priceLineDiv.innerHTML = `
                                 <s style="color: #999; font-size: 15px; margin-right: 6px;">${formatPricePL(myPrice)}</s>
                                 <span style="font-weight: 700; font-size: 17px; color: #0d6efd;">${formatPricePL(newCommittedPrice)}</span>
                             `;
                         } else {
-
+                            // Standardowy widok
                             priceLineDiv.innerHTML = `
                                 <span style="font-weight: 500; font-size: 17px;">${myPriceFormatted}</span>
                             `;
@@ -530,42 +534,58 @@
                 }
             }
 
+            // ---------------------------------------------------------
+            // 3. Aktualizacja kolumny Akcji (Przyciski)
+            // ---------------------------------------------------------
             if (priceBoxActionColumn) {
-                if (activeChange) {
-
-                    const suggestionRenderResult = renderSuggestionBlockHTML(item, null, activeChange);
-                    priceBoxActionColumn.innerHTML = suggestionRenderResult.html;
-
-                    const removeBtn = priceBoxActionColumn.querySelector('.remove-change-link');
-                    if (removeBtn) {
-                        removeBtn.addEventListener('click', function (e) {
-                            e.stopPropagation();
-                            const removeEvent = new CustomEvent('priceBoxChangeRemove', { detail: { productId: productId } });
-                            document.dispatchEvent(removeEvent);
-                        });
-                    }
-                    priceBox.classList.add('price-changed');
-
-                } else {
-
+                // Jeśli produkt został już wyeksportowany (committed) i nie ma nowej zmiany w koszyku, 
+                // nie ruszamy go (zostawiamy zielony komunikat z renderPrices)
+                if (item.committed && !activeChange) {
                     priceBox.classList.remove('price-changed');
+                    return;
+                }
 
-                    if (item.committed) {
-                        return;
-                    }
+                // Zawsze obliczamy aktualną sugestię, aby wygenerować standardowy przycisk
+                const newSuggestionData = calculateCurrentSuggestion(item);
 
-                    const newSuggestionData = calculateCurrentSuggestion(item);
-                    if (newSuggestionData) {
-                        const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData, null);
-                        priceBoxActionColumn.innerHTML = suggestionRenderResult.html;
-                        const newActionLine = priceBoxActionColumn.querySelector(suggestionRenderResult.actionLineSelector);
-                        if (newActionLine) {
-                            const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-                            attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
+                if (newSuggestionData) {
+                    // KLUCZOWA ZMIANA:
+                    // Zawsze renderujemy STANDARDOWY blok (null jako 3 argument),
+                    // nawet jeśli jest activeChange. Dzięki temu mamy przycisk w DOM.
+                    const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData, null);
+
+                    priceBoxActionColumn.innerHTML = suggestionRenderResult.html;
+                    const newActionLine = priceBoxActionColumn.querySelector(suggestionRenderResult.actionLineSelector);
+
+                    if (newActionLine) {
+                        const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+
+                        // Podpinamy standardowy listener kliknięcia (dla nowych zmian)
+                        attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
+
+                        // Jeśli mamy aktywną zmianę (z Masowej Zmiany lub Ręcznej),
+                        // to "klikamy" ten przycisk programowo (wizualnie)
+                        if (activeChange) {
+                            const btn = newActionLine.querySelector('.simulate-change-btn');
+                            if (btn) {
+                                // Ta funkcja zmienia wygląd przycisku na "Dodano | Krok..."
+                                activateChangeButton(
+                                    btn,
+                                    newActionLine,
+                                    priceBox,
+                                    activeChange.stepPriceApplied,
+                                    activeChange.stepUnitApplied
+                                );
+                            }
+                            priceBox.classList.add('price-changed');
+                        } else {
+                            priceBox.classList.remove('price-changed');
                         }
-                    } else {
-                        priceBoxActionColumn.innerHTML = '';
                     }
+                } else {
+                    // Brak sugestii i brak aktywnej zmiany -> pusto
+                    priceBoxActionColumn.innerHTML = '';
+                    priceBox.classList.remove('price-changed');
                 }
             }
         });
