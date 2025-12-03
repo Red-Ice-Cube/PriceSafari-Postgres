@@ -117,21 +117,27 @@
     function updatePriceChangeSummary(forceClear = false) {
         if (forceClear) {
             selectedPriceChanges = [];
-
         }
-        var increasedCount = selectedPriceChanges.filter(function (item) {
 
+        var increasedCount = selectedPriceChanges.filter(function (item) {
             return parseFloat(item.newPrice) > parseFloat(item.currentPrice);
         }).length;
-        var decreasedCount = selectedPriceChanges.filter(function (item) {
 
+        var decreasedCount = selectedPriceChanges.filter(function (item) {
             return parseFloat(item.newPrice) < parseFloat(item.currentPrice);
         }).length;
+
         var totalCount = selectedPriceChanges.length;
+
+        // --- ZMIANA: Aktualizacja licznika w zakładce "Obecne Zmiany" ---
+        const cartTabCounter = document.getElementById("cartTabCounter");
+        if (cartTabCounter) {
+            cartTabCounter.textContent = totalCount;
+        }
+        // ----------------------------------------------------------------
 
         var summaryText = document.getElementById("summaryText");
         if (summaryText) {
-
             summaryText.innerHTML =
                 `<div class='price-change-up' style='display: inline-block;'><span style='color: red;'>▲</span> ${increasedCount}</div>` +
                 `<div class='price-change-down' style='display: inline-block;'><span style='color: green;'>▼</span> ${decreasedCount}</div>`;
@@ -561,6 +567,10 @@
                 }
                 if (data.latestScrapId) {
                     globalLatestScrapId = data.latestScrapId;
+
+                    // --- ZMIANA: Pobranie historii w tle, aby zaktualizować licznik ---
+                    fetchAndRenderHistory();
+                    // ------------------------------------------------------------------
                 }
 
                 var simulationResults = data.simulationResults || [];
@@ -912,13 +922,19 @@
                         window.loadPrices();
                     }
 
-                    const simModal = document.getElementById('simulationModal');
-                    if (simModal) {
-                        simModal.style.display = 'none';
-                        simModal.classList.remove('show');
-                    }
+                   
 
                     closeExportDisclaimer();
+
+                    const historyTabBtn = document.getElementById('showPriceChangeHistory');
+                    if (historyTabBtn) {
+                        historyTabBtn.click();
+                    } else {
+                        // Fallback, gdyby przycisk nie został znaleziony (ręczna zmiana stylów)
+                        document.getElementById('simulationModalBody').style.display = 'none';
+                        document.getElementById('historyModalBody').style.display = 'block';
+                        fetchAndRenderHistory();
+                    }
                 } else {
                     alert("Błąd zapisu zmian do bazy danych.");
                 }
