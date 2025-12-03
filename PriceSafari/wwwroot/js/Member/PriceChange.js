@@ -129,12 +129,11 @@
 
         var totalCount = selectedPriceChanges.length;
 
-        // --- ZMIANA: Aktualizacja licznika w zakładce "Obecne Zmiany" ---
+        // Aktualizacja licznika w zakładce "Obecne Zmiany"
         const cartTabCounter = document.getElementById("cartTabCounter");
         if (cartTabCounter) {
             cartTabCounter.textContent = totalCount;
         }
-        // ----------------------------------------------------------------
 
         var summaryText = document.getElementById("summaryText");
         if (summaryText) {
@@ -143,11 +142,12 @@
                 `<div class='price-change-down' style='display: inline-block;'><span style='color: green;'>▼</span> ${decreasedCount}</div>`;
         }
 
+        // --- ZMIANA: Przycisk jest teraz zawsze aktywny ---
         var simulateButton = document.getElementById("simulateButton");
         if (simulateButton) {
-            simulateButton.disabled = (totalCount === 0);
-            simulateButton.style.opacity = (totalCount === 0 ? '0.5' : '1');
-            simulateButton.style.cursor = (totalCount === 0 ? 'not-allowed' : 'pointer');
+            simulateButton.disabled = false; // Zawsze false, czyli przycisk działa
+            simulateButton.style.opacity = '1'; // Pełna widoczność
+            simulateButton.style.cursor = 'pointer'; // Kursor rączki
         }
     }
 
