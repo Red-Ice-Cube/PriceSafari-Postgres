@@ -844,6 +844,25 @@
         updateUnits(usePriceDifference);
     });
 
+    function extractRankNumber(rankStr) {
+        if (!rankStr) return null;
+
+        const part = rankStr.toString().split('/')[0].trim();
+
+        const num = parseInt(part, 10);
+        return isNaN(num) ? null : num;
+    }
+
+    function extractTotalOffersCount(posStr) {
+        if (!posStr) return "";
+        const parts = posStr.toString().split('/');
+        if (parts.length > 1) {
+            return parts[1].trim();
+        }
+        return "";
+
+    }
+
     function populateProducerFilter() {
         const dropdown = document.getElementById('producerFilterDropdown');
 
@@ -2574,15 +2593,70 @@
                 <div class="offer-count-box">${getOfferText(item.storeCount)}</div>
             </div>`;
 
-            let myPricePositionHtml = `
-            <div class="price-box-column-offers-a">
-                <span class="data-channel" title="Pozycja cenowa twojej oferty">
-                    <i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i>
-                </span>
-                <div class="offer-count-box">
-                    <p>${item.myPricePosition}</p>
-                </div>
-            </div>`;
+          
+            let myPricePositionHtml = '';
+
+            if (item.committed && (item.committed.newGoogleRanking || item.committed.newCeneoRanking)) {
+
+            
+                const oldTotalCount = extractTotalOffersCount(item.myPricePosition);
+
+           
+                const newGoogleRank = extractRankNumber(item.committed.newGoogleRanking);
+                const newCeneoRank = extractRankNumber(item.committed.newCeneoRanking);
+
+            
+                const validRanks = [];
+                if (newGoogleRank !== null) validRanks.push(newGoogleRank);
+                if (newCeneoRank !== null) validRanks.push(newCeneoRank);
+
+                let newCalculatedRank = null;
+                if (validRanks.length > 0) {
+                    newCalculatedRank = Math.max(...validRanks);
+                }
+
+              
+                if (newCalculatedRank !== null) {
+                
+                    const newPosStr = oldTotalCount ? `${newCalculatedRank}/${oldTotalCount}` : `${newCalculatedRank}`;
+
+                    myPricePositionHtml = `
+                    <div class="price-box-column-offers-a">
+                        <span class="data-channel" title="Pozycja cenowa: Stara -> Nowa">
+                            <i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i>
+                        </span>
+                        <div class="offer-count-box">
+                            <p>
+                                <s style="color:#999; font-size: 0.9em;">${item.myPricePosition}</s>
+                                <span style="color: #4e4e4e;">${newPosStr}</span>
+                            </p>
+                        </div>
+                    </div>`;
+                } else {
+                 
+                    myPricePositionHtml = `
+                    <div class="price-box-column-offers-a">
+                        <span class="data-channel" title="Pozycja cenowa twojej oferty">
+                            <i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i>
+                        </span>
+                        <div class="offer-count-box">
+                            <p>${item.myPricePosition || 'N/A'}</p>
+                        </div>
+                    </div>`;
+                }
+
+            } else {
+          
+                myPricePositionHtml = `
+                <div class="price-box-column-offers-a">
+                    <span class="data-channel" title="Pozycja cenowa twojej oferty">
+                        <i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i>
+                    </span>
+                    <div class="offer-count-box">
+                        <p>${item.myPricePosition || 'N/A'}</p>
+                    </div>
+                </div>`;
+            }
 
             const ceneoTooltip = 'Ilość zakupionych produktów przez ostatnie 90 dni na Ceneo';
             let ceneoSalesHtml = '';

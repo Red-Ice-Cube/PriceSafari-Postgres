@@ -1086,7 +1086,7 @@
             else if (batch.exportMethod === 'Api') methodIcon = '<i class="fas fa-cloud-upload-alt" style="color:#0d6efd;"></i> API';
 
             html += `
-        <div class="history-batch-header" style="margin-top: 0px; margin-bottom: 4px; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 5px;">
+        <div class="history-batch-header" style="margin-top: 0px; margin-bottom: 4px; padding: 6px 16px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 5px;">
             <strong>Paczka z dnia:</strong> ${executionDate} | 
             <strong>Wgrał:</strong> ${batch.userName} | 
             <strong>Metoda:</strong> ${methodIcon} | 
