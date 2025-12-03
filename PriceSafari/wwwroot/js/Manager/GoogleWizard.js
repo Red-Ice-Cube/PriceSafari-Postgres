@@ -657,6 +657,7 @@ function getVal(entryNode, fieldName, productNodeName) {
     let originalPath = info.xpath;
     const contextNode = entryNode;
 
+    // 1. Ustalanie ścieżki względnej (bez zmian w logice)
     const productNodeIdentifier = '/' + productNodeName;
     const lastIndexOfProductNode = originalPath.lastIndexOf(productNodeIdentifier);
 
@@ -665,29 +666,79 @@ function getVal(entryNode, fieldName, productNodeName) {
         let restOfPath = originalPath.substring(lastIndexOfProductNode + productNodeIdentifier.length);
         relativePath = '.' + restOfPath;
     } else {
-        console.error(`Nie można ustalić ścieżki względnej dla "${originalPath}" w oparciu o węzeł "${productNodeName}"`);
-        return null;
+        // Fallback dla nazw bez predykatów
+        const cleanName = productNodeName.split('[')[0];
+        const cleanIdentifier = '/' + cleanName;
+        const lastIndexClean = originalPath.lastIndexOf(cleanIdentifier);
+
+        if (lastIndexClean !== -1) {
+            let restOfPath = originalPath.substring(lastIndexClean + cleanIdentifier.length);
+            relativePath = '.' + restOfPath;
+        } else {
+            console.error(`Nie można ustalić ścieżki względnej dla "${originalPath}"`);
+            return null;
+        }
     }
 
-    try {
-        if (originalPath.endsWith('/#value')) {
-            // PRZYPADEK 1: Pobieranie wartości tekstowej z elementu.
-            let elementPath = relativePath.slice(0, -7); // Usunięcie '/#value'
-            const result = xmlDoc.evaluate(elementPath, contextNode, nsResolver, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-            const elementNode = result.singleNodeValue;
-            return elementNode ? elementNode.textContent.trim() : null;
+    // Zmienna na znaleziony węzeł DOM
+    let elementNode = null;
+    let targetAttribute = null;
 
-        } else {
-            // PRZYPADEK 2: Pobieranie wartości atrybutu.
-            // --- USUNIĘTO BŁĘDNĄ LINIĘ, KTÓRA ZAMIENIAŁA '/@' NA '@' ---
-            // Zmienna 'relativePath' ma już poprawny format, np. './@url' lub './imgs/main/@url'
+    // Sprawdzamy czy szukamy wartości (#value) czy atrybutu (@attr)
+    if (originalPath.endsWith('/#value')) {
+        let elementPath = relativePath.slice(0, -7); // utnij /#value -> ./link
+
+        // KROK A: Próba standardowym XPath (działa dla g:id, g:price)
+        try {
+            const result = xmlDoc.evaluate(elementPath, contextNode, nsResolver, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+            elementNode = result.singleNodeValue;
+        } catch (e) { }
+
+        // KROK B: RATUNEK DLA NAMESPACES (działa dla title, link w Atom)
+        // Jeśli XPath nic nie znalazł, szukamy ręcznie po "localName", ignorując namespace.
+        if (!elementNode) {
+            // Wyciągamy samą nazwę tagu ze ścieżki (np. z "./link" robi "link")
+            let tagName = elementPath.replace(/.*\//, '').replace(/.*:/, '');
+
+            // Przeszukujemy dzieci węzła (lub głębiej)
+            // Używamy getElementsByTagName aby znaleźć pierwszy pasujący element niezależnie od namespace
+            let candidates = contextNode.getElementsByTagName("*");
+            for (let i = 0; i < candidates.length; i++) {
+                if (candidates[i].localName === tagName) {
+                    elementNode = candidates[i];
+                    break; // Bierzemy pierwszy pasujący
+                }
+            }
+        }
+
+    } else {
+        // Ścieżka wskazuje na atrybut (np. .../g:id/@name)
+        // Tutaj logika jest prostsza, zazwyczaj XPath radzi sobie z atrybutami, 
+        // ale musimy obsłużyć samo wyciągnięcie wartości.
+        try {
             const result = xmlDoc.evaluate(relativePath, contextNode, nsResolver, XPathResult.STRING_TYPE, null);
             return result.stringValue.trim();
-        }
-    } catch (e) {
-        console.error(`Błąd wykonania XPath: "${relativePath}" w kontekście ${contextNode.tagName}`, e);
-        return null;
+        } catch (e) { return null; }
     }
+
+    // KROK C: Wyciąganie wartości z namierzonego węzła
+    if (elementNode) {
+        let val = elementNode.textContent.trim();
+
+        // 1. Jeśli tekst jest pusty, a to jest Atom feed, sprawdź 'href' (dla linków)
+        if (!val && elementNode.localName === 'link' && elementNode.hasAttribute('href')) {
+            val = elementNode.getAttribute('href');
+        }
+
+        // 2. Jeśli tekst jest pusty, sprawdź 'src' (dla obrazków w nietypowych formatach)
+        if (!val && elementNode.hasAttribute('src')) {
+            val = elementNode.getAttribute('src');
+        }
+
+        return val;
+    }
+
+    return null;
 }
 
 
