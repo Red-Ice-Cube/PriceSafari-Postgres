@@ -263,11 +263,15 @@
         }
     }
 
-    function highlightMatches(fullText, searchTerm) {
+    function highlightMatches(fullText, searchTerm, customClass) {
         if (!searchTerm || !fullText) return fullText;
+
         const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(escapedTerm, 'gi');
-        return fullText.replace(regex, (match) => `<span class="highlighted-text">${match}</span>`);
+
+        const cssClass = customClass || "highlighted-text";
+
+        return fullText.replace(regex, (match) => `<span class="${cssClass}">${match}</span>`);
     }
 
     function renderDeliveryInfo(deliveryTime) {
@@ -1278,22 +1282,31 @@
            updateSelectionUI();
        });
 
-       const apiBox = document.createElement('span');
-       apiBox.className = 'ApiBox';
+            const apiBox = document.createElement('span');
+            apiBox.className = 'ApiBox';
 
-       if (allegroMarginSettings.identifierForSimulation === 'EAN') {
-           if (item.ean) {
-               apiBox.innerHTML = `EAN ${item.ean}`;
-           } else {
-               apiBox.innerHTML = 'Brak EAN';
-           }
-       } else {
-           if (item.myIdAllegro) {
-               apiBox.innerHTML = `ID ${item.myIdAllegro}`;
-           } else {
-               apiBox.innerHTML = 'Brak ID';
-           }
-       }
+            if (allegroMarginSettings.identifierForSimulation === 'EAN') {
+                if (item.ean) {
+
+                    const highlightedEan = highlightMatches(item.ean, productSearchTerm, 'highlighted-text-yellow');
+                    apiBox.innerHTML = `EAN ${highlightedEan}`;
+                } else {
+                    apiBox.innerHTML = 'Brak EAN';
+                }
+            } else {
+                if (item.myIdAllegro) {
+                    const idString = item.myIdAllegro.toString();
+
+                    const highlightedId = highlightMatches(idString, productSearchTerm, 'highlighted-text-yellow');
+                    apiBox.innerHTML = `ID ${highlightedId}`;
+                } else {
+                    apiBox.innerHTML = 'Brak ID';
+                }
+            }
+
+
+
+
 
        rightColumn.appendChild(selectProductButton);
        rightColumn.appendChild(apiBox);
@@ -1772,8 +1785,37 @@
            filtered = groupAndFilterByCatalog(filtered);
        }
 
-       const productSearch = document.getElementById('productSearch').value.toLowerCase();
-       if (productSearch) filtered = filtered.filter(p => p.productName && p.productName.toLowerCase().includes(productSearch));
+         
+            const productSearchRaw = document.getElementById('productSearch').value.trim();
+
+            if (productSearchRaw) {
+             
+                const sanitizedSearch = productSearchRaw
+                    .replace(/[^a-zA-Z0-9\s.-]/g, '')
+                    .toLowerCase()
+                    .replace(/\s+/g, '');
+
+                filtered = filtered.filter(p => {
+                 
+                    const name = p.productName || '';
+                    const ean = p.ean || '';
+                    const id = p.myIdAllegro ? p.myIdAllegro.toString() : ''; 
+                    const code = p.producerCode || ''; 
+
+             
+                    const combinedData = `${name} ${ean} ${id} ${code}`;
+
+               
+                    const combinedSanitized = combinedData
+                        .toLowerCase()
+                        .replace(/[^a-zA-Z0-9\s.-]/g, '')
+                        .replace(/\s+/g, '');
+
+                 
+                    return combinedSanitized.includes(sanitizedSearch);
+                });
+            }
+        
 
        const storeSearch = document.getElementById('storeSearch').value.toLowerCase();
        if (storeSearch) filtered = filtered.filter(p => (p.storeName && p.storeName.toLowerCase().includes(storeSearch)) || (myStoreName && myStoreName.toLowerCase().includes(storeSearch)));
