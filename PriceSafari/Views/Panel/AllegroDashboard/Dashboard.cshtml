@@ -247,8 +247,8 @@
             <div class="Order-Container-Title" style="margin-bottom: 0;">Analiza cen Allegro @ViewBag.StoreName</div>
 
             <div class="view-switch-group">
-                <button id="viewAnalysisBtn" class="btn-view-switch active">Analiza konkurencji</button>
-                <button id="viewHistoryBtn" class="btn-view-switch" style="margin-left: 5px;">Historia zmian PriceSafari</button>
+                <button id="viewAnalysisBtn" class="btn-view-switch active">Wszystkie zmiany cen</button>
+                <button id="viewHistoryBtn" class="btn-view-switch" style="margin-left: 5px;">Zmiany cen wprowadzone z PriceSafari</button>
             </div>
         </div>
 
@@ -268,8 +268,8 @@
     </div>
 </div>
 
-<div id="analysisViewContainer" class="View">
-    <div class="Vert">
+<div id="analysisViewContainer" class="View" style="padding:0px;">
+    <div class="Vert" style="margin-bottom:16px;">
         <div class="Charts-Bar-a" style="max-height:350px;">
             <div class="Charts-Box-Bar-a">
                 <canvas id="priceAnaliseChart"></canvas>
@@ -296,7 +296,7 @@
     </div>
 </div>
 
-<div id="historyViewContainer" style="display: none;" class="View">
+<div id="historyViewContainer" style="display: none; padding:0px;" class="View">
     <div class="Vert">
         <div class="Vert-full">
             <div class="Vert-table" style="height:90vh;">

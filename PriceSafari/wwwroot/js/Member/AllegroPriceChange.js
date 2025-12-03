@@ -393,7 +393,7 @@
             const executionDate = new Date(batch.executionDate).toLocaleString('pl-PL');
 
             html += `
-            <div class="history-batch-header">
+              <div class="history-batch-header" style="margin-top: 0px; margin-bottom: 4px; padding: 5px 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 5px;">
                 <strong>Paczka z dnia:</strong> ${executionDate} | 
                 <strong>Wgrał:</strong> ${batch.userName} | 
                 <strong style="color: #28a745;">Sukces: ${batch.successfulCount}</strong> | 
