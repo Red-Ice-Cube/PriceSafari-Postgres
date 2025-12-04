@@ -140,6 +140,8 @@ namespace PriceSafari.Services.SubscriptionService
                 await context.SaveChangesAsync(ct);
             }
 
+            // Pobieramy sklepy, które są oznaczone jako "Płacący" (IsPayingCustomer = true)
+            // To uwzględnia też konta testowe, jeśli ustawiłeś im tę flagę ręcznie lub systemowo.
             var stores = await context.Stores
                 .Include(s => s.Plan)
                 .Include(s => s.PaymentData)
@@ -149,19 +151,45 @@ namespace PriceSafari.Services.SubscriptionService
             int count = 0;
             foreach (var store in stores)
             {
+                // 1. Sprawdzenie daty startu (wspólne dla wszystkich)
                 if (store.SubscriptionStartDate == null || store.SubscriptionStartDate.Value > DateTime.Today) continue;
 
+                // 2. Odejmowanie dni (wspólne dla wszystkich - Testowych i Płatnych)
+                // Jeśli mają dni, zabieramy jeden dzień.
                 if (store.RemainingDays > 0)
                 {
                     store.RemainingDays--;
                 }
 
+                // 3. Sprawdzenie co robić, gdy dni się skończą (<= 0)
                 if (store.RemainingDays <= 0)
                 {
-                    if (!store.Plan.IsTestPlan && store.Plan.NetPrice > 0)
+                    // === NOWA LOGIKA DLA KONT TESTOWYCH (FREE) ===
+                    // Jeśli plan jest oznaczony jako Testowy/Free:
+                    // - Nie wystawiamy faktury.
+                    // - Nie dodajemy nowych dni (subskrypcja wygasa).
+                    // - Nie wysyłamy maila.
+                    if (store.Plan.IsTestPlan)
                     {
-                        await GenerateInvoiceOnly(context, store, invoiceCounter, deviceName);
-                        count++;
+                        // Możesz opcjonalnie zalogować, że konto testowe wygasło, ale nie podejmujemy akcji.
+                        // _logger.LogInformation($"Sklep {store.StoreId} (Testowy) wyczerpał dni. Brak akcji.");
+                        continue; // Przechodzimy do następnego sklepu, pomijając logikę fakturowania
+                    }
+
+                    // === LOGIKA DLA KLIENTÓW PŁATNYCH (STANDARDOWA) ===
+                    // Wykona się tylko jeśli to NIE jest plan testowy I cena jest > 0
+                    if (store.Plan.NetPrice > 0)
+                    {
+                        // Tutaj sprawdzamy czy mamy dane płatnika, aby uniknąć faktur na "Brak Danych"
+                        if (store.PaymentData != null)
+                        {
+                            await GenerateInvoiceOnly(context, store, invoiceCounter, deviceName);
+                            count++;
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Pominięto sklep {store.StoreId}: Płatny plan, ale brak danych do faktury (PaymentData is null).");
+                        }
                     }
                 }
             }
