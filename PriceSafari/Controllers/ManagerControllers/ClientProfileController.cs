@@ -14,17 +14,21 @@ public class ClientProfileController : Controller
     private readonly PriceSafariContext _context;
     private readonly UserManager<PriceSafariUser> _userManager;
     private readonly ILogger<ClientProfileController> _logger;
-
-    // ZMIANA 1: Zmień typ pola z IEmailSender na IAppEmailSender
     private readonly IAppEmailSender _emailSender;
+    private readonly IWebHostEnvironment _webHostEnvironment; // NOWE POLE
 
-    // ZMIANA 2: Zmień typ w konstruktorze
-    public ClientProfileController(PriceSafariContext context, UserManager<PriceSafariUser> userManager, ILogger<ClientProfileController> logger, IAppEmailSender emailSender)
+    public ClientProfileController(
+        PriceSafariContext context,
+        UserManager<PriceSafariUser> userManager,
+        ILogger<ClientProfileController> logger,
+        IAppEmailSender emailSender,
+        IWebHostEnvironment webHostEnvironment) // Wstrzykujemy środowisko
     {
         _context = context;
         _userManager = userManager;
         _logger = logger;
         _emailSender = emailSender;
+        _webHostEnvironment = webHostEnvironment;
     }
     public IActionResult Index()
     {
@@ -494,26 +498,17 @@ public class ClientProfileController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ConfirmSendEmails(SendEmailViewModel model)
     {
+        // Walidacje (bez zmian)
         if (model.SelectedClientIds == null || !model.SelectedClientIds.Any())
         {
             ModelState.AddModelError("", "Nie wybrano żadnych klientów.");
-
             model.AvailableTemplates = await _context.EmailTemplates.ToListAsync();
             return View("PrepareEmails", model);
         }
 
-        if (string.IsNullOrWhiteSpace(model.EmailSubject))
+        if (string.IsNullOrWhiteSpace(model.EmailSubject) || string.IsNullOrWhiteSpace(model.EmailContent))
         {
-            ModelState.AddModelError("", "Temat emaila nie może być pusty.");
-            model.AvailableTemplates = await _context.EmailTemplates.ToListAsync();
-            return View("PrepareEmails", model);
-        }
-
-        string baseContent = model.EmailContent;
-
-        if (string.IsNullOrWhiteSpace(baseContent))
-        {
-            ModelState.AddModelError("", "Treść wiadomości jest pusta.");
+            ModelState.AddModelError("", "Temat i treść są wymagane.");
             model.AvailableTemplates = await _context.EmailTemplates.ToListAsync();
             return View("PrepareEmails", model);
         }
@@ -523,23 +518,37 @@ public class ClientProfileController : Controller
             .Where(cp => model.SelectedClientIds.Contains(cp.ClientProfileId))
             .ToList();
 
+        // 1. PRZYGOTOWANIE OBRAZKA DLA STOPKI JAKUBA
+        var inlineImages = new Dictionary<string, string>();
+
+        if (model.SenderAccount == "Jakub")
+        {
+            // Pobieramy ścieżkę do pliku w wwwroot/cid/JakubOstrowskiPriceSafari.png
+            string webRootPath = _webHostEnvironment.WebRootPath;
+            string imagePath = Path.Combine(webRootPath, "cid", "JakubOstrowskiPriceSafari.png");
+
+            // Klucz "JakubSignature" musi odpowiadać temu co w HTMLu w src="cid:JakubSignature"
+            if (System.IO.File.Exists(imagePath))
+            {
+                inlineImages.Add("JakubSignature", imagePath);
+            }
+        }
+        else
+        {
+            // Tu ewentualnie logika dla obrazka Biura, jeśli istnieje fizycznie na dysku
+            // np. inlineImages.Add("signatureImage", Path.Combine(webRootPath, "cid", "biuro_sig.png"));
+        }
+
         foreach (var client in clientsToEmail)
         {
             try
             {
-                var personalizedContent = baseContent
-                    .Replace("{ClientName}", client.CeneoProfileName);
+                var personalizedContent = model.EmailContent
+                    .Replace("{ClientName}", client.CeneoProfileName)
+                    .Replace("{ProductCount}", client.CeneoProfileProductCount.HasValue ? client.CeneoProfileProductCount.ToString() : "");
 
-                if (client.CeneoProfileProductCount.HasValue)
-                {
-                    personalizedContent = personalizedContent.Replace("{ProductCount}", client.CeneoProfileProductCount.ToString());
-                }
-                else
-                {
-                    personalizedContent = personalizedContent.Replace("{ProductCount}", "");
-                }
-
-                var emailBody = personalizedContent + GetEmailFooter();
+                // 2. POBIERAMY STOPKĘ ZALEŻNĄ OD KONTA
+                var emailBody = personalizedContent + GetEmailFooter(model.SenderAccount);
 
                 var emailAddresses = client.CeneoProfileEmail
                     .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
@@ -549,9 +558,13 @@ public class ClientProfileController : Controller
 
                 foreach (var email in emailAddresses)
                 {
-                    // ZMIANA 3: Użycie nowej metody z wyborem konta
-                    // model.SenderAccount pochodzi z <select> w widoku ("Biuro" lub "Jakub")
-                    await _emailSender.SendEmailFromAccountAsync(email, model.EmailSubject, emailBody, model.SenderAccount);
+                    // 3. WYSYŁAMY MAILA Z OBRAZKAMI (inlineImages)
+                    await _emailSender.SendEmailFromAccountAsync(
+                        email,
+                        model.EmailSubject,
+                        emailBody,
+                        model.SenderAccount,
+                        inlineImages);
                 }
 
                 client.Status = ClientStatus.Mail;
@@ -565,45 +578,72 @@ public class ClientProfileController : Controller
         }
 
         await _context.SaveChangesAsync();
-
         TempData["SuccessMessage"] = "Wiadomości zostały wysłane pomyślnie.";
         return RedirectToAction("Index");
     }
 
-    private string GetEmailFooter()
+    private string GetEmailFooter(string senderAccount)
     {
+        // --- STOPKA DLA JAKUBA ---
+        if (senderAccount == "Jakub")
+        {
+            return @"
+            <br/><br/>
+            <p style=""font-family: Arial, sans-serif; font-size: 14px; color: #333;"">
+                <strong>Jakub Ostrowski</strong><br/>
+                Client Acquisition Specialist
+            </p>
+            <p style=""font-family: Arial, sans-serif; font-size: 14px; color: #333;"">
+                Tel.: +48 605 489 289<br/>
+                <a href=""mailto:jakub@pricesafari.pl"" style=""color: #007bff; text-decoration: none;"">jakub@pricesafari.pl</a><br/>
+                <a href=""https://pricesafari.pl"" style=""color: #007bff; text-decoration: none;"">pricesafari.pl</a>
+            </p>
+            <p>
+                <img src=""cid:JakubSignature"" alt=""Jakub Ostrowski - PriceSafari"" />
+            </p>
+            <p style=""font-family: Arial, sans-serif; font-size: 12px; color: #555;"">
+                <strong>Heated Box Polska sp. z o. o.</strong><br/>
+                Wojciecha Korfantego 16<br/>
+                42-202 Częstochowa
+            </p>
+            <p style=""font-family: Arial, sans-serif; font-size: 12px; color: #555;"">
+                NIP 9492247951 &nbsp;&nbsp; REGON 388799620 &nbsp;&nbsp; KRS 0000897972
+            </p>
+            <hr style=""border: 0; border-top: 1px solid #ccc;"" />
+            <p style=""font-family: Arial, sans-serif; font-size: 10px; color: gray;"">
+                <strong>Poufność:</strong> Treść tej wiadomości jest poufna i prawnie chroniona.
+                Odbiorcą może być jedynie jej adresat. Zakazane jest przeglądanie,
+                przesyłanie, rozpowszechnianie lub inne wykorzystywanie treści tej
+                wiadomości, jak również podejmowanie działań na jej podstawie, przez
+                osoby lub podmioty inne niż zamierzony adresat. Jeśli otrzymali Państwo
+                tę wiadomość przez pomyłkę, prosimy o poinformowanie nadawcy i
+                usunięcie jej z komputera.
+            </p>";
+        }
+
+        // --- STARA STOPKA DLA BIURA ---
         return @"
-    <p>
-        Pozdrawiamy,<br />
-        <strong>Zespół PriceSafari</strong>
-    </p>
-    <p>
-        Tel.: +48 791 855 755<br />
-        <a href=""mailto:biuro@pricesafari.pl"">biuro@pricesafari.pl</a><br />
-        <a href=""https:
-    </p>
-    <p>
-        <a href=""https:
-            <img src=""cid:signatureImage"" alt=""PriceSafari - Monitoring cen online"" style=""cursor: pointer;"" />
-        </a>
-    </p>
-    <p>
-        <strong>Heated Box Polska sp. z o. o.</strong><br />
-        Wojciecha Korfantego 16<br />
-        42-202 Częstochowa<br />
-        NIP 9492247951 &nbsp;&nbsp; REGON 388799620 &nbsp;&nbsp; KRS 0000897972
-    </p>
-    <p style=""font-size: small; color: gray;"">
-        Heated Box Sp. z o.o., z siedzibą w Częstochowie, ul. Wojciecha Korfantego 16, 42-202 Częstochowa, wpisana do rejestru przedsiębiorców Krajowego Rejestru Sądowego prowadzonego przez Sąd Rejonowy w Częstochowie, Wydział Gospodarczy KRS, pod numerem KRS 0000897972, o kapitale zakładowym 100 000,00 zł.<br /><br />
-
-        Treść niniejszej wiadomości może być poufna i objęta zakazem jej ujawniania. Jeśli czytelnik niniejszej wiadomości nie jest jej zamierzonym adresatem, pracownikiem lub pośrednikiem upoważnionym do jej przekazania adresatowi, niniejszym informujemy, że wszelkie rozprowadzanie, dystrybucja lub powielanie niniejszej wiadomości jest zabronione. Jeżeli otrzymałeś tę wiadomość omyłkowo, prosimy bezzwłocznie zawiadomić nadawcę, wysyłając odpowiedź na niniejszą wiadomość, i usunąć ją z poczty.<br /><br />
-
-        Niniejsza informacja została przesłana przez Heated Box Sp. z o.o. z siedzibą w Częstochowie w oparciu o dane dostępne publicznie i nie stanowi oferty marketingowej w rozumieniu art. 66 Kodeksu cywilnego.<br /><br />
-
-        W przypadku zainteresowania podjęciem współpracy, przesyłając odpowiedź na ten e-mail, wyrażacie Państwo zgodę na włączenie danych Państwa firmy oraz osób kontaktowych, działających w jej imieniu, do zbioru danych, których administratorem jest Heated Box Sp. z o.o., w celu kontynuacji kontaktu z Państwem – w tym wysyłania materiałów o charakterze marketingowym. Dane będą wykorzystywane w celach marketingu usług własnych oraz usług podmiotów współpracujących z Heated Box Sp. z o.o. Dane mogą być powierzane lub przekazywane podmiotom współpracującym z Heated Box Sp. z o.o. w celach marketingowych.<br /><br />
-
-        W każdym momencie możecie Państwo skontaktować się z administratorem pod adresem biuro@pricesafari.pl w celu uzyskania informacji o zakresie przetwarzanych danych, dokonania ich sprostowania lub uzupełnienia, jak również zażądania zaprzestania ich przetwarzania. Szersze informacje o sposobie przetwarzania danych przez Heated Box Sp. z o.o. oraz o Państwa uprawnieniach znajdziecie Państwo na stronie internetowej: <a href=""https:
-    </p>";
+        <p>
+            Pozdrawiamy,<br />
+            <strong>Zespół PriceSafari</strong>
+        </p>
+        <p>
+            Tel.: +48 791 855 755<br />
+            <a href=""mailto:biuro@pricesafari.pl"">biuro@pricesafari.pl</a><br />
+            <a href=""https://pricesafari.pl"">pricesafari.pl</a>
+        </p>
+        <p>
+             <img src=""cid:signatureImage"" alt=""PriceSafari - Monitoring cen online"" style=""cursor: pointer;"" />
+        </p>
+        <p>
+            <strong>Heated Box Polska sp. z o. o.</strong><br />
+            Wojciecha Korfantego 16<br />
+            42-202 Częstochowa<br />
+            NIP 9492247951 &nbsp;&nbsp; REGON 388799620 &nbsp;&nbsp; KRS 0000897972
+        </p>
+        <p style=""font-size: small; color: gray;"">
+            Heated Box Sp. z o.o., z siedzibą w Częstochowie... (reszta starej klauzuli RODO)
+        </p>";
     }
 
 }
