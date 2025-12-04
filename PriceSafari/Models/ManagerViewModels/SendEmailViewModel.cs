@@ -10,4 +10,6 @@ public class SendEmailViewModel
     // Nowe pole: który mail wybieramy (1,2,3)
     public int SelectedMailType { get; set; }
     public List<EmailTemplate> AvailableTemplates { get; set; }
+
+    public string SenderAccount { get; set; } = "Biuro";
 }

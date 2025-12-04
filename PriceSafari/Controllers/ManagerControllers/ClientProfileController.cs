@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
+using PriceSafari.Services.EmailService;
 using System.Text.RegularExpressions;
 
 [Authorize(Roles = "Manager, Admin")]
@@ -13,9 +14,12 @@ public class ClientProfileController : Controller
     private readonly PriceSafariContext _context;
     private readonly UserManager<PriceSafariUser> _userManager;
     private readonly ILogger<ClientProfileController> _logger;
-    private readonly IEmailSender _emailSender;
 
-    public ClientProfileController(PriceSafariContext context, UserManager<PriceSafariUser> userManager, ILogger<ClientProfileController> logger, IEmailSender emailSender)
+    // ZMIANA 1: Zmień typ pola z IEmailSender na IAppEmailSender
+    private readonly IAppEmailSender _emailSender;
+
+    // ZMIANA 2: Zmień typ w konstruktorze
+    public ClientProfileController(PriceSafariContext context, UserManager<PriceSafariUser> userManager, ILogger<ClientProfileController> logger, IAppEmailSender emailSender)
     {
         _context = context;
         _userManager = userManager;
@@ -26,17 +30,13 @@ public class ClientProfileController : Controller
     {
         var clientProfiles = _context.ClientProfiles
             .Include(cp => cp.CreatedByUser)
-            .Include(cp => cp.Labels) // <--- WAŻNE: Załaduj etykiety
+            .Include(cp => cp.Labels)
+
             .ToList();
 
         return View("~/Views/ManagerPanel/ClientProfiles/Index.cshtml", clientProfiles);
     }
 
-    // -----------------------------------------------------------
-    // 2. Dodaj nowe metody API (AJAX) do obsługi etykiet
-    // -----------------------------------------------------------
-
-    // Pobierz wszystkie dostępne etykiety (do sidebarów i modali)
     [HttpGet]
     public JsonResult GetAllLabels()
     {
@@ -44,7 +44,6 @@ public class ClientProfileController : Controller
         return Json(labels);
     }
 
-    // Utwórz lub edytuj definicję etykiety
     [HttpPost]
     public async Task<JsonResult> SaveLabel(int id, string name, string color)
     {
@@ -52,13 +51,13 @@ public class ClientProfileController : Controller
 
         if (id == 0)
         {
-            // Nowa etykieta
+
             var newLabel = new ContactLabel { Name = name, HexColor = color };
             _context.ContactLabels.Add(newLabel);
         }
         else
         {
-            // Edycja istniejącej
+
             var label = await _context.ContactLabels.FindAsync(id);
             if (label == null) return Json(new { success = false, message = "Nie znaleziono" });
             label.Name = name;
@@ -69,7 +68,6 @@ public class ClientProfileController : Controller
         return Json(new { success = true });
     }
 
-    // Usuń definicję etykiety
     [HttpPost]
     public async Task<JsonResult> DeleteLabelDefinition(int id)
     {
@@ -82,7 +80,6 @@ public class ClientProfileController : Controller
         return Json(new { success = true });
     }
 
-    // Przypisz etykiety do wybranych klientów (Bulk Action)
     [HttpPost]
     public async Task<JsonResult> AssignLabelsToClients(List<int> clientIds, List<int> labelIds)
     {
@@ -101,7 +98,7 @@ public class ClientProfileController : Controller
         {
             foreach (var label in labelsToAdd)
             {
-                // Dodaj tylko jeśli jeszcze nie ma
+
                 if (!client.Labels.Any(l => l.Id == label.Id))
                 {
                     client.Labels.Add(label);
@@ -113,7 +110,6 @@ public class ClientProfileController : Controller
         return Json(new { success = true });
     }
 
-    // Usuń konkretną etykietę z konkretnego klienta (opcjonalne, np. kliknięcie 'x' na etykiecie w tabeli)
     [HttpPost]
     public async Task<JsonResult> RemoveLabelFromClient(int clientId, int labelId)
     {
@@ -129,9 +125,6 @@ public class ClientProfileController : Controller
         return Json(new { success = false });
     }
 
-
-
-
     [HttpPost]
     public async Task<JsonResult> BatchUpdateLabels(List<int> clientIds, List<int> labelIdsToAdd, List<int> labelIdsToRemove)
     {
@@ -143,7 +136,6 @@ public class ClientProfileController : Controller
             .Where(cp => clientIds.Contains(cp.ClientProfileId))
             .ToListAsync();
 
-        // Pobierz potrzebne encje etykiet
         var labelsToAdd = new List<ContactLabel>();
         if (labelIdsToAdd != null && labelIdsToAdd.Any())
         {
@@ -154,7 +146,7 @@ public class ClientProfileController : Controller
 
         foreach (var client in clients)
         {
-            // 1. Usuwanie
+
             if (labelIdsToRemove != null && labelIdsToRemove.Any())
             {
                 var toRemove = client.Labels.Where(l => labelIdsToRemove.Contains(l.Id)).ToList();
@@ -164,7 +156,6 @@ public class ClientProfileController : Controller
                 }
             }
 
-            // 2. Dodawanie
             foreach (var label in labelsToAdd)
             {
                 if (!client.Labels.Any(l => l.Id == label.Id))
@@ -177,16 +168,6 @@ public class ClientProfileController : Controller
         await _context.SaveChangesAsync();
         return Json(new { success = true });
     }
-
-
-
-
-
-
-
-
-
-
 
     public IActionResult Create()
     {
@@ -476,19 +457,16 @@ public class ClientProfileController : Controller
             return BadRequest("Nie znaleziono wybranych klientów.");
         }
 
-        // 1. Pobieramy szablony z bazy danych
         var templates = await _context.EmailTemplates.ToListAsync();
 
-        // 2. Pobieramy pierwszy domyślny szablon (jeśli istnieje)
         var defaultTemplate = templates.FirstOrDefault();
 
         var sendEmailViewModel = new SendEmailViewModel
         {
             Clients = clients,
             SelectedClientIds = selectedClientIds,
-            AvailableTemplates = templates, // Przekazujemy listę do dropdowna w widoku
+            AvailableTemplates = templates,
 
-            // Ustawiamy wartości domyślne z pierwszego szablonu w bazie
             SelectedMailType = defaultTemplate?.Id ?? 0,
             EmailSubject = defaultTemplate?.Subject ?? "",
             EmailContent = defaultTemplate?.Content ?? ""
@@ -500,12 +478,12 @@ public class ClientProfileController : Controller
     [HttpPost]
     public async Task<IActionResult> ChangeMailTypeAjax(int mailType, List<int> selectedClientIds)
     {
-        // 1. Szukamy szablonu w bazie po ID (mailType to teraz ID szablonu)
+
         var template = await _context.EmailTemplates.FindAsync(mailType);
 
         if (template != null)
         {
-            // Zwracamy treść oraz temat z bazy
+
             return Json(new { content = template.Content, subject = template.Subject });
         }
 
@@ -519,7 +497,7 @@ public class ClientProfileController : Controller
         if (model.SelectedClientIds == null || !model.SelectedClientIds.Any())
         {
             ModelState.AddModelError("", "Nie wybrano żadnych klientów.");
-            // Musimy ponownie załadować szablony, jeśli wracamy do widoku z błędem
+
             model.AvailableTemplates = await _context.EmailTemplates.ToListAsync();
             return View("PrepareEmails", model);
         }
@@ -531,8 +509,6 @@ public class ClientProfileController : Controller
             return View("PrepareEmails", model);
         }
 
-        // 1. Bierzemy treść BEZPOŚREDNIO z edytora (model.EmailContent)
-        // Usunęliśmy stary switch/case i hardcodowane metody.
         string baseContent = model.EmailContent;
 
         if (string.IsNullOrWhiteSpace(baseContent))
@@ -563,8 +539,6 @@ public class ClientProfileController : Controller
                     personalizedContent = personalizedContent.Replace("{ProductCount}", "");
                 }
 
-                // Stopka zostaje jako metoda pomocnicza (poniżej), 
-                // chyba że też chcesz ją przenieść do treści w bazie danych.
                 var emailBody = personalizedContent + GetEmailFooter();
 
                 var emailAddresses = client.CeneoProfileEmail
@@ -575,7 +549,9 @@ public class ClientProfileController : Controller
 
                 foreach (var email in emailAddresses)
                 {
-                    await _emailSender.SendEmailAsync(email, model.EmailSubject, emailBody);
+                    // ZMIANA 3: Użycie nowej metody z wyborem konta
+                    // model.SenderAccount pochodzi z <select> w widoku ("Biuro" lub "Jakub")
+                    await _emailSender.SendEmailFromAccountAsync(email, model.EmailSubject, emailBody, model.SenderAccount);
                 }
 
                 client.Status = ClientStatus.Mail;

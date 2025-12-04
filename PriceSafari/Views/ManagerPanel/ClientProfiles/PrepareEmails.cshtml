@@ -24,6 +24,16 @@
                     <input type="hidden" name="SelectedClientIds" value="@clientId" />
                 }
 
+                <div style="margin-bottom: 15px; margin-top: 15px; padding: 15px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 4px;">
+                    <label style="font-weight:bold; color: #333;">Wybierz konto wysyłkowe:</label><br />
+                    <select name="SenderAccount" style="padding: 8px; width: 100%; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="Biuro" selected>Biuro (biuro@pricesafari.pl)</option>
+                        <option value="Jakub">Jakub</option>
+                    </select>
+                </div>
+
+                <input type="hidden" id="HiddenSelectedMailType" name="SelectedMailType" value="@Model.SelectedMailType" />
+
                 <div class="Vert-table" style="height:20vh;">
                     <table class="table-orders">
                         <thead>
