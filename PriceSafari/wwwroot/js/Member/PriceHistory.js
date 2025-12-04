@@ -520,22 +520,15 @@
                         const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
                         const myPriceFormatted = formatPricePL(myPrice);
 
-                        if (activeChange) {
-
-                            const newPriceFormatted = formatPricePL(activeChange.newPrice);
-                            priceLineDiv.innerHTML = `
-                                <s style="color: #999; font-size: 17px; font-weight: 500;">${myPriceFormatted}</s>
-                                <span style="font-weight: 700; font-size: 17px; color: #0d6efd; margin-left: 6px;">${newPriceFormatted}</span>
-                            `;
-                        } else if (item.committed && item.committed.newPrice) {
-
+                        if (item.committed && item.committed.newPrice) {
+                      
                             const newCommittedPrice = parseFloat(item.committed.newPrice);
                             priceLineDiv.innerHTML = `
-                                <s style="color: #999; font-size: 15px; margin-right: 6px;">${formatPricePL(myPrice)}</s>
-                                <span style="font-weight: 700; font-size: 17px; color: #0d6efd;">${formatPricePL(newCommittedPrice)}</span>
+                                <s style="color: #999; font-size: 17px;">${formatPricePL(myPrice)}</s>
+                   
                             `;
                         } else {
-
+                        
                             priceLineDiv.innerHTML = `
                                 <span style="font-weight: 500; font-size: 17px;">${myPriceFormatted}</span>
                             `;
