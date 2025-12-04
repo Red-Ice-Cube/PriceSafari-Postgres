@@ -507,7 +507,7 @@
 
             const activeChange = currentActiveChangesMap.get(String(productId));
 
-            // ZMIEŃ TĘ LINIJKĘ (usuń :nth-child(3)):
+ 
             const priceBoxMyColumn = priceBox.querySelector('.my-price-column');
 
             const priceBoxActionColumn = priceBox.querySelector('.price-box-column-action');
