@@ -67,7 +67,6 @@ public class EmailService : IEmailSender, IAppEmailSender
     {
         try
         {
-
             using var client = new SmtpClient(_mailServer, _mailPort)
             {
                 Credentials = new NetworkCredential(senderEmail, password),
@@ -91,20 +90,37 @@ public class EmailService : IEmailSender, IAppEmailSender
                 {
                     if (File.Exists(image.Value))
                     {
-                        var linkedResource = new LinkedResource(image.Value) { ContentId = image.Key };
+
+                        string mediaType = MediaTypeNames.Image.Jpeg;
+
+                        if (image.Value.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                        {
+                            mediaType = MediaTypeNames.Image.Png;
+                        }
+
+                        var linkedResource = new LinkedResource(image.Value, mediaType);
+
+                        linkedResource.ContentId = image.Key;
+
+                        linkedResource.ContentType.Name = Path.GetFileName(image.Value);
+
+                        linkedResource.TransferEncoding = TransferEncoding.Base64;
+
                         alternateView.LinkedResources.Add(linkedResource);
                     }
                 }
             }
+
             mailMessage.AlternateViews.Add(alternateView);
-            mailMessage.Body = htmlMessage;
 
             if (attachments != null)
             {
                 foreach (var attachment in attachments)
                 {
                     var stream = new MemoryStream(attachment.Value);
-                    mailMessage.Attachments.Add(new Attachment(stream, attachment.Key, "application/pdf"));
+
+                    var fileAttachment = new Attachment(stream, attachment.Key, MediaTypeNames.Application.Pdf);
+                    mailMessage.Attachments.Add(fileAttachment);
                 }
             }
 
