@@ -506,7 +506,10 @@
             if (!item) return;
 
             const activeChange = currentActiveChangesMap.get(String(productId));
-            const priceBoxMyColumn = priceBox.querySelector('.price-box-column:nth-child(3)');
+
+            // ZMIEŃ TĘ LINIJKĘ (usuń :nth-child(3)):
+            const priceBoxMyColumn = priceBox.querySelector('.my-price-column');
+
             const priceBoxActionColumn = priceBox.querySelector('.price-box-column-action');
 
             if (priceBoxMyColumn) {
@@ -2189,7 +2192,7 @@
             }
 
             const priceBoxColumnMyPrice = document.createElement('div');
-            priceBoxColumnMyPrice.className = 'price-box-column';
+            priceBoxColumnMyPrice.className = 'price-box-column my-price-column'; 
 
             if (item.colorClass !== 'prNoOffer' && myPrice != null) {
 

@@ -423,11 +423,23 @@ public class GoogleMainPriceScraper
         }
 
         // Krok 2: Szablon URL
+        //string urlTemplate;
+        //if (!string.IsNullOrEmpty(coOfr.GoogleGid))
+        //{
+        //    Console.WriteLine($"Używam GID: {coOfr.GoogleGid} dla CID: {catalogId}");
+        //    urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
+        //}
+        //else
+        //{
+        //    Console.WriteLine($"GID nie znaleziony dla CID: {catalogId}. Używam zapytania bez gpcid.");
+        //    urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
+        //}
+
         string urlTemplate;
         if (!string.IsNullOrEmpty(coOfr.GoogleGid))
         {
-            Console.WriteLine($"Używam GID: {coOfr.GoogleGid} dla CID: {catalogId}");
-            urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
+            Console.WriteLine($"metoda bez gid dla CID: {catalogId}");
+            urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
         }
         else
         {
