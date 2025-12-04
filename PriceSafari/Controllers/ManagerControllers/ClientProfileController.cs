@@ -494,93 +494,190 @@ public class ClientProfileController : Controller
         return Json(new { content = "", subject = "" });
     }
 
+    //[HttpPost]
+    //[ValidateAntiForgeryToken]
+    //public async Task<IActionResult> ConfirmSendEmails(SendEmailViewModel model)
+    //{
+    //    // Walidacje (bez zmian)
+    //    if (model.SelectedClientIds == null || !model.SelectedClientIds.Any())
+    //    {
+    //        ModelState.AddModelError("", "Nie wybrano żadnych klientów.");
+    //        model.AvailableTemplates = await _context.EmailTemplates.ToListAsync();
+    //        return View("PrepareEmails", model);
+    //    }
+
+    //    if (string.IsNullOrWhiteSpace(model.EmailSubject) || string.IsNullOrWhiteSpace(model.EmailContent))
+    //    {
+    //        ModelState.AddModelError("", "Temat i treść są wymagane.");
+    //        model.AvailableTemplates = await _context.EmailTemplates.ToListAsync();
+    //        return View("PrepareEmails", model);
+    //    }
+
+    //    var allClients = await _context.ClientProfiles.ToListAsync();
+    //    var clientsToEmail = allClients
+    //        .Where(cp => model.SelectedClientIds.Contains(cp.ClientProfileId))
+    //        .ToList();
+
+    //    // 1. PRZYGOTOWANIE OBRAZKA DLA STOPKI JAKUBA
+    //    var inlineImages = new Dictionary<string, string>();
+
+    //    if (model.SenderAccount == "Jakub")
+    //    {
+    //        // Pobieramy ścieżkę do pliku w wwwroot/cid/JakubOstrowskiPriceSafari.png
+    //        string webRootPath = _webHostEnvironment.WebRootPath;
+    //        string imagePath = Path.Combine(webRootPath, "cid", "JakubOstrowskiPriceSafari.png");
+
+    //        // Klucz "JakubSignature" musi odpowiadać temu co w HTMLu w src="cid:JakubSignature"
+    //        if (System.IO.File.Exists(imagePath))
+    //        {
+    //            inlineImages.Add("JakubSignature", imagePath);
+    //        }
+    //    }
+    //    else
+    //    {
+    //        // Tu ewentualnie logika dla obrazka Biura, jeśli istnieje fizycznie na dysku
+    //        // np. inlineImages.Add("signatureImage", Path.Combine(webRootPath, "cid", "biuro_sig.png"));
+    //    }
+
+    //    foreach (var client in clientsToEmail)
+    //    {
+    //        try
+    //        {
+    //            var personalizedContent = model.EmailContent
+    //                .Replace("{ClientName}", client.CeneoProfileName)
+    //                .Replace("{ProductCount}", client.CeneoProfileProductCount.HasValue ? client.CeneoProfileProductCount.ToString() : "");
+
+    //            // 2. POBIERAMY STOPKĘ ZALEŻNĄ OD KONTA
+    //            var emailBody = personalizedContent + GetEmailFooter(model.SenderAccount);
+
+    //            var emailAddresses = client.CeneoProfileEmail
+    //                .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+    //                .Select(e => e.Trim())
+    //                .Where(e => !string.IsNullOrWhiteSpace(e))
+    //                .ToList();
+
+    //            foreach (var email in emailAddresses)
+    //            {
+    //                // 3. WYSYŁAMY MAILA Z OBRAZKAMI (inlineImages)
+    //                await _emailSender.SendEmailFromAccountAsync(
+    //                    email,
+    //                    model.EmailSubject,
+    //                    emailBody,
+    //                    model.SenderAccount,
+    //                    inlineImages);
+    //            }
+
+    //            client.Status = ClientStatus.Mail;
+    //            client.EmailSentCount += 1;
+    //            client.LastEmailSentDate = DateTime.Now;
+    //        }
+    //        catch (Exception ex)
+    //        {
+    //            _logger.LogError(ex, "Błąd podczas wysyłania maila do {Email}", client.CeneoProfileEmail);
+    //        }
+    //    }
+
+    //    await _context.SaveChangesAsync();
+    //    TempData["SuccessMessage"] = "Wiadomości zostały wysłane pomyślnie.";
+    //    return RedirectToAction("Index");
+    //}
+
+
+
+
+
+
+
+
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ConfirmSendEmails(SendEmailViewModel model)
+    public async Task<IActionResult> SendSingleEmailAjax(int clientId, string emailSubject, string emailContent, string senderAccount)
     {
-        // Walidacje (bez zmian)
-        if (model.SelectedClientIds == null || !model.SelectedClientIds.Any())
+        try
         {
-            ModelState.AddModelError("", "Nie wybrano żadnych klientów.");
-            model.AvailableTemplates = await _context.EmailTemplates.ToListAsync();
-            return View("PrepareEmails", model);
-        }
-
-        if (string.IsNullOrWhiteSpace(model.EmailSubject) || string.IsNullOrWhiteSpace(model.EmailContent))
-        {
-            ModelState.AddModelError("", "Temat i treść są wymagane.");
-            model.AvailableTemplates = await _context.EmailTemplates.ToListAsync();
-            return View("PrepareEmails", model);
-        }
-
-        var allClients = await _context.ClientProfiles.ToListAsync();
-        var clientsToEmail = allClients
-            .Where(cp => model.SelectedClientIds.Contains(cp.ClientProfileId))
-            .ToList();
-
-        // 1. PRZYGOTOWANIE OBRAZKA DLA STOPKI JAKUBA
-        var inlineImages = new Dictionary<string, string>();
-
-        if (model.SenderAccount == "Jakub")
-        {
-            // Pobieramy ścieżkę do pliku w wwwroot/cid/JakubOstrowskiPriceSafari.png
-            string webRootPath = _webHostEnvironment.WebRootPath;
-            string imagePath = Path.Combine(webRootPath, "cid", "JakubOstrowskiPriceSafari.png");
-
-            // Klucz "JakubSignature" musi odpowiadać temu co w HTMLu w src="cid:JakubSignature"
-            if (System.IO.File.Exists(imagePath))
+            // 1. Walidacja
+            if (string.IsNullOrWhiteSpace(emailSubject) || string.IsNullOrWhiteSpace(emailContent))
             {
-                inlineImages.Add("JakubSignature", imagePath);
+                return Json(new { success = false, message = "Brak tematu lub treści." });
             }
-        }
-        else
-        {
-            // Tu ewentualnie logika dla obrazka Biura, jeśli istnieje fizycznie na dysku
-            // np. inlineImages.Add("signatureImage", Path.Combine(webRootPath, "cid", "biuro_sig.png"));
-        }
 
-        foreach (var client in clientsToEmail)
-        {
-            try
+            // 2. Pobranie klienta
+            var client = await _context.ClientProfiles.FindAsync(clientId);
+            if (client == null)
             {
-                var personalizedContent = model.EmailContent
-                    .Replace("{ClientName}", client.CeneoProfileName)
-                    .Replace("{ProductCount}", client.CeneoProfileProductCount.HasValue ? client.CeneoProfileProductCount.ToString() : "");
+                return Json(new { success = false, message = $"Nie znaleziono klienta ID {clientId}" });
+            }
 
-                // 2. POBIERAMY STOPKĘ ZALEŻNĄ OD KONTA
-                var emailBody = personalizedContent + GetEmailFooter(model.SenderAccount);
+            // 3. Przygotowanie obrazka (Inline Image) - Logika z poprzedniego kroku
+            var inlineImages = new Dictionary<string, string>();
+            if (senderAccount == "Jakub")
+            {
+                string webRootPath = _webHostEnvironment.WebRootPath;
+                string imagePath = Path.Combine(webRootPath, "cid", "JakubOstrowskiPriceSafari.png");
 
-                var emailAddresses = client.CeneoProfileEmail
-                    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(e => e.Trim())
-                    .Where(e => !string.IsNullOrWhiteSpace(e))
-                    .ToList();
-
-                foreach (var email in emailAddresses)
+                if (System.IO.File.Exists(imagePath))
                 {
-                    // 3. WYSYŁAMY MAILA Z OBRAZKAMI (inlineImages)
-                    await _emailSender.SendEmailFromAccountAsync(
-                        email,
-                        model.EmailSubject,
-                        emailBody,
-                        model.SenderAccount,
-                        inlineImages);
+                    inlineImages.Add("JakubSignature", imagePath);
                 }
+            }
 
+            // 4. Personalizacja treści
+            var personalizedContent = emailContent
+                .Replace("{ClientName}", client.CeneoProfileName)
+                .Replace("{ProductCount}", client.CeneoProfileProductCount.HasValue ? client.CeneoProfileProductCount.ToString() : "");
+
+            // 5. Pobranie stopki i sklejenie całości
+            var emailBody = personalizedContent + GetEmailFooter(senderAccount);
+
+            // 6. Wysyłka (obsługa wielu maili oddzielonych przecinkiem)
+            var emailAddresses = client.CeneoProfileEmail
+                .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(e => e.Trim())
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .ToList();
+
+            bool anySent = false;
+            foreach (var email in emailAddresses)
+            {
+                var sent = await _emailSender.SendEmailFromAccountAsync(
+                    email,
+                    emailSubject,
+                    emailBody,
+                    senderAccount,
+                    inlineImages);
+
+                if (sent) anySent = true;
+            }
+
+            if (anySent)
+            {
+                // 7. Aktualizacja statusu w bazie
                 client.Status = ClientStatus.Mail;
                 client.EmailSentCount += 1;
                 client.LastEmailSentDate = DateTime.Now;
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = $"Wysłano do: {client.CeneoProfileName}" });
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogError(ex, "Błąd podczas wysyłania maila do {Email}", client.CeneoProfileEmail);
+                return Json(new { success = false, message = $"Błąd wysyłki SMTP dla: {client.CeneoProfileName}" });
             }
         }
-
-        await _context.SaveChangesAsync();
-        TempData["SuccessMessage"] = "Wiadomości zostały wysłane pomyślnie.";
-        return RedirectToAction("Index");
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "AJAX Email Error");
+            return Json(new { success = false, message = $"Wyjątek: {ex.Message}" });
+        }
     }
+
+
+
+
+
+
+
 
     private string GetEmailFooter(string senderAccount)
     {

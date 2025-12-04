@@ -6,6 +6,84 @@
 
 <script src="https://cdn.tiny.cloud/1/rsom30sn5tjqgz1iq9v5dkrz3lh5neqdcxvhewzzttaolkgh/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
 
+<style>
+
+    .sending-layout {
+        display: flex;
+        gap: 25px;
+        align-items: flex-start;
+    }
+
+    .sending-left-col {
+        flex: 1;
+        min-width: 0;
+        width:100%;
+    }
+
+    .sending-right-col {
+        width: 650px;
+        flex-shrink: 0;
+        position: sticky;
+
+    }
+
+    #sendingLog {
+        height: 400px;
+        overflow-y: auto;
+        background: #f8f9fa;
+        border: 1px solid #ddd;
+        padding: 10px;
+        font-size: 11px;
+        font-family: monospace;
+        margin-top: 10px;
+        border-radius: 4px;
+        scrollbar-width: thin;
+    }
+
+        #sendingLog::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #sendingLog::-webkit-scrollbar-thumb {
+            background-color: #ccc;
+            border-radius: 4px;
+        }
+
+    .log-item {
+        margin-bottom: 2px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 2px;
+    }
+
+    .status-panel-box {
+        background: white;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        padding: 15px;
+        border-radius: 8px;
+    }
+
+    .status-badge-pending {
+        color: gray;
+        font-weight: bold;
+    }
+
+    .status-badge-progress {
+        color: orange;
+        font-weight: bold;
+    }
+
+    .status-badge-success {
+        color: green;
+        font-weight: bold;
+    }
+
+    .status-badge-error {
+        color: red;
+        font-weight: bold;
+    }
+</style>
+
 <div class="Page-Box">
     <div class="Page-Box-Container">
         <div class="Page-Box-Category">
@@ -14,150 +92,271 @@
             </div>
             <partial name="_ContactNavCol" />
         </div>
+
         <div class="Horizontal">
 
-            <form method="post" asp-action="ConfirmSendEmails">
-                @Html.AntiForgeryToken()
+            @Html.AntiForgeryToken()
 
+            <div id="clientsData" style="display:none;">
                 @foreach (var clientId in Model.SelectedClientIds)
                 {
-                    <input type="hidden" name="SelectedClientIds" value="@clientId" />
+                    <span class="client-id-item" data-id="@clientId"></span>
                 }
+            </div>
 
-                <div style="margin-bottom: 15px; margin-top: 15px; padding: 15px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 4px;">
-                    <label style="font-weight:bold; color: #333;">Wybierz konto wysyłkowe:</label><br />
-                    <select name="SenderAccount" style="padding: 8px; width: 100%; border: 1px solid #ccc; border-radius: 4px;">
-                        <option value="Biuro" selected>Biuro (biuro@pricesafari.pl)</option>
-                        <option value="Jakub">Jakub</option>
-                    </select>
+            <div class="sending-layout">
+
+                <div class="sending-left-col">
+
+                   
+
+                    <div style="margin-bottom: 5px; padding: 10px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 4px;">
+                        <label style="font-weight:bold; color: #333;">Wybierz konto wysyłkowe:</label><br />
+                        <select id="SenderAccount" style="padding: 8px; width: 100%; border: 1px solid #ccc; border-radius: 4px;">
+                            <option value="Biuro" selected>Biuro (biuro@pricesafari.pl)</option>
+                            <option value="Jakub">Jakub (jakub@pricesafari.pl)</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 5px;">
+                        <label style="font-weight:bold;">Wybierz szablon wiadomości:</label><br />
+                        <select id="SelectedMailType" style="padding: 8px; width: 100%; border: 1px solid #ccc; border-radius: 4px;">
+                            @if (Model.AvailableTemplates != null)
+                            {
+                                foreach (var template in Model.AvailableTemplates)
+                                {
+                                    <!option value="@template.Id" @(template.Id == Model.SelectedMailType ? "selected" : "")>
+                                    @template.Name
+                                    </!option>
+                                }
+                            }
+                            else
+                            {
+                                <option value="0">Brak szablonów w bazie</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 5px;">
+                        <label style="font-weight:bold;">Treść wiadomości (edytowalna):</label>
+                        <textarea id="EmailContentEditor" name="EmailContent">
+                            @Html.Raw(Model.EmailContent)
+                        </textarea>
+                    </div>
+
+                    <div>
+                        <label for="EmailSubject" style="font-weight:bold;">Temat Emaila:</label><br />
+                        <input type="text" id="EmailSubject" value="@Model.EmailSubject" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
+                    </div>
+
+                    <div id="actionButtons" style="margin-top:20px;">
+                        <button type="button" class="Button-Page-Small-r" onclick="startSendingProcess()">Rozpocznij wysyłkę</button>
+                        <a asp-action="Index" class="Button-Page-Small-gr">Anuluj</a>
+                    </div>
                 </div>
 
-                <input type="hidden" id="HiddenSelectedMailType" name="SelectedMailType" value="@Model.SelectedMailType" />
+                <div class="sending-right-col">
 
-                <div class="Vert-table" style="height:20vh;">
-                    <table class="table-orders">
-                        <thead>
-                            <tr>
-                                <th>Klienci (@Model.Clients.Count)</th>
-                                <th>E-mail</th>
-                                <th>Ilość produktów</th>
-                                <th>Wysłane</th>
-                                <th>Data</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var client in Model.Clients)
-                            {
+                    <div class="Vert-table" style="max-height: 280px; overflow-y:auto; margin-bottom:10px; margin-top:0px;">
+                        <table class="table-orders">
+                            <thead>
                                 <tr>
-                                    <td>@client.CeneoProfileName</td>
-                                    <td>@client.CeneoProfileEmail</td>
-                                    <td>@client.CeneoProfileProductCount</td>
-                                    <td>@client.EmailSentCount</td>
-                                    <td>@(client.LastEmailSentDate.HasValue? client.LastEmailSentDate.Value.ToString("dd-MM-yyyy HH:mm") : "-")</td>
+                                    <th>Klienci (@Model.Clients.Count)</th>
+                                    <th>E-mail</th>
+                                    <th>Produkty</th>
+                                    <th>Status</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach (var client in Model.Clients)
+                                {
+                                    <tr id="row-client-@client.ClientProfileId">
+                                        <td>@client.CeneoProfileName</td>
+                                        <td>@client.CeneoProfileEmail</td>
+                                        <td>@client.CeneoProfileProductCount</td>
+                                        <td class="status-cell status-badge-pending">Oczekuje</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="progressSection" class="status-panel-box" style="display:none;">
+                        <h4 id="progressStatusText" style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display:inline-block; width:10px; height:10px; border-radius:50%; border:2px solid gray; border-top-color:transparent; animation: spin 1s linear infinite;"></span>
+                            Trwa wysyłanie...
+                        </h4>
+
+                        <div style="width: 100%; background-color: #f3f3f3; border-radius: 10px; height: 20px; margin-bottom: 10px; overflow:hidden;">
+                            <div id="progressBar" style="width: 0%; height: 100%; background-color: #28a745; text-align: center; line-height: 20px; color: white; font-size: 10px; transition: width 0.3s ease;">
+                                0%
+                            </div>
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:10px;">
+                            <span>Postęp:</span>
+                            <span><strong id="sentCount">0</strong> / <span id="totalCount">0</span></span>
+                        </div>
+
+                        <hr style="border-top:1px solid #eee; margin: 10px 0;" />
+
+                        <div style="font-weight:bold; font-size:12px; margin-bottom:5px;">Log zdarzeń:</div>
+
+                        <div id="sendingLog">
+                        </div>
+                    </div>
+
+                    <div id="placeholderRight" style="padding:20px; text-align:center; color:gray; border: 2px dashed #ddd; border-radius:8px;">
+                        <p>Tutaj pojawi się status wysyłki po jej uruchomieniu.</p>
+                    </div>
+
                 </div>
 
-                <input type="hidden" id="HiddenSelectedMailType" name="SelectedMailType" value="@Model.SelectedMailType" />
-
-                <div style="margin-bottom: 15px; margin-top: 15px;">
-                    <label style="font-weight:bold;">Wybierz szablon wiadomości:</label><br />
-                    <select id="SelectedMailType" style="padding: 8px; width: 100%; border: 1px solid #ccc; border-radius: 4px;">
-                        @if (Model.AvailableTemplates != null)
-                        {
-                            foreach (var template in Model.AvailableTemplates)
-                            {
-                                <!option value="@template.Id" @(template.Id == Model.SelectedMailType ? "selected" : "")>
-                                @template.Name
-                                </!option>
-                            }
-                        }
-                        else
-                        {
-                            <option value="0">Brak szablonów w bazie</option>
-                        }
-                    </select>
-                </div>
-
-                <div>
-                    <label style="font-weight:bold;">Treść wiadomości (edytowalna):</label>
-                    <textarea id="EmailContentEditor" name="EmailContent">
-                        @Html.Raw(Model.EmailContent)
-                    </textarea>
-                </div>
-
-                <div style="margin-top: 20px;">
-                    <label for="EmailSubject" style="font-weight:bold;">Temat Emaila:</label><br />
-                    <input type="text" name="EmailSubject" id="EmailSubject" value="@Model.EmailSubject" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
-                </div>
-
-                <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
-                    Dostępne zmienne: <strong>{ProductCount}</strong> (liczba produktów), <strong>{ClientName}</strong> (nazwa firmy).
-                </p>
-
-                <button type="submit" class="Button-Page-Small-r" style="margin-top:10px;">Wyślij E-maile</button>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Inicjalizacja TinyMCE
+
     tinymce.init({
         selector: '#EmailContentEditor',
-        height: 600,
+        height: 500,
         plugins: 'image link code lists',
         toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | code',
         verify_html: false
     });
 
     $(document).ready(function() {
-        // Obsługa zmiany szablonu
         $('#SelectedMailType').change(function() {
             var selectedTemplateId = $(this).val();
-            console.log("Wybrano ID szablonu:", selectedTemplateId);
+            var ids = [];
+            $('.client-id-item').each(function() { ids.push($(this).data('id')); });
 
-            // Aktualizujemy hidden input (żeby formularz wiedział co wysłać, choć teraz ważniejszy jest Content)
-            $('#HiddenSelectedMailType').val(selectedTemplateId);
-
-            var selectedClientIds = [];
-            $('input[name="SelectedClientIds"]').each(function() {
-                selectedClientIds.push(parseInt($(this).val()));
-            });
-
-            // Pobieramy treść i temat z bazy
             $.ajax({
                 url: '/ClientProfile/ChangeMailTypeAjax',
                 type: 'POST',
-                data: {
-                    mailType: parseInt(selectedTemplateId), // To teraz ID z bazy
-                    selectedClientIds: selectedClientIds
-                },
+                data: { mailType: parseInt(selectedTemplateId), selectedClientIds: ids },
                 traditional: true,
                 success: function (response) {
                     if (response) {
-                        // 1. Aktualizacja TinyMCE
-                        if (response.content) {
-                            if (tinymce.get('EmailContentEditor')) {
-                                tinymce.get('EmailContentEditor').setContent(response.content);
-                            } else {
-                                $('#EmailContentEditor').val(response.content);
-                            }
-                        }
-
-                        // 2. Aktualizacja Tematu
-                        if (response.subject) {
-                            $('#EmailSubject').val(response.subject);
-                        }
+                        if (response.content) tinymce.get('EmailContentEditor').setContent(response.content);
+                        if (response.subject) $('#EmailSubject').val(response.subject);
                     }
                 },
-                error: function (xhr) {
-                    console.error("Błąd AJAX:", xhr);
-                    alert('Nie udało się pobrać treści szablonu.');
-                }
+                error: function () { alert('Nie udało się pobrać szablonu.'); }
             });
         });
     });
+
+    async function startSendingProcess() {
+
+        var subject = $('#EmailSubject').val();
+        var content = tinymce.get('EmailContentEditor').getContent();
+        var senderAccount = $('#SenderAccount').val();
+        var token = $('input[name="__RequestVerificationToken"]').val();
+
+        if (!subject || !content) { alert("Uzupełnij temat i treść!"); return; }
+
+        var clientIds = [];
+        $('.client-id-item').each(function() { clientIds.push($(this).data('id')); });
+
+        if (clientIds.length === 0) { alert("Brak klientów."); return; }
+
+        if(!confirm("Rozpocząć wysyłkę do " + clientIds.length + " osób?")) return;
+
+        $('#actionButtons').hide();
+        $('#placeholderRight').hide();
+
+        $('#progressSection').fadeIn();
+
+        $('#totalCount').text(clientIds.length);
+
+        var processedCount = 0;
+
+        for (var i = 0; i < clientIds.length; i++) {
+            var clientId = clientIds[i];
+
+            var rowStatus = $('#row-client-' + clientId + ' .status-cell');
+            rowStatus.text('Wysyłanie...').removeClass('status-badge-pending').addClass('status-badge-progress');
+
+            try {
+                var result = await sendSingleEmail(clientId, subject, content, senderAccount, token);
+
+                if (result.success) {
+                    rowStatus.text('Wysłano').removeClass('status-badge-progress').addClass('status-badge-success');
+                    addLog("OK: " + result.message, "success");
+                } else {
+                    rowStatus.text('Błąd').removeClass('status-badge-progress').addClass('status-badge-error');
+                    addLog("BŁĄD: " + result.message, "error");
+                }
+
+            } catch (error) {
+                rowStatus.text('Awaria').addClass('status-badge-error');
+                addLog("CRITICAL: " + error, "error");
+            }
+
+            processedCount++;
+            var percentage = Math.round((processedCount / clientIds.length) * 100);
+            $('#progressBar').css('width', percentage + '%').text(percentage + '%');
+            $('#sentCount').text(processedCount);
+
+            if (i < clientIds.length - 1) {
+                var delay = Math.floor(Math.random() * (9000 - 3000 + 1) + 3000);
+                addLog("Pauza " + (delay/1000).toFixed(1) + "s...", "normal");
+                await sleep(delay);
+            }
+        }
+
+        $('#progressStatusText').html('<span style="color:green">&#10004;</span> Zakończono proces!');
+        $('#progressBar').css('background-color', '#155724');
+        addLog("--- KONIEC WYSYŁKI ---", "success");
+
+        $('#actionButtons').html('<a href="/ClientProfile/Index" class="Button-Page-Small">Wróć do listy</a>').show();
+    }
+
+    function sendSingleEmail(id, subject, content, sender, token) {
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: '/ClientProfile/SendSingleEmailAjax',
+                type: 'POST',
+                data: {
+                    clientId: id,
+                    emailSubject: subject,
+                    emailContent: content,
+                    senderAccount: sender,
+                    __RequestVerificationToken: token
+                },
+                success: function(res) { resolve(res); },
+                error: function(err) { reject(err); }
+            });
+        });
+    }
+
+    function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+    function addLog(msg, type) {
+        var color = type === 'success' ? '#28a745' : (type === 'error' ? '#dc3545' : '#6c757d');
+        var time = new Date().toLocaleTimeString('pl-PL');
+        var html = `<div class="log-item" style="color:${color}">
+                        <span style="color:#aaa; font-size:10px;">[${time}]</span> ${msg}
+                    </div>`;
+        var logDiv = $('#sendingLog');
+        logDiv.append(html);
+
+        logDiv.scrollTop(logDiv[0].scrollHeight);
+    }
 </script>
+
+<style>
+
+    @@keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
