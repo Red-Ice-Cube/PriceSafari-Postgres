@@ -121,14 +121,39 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction(nameof(Index));
         }
 
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public async Task<IActionResult> PrepareUrls()
-        //{
-        //    var (urlsPrepared, totalProducts) = await _groupingService.GroupAndSaveUrls();
-        //    TempData["SuccessMessage"] = $"Przygotowano {urlsPrepared} unikalnych URL-i z {totalProducts} zebranych produktów.";
-        //    return RedirectToAction(nameof(Index));
-        //}
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PrepareUrls()
+        {
+            // 1. Pobieramy ID wszystkich sklepów, które są "aktywne" (mają Allegro i opłacony abonament)
+            // Dzięki temu przycisk "Przygotuj" zadziała dla wszystkich właściwych sklepów naraz.
+            var activeStoreIds = await _context.Stores
+                .Where(s => s.OnAllegro && s.RemainingDays > 0)
+                .Select(s => s.StoreId)
+                .ToListAsync();
+
+            if (!activeStoreIds.Any())
+            {
+                TempData["ErrorMessage"] = "Nie znaleziono żadnych aktywnych sklepów z włączoną integracją Allegro.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // 2. Wywołujemy serwis przekazując listę ID
+            var (urlsPrepared, totalProducts, processedStores) = await _groupingService.GroupAndSaveUrls(activeStoreIds);
+
+            // 3. Budujemy komunikat dla użytkownika
+            if (urlsPrepared > 0)
+            {
+                var storeNames = string.Join(", ", processedStores);
+                TempData["SuccessMessage"] = $"Sukces! Przygotowano {urlsPrepared} unikalnych URL-i (z {totalProducts} produktów) dla sklepów: {storeNames}.";
+            }
+            else
+            {
+                TempData["InfoMessage"] = "Operacja zakończona, ale nie znaleziono nowych URL-i do przygotowania.";
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
