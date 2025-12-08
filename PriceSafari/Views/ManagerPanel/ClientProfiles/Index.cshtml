@@ -555,34 +555,62 @@
     }
 
     function exportToCsv() {
-        const emails = [];
-        document.querySelectorAll('.select-client:checked').forEach(checkbox => {
-            const row = checkbox.closest('tr');
-          
-            if (row.style.display !== 'none') {
-            
-                const emailCell = row.querySelector('td:nth-child(6)');
+          const rows = [];
 
-                if (emailCell) {
-                    const email = emailCell.innerText.trim();
-                    if (email) {
-                        emails.push(email);
-                    }
-                }
-            }
-        });
+          // Dodajemy nagłówek do pliku CSV
+          rows.push("Nazwa Sklepu;Email");
 
-        if (emails.length === 0) { alert('Wybierz klientów lub brak maili w zaznaczonych rekordach!'); return; }
+          document.querySelectorAll('.select-client:checked').forEach(checkbox => {
+              const row = checkbox.closest('tr');
 
-        let csvContent = "Email\n" + emails.join("\n");
-        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = "eksport_maili.csv";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
+              // Sprawdzamy czy wiersz jest widoczny (nie został ukryty przez filtry)
+              if (row.style.display !== 'none') {
+
+                  // 1. SPRAWDZANIE STATUSU "FRAJER"
+                  // Status jest w 9 kolumnie (td:nth-child(9)), wewnątrz span.badge
+                  const statusCell = row.querySelector('td:nth-child(9)');
+                  if (statusCell) {
+                      const statusText = statusCell.innerText.trim();
+                      // Jeśli status to Frajer, używamy 'return' żeby przeskoczyć do następnego checkboxa (continue)
+                      if (statusText === 'Frajer') {
+                          return;
+                      }
+                  }
+
+                  // 2. POBIERANIE DANYCH
+                  // Nazwa sklepu jest w 4 kolumnie
+                  const nameCell = row.querySelector('td:nth-child(4)');
+                  // Email jest w 6 kolumnie
+                  const emailCell = row.querySelector('td:nth-child(6)');
+
+                  if (nameCell && emailCell) {
+                      // Czyścimy nazwę sklepu ze średników (żeby nie psuły CSV) i białych znaków
+                      let name = nameCell.innerText.trim().replace(/;/g, "");
+                      let email = emailCell.innerText.trim();
+
+                      if (email) {
+                          // Dodajemy wiersz w formacie: Nazwa;Email
+                          rows.push(`${name};${email}`);
+                      }
+                  }
+              }
+          });
+
+          // Jeśli tablica ma tylko 1 element (nagłówek), to znaczy że nic nie wybrano
+          if (rows.length <= 1) {
+              alert('Wybrano 0 klientów do eksportu albo to sami JEBANI FRAJERZY.');
+              return;
+          }
+
+          let csvContent = rows.join("\n");
+          const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = "eksport_sklepy_maile.csv";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+      }
 
     function sendEmails() {
         var selectedIds = [];
