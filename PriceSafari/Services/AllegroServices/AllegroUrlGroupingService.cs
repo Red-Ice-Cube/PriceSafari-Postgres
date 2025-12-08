@@ -23,11 +23,46 @@ namespace PriceSafari.Services.AllegroServices
                 return 0;
             }
 
-            var lastPart = url.Split('-').LastOrDefault();
-
-            if (long.TryParse(lastPart, out long offerId))
+            try
             {
-                return offerId;
+                // 1. Najpierw sprawdzamy, czy w URL jest parametr "offerId" (DLA NOWYCH LINKÓW)
+                if (url.Contains("offerId="))
+                {
+                    var uri = new Uri(url);
+                    // Proste parsowanie query stringa bez dodatkowych bibliotek
+                    var query = uri.Query.TrimStart('?');
+                    var queryParams = query.Split('&');
+
+                    foreach (var param in queryParams)
+                    {
+                        var parts = param.Split('=');
+                        if (parts.Length == 2 && parts[0].Equals("offerId", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (long.TryParse(parts[1], out long idFromQuery))
+                            {
+                                return idFromQuery;
+                            }
+                        }
+                    }
+                }
+
+                // 2. Jeśli nie znaleziono w parametrach, stosujemy starą metodę (DLA LINKÓW /oferta/)
+                // Ale musimy najpierw usunąć wszystko od znaku '?' w prawo, żeby nie psuło parsowania
+                var urlWithoutQuery = url.Split('?')[0];
+
+                // Zabezpieczenie przed końcowym slashem
+                urlWithoutQuery = urlWithoutQuery.TrimEnd('/');
+
+                var lastPart = urlWithoutQuery.Split('-').LastOrDefault();
+
+                if (long.TryParse(lastPart, out long idFromPath))
+                {
+                    return idFromPath;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Błąd podczas parsowania ID z URL: {Url}", url);
             }
 
             _logger.LogWarning("Nie udało się wyodrębnić ID oferty z URL: {Url}", url);
