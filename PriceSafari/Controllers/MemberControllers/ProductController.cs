@@ -87,14 +87,15 @@ namespace PriceSafari.Controllers
             ViewBag.StoreId = storeId;
 
             var flags = await _context.Flags
-                .Where(f => !f.IsMarketplace)
-                .Select(f => new FlagViewModel
-                {
-                    FlagId = f.FlagId,
-                    FlagName = f.FlagName,
-                    FlagColor = f.FlagColor
-                })
-                .ToListAsync();
+         .Where(f => !f.IsMarketplace && f.StoreId == storeId) // <--- TUTAJ POPRAWKA: dodano && f.StoreId == storeId
+         .Select(f => new FlagViewModel
+         {
+             FlagId = f.FlagId,
+             FlagName = f.FlagName,
+             FlagColor = f.FlagColor
+         })
+         .ToListAsync();
+
             ViewBag.Flags = flags;
 
             return View("~/Views/Panel/Product/ProductList.cshtml");
