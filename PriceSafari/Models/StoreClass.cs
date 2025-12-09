@@ -50,8 +50,10 @@ namespace PriceSafari.Models
         public string? StoreNameCeneo { get; set; }
 
         public bool UseGoogleXMLFeedPrice { get; set; } = false;
+        // to dodalem 
+        public bool UseGoogleCeneoFeedPrice { get; set; } = false;
 
-        //nowa zmienna
+        
 
         [Display(Name = "Pobieraj dane z API Sklepu")]
         public bool FetchExtendedData { get; set; } = false;

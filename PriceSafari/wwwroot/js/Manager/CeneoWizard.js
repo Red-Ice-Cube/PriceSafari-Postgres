@@ -1,5 +1,7 @@
 ﻿const ceneoDataEl = document.getElementById("ceneo-wizard-data");
 const storeId = parseInt(ceneoDataEl.getAttribute("data-store-id") || "0", 10);
+const xmlContainer = document.getElementById("xmlContainer"); // Dodano referencję
+
 let existingMappingsJson = ceneoDataEl.getAttribute("data-existing-mappings") || "[]";
 let existingMappings = [];
 try {
@@ -21,6 +23,7 @@ let mappingForField = {
     CeneoDeliveryXMLPrice: null
 };
 
+// Inicjalizacja pustych mapowań
 existingMappings.forEach(m => {
     if (m.fieldName && mappingForField.hasOwnProperty(m.fieldName)) {
         mappingForField[m.fieldName] = {
@@ -32,41 +35,119 @@ existingMappings.forEach(m => {
 });
 
 let xmlDoc = null;
-
 let proxyUrl = `/CeneoImportWizardXml/ProxyXml?storeId=${storeId}`;
+
+// --- NOWA FUNKCJA: Przetwarzanie stringa XML (używana przez Sieć i Plik lokalny) ---
+function processXmlString(xmlStr, sourceDescription) {
+    console.log(`--- Rozpoczynanie przetwarzania XML ${sourceDescription} ---`);
+
+    if (xmlContainer) {
+        xmlContainer.innerHTML = `<i>Parsowanie XML (${sourceDescription})...</i>`;
+    }
+
+    if (!xmlStr || xmlStr.trim().length === 0) {
+        const msg = `Błąd: Otrzymano pusty ciąg XML z ${sourceDescription}.`;
+        console.error(msg);
+        if (xmlContainer) xmlContainer.innerText = msg;
+        return;
+    }
+
+    let parser = new DOMParser();
+    xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+
+    // Obsługa błędów parsera
+    if (!xmlDoc || xmlDoc.documentElement.nodeName === "parsererror" || xmlDoc.getElementsByTagName("parsererror").length > 0) {
+        let errorContent = "Błąd parsowania XML";
+        const parserError = xmlDoc.getElementsByTagName("parsererror")[0];
+        if (parserError) {
+            errorContent = parserError.textContent;
+        } else if (xmlDoc.documentElement) {
+            errorContent = xmlDoc.documentElement.textContent;
+        }
+
+        console.error(`Błąd parsowania XML z ${sourceDescription}:`, errorContent);
+        if (xmlContainer) {
+            xmlContainer.innerText = `Błąd parsowania XML (${sourceDescription}):\n` + errorContent;
+        }
+        xmlDoc = null;
+        return;
+    }
+
+    console.log(`XML z ${sourceDescription} sparsowany pomyślnie.`);
+    if (xmlContainer) xmlContainer.innerHTML = ''; // Wyczyść komunikat o ładowaniu
+
+    try {
+        if (xmlDoc.documentElement) {
+            buildXmlTree(xmlDoc.documentElement, "");
+            applyExistingMappings();
+            renderMappingTable(); // Odśwież tabelę po załadowaniu nowego XML
+        } else {
+            throw new Error("Dokument XML nie zawiera elementu głównego.");
+        }
+    } catch (e) {
+        console.error(`Błąd podczas budowania drzewa lub stosowania mapowań z ${sourceDescription}:`, e);
+        if (xmlContainer) xmlContainer.innerText = `Wystąpił błąd: ${e.message}`;
+    }
+}
+
+// --- 1. Ładowanie z Sieci (Automatycznie na start) ---
+console.log(`Próba załadowania XML z sieci: ${proxyUrl}`);
+if (xmlContainer) xmlContainer.innerHTML = `<i>Ładowanie XML z sieci...</i>`;
 
 fetch(proxyUrl)
     .then(resp => {
-        if (!resp.ok) {
-            throw new Error(`Błąd HTTP ${resp.status}: ${resp.statusText}`);
-        }
+        if (!resp.ok) throw new Error(`Błąd HTTP ${resp.status}: ${resp.statusText}`);
         return resp.text();
     })
     .then(xmlStr => {
-        let parser = new DOMParser();
-        xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+        // Opcjonalne czyszczenie BOM itp. (jak w Google Wizard)
+        let cleanStr = xmlStr;
+        if (cleanStr.charCodeAt(0) === 65279) cleanStr = cleanStr.substring(1);
+        processXmlString(cleanStr, "Sieć");
+    })
+    .catch(err => {
+        if (xmlContainer) {
+            xmlContainer.innerText = "Błąd pobierania z sieci:\n" + err + "\nMożesz spróbować wczytać plik lokalnie.";
+        }
+        console.error("Błąd fetch XML:", err);
+    });
 
-        if (xmlDoc.documentElement.nodeName === "parsererror" || xmlDoc.getElementsByTagName("parsererror").length > 0) {
-            let errorMsg = "Błąd parsowania XML:\n";
-            const parserError = xmlDoc.getElementsByTagName("parsererror")[0];
-            if (parserError) {
-                errorMsg += parserError.textContent;
-            } else {
-                errorMsg += xmlDoc.documentElement.textContent;
-            }
-            document.getElementById("xmlContainer").innerText = errorMsg;
-            xmlDoc = null;
+// --- 2. Ładowanie z Pliku Lokalnego (Obsługa przycisku) ---
+const processButton = document.getElementById('processXmlButton');
+if (processButton) {
+    processButton.addEventListener('click', () => {
+        const fileInput = document.getElementById('xmlFileInput');
+
+        if (!fileInput) {
+            alert('Błąd: Nie znaleziono elementu do wyboru pliku.');
             return;
         }
 
-        buildXmlTree(xmlDoc.documentElement, "");
-        applyExistingMappings();
-    })
-    .catch(err => {
-        document.getElementById("xmlContainer").innerText =
-            "Błąd pobierania lub parsowania XML:\n" + err;
-        console.error("Błąd fetch/parse XML:", err);
+        if (fileInput.files.length === 0) {
+            alert('Najpierw wybierz plik XML/TXT.');
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function (event) {
+            processXmlString(event.target.result, `Plik lokalny (${file.name})`);
+        };
+
+        reader.onerror = function (event) {
+            console.error("Błąd odczytu pliku lokalnego:", event.target.error);
+            if (xmlContainer) {
+                xmlContainer.innerText = 'Błąd odczytu pliku lokalnego: ' + event.target.error;
+            }
+        };
+
+        if (xmlContainer) {
+            xmlContainer.innerHTML = `<i>Wczytywanie pliku lokalnego: ${file.name}...</i>`;
+        }
+        reader.readAsText(file);
     });
+}
 
 function buildXmlTree(node, parentPath) {
     let container = document.getElementById("xmlContainer");
