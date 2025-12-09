@@ -293,7 +293,19 @@
 
                   
                         <td>
-                            <div class="store-name">@invoice.Store?.StoreName</div>
+                            <div class="store-name">
+                                @if (invoice.Store != null)
+                                {
+                                    @invoice.Store.StoreName
+                                }
+                                else
+                                {
+                                    <span style="color: #e74a3b; text-decoration: line-through;" title="Sklep został usunięty z systemu">
+                                        @(invoice.ArchivedStoreName ?? "Nieznany sklep")
+                                    </span>
+                                }
+                            </div>
+
                             @if (!string.IsNullOrEmpty(invoice.NIP))
                             {
                                 <span class="nip-text">NIP: @invoice.NIP</span>

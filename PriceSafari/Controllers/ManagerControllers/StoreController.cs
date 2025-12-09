@@ -316,10 +316,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                 while (true)
                 {
                     int deleted = await _context.Database.ExecuteSqlRawAsync($@"
-                DELETE TOP({chunkSize}) PF
-                FROM [ProductFlags] AS PF
-                JOIN [Flags] AS F ON PF.FlagId = F.FlagId
-                WHERE F.StoreId = @storeId",
+        DELETE TOP({chunkSize}) PF 
+        FROM [ProductFlags] AS PF
+        JOIN [Flags] AS F ON PF.FlagId = F.FlagId
+        WHERE F.StoreId = @storeId",
                         new SqlParameter("@storeId", storeId)
                     );
                     totalProductFlagsDeleted += deleted;
@@ -332,28 +332,45 @@ namespace PriceSafari.Controllers.ManagerControllers
                 while (true)
                 {
                     int deleted = await _context.Database.ExecuteSqlRawAsync($@"
-                ;WITH OffersToDelete AS (
-                    SELECT TOP({chunkSize}) AOTS.Id
-                    FROM AllegroOffersToScrape AS AOTS
-                    CROSS APPLY (
-                        SELECT CAST('<id>' + REPLACE(LTRIM(RTRIM(REPLACE(REPLACE(AOTS.AllegroProductIds, '[', ''), ']', ''))), ',', '</id><id>') + '</id>' AS XML) AS ProductIdsXml
-                    ) AS XmlData
-                    CROSS APPLY (
-                        SELECT n.value('.', 'int') AS ProductId
-                        FROM XmlData.ProductIdsXml.nodes('/id') AS t(n)
-                    ) AS ParsedIds
-                    WHERE ParsedIds.ProductId IN (
-                        SELECT AP.AllegroProductId FROM AllegroProducts AS AP WHERE AP.StoreId = @storeId
-                    ) AND AOTS.AllegroProductIds != '[]' AND AOTS.AllegroProductIds IS NOT NULL
-                )
-                DELETE FROM AllegroOffersToScrape
-                WHERE Id IN (SELECT Id FROM OffersToDelete);",
+        ;WITH OffersToDelete AS (
+            SELECT TOP({chunkSize}) AOTS.Id
+            FROM AllegroOffersToScrape AS AOTS
+            CROSS APPLY (
+                SELECT CAST('<id>' + REPLACE(LTRIM(RTRIM(REPLACE(REPLACE(AOTS.AllegroProductIds, '[', ''), ']', ''))), ',', '</id><id>') + '</id>' AS XML) AS ProductIdsXml
+            ) AS XmlData
+            CROSS APPLY (
+                SELECT n.value('.', 'int') AS ProductId
+                FROM XmlData.ProductIdsXml.nodes('/id') AS t(n)
+            ) AS ParsedIds
+            WHERE ParsedIds.ProductId IN (
+                SELECT AP.AllegroProductId FROM AllegroProducts AS AP WHERE AP.StoreId = @storeId
+            ) AND AOTS.AllegroProductIds != '[]' AND AOTS.AllegroProductIds IS NOT NULL
+        )
+        DELETE FROM AllegroOffersToScrape 
+        WHERE Id IN (SELECT Id FROM OffersToDelete);",
                         new SqlParameter("@storeId", storeId)
                     );
                     totalOffersDeleted += deleted;
                     if (deleted == 0) break;
                     Console.WriteLine($"[AllegroOffersToScrape] - usunięto {deleted} rekordów (łącznie {totalOffersDeleted}).");
                 }
+
+                // =================================================================================
+                // ZABEZPIECZENIE FAKTUR (Zamiast usuwania)
+                // =================================================================================
+                Console.WriteLine($"Zabezpieczanie faktur dla StoreId={storeId} (archiwizacja nazwy i odpięcie)...");
+
+                // Kopiujemy nazwę sklepu do ArchivedStoreName i ustawiamy StoreId na NULL
+                int securedInvoices = await _context.Database.ExecuteSqlRawAsync(@"
+            UPDATE Invoices 
+            SET 
+                ArchivedStoreName = (SELECT StoreName FROM Stores WHERE Stores.StoreId = Invoices.StoreId),
+                StoreId = NULL 
+            WHERE StoreId = @storeId",
+                    new SqlParameter("@storeId", storeId)
+                );
+                Console.WriteLine($"Zaktualizowano {securedInvoices} faktur (zachowano w systemie).");
+                // =================================================================================
 
                 await DeleteInChunksAsync("Products", "StoreId", storeId, chunkSize);
                 await DeleteInChunksAsync("Categories", "StoreId", storeId, chunkSize);
@@ -362,7 +379,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                 await DeleteInChunksAsync("Flags", "StoreId", storeId, chunkSize);
                 await DeleteInChunksAsync("UserStores", "StoreId", storeId, chunkSize);
                 await DeleteInChunksAsync("PriceSafariReports", "StoreId", storeId, chunkSize);
-                await DeleteInChunksAsync("Invoices", "StoreId", storeId, chunkSize);
+
+                // UWAGA: Usunąłem linię: await DeleteInChunksAsync("Invoices", "StoreId", storeId, chunkSize);
+                // Faktury zostały zabezpieczone wyżej kodem UPDATE.
+
                 await DeleteInChunksAsync("AllegroProducts", "StoreId", storeId, chunkSize);
                 await DeleteInChunksAsync("AllegroScrapeHistories", "StoreId", storeId, chunkSize);
 
@@ -374,7 +394,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 await transaction.CommitAsync();
 
-                Console.WriteLine($"Zakończono pomyślnie usuwanie Store o ID={storeId} wraz z powiązanymi danymi.");
+                Console.WriteLine($"Zakończono pomyślnie usuwanie Store o ID={storeId} wraz z powiązanymi danymi (faktury zachowano).");
 
                 return RedirectToAction("Index");
             }
@@ -386,6 +406,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return RedirectToAction("Index");
             }
         }
+
 
         private async Task<int> DeleteInChunksAsync(string tableName, string whereColumn, int storeId, int chunkSize)
         {
