@@ -12,10 +12,13 @@ namespace PriceSafari.Models
         [Display(Name = "Numer Faktury")]
         public string InvoiceNumber { get; set; }
 
-        [Required]
+     
         [Display(Name = "Sklep")]
-        public int StoreId { get; set; }
-        public StoreClass Store { get; set; }
+        public int? StoreId { get; set; }
+        public StoreClass? Store { get; set; }
+
+        [Display(Name = "Nazwa sklepu (Archiwalna)")]
+        public string? ArchivedStoreName { get; set; }
 
         [Required]
         [Display(Name = "Plan")]

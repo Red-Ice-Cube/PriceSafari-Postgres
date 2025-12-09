@@ -290,6 +290,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return RedirectToAction("ProductList", new { storeId });
         }
+
         [HttpPost]
         public async Task<IActionResult> DeleteStore(int storeId)
         {

@@ -336,6 +336,12 @@ namespace PriceSafari.Data
                       .HasForeignKey(i => i.ProductId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
-        }
+
+            modelBuilder.Entity<InvoiceClass>()
+                .HasOne(i => i.Store)
+                .WithMany(s => s.Invoices) // Upewnij się, że w StoreClass jest kolekcja Invoices, jeśli nie - usuń tę linię
+                .HasForeignKey(i => i.StoreId)
+                .OnDelete(DeleteBehavior.SetNull);
+                }
     }
 }
