@@ -142,6 +142,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.StoreSystemType = store.StoreSystemType;
 
             existingStore.UseGoogleXMLFeedPrice = store.UseGoogleXMLFeedPrice;
+            existingStore.UseCeneoXMLFeedPrice = store.UseCeneoXMLFeedPrice;
             existingStore.OnCeneo = store.OnCeneo;
             existingStore.OnGoogle = store.OnGoogle;
             existingStore.OnAllegro = store.OnAllegro;

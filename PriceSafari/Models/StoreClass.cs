@@ -51,7 +51,7 @@ namespace PriceSafari.Models
 
         public bool UseGoogleXMLFeedPrice { get; set; } = false;
         // to dodalem 
-        public bool UseGoogleCeneoFeedPrice { get; set; } = false;
+        public bool UseCeneoXMLFeedPrice { get; set; } = false;
 
         
 
