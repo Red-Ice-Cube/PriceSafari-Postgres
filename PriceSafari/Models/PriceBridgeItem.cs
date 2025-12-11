@@ -36,6 +36,10 @@ namespace PriceSafari.Models
         public string? RankingGoogleAfterSimulated { get; set; }
         public string? RankingCeneoAfterSimulated { get; set; }
 
+        public string? Mode { get; set; }
+        public decimal? PriceIndexTarget { get; set; }
+        public decimal? StepPriceApplied { get; set; }
+
         public bool Success { get; set; } = true; // W tym modelu eksport zawsze zakłada sukces
     }
 }

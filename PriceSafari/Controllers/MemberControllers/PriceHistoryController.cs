@@ -1771,14 +1771,12 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var userId = _userManager.GetUserId(User);
 
-
             PriceExportMethod method;
             if (!Enum.TryParse(exportType, true, out method))
             {
-                method = PriceExportMethod.Csv; 
+                method = PriceExportMethod.Csv;
             }
 
-       
             var latestScrapId = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -1787,7 +1785,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (latestScrapId == 0) return BadRequest("Brak historii scrapowania.");
 
-      
             var batch = new PriceBridgeBatch
             {
                 StoreId = storeId,
@@ -1795,10 +1792,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 UserId = userId,
                 ExecutionDate = DateTime.Now,
                 SuccessfulCount = items.Count,
-
-           
                 ExportMethod = method,
-
                 BridgeItems = new List<PriceBridgeItem>()
             };
 
@@ -1811,12 +1805,16 @@ namespace PriceSafari.Controllers.MemberControllers
                     PriceAfter = item.NewPrice,
                     MarginPrice = item.MarginPrice,
 
-               
                     RankingGoogleBefore = item.CurrentGoogleRanking,
                     RankingCeneoBefore = item.CurrentCeneoRanking,
 
                     RankingGoogleAfterSimulated = item.NewGoogleRanking,
                     RankingCeneoAfterSimulated = item.NewCeneoRanking,
+
+                    // --- MAPPING NEW FIELDS ---
+                    Mode = item.Mode,
+                    PriceIndexTarget = item.PriceIndexTarget,
+                    StepPriceApplied = item.StepPriceApplied,
 
                     Success = true
                 });
@@ -1888,7 +1886,9 @@ namespace PriceSafari.Controllers.MemberControllers
                     rankingCeneoBefore = i.RankingCeneoBefore,
                     rankingGoogleAfter = i.RankingGoogleAfterSimulated,
                     rankingCeneoAfter = i.RankingCeneoAfterSimulated,
-
+                    mode = i.Mode,
+                    priceIndexTarget = i.PriceIndexTarget,
+                    stepPriceApplied = i.StepPriceApplied,
                     success = i.Success
                 }).ToList()
             }).ToList();
