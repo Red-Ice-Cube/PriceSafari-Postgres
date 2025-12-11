@@ -62,12 +62,7 @@
 
 
 
-        /* Opcjonalnie: upewnij się, że tabela wewnątrz nie robi podwójnego scrolla
-        .modal-simulation .table-scroll {
-            height: auto !important;
-            max-height: none !important;
-            overflow: visible !important;
-        } */
+
 
 </style>
 
@@ -76,11 +71,17 @@
         <div class="Page-Box-Container">
             <div class="Page-Box-Category">
                 <div><img src="@storeLogo" class="img-container" /></div>
+
+                <div class="mode-switch-container">
+                    <button class="mode-switch-btn active" onclick="switchMode('competitiveness')" id="btn-mode-comp">Konkurencja</button>
+                    <button class="mode-switch-btn" onclick="switchMode('profit')" id="btn-mode-profit">Zysk / Indeks</button>
+                </div>
+
                 <div class="side-chart-box">
                     <canvas id="colorChart"></canvas>
                 </div>
 
-                <div class="store-section">
+                <div class="store-section" id="filters-competitiveness">
 
                     <div class="form-check">
                         <input class="form-check-input colorFilter" type="checkbox" id="prNoOfferCheckbox" value="prNoOffer">
@@ -145,6 +146,57 @@
 
                     </div>
                     <button class="Button-Page-Small" style="margin-top: 4px;" id="savePriceValues">Przelicz i zapisz</button>
+                </div>
+
+                <div class="store-section" id="filters-profit" style="display: none;">
+
+                    <div class="price-range-settings" style="margin-bottom: 8px;">
+                        <div class="color-circle market-deep-discount-circle"></div>
+                        <label class="form-check-label" for="bucketDeepDiscount">Super Okazja (< -15%)</label>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketDeepDiscount" value="market-deep-discount">
+                    </div>
+
+                    <div class="price-range-settings" style="margin-bottom: 8px;">
+                        <div class="color-circle market-below-average-circle"></div>
+                        <label class="form-check-label" for="bucketBelowAverage">Poniżej średniej (-15% do -2%)</label>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketBelowAverage" value="market-below-average">
+                    </div>
+
+                    <div class="price-range-settings" style="margin-bottom: 8px;">
+                        <div class="color-circle market-average-circle"></div>
+                        <label class="form-check-label" for="bucketAverage">Poziom Rynku (+/- 2%)</label>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketAverage" value="market-average">
+                    </div>
+
+                    <div class="price-range-settings" style="margin-bottom: 8px;">
+                        <div class="color-circle market-above-average-circle"></div>
+                        <label class="form-check-label" for="bucketAboveAverage">Powyżej średniej (+2% do +15%)</label>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketAboveAverage" value="market-above-average">
+                    </div>
+
+                    <div class="price-range-settings" style="margin-bottom: 8px;">
+                        <div class="color-circle market-overpriced-circle"></div>
+                        <label class="form-check-label" for="bucketOverpriced">Przeszacowane (> +15%)</label>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketOverpriced" value="market-overpriced">
+                    </div>
+
+                    <div class="price-range-settings" style="margin-bottom: 8px;">
+                        <div class="color-circle market-solo-circle"></div>
+                        <label class="form-check-label" for="bucketSolo">Solo (Brak konkurencji)</label>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketSolo" value="market-solo">
+                    </div>
+
+                    <hr style="margin: 10px 0; border-top: 1px solid #eee;">
+
+                    <div style="font-size: 13px; color: #666; margin-bottom: 5px;">Symulacja:</div>
+
+                    <div class="price-range-settings">
+                        <div class="legendBox">Krok cenowy</div>
+                        <input type="number" id="stepPrice_profit" value="@ViewBag.StepPrice" step="0.01">
+                        <span style="font-size:12px;">PLN/%</span>
+                    </div>
+                    <button class="Button-Page-Small" style="margin-top: 8px; width:100%;" id="savePriceValues_profit">Przelicz</button>
+
                 </div>
 
                 <div class="filterBox">

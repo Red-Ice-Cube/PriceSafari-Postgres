@@ -164,8 +164,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     i.Batch.ScrapHistoryId == latestScrap.Id)
         .ToListAsync();
 
-            // Grupujemy po ProductId, aby wziąć tylko NAJNOWSZĄ zmianę dla danego produktu 
-            // (w przypadku gdy użytkownik generował kilka plików eksportu po kolei)
+ 
             var committedLookup = bridgeItems
                 .GroupBy(i => i.ProductId)
                 .ToDictionary(
@@ -308,296 +307,292 @@ namespace PriceSafari.Controllers.MemberControllers
                 );
             }
             var allPrices = rawPrices
-                .GroupBy(p => p.ProductId)
-                .Select(g =>
-                {
-                    var productGroup = g.ToList();
-                    var product = productGroup.First();
-                    var validPrices = productGroup.Where(x => x.Price.HasValue).ToList();
+                   .GroupBy(p => p.ProductId)
+                   .Select(g =>
+                   {
+                       var productGroup = g.ToList();
+                       var product = productGroup.First();
+                       var validPrices = productGroup.Where(x => x.Price.HasValue).ToList();
 
-                    var myPriceEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower() == storeNameLower).ToList();
-                    var myPriceEntry = myPriceEntries.OrderByDescending(x => x.IsGoogle == false).FirstOrDefault();
-                    var myPrice = myPriceEntry?.Price;
+                       var myPriceEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower() == storeNameLower).ToList();
+                       var myPriceEntry = myPriceEntries.OrderByDescending(x => x.IsGoogle == false).FirstOrDefault();
+                       var myPrice = myPriceEntry?.Price;
 
-                    var allCompetitorEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower() != storeNameLower).ToList();
-                    var presetFilteredCompetitorPrices = new List<PriceRowDto>();
-                    var committedItem = committedLookup.GetValueOrDefault(g.Key);
+                       // Filtrowanie cen konkurencji (Zastosowanie presetu)
+                       var allCompetitorEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower() != storeNameLower).ToList();
+                       var presetFilteredCompetitorPrices = new List<PriceRowDto>();
+                       var committedItem = committedLookup.GetValueOrDefault(g.Key);
 
-                    if (competitorItemsDict != null)
-                    {
-                        foreach (var row in allCompetitorEntries)
-                        {
-                            DataSourceType currentSource = row.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
-                            var key = (Store: (row.StoreName ?? "").ToLower().Trim(), Source: currentSource);
+                       if (competitorItemsDict != null)
+                       {
+                           foreach (var row in allCompetitorEntries)
+                           {
+                               DataSourceType currentSource = row.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
+                               var key = (Store: (row.StoreName ?? "").ToLower().Trim(), Source: currentSource);
 
-                            if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
-                            {
-                                if (useCompetitor) presetFilteredCompetitorPrices.Add(row);
-                            }
-                            else if (activePreset.UseUnmarkedStores)
-                            {
-                                presetFilteredCompetitorPrices.Add(row);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        presetFilteredCompetitorPrices = allCompetitorEntries;
-                    }
+                               if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
+                               {
+                                   if (useCompetitor) presetFilteredCompetitorPrices.Add(row);
+                               }
+                               else if (activePreset.UseUnmarkedStores)
+                               {
+                                   presetFilteredCompetitorPrices.Add(row);
+                               }
+                           }
+                       }
+                       else
+                       {
+                           presetFilteredCompetitorPrices = allCompetitorEntries;
+                       }
 
-                    var presetFilteredValidPrices = new List<PriceRowDto>(presetFilteredCompetitorPrices);
-                    if (myPriceEntry != null)
-                    {
-                        presetFilteredValidPrices.Add(myPriceEntry);
-                    }
-                    bool onlyMe = !presetFilteredCompetitorPrices.Any() && myPriceEntry != null;
+                       // --- LOGIKA ISTNIEJĄCA (Najlepsza cena) ---
+                       var presetFilteredValidPrices = new List<PriceRowDto>(presetFilteredCompetitorPrices);
+                       if (myPriceEntry != null) presetFilteredValidPrices.Add(myPriceEntry);
 
-                    var bestCompetitorPriceEntry = presetFilteredCompetitorPrices
-                        .OrderBy(x => x.Price)
-                        .ThenBy(x => x.StoreName)
-                        .ThenByDescending(x => x.IsGoogle == false)
-                        .FirstOrDefault();
-                    var bestCompetitorPrice = bestCompetitorPriceEntry?.Price;
+                       bool onlyMe = !presetFilteredCompetitorPrices.Any() && myPriceEntry != null;
 
-                    PriceRowDto finalBestPriceEntry = bestCompetitorPriceEntry;
-                    decimal? finalBestPrice = bestCompetitorPrice;
+                       var bestCompetitorPriceEntry = presetFilteredCompetitorPrices
+                           .OrderBy(x => x.Price)
+                           .ThenBy(x => x.StoreName)
+                           .ThenByDescending(x => x.IsGoogle == false)
+                           .FirstOrDefault();
+                       var bestCompetitorPrice = bestCompetitorPriceEntry?.Price;
 
-                    bool iAmEffectivelyTheBest = false;
-                    if (myPrice.HasValue)
-                    {
-                        if (!bestCompetitorPrice.HasValue)
-                        {
-                            iAmEffectivelyTheBest = true;
-                        }
+                       PriceRowDto finalBestPriceEntry = bestCompetitorPriceEntry;
+                       decimal? finalBestPrice = bestCompetitorPrice;
 
-                        else if (myPrice.Value <= bestCompetitorPrice.Value)
-                        {
-                            iAmEffectivelyTheBest = true;
-                        }
-                    }
+                       // --- NOWA LOGIKA: OBLICZANIE ŚREDNIEJ RYNKOWEJ (MEDIANY) ---
+                       decimal? marketAveragePrice = null; // To będzie nasza Mediana
+                       decimal? marketPriceIndex = null;   // Odchylenie w %
+                       string marketBucket = "market-neutral"; // Domyślny kubełek
 
-                    string myPricePositionString = "N/A / 0";
-                    var totalValidOffers = presetFilteredValidPrices.Count();
-                    if (myPrice.HasValue && totalValidOffers > 0)
-                    {
-                        var myStorePriceValue = myPrice.Value;
-                        int pricesLower = presetFilteredValidPrices.Count(vp => vp.Price.HasValue && vp.Price.Value < myStorePriceValue);
-                        int pricesEqual = presetFilteredValidPrices.Count(vp => vp.Price.HasValue && vp.Price.Value == myStorePriceValue);
-                        int rankStart = pricesLower + 1; int rankEnd = pricesLower + pricesEqual;
-                        myPricePositionString = (rankStart == rankEnd) ? $"{rankStart}/{totalValidOffers}" : $"{rankStart}-{rankEnd}/{totalValidOffers}";
-                    }
-                    else if (totalValidOffers > 0)
-                    {
-                        myPricePositionString = $"N/A / {totalValidOffers}";
-                    }
+                       // Pobieramy same ceny konkurencji do listy decimal
+                       var competitorPricesOnly = presetFilteredCompetitorPrices
+                           .Where(x => x.Price.HasValue && x.Price.Value > 0)
+                           .Select(x => x.Price.Value)
+                           .ToList();
 
-                    decimal? priceDifference = null;
-                    decimal? percentageDifference = null;
-                    decimal? savings = null;
-                    bool isUniqueBestPrice = false;
-                    bool isRejectedDueToZeroPrice = false;
-                    int? myPosition = myPriceEntry?.Position;
+                       if (competitorPricesOnly.Count > 0)
+                       {
+                           // 1. Obliczamy Medianę
+                           marketAveragePrice = CalculateMedian(competitorPricesOnly);
 
-                    if (product.IsRejected || (myPrice.HasValue && myPrice.Value == 0) || (bestCompetitorPrice.HasValue && bestCompetitorPrice.Value == 0))
-                    {
-                        isRejectedDueToZeroPrice = true;
-                    }
+                           // 2. Obliczamy Index i Bucket jeśli mamy swoją cenę i medianę
+                           if (marketAveragePrice.HasValue && myPrice.HasValue && myPrice.Value > 0 && marketAveragePrice.Value > 0)
+                           {
+                               // Różnica w %: (Nasza - Rynek) / Rynek * 100
+                               // Wynik dodatni = jesteśmy drożsi. Wynik ujemny = jesteśmy tańsi.
+                               decimal diff = myPrice.Value - marketAveragePrice.Value;
+                               marketPriceIndex = Math.Round((diff / marketAveragePrice.Value) * 100, 2);
 
-                    if (myPrice.HasValue && bestCompetitorPrice.HasValue && bestCompetitorPrice.Value <= myPrice.Value)
-                    {
-                        priceDifference = Math.Round(myPrice.Value - bestCompetitorPrice.Value, 2);
-                        if (bestCompetitorPrice.Value > 0)
-                        {
-                            percentageDifference = Math.Round((myPrice.Value - bestCompetitorPrice.Value) / bestCompetitorPrice.Value * 100, 2);
-                        }
-                    }
+                               // Przypisanie do kubełka (logika z czatu)
+                               if (marketPriceIndex < -15)
+                                   marketBucket = "market-deep-discount"; // Bardzo tanio (Ciemna Zieleń)
+                               else if (marketPriceIndex >= -15 && marketPriceIndex < -2)
+                                   marketBucket = "market-below-average"; // Poniżej średniej (Jasna Zieleń)
+                               else if (marketPriceIndex >= -2 && marketPriceIndex <= 2)
+                                   marketBucket = "market-average"; // Poziom Rynku (Szary/Niebieski)
+                               else if (marketPriceIndex > 2 && marketPriceIndex <= 15)
+                                   marketBucket = "market-above-average"; // Powyżej średniej (Pomarańcz)
+                               else
+                                   marketBucket = "market-overpriced"; // Przeszacowane (Czerwony)
+                           }
+                       }
+                       else if (onlyMe)
+                       {
+                           marketBucket = "market-solo"; // Nowy kubełek dla solo w trybie Profit
+                       }
+                       // --- KONIEC NOWEJ LOGIKI ---
 
-                    if (iAmEffectivelyTheBest && myPrice.HasValue && !isRejectedDueToZeroPrice)
-                    {
 
-                        bool amIUniquelyTheBest = myPrice.HasValue && (!bestCompetitorPrice.HasValue || myPrice.Value < bestCompetitorPrice.Value);
+                       // Reszta starej logiki (Rankingu, różnic itp.) pozostaje bez zmian, 
+                       // bo potrzebujemy jej do trybu "Konkurencyjność"
+                       bool iAmEffectivelyTheBest = false;
+                       if (myPrice.HasValue)
+                       {
+                           if (!bestCompetitorPrice.HasValue) iAmEffectivelyTheBest = true;
+                           else if (myPrice.Value <= bestCompetitorPrice.Value) iAmEffectivelyTheBest = true;
+                       }
 
-                        if (amIUniquelyTheBest)
-                        {
-                            isUniqueBestPrice = true;
+                       string myPricePositionString = "N/A / 0";
+                       var totalValidOffers = presetFilteredValidPrices.Count();
+                       if (myPrice.HasValue && totalValidOffers > 0)
+                       {
+                           var myStorePriceValue = myPrice.Value;
+                           int pricesLower = presetFilteredValidPrices.Count(vp => vp.Price.HasValue && vp.Price.Value < myStorePriceValue);
+                           int pricesEqual = presetFilteredValidPrices.Count(vp => vp.Price.HasValue && vp.Price.Value == myStorePriceValue);
+                           int rankStart = pricesLower + 1; int rankEnd = pricesLower + pricesEqual;
+                           myPricePositionString = (rankStart == rankEnd) ? $"{rankStart}/{totalValidOffers}" : $"{rankStart}-{rankEnd}/{totalValidOffers}";
+                       }
+                       else if (totalValidOffers > 0) myPricePositionString = $"N/A / {totalValidOffers}";
 
-                            if (bestCompetitorPrice.HasValue)
-                            {
+                       decimal? priceDifference = null;
+                       decimal? percentageDifference = null;
+                       decimal? savings = null;
+                       bool isUniqueBestPrice = false;
+                       bool isRejectedDueToZeroPrice = false;
+                       int? myPosition = myPriceEntry?.Position;
 
-                                savings = Math.Round(bestCompetitorPrice.Value - myPrice.Value, 2);
-                            }
+                       if (product.IsRejected || (myPrice.HasValue && myPrice.Value == 0) || (bestCompetitorPrice.HasValue && bestCompetitorPrice.Value == 0))
+                       {
+                           isRejectedDueToZeroPrice = true;
+                       }
 
-                        }
+                       if (myPrice.HasValue && bestCompetitorPrice.HasValue && bestCompetitorPrice.Value <= myPrice.Value)
+                       {
+                           priceDifference = Math.Round(myPrice.Value - bestCompetitorPrice.Value, 2);
+                           if (bestCompetitorPrice.Value > 0)
+                           {
+                               percentageDifference = Math.Round((myPrice.Value - bestCompetitorPrice.Value) / bestCompetitorPrice.Value * 100, 2);
+                           }
+                       }
 
-                    }
+                       if (iAmEffectivelyTheBest && myPrice.HasValue && !isRejectedDueToZeroPrice)
+                       {
+                           bool amIUniquelyTheBest = myPrice.HasValue && (!bestCompetitorPrice.HasValue || myPrice.Value < bestCompetitorPrice.Value);
+                           if (amIUniquelyTheBest)
+                           {
+                               isUniqueBestPrice = true;
+                               if (bestCompetitorPrice.HasValue) savings = Math.Round(bestCompetitorPrice.Value - myPrice.Value, 2);
+                           }
+                       }
 
-                    bool? bestEntryStockStatus = null;
-                    if (finalBestPriceEntry != null)
-                    {
-                        bestEntryStockStatus = finalBestPriceEntry.IsGoogle == true ? finalBestPriceEntry.GoogleInStock : finalBestPriceEntry.CeneoInStock;
-                    }
-                    bool? myEntryStockStatus = null;
-                    if (myPriceEntry != null)
-                    {
-                        myEntryStockStatus = myPriceEntry.IsGoogle == true ? myPriceEntry.GoogleInStock : myPriceEntry.CeneoInStock;
-                    }
+                       bool? bestEntryStockStatus = finalBestPriceEntry != null ? (finalBestPriceEntry.IsGoogle == true ? finalBestPriceEntry.GoogleInStock : finalBestPriceEntry.CeneoInStock) : null;
+                       bool? myEntryStockStatus = myPriceEntry != null ? (myPriceEntry.IsGoogle == true ? myPriceEntry.GoogleInStock : myPriceEntry.CeneoInStock) : null;
 
-                    var storeCount = presetFilteredValidPrices
-                        .Where(s => s != null && s.StoreName != null)
-                        .Select(x => new { StoreName = x.StoreName.ToLower().Trim(), Source = x.IsGoogle ?? false })
-                        .Distinct().Count();
+                       var storeCount = presetFilteredValidPrices
+                           .Where(s => s != null && s.StoreName != null)
+                           .Select(x => new { StoreName = x.StoreName.ToLower().Trim(), Source = x.IsGoogle ?? false })
+                           .Distinct().Count();
 
-                    bool sourceGoogle = productGroup.Any(x => x.IsGoogle == true);
-                    bool sourceCeneo = productGroup.Any(x => x.IsGoogle == false);
+                       bool sourceGoogle = productGroup.Any(x => x.IsGoogle == true);
+                       bool sourceCeneo = productGroup.Any(x => x.IsGoogle == false);
 
-                    bool? bestPriceIncludesDeliveryFlag = null; bool? myPriceIncludesDeliveryFlag = null;
-                    extendedInfoDict.TryGetValue(g.Key, out var extendedInfo);
-                    if (priceValues.UsePriceWithDelivery)
-                    {
-                        bestPriceIncludesDeliveryFlag = finalBestPriceEntry?.ShippingCostNum.HasValue;
-                        myPriceIncludesDeliveryFlag = myPriceEntry?.ShippingCostNum.HasValue;
-                    }
+                       bool? bestPriceIncludesDeliveryFlag = null; bool? myPriceIncludesDeliveryFlag = null;
+                       extendedInfoDict.TryGetValue(g.Key, out var extendedInfo);
+                       if (priceValues.UsePriceWithDelivery)
+                       {
+                           bestPriceIncludesDeliveryFlag = finalBestPriceEntry?.ShippingCostNum.HasValue;
+                           myPriceIncludesDeliveryFlag = myPriceEntry?.ShippingCostNum.HasValue;
+                       }
 
-                    int externalBestPriceCount = 0;
-                    if (bestCompetitorPrice.HasValue)
-                    {
+                       int externalBestPriceCount = 0;
+                       if (bestCompetitorPrice.HasValue)
+                       {
+                           if (myPrice.HasValue && myPrice.Value < bestCompetitorPrice.Value) externalBestPriceCount = 0;
+                           else if (myPrice.HasValue && myPrice.Value == bestCompetitorPrice.Value) externalBestPriceCount = presetFilteredValidPrices.Count(x => x.Price.HasValue && x.Price.Value == bestCompetitorPrice.Value);
+                           else externalBestPriceCount = presetFilteredCompetitorPrices.Count(x => x.Price.HasValue && x.Price.Value == bestCompetitorPrice.Value);
+                       }
 
-                        if (myPrice.HasValue && myPrice.Value < bestCompetitorPrice.Value)
-                        {
+                       productFlagsDictionary.TryGetValue(g.Key, out var flagIds); flagIds ??= new List<int>();
+                       productExternalInfoDictionary.TryGetValue(g.Key, out var extInfo);
 
-                            externalBestPriceCount = 0;
-                        }
-                        else if (myPrice.HasValue && myPrice.Value == bestCompetitorPrice.Value)
-                        {
+                       SalesTrendStatus salesTrendStatus = SalesTrendStatus.NoData;
+                       int? salesDifference = null; decimal? salesPercentageChange = null;
+                       previousExtendedInfoData.TryGetValue(g.Key, out var previousExtendedInfo);
+                       if (extendedInfo?.CeneoSalesCount != null && previousExtendedInfo?.CeneoSalesCount != null)
+                       {
+                           int currentSales = extendedInfo.CeneoSalesCount.Value; int previousSales = previousExtendedInfo.CeneoSalesCount.Value;
+                           salesDifference = currentSales - previousSales;
+                           if (previousSales > 0) salesPercentageChange = Math.Round(((decimal)salesDifference.Value / previousSales) * 100, 2);
+                           else if (salesDifference > 0) salesPercentageChange = 100m;
 
-                            externalBestPriceCount = presetFilteredValidPrices.Count(x => x.Price.HasValue && x.Price.Value == bestCompetitorPrice.Value);
-                        }
-                        else
-                        {
+                           const decimal smallChangeThreshold = 10.0m;
+                           if (salesDifference == 0) salesTrendStatus = SalesTrendStatus.NoChange;
+                           else if (salesDifference > 0) salesTrendStatus = (salesPercentageChange.HasValue && Math.Abs(salesPercentageChange.Value) > smallChangeThreshold) ? SalesTrendStatus.SalesUpBig : SalesTrendStatus.SalesUpSmall;
+                           else salesTrendStatus = (salesPercentageChange.HasValue && Math.Abs(salesPercentageChange.Value) > smallChangeThreshold) ? SalesTrendStatus.SalesDownBig : SalesTrendStatus.SalesDownSmall;
+                       }
 
-                            externalBestPriceCount = presetFilteredCompetitorPrices.Count(x => x.Price.HasValue && x.Price.Value == bestCompetitorPrice.Value);
-                        }
-                    }
+                       decimal? singleBestCheaperDiff = null;
+                       decimal? singleBestCheaperDiffPerc = null;
+                       var validPresetPrices = presetFilteredValidPrices.Where(x => x.Price.HasValue && x.Price.Value > 0).ToList();
+                       if (validPresetPrices.Any())
+                       {
+                           decimal absoluteLowestPrice = validPresetPrices.Select(x => x.Price.Value).Min();
+                           var lowestPriceEntries = validPresetPrices.Where(x => x.Price.Value == absoluteLowestPrice).ToList();
+                           int absoluteLowestPriceCount = lowestPriceEntries.Count;
 
-                    productFlagsDictionary.TryGetValue(g.Key, out var flagIds); flagIds ??= new List<int>();
-                    productExternalInfoDictionary.TryGetValue(g.Key, out var extInfo);
+                           if (absoluteLowestPriceCount == 1)
+                           {
+                               var singleCheapestEntry = lowestPriceEntries.First();
+                               bool isMyStoreSoleCheapest = (singleCheapestEntry.StoreName != null && singleCheapestEntry.StoreName.ToLower().Trim() == storeNameLower);
 
-                    SalesTrendStatus salesTrendStatus = SalesTrendStatus.NoData;
-                    int? salesDifference = null; decimal? salesPercentageChange = null;
-                    previousExtendedInfoData.TryGetValue(g.Key, out var previousExtendedInfo);
-                    if (extendedInfo?.CeneoSalesCount != null && previousExtendedInfo?.CeneoSalesCount != null)
-                    {
-                        int currentSales = extendedInfo.CeneoSalesCount.Value; int previousSales = previousExtendedInfo.CeneoSalesCount.Value;
-                        salesDifference = currentSales - previousSales;
-                        if (previousSales > 0) salesPercentageChange = Math.Round(((decimal)salesDifference.Value / previousSales) * 100, 2);
-                        else if (salesDifference > 0) salesPercentageChange = 100m;
+                               if (!isMyStoreSoleCheapest)
+                               {
+                                   var secondLowestPrice = validPresetPrices.Where(x => x.Price.Value > absoluteLowestPrice).Select(x => x.Price.Value).OrderBy(x => x).FirstOrDefault();
+                                   decimal? actualSecondLowest = (secondLowestPrice == 0) ? null : (decimal?)secondLowestPrice;
+                                   if (actualSecondLowest.HasValue)
+                                   {
+                                       singleBestCheaperDiff = Math.Round(actualSecondLowest.Value - absoluteLowestPrice, 2);
+                                       var diffPercent = ((actualSecondLowest.Value - absoluteLowestPrice) / actualSecondLowest.Value) * 100;
+                                       singleBestCheaperDiffPerc = Math.Round(diffPercent, 2);
+                                   }
+                               }
+                           }
+                       }
 
-                        const decimal smallChangeThreshold = 10.0m;
-                        if (salesDifference == 0) salesTrendStatus = SalesTrendStatus.NoChange;
-                        else if (salesDifference > 0) salesTrendStatus = (salesPercentageChange.HasValue && Math.Abs(salesPercentageChange.Value) > smallChangeThreshold) ? SalesTrendStatus.SalesUpBig : SalesTrendStatus.SalesUpSmall;
-                        else salesTrendStatus = (salesPercentageChange.HasValue && Math.Abs(salesPercentageChange.Value) > smallChangeThreshold) ? SalesTrendStatus.SalesDownBig : SalesTrendStatus.SalesDownSmall;
-                    }
+                       // --- ZWRACANIE OBIEKTU (DODANO NOWE POLA) ---
+                       return new
+                       {
+                           ProductId = product.ProductId,
+                           ProductName = product.ProductName,
+                           Producer = product.Producer,
+                           LowestPrice = finalBestPrice,
+                           StoreName = finalBestPriceEntry?.StoreName,
+                           MyPrice = myPrice,
+                           ScrapId = latestScrap.Id,
+                           PriceDifference = priceDifference,
+                           PercentageDifference = percentageDifference,
+                           Savings = savings,
+                           IsSharedBestPrice = (iAmEffectivelyTheBest && !isUniqueBestPrice && myPrice.HasValue),
+                           IsUniqueBestPrice = isUniqueBestPrice,
+                           OnlyMe = onlyMe,
+                           ExternalBestPriceCount = externalBestPriceCount,
+                           IsBidding = finalBestPriceEntry?.IsBidding,
+                           IsGoogle = finalBestPriceEntry?.IsGoogle,
+                           Position = finalBestPriceEntry?.Position,
+                           MyIsBidding = myPriceEntry?.IsBidding,
+                           MyIsGoogle = myPriceEntry?.IsGoogle,
+                           MyPosition = myPosition,
+                           FlagIds = flagIds,
+                           BestEntryInStock = bestEntryStockStatus,
+                           MyEntryInStock = myEntryStockStatus,
+                           ExternalId = extInfo?.ExternalId,
+                           MarginPrice = extInfo?.MarginPrice,
+                           ImgUrl = extInfo?.MainUrl,
+                           Ean = extInfo?.Ean,
+                           ProducerCode = extInfo?.ProducerCode,
+                           IsRejected = product.IsRejected || isRejectedDueToZeroPrice,
+                           StoreCount = storeCount,
+                           SourceGoogle = sourceGoogle,
+                           SourceCeneo = sourceCeneo,
+                           SingleBestCheaperDiff = singleBestCheaperDiff,
+                           SingleBestCheaperDiffPerc = singleBestCheaperDiffPerc,
+                           BestPriceIncludesDelivery = bestPriceIncludesDeliveryFlag,
+                           MyPriceIncludesDelivery = myPriceIncludesDeliveryFlag,
+                           BestPriceDeliveryCost = priceValues.UsePriceWithDelivery ? finalBestPriceEntry?.ShippingCostNum : null,
+                           MyPriceDeliveryCost = priceValues.UsePriceWithDelivery ? myPriceEntry?.ShippingCostNum : null,
+                           CeneoSalesCount = extendedInfo?.CeneoSalesCount,
+                           SalesTrendStatus = salesTrendStatus.ToString(),
+                           SalesDifference = salesDifference,
+                           SalesPercentageChange = salesPercentageChange,
+                           ExternalApiPrice = extendedInfo?.ExtendedDataApiPrice,
+                           MyPricePosition = myPricePositionString,
+                           Committed = committedItem == null ? null : new
+                           {
+                               NewPrice = committedItem.PriceAfter,
+                               NewGoogleRanking = committedItem.RankingGoogleAfterSimulated,
+                               NewCeneoRanking = committedItem.RankingCeneoAfterSimulated
+                           },
 
-                    decimal? singleBestCheaperDiff = null;
-                    decimal? singleBestCheaperDiffPerc = null;
-
-                    var validPresetPrices = presetFilteredValidPrices.Where(x => x.Price.HasValue && x.Price.Value > 0).ToList();
-
-                    if (validPresetPrices.Any())
-                    {
-
-                        decimal absoluteLowestPrice = validPresetPrices.Select(x => x.Price.Value).Min();
-
-                        var lowestPriceEntries = validPresetPrices.Where(x => x.Price.Value == absoluteLowestPrice).ToList();
-
-                        int absoluteLowestPriceCount = lowestPriceEntries.Count;
-
-                        if (absoluteLowestPriceCount == 1)
-                        {
-                            var singleCheapestEntry = lowestPriceEntries.First();
-
-                            bool isMyStoreSoleCheapest = (singleCheapestEntry.StoreName != null &&
-                             singleCheapestEntry.StoreName.ToLower().Trim() == storeNameLower);
-
-                            if (!isMyStoreSoleCheapest)
-                            {
-
-                                var secondLowestPrice = validPresetPrices
-                                  .Where(x => x.Price.Value > absoluteLowestPrice)
-                                  .Select(x => x.Price.Value)
-                                  .OrderBy(x => x)
-                                  .FirstOrDefault();
-
-                                decimal? actualSecondLowest = (secondLowestPrice == 0) ? null : (decimal?)secondLowestPrice;
-
-                                if (actualSecondLowest.HasValue)
-                                {
-                                    singleBestCheaperDiff = Math.Round(actualSecondLowest.Value - absoluteLowestPrice, 2);
-
-                                    var diffPercent = ((actualSecondLowest.Value - absoluteLowestPrice) / actualSecondLowest.Value) * 100;
-                                    singleBestCheaperDiffPerc = Math.Round(diffPercent, 2);
-                                }
-                            }
-                        }
-
-                    }
-
-                    return new
-                    {
-                        ProductId = product.ProductId,
-                        ProductName = product.ProductName,
-                        Producer = product.Producer,
-                        LowestPrice = finalBestPrice,
-                        StoreName = finalBestPriceEntry?.StoreName,
-                        MyPrice = myPrice,
-                        ScrapId = latestScrap.Id,
-                        PriceDifference = priceDifference,
-                        PercentageDifference = percentageDifference,
-                        Savings = savings,
-                        IsSharedBestPrice = (iAmEffectivelyTheBest && !isUniqueBestPrice && myPrice.HasValue),
-                        IsUniqueBestPrice = isUniqueBestPrice,
-                        OnlyMe = onlyMe,
-                        ExternalBestPriceCount = externalBestPriceCount,
-                        IsBidding = finalBestPriceEntry?.IsBidding,
-                        IsGoogle = finalBestPriceEntry?.IsGoogle,
-                        Position = finalBestPriceEntry?.Position,
-                        MyIsBidding = myPriceEntry?.IsBidding,
-                        MyIsGoogle = myPriceEntry?.IsGoogle,
-                        MyPosition = myPosition,   
-                        FlagIds = flagIds,
-                        BestEntryInStock = bestEntryStockStatus,
-                        MyEntryInStock = myEntryStockStatus,
-                        ExternalId = extInfo?.ExternalId,
-                        MarginPrice = extInfo?.MarginPrice,
-                        ImgUrl = extInfo?.MainUrl,
-                        Ean = extInfo?.Ean,
-                        ProducerCode = extInfo?.ProducerCode,
-                        IsRejected = product.IsRejected || isRejectedDueToZeroPrice,
-                        StoreCount = storeCount,
-                        SourceGoogle = sourceGoogle,
-                        SourceCeneo = sourceCeneo,
-                        SingleBestCheaperDiff = singleBestCheaperDiff,
-                        SingleBestCheaperDiffPerc = singleBestCheaperDiffPerc,
-                        BestPriceIncludesDelivery = bestPriceIncludesDeliveryFlag,
-                        MyPriceIncludesDelivery = myPriceIncludesDeliveryFlag,
-                        BestPriceDeliveryCost = priceValues.UsePriceWithDelivery ? finalBestPriceEntry?.ShippingCostNum : null,
-                        MyPriceDeliveryCost = priceValues.UsePriceWithDelivery ? myPriceEntry?.ShippingCostNum : null,
-                        CeneoSalesCount = extendedInfo?.CeneoSalesCount,
-                        SalesTrendStatus = salesTrendStatus.ToString(),
-                        SalesDifference = salesDifference,
-                        SalesPercentageChange = salesPercentageChange,
-                        ExternalApiPrice = extendedInfo?.ExtendedDataApiPrice,
-                        MyPricePosition = myPricePositionString,
-                        Committed = committedItem == null ? null : new
-                        {
-                            NewPrice = committedItem.PriceAfter,
-                            NewGoogleRanking = committedItem.RankingGoogleAfterSimulated,
-                            NewCeneoRanking = committedItem.RankingCeneoAfterSimulated
-                        }
-                    };
-                })
-                .Where(p => p != null)
-                .ToList();
+                           // NOWE POLA DLA PROFIT MODE
+                           MarketAveragePrice = marketAveragePrice, // Mediana
+                           MarketPriceIndex = marketPriceIndex,     // Odchylenie % od mediany
+                           MarketBucket = marketBucket              // Kubełek do wykresu
+                       };
+                   })
+                   .Where(p => p != null)
+                   .ToList();
 
             var missedProductsCount = allPrices.Count(p => p.IsRejected);
 
@@ -639,6 +634,8 @@ namespace PriceSafari.Controllers.MemberControllers
             public decimal? ShippingCostNum { get; set; }
         }
 
+
+
         public enum SalesTrendStatus
         {
             NoData,
@@ -647,6 +644,29 @@ namespace PriceSafari.Controllers.MemberControllers
             SalesUpBig,
             SalesDownSmall,
             SalesDownBig
+        }
+
+
+
+
+
+        private decimal? CalculateMedian(List<decimal> prices)
+        {
+            if (prices == null || prices.Count == 0) return null;
+
+            var sortedPrices = prices.OrderBy(x => x).ToList();
+            int count = sortedPrices.Count;
+
+            if (count % 2 == 0)
+            {
+                // Parzysta liczba elementów - średnia z dwóch środkowych
+                return (sortedPrices[count / 2 - 1] + sortedPrices[count / 2]) / 2m;
+            }
+            else
+            {
+                // Nieparzysta liczba - środkowy element
+                return sortedPrices[count / 2];
+            }
         }
 
         [HttpPost]
