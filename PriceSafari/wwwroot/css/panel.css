@@ -2974,6 +2974,36 @@ tr:last-child .sub-line {
     background-color: #dc3545;
 }
 
+
+
+
+/* Badge informujący o trybie zmiany ceny */
+.strategy-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: white;
+    margin-bottom: 6px; /* Odstęp od przycisku */
+    width: 100%;
+    text-align: center;
+}
+
+    /* Kolory */
+    .strategy-badge.mode-competitiveness {
+        background-color: #6f42c1; /* Fioletowy - Konkurencja */
+        border: 1px solid #59359a;
+    }
+
+    .strategy-badge.mode-profit {
+        background-color: #0d2c56; /* Granatowy - Zysk/Indeks */
+        border: 1px solid #081d3a;
+    }
+
+
+
 .checkerboard {
     overflow: hidden;
     width: 500px;

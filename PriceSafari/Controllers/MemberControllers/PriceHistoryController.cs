@@ -195,7 +195,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     pv.UseMarginForSimulation,
                     pv.EnforceMinimalMargin,
                     pv.MinimalMarginPercent,
-                    pv.UsePriceWithDelivery
+                    pv.UsePriceWithDelivery,
+                    pv.PriceIndexTargetPercent
                 })
                 .FirstOrDefaultAsync() ?? new
                 {
@@ -207,7 +208,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     UseMarginForSimulation = true,
                     EnforceMinimalMargin = true,
                     MinimalMarginPercent = 0.00m,
-                    UsePriceWithDelivery = false
+                    UsePriceWithDelivery = false,
+                    PriceIndexTargetPercent = 100.00m
                 };
 
             var baseQuery = from p in _context.Products
@@ -612,6 +614,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 minimalMarginPercent = priceValues.MinimalMarginPercent,
                 identifierForSimulation = priceValues.IdentifierForSimulation,
                 usePriceWithDelivery = priceValues.UsePriceWithDelivery,
+                priceIndexTarget = priceValues.PriceIndexTargetPercent,
                 presetName = activePresetName ?? "PriceSafari",
                 latestScrapId = latestScrap?.Id
             });
@@ -694,7 +697,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     SetPrice1 = model.SetPrice1,
                     SetPrice2 = model.SetPrice2,
                     PriceStep = model.PriceStep,
-                    UsePriceDiff = model.usePriceDiff
+                    UsePriceDiff = model.usePriceDiff,
+                    PriceIndexTargetPercent = model.PriceIndexTargetPercent
                 };
                 _context.PriceValues.Add(priceValues);
             }
@@ -704,6 +708,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 priceValues.SetPrice2 = model.SetPrice2;
                 priceValues.PriceStep = model.PriceStep;
                 priceValues.UsePriceDiff = model.usePriceDiff;
+                priceValues.PriceIndexTargetPercent = model.PriceIndexTargetPercent;
                 _context.PriceValues.Update(priceValues);
             }
 

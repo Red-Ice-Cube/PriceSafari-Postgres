@@ -26,6 +26,7 @@
     let setPrice1 = 2.00;
     let setPrice2 = 2.00;
     let setStepPrice = 2.00;
+    let setPriceIndexTarget = 100.00;
     let usePriceDifference = document.getElementById('usePriceDifference').checked;
     let marginSettings = {
         identifierForSimulation: 'EAN',
@@ -928,6 +929,7 @@
                 setPrice1 = response.setPrice1;
                 setPrice2 = response.setPrice2;
                 setStepPrice = response.stepPrice;
+                setPriceIndexTarget = response.priceIndexTarget || 100.00;
                 missedProductsCount = response.missedProductsCount;
 
                 usePriceDifference = response.usePriceDiff;
@@ -1030,6 +1032,9 @@
                         marginClass: marginClass
                     };
                 });
+
+                const targetInput = document.getElementById('priceIndexTargetInput');
+                if (targetInput) targetInput.value = setPriceIndexTarget;
 
                 const storeCounts = allPrices.map(item => item.storeCount);
                 const maxStoreCount = Math.max(...storeCounts);
@@ -1703,66 +1708,188 @@
         }
     }
 
+    //function calculateCurrentSuggestion(item) {
+    //    const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+    //    const currentLowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
+    //    const currentSavings = item.savings != null ? item.savings.toFixed(2) : "N/A";
+    //    const currentSetStepPrice = setStepPrice;
+    //    const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
+
+    //    let suggestedPrice = null;
+    //    let basePriceForCalc = null;
+    //    let priceType = null;
+
+    //    if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+    //        if (currentMyPrice != null && currentSavings !== "N/A") {
+    //            const savingsValue = parseFloat(currentSavings.replace(',', '.'));
+    //            basePriceForCalc = currentMyPrice + savingsValue;
+    //            priceType = 'raise';
+    //        }
+    //    } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+    //        if (currentMyPrice != null && currentLowestPrice != null) {
+    //            basePriceForCalc = currentLowestPrice;
+    //            priceType = 'lower';
+    //        }
+    //    } else if (item.colorClass === "prGood") {
+    //        if (currentMyPrice != null) {
+
+    //            basePriceForCalc = currentMyPrice;
+    //            if (item.storeCount > 1 || currentSetStepPrice > 0) {
+    //                priceType = 'good_step';
+    //            } else {
+    //                priceType = 'good_no_step';
+    //            }
+    //        }
+    //    }
+
+    //    if (basePriceForCalc !== null && priceType !== null) {
+    //        if (priceType === 'good_no_step') {
+    //            suggestedPrice = basePriceForCalc;
+    //        } else {
+    //            if (currentUsePriceDifference) {
+    //                suggestedPrice = basePriceForCalc + currentSetStepPrice;
+    //            } else {
+    //                suggestedPrice = basePriceForCalc * (1 + (currentSetStepPrice / 100));
+    //            }
+    //            if (suggestedPrice < 0.01) { suggestedPrice = 0.01; }
+    //        }
+    //    }
+
+    //    if (suggestedPrice === null) {
+    //        return null;
+    //    }
+
+    //    const totalChangeAmount = suggestedPrice - (currentMyPrice || 0);
+    //    const percentageChange = (currentMyPrice != null && currentMyPrice > 0) ? (totalChangeAmount / currentMyPrice) * 100 : 0;
+    //    let arrowClass = '';
+    //    if (priceType === 'raise') {
+    //        arrowClass = totalChangeAmount > 0 ? (item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise') : (totalChangeAmount < 0 ? 'arrow-down-turquoise' : 'no-change-icon-turquoise');
+    //    } else if (priceType === 'lower') {
+    //        arrowClass = totalChangeAmount > 0 ? (item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red") : (totalChangeAmount < 0 ? (item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red") : 'no-change-icon');
+    //    } else if (priceType === 'good_step' || priceType === 'good_no_step') {
+    //        arrowClass = totalChangeAmount > 0 ? 'arrow-up-green' : (totalChangeAmount < 0 ? 'arrow-down-green' : 'no-change-icon-turquoise');
+    //    }
+
+    //    return {
+    //        suggestedPrice: suggestedPrice,
+    //        totalChangeAmount: totalChangeAmount,
+    //        percentageChange: percentageChange,
+    //        arrowClass: arrowClass,
+    //        priceType: priceType
+    //    };
+    //}
+
     function calculateCurrentSuggestion(item) {
         const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-        const currentLowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
-        const currentSavings = item.savings != null ? item.savings.toFixed(2) : "N/A";
-        const currentSetStepPrice = setStepPrice;
-        const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
 
+        // Wspólne zmienne
         let suggestedPrice = null;
-        let basePriceForCalc = null;
+        let totalChangeAmount = 0;
+        let percentageChange = 0;
+        let arrowClass = '';
         let priceType = null;
 
-        if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
-            if (currentMyPrice != null && currentSavings !== "N/A") {
-                const savingsValue = parseFloat(currentSavings.replace(',', '.'));
-                basePriceForCalc = currentMyPrice + savingsValue;
-                priceType = 'raise';
-            }
-        } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-            if (currentMyPrice != null && currentLowestPrice != null) {
-                basePriceForCalc = currentLowestPrice;
-                priceType = 'lower';
-            }
-        } else if (item.colorClass === "prGood") {
-            if (currentMyPrice != null) {
+        // =========================================================
+        // TRYB: PROFIT (INDEKS CENOWY)
+        // =========================================================
+        if (currentViewMode === 'profit') {
+            const medianPrice = item.marketAveragePrice; // Mediana z backendu
 
-                basePriceForCalc = currentMyPrice;
-                if (item.storeCount > 1 || currentSetStepPrice > 0) {
-                    priceType = 'good_step';
+            // Jeśli nie ma mediany (np. brak konkurencji), nie możemy wyliczyć celu
+            if (medianPrice === null || medianPrice === undefined || medianPrice === 0) {
+                return null;
+            }
+
+            // WZÓR: Cena = Mediana * (Cel% / 100)
+            const targetRatio = setPriceIndexTarget / 100.0;
+            suggestedPrice = medianPrice * targetRatio;
+
+            // Zaokrąglenie do 2 miejsc
+            suggestedPrice = Math.round(suggestedPrice * 100) / 100;
+
+            // Obsługa dostawy w kalkulacji
+            // Mediana na backendzie jest wyliczana na podstawie cen "takich jak w tabeli".
+            // Jeśli marginSettings.usePriceWithDelivery == true, to Mediana zawiera dostawę.
+            // My w bazie chcemy zapisać cenę produktu (netto od dostawy).
+            if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                const myDelivery = item.myPriceDeliveryCost != null ? parseFloat(item.myPriceDeliveryCost) : 0;
+                // Odejmujemy naszą dostawę, żeby uzyskać cenę "na półkę"
+                suggestedPrice = suggestedPrice - myDelivery;
+                if (suggestedPrice < 0.01) suggestedPrice = 0.01;
+            }
+
+            priceType = 'index_target'; // Typ dla kolorowania strzałek
+        }
+        // =========================================================
+        // TRYB: KONKURENCYJNOŚĆ (STARA LOGIKA)
+        // =========================================================
+        else {
+            const currentLowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
+            const currentSavings = item.savings != null ? item.savings.toFixed(2) : "N/A";
+            const currentSetStepPrice = setStepPrice;
+            const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
+
+            let basePriceForCalc = null;
+
+            if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
+                if (currentMyPrice != null && currentSavings !== "N/A") {
+                    const savingsValue = parseFloat(currentSavings.replace(',', '.'));
+                    basePriceForCalc = currentMyPrice + savingsValue;
+                    priceType = 'raise';
+                }
+            } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
+                if (currentMyPrice != null && currentLowestPrice != null) {
+                    basePriceForCalc = currentLowestPrice;
+                    priceType = 'lower';
+                }
+            } else if (item.colorClass === "prGood") {
+                if (currentMyPrice != null) {
+                    basePriceForCalc = currentMyPrice;
+                    if (item.storeCount > 1 || currentSetStepPrice > 0) {
+                        priceType = 'good_step';
+                    } else {
+                        priceType = 'good_no_step';
+                    }
+                }
+            }
+
+            if (basePriceForCalc !== null && priceType !== null) {
+                if (priceType === 'good_no_step') {
+                    suggestedPrice = basePriceForCalc;
                 } else {
-                    priceType = 'good_no_step';
+                    if (currentUsePriceDifference) {
+                        suggestedPrice = basePriceForCalc + currentSetStepPrice;
+                    } else {
+                        suggestedPrice = basePriceForCalc * (1 + (currentSetStepPrice / 100));
+                    }
+                    if (suggestedPrice < 0.01) { suggestedPrice = 0.01; }
                 }
             }
         }
 
-        if (basePriceForCalc !== null && priceType !== null) {
-            if (priceType === 'good_no_step') {
-                suggestedPrice = basePriceForCalc;
-            } else {
-                if (currentUsePriceDifference) {
-                    suggestedPrice = basePriceForCalc + currentSetStepPrice;
-                } else {
-                    suggestedPrice = basePriceForCalc * (1 + (currentSetStepPrice / 100));
-                }
-                if (suggestedPrice < 0.01) { suggestedPrice = 0.01; }
-            }
-        }
-
+        // --- WSPÓLNE OBLICZENIA KOŃCOWE ---
         if (suggestedPrice === null) {
             return null;
         }
 
-        const totalChangeAmount = suggestedPrice - (currentMyPrice || 0);
-        const percentageChange = (currentMyPrice != null && currentMyPrice > 0) ? (totalChangeAmount / currentMyPrice) * 100 : 0;
-        let arrowClass = '';
-        if (priceType === 'raise') {
-            arrowClass = totalChangeAmount > 0 ? (item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise') : (totalChangeAmount < 0 ? 'arrow-down-turquoise' : 'no-change-icon-turquoise');
-        } else if (priceType === 'lower') {
-            arrowClass = totalChangeAmount > 0 ? (item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red") : (totalChangeAmount < 0 ? (item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red") : 'no-change-icon');
-        } else if (priceType === 'good_step' || priceType === 'good_no_step') {
-            arrowClass = totalChangeAmount > 0 ? 'arrow-up-green' : (totalChangeAmount < 0 ? 'arrow-down-green' : 'no-change-icon-turquoise');
+        totalChangeAmount = suggestedPrice - (currentMyPrice || 0);
+        percentageChange = (currentMyPrice != null && currentMyPrice > 0) ? (totalChangeAmount / currentMyPrice) * 100 : 0;
+
+        // Dobór kolorów strzałek
+        if (priceType === 'index_target') {
+            // W trybie Profit po prostu pokazujemy czy rośnie czy maleje
+            if (totalChangeAmount > 0) arrowClass = 'arrow-up-turquoise';
+            else if (totalChangeAmount < 0) arrowClass = 'arrow-down-turquoise';
+            else arrowClass = 'no-change-icon-turquoise';
+        } else {
+            // Stara logika kolorów dla konkurencji
+            if (priceType === 'raise') {
+                arrowClass = totalChangeAmount > 0 ? (item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise') : (totalChangeAmount < 0 ? 'arrow-down-turquoise' : 'no-change-icon-turquoise');
+            } else if (priceType === 'lower') {
+                arrowClass = totalChangeAmount > 0 ? (item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red") : (totalChangeAmount < 0 ? (item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red") : 'no-change-icon');
+            } else if (priceType === 'good_step' || priceType === 'good_no_step') {
+                arrowClass = totalChangeAmount > 0 ? 'arrow-up-green' : (totalChangeAmount < 0 ? 'arrow-down-green' : 'no-change-icon-turquoise');
+            }
         }
 
         return {
@@ -3671,14 +3798,7 @@
         });
     });
 
-    // Podpięcie przycisku "Przelicz" w sekcji Profit (działa jak ten główny)
-    const profitCalcBtn = document.getElementById('savePriceValues_profit');
-    if (profitCalcBtn) {
-        profitCalcBtn.addEventListener('click', function () {
-            document.getElementById('stepPrice').value = document.getElementById('stepPrice_profit').value;
-            document.getElementById('savePriceValues').click();
-        });
-    }
+   
 
     // Synchronizacja inputów stepPrice
     const stepPriceMain = document.getElementById('stepPrice');
@@ -3702,17 +3822,35 @@
         });
     }
 
+    const profitCalcBtn = document.getElementById('savePriceValues_profit');
+    if (profitCalcBtn) {
+        profitCalcBtn.addEventListener('click', function () {
+            // Wywołujemy główny save, ale najpierw aktualizujemy zmienną globalną z inputu
+            const inputVal = document.getElementById('priceIndexTargetInput').value;
+            setPriceIndexTarget = parseFloat(inputVal);
+
+            // Wywołujemy kliknięcie głównego przycisku zapisu (który musimy zaktualizować poniżej)
+            document.getElementById('savePriceValues').click();
+        });
+    }
+
     document.getElementById('savePriceValues').addEventListener('click', function () {
         const price1 = parseFloat(document.getElementById('price1').value);
         const price2 = parseFloat(document.getElementById('price2').value);
         const stepPrice = parseFloat(document.getElementById('stepPrice').value);
         const usePriceDiff = document.getElementById('usePriceDifference').checked;
+
+        // Pobieramy wartość z nowego inputu (jeśli jesteśmy w trybie profit, to stamtąd, jak nie to ze zmiennej)
+        const profitInput = document.getElementById('priceIndexTargetInput');
+        const priceIndexTarget = profitInput ? parseFloat(profitInput.value) : 100.00;
+
         const data = {
             StoreId: storeId,
             SetPrice1: price1,
             SetPrice2: price2,
             PriceStep: stepPrice,
-            UsePriceDiff: usePriceDiff
+            UsePriceDiff: usePriceDiff,
+            PriceIndexTargetPercent: priceIndexTarget // <--- NOWE POLE DO API
         };
 
         fetch('/PriceHistory/SavePriceValues', {
@@ -3730,7 +3868,7 @@
                     setPrice2 = price2;
                     setStepPrice = stepPrice;
                     usePriceDifference = usePriceDiff;
-
+                    setPriceIndexTarget = priceIndexTarget;
                     updatePricesDebounced();
 
                     showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p><p>Przeliczam sugestie...</p>');

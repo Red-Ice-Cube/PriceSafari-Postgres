@@ -15,7 +15,7 @@
         public decimal SetSafariPrice2 { get; set; } = 2.00m;
         public bool UsePriceDiffSafari { get; set; } = true;
 
-
+        public decimal PriceIndexTargetPercent { get; set; } = 100.00m;
 
         public bool UsePriceWithDelivery { get; set; } = false;
 

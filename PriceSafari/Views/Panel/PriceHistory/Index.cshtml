@@ -191,9 +191,9 @@
                     <div style="font-size: 13px; color: #666; margin-bottom: 5px;">Symulacja:</div>
 
                     <div class="price-range-settings">
-                        <div class="legendBox">Krok cenowy</div>
-                        <input type="number" id="stepPrice_profit" value="@ViewBag.StepPrice" step="0.01">
-                        <span style="font-size:12px;">PLN/%</span>
+                        <div class="legendBox" title="100% = Mediana. 95% = 5% taniej niż rynek.">Cel % Mediany</div>
+                        <input type="number" id="priceIndexTargetInput" value="100.00" step="0.5">
+                        <span style="font-size:12px;">%</span>
                     </div>
                     <button class="Button-Page-Small" style="margin-top: 8px; width:100%;" id="savePriceValues_profit">Przelicz</button>
 
