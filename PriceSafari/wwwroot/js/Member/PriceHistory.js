@@ -54,11 +54,9 @@
     function switchMode(mode) {
         currentViewMode = mode;
 
-        // 1. Zmiana guzików
         document.getElementById('btn-mode-comp').classList.toggle('active', mode === 'competitiveness');
         document.getElementById('btn-mode-profit').classList.toggle('active', mode === 'profit');
 
-        // 2. Przełączanie widoczności filtrów
         if (mode === 'competitiveness') {
             $('#filters-competitiveness').fadeIn();
             $('#filters-profit').hide();
@@ -67,9 +65,9 @@
             $('#filters-profit').fadeIn();
         }
 
-        // 3. Reset paginacji i odświeżenie listy oraz wykresu
         resetPage();
-        filterPricesAndUpdateUI(); // Ta funkcja wywoła renderPrices i renderChart
+        filterPricesAndUpdateUI();
+
     }
 
     const btnComp = document.getElementById('btn-mode-comp');
@@ -296,21 +294,19 @@
         let countRejected = 0;
         let rejectionReasons = {};
 
-        // 1. USTALENIE KONTEKSTU (TRYBU) DLA CAŁEJ MASOWEJ ZMIANY
-        const modeApplied = currentViewMode; // 'competitiveness' lub 'profit'
+        const modeApplied = currentViewMode;
 
         let stepPriceToSave = null;
         let stepUnitToSave = null;
         let indexTargetToSave = null;
 
-        // Ustalenie wartości w zależności od trybu
         if (modeApplied === 'profit') {
-            // Tryb Zysk
+
             indexTargetToSave = setPriceIndexTarget;
             stepPriceToSave = null;
             stepUnitToSave = null;
         } else {
-            // Tryb Konkurencja
+
             stepPriceToSave = setStepPrice;
             const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
             stepUnitToSave = currentUsePriceDifference ? 'PLN' : '%';
@@ -318,21 +314,20 @@
         }
 
         productsToChange.forEach(item => {
-            // A. Odrzucamy produkty już zatwierdzone w bazie (Committed)
+
             if (item.committed) {
                 countRejected++;
                 rejectionReasons['Oferta już zaktualizowana (zatwierdzona)'] = (rejectionReasons['Oferta już zaktualizowana (zatwierdzona)'] || 0) + 1;
                 return;
             }
-            // --- POPRAWKA KRYTYCZNA: Sprawdzenie ceny 0.00 PLN ---
-            // Musimy to sprawdzić ZANIM pójdziemy dalej.
+
             const currentPriceCheck = item.myPrice != null ? parseFloat(item.myPrice) : 0;
             if (currentPriceCheck <= 0.01) {
                 countRejected++;
                 rejectionReasons['Brak ceny oferty (0 PLN)'] = (rejectionReasons['Brak ceny oferty (0 PLN)'] || 0) + 1;
                 return;
             }
-            // B. OCHRONA PRZED NADPISANIEM
+
             const isAlreadyChanged = selectedPriceChanges.some(c => String(c.productId) === String(item.productId));
 
             if (isAlreadyChanged) {
@@ -340,7 +335,6 @@
                 return;
             }
 
-            // C. Wyliczamy sugestię dla bieżącego trybu
             const suggestionData = calculateCurrentSuggestion(item);
 
             if (!suggestionData) {
@@ -350,10 +344,9 @@
             }
 
             const suggestedPrice = suggestionData.suggestedPrice;
-            // POPRAWKA: Pewność co do ceny bieżącej (float)
+
             const currentPriceValue = item.myPrice != null ? parseFloat(item.myPrice) : 0;
 
-            // D. Walidacja Identyfikatora
             let requiredField = '';
             let requiredLabel = '';
             switch (marginSettings.identifierForSimulation) {
@@ -367,7 +360,6 @@
                 return;
             }
 
-            // E. Walidacja Marży
             if (marginSettings.useMarginForSimulation) {
                 if (item.marginPrice == null) {
                     countRejected++;
@@ -414,23 +406,24 @@
                 }
             }
 
-            // F. Dodanie nowej zmiany - WYSYŁKA ZDARZENIA
-            // POPRAWKA: Używamy currentScrapId jako fallback, jeśli item.scrapId jest puste
             const safeScrapId = item.scrapId || currentScrapId;
 
             const priceChangeEvent = new CustomEvent('priceBoxChange', {
                 detail: {
-                    productId: String(item.productId), // POPRAWKA: Zawsze String
+                    productId: String(item.productId),
+
                     productName: item.productName,
                     currentPrice: currentPriceValue,
                     newPrice: suggestedPrice,
                     storeId: storeId,
-                    scrapId: safeScrapId, // POPRAWKA: Pewny ID scrapu
+                    scrapId: safeScrapId,
+
                     marginPrice: item.marginPrice,
 
                     mode: modeApplied,
                     indexTarget: indexTargetToSave,
-                    priceIndexTarget: indexTargetToSave, // POPRAWKA: Dublowanie pola dla pewności obsługi przez listener
+                    priceIndexTarget: indexTargetToSave,
+
                     stepPriceApplied: stepPriceToSave,
                     stepUnitApplied: stepUnitToSave
                 }
@@ -440,14 +433,12 @@
             countAdded++;
         });
 
-        // Odświeżenie widoku
         refreshPriceBoxStates();
 
-        // Podsumowanie
         let summaryHtml = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Masowa zmiana zakończona!</p>
-                          <p>Tryb: <strong>${modeApplied === 'profit' ? 'Maksymalny Zysk' : 'Konkurencja'}</strong></p>
-                          <p>Przeanalizowano: <strong>${productsToChange.length}</strong> SKU</p>
-                          <p>Dodano nowych zmian: <strong>${countAdded}</strong> SKU</p>`;
+                        <p>Tryb: <strong>${modeApplied === 'profit' ? 'Maksymalny Zysk' : 'Konkurencja'}</strong></p>
+                        <p>Przeanalizowano: <strong>${productsToChange.length}</strong> SKU</p>
+                        <p>Dodano nowych zmian: <strong>${countAdded}</strong> SKU</p>`;
 
         if (countSkipped > 0) {
             summaryHtml += `<p"><strong>Pominięto (już dodane): ${countSkipped} SKU</strong></p>`;
@@ -569,7 +560,6 @@
 
             const activeChange = currentActiveChangesMap.get(String(productId));
 
- 
             const priceBoxMyColumn = priceBox.querySelector('.my-price-column');
 
             const priceBoxActionColumn = priceBox.querySelector('.price-box-column-action');
@@ -583,17 +573,17 @@
                         const myPriceFormatted = formatPricePL(myPrice);
 
                         if (item.committed && item.committed.newPrice) {
-                      
+
                             const newCommittedPrice = parseFloat(item.committed.newPrice);
                             priceLineDiv.innerHTML = `
-                                <s style="color: #999; font-size: 17px;">${formatPricePL(myPrice)}</s>
-                   
-                            `;
+                             <s style="color: #999; font-size: 17px;">${formatPricePL(myPrice)}</s>
+
+                         `;
                         } else {
-                        
+
                             priceLineDiv.innerHTML = `
-                                <span style="font-weight: 500; font-size: 17px;">${myPriceFormatted}</span>
-                            `;
+                             <span style="font-weight: 500; font-size: 17px;">${myPriceFormatted}</span>
+                         `;
                         }
                     }
                 }
@@ -609,10 +599,9 @@
                 const newSuggestionData = calculateCurrentSuggestion(item);
 
                 if (newSuggestionData) {
-                    // Tutaj przekazujemy activeChange do renderera HTML (jeśli masz taką logikę w renderSuggestionBlockHTML)
-                    // Ale kluczowe jest to, co dzieje się PO renderowaniu, czyli aktywacja przycisku:
 
-                    const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData, activeChange); // activeChange przekazany opcjonalnie
+                    const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData, activeChange);
+
                     priceBoxActionColumn.innerHTML = suggestionRenderResult.html;
 
                     const newActionLine = priceBoxActionColumn.querySelector(suggestionRenderResult.actionLineSelector);
@@ -620,21 +609,22 @@
                     if (newActionLine) {
                         const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
 
-                        // Podpinamy listener kliknięcia (dla nowej zmiany)
                         attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
 
                         if (activeChange) {
                             const btn = newActionLine.querySelector('.simulate-change-btn');
                             if (btn) {
-                                // TU JEST ZMIANA: Przekazujemy zapisane parametry (mode, indexTarget)
+
                                 activateChangeButton(
                                     btn,
                                     newActionLine,
                                     priceBox,
                                     activeChange.stepPriceApplied,
                                     activeChange.stepUnitApplied,
-                                    activeChange.mode,        // <--- Odczyt z zapisanego obiektu
-                                    activeChange.indexTarget  // <--- Odczyt z zapisanego obiektu
+                                    activeChange.mode,
+
+                                    activeChange.indexTarget
+
                                 );
                             }
                             priceBox.classList.add('price-changed');
@@ -651,6 +641,7 @@
         });
     }
     window.refreshPriceBoxStates = refreshPriceBoxStates;
+
 
     function renderPaginationControls(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -1395,34 +1386,31 @@
     </div>`;
     }
 
-   
+  
     function activateChangeButton(button, actionLine, priceBox, stepPriceApplied, stepUnitApplied, mode, indexTarget) {
         if (!button) return;
 
         let btnInfoText = "";
         let badgeHtml = "";
 
-        // Domyślny tryb jeśli brak danych (np. stare wpisy w cache)
         const currentMode = mode || 'competitiveness';
 
         if (currentMode === 'profit') {
-            // --- TRYB ZYSK (PROFIT) ---
+
             const targetVal = indexTarget != null ? parseFloat(indexTarget) : 100.00;
 
             btnInfoText = ` Indeks ${targetVal}%`;
 
-            // Fioletowy badge dla strategii zysku
             badgeHtml = `<div class="strategy-badge-dynamic mode-profit">
                 <i class="fa-solid fa-dollar-sign" style="margin-right: 5px;"></i>
                 Strategia optymalizacji zysku
              </div>`;
 
         } else {
-            // --- TRYB KONKURENCJA (COMPETITIVENESS) ---
+
             let formattedStep = "0.00";
             let unit = "%";
 
-            // Ustalanie jednostki (z argumentu lub z checkboxa globalnego)
             if (stepUnitApplied) {
                 unit = stepUnitApplied;
             } else {
@@ -1436,24 +1424,20 @@
 
             btnInfoText = ` Krok ${formattedStep} ${unit}`;
 
-            // Niebieski badge dla strategii konkurencji
             badgeHtml = `<div class="strategy-badge-dynamic mode-competitiveness">
                 <i class="fa-solid fa-bolt" style="margin-right: 5px;"></i>
                 Strategia maksymalnej konkurencyjności
              </div>`;
         }
 
-        // 1. Wstawienie Badge'a (usuwamy stary, jeśli istnieje, żeby nie dublować)
         const existingBadge = actionLine.querySelector('.strategy-badge-dynamic');
         if (existingBadge) existingBadge.remove();
 
         actionLine.insertAdjacentHTML('afterbegin', badgeHtml);
 
-        // 2. Stylizacja i Tekst Przycisku
         button.classList.add('active');
         button.innerHTML = `${btnInfoText} | Dodano`;
 
-        // 3. Dodanie ikony kosza (usuwania)
         const removeLink = document.createElement('span');
         removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-top:3px; margin-left:5px;'></i>";
         removeLink.style.textDecoration = "none";
@@ -1461,19 +1445,15 @@
         removeLink.style.pointerEvents = 'auto';
         removeLink.title = "Usuń tę zmianę";
 
-        // Obsługa kliknięcia w kosz
         removeLink.addEventListener('click', function (ev) {
-            ev.stopPropagation(); // Ważne: żeby nie triggerować kliknięcia w sam przycisk
+            ev.stopPropagation();
+
             const productId = priceBox.dataset.productId;
 
-            // A. Aktualizacja tablicy w pamięci
             if (typeof selectedPriceChanges !== 'undefined') {
                 selectedPriceChanges = selectedPriceChanges.filter(c => String(c.productId) !== String(productId));
             }
 
-            // B. Wysłanie zdarzenia, że usunięto zmianę
-            // UWAGA: To zdarzenie jest odbierane przez globalny listener 'priceBoxChangeRemove' (który masz w głównym kodzie),
-            // i to on odpowiada za zresetowanie wyglądu przycisku i przeliczenie sugestii na nowo.
             const removeEvent = new CustomEvent('priceBoxChangeRemove', {
                 detail: { productId }
             });
@@ -1482,12 +1462,10 @@
 
         button.appendChild(removeLink);
 
-        // 4. Oznaczenie kontenera jako zmienionego
         if (!priceBox.classList.contains('price-changed')) {
             priceBox.classList.add('price-changed');
         }
     }
-
 
 
 
@@ -1699,8 +1677,6 @@
     }
 
 
-
-
     document.addEventListener('priceBoxChangeRemove', function (event) {
         const { productId } = event.detail;
         if (!productId) return;
@@ -1710,7 +1686,6 @@
         if (priceBox) {
             priceBox.classList.remove('price-changed');
 
-            // Usuwamy badge, jeśli istnieje
             const actionLine = priceBox.querySelector('.price-action-line');
             if (actionLine) {
                 const badge = actionLine.querySelector('.strategy-badge-dynamic');
@@ -1766,127 +1741,42 @@
         }
     }
 
-    //function calculateCurrentSuggestion(item) {
-    //    const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-    //    const currentLowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
-    //    const currentSavings = item.savings != null ? item.savings.toFixed(2) : "N/A";
-    //    const currentSetStepPrice = setStepPrice;
-    //    const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
-
-    //    let suggestedPrice = null;
-    //    let basePriceForCalc = null;
-    //    let priceType = null;
-
-    //    if (item.colorClass === "prToLow" || item.colorClass === "prIdeal") {
-    //        if (currentMyPrice != null && currentSavings !== "N/A") {
-    //            const savingsValue = parseFloat(currentSavings.replace(',', '.'));
-    //            basePriceForCalc = currentMyPrice + savingsValue;
-    //            priceType = 'raise';
-    //        }
-    //    } else if (item.colorClass === "prMid" || item.colorClass === "prToHigh") {
-    //        if (currentMyPrice != null && currentLowestPrice != null) {
-    //            basePriceForCalc = currentLowestPrice;
-    //            priceType = 'lower';
-    //        }
-    //    } else if (item.colorClass === "prGood") {
-    //        if (currentMyPrice != null) {
-
-    //            basePriceForCalc = currentMyPrice;
-    //            if (item.storeCount > 1 || currentSetStepPrice > 0) {
-    //                priceType = 'good_step';
-    //            } else {
-    //                priceType = 'good_no_step';
-    //            }
-    //        }
-    //    }
-
-    //    if (basePriceForCalc !== null && priceType !== null) {
-    //        if (priceType === 'good_no_step') {
-    //            suggestedPrice = basePriceForCalc;
-    //        } else {
-    //            if (currentUsePriceDifference) {
-    //                suggestedPrice = basePriceForCalc + currentSetStepPrice;
-    //            } else {
-    //                suggestedPrice = basePriceForCalc * (1 + (currentSetStepPrice / 100));
-    //            }
-    //            if (suggestedPrice < 0.01) { suggestedPrice = 0.01; }
-    //        }
-    //    }
-
-    //    if (suggestedPrice === null) {
-    //        return null;
-    //    }
-
-    //    const totalChangeAmount = suggestedPrice - (currentMyPrice || 0);
-    //    const percentageChange = (currentMyPrice != null && currentMyPrice > 0) ? (totalChangeAmount / currentMyPrice) * 100 : 0;
-    //    let arrowClass = '';
-    //    if (priceType === 'raise') {
-    //        arrowClass = totalChangeAmount > 0 ? (item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise') : (totalChangeAmount < 0 ? 'arrow-down-turquoise' : 'no-change-icon-turquoise');
-    //    } else if (priceType === 'lower') {
-    //        arrowClass = totalChangeAmount > 0 ? (item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red") : (totalChangeAmount < 0 ? (item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red") : 'no-change-icon');
-    //    } else if (priceType === 'good_step' || priceType === 'good_no_step') {
-    //        arrowClass = totalChangeAmount > 0 ? 'arrow-up-green' : (totalChangeAmount < 0 ? 'arrow-down-green' : 'no-change-icon-turquoise');
-    //    }
-
-    //    return {
-    //        suggestedPrice: suggestedPrice,
-    //        totalChangeAmount: totalChangeAmount,
-    //        percentageChange: percentageChange,
-    //        arrowClass: arrowClass,
-    //        priceType: priceType
-    //    };
-    //}
-
     function calculateCurrentSuggestion(item) {
         const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
 
-        // --- POPRAWKA KRYTYCZNA: Blokada, jeśli brak naszej ceny ---
-        // Jeśli cena jest null, 0 lub bliska zeru -> nie proponuj żadnej zmiany.
         if (currentMyPrice === null || currentMyPrice <= 0.01) {
             return null;
         }
 
-        // Wspólne zmienne
         let suggestedPrice = null;
         let totalChangeAmount = 0;
         let percentageChange = 0;
         let arrowClass = '';
         let priceType = null;
 
-        // =========================================================
-        // TRYB: PROFIT (INDEKS CENOWY)
-        // =========================================================
         if (currentViewMode === 'profit') {
-            const medianPrice = item.marketAveragePrice; // Mediana z backendu
+            const medianPrice = item.marketAveragePrice;
 
-            // Jeśli nie ma mediany (np. brak konkurencji), nie możemy wyliczyć celu
             if (medianPrice === null || medianPrice === undefined || medianPrice === 0) {
                 return null;
             }
 
-            // WZÓR: Cena = Mediana * (Cel% / 100)
             const targetRatio = setPriceIndexTarget / 100.0;
             suggestedPrice = medianPrice * targetRatio;
 
-            // Zaokrąglenie do 2 miejsc
             suggestedPrice = Math.round(suggestedPrice * 100) / 100;
 
-            // Obsługa dostawy w kalkulacji
-            // Mediana na backendzie jest wyliczana na podstawie cen "takich jak w tabeli".
-            // Jeśli marginSettings.usePriceWithDelivery == true, to Mediana zawiera dostawę.
-            // My w bazie chcemy zapisać cenę produktu (netto od dostawy).
             if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
                 const myDelivery = item.myPriceDeliveryCost != null ? parseFloat(item.myPriceDeliveryCost) : 0;
-                // Odejmujemy naszą dostawę, żeby uzyskać cenę "na półkę"
+
                 suggestedPrice = suggestedPrice - myDelivery;
                 if (suggestedPrice < 0.01) suggestedPrice = 0.01;
             }
 
-            priceType = 'index_target'; // Typ dla kolorowania strzałek
+            priceType = 'index_target';
+
         }
-        // =========================================================
-        // TRYB: KONKURENCYJNOŚĆ (STARA LOGIKA)
-        // =========================================================
+
         else {
             const currentLowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
             const currentSavings = item.savings != null ? item.savings.toFixed(2) : "N/A";
@@ -1931,7 +1821,6 @@
             }
         }
 
-        // --- WSPÓLNE OBLICZENIA KOŃCOWE ---
         if (suggestedPrice === null) {
             return null;
         }
@@ -1939,14 +1828,13 @@
         totalChangeAmount = suggestedPrice - (currentMyPrice || 0);
         percentageChange = (currentMyPrice != null && currentMyPrice > 0) ? (totalChangeAmount / currentMyPrice) * 100 : 0;
 
-        // Dobór kolorów strzałek
         if (priceType === 'index_target') {
-            // W trybie Profit po prostu pokazujemy czy rośnie czy maleje
+
             if (totalChangeAmount > 0) arrowClass = 'arrow-up-turquoise';
             else if (totalChangeAmount < 0) arrowClass = 'arrow-down-turquoise';
             else arrowClass = 'no-change-icon-turquoise';
         } else {
-            // Stara logika kolorów dla konkurencji
+
             if (priceType === 'raise') {
                 arrowClass = totalChangeAmount > 0 ? (item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise') : (totalChangeAmount < 0 ? 'arrow-down-turquoise' : 'no-change-icon-turquoise');
             } else if (priceType === 'lower') {
@@ -1966,41 +1854,33 @@
     }
 
     function renderSuggestionBlockHTML(item, suggestionData, activeChange = null) {
-        // USUNIĘTO BLOK 'if (activeChange)' - teraz zawsze renderujemy strukturę z przyciskiem,
-        // a stan "Dodano" nakładamy dynamicznie przez activateChangeButton.
 
-        // Jeśli z jakiegoś powodu brak danych sugestii, nic nie renderujemy
         if (!suggestionData) {
             return { html: '', actionLineSelector: null, suggestedPrice: null, myPrice: null };
         }
 
         const { suggestedPrice, totalChangeAmount, percentageChange, arrowClass, priceType } = suggestionData;
 
-        // Zmienne pomocnicze
         const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
         const marginPrice = item.marginPrice != null ? parseFloat(item.marginPrice) : null;
         let squareColorClass = 'color-square-turquoise';
 
-        // --- BUDOWANIE STRUKTURY HTML ---
         const strategicPriceBox = document.createElement('div');
         strategicPriceBox.className = 'price-box-column';
 
         const contentWrapper = document.createElement('div');
         contentWrapper.className = 'price-box-column-text';
 
-        // 1. Nowa Cena (duża)
         const newPriceDisplay = document.createElement('div');
         newPriceDisplay.style.display = 'flex';
         newPriceDisplay.style.alignItems = 'center';
         newPriceDisplay.innerHTML = `<span class="${arrowClass}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${formatPricePL(suggestedPrice)}</span></div>`;
 
-        // 2. Label "Zmiana ceny..."
         const priceChangeLabel = document.createElement('div');
         priceChangeLabel.textContent = 'Zmiana ceny Twojej oferty';
         priceChangeLabel.style.fontSize = '14px';
         priceChangeLabel.style.color = '#212529';
 
-        // 3. Różnica cenowa (badge + kwota)
         const priceDifferenceDisplay = document.createElement('div');
         priceDifferenceDisplay.style.marginTop = '3px';
         let badgeText = '';
@@ -2020,7 +1900,6 @@
         contentWrapper.appendChild(priceChangeLabel);
         contentWrapper.appendChild(priceDifferenceDisplay);
 
-        // 4. Kalkulacja Narzutu (jeśli dostępna)
         if (marginPrice !== null && suggestedPrice !== null) {
             let newPriceForMarginCalculation = suggestedPrice;
             if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
@@ -2058,14 +1937,13 @@
             }
         }
 
-        // 5. Przycisk (Zawsze go generujemy)
         const strategicPriceLine = document.createElement('div');
         strategicPriceLine.className = 'price-action-line';
         strategicPriceLine.style.marginTop = '8px';
 
         const strategicPriceBtn = document.createElement('button');
         strategicPriceBtn.className = 'simulate-change-btn';
-        // Domyślny tekst przed aktywacją
+
         const strategicBtnContent = `<span class="${squareColorClass}"></span> Dodaj zmianę ceny`;
         strategicPriceBtn.innerHTML = strategicBtnContent;
         strategicPriceBtn.dataset.originalText = strategicBtnContent;
@@ -2105,6 +1983,7 @@
             selectedPriceChanges = [];
         }
 
+        
         const container = document.getElementById('priceContainer');
         const currentProductSearchTerm = document.getElementById('productSearch').value.trim();
         const currentStoreSearchTerm = document.getElementById('storeSearch').value.trim();
@@ -2129,7 +2008,7 @@
             const marginPrice = item.marginPrice;
 
             const box = document.createElement('div');
-            // Zmiana: Jeśli tryb profit, używamy marketBucket jako klasy koloru paska
+
             const cssClass = (currentViewMode === 'profit') ? item.marketBucket : item.colorClass;
             box.className = 'price-box ' + cssClass;
 
@@ -2230,56 +2109,51 @@
             priceBoxColumnLowestPrice.className = 'price-box-column';
 
             if (currentViewMode === 'profit') {
-                // --- WIDOK PROFIT: POKAZUJEMY MEDIANĘ I INDEKS ---
 
-                // 1. Nagłówek: Cena Mediana
-                const marketHeader = document.createElement('div');
-                marketHeader.className = 'price-box-column-text';
+                const marketInfoBlock = document.createElement('div');
+                marketInfoBlock.className = 'price-box-column-text';
 
                 const avgPriceDisplay = item.marketAveragePrice
                     ? formatPricePL(item.marketAveragePrice)
                     : 'Brak danych';
 
-                marketHeader.innerHTML = `
-                    <div style="display:flex; align-items:center;">
-                        <span style="font-weight: 500; font-size: 17px; color:#444;">${avgPriceDisplay}</span>
-                        <span class="uniqueBestPriceBox" style="background:#eee; color:#333; margin-left:6px; font-weight:normal;" title="Mediana rynkowa (środek rynku)">Mediana</span>
-                    </div>
-                `;
+                const priceHtml = `
+            <div style="display:flex; align-items:center;">
+                <span style="font-weight: 500; font-size: 17px; color:#444;">${avgPriceDisplay}</span>
+                <span class="uniqueBestPriceBox" style="background:#282828; margin-left:6px; " title="Mediana rynkowa (środek rynku)">Mediana</span>
+            </div>
+        `;
 
-                // 2. Sub-nagłówek: Etykieta zamiast nazwy sklepu
-                const marketLabel = document.createElement('div');
-                marketLabel.innerHTML = `
-                    <div style="display:flex; align-items:center; color: #666; font-size: 13px; margin-top: 2px;">
-                        <i class="fas fa-chart-pie" style="margin-right: 5px;"></i> Indeks Rynku
-                    </div>
-                `;
+                const labelHtml = `
+            <div style="display:flex; align-items:center; color: #666; font-size: 13px; margin-top: 2px;">
+                <i class="fa-solid fa-scale-balanced" style="margin-right: 5px;"></i> Indeks Rynku
+            </div>
+        `;
 
-                // 3. Szczegóły: Indeks w %
+                marketInfoBlock.innerHTML = priceHtml + labelHtml;
+
                 const marketDetails = document.createElement('div');
                 marketDetails.className = 'price-box-column-text';
 
                 if (item.marketPriceIndex !== null) {
                     const idx = item.marketPriceIndex;
                     const sign = idx > 0 ? '+' : '';
-                    // Prosta logika kolorów dla badge'a indeksu
                     let badgeColorClass = 'index-gray';
-                    if (idx > 2) badgeColorClass = 'index-red'; // Drożej niż rynek
-                    else if (idx < -2) badgeColorClass = 'index-green'; // Taniej niż rynek
+                    if (idx > 2) badgeColorClass = 'index-red';
+
+                    else if (idx < -2) badgeColorClass = 'index-green';
 
                     marketDetails.innerHTML = `
-                        <div style="margin-top:4px;">
-                            <span class="market-index-badge ${badgeColorClass}" style="padding:2px 6px; border-radius:4px; font-size:12px; font-weight:600; color:white;">
-                                Twoja cena: ${sign}${idx}%
-                            </span>
-                        </div>
-                    `;
+                <div style="margin-top:0px;"> <span class="market-index-badge ${badgeColorClass}" style="padding:2px 6px; border-radius:4px; font-size:12px; font-weight:600; color:white;">
+                        Twoja cena: ${sign}${idx}%
+                    </span>
+                </div>
+            `;
                 } else {
                     marketDetails.innerHTML = `<span style="font-size:12px; color:#999;">Brak danych do porównania</span>`;
                 }
 
-                priceBoxColumnLowestPrice.appendChild(marketHeader);
-                priceBoxColumnLowestPrice.appendChild(marketLabel);
+                priceBoxColumnLowestPrice.appendChild(marketInfoBlock);
                 priceBoxColumnLowestPrice.appendChild(marketDetails);
 
             } else {
@@ -2408,7 +2282,6 @@
                     priceBoxColumnLowestPrice.appendChild(priceBoxLowestDetails);
                 }
             }
-
             const priceBoxColumnMyPrice = document.createElement('div');
             priceBoxColumnMyPrice.className = 'price-box-column my-price-column'; 
 
@@ -3803,7 +3676,6 @@
         debouncedFilterPrices();
     });
 
-    // Podpięcie eventów dla nowych filtrów kubełkowych (Profit Mode)
     document.querySelectorAll('.bucketFilter').forEach(cb => {
         cb.addEventListener('change', function () {
             showLoading();
@@ -3811,9 +3683,6 @@
         });
     });
 
-   
-
-    // Synchronizacja inputów stepPrice
     const stepPriceMain = document.getElementById('stepPrice');
     const stepPriceProfit = document.getElementById('stepPrice_profit');
 
@@ -3826,7 +3695,6 @@
         });
     }
 
-
     const exportButton = document.getElementById("exportToExcelButton");
     if (exportButton) {
         exportButton.addEventListener("click", function () {
@@ -3838,11 +3706,10 @@
     const profitCalcBtn = document.getElementById('savePriceValues_profit');
     if (profitCalcBtn) {
         profitCalcBtn.addEventListener('click', function () {
-            // Wywołujemy główny save, ale najpierw aktualizujemy zmienną globalną z inputu
+
             const inputVal = document.getElementById('priceIndexTargetInput').value;
             setPriceIndexTarget = parseFloat(inputVal);
 
-            // Wywołujemy kliknięcie głównego przycisku zapisu (który musimy zaktualizować poniżej)
             document.getElementById('savePriceValues').click();
         });
     }
@@ -3853,7 +3720,6 @@
         const stepPrice = parseFloat(document.getElementById('stepPrice').value);
         const usePriceDiff = document.getElementById('usePriceDifference').checked;
 
-        // Pobieramy wartość z nowego inputu (jeśli jesteśmy w trybie profit, to stamtąd, jak nie to ze zmiennej)
         const profitInput = document.getElementById('priceIndexTargetInput');
         const priceIndexTarget = profitInput ? parseFloat(profitInput.value) : 100.00;
 
@@ -3863,7 +3729,8 @@
             SetPrice2: price2,
             PriceStep: stepPrice,
             UsePriceDiff: usePriceDiff,
-            PriceIndexTargetPercent: priceIndexTarget // <--- NOWE POLE DO API
+            PriceIndexTargetPercent: priceIndexTarget
+
         };
 
         fetch('/PriceHistory/SavePriceValues', {

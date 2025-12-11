@@ -79,24 +79,20 @@
         try {
             const storedData = JSON.parse(storedDataJSON);
 
-            // 1. Sprawdzenie poprawności struktury
             if (storedData && storedData.scrapId && Array.isArray(storedData.changes)) {
 
-                // 2. Logika migracji starych danych (wsteczna kompatybilność)
                 if (storedData.changes.length > 0) {
                     const sample = storedData.changes[0];
 
-                    // Sprawdzamy czy wpis posiada pole 'mode'. Jeśli nie -> to dane ze starej wersji skryptu.
                     if (typeof sample.mode === 'undefined') {
                         console.info("Wykryto starszy format danych w LS. Wykonuję migrację do formatu z polami 'mode'.");
 
-                        // Naprawiamy każdy wpis w pamięci
                         storedData.changes.forEach(change => {
-                            // Stare wpisy to zawsze była konkurencja
+
                             change.mode = 'competitiveness';
-                            // Jeśli stary wpis nie miał indexTarget, dajemy null
+
                             change.priceIndexTarget = null;
-                            // Upewniamy się, że stepPriceApplied istnieje (dla starych wpisów powinno być liczbą, ale dla pewności)
+
                             if (typeof change.stepPriceApplied === 'undefined') {
                                 change.stepPriceApplied = null;
                             }
@@ -104,7 +100,6 @@
                     }
                 }
 
-                // 3. Przypisanie naprawionych danych
                 selectedPriceChanges = storedData.changes;
                 sessionScrapId = storedData.scrapId;
 
@@ -220,7 +215,7 @@
         updatePriceChangeSummary();
     });
     document.addEventListener('priceBoxChange', function (event) {
-        // Pobieramy wszystkie nowe pola z eventu
+
         const {
             productId,
             productName,
@@ -230,8 +225,10 @@
             stepPriceApplied,
             stepUnitApplied,
             marginPrice,
-            mode,             // <--- NOWE
-            priceIndexTarget  // <--- NOWE (czasem nazywane indexTarget w detail)
+            mode,
+
+            priceIndexTarget
+
         } = event.detail;
 
         if (selectedPriceChanges.length === 0) {
@@ -246,7 +243,6 @@
             return String(item.productId) === String(productId);
         });
 
-        // Tworzymy obiekt zmiany z uwzględnieniem trybu
         const changeData = {
             productId: String(productId),
             productName,
@@ -254,11 +250,9 @@
             newPrice: parseFloat(newPrice),
             marginPrice: marginPrice,
 
-            // Logika trybów
             stepPriceApplied: (mode === 'profit') ? null : parseFloat(stepPriceApplied),
             stepUnitApplied: (mode === 'profit') ? null : stepUnitApplied,
 
-            // Nowe pola
             mode: mode || 'competitiveness',
             priceIndexTarget: (mode === 'profit' && event.detail.priceIndexTarget) ? parseFloat(event.detail.priceIndexTarget) : (event.detail.indexTarget ? parseFloat(event.detail.indexTarget) : null)
         };
@@ -608,9 +602,8 @@
                 if (data.latestScrapId) {
                     globalLatestScrapId = data.latestScrapId;
 
-                    // --- ZMIANA: Pobranie historii w tle, aby zaktualizować licznik ---
                     fetchAndRenderHistory();
-                    // ------------------------------------------------------------------
+
                 }
 
                 var simulationResults = data.simulationResults || [];
@@ -810,7 +803,6 @@
         let html = "";
         rows.forEach(row => {
 
-            // --- 1. Obrazek ---
             let imageCell = "";
             if (row.hasImage) {
                 const imgSrc = (row.imageUrl && row.imageUrl.trim() !== "") ? row.imageUrl : '/images/placeholder.png';
@@ -824,27 +816,21 @@
                     </td>`;
             }
 
-            // --- 2. Info o produkcie ---
-            // Używamy klasy .price-info-item zdefiniowanej w CSS
             let eanInfo = row.ean ? `<div class="price-info-item">EAN: ${row.ean}</div>` : "";
             let extIdInfo = row.externalId ? `<div class="price-info-item">ID: ${row.externalId}</div>` : "";
             let producerCodeInfo = row.producerCode ? `<div class="price-info-item">Kod: ${row.producerCode}</div>` : "";
             let producerInfo = row.producer ? `<div class="price-info-item" style="color: #555; font-style: italic;">Producent: ${row.producer}</div>` : "";
 
-            // --- 3. Różnica cen ---
             const formattedDiff = formatPricePL(Math.abs(row.diff), false);
             const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
 
-            // --- 4. Badge Strategii ---
-            // --- 4. Badge Strategii (Zmienione kolory i style) ---
-            // --- 4. Badge Strategii (Wersja korzystająca z klas CSS) ---
             const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
 
             let strategyBadgeHtml = "";
 
             if (sourceItem) {
                 if (sourceItem.mode === 'profit') {
-                    // --- TRYB PROFIT (Klasa .profit) ---
+
                     const targetVal = sourceItem.priceIndexTarget != null ? sourceItem.priceIndexTarget : 100;
 
                     strategyBadgeHtml = `
@@ -852,7 +838,7 @@
                             Indeks ${targetVal}%
                         </span>`;
                 } else {
-                    // --- TRYB KONKURENCJA (Klasa .competitiveness) ---
+
                     let stepText = "Konkurencja";
                     if (sourceItem.stepPriceApplied !== null && sourceItem.stepPriceApplied !== undefined) {
                         const stepVal = parseFloat(sourceItem.stepPriceApplied);
@@ -869,7 +855,6 @@
                 }
             }
 
-            // --- 5. Budowanie HTML wiersza ---
             html += `<tr data-product-id="${row.productId}"> 
                         ${imageCell}
                         <td class="align-middle"> 
@@ -888,9 +873,9 @@
                             ${producerCodeInfo}
                             ${producerInfo}
                         </td>
-                        
+
                         <td class="align-middle">${row.currentBlock}</td> 
-                        
+
                         <td class="align-middle" style="text-align: center;"> 
                             <div class="simulation-change-box">
                                 ${strategyBadgeHtml}
@@ -902,13 +887,13 @@
                                 </div>
                             </div>
                         </td>
-                        
+
                         <td class="align-middle">${row.newBlock}</td> 
-                        
+
                         <td class="align-middle" style="white-space: normal; text-align: center;"> 
                             ${row.effectDetails}
                         </td>
-                        
+
                         <td class="align-middle text-center"> 
                             <button class="remove-change-btn"
                                     data-product-id="${row.productId}"
@@ -922,7 +907,6 @@
 
         tbody.innerHTML = html;
 
-        // Podpięcie eventów usuwania
         tbody.querySelectorAll('.remove-change-btn').forEach(btn => {
             btn.addEventListener('mouseenter', function () { this.style.opacity = '1'; });
             btn.addEventListener('mouseleave', function () { this.style.opacity = '0.6'; });
@@ -938,7 +922,8 @@
             });
         });
     }
-       
+
+
 
     function sortRowsByScoreDesc(rows) {
         return rows.sort((a, b) => {
@@ -961,7 +946,6 @@
         });
     }
 
-
     function logChangesToDbAndRefresh(exportType) {
         if (originalRowsData.length === 0) {
             alert("Brak danych do zapisania/eksportu.");
@@ -974,9 +958,8 @@
             return `${rank} / ${totalOffers}`;
         }
 
-        // --- MAPPING DATA FOR BACKEND ---
         const itemsToLog = originalRowsData.map(row => {
-            // Find source item to get strategy details
+
             const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
 
             return {
@@ -989,7 +972,6 @@
                 NewGoogleRanking: formatFullRanking(row.newGoogleRanking, row.totalGoogleOffers),
                 NewCeneoRanking: formatFullRanking(row.newCeneoRanking, row.totalCeneoOffers),
 
-                // --- NEW FIELDS ---
                 Mode: sourceItem ? sourceItem.mode : 'competitiveness',
                 PriceIndexTarget: (sourceItem && sourceItem.priceIndexTarget) ? parseFloat(sourceItem.priceIndexTarget) : null,
                 StepPriceApplied: (sourceItem && sourceItem.stepPriceApplied !== null) ? parseFloat(sourceItem.stepPriceApplied) : null
@@ -1119,7 +1101,6 @@
         const historyContainer = document.getElementById("historyModalBody");
         if (!historyContainer) return;
 
-        // --- Helper do budowania kafelków cenowych (bez zmian) ---
         function buildHistoryPriceBlock(price, googleRank, ceneoRank, marginPrice, isConfirmed = false) {
             const formattedPrice = formatPricePL(price);
             const confirmedStyle = 'background: #dff0d8; border: 1px solid #c1e2b3;';
@@ -1194,26 +1175,23 @@
                 const statusBlock = '<span style="color: #28a745; font-weight: bold;"><i class="fas fa-check-circle"></i> Wgrano</span>';
                 let eanInfo = item.ean ? `<div class="price-info-item small-text">EAN: ${item.ean}</div>` : `<div class="price-info-item small-text" style="color:#888;">EAN: Brak</div>`;
 
-                // --- Generowanie Badge'a Strategii (Profit vs Konkurencja) ---
                 let strategyBadgeHtml = "";
 
-                // Sprawdzamy czy mamy dane o trybie (kompatybilność wsteczna dla starych wpisów w bazie)
                 if (item.mode) {
                     if (item.mode === 'profit') {
-                        // TRYB PROFIT
+
                         const targetVal = item.priceIndexTarget != null ? item.priceIndexTarget : 100;
                         strategyBadgeHtml = `
                             <span class="strategy-badge profit">
                                 Indeks ${targetVal}%
                             </span>`;
                     } else {
-                        // TRYB KONKURENCJA
+
                         let stepText = "Konkurencja";
-                        // Sprawdzamy stepPriceApplied
+
                         if (item.stepPriceApplied !== null && item.stepPriceApplied !== undefined) {
                             const stepVal = parseFloat(item.stepPriceApplied);
-                            // Próbujemy zgadnąć jednostkę, w historii najbezpieczniej założyć PLN jeśli nie mamy unit
-                            // (Chyba że dodasz stepUnitApplied do bazy, ale zazwyczaj po wartości widać)
+
                             const unit = "PLN";
 
                             if (stepVal === 0) stepText = "Wyrównanie";
@@ -1227,7 +1205,6 @@
                     }
                 }
 
-                // --- Generowanie różnicy cen ---
                 let diffBlock = '-';
                 if (item.priceAfter_Verified != null && item.priceBefore != null) {
                     const diff = item.priceAfter_Verified - item.priceBefore;
@@ -1236,7 +1213,6 @@
                     if (diff > 0.005) arrow = '<span style="color: red;">▲</span>';
                     else if (diff < -0.005) arrow = '<span style="color: green;">▼</span>';
 
-                    // Używamy tego samego kontenera .simulation-change-box co w symulacji!
                     diffBlock = `
                         <div class="simulation-change-box" style="margin: 0 auto;">
                             ${strategyBadgeHtml} <div class="simulation-diff-row">
