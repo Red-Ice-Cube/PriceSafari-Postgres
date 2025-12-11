@@ -73,8 +73,13 @@
                 <div><img src="@storeLogo" class="img-container" /></div>
 
                 <div class="mode-switch-container">
-                    <button class="mode-switch-btn active" onclick="switchMode('competitiveness')" id="btn-mode-comp">Konkurencja</button>
-                    <button class="mode-switch-btn" onclick="switchMode('profit')" id="btn-mode-profit">Zysk / Indeks</button>
+                    <button class="mode-switch-btn active" onclick="switchMode('competitiveness')" id="btn-mode-comp" title="Strategia maksymalizacji wolumenu sprzedaży">
+                        <i class="fa-solid fa-bolt"></i> Lider Rynku
+                    </button>
+
+                    <button class="mode-switch-btn" onclick="switchMode('profit')" id="btn-mode-profit" title="Strategia optymalizacji marży i zysku">
+                        <i class="fa-solid fa-dollar-sign"></i> Rentowność
+                    </button>
                 </div>
 
                 <div class="side-chart-box">
@@ -84,36 +89,45 @@
                 <div class="store-section" id="filters-competitiveness">
 
                     <div class="form-check">
+                        <span class="color-rect rect-no-offer"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prNoOfferCheckbox" value="prNoOffer">
                         <label class="form-check-label" for="prNoOfferCheckbox">Cena niedostępna</label>
                     </div>
 
                     <div class="form-check">
+                        <span class="color-rect rect-only-me"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prOnlyMeCheckbox" value="prOnlyMe">
                         <label class="form-check-label" for="prOnlyMeCheckbox">Cena solo</label>
                     </div>
 
                     <div class="form-check">
+                        <span class="color-rect rect-to-high"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
-                        <label class="form-check-label" for="prToHighCheckbox">Cena zawyżona </label>
+                        <label class="form-check-label" for="prToHighCheckbox">Cena zawyżona</label>
                     </div>
 
                     <div class="form-check">
+                        <span class="color-rect rect-mid"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prMidCheckbox" value="prMid">
-                        <label class="form-check-label" for="prMidCheckbox">Cena suboptymalna </label>
+                        <label class="form-check-label" for="prMidCheckbox">Cena suboptymalna</label>
                     </div>
 
                     <div class="form-check">
+                        <span class="color-rect rect-good"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood">
-                        <label class="form-check-label" for="prGoodCheckbox">Cena konkurencyjna </label>
+                        <label class="form-check-label" for="prGoodCheckbox">Cena konkurencyjna</label>
                     </div>
+
                     <div class="form-check">
+                        <span class="color-rect rect-ideal"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal">
-                        <label class="form-check-label" for="prIdealCheckbox">Cena strategiczna </label>
+                        <label class="form-check-label" for="prIdealCheckbox">Cena strategiczna</label>
                     </div>
+
                     <div class="form-check">
+                        <span class="color-rect rect-to-low"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prToLowCheckbox" value="prToLow">
-                        <label class="form-check-label" for="prToLowCheckbox">Cena zaniżona </label>
+                        <label class="form-check-label" for="prToLowCheckbox">Cena zaniżona</label>
                     </div>
 
                     <div class="price-range-settings">
@@ -143,7 +157,6 @@
 
                     <div>
                         <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" />
-
                     </div>
                     <button class="Button-Page-Small" style="margin-top: 4px;" id="savePriceValues">Przelicz i zapisz</button>
                 </div>

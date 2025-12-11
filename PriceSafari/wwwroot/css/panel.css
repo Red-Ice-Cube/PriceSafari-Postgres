@@ -216,7 +216,7 @@ p {
     gap: 24px;
     flex: 1 0 0;
     box-sizing: border-box;
-    overflow: hidden;
+
 }
 
 .Horizontal {
@@ -3210,6 +3210,95 @@ tr:last-child .sub-line {
         border: 2px solid rgba(40, 40, 40, 1);
     }
 
+
+
+
+
+
+
+
+/* --- Style tylko dla sekcji filtrów konkurencyjności --- */
+
+/* 1. Resetujemy styl głównego kontenera (usuwamy padding z poprzedniej próby) */
+#filters-competitiveness {
+    padding-left: 0;
+}
+
+    /* 2. Przesuwamy TYLKO wiersze z checkboxami w prawo, robiąc miejsce na paski */
+    #filters-competitiveness .form-check {
+        position: relative; /* Punkt odniesienia dla paska */
+        display: flex;
+        align-items: center;
+        margin-bottom: 2px;
+        padding-left: 0;
+        /* KLUCZOWA ZMIANA: */
+        margin-left: 3px; /* Przesuwamy same checkboxy w prawo o 12px */
+    }
+
+    /* 3. Pasek (Prostokąt) - Wypychamy go w lewo w miejsce stworzone przez margin-left */
+    #filters-competitiveness .color-rect {
+        position: absolute; /* Wyjmujemy z przepływu */
+        /* Przesuwamy w lewo o 12px (żeby zniwelować margin-left rodzica) + dodatkowe 6px odstępu */
+        left: -10px;
+        top: 50%;
+        transform: translateY(-50%); /* Centrowanie pionowe */
+
+        display: block;
+        width: 6px;
+        height: 16px;
+        min-width: 6px;
+        border-radius: 2px;
+    }
+
+    /* 4. Checkbox - Reset ustawień i odstęp od tekstu */
+    #filters-competitiveness .form-check-input {
+        margin-top: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 8px !important; /* Odstęp między checkboxem a tekstem */
+        position: static !important;
+    }
+
+/* --- Kolory Prostokątów (Bez zmian) --- */
+.rect-no-offer {
+    background-color: rgba(220, 220, 220, 0.7);
+    border: 1px solid rgba(220, 220, 220, 1);
+}
+
+.rect-only-me {
+    background-color: rgba(180, 180, 180, 0.7);
+    border: 1px solid rgba(180, 180, 180, 1);
+}
+
+.rect-to-high {
+    background-color: rgba(171, 37, 32, 0.7);
+    border: 1px solid rgba(171, 37, 32, 1);
+}
+
+.rect-mid {
+    background-color: rgba(224, 168, 66, 0.7);
+    border: 1px solid rgba(224, 168, 66, 1);
+}
+
+.rect-good {
+    background-color: rgba(117, 152, 112, 0.7);
+    border: 1px solid rgba(117, 152, 112, 1);
+}
+
+.rect-ideal {
+    background-color: rgba(13, 110, 253, 0.7);
+    border: 1px solid rgba(13, 110, 253, 1);
+}
+
+.rect-to-low {
+    background-color: rgba(6, 6, 6, 0.7);
+    border: 1px solid rgba(6, 6, 6, 1);
+}
+
+
+
+
+
+
 .status-filter {
     outline: none;
     background-color: white;
@@ -4247,7 +4336,7 @@ tr:last-child .sub-line {
 
 .store-section {
     display: flex;
-    width: 220px;
+    width: 100%;
     flex-direction: column;
 }
 
