@@ -78,18 +78,38 @@
     if (storedDataJSON) {
         try {
             const storedData = JSON.parse(storedDataJSON);
+
+            // 1. Sprawdzenie poprawności struktury
             if (storedData && storedData.scrapId && Array.isArray(storedData.changes)) {
 
-                if (storedData.changes.length > 0 && typeof storedData.changes[0].stepPriceApplied === 'undefined') {
-                    console.warn("Wykryto stary format danych w LS (bez kroku cenowego). Zostanie on usunięty przy następnej zmianie.");
-                    selectedPriceChanges = storedData.changes;
-                    sessionScrapId = storedData.scrapId;
-                } else {
-                    selectedPriceChanges = storedData.changes;
-                    sessionScrapId = storedData.scrapId;
+                // 2. Logika migracji starych danych (wsteczna kompatybilność)
+                if (storedData.changes.length > 0) {
+                    const sample = storedData.changes[0];
+
+                    // Sprawdzamy czy wpis posiada pole 'mode'. Jeśli nie -> to dane ze starej wersji skryptu.
+                    if (typeof sample.mode === 'undefined') {
+                        console.info("Wykryto starszy format danych w LS. Wykonuję migrację do formatu z polami 'mode'.");
+
+                        // Naprawiamy każdy wpis w pamięci
+                        storedData.changes.forEach(change => {
+                            // Stare wpisy to zawsze była konkurencja
+                            change.mode = 'competitiveness';
+                            // Jeśli stary wpis nie miał indexTarget, dajemy null
+                            change.priceIndexTarget = null;
+                            // Upewniamy się, że stepPriceApplied istnieje (dla starych wpisów powinno być liczbą, ale dla pewności)
+                            if (typeof change.stepPriceApplied === 'undefined') {
+                                change.stepPriceApplied = null;
+                            }
+                        });
+                    }
                 }
+
+                // 3. Przypisanie naprawionych danych
+                selectedPriceChanges = storedData.changes;
+                sessionScrapId = storedData.scrapId;
+
             } else {
-                console.warn("Nieznany lub stary format danych w LS. Zostanie on usunięty przy następnej zmianie.");
+                console.warn("Nieznany lub uszkodzony format danych w LS. Usuwanie.");
                 localStorage.removeItem(localStorageKey);
             }
         } catch (err) {
@@ -199,10 +219,20 @@
         sessionScrapId = null;
         updatePriceChangeSummary();
     });
-
     document.addEventListener('priceBoxChange', function (event) {
-
-        const { productId, productName, currentPrice, newPrice, scrapId, stepPriceApplied, stepUnitApplied, marginPrice } = event.detail;
+        // Pobieramy wszystkie nowe pola z eventu
+        const {
+            productId,
+            productName,
+            currentPrice,
+            newPrice,
+            scrapId,
+            stepPriceApplied,
+            stepUnitApplied,
+            marginPrice,
+            mode,             // <--- NOWE
+            priceIndexTarget  // <--- NOWE (czasem nazywane indexTarget w detail)
+        } = event.detail;
 
         if (selectedPriceChanges.length === 0) {
             sessionScrapId = scrapId;
@@ -216,15 +246,21 @@
             return String(item.productId) === String(productId);
         });
 
+        // Tworzymy obiekt zmiany z uwzględnieniem trybu
         const changeData = {
             productId: String(productId),
             productName,
             currentPrice: parseFloat(currentPrice),
             newPrice: parseFloat(newPrice),
-            stepPriceApplied: parseFloat(stepPriceApplied),
-            stepUnitApplied,
+            marginPrice: marginPrice,
 
-            marginPrice: marginPrice
+            // Logika trybów
+            stepPriceApplied: (mode === 'profit') ? null : parseFloat(stepPriceApplied),
+            stepUnitApplied: (mode === 'profit') ? null : stepUnitApplied,
+
+            // Nowe pola
+            mode: mode || 'competitiveness',
+            priceIndexTarget: (mode === 'profit' && event.detail.priceIndexTarget) ? parseFloat(event.detail.priceIndexTarget) : (event.detail.indexTarget ? parseFloat(event.detail.indexTarget) : null)
         };
 
         if (existingIndex > -1) {
@@ -774,62 +810,123 @@
         let html = "";
         rows.forEach(row => {
 
+            // --- 1. Obrazek ---
             let imageCell = "";
             if (row.hasImage) {
-
                 const imgSrc = (row.imageUrl && row.imageUrl.trim() !== "") ? row.imageUrl : '/images/placeholder.png';
                 imageCell = `
                     <td>
-                        <div class="price-info-item" style="padding:4px; text-align: center;"> <img
-                                data-src="${imgSrc}" alt="${row.productName}"
-                                class="lazy-load" style="width: 114px; height: 114px; object-fit: contain; background-color: #fff; border: 1px solid #e3e3e3; border-radius: 4px; padding: 5px; display: inline-block;"
-                                src="${imgSrc}" >
+                        <div class="price-info-item" style="padding:4px; text-align: center;"> 
+                            <img data-src="${imgSrc}" alt="${row.productName}"
+                               class="lazy-load" style="width: 114px; height: 114px; object-fit: contain; background-color: #fff; border: 1px solid #e3e3e3; border-radius: 4px; padding: 5px; display: inline-block;"
+                               src="${imgSrc}" >
                         </div>
                     </td>`;
             }
 
+            // --- 2. Info o produkcie ---
+            // Używamy klasy .price-info-item zdefiniowanej w CSS
             let eanInfo = row.ean ? `<div class="price-info-item">EAN: ${row.ean}</div>` : "";
             let extIdInfo = row.externalId ? `<div class="price-info-item">ID: ${row.externalId}</div>` : "";
             let producerCodeInfo = row.producerCode ? `<div class="price-info-item">Kod: ${row.producerCode}</div>` : "";
             let producerInfo = row.producer ? `<div class="price-info-item" style="color: #555; font-style: italic;">Producent: ${row.producer}</div>` : "";
 
+            // --- 3. Różnica cen ---
             const formattedDiff = formatPricePL(Math.abs(row.diff), false);
             const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
 
-            html += `<tr data-product-id="${row.productId}"> ${imageCell}
-                                <td class="align-middle"> <a
-                                        href="/PriceHistory/Details?scrapId=${row.scrapId}&productId=${row.productId}"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="simulationProductTitle"
-                                        title="Zobacz szczegóły produktu"
-                                        style="text-decoration: none; color: inherit;"
-                                    >
-                                        <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500; width: 600px; white-space: normal;"> ${row.productName}
-                                        </div>
-                                    </a>
-                                    ${eanInfo}
-                                    ${extIdInfo}
-                                    ${producerCodeInfo}
-                                    ${producerInfo}
-                                </td>
-                                <td class="align-middle">${row.currentBlock}</td> <td class="align-middle" style="font-size: 1em; white-space: nowrap; text-align: center;"> <div>${row.arrow} ${formattedDiff} PLN</div>
-                                    <div style="font-size: 0.9em; color: #555;">(${formattedDiffPercent}%)</div>
-                                </td>
-                                <td class="align-middle">${row.newBlock}</td> <td class="align-middle" style="white-space: normal; text-align: center;"> ${row.effectDetails}
-                                </td>
-                                <td class="align-middle text-center"> <button class="remove-change-btn"
-                                        data-product-id="${row.productId}"
-                                        title="Usuń tę zmianę z symulacji"
-                                        style="background: none; border: none; padding: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
-                                    <i class="fa fa-trash" style="font-size: 19px; color: #555;"></i> </button>
-                                </td>
-                            </tr>`;
+            // --- 4. Badge Strategii ---
+            // --- 4. Badge Strategii (Zmienione kolory i style) ---
+            // --- 4. Badge Strategii (Wersja korzystająca z klas CSS) ---
+            const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
+
+            let strategyBadgeHtml = "";
+
+            if (sourceItem) {
+                if (sourceItem.mode === 'profit') {
+                    // --- TRYB PROFIT (Klasa .profit) ---
+                    const targetVal = sourceItem.priceIndexTarget != null ? sourceItem.priceIndexTarget : 100;
+
+                    strategyBadgeHtml = `
+                        <span class="strategy-badge profit">
+                            Indeks ${targetVal}%
+                        </span>`;
+                } else {
+                    // --- TRYB KONKURENCJA (Klasa .competitiveness) ---
+                    let stepText = "Konkurencja";
+                    if (sourceItem.stepPriceApplied !== null && sourceItem.stepPriceApplied !== undefined) {
+                        const stepVal = parseFloat(sourceItem.stepPriceApplied);
+                        const unit = sourceItem.stepUnitApplied || (document.getElementById('usePriceDifference')?.checked ? 'PLN' : '%');
+
+                        if (stepVal === 0) stepText = "Wyrównanie";
+                        else stepText = `Krok ${stepVal > 0 ? '+' : ''}${stepVal} ${unit}`;
+                    }
+
+                    strategyBadgeHtml = `
+                        <span class="strategy-badge competitiveness">
+                            ${stepText}
+                        </span>`;
+                }
+            }
+
+            // --- 5. Budowanie HTML wiersza ---
+            html += `<tr data-product-id="${row.productId}"> 
+                        ${imageCell}
+                        <td class="align-middle"> 
+                            <a href="/PriceHistory/Details?scrapId=${row.scrapId}&productId=${row.productId}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="simulationProductTitle"
+                               title="Zobacz szczegóły produktu"
+                               style="text-decoration: none; color: inherit;">
+                               <div class="price-info-item product-name-cell"> 
+                                   ${row.productName}
+                               </div>
+                            </a>
+                            ${eanInfo}
+                            ${extIdInfo}
+                            ${producerCodeInfo}
+                            ${producerInfo}
+                        </td>
+                        
+                        <td class="align-middle">${row.currentBlock}</td> 
+                        
+                        <td class="align-middle" style="text-align: center;"> 
+                            <div class="simulation-change-box">
+                                ${strategyBadgeHtml}
+                                <div class="simulation-diff-row">
+                                    ${row.arrow} ${formattedDiff} PLN
+                                </div>
+                                <div class="simulation-diff-percent">
+                                    (${formattedDiffPercent}%)
+                                </div>
+                            </div>
+                        </td>
+                        
+                        <td class="align-middle">${row.newBlock}</td> 
+                        
+                        <td class="align-middle" style="white-space: normal; text-align: center;"> 
+                            ${row.effectDetails}
+                        </td>
+                        
+                        <td class="align-middle text-center"> 
+                            <button class="remove-change-btn"
+                                    data-product-id="${row.productId}"
+                                    title="Usuń tę zmianę z symulacji"
+                                    style="background: none; border: none; padding: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0.6; transition: opacity 0.2s;">
+                                <i class="fa fa-trash" style="font-size: 19px; color: #dc3545;"></i> 
+                            </button>
+                        </td>
+                    </tr>`;
         });
 
         tbody.innerHTML = html;
 
+        // Podpięcie eventów usuwania
         tbody.querySelectorAll('.remove-change-btn').forEach(btn => {
+            btn.addEventListener('mouseenter', function () { this.style.opacity = '1'; });
+            btn.addEventListener('mouseleave', function () { this.style.opacity = '0.6'; });
+
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 const prodId = this.getAttribute('data-product-id');
@@ -838,11 +935,10 @@
                     detail: { productId: prodId }
                 });
                 document.dispatchEvent(removeEvent);
-
             });
         });
-
     }
+       
 
     function sortRowsByScoreDesc(rows) {
         return rows.sort((a, b) => {
@@ -1150,7 +1246,7 @@
                         target="_blank"
                         class="simulationProductTitle"
                         style="text-decoration: none; color: inherit;">
-                        <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500; width: 600px; white-space: normal;">${item.productName}</div>
+                        <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500; max-width: 450px; white-space: normal;">${item.productName}</div>
                     </a>
                     ${eanInfo}
                 </td>

@@ -1838,6 +1838,9 @@ namespace PriceSafari.Controllers.MemberControllers
             public string? CurrentCeneoRanking { get; set; }
             public string? NewGoogleRanking { get; set; }
             public string? NewCeneoRanking { get; set; }
+            public string? Mode { get; set; }             // "profit" or "competitiveness"
+            public decimal? PriceIndexTarget { get; set; } // e.g., 100.00
+            public decimal? StepPriceApplied { get; set; }
         }
 
 

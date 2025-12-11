@@ -581,27 +581,32 @@
                 const newSuggestionData = calculateCurrentSuggestion(item);
 
                 if (newSuggestionData) {
+                    // Tutaj przekazujemy activeChange do renderera HTML (jeśli masz taką logikę w renderSuggestionBlockHTML)
+                    // Ale kluczowe jest to, co dzieje się PO renderowaniu, czyli aktywacja przycisku:
 
-                    const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData, null);
-
+                    const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData, activeChange); // activeChange przekazany opcjonalnie
                     priceBoxActionColumn.innerHTML = suggestionRenderResult.html;
+
                     const newActionLine = priceBoxActionColumn.querySelector(suggestionRenderResult.actionLineSelector);
 
                     if (newActionLine) {
                         const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
 
+                        // Podpinamy listener kliknięcia (dla nowej zmiany)
                         attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
 
                         if (activeChange) {
                             const btn = newActionLine.querySelector('.simulate-change-btn');
                             if (btn) {
-
+                                // TU JEST ZMIANA: Przekazujemy zapisane parametry (mode, indexTarget)
                                 activateChangeButton(
                                     btn,
                                     newActionLine,
                                     priceBox,
                                     activeChange.stepPriceApplied,
-                                    activeChange.stepUnitApplied
+                                    activeChange.stepUnitApplied,
+                                    activeChange.mode,        // <--- Odczyt z zapisanego obiektu
+                                    activeChange.indexTarget  // <--- Odczyt z zapisanego obiektu
                                 );
                             }
                             priceBox.classList.add('price-changed');
@@ -1362,94 +1367,98 @@
     </div>`;
     }
 
-    function activateChangeButton(button, actionLine, priceBox, stepPriceApplied, stepUnitApplied) {
+   
+    function activateChangeButton(button, actionLine, priceBox, stepPriceApplied, stepUnitApplied, mode, indexTarget) {
+        if (!button) return;
 
-        if (!button) {
-            console.error("Próba aktywacji nieistniejącego przycisku w priceBox:", priceBox);
-            return;
+        let btnInfoText = "";
+        let badgeHtml = "";
+
+        // Domyślny tryb jeśli brak danych (np. stare wpisy w cache)
+        const currentMode = mode || 'competitiveness';
+
+        if (currentMode === 'profit') {
+            // --- TRYB ZYSK (PROFIT) ---
+            const targetVal = indexTarget != null ? parseFloat(indexTarget) : 100.00;
+
+            btnInfoText = ` Indeks ${targetVal}%`;
+
+            // Fioletowy badge dla strategii zysku
+            badgeHtml = `<div class="strategy-badge mode-profit" style="background-color: #6f42c1; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px; display: inline-block; font-weight: 600;">Maks. Zysk | Zmiana dodana</div>`;
+
+        } else {
+            // --- TRYB KONKURENCJA (COMPETITIVENESS) ---
+            let formattedStep = "0.00";
+            let unit = "%";
+
+            // Ustalanie jednostki (z argumentu lub z checkboxa globalnego)
+            if (stepUnitApplied) {
+                unit = stepUnitApplied;
+            } else {
+                const useDiffCheckbox = document.getElementById('usePriceDifference');
+                unit = (useDiffCheckbox && useDiffCheckbox.checked) ? 'PLN' : '%';
+            }
+
+            if (stepPriceApplied !== null && stepPriceApplied !== undefined) {
+                formattedStep = parseFloat(stepPriceApplied).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            btnInfoText = ` Krok ${formattedStep} ${unit}`;
+
+            // Niebieski badge dla strategii konkurencji
+            badgeHtml = `<div class="strategy-badge mode-competitiveness" style="background-color: #0d6efd; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px; display: inline-block; font-weight: 600;">Konkurencyjność | Zmiana dodana</div>`;
         }
 
-        let stepInfoText = "";
+        // 1. Wstawienie Badge'a (usuwamy stary, jeśli istnieje, żeby nie dublować)
+        const existingBadge = actionLine.querySelector('.strategy-badge');
+        if (existingBadge) existingBadge.remove();
 
-        if (typeof stepPriceApplied !== 'undefined' && stepPriceApplied !== null && typeof stepUnitApplied !== 'undefined') {
-            const formattedStepPrice = stepPriceApplied.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            stepInfoText = ` Krok cenowy ${formattedStepPrice} ${stepUnitApplied}`;
-        }
+        actionLine.insertAdjacentHTML('afterbegin', badgeHtml);
 
+        // 2. Stylizacja i Tekst Przycisku
         button.classList.add('active');
+        button.innerHTML = `${btnInfoText} | Dodano`;
 
-        button.innerHTML = stepInfoText + " | Dodano";
-
+        // 3. Dodanie ikony kosza (usuwania)
         const removeLink = document.createElement('span');
-        removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-top:3px;'></i>";
+        removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-top:3px; margin-left:5px;'></i>";
         removeLink.style.textDecoration = "none";
         removeLink.style.cursor = "pointer";
         removeLink.style.pointerEvents = 'auto';
+        removeLink.title = "Usuń tę zmianę";
 
+        // Obsługa kliknięcia w kosz
         removeLink.addEventListener('click', function (ev) {
-            ev.stopPropagation();
-
+            ev.stopPropagation(); // Ważne: żeby nie triggerować kliknięcia w sam przycisk
             const productId = priceBox.dataset.productId;
 
-            selectedPriceChanges = selectedPriceChanges.filter(c => String(c.productId) !== String(productId));
+            // A. Aktualizacja tablicy w pamięci
+            if (typeof selectedPriceChanges !== 'undefined') {
+                selectedPriceChanges = selectedPriceChanges.filter(c => String(c.productId) !== String(productId));
+            }
 
+            // B. Wysłanie zdarzenia, że usunięto zmianę
+            // UWAGA: To zdarzenie jest odbierane przez globalny listener 'priceBoxChangeRemove' (który masz w głównym kodzie),
+            // i to on odpowiada za zresetowanie wyglądu przycisku i przeliczenie sugestii na nowo.
             const removeEvent = new CustomEvent('priceBoxChangeRemove', {
                 detail: { productId }
             });
             document.dispatchEvent(removeEvent);
-
-            const item = allPrices.find(p => String(p.productId) === String(productId));
-            if (!item) {
-                console.error("Nie znaleziono danych produktu dla ID:", productId, "podczas usuwania zmiany.");
-                priceBox.classList.remove('price-changed');
-                const buttonToReset = actionLine.querySelector('.simulate-change-btn');
-                if (buttonToReset) {
-                    buttonToReset.classList.remove('active');
-                    buttonToReset.innerHTML = buttonToReset.dataset.originalText || "Dodaj zmianę ceny";
-                }
-                return;
-            }
-            const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-
-            const priceBoxColumnInfo = priceBox.querySelector('.price-box-column-action');
-            if (!priceBoxColumnInfo) {
-                console.error("Nie znaleziono kontenera .price-box-column-action dla ID:", productId, "podczas usuwania zmiany.");
-                priceBox.classList.remove('price-changed');
-                return;
-            }
-
-            const newSuggestionData = calculateCurrentSuggestion(item);
-
-            if (newSuggestionData) {
-                const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData);
-
-                priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
-
-                const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
-                if (newActionLine) {
-                    const priceToAddOnClick = newSuggestionData.suggestedPrice;
-
-                    attachPriceChangeListener(newActionLine, priceToAddOnClick, priceBox, item.productId, item.productName, currentMyPrice, item);
-                } else {
-                    console.error("Nie znaleziono .price-action-line po re-renderowaniu sugestii dla ID:", productId);
-                }
-            } else {
-
-                priceBoxColumnInfo.innerHTML = '';
-                console.warn("Nie udało się obliczyć nowej sugestii po usunięciu dla ID:", productId);
-            }
-
-            priceBox.classList.remove('price-changed');
-
         });
 
         button.appendChild(removeLink);
 
+        // 4. Oznaczenie kontenera jako zmienionego
         if (!priceBox.classList.contains('price-changed')) {
             priceBox.classList.add('price-changed');
         }
     }
+
+
+
+
     function attachPriceChangeListener(actionLine, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
+
         let requiredField = '';
         let requiredLabel = '';
 
@@ -1489,8 +1498,10 @@
                 return;
             }
 
-            if (marginSettings.useMarginForSimulation) {
+            let finalMargin = null;
+            let formattedMarginInfo = '';
 
+            if (marginSettings.useMarginForSimulation) {
                 if (item.marginPrice == null) {
                     showGlobalNotification(
                         `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
@@ -1499,154 +1510,162 @@
                     return;
                 }
 
-                let oldPriceForMarginCalculation = currentPriceValue;
+                const getNetPrice = (grossPrice) => {
+                    if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                        const delivery = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                        return grossPrice - delivery;
+                    }
+                    return grossPrice;
+                };
+
+                const oldNetPrice = getNetPrice(currentPriceValue);
+                const newNetPrice = getNetPrice(suggestedPrice);
+
+                const calculateMargin = (price, cost) => (cost !== 0) ? ((price - cost) / cost) * 100 : Infinity;
+
+                let oldMargin = parseFloat(calculateMargin(oldNetPrice, item.marginPrice).toFixed(2));
+                let newMargin = parseFloat(calculateMargin(newNetPrice, item.marginPrice).toFixed(2));
+
+                finalMargin = newMargin;
+
+                let suggestedPriceMsg = formatPricePL(suggestedPrice);
                 if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                    const oldDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                    oldPriceForMarginCalculation = currentPriceValue - oldDeliveryCost;
-                }
-
-                let newPriceForMarginCalculation = suggestedPrice;
-                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                    const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                    newPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
-                }
-
-                let oldMargin = (item.marginPrice !== 0) ? ((oldPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100 : Infinity;
-                let newMargin = (item.marginPrice !== 0) ? ((newPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100 : Infinity;
-
-                oldMargin = parseFloat(oldMargin.toFixed(2));
-                newMargin = parseFloat(newMargin.toFixed(2));
-
-                let suggestedPriceDisplayFormatted = formatPricePL(suggestedPrice);
-                let actualProductPriceFormatted = '';
-                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                    const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                    const actualProductPrice = suggestedPrice - myDeliveryCost;
-                    actualProductPriceFormatted = formatPricePL(actualProductPrice);
-                    suggestedPriceDisplayFormatted = `${formatPricePL(suggestedPrice)} (z dostawą) | ${actualProductPriceFormatted} (bez dostawy)`;
+                    suggestedPriceMsg += ` (z dostawą) | ${formatPricePL(newNetPrice)} (bez dostawy)`;
                 }
 
                 if (marginSettings.minimalMarginPercent > 0) {
                     if (newMargin < marginSettings.minimalMarginPercent) {
 
                         if (!(oldMargin < marginSettings.minimalMarginPercent && newMargin > oldMargin)) {
-                            let reason = "";
-                            if (oldMargin >= marginSettings.minimalMarginPercent) {
-                                reason = `Zmiana obniża narzut z <strong>${oldMargin}%</strong> (który spełniał minimum) do <strong>${newMargin}%</strong>, czyli poniżej wymaganego progu <strong>${marginSettings.minimalMarginPercent}%</strong>.`;
-                            } else {
-                                reason = `Nowy narzut (<strong>${newMargin}%</strong>) jest poniżej wymaganego minimum (<strong>${marginSettings.minimalMarginPercent}%</strong>) i nie stanowi poprawy (lub jest pogorszeniem) poprzedniego, już niskiego narzutu (<strong>${oldMargin}%</strong>).`;
-                            }
+                            let reason = (oldMargin >= marginSettings.minimalMarginPercent)
+                                ? `Zmiana obniża narzut z <strong>${oldMargin}%</strong> do <strong>${newMargin}%</strong> (poniżej progu ${marginSettings.minimalMarginPercent}%).`
+                                : `Nowy narzut (<strong>${newMargin}%</strong>) nadal jest poniżej minimum i nie poprawia sytuacji.`;
+
                             showGlobalNotification(
-                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                                `<p style="margin:8px 0; font-weight:bold;">Zmiana odrzucona (Narzut)</p>
                              <p>${reason}</p>
-                             <p>Cena zakupu wynosi <strong>${formatPricePL(item.marginPrice)}</strong>.</p>
-                             <p>Sugerowana cena: <strong>${suggestedPriceDisplayFormatted}</strong>.</p>`
+                             <p>Cena zakupu: <strong>${formatPricePL(item.marginPrice)}</strong></p>`
                             );
                             return;
                         }
                     }
-                } else if (marginSettings.enforceMinimalMargin) {
-                    if (newMargin < 0) {
+                }
 
+                else if (marginSettings.enforceMinimalMargin) {
+                    if (newMargin < 0) {
                         if (!(oldMargin < 0 && newMargin > oldMargin)) {
                             showGlobalNotification(
-                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                             <p>Nowa cena <strong>${suggestedPriceDisplayFormatted}</strong> spowoduje ujemny narzut (nowy narzut: <strong>${newMargin}%</strong>).</p>
-                             <p>Cena zakupu wynosi <strong>${formatPricePL(item.marginPrice)}</strong>. Zmiana nie może zostać zastosowana.</p>`
+                                `<p style="margin:8px 0; font-weight:bold;">Zmiana odrzucona (Strata)</p>
+                             <p>Nowa cena generuje ujemny narzut: <strong>${newMargin}%</strong>.</p>
+                             <p>Cena zakupu: <strong>${formatPricePL(item.marginPrice)}</strong></p>`
                             );
                             return;
                         }
                     }
 
                     if (marginSettings.minimalMarginPercent < 0 && newMargin < marginSettings.minimalMarginPercent) {
-
                         showGlobalNotification(
-                            `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                         <p>Nowa cena <strong>${suggestedPriceDisplayFormatted}</strong> ustawi narzut (<strong>${newMargin}%</strong>), który jest poniżej dopuszczalnego progu straty (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>
-                         <p>Nowy narzut wynosi <strong>${newMargin}%</strong>.</p>`
-
+                            `<p style="margin:8px 0; font-weight:bold;">Zmiana odrzucona (Zbyt duża strata)</p>
+                         <p>Narzut <strong>${newMargin}%</strong> przekracza dopuszczalną stratę (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>`
                         );
                         return;
                     }
                 }
-
             }
 
-            const currentSetStepPrice = setStepPrice;
-            const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
-            const stepUnit = currentUsePriceDifference ? 'PLN' : '%';
+            const modeApplied = currentViewMode;
+
+            let stepPriceToSave = null;
+            let stepUnitToSave = null;
+            let indexTargetToSave = null;
+
+            if (modeApplied === 'profit') {
+
+                indexTargetToSave = setPriceIndexTarget;
+
+                stepPriceToSave = null;
+                stepUnitToSave = null;
+            } else {
+
+                stepPriceToSave = setStepPrice;
+                const useDiff = document.getElementById('usePriceDifference');
+                stepUnitToSave = (useDiff && useDiff.checked) ? 'PLN' : '%';
+
+                indexTargetToSave = null;
+            }
 
             const priceChangeEvent = new CustomEvent('priceBoxChange', {
                 detail: {
-                    productId,
-                    productName,
+                    productId: item.productId,
+                    productName: item.productName,
                     currentPrice: currentPriceValue,
                     newPrice: suggestedPrice,
                     storeId: storeId,
                     scrapId: item.scrapId,
-                    stepPriceApplied: currentSetStepPrice,
-                    stepUnitApplied: stepUnit,
-                    marginPrice: item.marginPrice
+                    marginPrice: item.marginPrice,
+
+                    mode: modeApplied,
+                    stepPriceApplied: stepPriceToSave,
+                    stepUnitApplied: stepUnitToSave,
+                    indexTarget: indexTargetToSave
                 }
             });
             document.dispatchEvent(priceChangeEvent);
 
-            activateChangeButton(currentButton, this, priceBox, currentSetStepPrice, stepUnit);
+            activateChangeButton(
+                currentButton,
+                this,
+                priceBox,
+                stepPriceToSave,
+                stepUnitToSave,
+                modeApplied,
+                indexTargetToSave
+            );
 
             let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
             message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
 
             let displayPriceLabel = "Nowa cena";
-            let newPriceWithoutDeliveryFormatted = formatPricePL(suggestedPrice);
+            let newPriceFormatted = formatPricePL(suggestedPrice);
 
             if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                const delivery = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
+                const netPrice = suggestedPrice - delivery;
                 displayPriceLabel = "Nowa cena (z dostawą)";
-                const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                const newPriceWithoutDelivery = suggestedPrice - myDeliveryCost;
-                newPriceWithoutDeliveryFormatted = formatPricePL(newPriceWithoutDelivery);
+                newPriceFormatted += ` <span style="font-size:0.9em; color:#666;">(bez dostawy: ${formatPricePL(netPrice)})</span>`;
             }
 
-            message += `<p style="margin:4px 0;"><strong>${displayPriceLabel}:</strong> ${formatPricePL(suggestedPrice)}</p>`;
+            message += `<p style="margin:4px 0;"><strong>${displayPriceLabel}:</strong> ${newPriceFormatted}</p>`;
 
-            if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-
-                message += `<p style="margin:4px 0;"><strong>Nowa cena (bez dostawy):</strong> ${newPriceWithoutDeliveryFormatted}</p>`;
-            }
-
-            if (marginSettings.useMarginForSimulation && item.marginPrice != null) {
-                let finalPriceForMarginCalculation = suggestedPrice;
-                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                    const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                    finalPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
-                }
-
-                let finalMargin = (item.marginPrice !== 0) ? ((finalPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100 : Infinity;
-
+            if (marginSettings.useMarginForSimulation && finalMargin !== null) {
                 message += `<p style="margin:4px 0;"><strong>Nowy narzut:</strong> ${finalMargin.toFixed(2)}%</p>`;
-                message += `<p style="margin:4px 0;"><strong>Cena zakupu:</strong> ${formatPricePL(item.marginPrice)}</p>`;
-
-                if (marginSettings.enforceMinimalMargin) {
-                    if (marginSettings.minimalMarginPercent > 0) {
-                        message += `<p style="margin:4px 0;"><strong>Minimalny wymagany narzut:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
-                    } else if (marginSettings.minimalMarginPercent < 0) {
-                        message += `<p style="margin:4px 0;"><strong>Maksymalna dopuszczalna strata:</strong> ${marginSettings.minimalMarginPercent}%</p>`;
-                    }
-                }
+                message += `<p style="margin:4px 0; font-size: 0.9em; color:#555;">(Cena zakupu: ${formatPricePL(item.marginPrice)})</p>`;
             }
-            showGlobalUpdate(message);
 
+            showGlobalUpdate(message);
         });
 
         const existingChange = selectedPriceChanges.find(change =>
             String(change.productId) === String(productId)
-
         );
 
         if (existingChange) {
 
-            activateChangeButton(button, actionLine, priceBox, existingChange.stepPriceApplied, existingChange.stepUnitApplied);
+            activateChangeButton(
+                button,
+                actionLine,
+                priceBox,
+                existingChange.stepPriceApplied,
+                existingChange.stepUnitApplied,
+                existingChange.mode,
+                existingChange.priceIndexTarget || existingChange.indexTarget
+
+            );
         }
     }
+
+
+
 
     document.addEventListener('priceBoxChangeRemove', function (event) {
         const { productId } = event.detail;
@@ -1655,9 +1674,14 @@
         const priceBox = document.querySelector(`#priceContainer .price-box[data-product-id="${productId}"]`);
 
         if (priceBox) {
-            console.log(`Natychmiastowe resetowanie UI dla productId: ${productId} po zdarzeniu priceBoxChangeRemove.`);
-
             priceBox.classList.remove('price-changed');
+
+            // Usuwamy badge, jeśli istnieje
+            const actionLine = priceBox.querySelector('.price-action-line');
+            if (actionLine) {
+                const badge = actionLine.querySelector('.strategy-badge');
+                if (badge) badge.remove();
+            }
 
             const activeButtons = priceBox.querySelectorAll('.simulate-change-btn.active');
 

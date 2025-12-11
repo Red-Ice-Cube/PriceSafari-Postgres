@@ -3004,6 +3004,10 @@ tr:last-child .sub-line {
 
 
 
+
+
+
+
 .checkerboard {
     overflow: hidden;
     width: 500px;
@@ -3535,6 +3539,8 @@ tr:last-child .sub-line {
 .price-action-line {
     cursor: pointer;
     transition: background-color 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
 }
 
 .price-box-column-text {
@@ -5176,10 +5182,82 @@ small {
     max-width: 330px;
 }
 
+/* Styl dla elementu informacji o cenie */
 .price-info-item {
     margin: 4px 0;
     font-size: 16px;
+    /* Domyślnie brak ograniczeń szerokości dla zwykłych elementów,
+       chyba że nadpisane inline (jak w przypadku nazwy produktu) */
 }
+
+/* Styl dla kontenera zmiany w tabeli symulacji */
+.simulation-change-box {
+    background-color: #ffffff;
+    border: 1px solid #e3e3e3;
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    min-width: 140px;
+}
+
+.simulation-diff-row {
+    margin-top: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.simulation-diff-percent {
+    font-size: 13px;
+    color: #666;
+    margin-top: 2px;
+}
+
+/* Styl responsywny dla nazwy produktu w tabeli */
+.product-name-cell {
+    font-size: 110%;
+    margin-bottom: 8px;
+    font-weight: 500;
+    white-space: normal;
+    /* Responsywność */
+    width: 100%; /* Próbuj zająć dostępną przestrzeń */
+    min-width: 200px; /* Nie ściskaj bardziej niż 200px */
+    max-width: 600px; /* Nie rozciągaj bardziej niż 600px */
+    display: block; /* Ważne dla działania width */
+}
+
+/* Bazowy styl dla badge'a strategii */
+.strategy-badge {
+   
+    font-size: 11px;
+    padding: 4px 14px; /* Zwiększony padding boczny zgodnie z prośbą */
+    border-radius: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+    border: 1px solid transparent; /* Przygotowanie pod obramowanie */
+    display: inline-block; /* Ważne, aby padding działał poprawnie na elemencie span */
+}
+
+    /* Wariant: Zysk (Stonowany Granat / Mature Navy) */
+    .strategy-badge.profit {
+        background-color: rgba(26, 58, 99, 0.35); /* Półprzezroczyste tło */
+        border-color: #1a3a63; /* Pełny kolor obramowania */
+        color: #1a3a63;
+    }
+
+    /* Wariant: Konkurencyjność (Fiolet) */
+    .strategy-badge.competitiveness {
+        background-color: rgba(111, 66, 193, 0.35); /* Półprzezroczyste tło */
+        border-color: #6f42c1; /* Pełny kolor obramowania */
+        color: #6f42c1;
+    }
 
 .filterCompetitors-true {
     display: inline-flex;
