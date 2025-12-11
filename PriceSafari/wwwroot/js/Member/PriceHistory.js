@@ -293,28 +293,54 @@
 
         let countAdded = 0;
         let countSkipped = 0;
-
         let countRejected = 0;
         let rejectionReasons = {};
 
-        const currentSetStepPrice = setStepPrice;
-        const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
-        const stepUnit = currentUsePriceDifference ? 'PLN' : '%';
+        // 1. USTALENIE KONTEKSTU (TRYBU) DLA CAŁEJ MASOWEJ ZMIANY
+        const modeApplied = currentViewMode; // 'competitiveness' lub 'profit'
+
+        let stepPriceToSave = null;
+        let stepUnitToSave = null;
+        let indexTargetToSave = null;
+
+        // Ustalenie wartości w zależności od trybu
+        if (modeApplied === 'profit') {
+            // Tryb Zysk
+            indexTargetToSave = setPriceIndexTarget;
+            stepPriceToSave = null;
+            stepUnitToSave = null;
+        } else {
+            // Tryb Konkurencja
+            stepPriceToSave = setStepPrice;
+            const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
+            stepUnitToSave = currentUsePriceDifference ? 'PLN' : '%';
+            indexTargetToSave = null;
+        }
 
         productsToChange.forEach(item => {
-
+            // A. Odrzucamy produkty już zatwierdzone w bazie (Committed)
             if (item.committed) {
                 countRejected++;
                 rejectionReasons['Oferta już zaktualizowana (zatwierdzona)'] = (rejectionReasons['Oferta już zaktualizowana (zatwierdzona)'] || 0) + 1;
                 return;
             }
-
+            // --- POPRAWKA KRYTYCZNA: Sprawdzenie ceny 0.00 PLN ---
+            // Musimy to sprawdzić ZANIM pójdziemy dalej.
+            const currentPriceCheck = item.myPrice != null ? parseFloat(item.myPrice) : 0;
+            if (currentPriceCheck <= 0.01) {
+                countRejected++;
+                rejectionReasons['Brak ceny oferty (0 PLN)'] = (rejectionReasons['Brak ceny oferty (0 PLN)'] || 0) + 1;
+                return;
+            }
+            // B. OCHRONA PRZED NADPISANIEM
             const isAlreadyChanged = selectedPriceChanges.some(c => String(c.productId) === String(item.productId));
+
             if (isAlreadyChanged) {
                 countSkipped++;
                 return;
             }
 
+            // C. Wyliczamy sugestię dla bieżącego trybu
             const suggestionData = calculateCurrentSuggestion(item);
 
             if (!suggestionData) {
@@ -324,24 +350,16 @@
             }
 
             const suggestedPrice = suggestionData.suggestedPrice;
-            const currentPriceValue = item.myPrice != null ? parseFloat(item.myPrice) : null;
+            // POPRAWKA: Pewność co do ceny bieżącej (float)
+            const currentPriceValue = item.myPrice != null ? parseFloat(item.myPrice) : 0;
 
+            // D. Walidacja Identyfikatora
             let requiredField = '';
             let requiredLabel = '';
             switch (marginSettings.identifierForSimulation) {
-                case 'ID':
-                    requiredField = item.externalId;
-                    requiredLabel = "ID";
-                    break;
-                case 'ProducerCode':
-                    requiredField = item.producerCode;
-                    requiredLabel = "Kod producenta";
-                    break;
-                case 'EAN':
-                default:
-                    requiredField = item.ean;
-                    requiredLabel = "EAN";
-                    break;
+                case 'ID': requiredField = item.externalId; requiredLabel = "ID"; break;
+                case 'ProducerCode': requiredField = item.producerCode; requiredLabel = "Kod producenta"; break;
+                case 'EAN': default: requiredField = item.ean; requiredLabel = "EAN"; break;
             }
             if (!requiredField || requiredField.toString().trim() === "") {
                 countRejected++;
@@ -349,6 +367,7 @@
                 return;
             }
 
+            // E. Walidacja Marży
             if (marginSettings.useMarginForSimulation) {
                 if (item.marginPrice == null) {
                     countRejected++;
@@ -356,22 +375,20 @@
                     return;
                 }
 
-                let oldPriceForMarginCalculation = currentPriceValue;
-                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                    const oldDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                    oldPriceForMarginCalculation = currentPriceValue - oldDeliveryCost;
-                }
+                const getNetPrice = (grossPrice) => {
+                    if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
+                        const delivery = item.myPriceDeliveryCost != null ? parseFloat(item.myPriceDeliveryCost) : 0;
+                        return grossPrice - delivery;
+                    }
+                    return grossPrice;
+                };
 
-                let newPriceForMarginCalculation = suggestedPrice;
-                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                    const myDeliveryCost = item.myPriceDeliveryCost != null && !isNaN(parseFloat(item.myPriceDeliveryCost)) ? parseFloat(item.myPriceDeliveryCost) : 0;
-                    newPriceForMarginCalculation = suggestedPrice - myDeliveryCost;
-                }
+                const oldNetPrice = getNetPrice(currentPriceValue);
+                const newNetPrice = getNetPrice(suggestedPrice);
 
-                let oldMargin = (item.marginPrice !== 0) ? ((oldPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100 : Infinity;
-                let newMargin = (item.marginPrice !== 0) ? ((newPriceForMarginCalculation - item.marginPrice) / item.marginPrice) * 100 : Infinity;
-                oldMargin = parseFloat(oldMargin.toFixed(2));
-                newMargin = parseFloat(newMargin.toFixed(2));
+                const calculateMargin = (price, cost) => (cost !== 0) ? ((price - cost) / cost) * 100 : Infinity;
+                let oldMargin = calculateMargin(oldNetPrice, item.marginPrice);
+                let newMargin = calculateMargin(newNetPrice, item.marginPrice);
 
                 if (marginSettings.minimalMarginPercent > 0) {
                     if (newMargin < marginSettings.minimalMarginPercent) {
@@ -397,17 +414,25 @@
                 }
             }
 
+            // F. Dodanie nowej zmiany - WYSYŁKA ZDARZENIA
+            // POPRAWKA: Używamy currentScrapId jako fallback, jeśli item.scrapId jest puste
+            const safeScrapId = item.scrapId || currentScrapId;
+
             const priceChangeEvent = new CustomEvent('priceBoxChange', {
                 detail: {
-                    productId: item.productId,
+                    productId: String(item.productId), // POPRAWKA: Zawsze String
                     productName: item.productName,
                     currentPrice: currentPriceValue,
                     newPrice: suggestedPrice,
                     storeId: storeId,
-                    scrapId: item.scrapId,
-                    stepPriceApplied: currentSetStepPrice,
-                    stepUnitApplied: stepUnit,
-                    marginPrice: item.marginPrice
+                    scrapId: safeScrapId, // POPRAWKA: Pewny ID scrapu
+                    marginPrice: item.marginPrice,
+
+                    mode: modeApplied,
+                    indexTarget: indexTargetToSave,
+                    priceIndexTarget: indexTargetToSave, // POPRAWKA: Dublowanie pola dla pewności obsługi przez listener
+                    stepPriceApplied: stepPriceToSave,
+                    stepUnitApplied: stepUnitToSave
                 }
             });
             document.dispatchEvent(priceChangeEvent);
@@ -415,17 +440,20 @@
             countAdded++;
         });
 
+        // Odświeżenie widoku
         refreshPriceBoxStates();
 
+        // Podsumowanie
         let summaryHtml = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Masowa zmiana zakończona!</p>
-                         <p>Przeanalizowano: <strong>${productsToChange.length}</strong> SKU</p>
-                         <p>Dodano nowych zmian: <strong>${countAdded}</strong> SKU</p>`;
+                          <p>Tryb: <strong>${modeApplied === 'profit' ? 'Maksymalny Zysk' : 'Konkurencja'}</strong></p>
+                          <p>Przeanalizowano: <strong>${productsToChange.length}</strong> SKU</p>
+                          <p>Dodano nowych zmian: <strong>${countAdded}</strong> SKU</p>`;
 
         if (countSkipped > 0) {
-            summaryHtml += `<p>Pominięto (już w koszyku): <strong>${countSkipped}</strong> SKU</p>`;
+            summaryHtml += `<p"><strong>Pominięto (już dodane): ${countSkipped} SKU</strong></p>`;
         }
 
-        summaryHtml += `<p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`;
+        summaryHtml += `<p>Odrzucono (błędy/marża): <strong>${countRejected}</strong> SKU</p>`;
 
         if (countRejected > 0) {
             summaryHtml += `<p style="font-size:12px; margin-top:8px; border-top:1px solid #ccc; padding-top:5px;"><u>Powody odrzucenia:</u><br/>`;
@@ -1384,7 +1412,10 @@
             btnInfoText = ` Indeks ${targetVal}%`;
 
             // Fioletowy badge dla strategii zysku
-            badgeHtml = `<div class="strategy-badge mode-profit" style="background-color: #6f42c1; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px; display: inline-block; font-weight: 600;">Maks. Zysk | Zmiana dodana</div>`;
+            badgeHtml = `<div class="strategy-badge-dynamic mode-profit">
+                <i class="fa-solid fa-dollar-sign" style="margin-right: 5px;"></i>
+                Strategia optymalizacji zysku
+             </div>`;
 
         } else {
             // --- TRYB KONKURENCJA (COMPETITIVENESS) ---
@@ -1406,11 +1437,14 @@
             btnInfoText = ` Krok ${formattedStep} ${unit}`;
 
             // Niebieski badge dla strategii konkurencji
-            badgeHtml = `<div class="strategy-badge mode-competitiveness" style="background-color: #0d6efd; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px; display: inline-block; font-weight: 600;">Konkurencyjność | Zmiana dodana</div>`;
+            badgeHtml = `<div class="strategy-badge-dynamic mode-competitiveness">
+                <i class="fa-solid fa-bolt" style="margin-right: 5px;"></i>
+                Strategia maksymalnej konkurencyjności
+             </div>`;
         }
 
         // 1. Wstawienie Badge'a (usuwamy stary, jeśli istnieje, żeby nie dublować)
-        const existingBadge = actionLine.querySelector('.strategy-badge');
+        const existingBadge = actionLine.querySelector('.strategy-badge-dynamic');
         if (existingBadge) existingBadge.remove();
 
         actionLine.insertAdjacentHTML('afterbegin', badgeHtml);
@@ -1679,7 +1713,7 @@
             // Usuwamy badge, jeśli istnieje
             const actionLine = priceBox.querySelector('.price-action-line');
             if (actionLine) {
-                const badge = actionLine.querySelector('.strategy-badge');
+                const badge = actionLine.querySelector('.strategy-badge-dynamic');
                 if (badge) badge.remove();
             }
 
@@ -1806,6 +1840,12 @@
     function calculateCurrentSuggestion(item) {
         const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
 
+        // --- POPRAWKA KRYTYCZNA: Blokada, jeśli brak naszej ceny ---
+        // Jeśli cena jest null, 0 lub bliska zeru -> nie proponuj żadnej zmiany.
+        if (currentMyPrice === null || currentMyPrice <= 0.01) {
+            return null;
+        }
+
         // Wspólne zmienne
         let suggestedPrice = null;
         let totalChangeAmount = 0;
@@ -1926,102 +1966,48 @@
     }
 
     function renderSuggestionBlockHTML(item, suggestionData, activeChange = null) {
+        // USUNIĘTO BLOK 'if (activeChange)' - teraz zawsze renderujemy strukturę z przyciskiem,
+        // a stan "Dodano" nakładamy dynamicznie przez activateChangeButton.
 
-        if (activeChange) {
-            const newPrice = parseFloat(activeChange.newPrice);
-            const oldPrice = item.myPrice != null ? parseFloat(item.myPrice) : 0;
-            const diffAmount = newPrice - oldPrice;
-            const diffPercent = (oldPrice > 0) ? (diffAmount / oldPrice) * 100 : 0;
-
-            let badgeText = diffAmount > 0 ? 'Podwyżka ceny' : (diffAmount < 0 ? 'Obniżka ceny' : 'Brak zmiany ceny');
-
-            const priceDiffHtml = `
-                <div class="price-diff-stack" style="text-align: left; margin-top: 3px;">
-                    <div class="price-diff-stack-badge">${badgeText}</div>
-                    <span class="diff-amount small-font">${diffAmount >= 0 ? '+' : ''}${formatPricePL(diffAmount, false)} PLN</span>
-                    <span class="diff-percentage small-font" style="margin-left: 6px;">(${diffPercent >= 0 ? '+' : ''}${diffPercent.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>
-                </div>`;
-
-           
-            let newMarginHtml = '';
-            if (item.marginPrice != null) {
-                const marginPriceVal = parseFloat(item.marginPrice);
-                let netPrice = newPrice;
-                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                    const deliveryCost = item.myPriceDeliveryCost != null ? parseFloat(item.myPriceDeliveryCost) : 0;
-                    netPrice = newPrice - deliveryCost;
-                }
-
-                const newMarginAmount = netPrice - marginPriceVal;
-                const newMarginPercent = (marginPriceVal !== 0) ? (newMarginAmount / marginPriceVal) * 100 : 0;
-                const marginSign = newMarginAmount >= 0 ? '+' : '';
-                const marginClass = newMarginAmount > 0 ? 'priceBox-diff-margin-ins' : (newMarginAmount < 0 ? 'priceBox-diff-margin-minus-ins' : 'priceBox-diff-margin-neutral-ins');
-                const badgeClass = getMarginBadgeClass(marginClass);
-
-                let bgMarginClass = 'price-box-diff-margin-ib-neutral';
-                if (marginClass === 'priceBox-diff-margin-ins') bgMarginClass = 'price-box-diff-margin-ib-positive';
-                else if (marginClass === 'priceBox-diff-margin-minus-ins') bgMarginClass = 'price-box-diff-margin-ib-negative';
-
-                newMarginHtml = `
-                <div class="price-box-diff-margin-ib ${bgMarginClass}" style="margin-top: 3px;">
-                    <span class="price-badge ${badgeClass}">Nowy narzut</span>
-                    <p>${marginSign}${formatPricePL(Math.abs(newMarginAmount), false)} PLN (${marginSign}${Math.abs(newMarginPercent).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</p>
-                </div>`;
-            }
-
-            const html = `
-                <div class="price-box-column">
-                    <div class="price-box-column-text" style="padding: 0;">
-                        <div style="display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 600; color: #212529;">
-                            <i class="fas fa-check-circle" style="color: #198754;"></i> ${formatPricePL(newPrice)}
-                        </div>
-                        <div style="font-size: 14px; color: #212529;">Zaktualizowane dane Twojej oferty</div>
-                        ${priceDiffHtml}
-                        ${newMarginHtml}
-                    </div>
-                    <div style="color: #198754; font-weight: 600; display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 14px;">
-                        <span class="remove-change-link" style="cursor:pointer; color: #dc3545; font-size: 12px; margin-left: auto;">
-                            <i class="fas fa-trash"></i> Usuń zmianę
-                        </span>
-                    </div>
-                </div>`;
-
-            return { html: html, actionLineSelector: null };
-        }
-
-        // 2. SCENARIUSZ: Standardowa sugestia (Brak w koszyku)
+        // Jeśli z jakiegoś powodu brak danych sugestii, nic nie renderujemy
         if (!suggestionData) {
             return { html: '', actionLineSelector: null, suggestedPrice: null, myPrice: null };
         }
 
         const { suggestedPrice, totalChangeAmount, percentageChange, arrowClass, priceType } = suggestionData;
+
+        // Zmienne pomocnicze
         const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
         const marginPrice = item.marginPrice != null ? parseFloat(item.marginPrice) : null;
-
         let squareColorClass = 'color-square-turquoise';
 
+        // --- BUDOWANIE STRUKTURY HTML ---
         const strategicPriceBox = document.createElement('div');
         strategicPriceBox.className = 'price-box-column';
 
         const contentWrapper = document.createElement('div');
         contentWrapper.className = 'price-box-column-text';
 
+        // 1. Nowa Cena (duża)
         const newPriceDisplay = document.createElement('div');
         newPriceDisplay.style.display = 'flex';
         newPriceDisplay.style.alignItems = 'center';
         newPriceDisplay.innerHTML = `<span class="${arrowClass}" style="margin-right: 8px;"></span><div><span style="font-weight: 500; font-size: 17px;">${formatPricePL(suggestedPrice)}</span></div>`;
 
+        // 2. Label "Zmiana ceny..."
         const priceChangeLabel = document.createElement('div');
         priceChangeLabel.textContent = 'Zmiana ceny Twojej oferty';
         priceChangeLabel.style.fontSize = '14px';
         priceChangeLabel.style.color = '#212529';
 
+        // 3. Różnica cenowa (badge + kwota)
         const priceDifferenceDisplay = document.createElement('div');
         priceDifferenceDisplay.style.marginTop = '3px';
         let badgeText = '';
         if (totalChangeAmount > 0) badgeText = 'Podwyżka ceny';
         else if (totalChangeAmount < 0) badgeText = 'Obniżka ceny';
         else badgeText = 'Brak zmiany';
+
         const badgeHtml = `<div class="price-diff-stack-badge">${badgeText}</div>`;
         priceDifferenceDisplay.innerHTML =
             `<div class="price-diff-stack" style="text-align: left;">` +
@@ -2034,6 +2020,7 @@
         contentWrapper.appendChild(priceChangeLabel);
         contentWrapper.appendChild(priceDifferenceDisplay);
 
+        // 4. Kalkulacja Narzutu (jeśli dostępna)
         if (marginPrice !== null && suggestedPrice !== null) {
             let newPriceForMarginCalculation = suggestedPrice;
             if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
@@ -2048,6 +2035,7 @@
                 const newMarginSign = newMarginAmount >= 0 ? '+' : '-';
                 const newMarginClass = newMarginAmount >= 0 ? 'priceBox-diff-margin-ins' : 'priceBox-diff-margin-minus-ins';
                 const newBadgeClass = getMarginBadgeClass(newMarginClass);
+
                 let newBgMarginClass = 'price-box-diff-margin-ib-neutral';
                 if (newMarginClass === 'priceBox-diff-margin-ins') {
                     newBgMarginClass = 'price-box-diff-margin-ib-positive';
@@ -2070,12 +2058,14 @@
             }
         }
 
+        // 5. Przycisk (Zawsze go generujemy)
         const strategicPriceLine = document.createElement('div');
         strategicPriceLine.className = 'price-action-line';
         strategicPriceLine.style.marginTop = '8px';
 
         const strategicPriceBtn = document.createElement('button');
         strategicPriceBtn.className = 'simulate-change-btn';
+        // Domyślny tekst przed aktywacją
         const strategicBtnContent = `<span class="${squareColorClass}"></span> Dodaj zmianę ceny`;
         strategicPriceBtn.innerHTML = strategicBtnContent;
         strategicPriceBtn.dataset.originalText = strategicBtnContent;
@@ -2091,7 +2081,6 @@
             myPrice: myPrice
         };
     }
-
         
     function renderPrices(data) {
         const storedChangesJSON = localStorage.getItem('selectedPriceChanges_' + storeId);
