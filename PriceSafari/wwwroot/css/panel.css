@@ -2902,58 +2902,9 @@ tr:last-child .sub-line {
         outline: none;
     }
 
-/* Kolory Pasków (Color Bar) dla nowych bucketów */
-.color-bar.market-deep-discount {
-    background-color: #157347;
-}
-/* Ciemna zieleń */
-.color-bar.market-below-average {
-    background-color: #56cc9d;
-}
-/* Jasna zieleń */
-.color-bar.market-average {
-    background-color: #adb5bd;
-}
-/* Szary */
-.color-bar.market-above-average {
-    background-color: #fd7e14;
-}
-/* Pomarańczowy */
-.color-bar.market-overpriced {
-    background-color: #dc3545;
-}
-/* Czerwony */
-.color-bar.market-solo {
-    background-color: #6f42c1;
-}
-/* Fioletowy (Solo) */
 
-/* Kolory badge'y w filtrach (kółeczka) */
-.market-deep-discount-circle {
-    background-color: #157347;
-}
 
-.market-below-average-circle {
-    background-color: #56cc9d;
-}
 
-.market-average-circle {
-    background-color: #adb5bd;
-}
-
-.market-above-average-circle {
-    background-color: #fd7e14;
-}
-
-.market-overpriced-circle {
-    background-color: #dc3545;
-}
-
-.market-solo-circle {
-    background-color: #6f42c1;
-}
-
-/* Styl dla wskaźnika indeksu */
 .market-index-badge {
     display: inline-block;
     padding: 2px 5px;
@@ -2968,17 +2919,13 @@ tr:last-child .sub-line {
 }
 
 .index-blue {
-    background-color: rgba(13, 110, 253, 1);
+    background-color: rgba(13, 110, 253, 0.8);
 }
 
 .index-red {
     background-color: #dc3545;
 }
 
-
-
-
-/* Badge informujący o trybie zmiany ceny */
 .strategy-badge-dynamic {
     display: inline-block;
     padding: 2px 5px;
@@ -2986,24 +2933,18 @@ tr:last-child .sub-line {
     font-size: 11px;
     font-weight: 500;
     color: white;
-    margin-bottom: 3px; /* Odstęp od przycisku */
+    margin-bottom: 3px;
     width: 100%;
     text-align: center;
 }
 
-    /* Kolory */
     .strategy-badge-dynamic.mode-competitiveness {
-       
         background-color: #6f42c1;
     }
 
     .strategy-badge-dynamic.mode-profit {
         background-color: #0d2c56;
     }
-
-
-
-
 
 
 
@@ -3213,6 +3154,7 @@ tr:last-child .sub-line {
 
 
 
+
     .bucketFilter:checked#bucketUnavailable {
         background-color: rgba(220, 220, 220, 0.7);
         border-color: rgba(220, 220, 220, 1);
@@ -3223,32 +3165,30 @@ tr:last-child .sub-line {
         border-color: rgba(180, 180, 180, 1);
     }
 
-    /* Kolorowe */
     .bucketFilter:checked#bucketOverpriced {
-        background-color: #dc3545;
-        border-color: #b02a37;
+        background-color: rgba(180, 51, 24, 0.7);
+        border-color: rgba(180, 51, 24, 1);
     }
 
     .bucketFilter:checked#bucketAboveAverage {
-        background-color: #fd7e14;
-        border-color: #e36d10;
+        background-color: rgba(234, 153, 30, 0.7);
+        border-color: rgba(234, 153, 30, 1);
     }
 
     .bucketFilter:checked#bucketAverage {
         background-color: rgba(13, 110, 253, 0.7);
         border-color: rgba(13, 110, 253, 1);
     }
-    /* Niebieski - Poziom rynku */
+
     .bucketFilter:checked#bucketBelowAverage {
-        background-color: #56cc9d;
-        border-color: #4db88d;
+        background-color: rgba(142, 158, 56, 0.7);
+        border-color: rgba(142, 158, 56, 1);
     }
 
     .bucketFilter:checked#bucketDeepDiscount {
-        background-color: #157347;
-        border-color: #105c39;
+        background-color: rgba(30, 142, 62, 0.7);
+        border-color: rgba(30, 142, 62, 1);
     }
-
 
 
 
@@ -3256,7 +3196,6 @@ tr:last-child .sub-line {
     padding-left: 0;
 }
 
-    /* 2. Przesuwamy wiersze z checkboxami */
     #filters-competitiveness .form-check,
     #filters-profit .form-check {
         position: relative;
@@ -3264,7 +3203,7 @@ tr:last-child .sub-line {
         align-items: center;
         margin-bottom: 2px;
         padding-left: 0;
-        margin-left: 3px; /* Miejsce na pasek */
+        margin-left: 3px;
     }
 
     #filters-competitiveness .color-rect,
@@ -3288,7 +3227,6 @@ tr:last-child .sub-line {
         position: static !important;
     }
 
-/* --- Kolory Prostokątów (Bez zmian) --- */
 .rect-no-offer {
     background-color: rgba(220, 220, 220, 0.7);
     border: 1px solid rgba(220, 220, 220, 1);
@@ -3324,29 +3262,25 @@ tr:last-child .sub-line {
     border: 1px solid rgba(6, 6, 6, 1);
 }
 
-
-
 .rect-overpriced {
-    background-color: #dc3545;
-    border: 1px solid #b02a37;
+    background-color: rgba(180, 51, 24, 0.7);
+    border: 1px solid rgba(180, 51, 24, 1);
 }
-/* Czerwony */
-.rect-above-average {
-    background-color: #fd7e14;
-    border: 1px solid #e36d10;
-}
-/* Pomarańczowy */
-.rect-below-average {
-    background-color: #56cc9d;
-    border: 1px solid #4db88d;
-}
-/* Jasny zielony */
-.rect-deep-discount {
-    background-color: #157347;
-    border: 1px solid #105c39;
-}
-/* Ciemny zielony */
 
+.rect-above-average {
+    background-color: rgba(234, 153, 30, 0.7);
+    border: 1px solid rgba(234, 153, 30, 1);
+}
+
+.rect-below-average {
+    background-color: rgba(142, 158, 56, 0.7);
+    border: 1px solid rgba(142, 158, 56, 1);
+}
+
+.rect-deep-discount {
+    background-color: rgba(30, 142, 62, 0.7);
+    border: 1px solid rgba(30, 142, 62, 1);
+}
 
 .status-filter {
     outline: none;
@@ -3730,6 +3664,40 @@ tr:last-child .sub-line {
 .prNoOffer .color-bar {
     background-color: rgba(230, 230, 230, 0.7);
 }
+
+
+
+.market-unavailable .color-bar {
+    background-color: rgba(220, 220, 220, 1);
+}
+
+.market-solo .color-bar {
+    background-color: rgba(180, 180, 180, 0.8);
+}
+
+.market-overpriced .color-bar {
+    background-color: rgba(180, 51, 24, 0.8);
+}
+
+.market-above-average .color-bar {
+    background-color: rgba(234, 153, 30, 0.8);
+}
+
+.market-average .color-bar {
+    background-color: rgba(13, 110, 253, 0.8);
+}
+
+.market-below-average .color-bar {
+    background-color: rgba(142, 158, 56, 0.80);
+}
+
+.market-deep-discount .color-bar {
+    background-color: rgba(30, 142, 62, 0.80);
+}
+
+
+
+
 
 .priceBox-diff-up {
     display: inline-flex;
@@ -5339,15 +5307,14 @@ small {
     max-width: 330px;
 }
 
-/* Styl dla elementu informacji o cenie */
+
 .price-info-item {
     margin: 4px 0;
     font-size: 16px;
-    /* Domyślnie brak ograniczeń szerokości dla zwykłych elementów,
-       chyba że nadpisane inline (jak w przypadku nazwy produktu) */
+ 
 }
 
-/* Styl dla kontenera zmiany w tabeli symulacji */
+
 .simulation-change-box {
     background-color: #ffffff;
     border: 1px solid #e3e3e3;
@@ -5376,43 +5343,37 @@ small {
     margin-top: 2px;
 }
 
-/* Styl responsywny dla nazwy produktu w tabeli */
 .product-name-cell {
     font-size: 110%;
     margin-bottom: 8px;
     font-weight: 500;
     white-space: normal;
-    /* Responsywność */
-    width: 100%; /* Próbuj zająć dostępną przestrzeń */
-    min-width: 200px; /* Nie ściskaj bardziej niż 200px */
-    max-width: 600px; /* Nie rozciągaj bardziej niż 600px */
-    display: block; /* Ważne dla działania width */
+    width: 100%;
+    min-width: 200px;
+    max-width: 600px;
+    display: block;
 }
 
-/* Bazowy styl dla badge'a strategii */
 .strategy-badge {
-   
     font-size: 11px;
-    padding: 4px 14px; /* Zwiększony padding boczny zgodnie z prośbą */
+    padding: 4px 14px;
     border-radius: 12px;
     font-weight: 500;
     white-space: nowrap;
     letter-spacing: 0.3px;
-    border: 1px solid transparent; /* Przygotowanie pod obramowanie */
-    display: inline-block; /* Ważne, aby padding działał poprawnie na elemencie span */
+    border: 1px solid transparent;
+    display: inline-block;
 }
 
-    /* Wariant: Zysk (Stonowany Granat / Mature Navy) */
     .strategy-badge.profit {
-        background-color: rgba(26, 58, 99, 0.35); /* Półprzezroczyste tło */
-        border-color: #1a3a63; /* Pełny kolor obramowania */
+        background-color: rgba(26, 58, 99, 0.35);
+        border-color: #1a3a63;
         color: #1a3a63;
     }
 
-    /* Wariant: Konkurencyjność (Fiolet) */
     .strategy-badge.competitiveness {
-        background-color: rgba(111, 66, 193, 0.35); /* Półprzezroczyste tło */
-        border-color: #6f42c1; /* Pełny kolor obramowania */
+        background-color: rgba(111, 66, 193, 0.35);
+        border-color: #6f42c1;
         color: #6f42c1;
     }
 

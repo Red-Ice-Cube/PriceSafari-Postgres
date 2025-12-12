@@ -791,11 +791,9 @@
 
     const priceIndexInput = document.getElementById('priceIndexTargetInput');
     const priceIndexIndicator = document.getElementById('priceIndexIndicator');
-
     function updatePriceIndexIndicator() {
         if (!priceIndexInput || !priceIndexIndicator) return;
 
-        // Pobieramy wartość, zamieniając przecinek na kropkę
         const valueStr = priceIndexInput.value.replace(',', '.');
         let value = parseFloat(valueStr);
 
@@ -807,12 +805,6 @@
             return;
         }
 
-        // Logika ikon:
-        // < 100 -> Minus (taniej niż rynek)
-        // > 100 -> Plus (drożej niż rynek)
-        // = 100 -> Równa się (poziom rynku)
-
-        // Używamy małego marginesu błędu dla floatów (epsilon), choć przy walucie rzadko potrzebne
         if (value < 100) {
             iconClass = 'fa-solid fa-minus';
             titleText = 'Strategia poniżej średniej rynkowej (taniej)';
@@ -833,18 +825,17 @@
         priceIndexIndicator.title = titleText;
     }
 
-    // Walidacja limitów (1 - 500) przy wyjściu z pola (blur)
     if (priceIndexInput) {
         priceIndexInput.addEventListener('blur', function () {
-            enforceLimits(this, 1.00, 500.00); // Wykorzystujemy Twoją istniejącą funkcję enforceLimits
-            updatePriceIndexIndicator(); // Odśwież ikonkę po korekcie liczby
+            enforceLimits(this, 1.00, 500.00);
+
+            updatePriceIndexIndicator();
+
         });
 
-        // Nasłuchiwanie zmian w czasie rzeczywistym
         priceIndexInput.addEventListener('input', updatePriceIndexIndicator);
         priceIndexInput.addEventListener('change', updatePriceIndexIndicator);
 
-        // Inicjalizacja przy starcie strony
         setTimeout(updatePriceIndexIndicator, 0);
     }
 
@@ -1307,33 +1298,32 @@
     }
 
     function filterPricesByCategoryAndColorAndFlag(data) {
-        // --- 1. Filtrowanie Główne (Zależne od Trybu) ---
+
         let filteredPrices = data;
 
         if (currentViewMode === 'competitiveness') {
-            // Stary tryb: Filtrowanie po klasach kolorystycznych
+
             const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
             if (selectedColors.length) {
                 filteredPrices = filteredPrices.filter(item => selectedColors.includes(item.colorClass));
             }
         } else {
-            // --- NOWY TRYB (PROFIT) - POPRAWKA ---
+
             const selectedBuckets = Array.from(document.querySelectorAll('.bucketFilter:checked')).map(checkbox => checkbox.value);
 
             if (selectedBuckets.length) {
                 filteredPrices = filteredPrices.filter(item => {
-                    // OBLICZAMY BUCKET W LOCIE (tak samo jak w renderChart)
+
                     let bucket = item.marketBucket;
 
-                    // 1. Logika dla "Cena niedostępna"
                     if (item.colorClass === 'prNoOffer' || !item.myPrice || parseFloat(item.myPrice) <= 0.01) {
                         bucket = 'market-unavailable';
                     }
-                    // 2. Logika dla "Solo"
+
                     else if (item.colorClass === 'prOnlyMe' || bucket === 'market-solo') {
                         bucket = 'market-solo';
                     }
-                    // 3. Fallback
+
                     else if (!bucket) {
                         bucket = 'market-average';
                     }
@@ -1343,7 +1333,6 @@
             }
         }
 
-        // --- 2. Filtrowanie Wspólne (Niezależne od trybu) - BEZ ZMIAN ---
         const selectedBid = document.getElementById('bidFilter').checked;
         const suspiciouslyLowFilter = document.getElementById('suspiciouslyLowFilter').checked;
 
@@ -1356,17 +1345,14 @@
             return checkbox.value === 'true';
         });
 
-        // Pozycja suwaka
         const positionSliderValues = positionSlider.noUiSlider.get();
         const positionMin = parseInt(positionSliderValues[0]);
         const positionMax = parseInt(positionSliderValues[1]);
 
-        // Oferty suwak
         const offerSliderValues = offerSlider.noUiSlider.get();
         const offerMin = parseInt(offerSliderValues[0]);
         const offerMax = parseInt(offerSliderValues[1]);
 
-        // Aplikacja filtrów wspólnych
         filteredPrices = filteredPrices.filter(item => {
             const position = item.myPosition;
             if (position === null || position === undefined) return true;
@@ -2186,7 +2172,23 @@
             priceBoxData.className = 'price-box-data';
 
             const colorBar = document.createElement('div');
-            colorBar.className = 'color-bar ' + item.colorClass;
+
+            let barClassSuffix = '';
+            if (currentViewMode === 'profit') {
+
+                barClassSuffix = item.marketBucket || 'market-unavailable';
+
+                if (item.colorClass === 'prNoOffer' || !item.myPrice || parseFloat(item.myPrice) <= 0.01) {
+                    barClassSuffix = 'market-unavailable';
+                }
+            } else {
+
+                barClassSuffix = item.colorClass;
+            }
+
+
+
+            colorBar.className = 'color-bar ' + barClassSuffix;
 
             const priceBoxColumnLowestPrice = document.createElement('div');
             priceBoxColumnLowestPrice.className = 'price-box-column';
@@ -2985,19 +2987,16 @@
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
-
-
     renderChart = function (data) {
         const ctx = document.getElementById('colorChart').getContext('2d');
 
-        // Zmienne na dane wykresu
         let chartLabels = [];
         let chartValues = [];
         let chartColors = [];
         let chartBorderColors = [];
 
         if (currentViewMode === 'competitiveness') {
-            // --- TRYB KONKURENCJA (Stary - bez zmian) ---
+
             const colorCounts = {
                 prNoOffer: 0, prOnlyMe: 0, prToHigh: 0, prMid: 0, prGood: 0, prIdeal: 0, prToLow: 0
             };
@@ -3011,9 +3010,10 @@
             updateColorCounts(data);
 
         } else {
-            // --- TRYB ZYSK (Rentowność) - ZAKTUALIZOWANY ---
+
             const bucketCounts = {
-                'market-unavailable': 0, // Tutaj będziemy zliczać braki cen
+                'market-unavailable': 0,
+
                 'market-solo': 0,
                 'market-overpriced': 0,
                 'market-above-average': 0,
@@ -3025,27 +3025,23 @@
             data.forEach(item => {
                 let bucket = item.marketBucket;
 
-                // 1. Priorytet: Sprawdzamy czy produkt jest niedostępny
-                // (jeśli ma flagę prNoOffer lub fizycznie brak ceny myPrice)
                 if (item.colorClass === 'prNoOffer' || !item.myPrice || item.myPrice <= 0) {
                     bucket = 'market-unavailable';
                 }
-                // 2. Jeśli nie niedostępny, to czy Solo
+
                 else if (item.colorClass === 'prOnlyMe' || bucket === 'market-solo') {
                     bucket = 'market-solo';
                 }
-                // 3. Fallback - jeśli z backendu nie przyszedł bucket, a cena jest, dajemy do średniej
+
                 else if (!bucket) {
                     bucket = 'market-average';
                 }
 
-                // Zliczamy
                 if (bucketCounts.hasOwnProperty(bucket)) {
                     bucketCounts[bucket]++;
                 }
             });
 
-            // Kolejność na wykresie (zgodna z Twoim HTML)
             chartLabels = [
                 'Cena niedostępna',
                 'Solo',
@@ -3066,24 +3062,28 @@
                 bucketCounts['market-deep-discount']
             ];
 
-            // Kolory (zgodne z Twoimi stylami CSS rect-...)
             chartColors = [
-                'rgba(220, 220, 220, 1)',   // Niedostępna (szary jasny)
-                'rgba(180, 180, 180, 0.8)', // Solo (szary ciemniejszy)
-                '#dc3545',                  // Przeszacowane (czerwony)
-                '#fd7e14',                  // Powyżej (pomarańczowy)
-                'rgba(13, 110, 253, 0.8)',  // Poziom rynku (niebieski)
-                '#56cc9d',                  // Poniżej (jasny zielony)
-                '#157347'                   // Super okazja (ciemny zielony)
+                'rgba(220, 220, 220, 1)',
+
+                'rgba(180, 180, 180, 0.8)',
+
+                'rgba(180, 51, 24, 0.8)',
+
+                'rgba(234, 153, 30, 0.8)',
+
+                'rgba(13, 110, 253, 0.8)',
+
+                'rgba(142, 158, 56, 0.80)',
+
+                'rgba(30, 142, 62, 0.80)'
+
             ];
 
             chartBorderColors = chartColors.map(c => c.replace('0.8', '1'));
 
-            // Wywołujemy funkcję aktualizującą liczniki w HTML
             updateBucketCountsUI(bucketCounts);
         }
 
-        // Rysowanie / Aktualizacja wykresu
         if (chartInstance) {
             chartInstance.data.labels = chartLabels;
             chartInstance.data.datasets[0].data = chartValues;
@@ -3122,9 +3122,10 @@
     };
 
     function updateBucketCountsUI(counts) {
-        // Mapowanie nazw bucketów (z JS/Wykresu) na ID checkboxów (z HTML)
+
         const labelsMap = {
-            'market-unavailable': 'bucketUnavailable', // To jest kluczowe mapowanie dla Twojego nowego checkboxa
+            'market-unavailable': 'bucketUnavailable',
+
             'market-solo': 'bucketSolo',
             'market-overpriced': 'bucketOverpriced',
             'market-above-average': 'bucketAboveAverage',
@@ -3136,13 +3137,12 @@
         for (const [bucketName, elementId] of Object.entries(labelsMap)) {
             const checkbox = document.getElementById(elementId);
             if (checkbox) {
-                // Szukamy labela przypisanego do tego checkboxa (atrybut for="ID")
+
                 const label = document.querySelector(`label[for="${elementId}"]`);
                 if (label) {
-                    // Pobieramy sam tekst (np. "Cena niedostępna") usuwając stary licznik w nawiasie (jeśli istnieje)
+
                     const textOnly = label.textContent.split('(')[0].trim();
 
-                    // Ustawiamy nowy tekst z aktualnym licznikiem
                     label.textContent = `${textOnly} (${counts[bucketName] || 0})`;
                 }
             }
