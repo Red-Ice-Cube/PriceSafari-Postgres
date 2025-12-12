@@ -63,8 +63,11 @@
         } else {
             $('#filters-competitiveness').hide();
             $('#filters-profit').fadeIn();
-        }
 
+            if (typeof updatePriceIndexIndicator === 'function') {
+                updatePriceIndexIndicator();
+            }
+        }
         resetPage();
         filterPricesAndUpdateUI();
 
