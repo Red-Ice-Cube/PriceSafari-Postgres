@@ -2901,21 +2901,20 @@
         }
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
+
+
+
     renderChart = function (data) {
         const ctx = document.getElementById('colorChart').getContext('2d');
 
-        if (chartInstance) {
-            chartInstance.destroy();
-            chartInstance = null;
-        }
-
+        // Zmienne na dane wykresu
         let chartLabels = [];
         let chartValues = [];
         let chartColors = [];
         let chartBorderColors = [];
 
         if (currentViewMode === 'competitiveness') {
-            // --- TRYB KONKURENCJA (Stary) ---
+            // --- TRYB KONKURENCJA (Bez zmian) ---
             const colorCounts = {
                 prNoOffer: 0, prOnlyMe: 0, prToHigh: 0, prMid: 0, prGood: 0, prIdeal: 0, prToLow: 0
             };
@@ -2929,75 +2928,126 @@
             updateColorCounts(data);
 
         } else {
-            // --- TRYB ZYSK (Nowy) ---
+            // --- TRYB ZYSK (Zmodyfikowany) ---
             const bucketCounts = {
-                'market-deep-discount': 0,
-                'market-below-average': 0,
-                'market-average': 0,
-                'market-above-average': 0,
+                'market-unavailable': 0, // Nowa kategoria
+                'market-solo': 0,
                 'market-overpriced': 0,
-                'market-solo': 0
+                'market-above-average': 0,
+                'market-average': 0,
+                'market-below-average': 0,
+                'market-deep-discount': 0
             };
 
             data.forEach(item => {
-                const bucket = item.marketBucket || 'market-average';
-                bucketCounts[bucket] = (bucketCounts[bucket] || 0) + 1;
+                let bucket = item.marketBucket;
+
+                // 1. Sprawdzamy czy produkt jest niedostępny (bazując na colorClass z drugiego trybu lub braku ceny)
+                if (item.colorClass === 'prNoOffer' || !item.myPrice) {
+                    bucket = 'market-unavailable';
+                }
+                // 2. Jeśli nie ma bucketa, ale to Solo (colorClass prOnlyMe)
+                else if (item.colorClass === 'prOnlyMe' || bucket === 'market-solo') {
+                    bucket = 'market-solo';
+                }
+                // 3. Fallback jeśli bucket nie przyszedł z backendu
+                else if (!bucket) {
+                    bucket = 'market-average';
+                }
+
+                if (bucketCounts.hasOwnProperty(bucket)) {
+                    bucketCounts[bucket]++;
+                }
             });
 
-            chartLabels = ['Super Okazja', 'Poniżej Średniej', 'Poziom Rynku', 'Powyżej Średniej', 'Przeszacowane', 'Solo'];
-            chartValues = [
-                bucketCounts['market-deep-discount'],
-                bucketCounts['market-below-average'],
-                bucketCounts['market-average'],
-                bucketCounts['market-above-average'],
-                bucketCounts['market-overpriced'],
-                bucketCounts['market-solo']
+            // NOWA KOLEJNOŚĆ WYŚWIETLANIA:
+            // Cena niedostępna -> Solo -> Przeszacowane -> Powyżej śr. -> Poziom rynku -> Poniżej śr. -> Super okazja
+
+            chartLabels = [
+                'Cena niedostępna',
+                'Solo',
+                'Przeszacowane',
+                'Powyżej Średniej',
+                'Poziom Rynku',
+                'Poniżej Średniej',
+                'Super Okazja'
             ];
-            // Kolory zdefiniowane w CSS
-            chartColors = ['#157347', '#56cc9d', '#adb5bd', '#fd7e14', '#dc3545', '#6f42c1'];
-            chartBorderColors = chartColors;
+
+            chartValues = [
+                bucketCounts['market-unavailable'],
+                bucketCounts['market-solo'],
+                bucketCounts['market-overpriced'],
+                bucketCounts['market-above-average'],
+                bucketCounts['market-average'],
+                bucketCounts['market-below-average'],
+                bucketCounts['market-deep-discount']
+            ];
+
+            // NOWA KOLORYSTYKA:
+            chartColors = [
+                'rgba(230, 230, 230, 1)',   // Cena niedostępna (Szary jasny - z trybu konkurencji)
+                'rgba(180, 180, 180, 0.8)', // Solo (Szary ciemniejszy - z trybu konkurencji)
+                '#dc3545',                  // Przeszacowane (Czerwony)
+                '#fd7e14',                  // Powyżej średniej (Pomarańczowy)
+                'rgba(13, 110, 253, 0.8)',  // Poziom rynku (Niebieski - prIdeal z trybu konkurencji)
+                '#56cc9d',                  // Poniżej średniej (Jasny zielony)
+                '#157347'                   // Super okazja (Ciemny zielony)
+            ];
+
+            chartBorderColors = chartColors.map(c => c.replace('0.8', '1'));
 
             updateBucketCountsUI(bucketCounts);
         }
 
-        chartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: chartLabels,
-                datasets: [{
-                    data: chartValues,
-                    backgroundColor: chartColors,
-                    borderColor: chartBorderColors,
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                aspectRatio: 1,
-                cutout: '65%',
-                layout: { padding: 4 },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                return context.label + ': ' + context.parsed;
+        // --- AKTUALIZACJA / TWORZENIE WYKRESU (Z obsługą update()) ---
+        if (chartInstance) {
+            chartInstance.data.labels = chartLabels;
+            chartInstance.data.datasets[0].data = chartValues;
+            chartInstance.data.datasets[0].backgroundColor = chartColors;
+            chartInstance.data.datasets[0].borderColor = chartBorderColors;
+            chartInstance.update();
+        } else {
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        data: chartValues,
+                        backgroundColor: chartColors,
+                        borderColor: chartBorderColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    aspectRatio: 1,
+                    cutout: '65%',
+                    layout: { padding: 4 },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return context.label + ': ' + context.parsed;
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
+        }
     };
 
     function updateBucketCountsUI(counts) {
         // Mapowanie nazw bucketów na ID checkboxów w widoku HTML
+        // Upewnij się, że w HTML dodałeś checkbox dla 'market-unavailable' jeśli chcesz go filtrować
         const labels = {
-            'market-deep-discount': 'bucketDeepDiscount',
-            'market-below-average': 'bucketBelowAverage',
-            'market-average': 'bucketAverage',
-            'market-above-average': 'bucketAboveAverage',
+            'market-unavailable': 'bucketUnavailable', // Potrzebujesz takiego ID w HTML dla niedostępnych
+            'market-solo': 'bucketSolo',
             'market-overpriced': 'bucketOverpriced',
-            'market-solo': 'bucketSolo'
+            'market-above-average': 'bucketAboveAverage',
+            'market-average': 'bucketAverage',
+            'market-below-average': 'bucketBelowAverage',
+            'market-deep-discount': 'bucketDeepDiscount'
         };
 
         for (const [bucket, elementId] of Object.entries(labels)) {
@@ -3006,7 +3056,6 @@
                 // Znajdź label powiązany z tym checkboxem
                 const label = document.querySelector(`label[for="${elementId}"]`);
                 if (label) {
-                    // Pobieramy oryginalny tekst (bez starego licznika) i dodajemy nowy
                     const text = label.textContent.split('(')[0].trim();
                     label.textContent = `${text} (${counts[bucket] || 0})`;
                 }

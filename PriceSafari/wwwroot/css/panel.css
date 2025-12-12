@@ -3161,7 +3161,7 @@ tr:last-child .sub-line {
     height: 16px;
 }
 
-.colorFilter {
+.colorFilter, .bucketFilter {
     outline: none;
     background-color: white;
     border: 2px solid gray;
@@ -3212,37 +3212,66 @@ tr:last-child .sub-line {
 
 
 
+    .bucketFilter:checked#bucketUnavailable {
+        background-color: rgba(220, 220, 220, 0.7);
+        border-color: rgba(220, 220, 220, 1);
+    }
+
+    .bucketFilter:checked#bucketSolo {
+        background-color: rgba(180, 180, 180, 0.7);
+        border-color: rgba(180, 180, 180, 1);
+    }
+
+    /* Kolorowe */
+    .bucketFilter:checked#bucketOverpriced {
+        background-color: #dc3545;
+        border-color: #b02a37;
+    }
+
+    .bucketFilter:checked#bucketAboveAverage {
+        background-color: #fd7e14;
+        border-color: #e36d10;
+    }
+
+    .bucketFilter:checked#bucketAverage {
+        background-color: rgba(13, 110, 253, 0.7);
+        border-color: rgba(13, 110, 253, 1);
+    }
+    /* Niebieski - Poziom rynku */
+    .bucketFilter:checked#bucketBelowAverage {
+        background-color: #56cc9d;
+        border-color: #4db88d;
+    }
+
+    .bucketFilter:checked#bucketDeepDiscount {
+        background-color: #157347;
+        border-color: #105c39;
+    }
 
 
 
 
-
-/* --- Style tylko dla sekcji filtrów konkurencyjności --- */
-
-/* 1. Resetujemy styl głównego kontenera (usuwamy padding z poprzedniej próby) */
-#filters-competitiveness {
+#filters-competitiveness, #filters-profit {
     padding-left: 0;
 }
 
-    /* 2. Przesuwamy TYLKO wiersze z checkboxami w prawo, robiąc miejsce na paski */
-    #filters-competitiveness .form-check {
-        position: relative; /* Punkt odniesienia dla paska */
+    /* 2. Przesuwamy wiersze z checkboxami */
+    #filters-competitiveness .form-check,
+    #filters-profit .form-check {
+        position: relative;
         display: flex;
         align-items: center;
         margin-bottom: 2px;
         padding-left: 0;
-        /* KLUCZOWA ZMIANA: */
-        margin-left: 3px; /* Przesuwamy same checkboxy w prawo o 12px */
+        margin-left: 3px; /* Miejsce na pasek */
     }
 
-    /* 3. Pasek (Prostokąt) - Wypychamy go w lewo w miejsce stworzone przez margin-left */
-    #filters-competitiveness .color-rect {
-        position: absolute; /* Wyjmujemy z przepływu */
-        /* Przesuwamy w lewo o 12px (żeby zniwelować margin-left rodzica) + dodatkowe 6px odstępu */
+    #filters-competitiveness .color-rect,
+    #filters-profit .color-rect {
+        position: absolute;
         left: -10px;
         top: 50%;
-        transform: translateY(-50%); /* Centrowanie pionowe */
-
+        transform: translateY(-50%);
         display: block;
         width: 6px;
         height: 16px;
@@ -3250,11 +3279,11 @@ tr:last-child .sub-line {
         border-radius: 2px;
     }
 
-    /* 4. Checkbox - Reset ustawień i odstęp od tekstu */
-    #filters-competitiveness .form-check-input {
+    #filters-competitiveness .form-check-input,
+    #filters-profit .form-check-input {
         margin-top: 0 !important;
         margin-left: 0 !important;
-        margin-right: 8px !important; /* Odstęp między checkboxem a tekstem */
+        margin-right: 8px !important;
         position: static !important;
     }
 
@@ -3296,7 +3325,26 @@ tr:last-child .sub-line {
 
 
 
-
+.rect-overpriced {
+    background-color: #dc3545;
+    border: 1px solid #b02a37;
+}
+/* Czerwony */
+.rect-above-average {
+    background-color: #fd7e14;
+    border: 1px solid #e36d10;
+}
+/* Pomarańczowy */
+.rect-below-average {
+    background-color: #56cc9d;
+    border: 1px solid #4db88d;
+}
+/* Jasny zielony */
+.rect-deep-discount {
+    background-color: #157347;
+    border: 1px solid #105c39;
+}
+/* Ciemny zielony */
 
 
 .status-filter {
@@ -4276,8 +4324,8 @@ tr:last-child .sub-line {
     }
 
     .price-range-settings .color-circle {
-        min-width: 18px;
-        max-width: 18px;
+        min-width: 16px;
+        max-width: 16px;
         height: 26px;
         margin-left: 3px;
         border-radius: 4px;
@@ -4301,7 +4349,7 @@ tr:last-child .sub-line {
     }
 
 .legendBox {
-    width: 105px;
+    width: 115px;
     height: 26px;
     margin-left: 3px;
     border-radius: 4px;
@@ -4312,9 +4360,11 @@ tr:last-child .sub-line {
     border: 1px solid #e3e3e3;
     font-weight: 400;
     padding-left: 4px;
+    padding-right: 4px;
     color: #4e4e4e;
     gap: 5px;
     vertical-align: middle;
+    justify-content: space-between;
 }
 
 .price-range-settings-stepPrice::before {
@@ -4325,14 +4375,33 @@ tr:last-child .sub-line {
     font-size: 12px;
     color: #fff;
     background-color: rgba(113, 96, 232, 1);
-    min-width: 18px;
-    max-width: 18px;
+    min-width: 16px;
+    max-width: 16px;
     height: 26px;
     border-radius: 4px;
     margin-left: 3px;
     text-align: center;
     line-height: 26px;
 }
+
+
+.price-range-settings-indexTarget::before {
+    display: inline-block;
+    content: '\f07d';
+    font-family: "Font Awesome 6 Free";
+    font-weight: 800;
+    font-size: 12px;
+    color: #fff;
+    background-color: #0d2c56;
+    min-width: 16px;
+    max-width: 16px;
+    height: 26px;
+    border-radius: 4px;
+    margin-left: 3px;
+    text-align: center;
+    line-height: 26px;
+}
+
 
 .store-section {
     display: flex;
