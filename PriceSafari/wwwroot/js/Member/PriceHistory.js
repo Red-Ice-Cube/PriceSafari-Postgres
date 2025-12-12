@@ -785,6 +785,67 @@
     stepPriceInputIndicator.addEventListener('change', updateStepPriceIndicator);
     setTimeout(updateStepPriceIndicator, 0);
 
+
+    const priceIndexInput = document.getElementById('priceIndexTargetInput');
+    const priceIndexIndicator = document.getElementById('priceIndexIndicator');
+
+    function updatePriceIndexIndicator() {
+        if (!priceIndexInput || !priceIndexIndicator) return;
+
+        // Pobieramy wartość, zamieniając przecinek na kropkę
+        const valueStr = priceIndexInput.value.replace(',', '.');
+        let value = parseFloat(valueStr);
+
+        let iconClass = '';
+        let titleText = '';
+
+        if (isNaN(value)) {
+            priceIndexIndicator.innerHTML = '';
+            return;
+        }
+
+        // Logika ikon:
+        // < 100 -> Minus (taniej niż rynek)
+        // > 100 -> Plus (drożej niż rynek)
+        // = 100 -> Równa się (poziom rynku)
+
+        // Używamy małego marginesu błędu dla floatów (epsilon), choć przy walucie rzadko potrzebne
+        if (value < 100) {
+            iconClass = 'fa-solid fa-minus';
+            titleText = 'Strategia poniżej średniej rynkowej (taniej)';
+        } else if (value > 100) {
+            iconClass = 'fa-solid fa-plus';
+            titleText = 'Strategia powyżej średniej rynkowej (drożej)';
+        } else {
+            iconClass = 'fa-solid fa-equals';
+            titleText = 'Strategia równa średniej rynkowej (mediana)';
+        }
+
+        if (iconClass) {
+            priceIndexIndicator.innerHTML = `<i class="${iconClass}"></i>`;
+        } else {
+            priceIndexIndicator.innerHTML = '';
+        }
+
+        priceIndexIndicator.title = titleText;
+    }
+
+    // Walidacja limitów (1 - 500) przy wyjściu z pola (blur)
+    if (priceIndexInput) {
+        priceIndexInput.addEventListener('blur', function () {
+            enforceLimits(this, 1.00, 500.00); // Wykorzystujemy Twoją istniejącą funkcję enforceLimits
+            updatePriceIndexIndicator(); // Odśwież ikonkę po korekcie liczby
+        });
+
+        // Nasłuchiwanie zmian w czasie rzeczywistym
+        priceIndexInput.addEventListener('input', updatePriceIndexIndicator);
+        priceIndexInput.addEventListener('change', updatePriceIndexIndicator);
+
+        // Inicjalizacja przy starcie strony
+        setTimeout(updatePriceIndexIndicator, 0);
+    }
+
+
     positionSlider.noUiSlider.on('update', function (values, handle) {
         const displayValues = values.map(value => {
             return parseInt(value) === 60 ? 'Schowany' : 'Pozycja ' + value;
@@ -1247,20 +1308,39 @@
         let filteredPrices = data;
 
         if (currentViewMode === 'competitiveness') {
-            // Stary tryb: Filtrowanie po klasach kolorystycznych (prGood, prToHigh itp.)
+            // Stary tryb: Filtrowanie po klasach kolorystycznych
             const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(checkbox => checkbox.value);
             if (selectedColors.length) {
                 filteredPrices = filteredPrices.filter(item => selectedColors.includes(item.colorClass));
             }
         } else {
-            // Nowy tryb: Filtrowanie po bucketach indeksu (market-average, market-overpriced itp.)
+            // --- NOWY TRYB (PROFIT) - POPRAWKA ---
             const selectedBuckets = Array.from(document.querySelectorAll('.bucketFilter:checked')).map(checkbox => checkbox.value);
+
             if (selectedBuckets.length) {
-                filteredPrices = filteredPrices.filter(item => selectedBuckets.includes(item.marketBucket));
+                filteredPrices = filteredPrices.filter(item => {
+                    // OBLICZAMY BUCKET W LOCIE (tak samo jak w renderChart)
+                    let bucket = item.marketBucket;
+
+                    // 1. Logika dla "Cena niedostępna"
+                    if (item.colorClass === 'prNoOffer' || !item.myPrice || parseFloat(item.myPrice) <= 0.01) {
+                        bucket = 'market-unavailable';
+                    }
+                    // 2. Logika dla "Solo"
+                    else if (item.colorClass === 'prOnlyMe' || bucket === 'market-solo') {
+                        bucket = 'market-solo';
+                    }
+                    // 3. Fallback
+                    else if (!bucket) {
+                        bucket = 'market-average';
+                    }
+
+                    return selectedBuckets.includes(bucket);
+                });
             }
         }
 
-        // --- 2. Filtrowanie Wspólne (Niezależne od trybu) ---
+        // --- 2. Filtrowanie Wspólne (Niezależne od trybu) - BEZ ZMIAN ---
         const selectedBid = document.getElementById('bidFilter').checked;
         const suspiciouslyLowFilter = document.getElementById('suspiciouslyLowFilter').checked;
 
@@ -2138,13 +2218,13 @@
                 if (item.marketPriceIndex !== null) {
                     const idx = item.marketPriceIndex;
                     const sign = idx > 0 ? '+' : '';
-                    let badgeColorClass = 'index-gray';
+                    let badgeColorClass = 'index-blue';
                     if (idx > 2) badgeColorClass = 'index-red';
 
                     else if (idx < -2) badgeColorClass = 'index-green';
 
                     marketDetails.innerHTML = `
-                <div style="margin-top:0px;"> <span class="market-index-badge ${badgeColorClass}" style="padding:2px 6px; border-radius:4px; font-size:12px; font-weight:600; color:white;">
+                <div style="margin-top:0px;"> <span class="market-index-badge ${badgeColorClass}">
                         Twoja cena: ${sign}${idx}%
                     </span>
                 </div>
@@ -2914,7 +2994,7 @@
         let chartBorderColors = [];
 
         if (currentViewMode === 'competitiveness') {
-            // --- TRYB KONKURENCJA (Bez zmian) ---
+            // --- TRYB KONKURENCJA (Stary - bez zmian) ---
             const colorCounts = {
                 prNoOffer: 0, prOnlyMe: 0, prToHigh: 0, prMid: 0, prGood: 0, prIdeal: 0, prToLow: 0
             };
@@ -2928,9 +3008,9 @@
             updateColorCounts(data);
 
         } else {
-            // --- TRYB ZYSK (Zmodyfikowany) ---
+            // --- TRYB ZYSK (Rentowność) - ZAKTUALIZOWANY ---
             const bucketCounts = {
-                'market-unavailable': 0, // Nowa kategoria
+                'market-unavailable': 0, // Tutaj będziemy zliczać braki cen
                 'market-solo': 0,
                 'market-overpriced': 0,
                 'market-above-average': 0,
@@ -2942,27 +3022,27 @@
             data.forEach(item => {
                 let bucket = item.marketBucket;
 
-                // 1. Sprawdzamy czy produkt jest niedostępny (bazując na colorClass z drugiego trybu lub braku ceny)
-                if (item.colorClass === 'prNoOffer' || !item.myPrice) {
+                // 1. Priorytet: Sprawdzamy czy produkt jest niedostępny
+                // (jeśli ma flagę prNoOffer lub fizycznie brak ceny myPrice)
+                if (item.colorClass === 'prNoOffer' || !item.myPrice || item.myPrice <= 0) {
                     bucket = 'market-unavailable';
                 }
-                // 2. Jeśli nie ma bucketa, ale to Solo (colorClass prOnlyMe)
+                // 2. Jeśli nie niedostępny, to czy Solo
                 else if (item.colorClass === 'prOnlyMe' || bucket === 'market-solo') {
                     bucket = 'market-solo';
                 }
-                // 3. Fallback jeśli bucket nie przyszedł z backendu
+                // 3. Fallback - jeśli z backendu nie przyszedł bucket, a cena jest, dajemy do średniej
                 else if (!bucket) {
                     bucket = 'market-average';
                 }
 
+                // Zliczamy
                 if (bucketCounts.hasOwnProperty(bucket)) {
                     bucketCounts[bucket]++;
                 }
             });
 
-            // NOWA KOLEJNOŚĆ WYŚWIETLANIA:
-            // Cena niedostępna -> Solo -> Przeszacowane -> Powyżej śr. -> Poziom rynku -> Poniżej śr. -> Super okazja
-
+            // Kolejność na wykresie (zgodna z Twoim HTML)
             chartLabels = [
                 'Cena niedostępna',
                 'Solo',
@@ -2983,23 +3063,24 @@
                 bucketCounts['market-deep-discount']
             ];
 
-            // NOWA KOLORYSTYKA:
+            // Kolory (zgodne z Twoimi stylami CSS rect-...)
             chartColors = [
-                'rgba(230, 230, 230, 1)',   // Cena niedostępna (Szary jasny - z trybu konkurencji)
-                'rgba(180, 180, 180, 0.8)', // Solo (Szary ciemniejszy - z trybu konkurencji)
-                '#dc3545',                  // Przeszacowane (Czerwony)
-                '#fd7e14',                  // Powyżej średniej (Pomarańczowy)
-                'rgba(13, 110, 253, 0.8)',  // Poziom rynku (Niebieski - prIdeal z trybu konkurencji)
-                '#56cc9d',                  // Poniżej średniej (Jasny zielony)
-                '#157347'                   // Super okazja (Ciemny zielony)
+                'rgba(220, 220, 220, 1)',   // Niedostępna (szary jasny)
+                'rgba(180, 180, 180, 0.8)', // Solo (szary ciemniejszy)
+                '#dc3545',                  // Przeszacowane (czerwony)
+                '#fd7e14',                  // Powyżej (pomarańczowy)
+                'rgba(13, 110, 253, 0.8)',  // Poziom rynku (niebieski)
+                '#56cc9d',                  // Poniżej (jasny zielony)
+                '#157347'                   // Super okazja (ciemny zielony)
             ];
 
             chartBorderColors = chartColors.map(c => c.replace('0.8', '1'));
 
+            // Wywołujemy funkcję aktualizującą liczniki w HTML
             updateBucketCountsUI(bucketCounts);
         }
 
-        // --- AKTUALIZACJA / TWORZENIE WYKRESU (Z obsługą update()) ---
+        // Rysowanie / Aktualizacja wykresu
         if (chartInstance) {
             chartInstance.data.labels = chartLabels;
             chartInstance.data.datasets[0].data = chartValues;
@@ -3038,10 +3119,9 @@
     };
 
     function updateBucketCountsUI(counts) {
-        // Mapowanie nazw bucketów na ID checkboxów w widoku HTML
-        // Upewnij się, że w HTML dodałeś checkbox dla 'market-unavailable' jeśli chcesz go filtrować
-        const labels = {
-            'market-unavailable': 'bucketUnavailable', // Potrzebujesz takiego ID w HTML dla niedostępnych
+        // Mapowanie nazw bucketów (z JS/Wykresu) na ID checkboxów (z HTML)
+        const labelsMap = {
+            'market-unavailable': 'bucketUnavailable', // To jest kluczowe mapowanie dla Twojego nowego checkboxa
             'market-solo': 'bucketSolo',
             'market-overpriced': 'bucketOverpriced',
             'market-above-average': 'bucketAboveAverage',
@@ -3050,14 +3130,17 @@
             'market-deep-discount': 'bucketDeepDiscount'
         };
 
-        for (const [bucket, elementId] of Object.entries(labels)) {
+        for (const [bucketName, elementId] of Object.entries(labelsMap)) {
             const checkbox = document.getElementById(elementId);
             if (checkbox) {
-                // Znajdź label powiązany z tym checkboxem
+                // Szukamy labela przypisanego do tego checkboxa (atrybut for="ID")
                 const label = document.querySelector(`label[for="${elementId}"]`);
                 if (label) {
-                    const text = label.textContent.split('(')[0].trim();
-                    label.textContent = `${text} (${counts[bucket] || 0})`;
+                    // Pobieramy sam tekst (np. "Cena niedostępna") usuwając stary licznik w nawiasie (jeśli istnieje)
+                    const textOnly = label.textContent.split('(')[0].trim();
+
+                    // Ustawiamy nowy tekst z aktualnym licznikiem
+                    label.textContent = `${textOnly} (${counts[bucketName] || 0})`;
                 }
             }
         }
@@ -3157,26 +3240,7 @@
         document.querySelector('label[for="prToLowCheckbox"]').textContent = `Cena zaniżona (${colorCounts.prToLow})`;
     }
 
-    function updateBucketCountsUI(counts) {
-        // Aktualizacja tekstów przy checkboxach w trybie Profit
-        const labels = {
-            'market-deep-discount': 'bucketDeepDiscount',
-            'market-below-average': 'bucketBelowAverage',
-            'market-average': 'bucketAverage',
-            'market-above-average': 'bucketAboveAverage',
-            'market-overpriced': 'bucketOverpriced',
-            'market-solo': 'bucketSolo'
-        };
 
-        for (const [bucket, elementId] of Object.entries(labels)) {
-            const label = document.querySelector(`label[for="${elementId}"]`);
-            if (label) {
-                // Pobieramy oryginalny tekst (bez licznika) i dodajemy nowy
-                const text = label.textContent.split('(')[0].trim();
-                label.textContent = `${text} (${counts[bucket] || 0})`;
-            }
-        }
-    }
 
     function filterPricesAndUpdateUI(resetPageFlag = true) {
         if (resetPageFlag) {

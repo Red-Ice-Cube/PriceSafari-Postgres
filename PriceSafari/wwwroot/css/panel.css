@@ -2877,6 +2877,7 @@ tr:last-child .sub-line {
     width: fit-content;
     margin-left: auto;
     margin-right: auto;
+    min-width:250px;
 }
 
 .mode-switch-btn {
@@ -2955,10 +2956,10 @@ tr:last-child .sub-line {
 /* Styl dla wskaźnika indeksu */
 .market-index-badge {
     display: inline-block;
-    padding: 2px 6px;
+    padding: 2px 5px;
     border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 500;
     color: white;
 }
 
@@ -2966,8 +2967,8 @@ tr:last-child .sub-line {
     background-color: #198754;
 }
 
-.index-gray {
-    background-color: #6c757d;
+.index-blue {
+    background-color: rgba(13, 110, 253, 1);
 }
 
 .index-red {
@@ -4349,7 +4350,7 @@ tr:last-child .sub-line {
     }
 
 .legendBox {
-    width: 115px;
+    width: 110px;
     height: 26px;
     margin-left: 3px;
     border-radius: 4px;
