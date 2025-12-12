@@ -180,9 +180,51 @@
     const massChangeModal = document.getElementById('massChangeModal');
     const closeMassChangeModalBtn = document.querySelector('#massChangeModal .close');
 
+
     openMassChangeModalBtn.addEventListener('click', function () {
+
+        const infoComp = document.getElementById('massChangeInfo_Competitiveness');
+        const infoProfit = document.getElementById('massChangeInfo_Profit');
+        const badge = document.getElementById('massChangeModeBadge');
+        const btn = document.getElementById('massStrategicBtn');
+        const otherModeSpan = document.getElementById('otherModeName');
+
+        infoComp.style.display = 'none';
+        infoProfit.style.display = 'none';
+
+        if (currentViewMode === 'competitiveness') {
+
+            infoComp.style.display = 'block';
+
+            badge.textContent = 'Tryb: Lider Rynku';
+            badge.style.backgroundColor = 'rgba(113, 96, 232, 0.1)';
+            badge.style.borderColor = 'rgba(113, 96, 232, 1)';
+            badge.style.color = 'rgba(113, 96, 232, 1)';
+
+            otherModeSpan.textContent = 'Rentowność';
+
+            btn.innerHTML = `Zastosuj strategię Lidera Rynku (Krok: ${formatPricePL(setStepPrice, false)} ${document.getElementById('usePriceDifference').checked ? 'PLN' : '%'}) <div class="color-square-turquoise" style="margin:0 0 0 10px;"></div>`;
+
+        } else {
+
+            infoProfit.style.display = 'block';
+
+            badge.textContent = 'Tryb: Rentowność';
+            badge.style.backgroundColor = 'rgba(13, 44, 86, 0.1)';
+            badge.style.borderColor = '#0d2c56';
+            badge.style.color = '#0d2c56';
+
+            otherModeSpan.textContent = 'Lider Rynku';
+
+            btn.innerHTML = `Zastosuj strategię Rentowności (Index: ${setPriceIndexTarget}%) <div class="color-square-profit" style="margin:0 0 0 10px;"></div>`;
+        }
+
         $('#massChangeModal').modal('show');
     });
+
+
+
+
 
     closeMassChangeModalBtn.addEventListener('click', function () {
         $('#massChangeModal').modal('hide');
@@ -3061,12 +3103,12 @@
 
             chartLabels = [
                 'Cena niedostępna',
-                'Solo',
-                'Przeszacowane',
-                'Powyżej Średniej',
-                'Poziom Rynku',
-                'Poniżej Średniej',
-                'Super Okazja'
+                'Cena solo',
+                'Cena przeszacowana',
+                'Cena powyżej średniej',
+                'Cena rynkowa',
+                'Cena poniżej średniej',
+                'Cena okazyjna'
             ];
 
             chartValues = [

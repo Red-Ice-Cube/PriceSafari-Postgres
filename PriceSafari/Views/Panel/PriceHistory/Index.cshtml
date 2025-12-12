@@ -172,38 +172,38 @@
                     <div class="form-check">
                         <span class="color-rect rect-only-me"></span>
                         <input class="form-check-input bucketFilter" type="checkbox" id="bucketSolo" value="market-solo">
-                        <label class="form-check-label" for="bucketSolo">Solo</label>
+                        <label class="form-check-label" for="bucketSolo">Cena solo</label>
                     </div>
 
                     <div class="form-check">
                         <span class="color-rect rect-overpriced"></span>
                         <input class="form-check-input bucketFilter" type="checkbox" id="bucketOverpriced" value="market-overpriced">
-                        <label class="form-check-label" for="bucketOverpriced">Przeszacowane</label>
+                        <label class="form-check-label" for="bucketOverpriced">Cena przeszacowana</label>
                     </div>
 
                     <div class="form-check">
                         <span class="color-rect rect-above-average"></span>
                         <input class="form-check-input bucketFilter" type="checkbox" id="bucketAboveAverage" value="market-above-average">
-                        <label class="form-check-label" for="bucketAboveAverage">Powyżej średniej</label>
+                        <label class="form-check-label" for="bucketAboveAverage">Cena powyżej średniej</label>
                     </div>
 
                     <div class="form-check">
-                        <span class="color-rect rect-ideal"></span> <input class="form-check-input bucketFilter" type="checkbox" id="bucketAverage" value="market-average">
-                        <label class="form-check-label" for="bucketAverage">Poziom Rynku</label>
+                        <span class="color-rect rect-ideal"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketAverage" value="market-average">
+                        <label class="form-check-label" for="bucketAverage">Cena rynkowa</label>
                     </div>
 
                     <div class="form-check">
                         <span class="color-rect rect-below-average"></span>
                         <input class="form-check-input bucketFilter" type="checkbox" id="bucketBelowAverage" value="market-below-average">
-                        <label class="form-check-label" for="bucketBelowAverage">Poniżej średniej</label>
+                        <label class="form-check-label" for="bucketBelowAverage">Cena poniżej średniej</label>
                     </div>
 
                     <div class="form-check">
                         <span class="color-rect rect-deep-discount"></span>
                         <input class="form-check-input bucketFilter" type="checkbox" id="bucketDeepDiscount" value="market-deep-discount">
-                        <label class="form-check-label" for="bucketDeepDiscount">Super Okazja</label>
+                        <label class="form-check-label" for="bucketDeepDiscount">Cena okazyjna</label>
                     </div>
-
 
 
                     <div class="price-range-settings">
@@ -508,49 +508,89 @@
     <div class="modal-dialog" role="document" style="max-width:1000px;">
         <div class="modal-content" style="width:900px;">
             <div class="modal-header">
-                <div class="price-box-column-name" id="massChangeModalLabel">Masowa zmiana cen</div>
+                <div class="price-box-column-name" id="massChangeModalLabel">
+                    Masowa zmiana cen <span id="massChangeModeBadge" style="font-weight:400; font-size:0.8em; margin-left:10px; padding:2px 8px; border-radius:4px; border:1px solid #ccc;"></span>
+                </div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
 
             <div class="modal-body">
-                <p style="margin-bottom:24px; line-height:1.6;">
-                    Kliknięcie tego przycisku wykona masową zmianę cen produktów
-                    (tylko w programie PriceSafari – nie wpływa to na ceny w Twoim sklepie).
-                    Zmiana obejmie tylko produkty z co najmniej jedną ofertą konkurencyjną i kodem EAN.
-                    Aby zawęzić listę produktów, skorzystaj z filtrów lub presetów.
-                    Dla przykładu wybierz grupę cen konkurencyjnych, czyli produkty,
-                    które Ty i najtańsi konkurenci sprzedajecie w tej samej cenie.
-                    <br><br>
-                    <strong>Przykład:</strong> ustaw krok cenowy na -0,01 PLN i kliknij
-                    <em>„Przelicz i zapisz”</em>.
-                    Następnie kliknięcie przycisku masowej zmiany cen obniży Twoje ceny
-                    o wybrany krok (tu: -0,01 PLN) względem najtańszego konkurenta.
-                    Dzięki temu Twoje produkty będą tańsze o 1 grosz, co uczyni Cię
-                    najtańszym sprzedawcą w tej grupie – zwiększając sprzedaż przy minimalnej utracie marży.
+                <p style="margin-bottom:20px; line-height:1.6;">
+                    Ta operacja wykona symulację zmiany cen dla <strong>wszystkich obecnie przefiltrowanych i widocznych produktów</strong> (z uwzględnieniem ustawień oraz aktywnego presetu).
+                    Zmiany są zapisywane tylko w PriceSafari – nie wpływają na sklep do momentu eksportu.
                 </p>
 
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <div class="color-square-turquoise" style="margin-top:4px; flex-shrink:0;"></div>
-                    <p style="width:800px; line-height:1.6; margin-left:12px;">
-                        Krok cenowy to różnica między Twoją ceną a ofertą najtańszego konkurenta.
-                        <br><br>
-                        <strong>Przykład:</strong> jeśli Twój produkt kosztuje 1000 PLN, a konkurent oferuje go za 900 PLN,
-                        to przy kroku -0,01 PLN Twoja cena po zmianie wyniesie 899,99 PLN.
-                        Przy kroku 0,00 PLN cena zrówna się z konkurencją (900 PLN),
-                        a przy 0,01 PLN wzrośnie do 900,01 PLN – będziesz droższy o 1 grosz.
+                <hr style="margin-bottom: 20px;">
+
+                <div id="massChangeInfo_Competitiveness" style="display:none;">
+                    <h5 style="color: rgba(113, 96, 232, 1); margin-bottom: 15px;">
+                        <i class="fa-solid fa-bolt"></i> Tryb Lider Rynku (Traffic Bringers)
+                    </h5>
+                    <p style="line-height:1.6; margin-bottom: 15px;">
+                        Ta strategia służy do walki o jak najlepszą pozycję dla produktów typu <strong>Traffic Bringer</strong> – czyli tych, które przyciągają klienta do sklepu.
+                        Twoim celem jest bycie tańszym od najtańszego konkurenta lub zrównanie się z nim.
+                    </p>
+
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; background-color: #f0f4f8; padding: 15px; border-radius: 6px;">
+                        <div class="color-square-turquoise" style="margin-top:4px; flex-shrink:0;"></div>
+                        <div style="width:100%; margin-left:12px;">
+                            <p style="font-weight:bold; margin-bottom:5px;">Mechanizm: Krok cenowy</p>
+                            <p style="line-height:1.5; font-size: 14px;">
+                                Cena zostanie wyliczona względem <strong>najniższej ceny konkurencji</strong>.
+                                <br><br>
+                                <strong>Przykład:</strong> Konkurent sprzedaje za 1000 PLN.
+                                <ul style="margin-bottom:0; padding-left: 20px;">
+                                    <li>Krok <strong>-0.01 PLN</strong>: Twoja cena = 999.99 PLN (Jesteś liderem).</li>
+                                    <li>Krok <strong>0.00 PLN</strong>: Twoja cena = 1000.00 PLN (Wyrównanie).</li>
+                                    <li>Krok <strong>+0.01 PLN</strong>: Twoja cena = 1000.01 PLN (Minimalnie drożej).</li>
+                                </ul>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="massChangeInfo_Profit" style="display:none;">
+                    <h5 style="color: #0d2c56; margin-bottom: 15px;"><i class="fa-solid fa-dollar-sign"></i> Tryb Rentowność (Basket Builders)</h5>
+                    <p style="line-height:1.6; margin-bottom: 15px;">
+                        Ta strategia dedykowana jest produktom budującym wartość koszyka (Upsell/Cross-sell). Klient, który już jest w sklepie, jest skłonny zaakceptować cenę rynkową (średnią), aby dokupić te produkty w jednym zamówieniu.
+                        Nie musisz być najtańszy – Twoim celem jest <strong>Mediana Rynku</strong> (środkowa cena rynkowa).
+                    </p>
+
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; background-color: #f0f4f8; padding: 15px; border-radius: 6px;">
+                        <div class="color-square-profit" style="margin-top:4px; flex-shrink:0;"></div>
+                        <div style="width:100%; margin-left:12px;">
+                            <p style="font-weight:bold; margin-bottom:5px;">Mechanizm: Indeks Cenowy (Cel %)</p>
+                            <p style="line-height:1.5; font-size: 14px;">
+                                Cena zostanie wyliczona jako procent od <strong>Mediany Rynku</strong>.
+                                <br><br>
+                                <strong>Przykład:</strong> Mediana rynku wynosi 100 PLN.
+                                <ul style="margin-bottom:0; padding-left: 20px;">
+                                    <li>Indeks <strong>100%</strong>: Twoja cena = 100 PLN (Równasz do środka rynku).</li>
+                                    <li>Indeks <strong>95%</strong>: Twoja cena = 95 PLN (Jesteś o 5% tańszy od średniej).</li>
+                                    <li>Indeks <strong>105%</strong>: Twoja cena = 105 PLN (Jesteś o 5% droższy od średniej - wysoka marża).</li>
+                                </ul>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee; font-size: 13px; color: #666;">
+                    <p style="margin-bottom: 0;">
+                        <i class="fa-solid fa-circle-exclamation"></i> <strong>Ważna uwaga:</strong>
+                        System pomija produkty, dla których zatwierdzono już zmianę ceny. Jeżeli wcześniej dodałeś zmiany w trybie
+                        <span id="otherModeName" style="font-weight:bold;">[Inny Tryb]</span> dla tych samych produktów, musisz je najpierw usunąć ("Usuń wszystkie zmiany"), aby zastosować nową strategię.
                     </p>
                 </div>
             </div>
 
-
-
-            <div class="modal-footer" style="justify-content:center;">
-              
-                <button id="massStrategicBtn" class="Button-Page-Small" style="width:460px;">
-                    Zastosuj masową zmianę cen z wybranym krokiem cenowym →<div class="color-square-turquoise" style="margin:0px;"></div>
+            <div class="modal-footer" style="justify-content:center; flex-direction: column;">
+                <button id="massStrategicBtn" class="Button-Page-Small" style="width:100%; max-width: 550px; height: auto; padding: 10px;">
                 </button>
+                <div style="margin-top: 5px; font-size: 12px; color: #888;">
+                    Kliknięcie zastosuje ustawienia z paska narzędzi (góra strony).
+                </div>
             </div>
         </div>
     </div>
