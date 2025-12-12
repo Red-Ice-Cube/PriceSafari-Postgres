@@ -19,13 +19,19 @@
     }
     let allPrices = [];
     let currentScrapId = null;
-    let currentViewMode = 'competitiveness';
+    const viewModeStorageKey = `viewModeState_${storeId}`;
+    const storedViewMode = localStorage.getItem(viewModeStorageKey);
+    let currentViewMode = storedViewMode ? storedViewMode : 'competitiveness';
     let currentlyFilteredPrices = [];
     let chartInstance = null;
+    let currentPage = 1;
+    const itemsPerPage = 1000;
+    const priceIndexInput = document.getElementById('priceIndexTargetInput');
+    const priceIndexIndicator = document.getElementById('priceIndexIndicator');
     let myStoreName = "";
     let setPrice1 = 2.00;
     let setPrice2 = 2.00;
-    let setStepPrice = 2.00;
+    let setStepPrice = -0.01;
     let setPriceIndexTarget = 100.00;
     let usePriceDifference = document.getElementById('usePriceDifference').checked;
     let marginSettings = {
@@ -53,7 +59,7 @@
 
     function switchMode(mode) {
         currentViewMode = mode;
-
+        localStorage.setItem(viewModeStorageKey, mode);
         document.getElementById('btn-mode-comp').classList.toggle('active', mode === 'competitiveness');
         document.getElementById('btn-mode-profit').classList.toggle('active', mode === 'profit');
 
@@ -68,9 +74,11 @@
                 updatePriceIndexIndicator();
             }
         }
-        resetPage();
-        filterPricesAndUpdateUI();
 
+        if (allPrices.length > 0) {
+            resetPage();
+            filterPricesAndUpdateUI();
+        }
     }
 
     const btnComp = document.getElementById('btn-mode-comp');
@@ -82,7 +90,7 @@
     if (btnProfit) {
         btnProfit.addEventListener('click', function () { switchMode('profit'); });
     }
-   
+    switchMode(currentViewMode);
 
     function getStockStatusBadge(inStock) {
         if (inStock === true) {
@@ -524,8 +532,7 @@
     }
 
 
-    let currentPage = 1;
-    const itemsPerPage = 1000;
+ 
 
     function resetPage() {
         currentPage = 1;
@@ -789,8 +796,7 @@
     setTimeout(updateStepPriceIndicator, 0);
 
 
-    const priceIndexInput = document.getElementById('priceIndexTargetInput');
-    const priceIndexIndicator = document.getElementById('priceIndexIndicator');
+
     function updatePriceIndexIndicator() {
         if (!priceIndexInput || !priceIndexIndicator) return;
 
@@ -1767,7 +1773,13 @@
 
                 button.classList.remove('active');
 
-                button.innerHTML = button.dataset.originalText || '<span class="color-square-turquoise"></span> Dodaj zmianę ceny';
+       
+                const currentSquareClass = (currentViewMode === 'profit') ? 'color-square-profit' : 'color-square-turquoise';
+
+                const originalTextHTML = `<span class="${currentSquareClass}"></span> Dodaj zmianę ceny`;
+                button.innerHTML = originalTextHTML;
+                button.dataset.originalText = originalTextHTML; 
+         
 
                 const removeIcon = button.querySelector('span > i.fa-trash');
                 if (removeIcon) {
@@ -1932,7 +1944,12 @@
 
         const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
         const marginPrice = item.marginPrice != null ? parseFloat(item.marginPrice) : null;
+
+
         let squareColorClass = 'color-square-turquoise';
+        if (currentViewMode === 'profit') {
+            squareColorClass = 'color-square-profit';
+        }
 
         const strategicPriceBox = document.createElement('div');
         strategicPriceBox.className = 'price-box-column';
