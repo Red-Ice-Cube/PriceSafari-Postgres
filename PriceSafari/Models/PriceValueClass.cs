@@ -38,9 +38,10 @@
         public decimal AllegroPriceStep { get; set; } = -0.01m;
         public decimal AllegroSetPrice1 { get; set; } = 2.00m;
         public decimal AllegroSetPrice2 { get; set; } = 2.00m;
+        public decimal AllegroPriceIndexTargetPercent { get; set; } = 100.00m;
 
 
-      
+
 
         public string AllegroIdentifierForSimulation { get; set; } = "ID";
         public bool AllegroUseMarginForSimulation { get; set; } = true;

@@ -23,13 +23,47 @@
                     <canvas id="colorChart"></canvas>
                 </div>
                 <div class="store-section">
-                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prNoOfferCheckbox" value="prNoOffer"><label for="prNoOfferCheckbox"></label></div>
-                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prOnlyMeCheckbox" value="prOnlyMe"><label for="prOnlyMeCheckbox"></label></div>
-                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh"><label for="prToHighCheckbox"></label></div>
-                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prMidCheckbox" value="prMid"><label for="prMidCheckbox"></label></div>
-                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood"><label for="prGoodCheckbox"></label></div>
-                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal"><label for="prIdealCheckbox"></label></div>
-                    <div class="form-check"><input class="form-check-input colorFilter" type="checkbox" id="prToLowCheckbox" value="prToLow"><label for="prToLowCheckbox"></label></div>
+                    <div class="form-check">
+                        <span class="color-rect rect-no-offer"></span>
+                        <input class="form-check-input colorFilter" type="checkbox" id="prNoOfferCheckbox" value="prNoOffer">
+                        <label class="form-check-label" for="prNoOfferCheckbox">Cena niedostępna</label>
+                    </div>
+
+                    <div class="form-check">
+                        <span class="color-rect rect-only-me"></span>
+                        <input class="form-check-input colorFilter" type="checkbox" id="prOnlyMeCheckbox" value="prOnlyMe">
+                        <label class="form-check-label" for="prOnlyMeCheckbox">Cena solo</label>
+                    </div>
+
+                    <div class="form-check">
+                        <span class="color-rect rect-to-high"></span>
+                        <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
+                        <label class="form-check-label" for="prToHighCheckbox">Cena zawyżona</label>
+                    </div>
+
+                    <div class="form-check">
+                        <span class="color-rect rect-mid"></span>
+                        <input class="form-check-input colorFilter" type="checkbox" id="prMidCheckbox" value="prMid">
+                        <label class="form-check-label" for="prMidCheckbox">Cena suboptymalna</label>
+                    </div>
+
+                    <div class="form-check">
+                        <span class="color-rect rect-good"></span>
+                        <input class="form-check-input colorFilter" type="checkbox" id="prGoodCheckbox" value="prGood">
+                        <label class="form-check-label" for="prGoodCheckbox">Cena konkurencyjna</label>
+                    </div>
+
+                    <div class="form-check">
+                        <span class="color-rect rect-ideal"></span>
+                        <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal">
+                        <label class="form-check-label" for="prIdealCheckbox">Cena strategiczna</label>
+                    </div>
+
+                    <div class="form-check">
+                        <span class="color-rect rect-to-low"></span>
+                        <input class="form-check-input colorFilter" type="checkbox" id="prToLowCheckbox" value="prToLow">
+                        <label class="form-check-label" for="prToLowCheckbox">Cena zaniżona</label>
+                    </div>
                     <div class="price-range-settings">
                         <div class="color-circle prMid-circle"></div>
                         <div class="legendBox">Próg c. subopt.</div>
