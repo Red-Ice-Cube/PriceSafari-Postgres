@@ -18,11 +18,26 @@
     <div class="Page-Box">
         <div class="Page-Box-Container">
             <div class="Page-Box-Category">
-                <div><img src="@storeLogo" class="img-container" /></div>
+                <div>
+                    <img src="@ViewBag.StoreLogo" class="img-container" />
+                </div>
+
+                <div class="mode-switch-container">
+                    <button class="mode-switch-btn active" id="btn-mode-comp" title="Strategia maksymalizacji wolumenu sprzedaży">
+                        <i class="fa-solid fa-bolt"></i> Lider Rynku
+                    </button>
+
+                    <button class="mode-switch-btn" id="btn-mode-profit" title="Strategia optymalizacji marży i zysku">
+                        <i class="fa-solid fa-dollar-sign"></i> Rentowność
+                    </button>
+                </div>
+
                 <div class="side-chart-box">
                     <canvas id="colorChart"></canvas>
                 </div>
-                <div class="store-section">
+
+                <div class="store-section" id="filters-competitiveness">
+
                     <div class="form-check">
                         <span class="color-rect rect-no-offer"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prNoOfferCheckbox" value="prNoOffer">
@@ -64,6 +79,7 @@
                         <input class="form-check-input colorFilter" type="checkbox" id="prToLowCheckbox" value="prToLow">
                         <label class="form-check-label" for="prToLowCheckbox">Cena zaniżona</label>
                     </div>
+
                     <div class="price-range-settings">
                         <div class="color-circle prMid-circle"></div>
                         <div class="legendBox">Próg c. subopt.</div>
@@ -71,6 +87,7 @@
                         <input type="number" id="price2" step="0.01" min="0.01">
                         <span id="unitLabel2" style="display:flex; align-items:center;"></span>
                     </div>
+
                     <div class="price-range-settings">
                         <div class="color-circle prIdeal-circle"></div>
                         <div class="legendBox">Próg c. strateg.</div>
@@ -78,6 +95,7 @@
                         <input type="number" id="price1" step="0.01" min="0.01">
                         <span id="unitLabel1" style="display:flex; align-items:center;"></span>
                     </div>
+
                     <div class="price-range-settings">
                         <div class="price-range-settings-stepPrice"></div>
                         <div class="legendBox">
@@ -85,13 +103,73 @@
                             <div id="stepPriceIndicator" class="step-indicator"></div>
                         </div>
                         <label for="stepPrice"></label>
-                        <input type="number" id="stepPrice" value="@ViewBag.StepPrice?.ToString("F2")" step="0.01"> <span id="unitLabelStepPrice" style="display:flex; align-items:center;"></span>
+                        <input type="number" id="stepPrice" value="@ViewBag.StepPrice?.ToString("F2")" step="0.01">
+                        <span id="unitLabelStepPrice" style="display:flex; align-items:center;"></span>
                     </div>
+
                     <div>
                         <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" checked />
                     </div>
-                    <button class="Button-Page-Small" style="margin-top: 4px;" id="savePriceValues">Zapisz progi</button>
 
+                    <button class="Button-Page-Small" style="margin-top: 4px;" id="savePriceValues">Przelicz i zapisz</button>
+                </div>
+
+                <div class="store-section" id="filters-profit" style="display: none;">
+
+                    <div class="form-check">
+                        <span class="color-rect rect-no-offer"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketUnavailable" value="market-unavailable">
+                        <label class="form-check-label" for="bucketUnavailable">Cena niedostępna</label>
+                    </div>
+
+                    <div class="form-check">
+                        <span class="color-rect rect-only-me"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketSolo" value="market-solo">
+                        <label class="form-check-label" for="bucketSolo">Cena solo</label>
+                    </div>
+
+                    <div class="form-check">
+                        <span class="color-rect rect-overpriced"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketOverpriced" value="market-overpriced">
+                        <label class="form-check-label" for="bucketOverpriced">Cena przeszacowana</label>
+                    </div>
+
+                    <div class="form-check">
+                        <span class="color-rect rect-above-average"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketAboveAverage" value="market-above-average">
+                        <label class="form-check-label" for="bucketAboveAverage">Cena powyżej średniej</label>
+                    </div>
+
+                    <div class="form-check">
+                        <span class="color-rect rect-ideal"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketAverage" value="market-average">
+                        <label class="form-check-label" for="bucketAverage">Cena rynkowa</label>
+                    </div>
+
+                    <div class="form-check">
+                        <span class="color-rect rect-below-average"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketBelowAverage" value="market-below-average">
+                        <label class="form-check-label" for="bucketBelowAverage">Cena poniżej średniej</label>
+                    </div>
+
+                    <div class="form-check">
+                        <span class="color-rect rect-deep-discount"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketDeepDiscount" value="market-deep-discount">
+                        <label class="form-check-label" for="bucketDeepDiscount">Cena okazyjna</label>
+                    </div>
+
+                    <div class="price-range-settings">
+                        <div class="price-range-settings-indexTarget"></div>
+                        <div class="legendBox" title="100% = Mediana. 95% = 5% taniej niż rynek.">
+                            Index cenowy
+                            <div id="priceIndexIndicator" class="step-indicator"></div>
+                        </div>
+                        <label for="priceIndexTargetInput"></label>
+                        <input type="number" id="priceIndexTargetInput" value="100.00" step="0.5" min="1" max="500">
+                        <span style="display:flex; align-items:center;">%</span>
+                    </div>
+
+                    <button class="Button-Page-Small" style="margin-top: 8px; width:100%;" id="savePriceValues_profit">Przelicz i zapisz</button>
                 </div>
                 <div class="filterBox">
                     <div class="Category-Container-Select" style="margin-top:-2px;">Flagi <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a></div>
