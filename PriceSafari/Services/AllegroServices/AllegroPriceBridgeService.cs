@@ -31,11 +31,11 @@ namespace PriceSafari.Services.AllegroServices
         }
 
         public async Task<PriceBridgeResult> ExecutePriceChangesAsync(
-       int storeId,
-       int allegroScrapeHistoryId,
-       string userId,
-       bool includeCommissionInMargin,
-       List<AllegroPriceBridgeItemRequest> itemsToBridge)
+         int storeId,
+         int allegroScrapeHistoryId,
+         string userId,
+         bool includeCommissionInMargin,
+         List<AllegroPriceBridgeItemRequest> itemsToBridge)
         {
             var result = new PriceBridgeResult();
             var store = await _context.Stores.FindAsync(storeId);
@@ -68,17 +68,13 @@ namespace PriceSafari.Services.AllegroServices
                 StoreId = storeId,
                 AllegroScrapeHistoryId = allegroScrapeHistoryId,
                 UserId = userId,
-                SuccessfulCount = 0, // Będą aktualizowane na końcu
+                SuccessfulCount = 0,
                 FailedCount = 0
             };
             _context.AllegroPriceBridgeBatches.Add(newBatch);
 
-            // --- POCZĄTEK NOWEJ LOGIKI ---
-
-            // Lista przechowująca elementy, które udało się wysłać i będą wymagały weryfikacji
             var itemsToVerify = new List<AllegroPriceBridgeItem>();
 
-            // --- PĘTLA 1: WYSYŁANIE ZMIAN CEN (PATCH) ---
             _logger.LogInformation("Rozpoczynam PĘTLĘ 1: Wysyłanie {Count} zmian cen...", itemsToBridge.Count);
 
             foreach (var item in itemsToBridge)
@@ -101,12 +97,17 @@ namespace PriceSafari.Services.AllegroServices
                     CommissionBefore = item.CommissionBefore,
                     RankingBefore = item.RankingBefore,
                     PriceAfter_Simulated = item.PriceAfter_Simulated,
-                    RankingAfter_Simulated = item.RankingAfter_Simulated
+                    RankingAfter_Simulated = item.RankingAfter_Simulated,
+
+                    // --- NOWE POLA (DODANE) ---
+                    Mode = item.Mode,
+                    PriceIndexTarget = item.PriceIndexTarget,
+                    StepPriceApplied = item.StepPriceApplied
+                    // ---------------------------
                 };
 
                 string newPriceString = item.PriceAfter_Simulated.ToString(CultureInfo.InvariantCulture);
 
-                // Wyślij żądanie zmiany ceny
                 var (success, errorMessage) = await SetNewOfferPriceAsync(accessToken, item.OfferId, newPriceString);
 
                 bridgeItem.Success = success;
@@ -115,7 +116,6 @@ namespace PriceSafari.Services.AllegroServices
                 if (success)
                 {
                     result.SuccessfulCount++;
-                    // Dodaj do listy do późniejszej weryfikacji
                     itemsToVerify.Add(bridgeItem);
                 }
                 else
@@ -123,7 +123,6 @@ namespace PriceSafari.Services.AllegroServices
                     result.FailedCount++;
                     result.Errors.Add(new PriceBridgeError { OfferId = item.OfferId, Message = errorMessage });
 
-                    // Sprawdzenie błędu autoryzacji (tak jak wcześniej)
                     if (errorMessage.Contains("401") || errorMessage.Contains("Unauthorized"))
                     {
                         _logger.LogWarning("Token API dla sklepu {StoreId} wygasł (podczas wysyłania). Przerywam wgrywanie cen.", storeId);
@@ -136,29 +135,31 @@ namespace PriceSafari.Services.AllegroServices
                             result.Errors.Add(new PriceBridgeError { OfferId = "Pozostałe", Message = "Token API wygasł. Przerwano." });
                         }
 
-                        _context.AllegroPriceBridgeItems.Add(bridgeItem); // Zapisz ostatni błędny element
-                        break; // Przerwij PĘTLĘ 1
+                        // Zapisujemy nowe pola także dla błędnego elementu (ważne dla logów)
+                        bridgeItem.Mode = item.Mode;
+                        bridgeItem.PriceIndexTarget = item.PriceIndexTarget;
+                        bridgeItem.StepPriceApplied = item.StepPriceApplied;
+
+                        _context.AllegroPriceBridgeItems.Add(bridgeItem);
+                        break;
                     }
                 }
 
-                // Dodaj element (udany lub nie) do kontekstu bazy danych
                 _context.AllegroPriceBridgeItems.Add(bridgeItem);
             }
 
-            // Zapisz stan tokena, jeśli został zmieniony
             if (!store.IsAllegroTokenActive)
             {
                 await _context.SaveChangesAsync();
             }
 
-            // --- PAUZA (Tylko jeśli są elementy do weryfikacji) ---
             if (itemsToVerify.Any())
             {
                 _logger.LogInformation("Zakończono wysyłanie. Oczekuję 3 sekundy na przetworzenie przez Allegro...");
-                await Task.Delay(3000); // Czekamy 3 sekundy ZAMIAST 5 * N
+                await Task.Delay(3000);
             }
 
-            // --- PĘTLA 2: WERYFIKACJA ZMIAN CEN (GET) ---
+            // --- PĘTLA 2: WERYFIKACJA (bez zmian w logice, tylko kontekst) ---
             _logger.LogInformation("Rozpoczynam PĘTLĘ 2: Weryfikacja {Count} wysłanych zmian...", itemsToVerify.Count);
 
             foreach (var bridgeItem in itemsToVerify)
@@ -172,7 +173,6 @@ namespace PriceSafari.Services.AllegroServices
 
                     if (offerDataNode != null)
                     {
-                        // Weryfikujemy cenę BAZOWĄ (sellingMode.price), a nie promocyjną
                         var newPriceStringApi = offerDataNode["sellingMode"]?["price"]?["amount"]?.ToString();
                         if (decimal.TryParse(newPriceStringApi, CultureInfo.InvariantCulture, out var price) && price > 0)
                         {
@@ -180,7 +180,6 @@ namespace PriceSafari.Services.AllegroServices
                         }
                         fetchedNewCommission = await GetOfferCommission(accessToken, offerDataNode);
 
-                        // Aktualizujemy obiekt `bridgeItem`, który jest już śledzony przez EF Core
                         bridgeItem.PriceAfter_Verified = fetchedNewPrice;
                         bridgeItem.CommissionAfter_Verified = fetchedNewCommission;
                     }
@@ -201,8 +200,6 @@ namespace PriceSafari.Services.AllegroServices
                 catch (AllegroAuthException authEx)
                 {
                     _logger.LogError(authEx, "Błąd autoryzacji podczas weryfikacji zmiany ceny dla oferty {OfferId}", bridgeItem.AllegroOfferId);
-
-                    // Jeśli token padł tutaj, musimy zdegradować ten i wszystkie pozostałe elementy
                     bridgeItem.Success = false;
                     bridgeItem.ErrorMessage = $"Wgrano, ale weryfikacja nieudana: {authEx.Message}";
                     result.SuccessfulCount--;
@@ -210,15 +207,14 @@ namespace PriceSafari.Services.AllegroServices
                     result.Errors.Add(new PriceBridgeError { OfferId = bridgeItem.AllegroOfferId, Message = bridgeItem.ErrorMessage });
 
                     store.IsAllegroTokenActive = false;
-                    await _context.SaveChangesAsync(); // Zapisz zmianę statusu tokena
+                    await _context.SaveChangesAsync();
 
-                    // Oznacz resztę jako niezweryfikowane i przerwij pętlę weryfikacji
                     int remainingToVerify = itemsToVerify.Count - result.SuccessfulChangesDetails.Count;
                     if (remainingToVerify > 0)
                     {
                         result.Errors.Add(new PriceBridgeError { OfferId = "Pozostałe", Message = "Token API wygasł podczas weryfikacji." });
                     }
-                    break; // Przerwij PĘTLĘ 2
+                    break;
                 }
                 catch (Exception ex)
                 {
@@ -228,15 +224,11 @@ namespace PriceSafari.Services.AllegroServices
                 }
             }
 
-            // --- ZAPIS KOŃCOWY ---
-
-            // Zaktualizuj statystyki w obiekcie Batch
             newBatch.SuccessfulCount = result.SuccessfulCount;
             newBatch.FailedCount = result.FailedCount;
 
             try
             {
-                // Zapisz wszystko jednym poleceniem (nowy batch i wszystkie zaktualizowane bridgeItems)
                 await _context.SaveChangesAsync();
             }
             catch (Exception dbEx)

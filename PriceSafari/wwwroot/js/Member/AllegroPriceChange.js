@@ -76,7 +76,7 @@
                 const storedData = JSON.parse(storedDataJSON);
 
                 if (storedData && storedData.scrapId && Array.isArray(storedData.changes)) {
-                    // --- MIGRACJA STARYCH DANYCH ---
+
                     if (storedData.changes.length > 0) {
                         const sample = storedData.changes[0];
                         if (typeof sample.mode === 'undefined') {
@@ -90,7 +90,6 @@
                             });
                         }
                     }
-                    // -------------------------------
 
                     selectedPriceChanges = storedData.changes;
                     sessionScrapId = storedData.scrapId;
@@ -152,7 +151,7 @@
     function clearPriceChanges() {
         selectedPriceChanges = [];
         sessionScrapId = null;
-     
+
         simulationsExecuted = false;
         savePriceChanges();
         updatePriceChangeSummary();
@@ -181,12 +180,14 @@
             scrapId,
             stepPriceApplied,
             stepUnitApplied,
-            // --- NOWE POLA ---
+
             mode,
-            indexTarget,      // Zdarza się w głównym widoku
-            priceIndexTarget, // Czasem nazywane tak w modelu
+            indexTarget,
+
+            priceIndexTarget,
+
             marginPrice
-            // -----------------
+
         } = event.detail;
 
         if (selectedPriceChanges.length === 0) {
@@ -208,18 +209,15 @@
             newPrice: parseFloat(newPrice),
             marginPrice: marginPrice,
 
-            // --- ZAPISYWANIE TRYBU I PARAMETRÓW ---
             mode: mode || 'competitiveness',
 
-            // Jeśli tryb Profit, zapisujemy Index, a krok czyścimy
             priceIndexTarget: (mode === 'profit')
                 ? (priceIndexTarget ? parseFloat(priceIndexTarget) : (indexTarget ? parseFloat(indexTarget) : null))
                 : null,
 
-            // Jeśli tryb Konkurencja, zapisujemy Krok, a index czyścimy (lub null dla Profit)
             stepPriceApplied: (mode === 'profit') ? null : parseFloat(stepPriceApplied),
             stepUnitApplied: (mode === 'profit') ? null : stepUnitApplied
-            // --------------------------------------
+
         };
 
         if (existingIndex > -1) {
@@ -237,7 +235,7 @@
         selectedPriceChanges = selectedPriceChanges.filter(item => item.productId !== productIdStr);
         if (selectedPriceChanges.length === 0) {
             sessionScrapId = null;
-      
+
             simulationsExecuted = false;
         }
         savePriceChanges();
@@ -255,6 +253,9 @@
             }
         }
     });
+
+
+
 
     function showLoading() {
         const overlay = document.getElementById("loadingOverlay");
@@ -369,13 +370,11 @@
         };
     }
 
-
     function buildPriceBlock(basePrice, marginPrice, apiAllegroCommission, allegroRank, allegroOffers, isConfirmedBlock = false, includeCommissionOverride = null) {
         const formattedBasePrice = formatPricePL(basePrice);
         let block = '<div class="price-info-box">';
         let headerText = isConfirmedBlock ? 'Cena wgrana' : 'Cena oferty';
 
-     
         const confirmedStyle = 'background: #dff0d8; border: 1px solid #c1e2b3;';
         const normalStyle = 'background: #f5f5f5; border: 1px solid #e3e3e3;';
 
@@ -383,7 +382,7 @@
         block += `<div class="price-info-item" style="padding: 4px 12px; ${headerStyle} border-radius: 5px;">${headerText} | ${formattedBasePrice}</div>`;
 
         if (allegroRank && allegroRank !== "-") {
-           
+
             let rankStyle = isConfirmedBlock ? confirmedStyle : normalStyle;
             block += `<div class="price-info-item" style="padding: 4px 12px; ${rankStyle} border-radius: 5px;">Poz. cenowa | <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${allegroRank}</div>`;
         }
@@ -413,7 +412,7 @@
             const formattedMarginPercent = parseFloat(marginPercent).toFixed(2);
             const sign = parseFloat(marginValue) >= 0 ? "+" : "";
             const cls = parseFloat(marginValue) >= 0 ? "priceBox-diff-margin" : "priceBox-diff-margin-minus";
-          
+
             block += `<div class="price-info-item"><div class="price-box-diff-margin ${cls}" style="margin-top: 5px;"><p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p></div></div>`;
         } else if (marginPrice != null) {
             block += `<div class="price-info-item"><div class="price-box-diff-margin" style="margin-top: 5px;"><p>Cena zakupu: ${formatPricePL(marginPrice)}</p></div></div>`;
@@ -422,7 +421,6 @@
         return block;
     }
 
-    
     function renderHistoryView(batches) {
         const historyContainer = document.getElementById("historyModalBody");
         if (!historyContainer) return;
@@ -439,10 +437,16 @@
             totalItems += batch.items.length;
             const executionDate = new Date(batch.executionDate).toLocaleString('pl-PL');
 
+            let methodIcon = '<i class="fas fa-file-alt"></i>';
+            if (batch.exportMethod === 'Csv') methodIcon = '<i class="fa-solid fa-file-csv" style="color:green;"></i> CSV';
+            else if (batch.exportMethod === 'Excel') methodIcon = '<i class="fas fa-file-excel" style="color:green;"></i> Excel';
+            else if (batch.exportMethod === 'Api') methodIcon = '<i class="fas fa-cloud-upload-alt" style="color:#0d6efd;"></i> API';
+
             html += `
               <div class="history-batch-header" style="margin-top: 0px; margin-bottom: 4px; padding: 5px 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 5px;">
                 <strong>Paczka z dnia:</strong> ${executionDate} | 
                 <strong>Wgrał:</strong> ${batch.userName} | 
+                <strong>Metoda:</strong> ${methodIcon} | 
                 <strong style="color: #28a745;">Sukces: ${batch.successfulCount}</strong> | 
                 <strong style="color: #dc3545;">Błędy: ${batch.failedCount}</strong>
             </div>
@@ -451,9 +455,9 @@
                     <tr>
                         <th>Produkt</th>
                         <th>Przed zmianą</th>
-                        <th>Zmiana</th>
+                        <th style="text-align:center;">Zmiana</th>
                         <th>Zaktualizowana cena</th>
-                        <th>Status</th>
+                        <th style="text-align:center;">Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -461,7 +465,8 @@
 
             batch.items.forEach(item => {
                 const blockBefore = buildPriceBlock(item.priceBefore, item.marginPrice, item.commissionBefore, item.rankingBefore, null, false, item.includeCommissionInMargin);
-                const blockUpdated = item.success ? buildPriceBlock(item.priceAfter_Verified, item.marginPrice, item.commissionAfter_Verified, item.rankingAfter_Simulated, null, true, item.includeCommissionInMargin)
+                const blockUpdated = item.success
+                    ? buildPriceBlock(item.priceAfter_Verified, item.marginPrice, item.commissionAfter_Verified, item.rankingAfter_Simulated, null, true, item.includeCommissionInMargin)
                     : '<div class="price-info-box" style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px;"><p style="margin:0; color: #721c24;">Weryfikacja nieudana.</p></div>';
 
                 const statusBlock = item.success ?
@@ -480,7 +485,34 @@
                     </a>`;
                 }
 
-    
+                let strategyBadgeHtml = "";
+
+                if (item.mode) {
+                    if (item.mode === 'profit') {
+
+                        const targetVal = item.priceIndexTarget != null ? item.priceIndexTarget : 100;
+                        strategyBadgeHtml = `
+                            <span class="strategy-badge profit" style="margin-bottom: 5px; display:inline-block;">
+                                Indeks ${targetVal}%
+                            </span>`;
+                    } else {
+
+                        let stepText = "Konkurencja";
+                        if (item.stepPriceApplied !== null && item.stepPriceApplied !== undefined) {
+                            const stepVal = parseFloat(item.stepPriceApplied);
+
+                            const unit = "PLN";
+
+                            if (stepVal === 0) stepText = "Wyrównanie";
+                            else stepText = `Krok ${stepVal > 0 ? '+' : ''}${stepVal} ${unit}`;
+                        }
+                        strategyBadgeHtml = `
+                            <span class="strategy-badge competitiveness" style="margin-bottom: 5px; display:inline-block;">
+                                ${stepText}
+                            </span>`;
+                    }
+                }
+
                 let diffBlock = '-';
                 if (item.success && item.priceAfter_Verified != null && item.priceBefore != null) {
                     const diff = item.priceAfter_Verified - item.priceBefore;
@@ -490,33 +522,32 @@
                     else if (diff < -0.005) arrow = '<span style="color: green;">▼</span>';
 
                     diffBlock = `
-                        <div style="font-size: 1em; white-space: nowrap;">
-                            <div>${arrow} ${formatPricePL(Math.abs(diff), false)} PLN</div>
-                            <div style="font-size: 0.9em; color: #555; margin-left:19px;">(${Math.abs(diffPercent).toFixed(2)}%)</div>
+                        <div class="simulation-change-box" style="margin: 0 auto; display:flex; flex-direction:column; align-items:center;">
+                            ${strategyBadgeHtml} <div class="simulation-diff-row">
+                                ${arrow} ${formatPricePL(Math.abs(diff), false)} PLN
+                            </div>
+                            <div class="simulation-diff-percent">
+                                (${Math.abs(diffPercent).toFixed(2)}%)
+                            </div>
                         </div>`;
                 }
 
                 html += `
                 <tr>
-                <td class="align-middle">
-                     <a
-                        href="/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="simulationProductTitle"
-                        title="Zobacz szczegóły produktu"
-                        style="text-decoration: none; color: inherit;"
-                    >
-                        <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;">${item.productName}</div>
-                    </a>
-                    ${idInfo}
-                    ${eanInfo}
-                    ${allegroButton}
-                </td>
-                <td class="align-middle">${blockBefore}</td>
-                <td class="align-middle">${diffBlock}</td>
-                <td class="align-middle">${blockUpdated}</td>
-                <td class="align-middle text-center">${statusBlock}</td>
+                    <td class="align-middle">
+                        <a href="/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}"
+                           target="_blank" rel="noopener noreferrer" class="simulationProductTitle"
+                           title="Zobacz szczegóły produktu" style="text-decoration: none; color: inherit;">
+                           <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;">${item.productName}</div>
+                        </a>
+                        ${idInfo}
+                        ${eanInfo}
+                        ${allegroButton}
+                    </td>
+                    <td class="align-middle">${blockBefore}</td>
+                    <td class="align-middle" style="text-align: center;">${diffBlock}</td>
+                    <td class="align-middle">${blockUpdated}</td>
+                    <td class="align-middle text-center">${statusBlock}</td>
                 </tr>`;
             });
             html += `</tbody></table>`;
@@ -561,7 +592,6 @@
             });
     }
 
-  
     function renderSimulationTableHeader(hasImage) {
         let tableHtml = '<table class="table-orders" id="simulationTable"><thead><tr>';
         if (hasImage) {
@@ -571,7 +601,7 @@
         tableHtml += '<th>Obecne</th>';
         tableHtml += '<th>Zmiana</th>';
         tableHtml += '<th>Po zmianie</th>';
-      
+
         if (simulationsExecuted) {
             tableHtml += '<th>Potwierdzenie API</th>';
         }
@@ -616,7 +646,7 @@
         } else {
 
             showLoading();
-     
+
             simulationsExecuted = false;
 
             var simulationData = selectedPriceChanges.map(function (item) {
@@ -666,7 +696,6 @@
 
                     var simulationResults = data.simulationResults || [];
 
-              
                     renderSimulationTableHeader(hasImage);
 
                     originalRowsData = selectedPriceChanges.map(function (item, index) {
@@ -796,24 +825,23 @@
             const formattedDiff = formatPricePL(Math.abs(row.diff), false);
             const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
 
-            // --- GENEROWANIE BADGE'A ---
             const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
             let strategyBadgeHtml = "";
 
             if (sourceItem) {
                 if (sourceItem.mode === 'profit') {
-                    // Badge dla trybu PROFIT
+
                     const targetVal = sourceItem.priceIndexTarget != null ? sourceItem.priceIndexTarget : 100;
                     strategyBadgeHtml = `
                         <span class="strategy-badge profit" style="margin-bottom: 5px; display:inline-block;">
                             Indeks ${targetVal}%
                         </span>`;
                 } else {
-                    // Badge dla trybu KONKURENCJA
+
                     let stepText = "Konkurencja";
                     if (sourceItem.stepPriceApplied !== null && sourceItem.stepPriceApplied !== undefined) {
                         const stepVal = parseFloat(sourceItem.stepPriceApplied);
-                        const unit = sourceItem.stepUnitApplied || 'PLN'; // Domyślnie PLN jeśli brak danych
+                        const unit = sourceItem.stepUnitApplied || 'PLN';
 
                         if (stepVal === 0) stepText = "Wyrównanie";
                         else stepText = `Krok ${stepVal > 0 ? '+' : ''}${stepVal} ${unit}`;
@@ -824,7 +852,6 @@
                         </span>`;
                 }
             }
-            // ---------------------------
 
             html += `<tr data-product-id="${row.productId}" data-offer-id="${row.myIdAllegro || ''}">
                         ${imageCell}
@@ -839,7 +866,7 @@
                             ${allegroButton}
                         </td>
                         <td class="align-middle">${row.currentBlock}</td>
-                        
+
                         <td class="align-middle" style="font-size: 1em; white-space: nowrap; text-align:center;">
                             <div class="simulation-change-box" style="display:flex; flex-direction:column; align-items:center;">
                                 ${strategyBadgeHtml}
@@ -862,7 +889,6 @@
         });
         tbody.innerHTML = html;
 
-        // Listenery usuwania
         tbody.querySelectorAll('.remove-change-btn').forEach(btn => {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
@@ -927,7 +953,7 @@
             const itemsToBridge = originalRowsData
                 .filter(row => activeProductIds.has(row.productId) && row.myIdAllegro)
                 .map(row => {
-                    // Znajdź oryginalny obiekt zmiany, aby pobrać tryb
+
                     const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
 
                     return {
@@ -941,13 +967,18 @@
                         PriceAfter_Simulated: row.baseNewPrice,
                         RankingAfter_Simulated: row.newAllegroRanking,
 
-                        // --- NOWE POLA DLA HISTORII ---
                         Mode: sourceItem ? sourceItem.mode : 'competitiveness',
                         PriceIndexTarget: (sourceItem && sourceItem.priceIndexTarget) ? parseFloat(sourceItem.priceIndexTarget) : null,
                         StepPriceApplied: (sourceItem && sourceItem.stepPriceApplied !== null) ? parseFloat(sourceItem.stepPriceApplied) : null
-                        // ------------------------------
+
                     };
                 });
+
+
+
+
+
+
 
             const changesWithoutId = selectedPriceChanges.filter(c => !c.myIdAllegro).length;
             if (itemsToBridge.length === 0) {
