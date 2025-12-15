@@ -74,7 +74,24 @@
         if (storedDataJSON) {
             try {
                 const storedData = JSON.parse(storedDataJSON);
+
                 if (storedData && storedData.scrapId && Array.isArray(storedData.changes)) {
+                    // --- MIGRACJA STARYCH DANYCH ---
+                    if (storedData.changes.length > 0) {
+                        const sample = storedData.changes[0];
+                        if (typeof sample.mode === 'undefined') {
+                            console.info("Allegro: Migracja starszego formatu danych w LS.");
+                            storedData.changes.forEach(change => {
+                                change.mode = 'competitiveness';
+                                change.priceIndexTarget = null;
+                                if (typeof change.stepPriceApplied === 'undefined') {
+                                    change.stepPriceApplied = null;
+                                }
+                            });
+                        }
+                    }
+                    // -------------------------------
+
                     selectedPriceChanges = storedData.changes;
                     sessionScrapId = storedData.scrapId;
                 } else {
@@ -155,26 +172,56 @@
     });
 
     document.addEventListener('priceBoxChange', function (event) {
-        const { productId, myIdAllegro, productName, currentPrice, newPrice, scrapId, stepPriceApplied, stepUnitApplied } = event.detail;
+        const {
+            productId,
+            myIdAllegro,
+            productName,
+            currentPrice,
+            newPrice,
+            scrapId,
+            stepPriceApplied,
+            stepUnitApplied,
+            // --- NOWE POLA ---
+            mode,
+            indexTarget,      // Zdarza się w głównym widoku
+            priceIndexTarget, // Czasem nazywane tak w modelu
+            marginPrice
+            // -----------------
+        } = event.detail;
+
         if (selectedPriceChanges.length === 0) {
             sessionScrapId = scrapId;
         } else if (sessionScrapId !== scrapId) {
             console.warn(`ScrapId w sesji (${sessionScrapId}) różni się od scrapId eventu (${scrapId}). Czyszczenie starych zmian.`);
             selectedPriceChanges = [];
             sessionScrapId = scrapId;
-            // RESET przy zmianie scrapId
             simulationsExecuted = false;
         }
+
         var existingIndex = selectedPriceChanges.findIndex(item => String(item.productId) === String(productId));
+
         const changeData = {
             productId: String(productId),
             myIdAllegro: myIdAllegro,
             productName,
             currentPrice: parseFloat(currentPrice),
             newPrice: parseFloat(newPrice),
-            stepPriceApplied: parseFloat(stepPriceApplied),
-            stepUnitApplied
+            marginPrice: marginPrice,
+
+            // --- ZAPISYWANIE TRYBU I PARAMETRÓW ---
+            mode: mode || 'competitiveness',
+
+            // Jeśli tryb Profit, zapisujemy Index, a krok czyścimy
+            priceIndexTarget: (mode === 'profit')
+                ? (priceIndexTarget ? parseFloat(priceIndexTarget) : (indexTarget ? parseFloat(indexTarget) : null))
+                : null,
+
+            // Jeśli tryb Konkurencja, zapisujemy Krok, a index czyścimy (lub null dla Profit)
+            stepPriceApplied: (mode === 'profit') ? null : parseFloat(stepPriceApplied),
+            stepUnitApplied: (mode === 'profit') ? null : stepUnitApplied
+            // --------------------------------------
         };
+
         if (existingIndex > -1) {
             selectedPriceChanges[existingIndex] = changeData;
         } else {
@@ -718,11 +765,11 @@
         const tbody = document.getElementById("simulationTbody");
         if (!tbody) return;
         let html = "";
+
         rows.forEach(row => {
             let imageCell = "";
             if (row.hasImage) {
                 const imgSrc = (row.imageUrl && row.imageUrl.trim() !== "") ? row.imageUrl : '/images/placeholder.png';
-
                 imageCell = `
                     <td>
                     <div class="price-info-item" style="padding:4px; text-align: center;"> <img
@@ -733,12 +780,10 @@
                     </td>`;
             }
 
-
             let idInfo = row.myIdAllegro ? `<div class="price-info-item small-text">ID: ${row.myIdAllegro}</div>` : `<div class="price-info-item small-text" style="color:#888;">ID: Brak</div>`;
             let eanInfo = row.ean ? `<div class="price-info-item small-text">EAN: ${row.ean}</div>` : `<div class="price-info-item small-text" style="color:#888;">EAN: Brak</div>`;
 
             let allegroButton = '';
-
             const offerUrl = row.allegroOfferUrl ? row.allegroOfferUrl : (row.myIdAllegro ? `https://allegro.pl/oferta/${row.myIdAllegro}` : null);
 
             if (offerUrl) {
@@ -751,18 +796,42 @@
             const formattedDiff = formatPricePL(Math.abs(row.diff), false);
             const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
 
-           
+            // --- GENEROWANIE BADGE'A ---
+            const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
+            let strategyBadgeHtml = "";
+
+            if (sourceItem) {
+                if (sourceItem.mode === 'profit') {
+                    // Badge dla trybu PROFIT
+                    const targetVal = sourceItem.priceIndexTarget != null ? sourceItem.priceIndexTarget : 100;
+                    strategyBadgeHtml = `
+                        <span class="strategy-badge profit" style="margin-bottom: 5px; display:inline-block;">
+                            Indeks ${targetVal}%
+                        </span>`;
+                } else {
+                    // Badge dla trybu KONKURENCJA
+                    let stepText = "Konkurencja";
+                    if (sourceItem.stepPriceApplied !== null && sourceItem.stepPriceApplied !== undefined) {
+                        const stepVal = parseFloat(sourceItem.stepPriceApplied);
+                        const unit = sourceItem.stepUnitApplied || 'PLN'; // Domyślnie PLN jeśli brak danych
+
+                        if (stepVal === 0) stepText = "Wyrównanie";
+                        else stepText = `Krok ${stepVal > 0 ? '+' : ''}${stepVal} ${unit}`;
+                    }
+                    strategyBadgeHtml = `
+                        <span class="strategy-badge competitiveness" style="margin-bottom: 5px; display:inline-block;">
+                            ${stepText}
+                        </span>`;
+                }
+            }
+            // ---------------------------
+
             html += `<tr data-product-id="${row.productId}" data-offer-id="${row.myIdAllegro || ''}">
                         ${imageCell}
                         <td class="align-middle">
-                            <a
-                                href="/AllegroPriceHistory/Details?storeId=${storeId}&productId=${row.productId}"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="simulationProductTitle"
-                                title="Zobacz szczegóły produktu"
-                                style="text-decoration: none; color: inherit;"
-                            >
+                            <a href="/AllegroPriceHistory/Details?storeId=${storeId}&productId=${row.productId}"
+                               target="_blank" rel="noopener noreferrer" class="simulationProductTitle"
+                               title="Zobacz szczegóły produktu" style="text-decoration: none; color: inherit;">
                                 <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;">${row.productName}</div>
                             </a>
                             ${idInfo}
@@ -770,31 +839,35 @@
                             ${allegroButton}
                         </td>
                         <td class="align-middle">${row.currentBlock}</td>
-                        <td class="align-middle" style="font-size: 1em; white-space: nowrap;">
-                            <div>${row.arrow} ${formattedDiff} PLN</div>
-                            <div style="font-size: 0.9em; color: #555; margin-left:19px;">(${formattedDiffPercent}%)</div>
+                        
+                        <td class="align-middle" style="font-size: 1em; white-space: nowrap; text-align:center;">
+                            <div class="simulation-change-box" style="display:flex; flex-direction:column; align-items:center;">
+                                ${strategyBadgeHtml}
+                                <div>${row.arrow} ${formattedDiff} PLN</div>
+                                <div style="font-size: 0.9em; color: #555;">(${formattedDiffPercent}%)</div>
+                            </div>
                         </td>
+
                         <td class="align-middle">${row.newBlock}</td>
                         ${simulationsExecuted ? `<td class="align-middle" id="confirm_${row.productId}" style="min-width: 200px;"></td>` : ''}
                         <td class="align-middle" style="white-space: normal; text-align: center;">${row.effectDetails}</td>
                         <td class="align-middle text-center">
-                            <button class="remove-change-btn"
-                                data-product-id="${row.productId}"
-                                title="Usuń tę zmianę z symulacji"
-                                style="background: none; border: none; padding: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+                            <button class="remove-change-btn" data-product-id="${row.productId}"
+                                    title="Usuń tę zmianę z symulacji"
+                                    style="background: none; border: none; padding: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
                                 <i class="fa fa-trash" style="font-size: 19px; color: #555;"></i>
                             </button>
                         </td>
                     </tr>`;
         });
         tbody.innerHTML = html;
+
+        // Listenery usuwania
         tbody.querySelectorAll('.remove-change-btn').forEach(btn => {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 const prodId = this.getAttribute('data-product-id');
-                const removeEvent = new CustomEvent('priceBoxChangeRemove', {
-                    detail: { productId: prodId }
-                });
+                const removeEvent = new CustomEvent('priceBoxChangeRemove', { detail: { productId: prodId } });
                 document.dispatchEvent(removeEvent);
             });
         });
@@ -850,19 +923,31 @@
     if (executeButton) {
         executeButton.addEventListener("click", function () {
             const activeProductIds = new Set(selectedPriceChanges.map(c => c.productId));
+
             const itemsToBridge = originalRowsData
                 .filter(row => activeProductIds.has(row.productId) && row.myIdAllegro)
-                .map(row => ({
-                    ProductId: parseInt(row.productId, 10),
-                    OfferId: row.myIdAllegro.toString(),
-                    MarginPrice: row.marginPrice,
-                    IncludeCommissionInMargin: globalIncludeCommissionSetting,
-                    PriceBefore: row.baseCurrentPrice,
-                    CommissionBefore: row.apiAllegroCommission,
-                    RankingBefore: row.currentAllegroRanking,
-                    PriceAfter_Simulated: row.baseNewPrice,
-                    RankingAfter_Simulated: row.newAllegroRanking,
-                }));
+                .map(row => {
+                    // Znajdź oryginalny obiekt zmiany, aby pobrać tryb
+                    const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
+
+                    return {
+                        ProductId: parseInt(row.productId, 10),
+                        OfferId: row.myIdAllegro.toString(),
+                        MarginPrice: row.marginPrice,
+                        IncludeCommissionInMargin: globalIncludeCommissionSetting,
+                        PriceBefore: row.baseCurrentPrice,
+                        CommissionBefore: row.apiAllegroCommission,
+                        RankingBefore: row.currentAllegroRanking,
+                        PriceAfter_Simulated: row.baseNewPrice,
+                        RankingAfter_Simulated: row.newAllegroRanking,
+
+                        // --- NOWE POLA DLA HISTORII ---
+                        Mode: sourceItem ? sourceItem.mode : 'competitiveness',
+                        PriceIndexTarget: (sourceItem && sourceItem.priceIndexTarget) ? parseFloat(sourceItem.priceIndexTarget) : null,
+                        StepPriceApplied: (sourceItem && sourceItem.stepPriceApplied !== null) ? parseFloat(sourceItem.stepPriceApplied) : null
+                        // ------------------------------
+                    };
+                });
 
             const changesWithoutId = selectedPriceChanges.filter(c => !c.myIdAllegro).length;
             if (itemsToBridge.length === 0) {

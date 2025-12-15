@@ -8,7 +8,10 @@
     let setPrice2 = 2.00;
     let setStepPrice = 2.00;
     let usePriceDifference = document.getElementById('usePriceDifference').checked;
-
+    const viewModeStorageKey = `viewModeState_Allegro_${storeId}`;
+    const storedViewMode = localStorage.getItem(viewModeStorageKey);
+    let currentViewMode = storedViewMode ? storedViewMode : 'competitiveness';
+    let setPriceIndexTarget = 100.00;
     let allegroMarginSettings = {
         identifierForSimulation: 'ID',
         useMarginForSimulation: true,
@@ -48,6 +51,103 @@
         });
         return includeUnit ? formatted + ' PLN' : formatted;
     }
+
+    function switchMode(mode) {
+        currentViewMode = mode;
+        localStorage.setItem(viewModeStorageKey, mode);
+
+        // Aktualizacja przycisków
+        const btnComp = document.getElementById('btn-mode-comp');
+        const btnProfit = document.getElementById('btn-mode-profit');
+        if (btnComp) btnComp.classList.toggle('active', mode === 'competitiveness');
+        if (btnProfit) btnProfit.classList.toggle('active', mode === 'profit');
+
+        // Przełączanie sekcji filtrów
+        if (mode === 'competitiveness') {
+            $('#filters-competitiveness').fadeIn();
+            $('#filters-profit').hide();
+        } else {
+            $('#filters-competitiveness').hide();
+            $('#filters-profit').fadeIn();
+            updatePriceIndexIndicator(); // Funkcja zdefiniowana niżej
+        }
+
+        // Jeśli mamy już dane, odśwież widok
+        if (allPrices.length > 0) {
+            currentPage = 1;
+            filterAndSortPrices();
+        }
+    }
+
+    // Event listenery dla przycisków
+    const btnComp = document.getElementById('btn-mode-comp');
+    const btnProfit = document.getElementById('btn-mode-profit');
+    if (btnComp) btnComp.addEventListener('click', function () { switchMode('competitiveness'); });
+    if (btnProfit) btnProfit.addEventListener('click', function () { switchMode('profit'); });
+
+    function updatePriceIndexIndicator() {
+        const input = document.getElementById('priceIndexTargetInput');
+        const indicator = document.getElementById('priceIndexIndicator');
+        if (!input || !indicator) return;
+
+        const valueStr = input.value.replace(',', '.');
+        let value = parseFloat(valueStr);
+        let iconClass = '';
+        let titleText = '';
+
+        if (isNaN(value)) {
+            indicator.innerHTML = '';
+            return;
+        }
+
+        if (value < 100) {
+            iconClass = 'fa-solid fa-minus'; // lub arrow-down
+            titleText = 'Strategia poniżej średniej rynkowej (taniej)';
+        } else if (value > 100) {
+            iconClass = 'fa-solid fa-plus'; // lub arrow-up
+            titleText = 'Strategia powyżej średniej rynkowej (drożej)';
+        } else {
+            iconClass = 'fa-solid fa-equals';
+            titleText = 'Strategia równa średniej rynkowej (mediana)';
+        }
+
+        if (iconClass) {
+            indicator.innerHTML = `<i class="${iconClass}"></i>`;
+        } else {
+            indicator.innerHTML = '';
+        }
+        indicator.title = titleText;
+    }
+
+    // --- Obsługa inputa Indexu Cenowego ---
+    const priceIndexInput = document.getElementById('priceIndexTargetInput');
+    if (priceIndexInput) {
+        priceIndexInput.addEventListener('blur', function () {
+            enforceLimits(this, 1.00, 500.00); // Limit od 1% do 500%
+            updatePriceIndexIndicator();
+        });
+        priceIndexInput.addEventListener('input', updatePriceIndexIndicator);
+        priceIndexInput.addEventListener('change', updatePriceIndexIndicator);
+        // Wywołaj raz na starcie, aby ustawić ikonę
+        setTimeout(updatePriceIndexIndicator, 0);
+    }
+
+    // --- Obsługa przycisku zapisu w sekcji Profit ---
+    const profitCalcBtn = document.getElementById('savePriceValues_profit');
+    if (profitCalcBtn) {
+        profitCalcBtn.addEventListener('click', function () {
+            // Po kliknięciu "Przelicz i zapisz" w sekcji Profit,
+            // po prostu klikamy ukryty przycisk głównego zapisu, który obsłuży wysyłkę danych.
+            // Ale najpierw upewniamy się, że zmienna globalna jest zaktualizowana.
+            const inputVal = document.getElementById('priceIndexTargetInput').value.replace(',', '.');
+            setPriceIndexTarget = parseFloat(inputVal);
+
+            document.getElementById('savePriceValues').click();
+        });
+    }
+
+    // Inicjalizacja trybu
+    switchMode(currentViewMode);
 
     function getMarginBadgeClass(marginClass) {
         switch (marginClass) {
@@ -492,84 +592,107 @@
             input.value = value.toFixed(2);
         }
     }
-    function activateChangeButton(button, actionLine, priceBox, stepPriceApplied, stepUnitApplied) {
+    function activateChangeButton(button, actionLine, priceBox, stepPriceApplied, stepUnitApplied, mode, indexTarget) {
         if (!button) {
             console.error("Próba aktywacji nieistniejącego przycisku w priceBox:", priceBox);
             return;
         }
-        let stepInfoText = "";
-        if (typeof stepPriceApplied !== 'undefined' && stepPriceApplied !== null && typeof stepUnitApplied !== 'undefined') {
-            const formattedStepPrice = stepPriceApplied.toLocaleString('pl-PL', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-            stepInfoText = ` Krok ${formattedStepPrice} ${stepUnitApplied} |`;
-        }
 
+        // Zapisz oryginalny tekst, jeśli jeszcze go nie ma
         if (!button.dataset.originalText) {
             button.dataset.originalText = button.innerHTML;
         }
 
-        button.classList.add('active');
-        button.innerHTML = stepInfoText + " Dodano";
+        let btnInfoText = "";
+        let badgeHtml = "";
 
+        // Domyślny tryb jeśli brak danych to competitiveness
+        const currentMode = mode || 'competitiveness';
+
+        if (currentMode === 'profit') {
+            // --- TRYB RENTOWNOŚĆ ---
+            const targetVal = indexTarget != null ? parseFloat(indexTarget) : 100.00;
+
+            btnInfoText = ` Indeks ${targetVal}%`;
+
+            badgeHtml = `<div class="strategy-badge-dynamic mode-profit">
+                            <i class="fa-solid fa-dollar-sign" style="margin-right: 5px;"></i>
+                            Strategia optymalizacji zysku
+                         </div>`;
+        } else {
+            // --- TRYB KONKURENCYJNOŚĆ ---
+            let formattedStep = "0.00";
+            let unit = "%";
+
+            if (stepUnitApplied) {
+                unit = stepUnitApplied;
+            } else {
+                const useDiffCheckbox = document.getElementById('usePriceDifference');
+                unit = (useDiffCheckbox && useDiffCheckbox.checked) ? 'PLN' : '%';
+            }
+
+            if (stepPriceApplied !== null && stepPriceApplied !== undefined) {
+                formattedStep = parseFloat(stepPriceApplied).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            btnInfoText = ` Krok ${formattedStep} ${unit}`;
+
+            badgeHtml = `<div class="strategy-badge-dynamic mode-competitiveness">
+                            <i class="fa-solid fa-bolt" style="margin-right: 5px;"></i>
+                            Strategia maksymalnej konkurencyjności
+                         </div>`;
+        }
+
+        // Usuń stary badge jeśli istnieje (żeby się nie dublowały przy szybkich kliknięciach)
+        const existingBadge = actionLine.querySelector('.strategy-badge-dynamic');
+        if (existingBadge) existingBadge.remove();
+
+        // Wstaw nowy badge NA POCZĄTEK actionLine (nad przycisk)
+        actionLine.insertAdjacentHTML('afterbegin', badgeHtml);
+
+        button.classList.add('active');
+        button.innerHTML = `${btnInfoText} | Dodano`;
+
+        // Dodaj ikonę kosza
         const removeLink = document.createElement('span');
         removeLink.innerHTML = " <i class='fa fa-trash' style='font-size:12px; display:flex; color:white; margin-left:4px; margin-top:3px;'></i>";
         removeLink.style.cursor = "pointer";
         removeLink.style.pointerEvents = 'auto';
+        removeLink.title = "Usuń tę zmianę";
 
-        removeLink.addEventListener('click', function(ev) {
+        removeLink.addEventListener('click', function (ev) {
             ev.stopPropagation();
             const productId = priceBox.dataset.productId;
 
             selectedPriceChanges = selectedPriceChanges.filter(c => String(c.productId) !== String(productId));
 
             const removeEvent = new CustomEvent('priceBoxChangeRemove', {
-                detail: {
-                    productId: String(productId)
-                }
+                detail: { productId: String(productId) }
             });
             document.dispatchEvent(removeEvent);
 
+            // Logika resetowania UI po usunięciu
             const item = allPrices.find(p => String(p.productId) === String(productId));
-            if (!item) {
-                console.error("Nie znaleziono danych produktu dla ID:", productId, "podczas usuwania zmiany.");
-                priceBox.classList.remove('price-changed');
-                const buttonToReset = actionLine.querySelector('.simulate-change-btn');
-                if (buttonToReset) {
-                    buttonToReset.classList.remove('active');
-                    buttonToReset.innerHTML = buttonToReset.dataset.originalText || "Dodaj zmianę ceny";
-                }
-                return;
-            }
-            const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-            const priceBoxColumnInfo = priceBox.querySelector('.price-box-column-action');
+            if (item) {
+                const priceBoxColumnInfo = priceBox.querySelector('.price-box-column-action');
+                // Usuwamy badge
+                const badge = actionLine.querySelector('.strategy-badge-dynamic');
+                if (badge) badge.remove();
 
-            if (!priceBoxColumnInfo) {
-                console.error("Nie znaleziono kontenera .price-box-column-action dla ID:", productId, "podczas usuwania zmiany.");
-                priceBox.classList.remove('price-changed');
-                return;
-            }
-
-            const newSuggestionData = calculateCurrentSuggestion(item);
-
-            if (newSuggestionData) {
-                const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData);
-                priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
-                const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
-                if (newActionLine) {
-                    const priceToAddOnClick = newSuggestionData.suggestedPrice;
-                    attachPriceChangeListener(newActionLine, priceToAddOnClick, priceBox, item.productId, item.productName, currentMyPrice, item);
+                const newSuggestionData = calculateCurrentSuggestion(item);
+                if (newSuggestionData) {
+                    const suggestionRenderResult = renderSuggestionBlockHTML(item, newSuggestionData);
+                    priceBoxColumnInfo.innerHTML = suggestionRenderResult.html;
+                    const newActionLine = priceBoxColumnInfo.querySelector(suggestionRenderResult.actionLineSelector);
+                    if (newActionLine) {
+                        const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+                        attachPriceChangeListener(newActionLine, newSuggestionData.suggestedPrice, priceBox, item.productId, item.productName, currentMyPrice, item);
+                    }
                 } else {
-                    console.error("Nie znaleziono .price-action-line po re-renderowaniu sugestii dla ID:", productId);
+                    priceBoxColumnInfo.innerHTML = '';
                 }
-            } else {
-                priceBoxColumnInfo.innerHTML = '';
-                console.warn("Nie udało się obliczyć nowej sugestii po usunięciu dla ID:", productId);
             }
-
             priceBox.classList.remove('price-changed');
-
         });
 
         button.appendChild(removeLink);
@@ -583,36 +706,37 @@
         const button = actionLine.querySelector('.simulate-change-btn');
         if (!button) return;
 
-        actionLine.addEventListener('click', function(e) {
+        actionLine.addEventListener('click', function (e) {
             e.stopPropagation();
 
             const currentButton = this.querySelector('.simulate-change-btn');
 
+            // --- WALIDACJE BLOKAD (KAMPANIE, ODZNAKI) ---
             if (item.anyPromoActive && !allegroMarginSettings.allegroChangePriceForBagdeInCampaign) {
                 showGlobalNotification(
                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p>
-                    <p>Oferta jest w Kampanii Allegro. Zmiana jest zablokowana w ustawieniach symulacji.</p>`
+                   <p>Oferta jest w Kampanii Allegro. Zmiana jest zablokowana w ustawieniach symulacji.</p>`
                 );
                 return;
             }
             if (item.myIsSuperPrice && !allegroMarginSettings.allegroChangePriceForBagdeSuperPrice) {
                 showGlobalNotification(
                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p>
-                    <p>Oferta ma oznaczenie "Super Cena". Zmiana jest zablokowana w ustawieniach symulacji.</p>`
+                   <p>Oferta ma oznaczenie "Super Cena". Zmiana jest zablokowana w ustawieniach symulacji.</p>`
                 );
                 return;
             }
             if (item.myIsTopOffer && !allegroMarginSettings.allegroChangePriceForBagdeTopOffer) {
                 showGlobalNotification(
                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p>
-                    <p>Oferta ma oznaczenie "Top Oferta". Zmiana jest zablokowana w ustawieniach symulacji.</p>`
+                   <p>Oferta ma oznaczenie "Top Oferta". Zmiana jest zablokowana w ustawieniach symulacji.</p>`
                 );
                 return;
             }
             if (item.myIsBestPriceGuarantee && !allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee) {
                 showGlobalNotification(
                     `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p>
-                    <p>Oferta ma "Gwarancję Najniższej Ceny". Zmiana jest zablokowana w ustawieniach symulacji.</p>`
+                   <p>Oferta ma "Gwarancję Najniższej Ceny". Zmiana jest zablokowana w ustawieniach symulacji.</p>`
                 );
                 return;
             }
@@ -622,11 +746,12 @@
                 return;
             }
 
+            // --- WALIDACJA MARŻY ---
             if (allegroMarginSettings.useMarginForSimulation) {
                 if (item.marginPrice == null) {
                     showGlobalNotification(
                         `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                         <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                       <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
                     );
                     return;
                 }
@@ -655,8 +780,8 @@
                         if (!(oldMarginPercentage < minMarginPerc && newMarginPercentage > oldMarginPercentage)) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                 <p>Nowa cena <strong>${formatPricePL(suggestedPrice)}</strong> ustawi narzut (<strong>${newMarginPercentage.toFixed(2)}%</strong>) poniżej wymaganego minimum (<strong>${minMarginPerc}%</strong>).</p>
-                                 <p>Obecny narzut: ${oldMarginPercentage !== Infinity ? oldMarginPercentage.toFixed(2) + '%' : 'N/A'}. Cena zakupu: <strong>${formatPricePL(marginPrice)}</strong>.</p>`
+                               <p>Nowa cena <strong>${formatPricePL(suggestedPrice)}</strong> ustawi narzut (<strong>${newMarginPercentage.toFixed(2)}%</strong>) poniżej wymaganego minimum (<strong>${minMarginPerc}%</strong>).</p>
+                               <p>Obecny narzut: ${oldMarginPercentage !== Infinity ? oldMarginPercentage.toFixed(2) + '%' : 'N/A'}. Cena zakupu: <strong>${formatPricePL(marginPrice)}</strong>.</p>`
                             );
                             return;
                         }
@@ -666,8 +791,8 @@
                         if (!(oldMarginPercentage < minMarginPerc && newMarginPercentage > oldMarginPercentage)) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                                 <p>Nowa cena <strong>${formatPricePL(suggestedPrice)}</strong> spowoduje stratę (<strong>${newMarginPercentage.toFixed(2)}%</strong>) większą niż dozwolony próg (<strong>${minMarginPerc}%</strong>).</p>
-                                 <p>Obecny narzut: ${oldMarginPercentage !== Infinity ? oldMarginPercentage.toFixed(2) + '%' : 'N/A'}. Cena zakupu: <strong>${formatPricePL(marginPrice)}</strong>.</p>`
+                               <p>Nowa cena <strong>${formatPricePL(suggestedPrice)}</strong> spowoduje stratę (<strong>${newMarginPercentage.toFixed(2)}%</strong>) większą niż dozwolony próg (<strong>${minMarginPerc}%</strong>).</p>
+                               <p>Obecny narzut: ${oldMarginPercentage !== Infinity ? oldMarginPercentage.toFixed(2) + '%' : 'N/A'}. Cena zakupu: <strong>${formatPricePL(marginPrice)}</strong>.</p>`
                             );
                             return;
                         }
@@ -675,10 +800,24 @@
                 }
             }
 
-            const currentSetStepPrice = setStepPrice;
-            const currentUsePriceDifference = usePriceDifference;
-            const stepUnit = currentUsePriceDifference ? 'PLN' : '%';
+            // --- PRZYGOTOWANIE DANYCH O TRYBIE I PARAMETRACH ---
+            const modeApplied = currentViewMode; // 'profit' lub 'competitiveness'
+            let stepPriceToSave = null;
+            let stepUnitToSave = null;
+            let indexTargetToSave = null;
 
+            if (modeApplied === 'profit') {
+                indexTargetToSave = setPriceIndexTarget;
+                stepPriceToSave = null;
+                stepUnitToSave = null;
+            } else {
+                stepPriceToSave = setStepPrice;
+                const useDiff = document.getElementById('usePriceDifference');
+                stepUnitToSave = (useDiff && useDiff.checked) ? 'PLN' : '%';
+                indexTargetToSave = null;
+            }
+
+            // --- WYSŁANIE EVENTU ---
             const priceChangeEvent = new CustomEvent('priceBoxChange', {
                 detail: {
                     productId: String(productId),
@@ -688,8 +827,11 @@
                     newPrice: suggestedPrice,
                     storeId: storeId,
                     scrapId: currentScrapId,
-                    stepPriceApplied: currentSetStepPrice,
-                    stepUnitApplied: stepUnit
+                    // Nowe pola:
+                    stepPriceApplied: stepPriceToSave,
+                    stepUnitApplied: stepUnitToSave,
+                    mode: modeApplied,
+                    indexTarget: indexTargetToSave
                 }
             });
             document.dispatchEvent(priceChangeEvent);
@@ -702,7 +844,16 @@
                 selectedPriceChanges.push(changeData);
             }
 
-            activateChangeButton(currentButton, this, priceBox, currentSetStepPrice, stepUnit);
+            // --- AKTYWACJA PRZYCISKU Z BADGE ---
+            activateChangeButton(
+                currentButton,
+                this,
+                priceBox,
+                stepPriceToSave,
+                stepUnitToSave,
+                modeApplied,
+                indexTargetToSave
+            );
 
             let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
             message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
@@ -710,12 +861,21 @@
             showGlobalUpdate(message);
         });
 
+        // --- PRZYWRACANIE STANU ISTNIEJĄCEJ ZMIANY ---
         const existingChange = selectedPriceChanges.find(change =>
             String(change.productId) === String(productId)
         );
 
         if (existingChange) {
-            activateChangeButton(button, actionLine, priceBox, existingChange.stepPriceApplied, existingChange.stepUnitApplied);
+            activateChangeButton(
+                button,
+                actionLine,
+                priceBox,
+                existingChange.stepPriceApplied,
+                existingChange.stepUnitApplied,
+                existingChange.mode,
+                existingChange.indexTarget || existingChange.priceIndexTarget
+            );
         }
     }
 
@@ -733,8 +893,21 @@
         let suggestedPrice = null;
         let basePriceForCalc = null;
         let priceType = null;
+        if (currentViewMode === 'profit') {
+            const medianPrice = item.marketAveragePrice;
 
-        if (item.isRejected || currentMyPrice === null) {
+            if (medianPrice && medianPrice > 0) {
+                const targetRatio = setPriceIndexTarget / 100.0;
+                suggestedPrice = medianPrice * targetRatio;
+                suggestedPrice = Math.round(suggestedPrice * 100) / 100; // Zaokrąglenie do grosza
+
+                // Jeśli cena z dostawą, odejmij koszt dostawy (opcjonalnie, zależy od Twojej konfiguracji w Allegro)
+                // Tutaj prosta wersja:
+                if (suggestedPrice < 0.01) suggestedPrice = 0.01;
+                priceType = 'index_target';
+            }
+        }
+        else if (item.isRejected || currentMyPrice === null) {
             priceType = 'noOffer';
             suggestedPrice = currentMyPrice;
         } else if (item.onlyMe || currentLowestPrice === null) {
@@ -792,7 +965,12 @@
         const percentageChange = (basePriceForChangeCalc != null && basePriceForChangeCalc > 0) ? (totalChangeAmount / basePriceForChangeCalc) * 100 : 0;
 
         let arrowClass = '';
-        if (priceType === 'raise') {
+        if (priceType === 'index_target') {
+            if (totalChangeAmount > 0) arrowClass = 'arrow-up-turquoise';
+            else if (totalChangeAmount < 0) arrowClass = 'arrow-down-turquoise';
+            else arrowClass = 'no-change-icon-turquoise';
+        }
+        else if (priceType === 'raise') {
             arrowClass = totalChangeAmount > 0 ? (item.colorClass === 'prToLow' ? 'arrow-up-black' : 'arrow-up-turquoise') : (totalChangeAmount < 0 ? 'arrow-down-turquoise' : 'no-change-icon-turquoise');
         } else if (priceType === 'lower') {
             arrowClass = totalChangeAmount > 0 ? (item.colorClass === "prMid" ? "arrow-up-yellow" : "arrow-up-red") : (totalChangeAmount < 0 ? (item.colorClass === "prMid" ? "arrow-down-yellow" : "arrow-down-red") : 'no-change-icon');
@@ -802,7 +980,7 @@
             arrowClass = 'no-change-icon-gray';
         }
 
-        let squareColorClass = 'color-square-turquoise';
+        let squareColorClass = (currentViewMode === 'profit') ? 'color-square-profit' : 'color-square-turquoise';
 
         return {
             suggestedPrice: suggestedPrice,
@@ -1024,270 +1202,279 @@
         selectedPriceChanges.forEach(change => currentActiveChangesMap.set(String(change.productId), change));
 
         paginatedData.forEach(item => {
-       const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-       const lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
-       const highlightedProductName = highlightMatches(item.productName, productSearchTerm);
-       const highlightedStoreName = highlightMatches(item.storeName, storeSearchTerm);
-       const highlightedMyStoreName = highlightMatches(myStoreName, storeSearchTerm);
-       let myOfferIdHtml = '';
-       if (item.myIdAllegro) {
-           myOfferIdHtml = `
-                <div class="price-box-column-category">
-                    <span class="ApiBox">ID ${item.myIdAllegro}</span>
-                </div>
-                `;
-       }
-       const competitorSuperPriceBadge = item.isSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
+            const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+            const lowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
 
-       let competitorPromoInfoText = '';
-       if (item.isPromoted) {
-           competitorPromoInfoText = ` <span class="AddPromoInfoBadge">Promowane</span>`;
-       } else if (item.isSponsored) {
-           competitorPromoInfoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
-       }
+            // Highlighty wyszukiwania
+            const highlightedProductName = highlightMatches(item.productName, productSearchTerm);
+            const highlightedStoreName = highlightMatches(item.storeName, storeSearchTerm);
+            const highlightedMyStoreName = highlightMatches(myStoreName, storeSearchTerm);
 
-       const mySuperPriceBadge = item.myIsSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
+            // Budowanie HTML dla ID/API (prawa kolumna) - przeniesione niżej w strukturze, tu tylko zmienne pomocnicze
 
-       const competitorTopOfferBadge = item.isTopOffer ? `<div class="TopOffer">Top oferta</div>` : '';
-       const myTopOfferBadge = item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : '';
+            // --- BADGES (Konkurencja) ---
+            const competitorSuperPriceBadge = item.isSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
+            let competitorPromoInfoText = '';
+            if (item.isPromoted) competitorPromoInfoText = ` <span class="AddPromoInfoBadge">Promowane</span>`;
+            else if (item.isSponsored) competitorPromoInfoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
+            const competitorTopOfferBadge = item.isTopOffer ? `<div class="TopOffer">Top oferta</div>` : '';
 
-       let myPromoInfoText = '';
-       if (item.myIsPromoted) {
-           myPromoInfoText = ` <span class="AddPromoInfoBadge">Promowane</span>`;
-       } else if (item.myIsSponsored) {
-           myPromoInfoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
-       }
+            // --- BADGES (Moje) ---
+            const mySuperPriceBadge = item.myIsSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
+            const myTopOfferBadge = item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : '';
+            let myPromoInfoText = '';
+            if (item.myIsPromoted) myPromoInfoText = ` <span class="AddPromoInfoBadge">Promowane</span>`;
+            else if (item.myIsSponsored) myPromoInfoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
 
-       let myPricePositionHtml = '';
-       if (item.committed && item.committed.newPosition) {
+            // --- POZYCJA CENOWA (Obsługa symulacji) ---
+            let myPricePositionHtml = '';
+            if (item.committed && item.committed.newPosition) {
+                let oldPos = item.myPricePosition || 'N/A';
+                let newPosCompact = item.committed.newPosition.replace(/\s*\/\s*/, '/');
+                myPricePositionHtml = `
+                  <div class="price-box-column-offers-a" title="Pozycja cenowa: Stara -> Nowa">
+                      <span class="data-channel"><i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i></span>
+                      <div class="offer-count-box">
+                          <p><s style="color:#999; font-size:0.9em;">${oldPos}</s> <span style="color:#4e4e4e; font-size: 14px;">${newPosCompact}</span></p>
+                      </div>
+                  </div>`;
+            } else {
+                const posText = item.myPricePosition || 'N/A';
+                myPricePositionHtml = `
+                    <div class="price-box-column-offers-a"><span class="data-channel" title="Pozycja cenowa Twojej oferty"><i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i></span><div class="offer-count-box"><p>${posText}</p></div></div>`;
+            }
 
-           let oldPos = item.myPricePosition || 'N/A';
-           let newPosCompact = item.committed.newPosition.replace(/\s*\/\s*/, '/');
-           myPricePositionHtml = `
-             <div class="price-box-column-offers-a" title="Pozycja cenowa: Stara -> Nowa">
-                 <span class="data-channel"><i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i></span>
-                 <div class="offer-count-box">
-                     <p><s style="color:#999; font-size:0.9em;">${oldPos}</s> <span style="color:#4e4e4e; font-size: 14px;">${newPosCompact}</span></p>
+            // --- STYLE CEN (Zielony dla BPG) ---
+            const competitorPriceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
+            const competitorPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">` : '';
+            const myPriceStyle = item.myIsBestPriceGuarantee ? 'color: #169A23;' : '';
+            const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">` : '';
+
+            // --- MARŻA I PROWIZJA ---
+            let marginHtml = '';
+            if (item.marginPrice != null) {
+                const formattedMarginPrice = formatPricePL(item.marginPrice);
+                // Domyślny styl neutralny
+                let badgeClass = 'price-badge-neutral';
+                let bgMarginClass = 'price-box-diff-margin-ib-neutral';
+                let marginContent = '<p>Brak danych</p>';
+
+                if (item.marginAmount != null) {
+                    badgeClass = getMarginBadgeClass(item.marginClass);
+                    if (item.marginClass === 'priceBox-diff-margin-ins') bgMarginClass = 'price-box-diff-margin-ib-positive';
+                    else if (item.marginClass === 'priceBox-diff-margin-minus-ins') bgMarginClass = 'price-box-diff-margin-ib-negative';
+
+                    const formattedMarginAmount = item.marginSign + formatPricePL(Math.abs(item.marginAmount), false) + ' PLN';
+                    const formattedMarginPercentage = '(' + item.marginSign + Math.abs(item.marginPercentage).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
+                    marginContent = `<p>${formattedMarginAmount} ${formattedMarginPercentage}</p>`;
+                }
+
+                marginHtml = `
+                     <div class="price-box-diff-margin-ib ${bgMarginClass}" style="margin-top: 4px;">
+                         <span class="price-badge ${badgeClass}">Cena zakupu</span><p>${formattedMarginPrice}</p>
+                     </div>
+                     ${item.marginAmount != null ? `<div class="price-box-diff-margin-ib ${bgMarginClass}" style="margin-top: 3px;">
+                         <span class="price-badge ${badgeClass}">Zysk (narzut)</span>${marginContent}
+                     </div>` : ''}
+                     `;
+            }
+
+            let commissionHtml = '';
+            if (item.apiAllegroCommission != null) {
+                const formattedCommission = formatPricePL(item.apiAllegroCommission, false);
+                const commissionStatusText = allegroMarginSettings.includeCommissionInPriceChange ?
+                    '<span style="font-weight: 400; color: #555;"> | uwzględniony</span>' :
+                    '<span style="font-weight: 400; color: #999;"> | nieuwzględniony</span>';
+                commissionHtml = `<div class="Commission-stack" style="text-align: left; margin-top: 3px;"><span class="commission-stack-badge">Koszt Allegro</span><p>${formattedCommission} PLN${commissionStatusText}</p></div>`;
+            }
+
+            // =================================================================================
+            // GŁÓWNA KONSTRUKCJA BOXA
+            // =================================================================================
+
+            const box = document.createElement('div');
+
+            // 1. ZMIANA KLASY CSS W ZALEŻNOŚCI OD TRYBU
+            const cssClass = (currentViewMode === 'profit') ? (item.marketBucket || 'market-neutral') : item.colorClass;
+            box.className = 'price-box ' + cssClass;
+
+            box.dataset.productId = item.productId;
+            box.dataset.detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}`;
+            box.style.cursor = 'pointer';
+
+            // 2. PASEK KOLORU W ZALEŻNOŚCI OD TRYBU
+            let barClassSuffix = (currentViewMode === 'profit') ? (item.marketBucket || 'market-unavailable') : item.colorClass;
+            if (currentViewMode === 'profit' && (item.colorClass === 'prNoOffer' || !item.myPrice || parseFloat(item.myPrice) <= 0.01)) {
+                barClassSuffix = 'market-unavailable';
+            }
+
+            box.innerHTML = `
+             <div class="price-box-space">
+                 <div class="price-box-column-name">${highlightedProductName}</div>
+                 <div class="flags-container"></div>
+             </div>
+             <div class="price-box-data">
+                 <div class="color-bar ${barClassSuffix}"></div>
+                 
+                 <div class="price-box-stats-container">
+                     <div class="price-box-column-offers-a">
+                         <span class="data-channel"><img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:15px; height:15px;" /></span>
+                         <div class="offer-count-box">${getOfferText(item.totalOfferCount)}</div>
+                     </div>
+                     ${myPricePositionHtml}
+                     <div class="price-box-column-offers-a">
+                         <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="Łączna sprzedaż ostatnich 30 dni"></i></span>
+                         <div class="offer-count-box"><p>${item.totalPopularity} osb. kupiło</p></div>
+                     </div>
+                     <div class="price-box-column-offers-a">
+                         <span class="data-channel"><i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;" title="Twój udział w rynku"></i></span>
+                         <div class="offer-count-box"><p>${item.myTotalPopularity} osb. (${item.marketSharePercentage.toFixed(2)}%)</p></div>
+                     </div>
                  </div>
-             </div>`;
-       } else if (item.myPricePosition) {
-           myPricePositionHtml = `
-                <div class="price-box-column-offers-a"><span class="data-channel" title="Pozycja cenowa Twojej oferty"><i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i></span><div class="offer-count-box"><p>${item.myPricePosition}</p></div></div>`;
-       } else if (item.myPrice != null) {
-           myPricePositionHtml = `
-                <div class="price-box-column-offers-a"><span class="data-channel" title="Pozycja cenowa Twojej oferty"><i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i></span><div class="offer-count-box"><p>N/A</p></div></div>`;
-       }
 
-       const competitorPriceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
-       const competitorPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">` : '';
-       const myPriceStyle = item.myIsBestPriceGuarantee ? 'color: #169A23;' : '';
-       const myPriceIcon = item.myIsBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">` : '';
+                 <div class="price-box-column">
+                    ${currentViewMode === 'profit' ?
+                    // --- WIDOK RENTOWNOŚĆ (PROFIT) ---
+                    (() => {
+                        const avgPriceDisplay = item.marketAveragePrice ? formatPricePL(item.marketAveragePrice) : 'Brak danych';
+                        const idx = item.marketPriceIndex;
 
-       let marginHtml = '';
-       if (item.marginPrice != null && item.marginAmount != null) {
-           const formattedMarginPrice = formatPricePL(item.marginPrice);
-           const badgeClass = getMarginBadgeClass(item.marginClass);
+                        let badgeColorClass = 'index-blue';
+                        if (idx > 2) badgeColorClass = 'index-red';
+                        else if (idx < -2) badgeColorClass = 'index-green';
 
-           let bgMarginClass = 'price-box-diff-margin-ib-neutral';
-           if (item.marginClass === 'priceBox-diff-margin-ins') {
-               bgMarginClass = 'price-box-diff-margin-ib-positive';
-           } else if (item.marginClass === 'priceBox-diff-margin-minus-ins') {
-               bgMarginClass = 'price-box-diff-margin-ib-negative';
-           }
+                        const indexHtml = (idx !== null)
+                            ? `<div style="margin-top:0px;"><span class="market-index-badge ${badgeColorClass}">Twoja cena: ${idx > 0 ? '+' : ''}${idx}%</span></div>`
+                            : `<span style="font-size:12px; color:#999;">Brak danych do porównania</span>`;
 
-           const formattedMarginAmount = item.marginSign + formatPricePL(Math.abs(item.marginAmount), false) + ' PLN';
-           const formattedMarginPercentage = '(' + item.marginSign + Math.abs(item.marginPercentage).toLocaleString('pl-PL', {
-               minimumFractionDigits: 2,
-               maximumFractionDigits: 2
-           }) + '%)';
-
-           marginHtml = `
-                <div class="price-box-diff-margin-ib ${bgMarginClass}" style="margin-top: 4px;">
-                    <span class="price-badge ${badgeClass}">Cena zakupu</span><p>${formattedMarginPrice}</p>
-                </div>
-                <div class="price-box-diff-margin-ib ${bgMarginClass}" style="margin-top: 3px;">
-                    <span class="price-badge ${badgeClass}">Zysk (narzut)</span><p>${formattedMarginAmount} ${formattedMarginPercentage}</p>
-                </div>
-                `;
-       } else if (item.marginPrice != null) {
-           marginHtml = `
-                <div class="price-box-diff-margin-ib price-box-diff-margin-ib-neutral" style="margin-top: 4px;">
-                    <span class="price-badge price-badge-neutral">Cena zakupu</span><p>${formatPricePL(item.marginPrice)}</p>
-                </div>
-                `;
-       }
-
-       let commissionHtml = '';
-       if (item.apiAllegroCommission != null) {
-           const formattedCommission = formatPricePL(item.apiAllegroCommission, false);
-           const commissionStatusText = allegroMarginSettings.includeCommissionInPriceChange ?
-               '<span style="font-weight: 400; color: #555;"> | uwzględniony</span>' :
-               '<span style="font-weight: 400; color: #999;"> | nieuwzględniony</span>';
-           commissionHtml = `<div class="Commission-stack" style="text-align: left; margin-top: 3px;"><span class="commission-stack-badge">Koszt Allegro</span><p>${formattedCommission} PLN${commissionStatusText}</p></div>`;
-       }
-
-       const box = document.createElement('div');
-       box.className = 'price-box ' + item.colorClass;
-       box.dataset.productId = item.productId;
-       box.dataset.detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}`;
-       box.style.cursor = 'pointer';
-
-       box.innerHTML = `
-            <div class="price-box-space">
-                <div class="price-box-column-name">${highlightedProductName}</div>
-                <div class="flags-container"></div>
-            </div>
-            <div class="price-box-data">
-                <div class="color-bar ${item.colorClass}"></div>
-                <div class="price-box-stats-container">
-                    <div class="price-box-column-offers-a">
-                        <span class="data-channel">
-                            <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:15px; height:15px;" />
-                        </span>
-                        <div class="offer-count-box">${getOfferText(item.totalOfferCount)}</div>
-                    </div>
-                    ${myPricePositionHtml}
-                    <div class="price-box-column-offers-a">
-                        <span class="data-channel">
-                            <i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="Łączna sprzedaż ostatnich 30 dni"></i>
-                        </span>
-                        <div class="offer-count-box">
-                            <p>${item.totalPopularity} osb. kupiło</p>
-                        </div>
-                    </div>
-                    <div class="price-box-column-offers-a">
-                        <span class="data-channel">
-                            <i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;" title="Twój udział w rynku w ostatnich 30 dniach"></i>
-                        </span>
-                        <div class="offer-count-box">
-                            <p>${item.myTotalPopularity} osb. (${item.marketSharePercentage.toFixed(2)}%)</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="price-box-column">
-                    ${(item.onlyMe || lowestPrice == null) ?
-               `<div class="price-box-column-text">
-                            <div><span style="font-weight: 500;">Brak konkurencji</span></div>
-                        </div>` :
-               `
-                        <div class="price-box-column-text">
-                            <div><div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;"><span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${formatPricePL(lowestPrice)}</span>${competitorPriceIcon}${competitorSuperPriceBadge}${competitorTopOfferBadge}</div>
-                                <div>
-                                    ${highlightedStoreName || ''}
-                                    ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
-                                    ${competitorPromoInfoText} </div>
+                        return `
+                                <div class="price-box-column-text">
+                                    <div style="display:flex; align-items:center;">
+                                        <span style="font-weight: 500; font-size: 17px; color:#444;">${avgPriceDisplay}</span>
+                                        <span class="uniqueBestPriceBox" style="background:#282828; margin-left:6px;" title="Mediana rynkowa (środek rynku)">Mediana</span>
+                                    </div>
+                                    <div style="display:flex; align-items:center; color: #666; font-size: 13px; margin-top: 2px;">
+                                        <i class="fa-solid fa-scale-balanced" style="margin-right: 5px;"></i> Indeks Rynku
+                                    </div>
                                 </div>
-                        </div>
-                        <div class="price-box-column-text">
-                            <div class="data-channel">
-                                ${item.isSmart ? `
-                                    <div class="Smart-Allegro">
-                                        <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                                <div class="price-box-column-text">${indexHtml}</div>
+                            `;
+                    })()
+                    :
+                    // --- WIDOK LIDER RYNKU (COMPETITIVENESS) - STARY KOD ---
+                    ((item.onlyMe || lowestPrice == null) ?
+                        `<div class="price-box-column-text">
+                                <div><span style="font-weight: 500;">Brak konkurencji</span></div>
+                            </div>`
+                        :
+                        `<div class="price-box-column-text">
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                        <span style="font-weight: 500; font-size: 17px; ${competitorPriceStyle}">${formatPricePL(lowestPrice)}</span>
+                                        ${competitorPriceIcon}${competitorSuperPriceBadge}${competitorTopOfferBadge}
                                     </div>
-                                ` : ''}
-                                ${renderDeliveryInfo(item.deliveryTime)}
-                            </div>
-                        </div>
-                        `
-           }
-                </div>
-                <div class="price-box-column">
-                    ${myPrice != null ?
-               `
-                        <div class="price-box-column-text">
-                            <div>
-    ${item.committed && item.committed.newPrice ?
-
-                   `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                        <s style="color: #999; font-size: 17px; font-weight: 500;">${formatPricePL(myPrice)}</s>
-                        ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
-                    </div>`
-                   :
-
-                   `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                        <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${formatPricePL(myPrice)}</span>
-                        ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
-                    </div>`
-               }
-                <div>
-                    ${highlightedMyStoreName}
-                    ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
-                    ${myPromoInfoText}
-                </div>
-                ${marginHtml}${commissionHtml}${createApiInfoHtml(item)}
-            </div>
-                        </div>
-                        <div class="price-box-column-text">
-                            <div class="data-channel">
-                                ${item.myIsSmart ? `
-                                    <div class="Smart-Allegro">
-                                        <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;">
+                                    <div>
+                                        ${highlightedStoreName || ''}
+                                        ${item.isSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
+                                        ${competitorPromoInfoText}
                                     </div>
-                                ` : ''}
-                                ${renderDeliveryInfo(item.myDeliveryTime)}
+                                </div>
                             </div>
-                        </div>
-                        ` :
-               `<div class="price-box-column-text">
-                            <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
-                            ${marginHtml}
-                        </div>`
-           }
-                </div>
-                <div class="price-box-column-action"></div>
-            </div>
-            `;
+                            <div class="price-box-column-text">
+                                <div class="data-channel">
+                                    ${item.isSmart ? `<div class="Smart-Allegro"><img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;"></div>` : ''}
+                                    ${renderDeliveryInfo(item.deliveryTime)}
+                                </div>
+                            </div>`
+                    )
+                }
+                 </div>
 
-       container.appendChild(box);
+                 <div class="price-box-column">
+                     ${myPrice != null ?
+                    `<div class="price-box-column-text">
+                             <div>
+                                 ${item.committed && item.committed.newPrice ?
+                        `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                         <s style="color: #999; font-size: 17px; font-weight: 500;">${formatPricePL(myPrice)}</s>
+                                         ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
+                                     </div>`
+                        :
+                        `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                         <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${formatPricePL(myPrice)}</span>
+                                         ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
+                                     </div>`
+                    }
+                                 <div>
+                                     ${highlightedMyStoreName}
+                                     ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
+                                     ${myPromoInfoText}
+                                 </div>
+                             </div>
+                             ${marginHtml}${commissionHtml}${createApiInfoHtml(item)}
+                         </div>`
+                    :
+                    `<div class="price-box-column-text">
+                             <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
+                             ${marginHtml}
+                         </div>`
+                }
+                 </div>
+                 
+                 <div class="price-box-column-action"></div>
+             </div>
+             `;
 
-       const priceBoxSpace = box.querySelector('.price-box-space');
-       const priceBoxColumnName = box.querySelector('.price-box-column-name');
+            container.appendChild(box);
 
-       priceBoxSpace.innerHTML = '';
+            // --- RENDEROWANIE POZOSTAŁYCH ELEMENTÓW (Right Column Buttons, Flags) ---
 
-       const leftColumn = document.createElement('div');
-       leftColumn.className = 'price-box-left-column';
+            const priceBoxSpace = box.querySelector('.price-box-space');
+            const priceBoxColumnName = box.querySelector('.price-box-column-name');
+            priceBoxSpace.innerHTML = ''; // Czyścimy tymczasowe, by zbudować strukturę DOM
 
-       const rightColumn = document.createElement('div');
-       rightColumn.className = 'price-box-right-column';
+            const leftColumn = document.createElement('div');
+            leftColumn.className = 'price-box-left-column';
+            const rightColumn = document.createElement('div');
+            rightColumn.className = 'price-box-right-column';
 
-       const flagsContainer = createFlagsContainer(item);
-       leftColumn.appendChild(priceBoxColumnName);
-       leftColumn.appendChild(flagsContainer);
+            const flagsContainer = createFlagsContainer(item);
+            leftColumn.appendChild(priceBoxColumnName);
+            leftColumn.appendChild(flagsContainer);
 
-       const selectProductButton = document.createElement('button');
-       selectProductButton.className = 'select-product-btn';
-       selectProductButton.dataset.productId = item.productId;
-       selectProductButton.style.pointerEvents = 'auto';
-       if (selectedProductIds.has(item.productId.toString())) {
-           selectProductButton.textContent = 'Wybrano';
-           selectProductButton.classList.add('selected');
-       } else {
-           selectProductButton.textContent = 'Zaznacz';
-           selectProductButton.classList.remove('selected');
-       }
-       selectProductButton.addEventListener('click', function(event) {
-           event.stopPropagation();
-           const productId = this.dataset.productId;
-           if (selectedProductIds.has(productId)) {
-               selectedProductIds.delete(productId);
-               this.textContent = 'Zaznacz';
-               this.classList.remove('selected');
-           } else {
-               selectedProductIds.add(productId);
-               this.textContent = 'Wybrano';
-               this.classList.add('selected');
-           }
-           saveSelectionToStorage(selectedProductIds);
-           updateSelectionUI();
-       });
+            // Przycisk "Zaznacz"
+            const selectProductButton = document.createElement('button');
+            selectProductButton.className = 'select-product-btn';
+            selectProductButton.dataset.productId = item.productId;
+            selectProductButton.style.pointerEvents = 'auto';
+            if (selectedProductIds.has(item.productId.toString())) {
+                selectProductButton.textContent = 'Wybrano';
+                selectProductButton.classList.add('selected');
+            } else {
+                selectProductButton.textContent = 'Zaznacz';
+                selectProductButton.classList.remove('selected');
+            }
+            selectProductButton.addEventListener('click', function (event) {
+                event.stopPropagation();
+                const productId = this.dataset.productId;
+                if (selectedProductIds.has(productId)) {
+                    selectedProductIds.delete(productId);
+                    this.textContent = 'Zaznacz';
+                    this.classList.remove('selected');
+                } else {
+                    selectedProductIds.add(productId);
+                    this.textContent = 'Wybrano';
+                    this.classList.add('selected');
+                }
+                saveSelectionToStorage(selectedProductIds);
+                updateSelectionUI();
+            });
 
+            // API Box (EAN/ID)
             const apiBox = document.createElement('span');
             apiBox.className = 'ApiBox';
-
             if (allegroMarginSettings.identifierForSimulation === 'EAN') {
                 if (item.ean) {
-
                     const highlightedEan = highlightMatches(item.ean, productSearchTerm, 'highlighted-text-yellow');
                     apiBox.innerHTML = `EAN ${highlightedEan}`;
                 } else {
@@ -1296,7 +1483,6 @@
             } else {
                 if (item.myIdAllegro) {
                     const idString = item.myIdAllegro.toString();
-
                     const highlightedId = highlightMatches(idString, productSearchTerm, 'highlighted-text-yellow');
                     apiBox.innerHTML = `ID ${highlightedId}`;
                 } else {
@@ -1304,27 +1490,22 @@
                 }
             }
 
+            rightColumn.appendChild(selectProductButton);
+            rightColumn.appendChild(apiBox);
+            priceBoxSpace.appendChild(leftColumn);
+            priceBoxSpace.appendChild(rightColumn);
 
+            // Listener na kliknięcie boxa (otwieranie detali)
+            box.addEventListener('click', function (event) {
+                if (event.target.closest('button, a, img, .select-product-btn')) return;
+                window.open(this.dataset.detailsUrl, '_blank');
+            });
 
+            // --- RENDEROWANIE SUGGESTII / ACTION COLUMN ---
+            const infoCol = box.querySelector('.price-box-column-action');
+            infoCol.innerHTML = '';
 
-
-       rightColumn.appendChild(selectProductButton);
-       rightColumn.appendChild(apiBox);
-
-       priceBoxSpace.appendChild(leftColumn);
-       priceBoxSpace.appendChild(rightColumn);
-
-       box.addEventListener('click', function(event) {
-           if (event.target.closest('button, a, img, .select-product-btn')) {
-               return;
-           }
-           window.open(this.dataset.detailsUrl, '_blank');
-       });
-
-       const infoCol = box.querySelector('.price-box-column-action');
-       infoCol.innerHTML = '';
-
-       if (item.committed) {
+            if (item.committed) {
 
            const newPrice = item.committed.newPrice;
            const oldPrice = item.apiAllegroPriceFromUser != null ? parseFloat(item.apiAllegroPriceFromUser) : (myPrice != null ? parseFloat(myPrice) : null);
@@ -1681,71 +1862,71 @@
     }
 
     function renderChart(data) {
-        const colorCounts = {
-            prNoOffer: 0,
-            prOnlyMe: 0,
-            prToHigh: 0,
-            prMid: 0,
-            prGood: 0,
-            prIdeal: 0,
-            prToLow: 0
-        };
-        data.forEach(item => {
-       if (colorCounts.hasOwnProperty(item.colorClass)) colorCounts[item.colorClass]++;
-   });
-        const chartData = Object.values(colorCounts);
         const ctx = document.getElementById('colorChart');
         if (!ctx) return;
 
+        let chartLabels = [];
+        let chartValues = [];
+        let chartColors = [];
+        let chartBorderColors = [];
+
+        if (currentViewMode === 'competitiveness') {
+            const colorCounts = { prNoOffer: 0, prOnlyMe: 0, prToHigh: 0, prMid: 0, prGood: 0, prIdeal: 0, prToLow: 0 };
+            data.forEach(item => { if (colorCounts.hasOwnProperty(item.colorClass)) colorCounts[item.colorClass]++; });
+
+            chartLabels = ['Cena niedostępna', 'Cena solo', 'Cena zawyżona', 'Cena suboptymalna', 'Cena konkurencyjna', 'Cena strategiczna', 'Cena zaniżona'];
+            chartValues = Object.values(colorCounts);
+            chartColors = ['rgba(230, 230, 230, 1)', 'rgba(180, 180, 180, 0.8)', 'rgba(171, 37, 32, 0.8)', 'rgba(224, 168, 66, 0.8)', 'rgba(117, 152, 112, 0.8)', 'rgba(13, 110, 253, 0.8)', 'rgba(6, 6, 6, 0.8)'];
+            chartBorderColors = chartColors.map(c => c.replace('0.8', '1'));
+
+            updateColorCounts(data); // Aktualizacja liczników w filtrach
+        } else {
+            // Profit Mode Chart
+            const bucketCounts = {
+                'market-unavailable': 0, 'market-solo': 0, 'market-overpriced': 0,
+                'market-above-average': 0, 'market-average': 0, 'market-below-average': 0, 'market-deep-discount': 0
+            };
+
+            data.forEach(item => {
+                let bucket = item.marketBucket;
+                if (item.colorClass === 'prNoOffer' || !item.myPrice || item.myPrice <= 0) bucket = 'market-unavailable';
+                else if (item.colorClass === 'prOnlyMe' || bucket === 'market-solo') bucket = 'market-solo';
+                else if (!bucket) bucket = 'market-average';
+
+                if (bucketCounts.hasOwnProperty(bucket)) bucketCounts[bucket]++;
+            });
+
+            chartLabels = ['Cena niedostępna', 'Cena solo', 'Cena przeszacowana', 'Cena powyżej średniej', 'Cena rynkowa', 'Cena poniżej średniej', 'Cena okazyjna'];
+            chartValues = Object.values(bucketCounts);
+            chartColors = ['rgba(220, 220, 220, 1)', 'rgba(180, 180, 180, 0.8)', 'rgba(180, 51, 24, 0.8)', 'rgba(234, 153, 30, 0.8)', 'rgba(13, 110, 253, 0.8)', 'rgba(142, 158, 56, 0.80)', 'rgba(30, 142, 62, 0.80)'];
+            chartBorderColors = chartColors.map(c => c.replace('0.8', '1'));
+
+            // Aktualizacja liczników w filtrach Profit
+            const labelsMap = { 'market-unavailable': 'bucketUnavailable', 'market-solo': 'bucketSolo', 'market-overpriced': 'bucketOverpriced', 'market-above-average': 'bucketAboveAverage', 'market-average': 'bucketAverage', 'market-below-average': 'bucketBelowAverage', 'market-deep-discount': 'bucketDeepDiscount' };
+            for (const [bName, elId] of Object.entries(labelsMap)) {
+                const label = document.querySelector(`label[for="${elId}"]`);
+                if (label) {
+                    const textOnly = label.textContent.split('(')[0].trim();
+                    label.textContent = `${textOnly} ( ${bucketCounts[bName] || 0} )`;
+                }
+            }
+        }
+
         if (chartInstance) {
-            chartInstance.data.datasets[0].data = chartData;
+            chartInstance.data.labels = chartLabels;
+            chartInstance.data.datasets[0].data = chartValues;
+            chartInstance.data.datasets[0].backgroundColor = chartColors;
+            chartInstance.data.datasets[0].borderColor = chartBorderColors;
             chartInstance.update();
         } else {
             chartInstance = new Chart(ctx.getContext('2d'), {
-       type: 'doughnut',
-       data: {
-           labels: ['Cena niedostępna', 'Cena solo', 'Cena zawyżona', 'Cena suboptymalna', 'Cena konkurencyjna', 'Cena strategiczna', 'Cena zaniżona'],
-           datasets: [{
-               data: chartData,
-               backgroundColor: ['rgba(230, 230, 230, 1)',
-                   'rgba(180, 180, 180, 0.8)',
-                   'rgba(171, 37, 32, 0.8)',
-                   'rgba(224, 168, 66, 0.8)',
-                   'rgba(117, 152, 112, 0.8)',
-                   'rgba(13, 110, 253, 0.8)',
-                   'rgba(6, 6, 6, 0.8)'
-               ],
-               borderColor: [
-                   'rgba(230, 230, 230, 1)',
-                   'rgba(180, 180, 180, 1)',
-                   'rgba(171, 37, 32, 1)',
-                   'rgba(224, 168, 66, 1)',
-                   'rgba(117, 152, 112, 1)',
-                   'rgba(13, 110, 253, 1)',
-                   'rgba(6, 6, 6, 1)'
-               ],
-               borderWidth: 1
-           }]
-       },
-       options: {
-           responsive: true,
-           maintainAspectRatio: false,
-           cutout: '65%',
-           layout: {
-               padding: 4
-           },
-           plugins: {
-               legend: {
-                   display: false
-               },
-               tooltip: {
-                   callbacks: {
-                       label: (c) => `Produkty: ${c.parsed}`
-                   }
-               }
-           }
-       }
-   });
+                type: 'doughnut',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{ data: chartValues, backgroundColor: chartColors, borderColor: chartBorderColors, borderWidth: 1 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '65%', layout: { padding: 4 }, plugins: { legend: { display: false } } }
+            });
         }
     }
 
@@ -1779,164 +1960,188 @@
         showLoading();
 
         setTimeout(() => {
-       let filtered = [...allPrices];
+            let filtered = [...allPrices];
 
-       if (isCatalogViewActive) {
-           filtered = groupAndFilterByCatalog(filtered);
-       }
+            // 1. LOGIKA KATALOGÓW (ZACHOWANA - Allegro Specific)
+            if (isCatalogViewActive) {
+                filtered = groupAndFilterByCatalog(filtered);
+            }
 
-         
+            // 2. WYSZUKIWANIE PRODUKTU (ZACHOWANE)
             const productSearchRaw = document.getElementById('productSearch').value.trim();
-
             if (productSearchRaw) {
-             
                 const sanitizedSearch = productSearchRaw
                     .replace(/[^a-zA-Z0-9\s.-]/g, '')
                     .toLowerCase()
                     .replace(/\s+/g, '');
 
                 filtered = filtered.filter(p => {
-                 
                     const name = p.productName || '';
                     const ean = p.ean || '';
-                    const id = p.myIdAllegro ? p.myIdAllegro.toString() : ''; 
-                    const code = p.producerCode || ''; 
+                    const id = p.myIdAllegro ? p.myIdAllegro.toString() : ''; // Specyficzne dla Allegro
+                    const code = p.producerCode || '';
 
-             
                     const combinedData = `${name} ${ean} ${id} ${code}`;
-
-               
                     const combinedSanitized = combinedData
                         .toLowerCase()
                         .replace(/[^a-zA-Z0-9\s.-]/g, '')
                         .replace(/\s+/g, '');
 
-                 
                     return combinedSanitized.includes(sanitizedSearch);
                 });
             }
-        
 
-       const storeSearch = document.getElementById('storeSearch').value.toLowerCase();
-       if (storeSearch) filtered = filtered.filter(p => (p.storeName && p.storeName.toLowerCase().includes(storeSearch)) || (myStoreName && myStoreName.toLowerCase().includes(storeSearch)));
+            // 3. WYSZUKIWANIE SKLEPU (ZACHOWANE)
+            const storeSearch = document.getElementById('storeSearch').value.toLowerCase();
+            if (storeSearch) {
+                filtered = filtered.filter(p => (p.storeName && p.storeName.toLowerCase().includes(storeSearch)) || (myStoreName && myStoreName.toLowerCase().includes(storeSearch)));
+            }
 
-       const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(cb => cb.value);
-       if (selectedColors.length > 0) filtered = filtered.filter(p => selectedColors.includes(p.colorClass));
+            // 4. NOWA LOGIKA: FILTROWANIE W ZALEŻNOŚCI OD TRYBU (Profit vs Lider Rynku)
+            // Sprawdzamy czy zmienna currentViewMode istnieje i czy jest ustawiona na 'profit'
+            if (typeof currentViewMode !== 'undefined' && currentViewMode === 'profit') {
 
-       const selectedProducer = document.getElementById('producerFilterDropdown').value;
-       if (selectedProducer) filtered = filtered.filter(p => p.producer === selectedProducer);
+                // --- TRYB RENTOWNOŚĆ (PROFIT) ---
+                const selectedBuckets = Array.from(document.querySelectorAll('.bucketFilter:checked')).map(checkbox => checkbox.value);
 
-       if (selectedFlagsExclude.size > 0) {
-           filtered = filtered.filter(item => {
-               if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
-                   return false;
-               }
-               return !item.flagIds || !item.flagIds.some(fid => selectedFlagsExclude.has(String(fid)));
-           });
-       }
+                if (selectedBuckets.length > 0) {
+                    filtered = filtered.filter(item => {
+                        let bucket = item.marketBucket;
 
-       if (selectedFlagsInclude.size > 0) {
-           filtered = filtered.filter(item => {
-               if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
-                   return true;
-               }
-               return item.flagIds && item.flagIds.some(fid => selectedFlagsInclude.has(String(fid)));
-           });
-       }
+                        // Fallback logika dla kubełków (zgodna z modelem głównym)
+                        if (item.colorClass === 'prNoOffer' || !item.myPrice || parseFloat(item.myPrice) <= 0.01) {
+                            bucket = 'market-unavailable';
+                        } else if (item.colorClass === 'prOnlyMe' || bucket === 'market-solo') {
+                            bucket = 'market-solo';
+                        } else if (!bucket) {
+                            bucket = 'market-average';
+                        }
 
-       if (selectedMyBadges.size > 0) {
-           filtered = filtered.filter(item => {
-               for (const badge of selectedMyBadges) {
-                   if (item[badge] === true) {
-                       return true;
-                   }
-               }
-               return false;
-           });
-       }
-       if (showCommittedOnly) {
-           filtered = filtered.filter(item => item.committed);
-       }
+                        return selectedBuckets.includes(bucket);
+                    });
+                }
 
-       for (const [key, direction] of Object.entries(sortingState)) {
-           if (direction) {
+            } else {
 
-               if (key === 'sortName') {
-                   filtered.sort((a, b) => {
-                       const valA = a.productName || '';
-                       const valB = b.productName || '';
-                       return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                   });
-               } else {
+                // --- TRYB LIDER RYNKU (COMPETITIVENESS) - STARA LOGIKA KOLORÓW ---
+                const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(cb => cb.value);
+                if (selectedColors.length > 0) {
+                    filtered = filtered.filter(p => selectedColors.includes(p.colorClass));
+                }
+            }
 
-                   filtered.sort((a, b) => {
-                       let valA, valB;
-                       switch (key) {
-                           case 'sortPrice':
-                               valA = a.myPrice;
-                               valB = b.myPrice;
-                               break;
-                           case 'sortRaiseAmount':
-                               valA = a.savings;
-                               valB = b.savings;
-                               break;
-                           case 'sortRaisePercentage':
-                           case 'sortLowerPercentage':
-                               valA = a.percentageDifference;
-                               valB = b.percentageDifference;
-                               break;
-                           case 'sortLowerAmount':
-                               valA = a.priceDifference;
-                               valB = b.priceDifference;
-                               break;
-                           case 'sortMarginAmount':
-                               valA = a.marginAmount;
-                               valB = b.marginAmount;
-                               break;
-                           case 'sortMarginPercentage':
-                               valA = a.marginPercentage;
-                               valB = b.marginPercentage;
-                               break;
-                           default:
-                               return 0;
-                       }
+            // 5. POZOSTAŁE FILTRY (Producent, Flagi, Odznaki) - ZACHOWANE
+            const selectedProducer = document.getElementById('producerFilterDropdown').value;
+            if (selectedProducer) filtered = filtered.filter(p => p.producer === selectedProducer);
 
-                       if (direction === 'asc') {
-                           return (valB ?? -Infinity) - (valA ?? -Infinity);
-                       }
+            if (selectedFlagsExclude.size > 0) {
+                filtered = filtered.filter(item => {
+                    if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
+                        return false;
+                    }
+                    return !item.flagIds || !item.flagIds.some(fid => selectedFlagsExclude.has(String(fid)));
+                });
+            }
 
-                       else {
-                           return (valA ?? Infinity) - (valB ?? Infinity);
-                       }
-                   });
-               }
+            if (selectedFlagsInclude.size > 0) {
+                filtered = filtered.filter(item => {
+                    if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
+                        return true;
+                    }
+                    return item.flagIds && item.flagIds.some(fid => selectedFlagsInclude.has(String(fid)));
+                });
+            }
 
-               if (key === 'sortRaiseAmount' || key === 'sortRaisePercentage') {
-                   filtered = filtered.filter(item => item.savings != null || item.percentageDifference > 0);
-               }
-               if (key === 'sortLowerAmount' || key === 'sortLowerPercentage') {
-                   filtered = filtered.filter(item => item.priceDifference != null || item.percentageDifference < 0);
-               }
-               if (key === 'sortMarginAmount') {
-                   filtered = filtered.filter(item => item.marginAmount !== null);
-               }
-               if (key === 'sortMarginPercentage') {
-                   filtered = filtered.filter(item => item.marginPercentage !== null);
-               }
+            if (selectedMyBadges.size > 0) {
+                filtered = filtered.filter(item => {
+                    for (const badge of selectedMyBadges) {
+                        if (item[badge] === true) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+            }
 
-               break;
+            if (showCommittedOnly) {
+                filtered = filtered.filter(item => item.committed);
+            }
 
-           }
-       }
+            // 6. SORTOWANIE (ZACHOWANE)
+            for (const [key, direction] of Object.entries(sortingState)) {
+                if (direction) {
+                    if (key === 'sortName') {
+                        filtered.sort((a, b) => {
+                            const valA = a.productName || '';
+                            const valB = b.productName || '';
+                            return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                        });
+                    } else {
+                        filtered.sort((a, b) => {
+                            let valA, valB;
+                            switch (key) {
+                                case 'sortPrice':
+                                    valA = a.myPrice;
+                                    valB = b.myPrice;
+                                    break;
+                                case 'sortRaiseAmount':
+                                    valA = a.savings;
+                                    valB = b.savings;
+                                    break;
+                                case 'sortRaisePercentage':
+                                case 'sortLowerPercentage':
+                                    valA = a.percentageDifference;
+                                    valB = b.percentageDifference;
+                                    break;
+                                case 'sortLowerAmount':
+                                    valA = a.priceDifference;
+                                    valB = b.priceDifference;
+                                    break;
+                                case 'sortMarginAmount':
+                                    valA = a.marginAmount;
+                                    valB = b.marginAmount;
+                                    break;
+                                case 'sortMarginPercentage':
+                                    valA = a.marginPercentage;
+                                    valB = b.marginPercentage;
+                                    break;
+                                default:
+                                    return 0;
+                            }
 
-       renderPrices(filtered);
-       debouncedRenderChart(filtered);
-       updateColorCounts(filtered);
-       updateFlagCounts(filtered);
-       updateBadgeCounts(filtered);
-       updateStatusCounts(filtered);
-       hideLoading();
-   }, 10);
+                            if (direction === 'asc') {
+                                return (valB ?? -Infinity) - (valA ?? -Infinity);
+                            } else {
+                                return (valA ?? Infinity) - (valB ?? Infinity);
+                            }
+                        });
+                    }
+
+                    if (key === 'sortRaiseAmount' || key === 'sortRaisePercentage') {
+                        filtered = filtered.filter(item => item.savings != null || item.percentageDifference > 0);
+                    }
+                    if (key === 'sortLowerAmount' || key === 'sortLowerPercentage') {
+                        filtered = filtered.filter(item => item.priceDifference != null || item.percentageDifference < 0);
+                    }
+                    if (key === 'sortMarginAmount') {
+                        filtered = filtered.filter(item => item.marginAmount !== null);
+                    }
+                    if (key === 'sortMarginPercentage') {
+                        filtered = filtered.filter(item => item.marginPercentage !== null);
+                    }
+                    break;
+                }
+            }
+
+            // 7. RENDEROWANIE I STATYSTYKI
+            renderPrices(filtered);
+            debouncedRenderChart(filtered);
+            updateColorCounts(filtered);
+            updateFlagCounts(filtered);
+            updateBadgeCounts(filtered);
+            updateStatusCounts(filtered);
+            hideLoading();
+        }, 10);
     }
 
     function setupFlagFilterListeners() {
@@ -2032,8 +2237,17 @@
            if (firstButton && !firstButton.classList.contains('active')) {
                const actionLine = firstButton.closest('.price-action-line');
                if (actionLine) {
-
-                   activateChangeButton(firstButton, actionLine, priceBox, activeChange.stepPriceApplied, activeChange.stepUnitApplied);
+                   // --- PRZEKAZANIE WSZYSTKICH PARAMETRÓW ---
+                   activateChangeButton(
+                       firstButton,
+                       actionLine,
+                       priceBox,
+                       activeChange.stepPriceApplied,
+                       activeChange.stepUnitApplied,
+                       activeChange.mode,                  // Nowe
+                       activeChange.indexTarget            // Nowe
+                   );
+                   // -----------------------------------------
                }
            }
        } else if (priceBox.classList.contains('price-changed')) {
@@ -2341,49 +2555,67 @@
             setTimeout(updateStepPriceIndicator, 0);
         }
 
-        document.getElementById('savePriceValues').addEventListener('click', function() {
-       const price1 = parseFloat(document.getElementById('price1').value.replace(',', '.'));
-       const price2 = parseFloat(document.getElementById('price2').value.replace(',', '.'));
-       const stepPrice = parseFloat(document.getElementById('stepPrice').value.replace(',', '.'));
-       const usePriceDiff = document.getElementById('usePriceDifference').checked;
-       const data = {
-           StoreId: storeId,
-           SetPrice1: price1,
-           SetPrice2: price2,
-           PriceStep: stepPrice,
-           UsePriceDifference: usePriceDiff
-       };
+        document.getElementById('savePriceValues').addEventListener('click', function () {
+            const price1 = parseFloat(document.getElementById('price1').value.replace(',', '.'));
+            const price2 = parseFloat(document.getElementById('price2').value.replace(',', '.'));
+            const stepPrice = parseFloat(document.getElementById('stepPrice').value.replace(',', '.'));
+            const usePriceDiff = document.getElementById('usePriceDifference').checked;
 
-       fetch('/AllegroPriceHistory/SavePriceValues', {
-           method: 'POST',
-           headers: {
-               'Content-Type': 'application/json'
-           },
-           body: JSON.stringify(data)
-       })
-           .then(res => res.json())
-           .then(result => {
-               if (result.success) {
+            // --- NOWE: Pobieranie wartości Indexu ---
+            const profitInput = document.getElementById('priceIndexTargetInput');
+            const priceIndexTarget = profitInput ? parseFloat(profitInput.value.replace(',', '.')) : 100.00;
+            // ---------------------------------------
 
-                   setPrice1 = price1;
-                   setPrice2 = price2;
-                   setStepPrice = stepPrice;
-                   usePriceDifference = usePriceDiff;
+            const data = {
+                StoreId: storeId,
+                SetPrice1: price1,
+                SetPrice2: price2,
+                PriceStep: stepPrice,
+                UsePriceDifference: usePriceDiff,
+                // --- NOWE: Wysyłamy Index do backendu ---
+                PriceIndexTargetPercent: priceIndexTarget
+                // ---------------------------------------
+            };
 
-                   allPrices = allPrices.map(p => ({
-                       ...p,
-                       ...convertPriceValue(p)
-                   }));
+            showLoading(); // Warto dodać loader przy zapisie
 
-                   filterAndSortPrices();
+            fetch('/AllegroPriceHistory/SavePriceValues', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+                .then(res => res.json())
+                .then(result => {
+                    if (result.success) {
+                        setPrice1 = price1;
+                        setPrice2 = price2;
+                        setStepPrice = stepPrice;
+                        usePriceDifference = usePriceDiff;
+                        // --- NOWE: Aktualizacja zmiennej globalnej ---
+                        setPriceIndexTarget = priceIndexTarget;
+                        // ---------------------------------------------
 
-                   showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p><p>Przeliczam sugestie...</p>');
+                        // Przeliczamy ceny lokalnie w JS, żeby nie przeładowywać strony
+                        allPrices = allPrices.map(p => ({
+                            ...p,
+                            ...convertPriceValue(p)
+                        }));
 
-               } else {
-                   alert('Wystąpił błąd podczas zapisywania progów.');
-               }
-           }).catch(err => console.error('Błąd zapisu:', err));
-   });
+                        filterAndSortPrices();
+
+                        // Odświeżamy UI sugestii (bo zmieniły się parametry)
+                        refreshPriceBoxStates();
+
+                        showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p><p>Przeliczam sugestie...</p>');
+                    } else {
+                        alert('Wystąpił błąd podczas zapisywania progów.');
+                    }
+                })
+                .catch(err => console.error('Błąd zapisu:', err))
+                .finally(() => hideLoading());
+        });
 
         const openAllegroMarginBtn = document.getElementById('openAllegroMarginSettingsBtn');
         if (openAllegroMarginBtn) {
@@ -2506,8 +2738,17 @@
        myStoreName = data.myStoreName;
        setPrice1 = data.setPrice1;
        setPrice2 = data.setPrice2;
+   
        setStepPrice = data.stepPrice;
        usePriceDifference = data.usePriceDifference;
+
+       setPriceIndexTarget = data.allegroPriceIndexTarget || 100.00; // allegroPriceIndexTarget musi być zwracane przez kontroler!
+
+       const indexInput = document.getElementById('priceIndexTargetInput');
+       if (indexInput) {
+           indexInput.value = setPriceIndexTarget.toFixed(2); // Ustaw wartość w polu
+           updatePriceIndexIndicator(); // Zaktualizuj ikonkę
+       }
 
        allegroMarginSettings.identifierForSimulation = data.allegroIdentifierForSimulation;
        allegroMarginSettings.useMarginForSimulation = data.allegroUseMarginForSimulation;
@@ -2556,7 +2797,10 @@
                marginAmount: marginAmount,
                marginPercentage: marginPercentage,
                marginSign: marginSign,
-               marginClass: marginClass
+               marginClass: marginClass,
+               marketAveragePrice: p.marketAveragePrice,
+               marketPriceIndex: p.marketPriceIndex,
+               marketBucket: p.marketBucket
            };
        });
 
