@@ -1945,25 +1945,14 @@
 
             const productSearchRaw = document.getElementById('productSearch').value.trim();
             if (productSearchRaw) {
-                const sanitizedSearch = productSearchRaw
-                    .replace(/[^a-zA-Z0-9\s.-]/g, '')
-                    .toLowerCase()
-                    .replace(/\s+/g, '');
-
+                const sanitizedSearch = productSearchRaw.replace(/[^a-zA-Z0-9\s.-]/g, '').toLowerCase().replace(/\s+/g, '');
                 filtered = filtered.filter(p => {
                     const name = p.productName || '';
                     const ean = p.ean || '';
                     const id = p.myIdAllegro ? p.myIdAllegro.toString() : '';
-
                     const code = p.producerCode || '';
-
-                    const combinedData = `${name} ${ean} ${id} ${code}`;
-                    const combinedSanitized = combinedData
-                        .toLowerCase()
-                        .replace(/[^a-zA-Z0-9\s.-]/g, '')
-                        .replace(/\s+/g, '');
-
-                    return combinedSanitized.includes(sanitizedSearch);
+                    const combinedData = `${name} ${ean} ${id} ${code}`.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
+                    return combinedData.includes(sanitizedSearch);
                 });
             }
 
@@ -1973,13 +1962,10 @@
             }
 
             if (typeof currentViewMode !== 'undefined' && currentViewMode === 'profit') {
-
                 const selectedBuckets = Array.from(document.querySelectorAll('.bucketFilter:checked')).map(checkbox => checkbox.value);
-
                 if (selectedBuckets.length > 0) {
                     filtered = filtered.filter(item => {
                         let bucket = item.marketBucket;
-
                         if (item.colorClass === 'prNoOffer' || !item.myPrice || parseFloat(item.myPrice) <= 0.01) {
                             bucket = 'market-unavailable';
                         } else if (item.colorClass === 'prOnlyMe' || bucket === 'market-solo') {
@@ -1987,13 +1973,10 @@
                         } else if (!bucket) {
                             bucket = 'market-average';
                         }
-
                         return selectedBuckets.includes(bucket);
                     });
                 }
-
             } else {
-
                 const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(cb => cb.value);
                 if (selectedColors.length > 0) {
                     filtered = filtered.filter(p => selectedColors.includes(p.colorClass));
@@ -2005,18 +1988,14 @@
 
             if (selectedFlagsExclude.size > 0) {
                 filtered = filtered.filter(item => {
-                    if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
-                        return false;
-                    }
+                    if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return false;
                     return !item.flagIds || !item.flagIds.some(fid => selectedFlagsExclude.has(String(fid)));
                 });
             }
 
             if (selectedFlagsInclude.size > 0) {
                 filtered = filtered.filter(item => {
-                    if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
-                        return true;
-                    }
+                    if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return true;
                     return item.flagIds && item.flagIds.some(fid => selectedFlagsInclude.has(String(fid)));
                 });
             }
@@ -2024,9 +2003,7 @@
             if (selectedMyBadges.size > 0) {
                 filtered = filtered.filter(item => {
                     for (const badge of selectedMyBadges) {
-                        if (item[badge] === true) {
-                            return true;
-                        }
+                        if (item[badge] === true) return true;
                     }
                     return false;
                 });
@@ -2036,15 +2013,43 @@
                 filtered = filtered.filter(item => item.committed);
             }
 
+            filtered.forEach(item => {
+                const suggestionData = calculateCurrentSuggestion(item);
+                if (suggestionData) {
+                    item.calculatedTotalChangeAmount = suggestionData.totalChangeAmount;
+                    item.calculatedPercentageChange = suggestionData.percentageChange;
+                } else {
+                    item.calculatedTotalChangeAmount = null;
+                    item.calculatedPercentageChange = null;
+                }
+            });
+
             for (const [key, direction] of Object.entries(sortingState)) {
                 if (direction) {
+
                     if (key === 'sortName') {
                         filtered.sort((a, b) => {
                             const valA = a.productName || '';
                             const valB = b.productName || '';
                             return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
                         });
-                    } else {
+                    }
+
+                    else {
+
+                        if (key === 'sortRaiseAmount' || key === 'sortRaisePercentage') {
+
+                            filtered = filtered.filter(item => item.calculatedTotalChangeAmount !== null && item.calculatedTotalChangeAmount > 0);
+                        }
+                        else if (key === 'sortLowerAmount' || key === 'sortLowerPercentage') {
+
+                            filtered = filtered.filter(item => item.calculatedTotalChangeAmount !== null && item.calculatedTotalChangeAmount < 0);
+                        }
+                        else if (key === 'sortMarginAmount' || key === 'sortMarginPercentage') {
+
+                            filtered = filtered.filter(item => item.marginAmount !== null);
+                        }
+
                         filtered.sort((a, b) => {
                             let valA, valB;
                             switch (key) {
@@ -2053,17 +2058,24 @@
                                     valB = b.myPrice;
                                     break;
                                 case 'sortRaiseAmount':
-                                    valA = a.savings;
-                                    valB = b.savings;
+                                    valA = a.calculatedTotalChangeAmount;
+
+                                    valB = b.calculatedTotalChangeAmount;
                                     break;
                                 case 'sortRaisePercentage':
-                                case 'sortLowerPercentage':
-                                    valA = a.percentageDifference;
-                                    valB = b.percentageDifference;
+                                    valA = a.calculatedPercentageChange;
+
+                                    valB = b.calculatedPercentageChange;
                                     break;
                                 case 'sortLowerAmount':
-                                    valA = a.priceDifference;
-                                    valB = b.priceDifference;
+                                    valA = a.calculatedTotalChangeAmount;
+
+                                    valB = b.calculatedTotalChangeAmount;
+                                    break;
+                                case 'sortLowerPercentage':
+                                    valA = a.calculatedPercentageChange;
+
+                                    valB = b.calculatedPercentageChange;
                                     break;
                                 case 'sortMarginAmount':
                                     valA = a.marginAmount;
@@ -2084,20 +2096,8 @@
                             }
                         });
                     }
-
-                    if (key === 'sortRaiseAmount' || key === 'sortRaisePercentage') {
-                        filtered = filtered.filter(item => item.savings != null || item.percentageDifference > 0);
-                    }
-                    if (key === 'sortLowerAmount' || key === 'sortLowerPercentage') {
-                        filtered = filtered.filter(item => item.priceDifference != null || item.percentageDifference < 0);
-                    }
-                    if (key === 'sortMarginAmount') {
-                        filtered = filtered.filter(item => item.marginAmount !== null);
-                    }
-                    if (key === 'sortMarginPercentage') {
-                        filtered = filtered.filter(item => item.marginPercentage !== null);
-                    }
                     break;
+
                 }
             }
 
@@ -2110,7 +2110,6 @@
             hideLoading();
         }, 10);
     }
-
     function setupFlagFilterListeners() {
         document.querySelectorAll('.flagFilterInclude').forEach(checkbox => {
             checkbox.addEventListener('change', function () {
