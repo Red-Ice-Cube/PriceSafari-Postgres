@@ -178,6 +178,46 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     var bestCompetitor = filteredCompetitors.OrderBy(p => p.Price).FirstOrDefault();
 
+                    decimal? marketAveragePrice = null; // Mediana
+                    decimal? marketPriceIndex = null;   // Odchylenie w %
+                    string marketBucket = "market-neutral"; // Domyślny kubełek
+
+                    // Pobieramy ceny konkurencji do listy decimal (tylko > 0)
+                    var competitorPricesOnly = filteredCompetitors
+                        .Where(x => x.Price > 0)
+                        .Select(x => x.Price)
+                        .ToList();
+
+                    if (competitorPricesOnly.Count > 0)
+                    {
+                        // 1. Obliczamy Medianę
+                        marketAveragePrice = CalculateMedian(competitorPricesOnly);
+
+                        // 2. Obliczamy Index i Bucket jeśli mamy swoją cenę i medianę
+                        if (marketAveragePrice.HasValue && myOffer != null && myOffer.Price > 0 && marketAveragePrice.Value > 0)
+                        {
+                            // Różnica w %: (Nasza - Rynek) / Rynek * 100
+                            decimal diff = myOffer.Price - marketAveragePrice.Value;
+                            marketPriceIndex = Math.Round((diff / marketAveragePrice.Value) * 100, 2);
+
+                            // Przypisanie do kubełka
+                            if (marketPriceIndex < -15)
+                                marketBucket = "market-deep-discount";
+                            else if (marketPriceIndex >= -15 && marketPriceIndex < -2)
+                                marketBucket = "market-below-average";
+                            else if (marketPriceIndex >= -2 && marketPriceIndex <= 2)
+                                marketBucket = "market-average";
+                            else if (marketPriceIndex > 2 && marketPriceIndex <= 15)
+                                marketBucket = "market-above-average";
+                            else
+                                marketBucket = "market-overpriced";
+                        }
+                    }
+                    else if (myOffer != null)
+                    {
+                        marketBucket = "market-solo";
+                    }
+
                     var allMyOffersInGroup = g.Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
                     var myOffersGroupKey = string.Join(",", allMyOffersInGroup.Select(o => o.IdAllegro).OrderBy(id => id));
 
@@ -266,6 +306,10 @@ namespace PriceSafari.Controllers.MemberControllers
 
                         MarginPrice = product.AllegroMarginPrice,
 
+                        MarketAveragePrice = marketAveragePrice,
+                        MarketPriceIndex = marketPriceIndex,
+                        MarketBucket = marketBucket,
+
                         ImgUrl = (string)null,
                         ApiAllegroPrice = extendedInfo?.ApiAllegroPrice,
                         ApiAllegroPriceFromUser = extendedInfo?.ApiAllegroPriceFromUser,
@@ -295,6 +339,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m,
                 stepPrice = priceSettings?.AllegroPriceStep ?? 2.00m,
                 usePriceDifference = priceSettings?.AllegroUsePriceDiff ?? true,
+                allegroPriceIndexTarget = priceSettings?.AllegroPriceIndexTargetPercent ?? 100.00m,
                 presetName = activePresetName ?? "PriceSafari",
                 latestScrapId = latestScrap?.Id,
                 allegroIdentifierForSimulation = priceSettings?.AllegroIdentifierForSimulation ?? "EAN",
@@ -318,6 +363,27 @@ namespace PriceSafari.Controllers.MemberControllers
             public decimal SetPrice2 { get; set; }
             public decimal PriceStep { get; set; }
             public bool UsePriceDifference { get; set; }
+            public decimal PriceIndexTargetPercent { get; set; }
+        }
+
+
+        private decimal? CalculateMedian(List<decimal> prices)
+        {
+            if (prices == null || prices.Count == 0) return null;
+
+            var sortedPrices = prices.OrderBy(x => x).ToList();
+            int count = sortedPrices.Count;
+
+            if (count % 2 == 0)
+            {
+                // Parzysta liczba elementów - średnia z dwóch środkowych
+                return (sortedPrices[count / 2 - 1] + sortedPrices[count / 2]) / 2m;
+            }
+            else
+            {
+                // Nieparzysta liczba - środkowy element
+                return sortedPrices[count / 2];
+            }
         }
 
         [HttpPost]
@@ -339,7 +405,7 @@ namespace PriceSafari.Controllers.MemberControllers
             priceValues.AllegroSetPrice2 = model.SetPrice2;
             priceValues.AllegroPriceStep = model.PriceStep;
             priceValues.AllegroUsePriceDiff = model.UsePriceDifference;
-
+            priceValues.AllegroPriceIndexTargetPercent = model.PriceIndexTargetPercent;
             await _context.SaveChangesAsync();
             return Json(new { success = true });
         }
@@ -861,6 +927,9 @@ namespace PriceSafari.Controllers.MemberControllers
 
             public decimal PriceAfter_Simulated { get; set; }
             public string RankingAfter_Simulated { get; set; }
+            public string? Mode { get; set; }              // "profit" or "competitiveness"
+            public decimal? PriceIndexTarget { get; set; } // np. 100.00
+            public decimal? StepPriceApplied { get; set; }
         }
 
         public class PriceBridgeError
@@ -990,7 +1059,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     rankingAfter_Simulated = i.RankingAfter_Simulated,
 
                     priceAfter_Verified = i.PriceAfter_Verified,
-                    commissionAfter_Verified = i.CommissionAfter_Verified
+                    commissionAfter_Verified = i.CommissionAfter_Verified,
+                    mode = i.Mode,
+                    priceIndexTarget = i.PriceIndexTarget,
+                    stepPriceApplied = i.StepPriceApplied,
                 }).ToList()
             }).ToList();
 
