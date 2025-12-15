@@ -450,14 +450,14 @@
                 <strong style="color: #28a745;">Sukces: ${batch.successfulCount}</strong> | 
                 <strong style="color: #dc3545;">Błędy: ${batch.failedCount}</strong>
             </div>
-            <table class="table-orders" style="margin-bottom: 20px;">
+            <table class="table-orders" style="margin-bottom: 20px; width: 100%;">
                 <thead>
                     <tr>
-                        <th>Produkt</th>
-                        <th>Przed zmianą</th>
-                        <th style="text-align:center;">Zmiana</th>
-                        <th>Zaktualizowana cena</th>
-                        <th style="text-align:center;">Status</th>
+                        <th style="width: 35%;">Produkt</th>
+                        <th style="width: 20%;">Przed zmianą</th>
+                        <th style="text-align:center; width: 10%;">Zmiana</th>
+                        <th style="width: 20%;">Zaktualizowana cena</th>
+                        <th style="text-align:center; width: 15%;">Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -489,20 +489,16 @@
 
                 if (item.mode) {
                     if (item.mode === 'profit') {
-
                         const targetVal = item.priceIndexTarget != null ? item.priceIndexTarget : 100;
                         strategyBadgeHtml = `
                             <span class="strategy-badge profit" style="margin-bottom: 5px; display:inline-block;">
                                 Indeks ${targetVal}%
                             </span>`;
                     } else {
-
                         let stepText = "Konkurencja";
                         if (item.stepPriceApplied !== null && item.stepPriceApplied !== undefined) {
                             const stepVal = parseFloat(item.stepPriceApplied);
-
                             const unit = "PLN";
-
                             if (stepVal === 0) stepText = "Wyrównanie";
                             else stepText = `Krok ${stepVal > 0 ? '+' : ''}${stepVal} ${unit}`;
                         }
@@ -535,7 +531,7 @@
                 html += `
                 <tr>
                     <td class="align-middle">
-                        <a href="/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}"
+                        <a href="/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}" 
                            target="_blank" rel="noopener noreferrer" class="simulationProductTitle"
                            title="Zobacz szczegóły produktu" style="text-decoration: none; color: inherit;">
                            <div class="price-info-item" style="font-size:110%; margin-bottom:8px; font-weight: 500;">${item.productName}</div>
@@ -593,20 +589,31 @@
     }
 
     function renderSimulationTableHeader(hasImage) {
-        let tableHtml = '<table class="table-orders" id="simulationTable"><thead><tr>';
+ 
+        let tableHtml = '<table class="table-orders" id="simulationTable" style="width: 100%;">';
+        tableHtml += '<thead><tr>';
+
         if (hasImage) {
-            tableHtml += '<th>Produkt</th>';
+         
+            tableHtml += '<th style="width: 10%;">Produkt</th>';
+          
+            tableHtml += '<th style="width: 25%;"></th>';
+        } else {
+           
+            tableHtml += '<th style="width: 35%;">Produkt</th>';
         }
-        tableHtml += '<th></th>';
-        tableHtml += '<th>Obecne</th>';
-        tableHtml += '<th>Zmiana</th>';
-        tableHtml += '<th>Po zmianie</th>';
+
+        
+        tableHtml += '<th style="width: 20%;">Obecne</th>';
+        tableHtml += '<th style="width: 10%;">Zmiana</th>';
+        tableHtml += '<th style="width: 20%;">Po zmianie</th>';
 
         if (simulationsExecuted) {
-            tableHtml += '<th>Potwierdzenie API</th>';
+            tableHtml += '<th style="width: 20%;">Potwierdzenie API</th>';
         }
-        tableHtml += '<th>Opłacalność</th>';
-        tableHtml += '<th>Usuń</th>';
+
+        tableHtml += '<th style="width: 10%;">Opłacalność</th>';
+        tableHtml += '<th style="width: 5%;">Usuń</th>';
         tableHtml += '</tr></thead><tbody id="simulationTbody"></tbody></table>';
 
         const tableContainer = document.getElementById("simulationModalBody");

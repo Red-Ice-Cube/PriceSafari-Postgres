@@ -1880,11 +1880,14 @@
             chartBorderColors = chartColors.map(c => c.replace('0.8', '1'));
 
             const labelsMap = { 'market-unavailable': 'bucketUnavailable', 'market-solo': 'bucketSolo', 'market-overpriced': 'bucketOverpriced', 'market-above-average': 'bucketAboveAverage', 'market-average': 'bucketAverage', 'market-below-average': 'bucketBelowAverage', 'market-deep-discount': 'bucketDeepDiscount' };
+
             for (const [bName, elId] of Object.entries(labelsMap)) {
                 const label = document.querySelector(`label[for="${elId}"]`);
                 if (label) {
                     const textOnly = label.textContent.split('(')[0].trim();
-                    label.textContent = `${textOnly} ( ${bucketCounts[bName] || 0} )`;
+
+        
+                    label.textContent = `${textOnly} (${bucketCounts[bName] || 0})`;
                 }
             }
         }
@@ -2680,18 +2683,75 @@
         }
 
         const openMassChangeModalBtn = document.getElementById('openMassChangeModalBtn');
+        const massChangeModal = document.getElementById('massChangeModal');
+        const closeMassChangeModalBtn = document.querySelector('#massChangeModal .close');
+
         if (openMassChangeModalBtn) {
             openMassChangeModalBtn.addEventListener('click', function () {
+
+                const infoComp = document.getElementById('massChangeInfo_Competitiveness');
+                const infoProfit = document.getElementById('massChangeInfo_Profit');
+                const badge = document.getElementById('massChangeModeBadge');
+                const btn = document.getElementById('massStrategicBtn');
+                const otherModeSpan = document.getElementById('otherModeName');
+
+                infoComp.style.display = 'none';
+                infoProfit.style.display = 'none';
+
+                if (currentViewMode === 'competitiveness') {
+
+                    infoComp.style.display = 'block';
+
+                    badge.textContent = 'Tryb: Lider Rynku';
+                    badge.style.backgroundColor = 'rgba(113, 96, 232, 0.1)';
+                    badge.style.borderColor = 'rgba(113, 96, 232, 1)';
+                    badge.style.color = 'rgba(113, 96, 232, 1)';
+
+                    otherModeSpan.textContent = 'Rentowność';
+
+                    const unit = usePriceDifference ? 'PLN' : '%';
+                    btn.innerHTML = `Zastosuj strategię Lidera Rynku (Krok: ${formatPricePL(setStepPrice, false)} ${unit}) <div class="color-square-turquoise" style="margin:0 0 0 10px;"></div>`;
+
+                } else {
+
+                    infoProfit.style.display = 'block';
+
+                    badge.textContent = 'Tryb: Rentowność';
+                    badge.style.backgroundColor = 'rgba(13, 44, 86, 0.1)';
+                    badge.style.borderColor = '#0d2c56';
+                    badge.style.color = '#0d2c56';
+
+                    otherModeSpan.textContent = 'Lider Rynku';
+
+                    btn.innerHTML = `Zastosuj strategię Rentowności (Index: ${setPriceIndexTarget}%) <div class="color-square-profit" style="margin:0 0 0 10px;"></div>`;
+                }
+
                 $('#massChangeModal').modal('show');
+            });
+        }
+
+        if (closeMassChangeModalBtn) {
+            closeMassChangeModalBtn.addEventListener('click', function () {
+                $('#massChangeModal').modal('hide');
+            });
+        }
+
+        if (massChangeModal) {
+            window.addEventListener('click', function (event) {
+                if (event.target === massChangeModal) {
+                    $('#massChangeModal').modal('hide');
+                }
             });
         }
 
         const massStrategicBtn = document.getElementById('massStrategicBtn');
         if (massStrategicBtn) {
-            massStrategicBtn.addEventListener('click', function () {
+
+            massStrategicBtn.onclick = function () {
+
                 applyMassChange('strategic');
                 $('#massChangeModal').modal('hide');
-            });
+            };
         }
 
     }
