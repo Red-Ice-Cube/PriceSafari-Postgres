@@ -10,13 +10,13 @@
 }
 
 .partner-banner {
-    background-color: #ffffff;
+    background-color: #F5F5F5;
     color: var(--text-dark);
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
-    padding: 60px 60px;
+    padding: 64px;
     overflow-y: auto;
     position: relative;
     height: 100%;
@@ -31,10 +31,10 @@
 }
 
 .content-section {
-    border: 1px solid #e0e0e0;
     border-radius: 12px;
-    padding: 24px;
+    padding: 40px;
     background-color: #fff;
+    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
 }
 
 .section-header {
@@ -122,18 +122,23 @@
 }
 
 .update-badge {
-    background: var(--accent-color);
-    color: #fff;
-    padding: 6px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.05);
+    color: #222;
+    padding: 6px 16px;
     border-radius: 20px;
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
-    height:33px;
-    justify-content:center;
-    align-content:center;
+    height: 34px;
 }
+
+    .update-badge i {
+        font-size: 0.9rem;
+    }
 
 .news-desc {
     font-size: var(--font-size-base);
@@ -292,13 +297,14 @@
     gap: 8px;
     background-color: rgba(0, 0, 0, 0.05);
     color: #222;
-    padding: 6px 12px;
+    padding: 6px 16px;
     border-radius: 20px;
     text-decoration: none;
     font-size: 0.8rem;
     font-weight: 600;
     transition: all 0.2s ease;
     border: 1px solid transparent;
+    height:34px;
 }
 
     .linkedin-btn:hover {
