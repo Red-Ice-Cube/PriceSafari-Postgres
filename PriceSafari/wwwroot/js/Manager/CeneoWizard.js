@@ -1,6 +1,6 @@
 ﻿const ceneoDataEl = document.getElementById("ceneo-wizard-data");
 const storeId = parseInt(ceneoDataEl.getAttribute("data-store-id") || "0", 10);
-const xmlContainer = document.getElementById("xmlContainer"); // Dodano referencję
+const xmlContainer = document.getElementById("xmlContainer");
 
 let existingMappingsJson = ceneoDataEl.getAttribute("data-existing-mappings") || "[]";
 let existingMappings = [];
@@ -23,7 +23,6 @@ let mappingForField = {
     CeneoDeliveryXMLPrice: null
 };
 
-// Inicjalizacja pustych mapowań
 existingMappings.forEach(m => {
     if (m.fieldName && mappingForField.hasOwnProperty(m.fieldName)) {
         mappingForField[m.fieldName] = {
@@ -37,7 +36,6 @@ existingMappings.forEach(m => {
 let xmlDoc = null;
 let proxyUrl = `/CeneoImportWizardXml/ProxyXml?storeId=${storeId}`;
 
-// --- NOWA FUNKCJA: Przetwarzanie stringa XML (używana przez Sieć i Plik lokalny) ---
 function processXmlString(xmlStr, sourceDescription) {
     console.log(`--- Rozpoczynanie przetwarzania XML ${sourceDescription} ---`);
 
@@ -55,7 +53,6 @@ function processXmlString(xmlStr, sourceDescription) {
     let parser = new DOMParser();
     xmlDoc = parser.parseFromString(xmlStr, "application/xml");
 
-    // Obsługa błędów parsera
     if (!xmlDoc || xmlDoc.documentElement.nodeName === "parsererror" || xmlDoc.getElementsByTagName("parsererror").length > 0) {
         let errorContent = "Błąd parsowania XML";
         const parserError = xmlDoc.getElementsByTagName("parsererror")[0];
@@ -74,13 +71,14 @@ function processXmlString(xmlStr, sourceDescription) {
     }
 
     console.log(`XML z ${sourceDescription} sparsowany pomyślnie.`);
-    if (xmlContainer) xmlContainer.innerHTML = ''; // Wyczyść komunikat o ładowaniu
+    if (xmlContainer) xmlContainer.innerHTML = '';
 
     try {
         if (xmlDoc.documentElement) {
             buildXmlTree(xmlDoc.documentElement, "");
             applyExistingMappings();
-            renderMappingTable(); // Odśwież tabelę po załadowaniu nowego XML
+            renderMappingTable();
+
         } else {
             throw new Error("Dokument XML nie zawiera elementu głównego.");
         }
@@ -90,7 +88,6 @@ function processXmlString(xmlStr, sourceDescription) {
     }
 }
 
-// --- 1. Ładowanie z Sieci (Automatycznie na start) ---
 console.log(`Próba załadowania XML z sieci: ${proxyUrl}`);
 if (xmlContainer) xmlContainer.innerHTML = `<i>Ładowanie XML z sieci...</i>`;
 
@@ -100,7 +97,7 @@ fetch(proxyUrl)
         return resp.text();
     })
     .then(xmlStr => {
-        // Opcjonalne czyszczenie BOM itp. (jak w Google Wizard)
+
         let cleanStr = xmlStr;
         if (cleanStr.charCodeAt(0) === 65279) cleanStr = cleanStr.substring(1);
         processXmlString(cleanStr, "Sieć");
@@ -112,7 +109,6 @@ fetch(proxyUrl)
         console.error("Błąd fetch XML:", err);
     });
 
-// --- 2. Ładowanie z Pliku Lokalnego (Obsługa przycisku) ---
 const processButton = document.getElementById('processXmlButton');
 if (processButton) {
     processButton.addEventListener('click', () => {
@@ -454,7 +450,7 @@ document.getElementById("extractProducts").addEventListener("click", () => {
     }
 
     let entries = [];
-    const possibleProductTags = ["o", "item", "entry", "produkt", "product"];
+    const possibleProductTags = ["o", "item", "entry", "produkt", "product", "element"];
     let detectedTag = null;
 
     for (const tag of possibleProductTags) {

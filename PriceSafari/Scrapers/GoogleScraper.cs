@@ -1,9 +1,4 @@
-﻿
-
-
-
-
-using PuppeteerSharp;
+﻿using PuppeteerSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,10 +9,8 @@ using System.Web;
 
 public record GoogleProductIdentifier(string Cid, string Gid);
 
-// Przechowuje tytuły znalezione w odpowiedzi API
 public record GoogleProductDetails(string MainTitle, List<string> OfferTitles);
 
-// Nowy rekord, który będzie zwracany - zawiera powyższe detale ORAZ dane do debugowania
 public record GoogleApiDetailsResult(GoogleProductDetails Details, string RequestUrl, string RawResponse);
 public class ScraperResult<T>
 {
@@ -83,101 +76,244 @@ public class GoogleScraper
         _page = await _browser.NewPageAsync();
     }
 
-    public async Task<ScraperResult<List<GoogleProductIdentifier>>> SearchInitialProductIdentifiersAsync(string title, int maxItemsToExtract = 20)
+    //public async Task<ScraperResult<List<GoogleProductIdentifier>>> SearchInitialProductIdentifiersAsync(string title, int maxItemsToExtract = 20)
 
+    //{
+    //    var identifiers = new List<GoogleProductIdentifier>();
+    //    Console.WriteLine($"Navigating to Google Shopping with product title: {title} to extract initial Identifiers (CID, GID).");
+
+    //    IsCaptchaEncountered = false;
+
+    //    try
+    //    {
+    //        if (_browser == null || _page == null || _page.IsClosed)
+    //        {
+    //            await InitializeBrowserAsync();
+    //        }
+
+    //        var encodedTitle = HttpUtility.UrlEncode(title);
+    //        var url = $"https://www.google.com/search?gl=pl&tbm=shop&q={encodedTitle}";
+
+    //        await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.Load } });
+
+    //        if (_page.Url.Contains("/sorry/") || _page.Url.Contains("/captcha"))
+    //        {
+    //            IsCaptchaEncountered = true;
+
+    //            return ScraperResult<List<GoogleProductIdentifier>>.Captcha(identifiers);
+
+    //        }
+    //        var rejectButton = await _page.QuerySelectorAsync("button[aria-label='Odrzuć wszystko']");
+    //        if (rejectButton != null)
+    //        {
+    //            await rejectButton.ClickAsync();
+    //            await Task.Delay(1000);
+    //        }
+
+    //        Console.WriteLine("Strona wyników Google Shopping załadowana pomyślnie.");
+
+
+
+    //        try
+    //        {
+    //            await _page.WaitForSelectorAsync("div.sh-dgr__content, div.MtXiu, div.LrTUQ", new WaitForSelectorOptions { Timeout = 5000 });
+    //        }
+    //        catch (WaitTaskTimeoutException ex)
+    //        {
+    //            Console.WriteLine($"Nie znaleziono żadnego znanego kontenera produktów w określonym czasie: {ex.Message}. Strona mogła się zmienić lub brak wyników.");
+
+    //            return ScraperResult<List<GoogleProductIdentifier>>.Fail("Nie znaleziono boksów produktów.", identifiers);
+
+    //        }
+
+    //        var productBoxes = await _page.QuerySelectorAllAsync("div.sh-dgr__content, div.MtXiu, div.LrTUQ");
+
+    //        Console.WriteLine($"Znaleziono {productBoxes.Length} boksów produktów na stronie wyników.");
+
+    //        if (productBoxes.Length == 0)
+    //        {
+
+    //            return ScraperResult<List<GoogleProductIdentifier>>.Success(identifiers);
+
+    //        }
+
+    //        foreach (var box in productBoxes)
+    //        {
+
+    //            if (identifiers.Count >= maxItemsToExtract) break;
+
+    //            var idData = await box.EvaluateFunctionAsync<JsonElement>(@"
+    //                element => {
+    //                    const cid = element.dataset.cid || 
+    //                               element.querySelector('a[data-cid]')?.dataset.cid || 
+    //                               element.querySelector('a[data-docid]')?.dataset.docid;
+    //                    const gid = element.dataset.gid;
+    //                    return { cid, gid };
+    //                }
+    //            ");
+
+    //            var cid = idData.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() : null;
+    //            var gid = idData.TryGetProperty("gid", out var gidProp) ? gidProp.GetString() : null;
+
+    //            if (!string.IsNullOrEmpty(cid) && !string.IsNullOrEmpty(gid))
+    //            {
+
+    //                identifiers.Add(new GoogleProductIdentifier(cid, gid));
+    //                Console.WriteLine($"Ekstrahowano CID: {cid}, GID: {gid}");
+
+    //            }
+    //        }
+
+    //        return ScraperResult<List<GoogleProductIdentifier>>.Success(identifiers);
+
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        Console.WriteLine($"Błąd podczas wyszukiwania i ekstrakcji identyfikatorów: {ex.Message}");
+
+    //        return ScraperResult<List<GoogleProductIdentifier>>.Fail($"Błąd ekstrakcji: {ex.Message}", identifiers);
+
+    //    }
+    //}
+
+
+    public async Task<ScraperResult<List<GoogleProductIdentifier>>> SearchInitialProductIdentifiersAsync(string title, int maxItemsToExtract = 20)
     {
         var identifiers = new List<GoogleProductIdentifier>();
-        Console.WriteLine($"Navigating to Google Shopping with product title: {title} to extract initial Identifiers (CID, GID).");
+        Console.WriteLine($"[Scraper] Szukam: '{title}'... (Cel: {maxItemsToExtract} unikalnych produktów)");
 
         IsCaptchaEncountered = false;
 
         try
         {
-            if (_browser == null || _page == null || _page.IsClosed)
-            {
-                await InitializeBrowserAsync();
-            }
+            if (_browser == null || _page == null || _page.IsClosed) await InitializeBrowserAsync();
 
+            var tcs = new TaskCompletionSource<GoogleProductIdentifier>();
+
+            // 1. Konfiguracja przechwytywania
+            await _page.SetRequestInterceptionAsync(true);
+
+            EventHandler<RequestEventArgs> requestHandler = (sender, e) =>
+            {
+                e.Request.ContinueAsync();
+
+                // Szukamy requestu oapv z catalogid
+                if (e.Request.Url.Contains("/async/oapv") && e.Request.Url.Contains("catalogid:"))
+                {
+                    var url = e.Request.Url;
+                    var cidMatch = System.Text.RegularExpressions.Regex.Match(url, @"catalogid:(\d+)");
+                    var gidMatch = System.Text.RegularExpressions.Regex.Match(url, @"gpcid:(\d+)");
+
+                    if (cidMatch.Success)
+                    {
+                        string cid = cidMatch.Groups[1].Value;
+                        string gid = gidMatch.Success ? gidMatch.Groups[1].Value : null;
+                        tcs.TrySetResult(new GoogleProductIdentifier(cid, gid));
+                    }
+                }
+            };
+
+            _page.Request += requestHandler;
+
+            // 2. Nawigacja
             var encodedTitle = HttpUtility.UrlEncode(title);
             var url = $"https://www.google.com/search?gl=pl&tbm=shop&q={encodedTitle}";
-
             await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.Load } });
 
+            // Captcha / Cookies
             if (_page.Url.Contains("/sorry/") || _page.Url.Contains("/captcha"))
             {
+                _page.Request -= requestHandler;
+                await _page.SetRequestInterceptionAsync(false);
                 IsCaptchaEncountered = true;
-
                 return ScraperResult<List<GoogleProductIdentifier>>.Captcha(identifiers);
-
             }
             var rejectButton = await _page.QuerySelectorAsync("button[aria-label='Odrzuć wszystko']");
-            if (rejectButton != null)
+            if (rejectButton != null) { await rejectButton.ClickAsync(); await Task.Delay(500); } // Skrócone opóźnienie po cookies
+
+            Console.WriteLine("[Scraper] Strona załadowana. Rozpoczynam precyzyjne zbieranie (SZYBKIE)...");
+
+            // 3. Pobieramy elementy - celujemy w obrazki, są najbardziej "klikalne"
+            var elementsToClick = await _page.QuerySelectorAllAsync(
+                "div.sh-dgr__content img, " +
+                "div.MtXiu img, " +
+                "product-viewer-entrypoint img"
+            );
+
+            Console.WriteLine($"[Scraper] Znaleziono {elementsToClick.Length} potencjalnych produktów.");
+
+            int successfulClicks = 0;
+            int failedClicksStreak = 0; // Licznik pustych przebiegów z rzędu
+
+            foreach (var element in elementsToClick)
             {
-                await rejectButton.ClickAsync();
-                await Task.Delay(1000);
-            }
-
-            Console.WriteLine("Strona wyników Google Shopping załadowana pomyślnie.");
-
-            try
-            {
-                await _page.WaitForSelectorAsync("div.sh-dgr__content, div.MtXiu, div.LrTUQ", new WaitForSelectorOptions { Timeout = 5000 });
-            }
-            catch (WaitTaskTimeoutException ex)
-            {
-                Console.WriteLine($"Nie znaleziono żadnego znanego kontenera produktów w określonym czasie: {ex.Message}. Strona mogła się zmienić lub brak wyników.");
-
-                return ScraperResult<List<GoogleProductIdentifier>>.Fail("Nie znaleziono boksów produktów.", identifiers);
-
-            }
-
-            var productBoxes = await _page.QuerySelectorAllAsync("div.sh-dgr__content, div.MtXiu, div.LrTUQ");
-
-            Console.WriteLine($"Znaleziono {productBoxes.Length} boksów produktów na stronie wyników.");
-
-            if (productBoxes.Length == 0)
-            {
-
-                return ScraperResult<List<GoogleProductIdentifier>>.Success(identifiers);
-
-            }
-
-            foreach (var box in productBoxes)
-            {
-
+                // Warunek wyjścia
                 if (identifiers.Count >= maxItemsToExtract) break;
 
-                var idData = await box.EvaluateFunctionAsync<JsonElement>(@"
-                    element => {
-                        const cid = element.dataset.cid || 
-                                   element.querySelector('a[data-cid]')?.dataset.cid || 
-                                   element.querySelector('a[data-docid]')?.dataset.docid;
-                        const gid = element.dataset.gid;
-                        return { cid, gid };
-                    }
-                ");
-
-                var cid = idData.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() : null;
-                var gid = idData.TryGetProperty("gid", out var gidProp) ? gidProp.GetString() : null;
-
-                if (!string.IsNullOrEmpty(cid) && !string.IsNullOrEmpty(gid))
+                // Jeśli 5 razy z rzędu kliknęliśmy i nic nie wpadło, a mamy już jakieś wyniki, to kończymy (optymalizacja czasu)
+                if (identifiers.Count > 0 && failedClicksStreak > 5)
                 {
+                    Console.WriteLine("[Scraper] Zbyt wiele pustych kliknięć z rzędu. Przerywam.");
+                    break;
+                }
 
-                    identifiers.Add(new GoogleProductIdentifier(cid, gid));
-                    Console.WriteLine($"Ekstrahowano CID: {cid}, GID: {gid}");
+                tcs = new TaskCompletionSource<GoogleProductIdentifier>();
 
+                try
+                {
+                    // Przewiń do elementu
+                    await element.EvaluateFunctionAsync("el => el.scrollIntoView({block: 'center', inline: 'center'})");
+
+                    // OPTYMALIZACJA 1: Skrócone czekanie na render
+                    await Task.Delay(30);
+
+                    // Kliknięcie JS
+                    await element.EvaluateFunctionAsync("el => el.click()");
+
+                    var networkTask = tcs.Task;
+                    // OPTYMALIZACJA 2: Skrócony timeout nasłuchiwania (800ms zamiast 1500ms)
+                    // Google reaguje zazwyczaj w <200ms. 
+                    var timeoutTask = Task.Delay(800);
+
+                    var completedTask = await Task.WhenAny(networkTask, timeoutTask);
+
+                    if (completedTask == networkTask)
+                    {
+                        var foundId = await networkTask;
+                        if (!identifiers.Any(x => x.Cid == foundId.Cid))
+                        {
+                            identifiers.Add(foundId);
+                            Console.WriteLine($"[NETWORK] + ZŁAPANO ({identifiers.Count}/{maxItemsToExtract}): CID {foundId.Cid}");
+                            failedClicksStreak = 0; // Reset licznika błędów
+                        }
+                        successfulClicks++;
+                    }
+                    else
+                    {
+                        // Timeout
+                        failedClicksStreak++;
+                    }
+                }
+                catch (Exception)
+                {
+                    // Ignorujemy błędy, jedziemy dalej
+                    failedClicksStreak++;
                 }
             }
 
-            return ScraperResult<List<GoogleProductIdentifier>>.Success(identifiers);
+            // Sprzątanie
+            _page.Request -= requestHandler;
+            await _page.SetRequestInterceptionAsync(false);
 
+            Console.WriteLine($"[Scraper] Zakończono. Zebrano łącznie: {identifiers.Count}. Czekam 1s...");
+            await Task.Delay(1000);
+
+            return ScraperResult<List<GoogleProductIdentifier>>.Success(identifiers);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Błąd podczas wyszukiwania i ekstrakcji identyfikatorów: {ex.Message}");
-
-            return ScraperResult<List<GoogleProductIdentifier>>.Fail($"Błąd ekstrakcji: {ex.Message}", identifiers);
-
+            Console.WriteLine($"Błąd: {ex.Message}");
+            return ScraperResult<List<GoogleProductIdentifier>>.Fail($"Błąd: {ex.Message}", identifiers);
         }
     }
 
@@ -313,7 +449,6 @@ public class GoogleScraper
         }
     }
 
-
     public async Task<ScraperResult<GoogleApiDetailsResult>> GetProductDetailsFromApiAsync(string cid, string gid)
     {
         var url = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{gid},catalogid:{cid},pvo:3,fs:%2Fshopping%2Foffers,sori:0,mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
@@ -338,9 +473,8 @@ public class GoogleScraper
             {
                 JsonElement root = doc.RootElement;
                 string mainTitle = null;
-                var offerTitles = new HashSet<string>(); // Używamy HashSet, aby automatycznie unikać duplikatów
+                var offerTitles = new HashSet<string>();
 
-                // 1. Pobierz główny, zaufany tytuł
                 if (root.TryGetProperty("ProductDetailsResult", out var detailsResult) && detailsResult.ValueKind == JsonValueKind.Array)
                 {
                     var titleElement = detailsResult.EnumerateArray().FirstOrDefault();
@@ -350,26 +484,25 @@ public class GoogleScraper
                     }
                 }
 
-                // 2. NOWA, PRECYZYJNA funkcja do wyszukiwania tytułów ofert
                 void FindOfferTitlesRecursively(JsonElement element)
                 {
                     if (element.ValueKind == JsonValueKind.Array)
                     {
-                        // Sprawdzamy, czy tablica pasuje do wzorca "bloku oferty"
-                        // Wzorzec: [string, string, null, string, ...]
+
                         if (element.GetArrayLength() > 4 &&
                             element[0].ValueKind == JsonValueKind.String &&
                             element[1].ValueKind == JsonValueKind.String &&
-                            element[2].ValueKind == JsonValueKind.Null && // KLUCZOWY WARUNEK!
+                            element[2].ValueKind == JsonValueKind.Null &&
+
                             element[3].ValueKind == JsonValueKind.String)
                         {
-                            // Jeśli tak, przeszukaj tę tablicę w poszukiwaniu tytułów
+
                             foreach (var item in element.EnumerateArray())
                             {
                                 if (item.ValueKind == JsonValueKind.String)
                                 {
                                     string potentialTitle = item.GetString();
-                                    // Stosujemy prosty filtr, aby odrzucić śmieci
+
                                     if (!string.IsNullOrWhiteSpace(potentialTitle) && potentialTitle.Contains(' ') && !potentialTitle.StartsWith("http"))
                                     {
                                         offerTitles.Add(potentialTitle);
@@ -377,7 +510,8 @@ public class GoogleScraper
                                 }
                             }
                         }
-                        else // Jeśli to nie jest blok oferty, kontynuuj rekurencyjne przeszukiwanie
+                        else
+
                         {
                             foreach (var item in element.EnumerateArray())
                             {
@@ -394,7 +528,6 @@ public class GoogleScraper
                     }
                 }
 
-                // 3. Rozpocznij poszukiwania
                 FindOfferTitlesRecursively(root);
 
                 var productDetails = new GoogleProductDetails(mainTitle, offerTitles.ToList());
