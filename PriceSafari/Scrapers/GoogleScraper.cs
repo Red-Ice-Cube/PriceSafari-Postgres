@@ -176,11 +176,10 @@ public class GoogleScraper
     //    }
     //}
 
-
     public async Task<ScraperResult<List<GoogleProductIdentifier>>> SearchInitialProductIdentifiersAsync(string title, int maxItemsToExtract = 20)
     {
         var identifiers = new List<GoogleProductIdentifier>();
-        Console.WriteLine($"[Scraper] Szukam: '{title}'... (Cel: {maxItemsToExtract} unikalnych produktów)");
+        Console.WriteLine($"[Scraper] Szukam: '{title}'... (Cel: {maxItemsToExtract} produktów, TRYB PARSOWANIA JSON)");
 
         IsCaptchaEncountered = false;
 
@@ -188,131 +187,105 @@ public class GoogleScraper
         {
             if (_browser == null || _page == null || _page.IsClosed) await InitializeBrowserAsync();
 
-            var tcs = new TaskCompletionSource<GoogleProductIdentifier>();
-
-            // 1. Konfiguracja przechwytywania
-            await _page.SetRequestInterceptionAsync(true);
-
-            EventHandler<RequestEventArgs> requestHandler = (sender, e) =>
-            {
-                e.Request.ContinueAsync();
-
-                // Szukamy requestu oapv z catalogid
-                if (e.Request.Url.Contains("/async/oapv") && e.Request.Url.Contains("catalogid:"))
-                {
-                    var url = e.Request.Url;
-                    var cidMatch = System.Text.RegularExpressions.Regex.Match(url, @"catalogid:(\d+)");
-                    var gidMatch = System.Text.RegularExpressions.Regex.Match(url, @"gpcid:(\d+)");
-
-                    if (cidMatch.Success)
-                    {
-                        string cid = cidMatch.Groups[1].Value;
-                        string gid = gidMatch.Success ? gidMatch.Groups[1].Value : null;
-                        tcs.TrySetResult(new GoogleProductIdentifier(cid, gid));
-                    }
-                }
-            };
-
-            _page.Request += requestHandler;
-
-            // 2. Nawigacja
+            // 1. Nawigacja
             var encodedTitle = HttpUtility.UrlEncode(title);
             var url = $"https://www.google.com/search?gl=pl&tbm=shop&q={encodedTitle}";
-            await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.Load } });
 
-            // Captcha / Cookies
+            // Używamy DomContentLoaded - wystarczy sam HTML i skrypty, nie czekamy na wszystkie obrazki
+            await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded } });
+
+            // Standardowe sprawdzenie Captcha
             if (_page.Url.Contains("/sorry/") || _page.Url.Contains("/captcha"))
             {
-                _page.Request -= requestHandler;
-                await _page.SetRequestInterceptionAsync(false);
                 IsCaptchaEncountered = true;
                 return ScraperResult<List<GoogleProductIdentifier>>.Captcha(identifiers);
             }
-            var rejectButton = await _page.QuerySelectorAsync("button[aria-label='Odrzuć wszystko']");
-            if (rejectButton != null) { await rejectButton.ClickAsync(); await Task.Delay(500); } // Skrócone opóźnienie po cookies
 
-            Console.WriteLine("[Scraper] Strona załadowana. Rozpoczynam precyzyjne zbieranie (SZYBKIE)...");
+            // --- 2. OBSŁUGA COOKIES (Przywrócona) ---
+            try
+            {
+                // Opcja A: Szukamy po ID (z Twojego kodu HTML)
+                var rejectBtn = await _page.QuerySelectorAsync("#W0wltc");
 
-            // 3. Pobieramy elementy - celujemy w obrazki, są najbardziej "klikalne"
-            var elementsToClick = await _page.QuerySelectorAllAsync(
-                "div.sh-dgr__content img, " +
-                "div.MtXiu img, " +
-                "product-viewer-entrypoint img"
+                // Opcja B: Jeśli ID nie ma, szukamy po tekście (XPath) - najbardziej niezawodne
+                if (rejectBtn == null)
+                {
+                    var buttons = await _page.XPathAsync("//button[descendant::div[contains(text(), 'Odrzuć wszystko')]]");
+                    rejectBtn = buttons.FirstOrDefault();
+                }
+
+                // Opcja C: Stary sposób (aria-label) - jako fallback
+                if (rejectBtn == null)
+                {
+                    rejectBtn = await _page.QuerySelectorAsync("button[aria-label='Odrzuć wszystko']");
+                }
+
+                if (rejectBtn != null)
+                {
+                    // Console.WriteLine("[Scraper] Klikam 'Odrzuć wszystko'...");
+                    await rejectBtn.ClickAsync();
+                    await Task.Delay(500); // Krótkie opóźnienie na zamknięcie modala
+                }
+            }
+            catch (Exception cookieEx)
+            {
+                Console.WriteLine($"[Scraper] Info: Nie udało się zamknąć cookies (może nie wyskoczyły): {cookieEx.Message}");
+            }
+            // ------------------------------------------
+
+            // 3. Pobranie całego kodu HTML strony
+            string pageContent = await _page.GetContentAsync();
+
+            Console.WriteLine($"[Scraper] Pobrano kod strony ({pageContent.Length} znaków). Analizuję JSON...");
+
+            // 4. Wyciąganie danych REGEX-em
+            // Szukamy wzorca: "klucz": [ "Index0", "CID", "idx2", "idx3", "idx4", "GID" ... ]
+            // Index 0: Ignorujemy (może być string, null lub liczba)
+            // Index 1: CID (ciąg cyfr)
+            // Index 2,3,4: Ignorujemy
+            // Index 5: GID (ciąg cyfr)
+
+            var regex = new System.Text.RegularExpressions.Regex(
+                // Wyjaśnienie: "klucz": [ (cokolwiek), "CID", (cokolwiek x3), "GID"
+                @"\""[\w-]+\""\s*:\s*\[\s*(?:\""[^\""]*\""|null|\d+|[^,]+)\s*,\s*\""(\d{10,})\""\s*,\s*(?:(?:\""[^\""]*\""|null|\d+|[^,]+)\s*,\s*){3}\""(\d{10,})\""",
+                System.Text.RegularExpressions.RegexOptions.Compiled
             );
 
-            Console.WriteLine($"[Scraper] Znaleziono {elementsToClick.Length} potencjalnych produktów.");
+            var matches = regex.Matches(pageContent);
 
-            int successfulClicks = 0;
-            int failedClicksStreak = 0; // Licznik pustych przebiegów z rzędu
+            Console.WriteLine($"[Scraper] Znaleziono {matches.Count} pasujących struktur danych.");
 
-            foreach (var element in elementsToClick)
+            foreach (System.Text.RegularExpressions.Match match in matches)
             {
-                // Warunek wyjścia
                 if (identifiers.Count >= maxItemsToExtract) break;
 
-                // Jeśli 5 razy z rzędu kliknęliśmy i nic nie wpadło, a mamy już jakieś wyniki, to kończymy (optymalizacja czasu)
-                if (identifiers.Count > 0 && failedClicksStreak > 5)
+                if (match.Success)
                 {
-                    Console.WriteLine("[Scraper] Zbyt wiele pustych kliknięć z rzędu. Przerywam.");
-                    break;
-                }
+                    string cid = match.Groups[1].Value;
+                    string gid = match.Groups[2].Value;
 
-                tcs = new TaskCompletionSource<GoogleProductIdentifier>();
-
-                try
-                {
-                    // Przewiń do elementu
-                    await element.EvaluateFunctionAsync("el => el.scrollIntoView({block: 'center', inline: 'center'})");
-
-                    // OPTYMALIZACJA 1: Skrócone czekanie na render
-                    await Task.Delay(30);
-
-                    // Kliknięcie JS
-                    await element.EvaluateFunctionAsync("el => el.click()");
-
-                    var networkTask = tcs.Task;
-                    // OPTYMALIZACJA 2: Skrócony timeout nasłuchiwania (800ms zamiast 1500ms)
-                    // Google reaguje zazwyczaj w <200ms. 
-                    var timeoutTask = Task.Delay(800);
-
-                    var completedTask = await Task.WhenAny(networkTask, timeoutTask);
-
-                    if (completedTask == networkTask)
+                    // Walidacja: Sprawdzamy czy to sensowne ID (długie ciągi cyfr, >10 znaków)
+                    if (cid.Length > 10 && gid.Length > 10)
                     {
-                        var foundId = await networkTask;
-                        if (!identifiers.Any(x => x.Cid == foundId.Cid))
+                        // Unikanie duplikatów
+                        if (!identifiers.Any(x => x.Cid == cid))
                         {
-                            identifiers.Add(foundId);
-                            Console.WriteLine($"[NETWORK] + ZŁAPANO ({identifiers.Count}/{maxItemsToExtract}): CID {foundId.Cid}");
-                            failedClicksStreak = 0; // Reset licznika błędów
+                            identifiers.Add(new GoogleProductIdentifier(cid, gid));
                         }
-                        successfulClicks++;
                     }
-                    else
-                    {
-                        // Timeout
-                        failedClicksStreak++;
-                    }
-                }
-                catch (Exception)
-                {
-                    // Ignorujemy błędy, jedziemy dalej
-                    failedClicksStreak++;
                 }
             }
 
-            // Sprzątanie
-            _page.Request -= requestHandler;
-            await _page.SetRequestInterceptionAsync(false);
+            Console.WriteLine($"[Scraper] Zakończono parsowanie. Unikalnych produktów: {identifiers.Count}.");
 
-            Console.WriteLine($"[Scraper] Zakończono. Zebrano łącznie: {identifiers.Count}. Czekam 1s...");
-            await Task.Delay(1000);
+            // Krótkie opóźnienie dla bezpieczeństwa (anty-ban)
+            await Task.Delay(2000);
 
             return ScraperResult<List<GoogleProductIdentifier>>.Success(identifiers);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Błąd: {ex.Message}");
+            Console.WriteLine($"Błąd parsowania: {ex.Message}");
             return ScraperResult<List<GoogleProductIdentifier>>.Fail($"Błąd: {ex.Message}", identifiers);
         }
     }
@@ -354,7 +327,10 @@ public class GoogleScraper
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Rozpoczynam zbieranie URL-i z API dla CID: {cid}, GID: {gid}");
         var allStoreUrls = new List<string>();
 
-        string urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{gid},catalogid:{cid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
+        //string urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{gid},catalogid:{cid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
+
+        //bez gid ktore generuje wyniki wiazane
+        string urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{cid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
 
         int startIndex = 0;
         const int pageSize = 10;
