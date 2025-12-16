@@ -707,31 +707,19 @@
             const currentButton = this.querySelector('.simulate-change-btn');
 
             if (item.anyPromoActive && !allegroMarginSettings.allegroChangePriceForBagdeInCampaign) {
-                showGlobalNotification(
-                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p>
-                   <p>Oferta jest w Kampanii Allegro. Zmiana jest zablokowana w ustawieniach symulacji.</p>`
-                );
+                showGlobalNotification(`<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p><p>Oferta jest w Kampanii Allegro.</p>`);
                 return;
             }
             if (item.myIsSuperPrice && !allegroMarginSettings.allegroChangePriceForBagdeSuperPrice) {
-                showGlobalNotification(
-                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p>
-                   <p>Oferta ma oznaczenie "Super Cena". Zmiana jest zablokowana w ustawieniach symulacji.</p>`
-                );
+                showGlobalNotification(`<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p><p>Oferta ma oznaczenie "Super Cena".</p>`);
                 return;
             }
             if (item.myIsTopOffer && !allegroMarginSettings.allegroChangePriceForBagdeTopOffer) {
-                showGlobalNotification(
-                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p>
-                   <p>Oferta ma oznaczenie "Top Oferta". Zmiana jest zablokowana w ustawieniach symulacji.</p>`
-                );
+                showGlobalNotification(`<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p><p>Oferta ma oznaczenie "Top Oferta".</p>`);
                 return;
             }
             if (item.myIsBestPriceGuarantee && !allegroMarginSettings.allegroChangePriceForBagdeBestPriceGuarantee) {
-                showGlobalNotification(
-                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p>
-                   <p>Oferta ma "Gwarancję Najniższej Ceny". Zmiana jest zablokowana w ustawieniach symulacji.</p>`
-                );
+                showGlobalNotification(`<p style="margin:8px 0; font-weight:bold;">Zmiana ceny zablokowana</p><p>Oferta ma "Gwarancję Najniższej Ceny".</p>`);
                 return;
             }
 
@@ -740,24 +728,27 @@
                 return;
             }
 
-            if (allegroMarginSettings.useMarginForSimulation) {
-                if (item.marginPrice == null) {
-                    showGlobalNotification(
-                        `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                       <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
-                    );
-                    return;
-                }
+            if (allegroMarginSettings.useMarginForSimulation && item.marginPrice == null) {
+                showGlobalNotification(
+                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                     <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
+                );
+                return;
+            }
 
+            let finalMargin = null;
+
+            if (item.marginPrice != null) {
                 const marginPrice = parseFloat(item.marginPrice);
                 const commission = allegroMarginSettings.includeCommissionInPriceChange && item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : 0;
+
                 const newNetPrice = suggestedPrice - commission;
                 const newMarginAmount = newNetPrice - marginPrice;
                 const newMarginPercentage = (marginPrice !== 0) ? (newMarginAmount / marginPrice) * 100 : 0;
 
-                const basePriceForOldMargin = item.apiAllegroPriceFromUser != null ?
-                    parseFloat(item.apiAllegroPriceFromUser) :
-                    currentPriceValue;
+                finalMargin = newMarginPercentage;
+
+                const basePriceForOldMargin = item.apiAllegroPriceFromUser != null ? parseFloat(item.apiAllegroPriceFromUser) : currentPriceValue;
 
                 let oldMarginPercentage = -Infinity;
                 if (basePriceForOldMargin != null) {
@@ -768,24 +759,39 @@
 
                 const minMarginPerc = allegroMarginSettings.minimalMarginPercent;
 
-                if (allegroMarginSettings.enforceMinimalMargin && minMarginPerc >= 0) {
+                const isValidImprovement = (oldMarginPercentage !== -Infinity) &&
+                    (oldMarginPercentage < minMarginPerc) &&
+                    (newMarginPercentage > oldMarginPercentage);
+
+                if (minMarginPerc > 0) {
                     if (newMarginPercentage < minMarginPerc) {
-                        if (!(oldMarginPercentage < minMarginPerc && newMarginPercentage > oldMarginPercentage)) {
+                        if (!isValidImprovement) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                               <p>Nowa cena <strong>${formatPricePL(suggestedPrice)}</strong> ustawi narzut (<strong>${newMarginPercentage.toFixed(2)}%</strong>) poniżej wymaganego minimum (<strong>${minMarginPerc}%</strong>).</p>
-                               <p>Obecny narzut: ${oldMarginPercentage !== Infinity ? oldMarginPercentage.toFixed(2) + '%' : 'N/A'}. Cena zakupu: <strong>${formatPricePL(marginPrice)}</strong>.</p>`
+                                 <p>Nowa cena <strong>${formatPricePL(suggestedPrice)}</strong> ustawi narzut (<strong>${newMarginPercentage.toFixed(2)}%</strong>) poniżej wymaganego minimum (<strong>${minMarginPerc}%</strong>).</p>`
                             );
                             return;
                         }
                     }
-                } else if (allegroMarginSettings.enforceMinimalMargin && minMarginPerc < 0) {
-                    if (newMarginPercentage < minMarginPerc) {
-                        if (!(oldMarginPercentage < minMarginPerc && newMarginPercentage > oldMarginPercentage)) {
+                }
+
+                else if (allegroMarginSettings.enforceMinimalMargin) {
+
+                    if (newMarginPercentage < 0 && minMarginPerc >= 0) {
+                        if (!isValidImprovement) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
-                               <p>Nowa cena <strong>${formatPricePL(suggestedPrice)}</strong> spowoduje stratę (<strong>${newMarginPercentage.toFixed(2)}%</strong>) większą niż dozwolony próg (<strong>${minMarginPerc}%</strong>).</p>
-                               <p>Obecny narzut: ${oldMarginPercentage !== Infinity ? oldMarginPercentage.toFixed(2) + '%' : 'N/A'}. Cena zakupu: <strong>${formatPricePL(marginPrice)}</strong>.</p>`
+                                 <p>Nowa cena spowoduje stratę (<strong>${newMarginPercentage.toFixed(2)}%</strong>). Blokada sprzedaży poniżej ceny zakupu.</p>`
+                            );
+                            return;
+                        }
+                    }
+
+                    if (minMarginPerc < 0 && newMarginPercentage < minMarginPerc) {
+                        if (!isValidImprovement) {
+                            showGlobalNotification(
+                                `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+                                 <p>Nowa cena spowoduje stratę (<strong>${newMarginPercentage.toFixed(2)}%</strong>) większą niż dozwolona (<strong>${minMarginPerc}%</strong>).</p>`
                             );
                             return;
                         }
@@ -794,7 +800,6 @@
             }
 
             const modeApplied = currentViewMode;
-
             let stepPriceToSave = null;
             let stepUnitToSave = null;
             let indexTargetToSave = null;
@@ -819,7 +824,6 @@
                     newPrice: suggestedPrice,
                     storeId: storeId,
                     scrapId: currentScrapId,
-
                     stepPriceApplied: stepPriceToSave,
                     stepUnitApplied: stepUnitToSave,
                     mode: modeApplied,
@@ -849,6 +853,11 @@
             let message = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Zmiana ceny dodana</p>`;
             message += `<p style="margin:4px 0;"><strong>Produkt:</strong> ${productName}</p>`;
             message += `<p style="margin:4px 0;"><strong>Nowa cena:</strong> ${formatPricePL(suggestedPrice)}</p>`;
+
+            if (finalMargin !== null) {
+                message += `<p style="margin:4px 0;"><strong>Nowy narzut:</strong> ${finalMargin.toFixed(2)}%</p>`;
+            }
+
             showGlobalUpdate(message);
         });
 
@@ -2271,12 +2280,10 @@
         let indexTargetToSave = null;
 
         if (modeApplied === 'profit') {
-
             indexTargetToSave = setPriceIndexTarget;
             stepPriceToSave = null;
             stepUnitToSave = null;
         } else {
-
             stepPriceToSave = setStepPrice;
             const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
             stepUnitToSave = currentUsePriceDifference ? 'PLN' : '%';
@@ -2333,20 +2340,12 @@
 
             const suggestedPrice = suggestionData.suggestedPrice;
             const currentPriceValue = item.myPrice != null ? parseFloat(item.myPrice) : null;
-            const basePriceForChangeCalc = item.apiAllegroPriceFromUser != null ? parseFloat(item.apiAllegroPriceFromUser) : currentPriceValue;
 
             let requiredField = '';
             let requiredLabel = '';
             switch (allegroMarginSettings.identifierForSimulation) {
-                case 'ID':
-                    requiredField = item.myIdAllegro;
-                    requiredLabel = "ID";
-                    break;
-                case 'EAN':
-                default:
-                    requiredField = item.ean;
-                    requiredLabel = "EAN";
-                    break;
+                case 'ID': requiredField = item.myIdAllegro; requiredLabel = "ID"; break;
+                case 'EAN': default: requiredField = item.ean; requiredLabel = "EAN"; break;
             }
             if (!requiredField || requiredField.toString().trim() === "") {
                 countRejected++;
@@ -2354,13 +2353,13 @@
                 return;
             }
 
-            if (allegroMarginSettings.useMarginForSimulation) {
-                if (item.marginPrice == null) {
-                    countRejected++;
-                    rejectionReasons['Brak ceny zakupu'] = (rejectionReasons['Brak ceny zakupu'] || 0) + 1;
-                    return;
-                }
+            if (allegroMarginSettings.useMarginForSimulation && item.marginPrice == null) {
+                countRejected++;
+                rejectionReasons['Brak ceny zakupu (wymagane)'] = (rejectionReasons['Brak ceny zakupu (wymagane)'] || 0) + 1;
+                return;
+            }
 
+            if (item.marginPrice != null) {
                 const marginPrice = parseFloat(item.marginPrice);
                 const commission = allegroMarginSettings.includeCommissionInPriceChange && item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : 0;
 
@@ -2368,26 +2367,46 @@
                 const newMarginAmount = newNetPrice - marginPrice;
                 const newMarginPercentage = (marginPrice !== 0) ? (newMarginAmount / marginPrice) * 100 : 0;
 
+                const basePriceForOldMargin = item.apiAllegroPriceFromUser != null ? parseFloat(item.apiAllegroPriceFromUser) : currentPriceValue;
+
                 let oldMarginPercentage = -Infinity;
-                if (basePriceForChangeCalc != null) {
-                    const oldNetPrice = basePriceForChangeCalc - commission;
+                if (basePriceForOldMargin != null) {
+                    const oldNetPrice = basePriceForOldMargin - commission;
                     const oldMarginAmount = oldNetPrice - marginPrice;
                     oldMarginPercentage = (marginPrice !== 0) ? (oldMarginAmount / marginPrice) * 100 : Infinity;
                 }
 
                 const minMarginPerc = allegroMarginSettings.minimalMarginPercent;
 
-                if (allegroMarginSettings.enforceMinimalMargin && minMarginPerc >= 0) {
+                const isValidImprovement = (oldMarginPercentage !== -Infinity) &&
+                    (oldMarginPercentage < minMarginPerc) &&
+                    (newMarginPercentage > oldMarginPercentage);
+
+                if (minMarginPerc > 0) {
                     if (newMarginPercentage < minMarginPerc) {
-                        if (!(oldMarginPercentage < minMarginPerc && newMarginPercentage > oldMarginPercentage)) {
+                        if (!isValidImprovement) {
                             countRejected++;
-                            rejectionReasons['Zbyt niski narzut'] = (rejectionReasons['Zbyt niski narzut'] || 0) + 1;
+                            rejectionReasons[`Zbyt niski narzut (< ${minMarginPerc}%)`] = (rejectionReasons[`Zbyt niski narzut (< ${minMarginPerc}%)`] || 0) + 1;
                             return;
                         }
                     }
-                } else if (allegroMarginSettings.enforceMinimalMargin && minMarginPerc < 0) {
-                    if (newMarginPercentage < minMarginPerc) {
-                        if (!(oldMarginPercentage < minMarginPerc && newMarginPercentage > oldMarginPercentage)) {
+                }
+
+                else if (allegroMarginSettings.enforceMinimalMargin) {
+
+                    if (newMarginPercentage < 0) {
+
+                        if (minMarginPerc >= 0) {
+                            if (!isValidImprovement) {
+                                countRejected++;
+                                rejectionReasons['Ujemny narzut'] = (rejectionReasons['Ujemny narzut'] || 0) + 1;
+                                return;
+                            }
+                        }
+                    }
+
+                    if (minMarginPerc < 0 && newMarginPercentage < minMarginPerc) {
+                        if (!isValidImprovement) {
                             countRejected++;
                             rejectionReasons['Przekroczona strata'] = (rejectionReasons['Przekroczona strata'] || 0) + 1;
                             return;
@@ -2404,7 +2423,6 @@
                     newPrice: suggestedPrice,
                     storeId: storeId,
                     scrapId: currentScrapId,
-
                     stepPriceApplied: stepPriceToSave,
                     stepUnitApplied: stepUnitToSave,
                     mode: modeApplied,
@@ -2418,17 +2436,14 @@
         refreshPriceBoxStates();
 
         let summaryHtml = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Masowa zmiana zakończona!</p>`;
-
         const modeName = modeApplied === 'profit' ? 'Rentowność' : 'Lider Rynku';
         summaryHtml += `<p>Tryb: <strong>${modeName}</strong></p>`;
-
         summaryHtml += `<p>Przeanalizowano: <strong>${productsToChange.length}</strong> SKU</p>
-                      <p>Dodano nowych zmian: <strong>${countAdded}</strong> SKU</p>`;
+                        <p>Dodano nowych zmian: <strong>${countAdded}</strong> SKU</p>`;
 
         if (countSkipped > 0) {
             summaryHtml += `<p>Pominięto (już w koszyku): <strong>${countSkipped}</strong> SKU</p>`;
         }
-
         summaryHtml += `<p>Odrzucono: <strong>${countRejected}</strong> SKU</p>`;
 
         if (countRejected > 0) {
