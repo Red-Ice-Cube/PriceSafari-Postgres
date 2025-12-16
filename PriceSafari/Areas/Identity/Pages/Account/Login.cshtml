@@ -8,36 +8,142 @@
 }
 
 
-
 <div class="main-page">
+
     <div class="partner-banner">
-        <a href="https://pricesafari.pl/">
-            <img id="homeBanner" src="~/images/Home-Banner-L.gif" alt="Price Safari">
-            <img id="preloadedImage" src="~/images/Home-Banner-L.png" alt="Preloaded Frame" style="display: none;">
-        </a>
+        <div class="banner-content-wrapper">
 
+            <div class="content-section">
+                <div class="section-header">
+                    <h3 class="section-title">Narzędzie PriceSafari</h3>
+                </div>
 
+                <p class="intro-text">
+                    PriceSafari to narzędzie automatyzujące monitoring cen produktów w sieci. Zbieramy dane z marketplace'ów i e-sklepów tak często, jak tego potrzebujesz.
+                    Spojrzenie na cały rynek z jednego panelu pozwoli Ci strategicznie zarządzać cenami.
+                </p>
+
+                <div class="platforms-grid">
+                    <a href="https://pricesafari.pl/home/GoogleShoppingMonitoring" class="platform-card">
+                        <div class="card-icon">
+                            <img src="~/images/GoogleShopping.png" alt="Google">
+                        </div>
+                        <div class="card-text-wrapper">
+                            <div class="card-title">Monitoring cen na Google</div>
+                            <div class="card-desc">Monitoruj oferty w Google Shopping. Optymalizuj ceny i zwiększaj sprzedaż dzięki precyzyjnym danym.</div>
+                        </div>
+                    </a>
+
+                    <a href="https://pricesafari.pl/home/CeneoMonitoring" class="platform-card">
+                        <div class="card-icon">
+                            <img src="~/images/Ceneo.png" alt="Ceneo">
+                        </div>
+                        <div class="card-text-wrapper">
+                            <div class="card-title">Monitoring cen na Ceneo</div>
+                            <div class="card-desc">Dynamicznie zarządzaj ofertami. Zoptymalizowane ceny to lepsze marże i większy wolumen sprzedaży na Ceneo.</div>
+                        </div>
+                    </a>
+
+                    <a href="https://pricesafari.pl/home/AllegroMonitoring" class="platform-card">
+                        <div class="card-icon">
+                            <img src="~/images/AllegroIcon.png" alt="Allegro">
+                        </div>
+                        <div class="card-text-wrapper">
+                            <div class="card-title">Monitoring cen na Allegro</div>
+                            <div class="card-desc">Najlepszy w swojej klasie model monitoringu Allegro. Zbieramy też dane sprzedażowe - Twoje i konkurencji.</div>
+                        </div>
+                    </a>
+
+                    <a href="https://pricesafari.pl/home/PriceRaports" class="platform-card">
+                        <div class="card-icon">
+                            <img src="~/images/Europa.png" alt="EU">
+                        </div>
+                        <div class="card-text-wrapper">
+                            <div class="card-title">Analizy cen w Europie</div>
+                            <div class="card-desc">Badaj ceny na zagranicznych rynkach. Weryfikuj opłacalność ofert handlowych oraz odkrywaj nowe możliwości.</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <div class="section-header">
+                    <h3 class="section-title">Co nowego?</h3>
+                    <span class="update-badge">UPDATE | GrudzIE/span>
+                </div>
+
+                <div class="news-desc">
+                    Dodaliśmy w Panelu PriceSafari <strong>segmentację produktów</strong>. Teraz bazując na grupie produktów możesz wybrać jedną z dwóch strategii:
+                </div>
+
+                <div class="strategies-container">
+                    <div class="strategy-row">
+                        <div class="strategy-icon icon-leader">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <div class="strategy-text">
+                            <strong>Lider Rynku</strong>
+                            <span>Strategia maksymalizacji wolumenu sprzedaży (Traffic Bringers)</span>
+                        </div>
+                    </div>
+
+                    <div class="strategy-row">
+                        <div class="strategy-icon icon-profit">
+                            <i class="fa-solid fa-dollar-sign"></i>
+                        </div>
+                        <div class="strategy-text">
+                            <strong>Rentowność</strong>
+                            <span>Strategia optymalizacji marży i zysku (Basket Builders)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <div class="section-header">
+                    <h3 class="section-title">Wydarzenia</h3>
+                </div>
+
+                <div class="event-card">
+
+                    <div class="event-image-wrapper">
+                        <img src="https://cap.warsawexpo.eu/public/uploads/domains/etradeshow-pl/partners/europe-event/eTrade%20Show%20(Warszawa,%20Polska)%20-%20eTrade%20Show%20(Warsaw,%20Poland).webp" alt="e-Trade Show Warsaw">
+                    </div>
+
+                    <div class="event-content">
+                        <h4>Widzimy się na e-Trade Show?</h4>
+                        <div class="date-tag">27-29 Stycznia 2026</div>
+                        <p>
+                            Spotkaj się z nami osobiście na Ptak Warsaw Expo.
+                            Odwiedź stoisko <span class="highlight-text">E.2.24a</span>, napijmy się kawy i porozmawiajmy.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
     </div>
+
     <div class="login">
         <div class="heat-lead"></div>
 
-
-            <form id="account" method="post" class="login-box">
-            <div class="login-box-head">  <div class="login-box-title">Logowanie</div>
-                
+        <form id="account" method="post" class="login-box">
+            <div class="login-box-head">
+                <div class="login-box-title">Logowanie do Panelu</div>
             </div>
-               
-                <div class="form-floating">
-                    <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                    <label asp-for="Input.Email" class="form-label">Email</label>
-                    <span asp-validation-for="Input.Email" class="text-danger"></span>
-                </div>
-                <div class="form-floating">
-                    <input asp-for="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
-                    <label asp-for="Input.Password" class="form-label">Hasło</label>
-                    <span asp-validation-for="Input.Password" class="text-danger"></span>
-                </div>
-                
+
+            <div class="form-floating">
+                <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
+                <label asp-for="Input.Email" class="form-label">Email</label>
+                <span asp-validation-for="Input.Email" class="text-danger"></span>
+            </div>
+            <div class="form-floating">
+                <input asp-for="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
+                <label asp-for="Input.Password" class="form-label">Hasło</label>
+                <span asp-validation-for="Input.Password" class="text-danger"></span>
+            </div>
+
             <div class="other-function">
                 <div class="checkbox">
                     <label asp-for="Input.RememberMe" class="form-label">
@@ -45,48 +151,19 @@
                         @Html.DisplayNameFor(m => m.Input.RememberMe)
                     </label>
                 </div>
-                <a id="forgot-password"class="links" asp-page="./ForgotPassword">Zapomniałeś hasła?</a>
+                <a id="forgot-password" class="links" asp-page="./ForgotPassword">Zapomniałeś hasła?</a>
             </div>
-              
-                <button id="login-submit" type="submit" class="login-button">Zaloguj się</button>
+
+            <button id="login-submit" type="submit" class="login-button">Zaloguj się</button>
             <div asp-validation-summary="ModelOnly" class="validation-summary-errors" role="alert"></div>
-            </form>
-
-
+        </form>
 
         <a href="https://pricesafari.pl/">
-                <img src="~/images homepage/PriceSafari.png" alt="PriceSafari" class="price-safari" sstyle="cursor: pointer; ">
-            </a>
-      
-       
+            <img src="~/images homepage/PriceSafari.png" alt="PriceSafari" class="price-safari" style="cursor: pointer;">
+        </a>
+
     </div>
 </div>
-
-
-<script>
-    function freezeGif() {
-        var banner = document.getElementById("homeBanner");
-        var frozenFrameSrc = banner.src.replace('.gif', '.png');
-
-
-        var preloadedImage = document.getElementById("preloadedImage");
-
-        if (preloadedImage.complete) {
-
-            banner.src = frozenFrameSrc;
-        } else {
-
-            preloadedImage.onload = function () {
-                banner.src = frozenFrameSrc;
-            };
-        }
-    }
-
-    setTimeout(freezeGif, 5000);
-
-</script>
-
-
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
