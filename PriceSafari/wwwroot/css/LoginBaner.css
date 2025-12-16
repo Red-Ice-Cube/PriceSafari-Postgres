@@ -254,7 +254,7 @@
 
 /* Wrapper na obrazek - sztywne wymiary */
 .event-image-wrapper {
-    width: 160px;
+    width: 190px;
     height: 120px;
     background-color: #101010; /* Ciemne tło zgodnie z życzeniem */
     border-radius: 8px;
@@ -298,6 +298,119 @@
     line-height: 1.5;
     margin: 0;
 }
+
+
+/* --- NOWE STYLE DLA ROZBUDOWANEJ SEKCJI WYDARZEŃ --- */
+
+/* Przycisk LinkedIn w nagłówku */
+.linkedin-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #f0f2f5; /* Jasny szary LinkedInowy */
+    color: #0a66c2; /* Kolor brandowy LinkedIn */
+    padding: 6px 12px;
+    border-radius: 20px; /* Pastylka */
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+    .linkedin-btn:hover {
+        background-color: #e1e9f1;
+        color: #004182;
+        transform: translateY(-1px);
+    }
+
+    .linkedin-btn i {
+        font-size: 1rem;
+    }
+
+/* Nagłówki podsekcji (Nadchodzące / Minione) */
+.sub-event-header {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #999;
+    margin: 24px 0 12px 0;
+    font-weight: 700;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+}
+
+    /* Pierwszy nagłówek nie potrzebuje marginesu z góry */
+    .sub-event-header:first-of-type {
+        margin-top: 0;
+    }
+
+/* --- STYLIZACJA WIDEO (WEBINAR) --- */
+
+/* Wrapper wideo - dziedziczy wymiary z event-image-wrapper, ale ma specyficzne cechy */
+.video-thumbnail {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000; /* Ciemne tło pod film */
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+    .video-thumbnail:hover .play-icon-circle {
+        transform: scale(1.1);
+        background: #ff0000; /* YouTube Red po najechaniu */
+        border-color: #ff0000;
+    }
+
+/* Kółko z ikoną play */
+.play-icon-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    transition: all 0.3s ease;
+    z-index: 2;
+}
+
+    .play-icon-circle i {
+        font-size: 14px;
+        margin-left: 2px; /* Lekka korekta optyczna dla trójkąta play */
+    }
+
+/* Zdjęcie w tle wideo (opcjonalnie przyciemnione) */
+.video-bg-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.7;
+}
+
+/* Lista prelegentów */
+.speakers-info {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 8px;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+    .speakers-info strong {
+        color: var(--text-dark);
+        font-style: normal;
+        font-weight: 600;
+    }
 
 @media (max-width: 1200px) {
     .partner-banner {
