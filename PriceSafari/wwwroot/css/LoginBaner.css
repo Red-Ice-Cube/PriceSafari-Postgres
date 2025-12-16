@@ -130,6 +130,9 @@
     font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
+    height:33px;
+    justify-content:center;
+    align-content:center;
 }
 
 .news-desc {
