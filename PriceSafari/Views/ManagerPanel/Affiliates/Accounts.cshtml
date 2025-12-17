@@ -41,6 +41,7 @@
                         <tr>
                             <th scope="col">Użytkownicy (<span id="accountsCount">0</span>)</th>
                             <th scope="col">Kod</th>
+                            <th scope="col">Sklepy</th>
                             <th scope="col">Weryfikacja</th>
                             <th scope="col">Status</th>
                             <th scope="col">Logowania</th>
@@ -55,7 +56,6 @@
                             <tr data-codepar="@affiliate.CodePAR">
                                 <td>
                                     @affiliate.Name @affiliate.Surname
-
                                     @if (affiliate.Role.Contains("PreMember") && affiliate.HasSubmittedAnyFeed)
                                     {
                                         <i class="fas fa-exclamation-circle"
@@ -65,6 +65,23 @@
                                 </td>
                                 <td>
                                     @affiliate.CodePAR
+                                </td>
+
+                                <td>
+                                    @if (affiliate.AssignedStores != null && affiliate.AssignedStores.Any())
+                                    {
+                                        // Wyświetlamy sklepy oddzielone przecinkiem lub jako małe tagi
+                                        foreach (var store in affiliate.AssignedStores)
+                                        {
+                                            <span style="background-color: #e0f2f1; color: #00695c; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; margin-right: 4px;">
+                                                @store
+                                            </span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span style="color: #999; font-size: 0.85em;">-</span>
+                                    }
                                 </td>
                                 <td>
                                     @(affiliate.Status ? "Aktywny" : "Zablokowany")

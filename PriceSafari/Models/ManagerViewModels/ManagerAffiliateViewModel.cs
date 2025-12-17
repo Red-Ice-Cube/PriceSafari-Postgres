@@ -24,6 +24,7 @@
         public DateTime? LastLogi { get; set; }
         public int LogCount { get; set; }
         public bool HasSubmittedAnyFeed { get; set; }
+        public List<string> AssignedStores { get; set; }
     }
 
     // DTOs używane dla szczegółowych danych afiliantów

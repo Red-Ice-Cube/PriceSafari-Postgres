@@ -422,7 +422,7 @@ public class GoogleMainPriceScraper
             return finalPriceHistory;
         }
 
-      
+
         //string urlTemplate;
         //if (!string.IsNullOrEmpty(coOfr.GoogleGid))
         //{
