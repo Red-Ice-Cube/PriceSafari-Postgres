@@ -9,7 +9,7 @@
     .top-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-        gap: 24px;
+        gap: 8px;
         align-items: start;
     }
 
@@ -19,16 +19,17 @@
         background-color: #ffffff;
         border: 1px solid #e9ecef;
         border-radius: 8px;
-        padding: 1.5rem;
+        padding:14px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        max-width:500px;
+        gap:16px;
     }
 
     .info-card-header {
         font-size: 1.1rem;
         font-weight: 600;
         color: #343a40;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.75rem;
+        padding-bottom: 8px;
         border-bottom: 1px solid #e9ecef;
     }
 
@@ -36,7 +37,6 @@
         display: flex;
         align-items: center;
         font-size: 14px;
-        margin-bottom: 1.25rem;
         color: #4B4B4B;
         gap: 8px;
     }
@@ -115,6 +115,19 @@
         background-color: #6c757d;
     }
 
+    .stack {
+        display: flex;
+        gap: 8px;
+  height:100%;
+        justify-content: flex-start;
+     
+        align-items: flex-start;
+        flex: 1;
+        align-self: stretch;
+ 
+    
+    }
+
 </style>
 
 <div class="Page-Box">
@@ -126,15 +139,17 @@
             <partial name="_ManageNavCol" />
         </div>
 
-        <div class="Column-Form">
+        <div class="stack">
             @Html.AntiForgeryToken()
-            <div class="campaign-box-head-name" style="font-size: 26px; color: #4B4B4B; font-weight:300; margin-bottom: 2rem;">
-                Konto @Model.UserName @Model.UserSurname
-            </div>
-            <div style="display:flex; gap:24px;">
+           
+            <div style="display:flex; gap:8px;">
                 <div class="top-grid">
                     <div class="info-card">
                         <div class="info-card-header">Dane podstawowe</div>
+                        <div class="info-line">
+                            <div class="info-line-icon"><img src="~/images/Affiliate.svg" /></div>
+                            <strong>Imie i Nazwisko:</strong> <span>@Model.UserName @Model.UserSurname</span>
+                        </div>
                         <div class="info-line">
                             <div class="info-line-icon"><img src="~/images/Affiliate.svg" /></div>
                             <strong>Kod Partnera:</strong> <span>@Model.UserCode</span>
