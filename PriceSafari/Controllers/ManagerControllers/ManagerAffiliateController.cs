@@ -74,6 +74,13 @@ namespace PriceSafari.Controllers.ManagerControllers
                 .OrderByDescending(u => u.CreationDate)
                 .ToListAsync();
 
+            // --- NOWY KOD: Pobranie przypisań sklepów ---
+            // Pobieramy tabelę łączącą UserStores wraz z danymi sklepu (StoreClass)
+            var allUserStores = await _context.UserStores
+                .Include(us => us.StoreClass)
+                .ToListAsync();
+            // --------------------------------------------
+
             var filteredUsers = new List<PriceSafariUser>();
             foreach (var user in allUsers)
             {
@@ -99,7 +106,16 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 HasSubmittedAnyFeed = !string.IsNullOrEmpty(user.PendingStoreNameCeneo) ||
                           !string.IsNullOrEmpty(user.PendingStoreNameGoogle) ||
-                          !string.IsNullOrEmpty(user.PendingStoreNameAllegro)
+                          !string.IsNullOrEmpty(user.PendingStoreNameAllegro),
+
+                // --- NOWY KOD: Przypisanie sklepów ---
+                // Filtrujemy listę pobraną wcześniej, aby znaleźć sklepy tego konkretnego usera
+                AssignedStores = allUserStores
+                    .Where(us => us.UserId == user.Id)
+                    .Select(us => us.StoreClass.StoreName) // Zakładam, że pole z nazwą to 'Name'. Jeśli to np. 'StoreName', zmień tutaj.
+                    .ToList()
+                // -------------------------------------
+
             }).ToList();
 
             var model = new ManagerAffiliateViewModel

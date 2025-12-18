@@ -354,12 +354,10 @@
         let indexTargetToSave = null;
 
         if (modeApplied === 'profit') {
-
             indexTargetToSave = setPriceIndexTarget;
             stepPriceToSave = null;
             stepUnitToSave = null;
         } else {
-
             stepPriceToSave = setStepPrice;
             const currentUsePriceDifference = document.getElementById('usePriceDifference').checked;
             stepUnitToSave = currentUsePriceDifference ? 'PLN' : '%';
@@ -397,7 +395,6 @@
             }
 
             const suggestedPrice = suggestionData.suggestedPrice;
-
             const currentPriceValue = item.myPrice != null ? parseFloat(item.myPrice) : 0;
 
             let requiredField = '';
@@ -413,12 +410,13 @@
                 return;
             }
 
-            if (marginSettings.useMarginForSimulation) {
-                if (item.marginPrice == null) {
-                    countRejected++;
-                    rejectionReasons['Brak ceny zakupu'] = (rejectionReasons['Brak ceny zakupu'] || 0) + 1;
-                    return;
-                }
+            if (marginSettings.useMarginForSimulation && item.marginPrice == null) {
+                countRejected++;
+                rejectionReasons['Brak ceny zakupu (wymagane ustawieniami)'] = (rejectionReasons['Brak ceny zakupu (wymagane ustawieniami)'] || 0) + 1;
+                return;
+            }
+
+            if (item.marginPrice != null) {
 
                 const getNetPrice = (grossPrice) => {
                     if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
@@ -437,13 +435,16 @@
 
                 if (marginSettings.minimalMarginPercent > 0) {
                     if (newMargin < marginSettings.minimalMarginPercent) {
+
                         if (!(oldMargin < marginSettings.minimalMarginPercent && newMargin > oldMargin)) {
                             countRejected++;
-                            rejectionReasons['Zbyt niski narzut'] = (rejectionReasons['Zbyt niski narzut'] || 0) + 1;
+                            rejectionReasons[`Zbyt niski narzut (< ${marginSettings.minimalMarginPercent}%)`] = (rejectionReasons[`Zbyt niski narzut (< ${marginSettings.minimalMarginPercent}%)`] || 0) + 1;
                             return;
                         }
                     }
-                } else if (marginSettings.enforceMinimalMargin) {
+                }
+
+                else if (marginSettings.enforceMinimalMargin) {
                     if (newMargin < 0) {
                         if (!(oldMargin < 0 && newMargin > oldMargin)) {
                             countRejected++;
@@ -451,6 +452,7 @@
                             return;
                         }
                     }
+
                     if (marginSettings.minimalMarginPercent < 0 && newMargin < marginSettings.minimalMarginPercent) {
                         countRejected++;
                         rejectionReasons['Przekroczona strata'] = (rejectionReasons['Przekroczona strata'] || 0) + 1;
@@ -464,19 +466,15 @@
             const priceChangeEvent = new CustomEvent('priceBoxChange', {
                 detail: {
                     productId: String(item.productId),
-
                     productName: item.productName,
                     currentPrice: currentPriceValue,
                     newPrice: suggestedPrice,
                     storeId: storeId,
                     scrapId: safeScrapId,
-
                     marginPrice: item.marginPrice,
-
                     mode: modeApplied,
                     indexTarget: indexTargetToSave,
                     priceIndexTarget: indexTargetToSave,
-
                     stepPriceApplied: stepPriceToSave,
                     stepUnitApplied: stepUnitToSave
                 }
@@ -489,9 +487,9 @@
         refreshPriceBoxStates();
 
         let summaryHtml = `<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Masowa zmiana zakończona!</p>
-                        <p>Tryb: <strong>${modeApplied === 'profit' ? 'Maksymalny Zysk' : 'Konkurencja'}</strong></p>
-                        <p>Przeanalizowano: <strong>${productsToChange.length}</strong> SKU</p>
-                        <p>Dodano nowych zmian: <strong>${countAdded}</strong> SKU</p>`;
+                           <p>Tryb: <strong>${modeApplied === 'profit' ? 'Maksymalny Zysk' : 'Konkurencja'}</strong></p>
+                           <p>Przeanalizowano: <strong>${productsToChange.length}</strong> SKU</p>
+                           <p>Dodano nowych zmian: <strong>${countAdded}</strong> SKU</p>`;
 
         if (countSkipped > 0) {
             summaryHtml += `<p"><strong>Pominięto (już dodane): ${countSkipped} SKU</strong></p>`;
@@ -1585,7 +1583,6 @@
     }
 
 
-
     function attachPriceChangeListener(actionLine, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
 
         let requiredField = '';
@@ -1630,14 +1627,15 @@
             let finalMargin = null;
             let formattedMarginInfo = '';
 
-            if (marginSettings.useMarginForSimulation) {
-                if (item.marginPrice == null) {
-                    showGlobalNotification(
-                        `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
+            if (marginSettings.useMarginForSimulation && item.marginPrice == null) {
+                showGlobalNotification(
+                    `<p style="margin:8px 0; font-weight:bold;">Zmiana ceny nie została dodana</p>
                      <p>Symulacja cenowa z narzutem jest włączona – produkt musi posiadać cenę zakupu.</p>`
-                    );
-                    return;
-                }
+                );
+                return;
+            }
+
+            if (item.marginPrice != null) {
 
                 const getNetPrice = (grossPrice) => {
                     if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
@@ -1657,12 +1655,8 @@
 
                 finalMargin = newMargin;
 
-                let suggestedPriceMsg = formatPricePL(suggestedPrice);
-                if (marginSettings.usePriceWithDelivery && item.myPriceIncludesDelivery) {
-                    suggestedPriceMsg += ` (z dostawą) | ${formatPricePL(newNetPrice)} (bez dostawy)`;
-                }
-
                 if (marginSettings.minimalMarginPercent > 0) {
+
                     if (newMargin < marginSettings.minimalMarginPercent) {
 
                         if (!(oldMargin < marginSettings.minimalMarginPercent && newMargin > oldMargin)) {
@@ -1672,21 +1666,21 @@
 
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana odrzucona (Narzut)</p>
-                             <p>${reason}</p>
-                             <p>Cena zakupu: <strong>${formatPricePL(item.marginPrice)}</strong></p>`
+                                 <p>${reason}</p>
+                                 <p>Cena zakupu: <strong>${formatPricePL(item.marginPrice)}</strong></p>`
                             );
                             return;
                         }
                     }
                 }
-
                 else if (marginSettings.enforceMinimalMargin) {
+
                     if (newMargin < 0) {
                         if (!(oldMargin < 0 && newMargin > oldMargin)) {
                             showGlobalNotification(
                                 `<p style="margin:8px 0; font-weight:bold;">Zmiana odrzucona (Strata)</p>
-                             <p>Nowa cena generuje ujemny narzut: <strong>${newMargin}%</strong>.</p>
-                             <p>Cena zakupu: <strong>${formatPricePL(item.marginPrice)}</strong></p>`
+                                 <p>Nowa cena generuje ujemny narzut: <strong>${newMargin}%</strong>.</p>
+                                 <p>Cena zakupu: <strong>${formatPricePL(item.marginPrice)}</strong></p>`
                             );
                             return;
                         }
@@ -1695,7 +1689,7 @@
                     if (marginSettings.minimalMarginPercent < 0 && newMargin < marginSettings.minimalMarginPercent) {
                         showGlobalNotification(
                             `<p style="margin:8px 0; font-weight:bold;">Zmiana odrzucona (Zbyt duża strata)</p>
-                         <p>Narzut <strong>${newMargin}%</strong> przekracza dopuszczalną stratę (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>`
+                             <p>Narzut <strong>${newMargin}%</strong> przekracza dopuszczalną stratę (<strong>${marginSettings.minimalMarginPercent}%</strong>).</p>`
                         );
                         return;
                     }
@@ -1709,17 +1703,13 @@
             let indexTargetToSave = null;
 
             if (modeApplied === 'profit') {
-
                 indexTargetToSave = setPriceIndexTarget;
-
                 stepPriceToSave = null;
                 stepUnitToSave = null;
             } else {
-
                 stepPriceToSave = setStepPrice;
                 const useDiff = document.getElementById('usePriceDifference');
                 stepUnitToSave = (useDiff && useDiff.checked) ? 'PLN' : '%';
-
                 indexTargetToSave = null;
             }
 
@@ -1732,7 +1722,6 @@
                     storeId: storeId,
                     scrapId: item.scrapId,
                     marginPrice: item.marginPrice,
-
                     mode: modeApplied,
                     stepPriceApplied: stepPriceToSave,
                     stepUnitApplied: stepUnitToSave,
@@ -1766,9 +1755,9 @@
 
             message += `<p style="margin:4px 0;"><strong>${displayPriceLabel}:</strong> ${newPriceFormatted}</p>`;
 
-            if (marginSettings.useMarginForSimulation && finalMargin !== null) {
+            if (finalMargin !== null) {
                 message += `<p style="margin:4px 0;"><strong>Nowy narzut:</strong> ${finalMargin.toFixed(2)}%</p>`;
-                message += `<p style="margin:4px 0; font-size: 0.9em; color:#555;">(Cena zakupu: ${formatPricePL(item.marginPrice)})</p>`;
+
             }
 
             showGlobalUpdate(message);
@@ -1779,7 +1768,6 @@
         );
 
         if (existingChange) {
-
             activateChangeButton(
                 button,
                 actionLine,
@@ -1788,11 +1776,9 @@
                 existingChange.stepUnitApplied,
                 existingChange.mode,
                 existingChange.priceIndexTarget || existingChange.indexTarget
-
             );
         }
     }
-
 
     document.addEventListener('priceBoxChangeRemove', function (event) {
         const { productId } = event.detail;
