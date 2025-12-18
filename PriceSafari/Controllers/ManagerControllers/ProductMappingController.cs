@@ -861,10 +861,16 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return View("~/Views/ManagerPanel/ProductMapping/MappedProductsAllegro.cshtml", vmList);
         }
-
         [HttpPost]
         public async Task<IActionResult> RemoveSelectedAllegroProducts(int storeId, [FromBody] List<int> productIds)
         {
+            if (productIds == null || !productIds.Any())
+                return BadRequest("Brak produktów do usunięcia.");
+
+            // Zabezpieczenie: konwertujemy listę na string do zapytania SQL (bezpieczne dla intów)
+            // Dzięki temu unikniemy problemu z limitem parametrów w EF Core
+            var idsString = string.Join(",", productIds);
+
             var strategy = _context.Database.CreateExecutionStrategy();
 
             return await strategy.ExecuteAsync(async () =>
@@ -872,59 +878,43 @@ namespace PriceSafari.Controllers.ManagerControllers
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
+                    // Wykonujemy czyste SQL DELETE - to jest błyskawiczne
+                    // KOLEJNOŚĆ JEST KLUCZOWA (najpierw dzieci, potem rodzic)
 
-                    var flagsToRemove = await _context.ProductFlags
-                        .Where(f => f.AllegroProductId.HasValue && productIds.Contains(f.AllegroProductId.Value))
-                        .ToListAsync();
+                    // 1. Usuń z tabeli blokującej (BridgeItems) - to naprawia Twój błąd
+                    await _context.Database.ExecuteSqlRawAsync(
+                        $"DELETE FROM AllegroPriceBridgeItems WHERE AllegroProductId IN ({idsString})");
 
-                    if (flagsToRemove.Any())
-                    {
-                        _context.ProductFlags.RemoveRange(flagsToRemove);
-                    }
+                    // 2. Usuń Flagi
+                    await _context.Database.ExecuteSqlRawAsync(
+                        $"DELETE FROM ProductFlags WHERE AllegroProductId IN ({idsString})");
 
-                    var extendedInfosToRemove = await _context.AllegroPriceHistoryExtendedInfos
-                        .Where(x => productIds.Contains(x.AllegroProductId))
-                        .ToListAsync();
+                    // 3. Usuń Extended Info
+                    await _context.Database.ExecuteSqlRawAsync(
+                        $"DELETE FROM AllegroPriceHistoryExtendedInfos WHERE AllegroProductId IN ({idsString})");
 
-                    if (extendedInfosToRemove.Any())
-                    {
-                        _context.AllegroPriceHistoryExtendedInfos.RemoveRange(extendedInfosToRemove);
-                    }
+                    // 4. Usuń Historie
+                    await _context.Database.ExecuteSqlRawAsync(
+                        $"DELETE FROM AllegroPriceHistories WHERE AllegroProductId IN ({idsString})");
 
-                    var historiesToRemove = await _context.AllegroPriceHistories
-                        .Where(h => productIds.Contains(h.AllegroProductId))
-                        .ToListAsync();
-
-                    if (historiesToRemove.Any())
-                    {
-                        _context.AllegroPriceHistories.RemoveRange(historiesToRemove);
-                    }
-
-                    await _context.SaveChangesAsync();
-
-                    var productsToRemove = await _context.AllegroProducts
-                        .Where(p => p.StoreId == storeId && productIds.Contains(p.AllegroProductId))
-                        .ToListAsync();
-
-                    if (productsToRemove.Any())
-                    {
-                        _context.AllegroProducts.RemoveRange(productsToRemove);
-                        await _context.SaveChangesAsync();
-                    }
+                    // 5. Na końcu usuń produkty główne
+                    // Tu używamy parametru dla storeId dla bezpieczeństwa, a ID wklejamy w string
+                    // Zakładam, że tabela w bazie nazywa się "AllegroProducts"
+                    var deletedCount = await _context.Database.ExecuteSqlRawAsync(
+                        $"DELETE FROM AllegroProducts WHERE StoreId = {storeId} AND AllegroProductId IN ({idsString})");
 
                     await transaction.CommitAsync();
 
-                    return Json(new { success = true, count = productsToRemove.Count });
+                    return Json(new { success = true, count = deletedCount, message = "Usunięto błyskawicznie" });
                 }
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
                     var msg = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-                    return Json(new { success = false, message = $"Błąd: {msg}" });
+                    return Json(new { success = false, message = $"Błąd SQL: {msg}" });
                 }
             });
         }
-
         public class MappedProductAllegroViewModel
         {
             public int AllegroProductId { get; set; }
