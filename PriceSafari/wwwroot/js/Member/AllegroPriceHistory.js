@@ -1379,36 +1379,43 @@
                 }
               </div>
 
-              <div class="price-box-column">
-                  ${myPrice != null ?
-                    `<div class="price-box-column-text">
-                          <div>
-                              ${item.committed && item.committed.newPrice ?
-                        `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                                      <s style="color: #999; font-size: 17px; font-weight: 500;">${formatPricePL(myPrice)}</s>
-                                      ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
-                                  </div>`
-                        :
-                        `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                                      <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${formatPricePL(myPrice)}</span>
-                                      ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
-                                  </div>`
+
+                <div class="price-box-column">
+                    ${myPrice != null ?
+                                    `<div class="price-box-column-text">
+                            <div>
+                                ${item.committed && item.committed.newPrice ?
+                                        `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                        <s style="color: #999; font-size: 17px; font-weight: 500;">${formatPricePL(myPrice)}</s>
+                                        ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
+                                    </div>` :
+                                        `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                        <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${formatPricePL(myPrice)}</span>
+                                        ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
+                                    </div>`
+                                    }
+                                <div>
+                                    ${highlightedMyStoreName}
+                                    ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
+                                    ${myPromoInfoText}
+                                </div>
+                            </div>
+                            ${marginHtml}${commissionHtml}${createApiInfoHtml(item)}
+                        </div>
+
+                        <div class="price-box-column-text">
+                            <div class="data-channel">
+                                ${item.myIsSmart ? `<div class="Smart-Allegro"><img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;"></div>` : ''}
+                                ${renderDeliveryInfo(item.myDeliveryTime)}
+                            </div>
+                        </div>`
+                                    :
+                                    `<div class="price-box-column-text">
+                            <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
+                            ${marginHtml}
+                        </div>`
                     }
-                              <div>
-                                  ${highlightedMyStoreName}
-                                  ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
-                                  ${myPromoInfoText}
-                              </div>
-                          </div>
-                          ${marginHtml}${commissionHtml}${createApiInfoHtml(item)}
-                      </div>`
-                    :
-                    `<div class="price-box-column-text">
-                          <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
-                          ${marginHtml}
-                      </div>`
-                }
-              </div>
+                </div>
 
               <div class="price-box-column-action"></div>
           </div>
