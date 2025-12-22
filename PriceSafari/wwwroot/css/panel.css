@@ -236,7 +236,7 @@ p {
     border-right: 1px solid #EDEDED;
     padding: 0px 20px 0px 0px;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     align-self: stretch;
     height: 92vh;
 }
@@ -2868,7 +2868,6 @@ tr:last-child .sub-line {
 .mode-switch-container {
     display: flex;
     justify-content: center;
-    margin-bottom: 15px;
     background: #f0f0f0;
     border-radius: 20px;
     padding: 4px;
@@ -3990,9 +3989,9 @@ tr:last-child .sub-line {
 }
 
 .side-chart-box {
-    width: 180px;
-    height: 180px;
-    padding: 10px;
+    width: 174px;
+    height: 174px;
+    padding: 8px;
     display: flex;
     align-items: center;
     justify-content: center;

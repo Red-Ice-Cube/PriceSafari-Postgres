@@ -5,7 +5,7 @@
     --bg-gray: #f8f9fa;
     --font-size-base: 1rem;
     --font-size-sm: 1rem;
-    --font-size-h3: 2rem;
+    --font-size-h3: 1.8rem;
     --font-size-h4: 1.1rem;
 }
 
@@ -428,5 +428,14 @@
     .event-content {
         width: 100%;
         text-align: left;
+    }
+
+    .content-section {
+        padding: 24px;
+    }
+
+    .section-header {
+        flex-wrap: wrap;
+        gap:16px;
     }
 }
