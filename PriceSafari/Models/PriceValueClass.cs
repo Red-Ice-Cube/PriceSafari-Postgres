@@ -51,7 +51,7 @@
 
         public bool AllegroIncludeCommisionInPriceChange { get; set; } = false;
 
-        //nowe elementy allegro
+
         public bool AllegroChangePriceForBagdeSuperPrice { get; set; } = false;
         public bool AllegroChangePriceForBagdeTopOffer { get; set; } = false;
         public bool AllegroChangePriceForBagdeBestPriceGuarantee { get; set; } = false;
