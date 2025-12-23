@@ -1,0 +1,180 @@
+﻿<div class="modal-sim fade" id="competitorModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog-sim" role="document">
+        <div class="modal-simulation">
+
+            <div class="modal-header">
+
+                <div class="price-box-column-name">Presety</div>
+
+                <div style="display:flex; gap:10px;">
+
+                    <button id="addNewPresetBtn" class="Button-Page-Small-bl">Dodaj nowy preset</button>
+                    <button type="button" class="close" data-dismiss="modal" style="width:33px; height:33px;" aria-label="Zamknij">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+            </div>
+
+            <div class="modal-body">
+
+                <div style="display:flex; justify-content:space-between; gap:24px;">
+
+                    <div style="display:flex; flex-direction:column;">
+                        <select id="presetSelect" style="width:460px;" class="DropDown"></select>
+                        <div style="display:flex; justify-content:space-between; margin-top:10px; width:460px;">
+                            <div>
+
+                                <span id="activateButtonContainer"></span>
+
+                            </div>
+                            <div style="display:flex; gap:5px;">
+                                <span id="editButtonContainer"></span>
+                                <span id="deleteButtonContainer"></span>
+                            </div>
+                        </div>
+
+                        <div id="newPresetSection" style="display:none; margin-bottom: 20px;">
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; width:460px; border: 1px solid #EDEDED; padding:16px; border-radius:4px; margin-top:12px;">
+
+                            <input type="text" id="competitorSearchInput" class="storeSearch" placeholder="Wyszukaj sklep konkurenta" />
+
+                            <div style="display:flex; justify-content:space-between">
+                                <div>
+                                    <div class="Category-Container-Select">Źródło danych</div>
+                                    <div class="store-section">
+
+                                        <div class="form-check">
+                                            <input class="form-check-input bidFilter" type="checkbox" id="googleCheckbox">
+                                            <label class="form-check-label" style="display:flex; justify-content:center;" for="googleCheckbox"><img src="/images/GoogleShopping.png" alt="Google Icon" style="width:16px; height:16px; align-self:center; margin-right:6px;">Google</label>
+                                        </div>
+
+                                        <div class="form-check">
+                                            <input class="form-check-input bidFilter" type="checkbox" id="ceneoCheckbox">
+                                            <label class="form-check-label" style="display:flex; justify-content:center;" for="ceneoCheckbox"><img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:16px; height:16px; align-self:center; margin-right:6px;">Ceneo</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+
+                                    <div class="Category-Container-Select">Niezdefiniowane sklepy</div>
+                                    <div class="store-section">
+
+                                        <div class="form-check">
+                                            <input class="form-check-input bidFilter" type="checkbox" id="useUnmarkedStoresCheckbox">
+                                            <label class="form-check-label" style="display:flex; justify-content:center;" for="useUnmarkedStoresCheckbox">Wyświetlaj</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; width:460px; margin-top:24px;">
+
+                            <p style="margin-bottom:24px; font-size:15px;">
+                                <strong>Presety umożliwiają filtrowanie wyświetlanych sklepów na podstawie zaawansowanych filtrów.</strong><br><br>
+                                Aktywny preset automatycznie wpływa na widok główny – ukrywa lub pokazuje wybrane sklepy.
+                                Jeśli wykluczysz np. Allegro, to nawet jeśli oferuje najniższą cenę, nie zostanie pokazane. System wybierze kolejny najtańszy sklep.
+                                Opcja "Niezdefiniowane sklepy" pozwala masowo ustawić, czy wyświetlać sklepy, które nie mają przypisanej widoczności.
+                            </p>
+
+                            <div style="display:flex; margin-bottom:12px; font-size:15px;">
+                                <div class="filterCompetitors-true" style="margin-right:8px;"><i class="fas fa-check"></i></div>
+                                <p>
+                                    Kliknij aby wyświetlać dany sklep.
+                                </p>
+                            </div>
+                            <div style="display:flex; margin-bottom:12px; font-size:15px;">
+                                <div class="filterCompetitors-false" style="margin-right:8px;"><i class="fas fa-times"></i></div>
+                                <p>
+                                    Kliknij aby ukryć dany sklep.
+                                </p>
+                            </div>
+
+                            <div style="display:flex; margin-bottom:0px; font-size:15px;">
+                                <div class="filterCompetitors-back" style="margin-right:8px;"><i class="fas fa-undo"></i></div>
+                                <p>
+                                    Cofnij zmianę dla wybranego sklepu.
+                                </p>
+                            </div>
+
+                            <p style="margin-top:24px; font-size:15px;">
+                                Wszystkie sklepy oznaczone kolorem jasnozielonym lub zielonym będą wyświetlane.
+                                Sklepy oznaczone kolorem jasnoczerwonym lub czerwonym będą ukryte.
+                                Kolor szary oznacza, że sklepy z danego źródła danych nie będą wyświetlane.
+                            </p>
+
+                        </div>
+
+                    </div>
+                    <div style="display: flex;
+           flex-wrap: nowrap;
+           gap: 24px;
+           width: 100%;
+           align-items: stretch;
+           justify-content: space-between;">
+
+                        <div style="flex: 1;">
+                            <div class="table-scroll"
+                                 style="max-height: 80vh;
+                   min-height: 80vh;
+                   overflow: auto;">
+                                <table class="table-orders"
+                                       style="width: 100%;
+                      min-width: 500px;
+                      white-space: nowrap;
+                      table-layout: auto;">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <img src="/images/GoogleShopping.png"
+                                                     alt="Google Icon"
+                                                     style="width:17px; height:17px; margin-right:6px; margin-bottom:4px;">
+                                                Sklepy Google
+                                            </th>
+                                            <th>Produkty</th>
+                                            <th>Akcje</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="googleCompetitorsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div style="flex: 1;">
+                            <div class="table-scroll"
+                                 style="max-height: 80vh;
+                   min-height: 80vh;
+                   overflow: auto;">
+                                <table class="table-orders"
+                                       style="width: 100%;
+                      min-width: 500px;
+                      white-space: nowrap;
+                      table-layout: auto;">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <img src="/images/Ceneo.png"
+                                                     alt="Ceneo Icon"
+                                                     style="width:17px; height:17px; margin-right:4px; margin-bottom:4px;">
+                                                Sklepy Ceneo
+                                            </th>
+                                            <th>Produkty</th>
+                                            <th>Akcje</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ceneoCompetitorsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>

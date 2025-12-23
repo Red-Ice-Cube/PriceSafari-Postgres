@@ -46,7 +46,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 MarketplaceRulesCount = s.AutomationRules.Count(r => r.SourceType == AutomationSourceType.Marketplace)
             }).ToList();
 
-            return View("~/Views/ManagerPanel/AutomationRule/Dashboard.cshtml", model);
+            return View("~/Views/ManagerPanel/AutomationRules/Dashboard.cshtml", model);
         }
 
         // ZMODYFIKOWANA AKCJA: Index - Lista reguł dla konkretnego sklepu
@@ -83,7 +83,7 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.StoreId = storeId;
             ViewBag.StoreName = storeName;
 
-            return View("~/Views/ManagerPanel/AutomationRule/Index.cshtml", rules);
+            return View("~/Views/ManagerPanel/AutomationRules/Index.cshtml", rules);
         }
 
         // ... Reszta metod (Create, Edit, Delete) pozostaje bez zmian ...
@@ -97,7 +97,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 StoreId = storeId,
                 ColorHex = "#4e73df"
             };
-            return View("~/Views/ManagerPanel/AutomationRule/CreateOrEdit.cshtml", model);
+            return View("~/Views/ManagerPanel/AutomationRules/CreateOrEdit.cshtml", model);
         }
 
         // POST: AutomationRules/Create
@@ -112,7 +112,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index), new { storeId = rule.StoreId });
             }
-            return View("~/Views/ManagerPanel/AutomationRule/CreateOrEdit.cshtml", rule);
+            return View("~/Views/ManagerPanel/AutomationRules/CreateOrEdit.cshtml", rule);
         }
 
         // GET: AutomationRules/Edit/5
@@ -121,7 +121,7 @@ namespace PriceSafari.Controllers.MemberControllers
             if (id == null) return NotFound();
             var rule = await _context.AutomationRules.FindAsync(id);
             if (rule == null) return NotFound();
-            return View("~/Views/ManagerPanel/AutomationRule/CreateOrEdit.cshtml", rule);
+            return View("~/Views/ManagerPanel/AutomationRules/CreateOrEdit.cshtml", rule);
         }
 
         // POST: AutomationRules/Edit/5
@@ -144,7 +144,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
                 return RedirectToAction(nameof(Index), new { storeId = rule.StoreId });
             }
-            return View("~/Views/ManagerPanel/AutomationRule/CreateOrEdit.cshtml", rule);
+            return View("~/Views/ManagerPanel/AutomationRules/CreateOrEdit.cshtml", rule);
         }
 
         // POST: AutomationRules/Delete/5

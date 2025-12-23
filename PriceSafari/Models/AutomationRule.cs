@@ -32,7 +32,7 @@ namespace PriceSafari.Models
         public AutomationSourceType SourceType { get; set; }
 
         // Możemy tu dodać pole IsActive, żeby łatwo wyłączać regułę bez usuwania
-        public bool IsActive { get; set; } = true;
+        public bool IsActive { get; set; } = false;
 
         // Relacja do sklepu
         [ForeignKey("StoreId")]
