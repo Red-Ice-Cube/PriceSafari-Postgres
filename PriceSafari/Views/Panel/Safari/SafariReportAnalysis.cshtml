@@ -56,41 +56,47 @@
                 <div class="side-chart-box">
                     <canvas id="classificationChart"></canvas>
                 </div>
-                <div class="store-section">
+                <div class="store-section" id="filters-competitiveness">
                     <div class="form-check">
+                        <span class="color-rect rect-ideal"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal">
-                        <label class="form-check-label" for="prIdealCheckbox" id="prIdealLabel">Prd. tańszy o (<span id="prIdealCount">0</span>)</label>
+                        <label class="form-check-label" for="prIdealCheckbox" id="prIdealLabel">Twój prd. tańszy min. o (<span id="prIdealCount">0</span>)</label>
                     </div>
+
                     <div class="form-check">
+                        <span class="color-rect rect-gray"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prGrayCheckbox" value="prGray">
-                        <label class="form-check-label" for="prGrayCheckbox" id="prGrayLabel">Prd. o podobnej cenie (<span id="prGrayCount">0</span>)</label>
+                        <label class="form-check-label" for="prGrayCheckbox" id="prGrayLabel">Twój prd. w podobnej cenie (<span id="prGrayCount">0</span>)</label>
                     </div>
+
                     <div class="form-check">
+                        <span class="color-rect rect-to-high"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
-                        <label class="form-check-label" for="prToHighCheckbox" id="prToHighLabel">Prd. droższy o (<span id="prToHighCount">0</span>)</label>
+                        <label class="form-check-label" for="prToHighCheckbox" id="prToHighLabel">Twój prd. droższy min. o (<span id="prToHighCount">0</span>)</label>
                     </div>
 
                     <div class="price-range-settings">
                         <div class="color-circle prLower-circle"></div>
                         <div class="legendBox">Próg c. niższej</div>
+                        <label for="unitLabel1"></label>
                         <input type="number" id="threshold1" value="@Model.SetSafariPrice1.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01">
                         <span id="unitLabel1"></span>
                     </div>
                     <div class="price-range-settings">
                         <div class="color-circle prHigher-circle"></div>
                         <div class="legendBox">Próg c. wyższej</div>
+                        <label for="unitLabel2"></label>
                         <input type="number" id="threshold2" value="@Model.SetSafariPrice2.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01">
                         <span id="unitLabel2"></span>
                     </div>
                     <div>
-                        <input class="diffCheckBox" type="checkbox" id="usePriceDifference" @(Model.UsePriceDiffSafari ? "checked" : "") />
-
+                        <input class="diffCheckBox" type="checkbox" id="usePriceDifference" style="margin-top:10px;" @(Model.UsePriceDiffSafari ? "checked" : "") />
                     </div>
-                    <button id="savePriceValues" class="Button-Page-Small" style="margin-top: 10px;" data-store-id="@Model.StoreId">Przelicz i zapisz</button>
+                    <button id="savePriceValues" class="Button-Page-Small" style="margin-top: 4px;" data-store-id="@Model.StoreId">Przelicz i zapisz</button>
                 </div>
 
                 <div class="filterBox">
-                    <div class="Category-Container-Select">Flagi</div>
+                    <div class="Category-Container-Select" style="margin-top:-2px;">Flagi</div>
                     <div class="store-section" id="flagContainer">
                         @{
                             var flagUsage = new Dictionary<int, int>();
@@ -199,7 +205,7 @@
                                                 <div style="color:#444;">@item.StoreName</div>
 
                                                 <div style="display:flex; align-items:center;">
-                                                    <img src="~/images/@(item.RegionName).png" style="width: 22px; height: 14px; margin-right:5px;" />
+                                                    <img src="~/images/@(item.RegionName).png" style="width: 22px; height: 15px; margin-right:5px;" />
                                                     <div>@item.RegionName</div>
                                                 </div>
 
@@ -222,11 +228,11 @@
                                                 <div style="color:#444;">@myStoreName</div>
 
                                                 @{
-                                                    // POPRAWKA 3: Jeśli region to "Unknown" lub null, ustaw "Polska"
+
                                                     var displayRegion = (string.IsNullOrWhiteSpace(item.OurRegionName) || item.OurRegionName == "Unknown") ? "Polska" : item.OurRegionName;
                                                 }
                                                 <div style="display:flex; align-items:center;">
-                                                    <img src="~/images/@(displayRegion).png" style="width: 22px; height: 14px; margin-right:5px;" onerror="this.src='/images/Polska.png';" />
+                                                    <img src="~/images/@(displayRegion).png" style="width: 22px; height: 15px; margin-right:5px;" onerror="this.src='/images/Polska.png';" />
                                                     <div>@displayRegion</div>
                                                 </div>
 
@@ -252,8 +258,27 @@
                                                 @if (item.OurCalculatedPrice > 0)
                                                 {
                                                     var diffIdx = percentageDifference ?? 0;
-                                                    var idxCol = diffIdx > 2 ? "index-red" : (diffIdx < -2 ? "index-green" : "index-blue");
-                                                    <span class="market-index-badge @idxCol" style="font-size:11px;">Twoja cena: @(diffIdx > 0 ? "+" : "")@diffIdx.ToString("0.00")%</span>
+
+                                                    var thresholdLower = Model.SetSafariPrice1;
+
+                                                    var thresholdHigher = Model.SetSafariPrice2;
+
+                                                    string idxCol = "index-gray";
+
+                                                    if (diffIdx > thresholdHigher)
+                                                    {
+
+                                                        idxCol = "index-red";
+                                                    }
+                                                    else if (diffIdx < -thresholdLower)
+                                                    {
+
+                                                        idxCol = "index-blue";
+                                                    }
+
+                                                    <span class="market-index-badge @idxCol" style="font-size:11px;">
+                                                        Twoja cena: @(diffIdx > 0 ? "+" : "")@diffIdx.ToString("0.00")%
+                                                    </span>
                                                 }
                                             </div>
 
@@ -385,7 +410,7 @@
         const marginPriceAttr = productBox.getAttribute('data-marginprice');
         const marginPrice = (marginPriceAttr !== null && marginPriceAttr !== 'null') ? parseFloat(marginPriceAttr) : null;
 
-        const marketIndexContainer = productBox.querySelector('.market-index-container');
+       const marketIndexContainer = productBox.querySelector('.market-index-container');
 
         if (marketIndexContainer && myPrice > 0) {
 
@@ -393,9 +418,18 @@
 
             const percDiff = percentageDifference !== null ? percentageDifference : 0;
 
-            let indexColorClass = 'index-blue';
-            if (percDiff > 2) indexColorClass = 'index-red';
-            else if (percDiff < -2) indexColorClass = 'index-green';
+            // DOMYŚLNIE SZARY (W ŚRODKU ZAKRESU)
+            let indexColorClass = 'index-gray';
+
+            // Używamy zmiennych thresholdMoreExpensive i thresholdCheaper pobranych na początku funkcji updateProducts
+            if (percDiff > thresholdMoreExpensive) {
+                // Jeśli różnica (np. +18%) jest większa niż próg (np. 10%) -> CZERWONY
+                indexColorClass = 'index-red';
+            }
+            else if (percDiff < -thresholdCheaper) {
+                // Jeśli różnica (np. -11%) jest mniejsza niż próg dolny (np. -10%) -> NIEBIESKI (zgodnie z życzeniem)
+                indexColorClass = 'index-blue';
+            }
 
             const badgeHtml = `
                 <span class="market-index-badge ${indexColorClass}" style="font-size:11px;">
@@ -657,6 +691,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    cutout: '65%',
                     plugins: {
                         legend: {
                             display: false,
@@ -680,9 +715,9 @@
             const usePriceDifference = usePriceDifferenceCheckbox.checked;
             const unit = usePriceDifference ? 'PLN' : '%';
 
-            prIdealLabel.innerHTML = `Prd. tańszy o ${thresholdCheaper} ${unit} (<span id="prIdealCount">${prIdealCountSpan.textContent}</span>)`;
-            prGrayLabel.innerHTML = `Prd. o podobnej cenie (<span id="prGrayCount">${prGrayCountSpan.textContent}</span>)`;
-            prToHighLabel.innerHTML = `Prd. droższy o ${thresholdMoreExpensive} ${unit} (<span id="prToHighCount">${prToHighCountSpan.textContent}</span>)`;
+            prIdealLabel.innerHTML = `Twój prd. tańszy o min. ${thresholdCheaper} ${unit} (<span id="prIdealCount">${prIdealCountSpan.textContent}</span>)`;
+            prGrayLabel.innerHTML = `Twój prd. w podobnej cenie (<span id="prGrayCount">${prGrayCountSpan.textContent}</span>)`;
+            prToHighLabel.innerHTML = `Twój prd. droższy o min. ${thresholdMoreExpensive} ${unit} (<span id="prToHighCount">${prToHighCountSpan.textContent}</span>)`;
 
             unitLabel1.textContent = unit;
             unitLabel2.textContent = unit;

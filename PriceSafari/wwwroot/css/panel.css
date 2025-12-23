@@ -2923,6 +2923,10 @@ tr:last-child .sub-line {
     background-color: #dc3545;
 }
 
+.index-gray {
+    background-color: rgba(40, 40, 40, 0.8);
+}
+
 .strategy-badge-dynamic {
     display: inline-block;
     padding: 2px 5px;
@@ -3279,6 +3283,11 @@ tr:last-child .sub-line {
     border: 1px solid rgba(30, 142, 62, 1);
 }
 
+.rect-gray {
+    background-color: rgba(40, 40, 40, 0.7);
+    border: 1px solid rgba(40, 40, 40, 1);
+}
+
 .status-filter {
     outline: none;
     background-color: white;
@@ -3334,6 +3343,7 @@ tr:last-child .sub-line {
 
 .price-box-data {
     display: flex;
+    align-items: stretch;
 }
 
 .price-box-column {
@@ -3624,7 +3634,6 @@ tr:last-child .sub-line {
 
 .color-bar {
     width: 16px;
-    height: 100%;
     min-height: 30px;
     margin-right: 3px;
     border-radius: 4px;

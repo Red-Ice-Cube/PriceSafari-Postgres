@@ -212,75 +212,79 @@ namespace PriceSafari.Controllers
             ViewBag.RegionId = regionId;
 
             var productPrices = globalPriceReports
-    .GroupBy(gpr => gpr.ProductId)
-    .Where(group =>
-    {
-        if (regionId.HasValue)
-        {
-            return group.Any(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
-        }
-        else
-        {
-            return true;
-        }
-    })
-    .Select(group =>
-    {
-        // 1. Obliczamy liczbę ofert w danej grupie (dla danego produktu)
-        int offerCount = group.Count(); // <--- TUTAJ OBLICZAMY ILOŚĆ OFERT
+     .GroupBy(gpr => gpr.ProductId)
+     .Where(group =>
+     {
+         // Ten warunek filtruje całe grupy (czy produkt w ogóle ma być pokazany)
+         if (regionId.HasValue)
+         {
+             return group.Any(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
+         }
+         else
+         {
+             return true;
+         }
+     })
+     .Select(group =>
+     {
+         // --- POPRAWKA TUTAJ ---
+         // Jeśli wybrano region, zliczamy tylko oferty z tego regionu.
+         // Jeśli nie wybrano regionu (null), zliczamy wszystkie oferty w grupie.
+         int offerCount = regionId.HasValue
+             ? group.Count(gpr => gpr.RegionId == regionId.Value)
+             : group.Count();
+         // ----------------------
 
-        var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == report.Store.StoreName.ToLower());
-        var firstInGroup = group.FirstOrDefault();
+         var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == report.Store.StoreName.ToLower());
+         var firstInGroup = group.FirstOrDefault();
 
-        IEnumerable<dynamic> competitorPrices;
+         IEnumerable<dynamic> competitorPrices;
 
-        if (regionId.HasValue)
-        {
-            competitorPrices = group.Where(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
-        }
-        else
-        {
-            competitorPrices = group.Where(gpr => gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
-        }
+         if (regionId.HasValue)
+         {
+             competitorPrices = group.Where(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
+         }
+         else
+         {
+             competitorPrices = group.Where(gpr => gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
+         }
 
-        var lowestCompetitorPrice = competitorPrices.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault();
+         var lowestCompetitorPrice = competitorPrices.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault();
 
-        int productId = ourPrice?.ProductId ?? lowestCompetitorPrice?.ProductId ?? firstInGroup?.ProductId ?? 0;
-        productFlagsDictionary.TryGetValue(productId, out var flagIds);
+         int productId = ourPrice?.ProductId ?? lowestCompetitorPrice?.ProductId ?? firstInGroup?.ProductId ?? 0;
+         productFlagsDictionary.TryGetValue(productId, out var flagIds);
 
-        var regionName = lowestCompetitorPrice?.RegionId != null && regions.ContainsKey(lowestCompetitorPrice.RegionId)
-                            ? regions[lowestCompetitorPrice.RegionId]
-                            : "Unknown";
+         var regionName = lowestCompetitorPrice?.RegionId != null && regions.ContainsKey(lowestCompetitorPrice.RegionId)
+                                 ? regions[lowestCompetitorPrice.RegionId]
+                                 : "Unknown";
 
-        var ourRegionName = ourPrice?.RegionId != null && regions.ContainsKey(ourPrice.RegionId)
-                                ? regions[ourPrice.RegionId]
-                                : "Unknown";
+         var ourRegionName = ourPrice?.RegionId != null && regions.ContainsKey(ourPrice.RegionId)
+                                     ? regions[ourPrice.RegionId]
+                                     : "Unknown";
 
-        return new ProductPriceViewModel
-        {
-            ProductId = productId,
-
-                        ProductName = ourPrice?.ProductName ?? firstInGroup?.ProductName,
-                      
-                        GoogleUrl = ourPrice?.GoogleUrl ?? firstInGroup?.GoogleUrl,
-                        MarginPrice = ourPrice?.MarginPrice ?? firstInGroup?.MarginPrice,
-                        MainUrl = ourPrice?.MainUrl ?? firstInGroup?.MainUrl,
-                        Ean = ourPrice?.Ean ?? firstInGroup?.Ean,
-                        Price = lowestCompetitorPrice?.Price ?? 0,
-                        StoreName = lowestCompetitorPrice?.StoreName ?? "Brak konkurencyjnej ceny",
-                        PriceWithDelivery = lowestCompetitorPrice?.PriceWithDelivery ?? 0,
-                        CalculatedPrice = lowestCompetitorPrice?.CalculatedPrice ?? 0,
-                        CalculatedPriceWithDelivery = lowestCompetitorPrice?.CalculatedPriceWithDelivery ?? 0,
-                        MyStoreName = ourPrice?.StoreName,
-                        OurCalculatedPrice = ourPrice?.CalculatedPrice ?? 0,
-                        OurRegionName = ourRegionName,
-                        RegionId = lowestCompetitorPrice?.RegionId ?? 0,
-                        RegionName = regionName,
-                        FlagIds = flagIds ?? new List<int>(),
-                        OfferCount = offerCount
-        };
-                })
-                .ToList();
+         return new ProductPriceViewModel
+         {
+             ProductId = productId,
+             ProductName = ourPrice?.ProductName ?? firstInGroup?.ProductName,
+             GoogleUrl = ourPrice?.GoogleUrl ?? firstInGroup?.GoogleUrl,
+             MarginPrice = ourPrice?.MarginPrice ?? firstInGroup?.MarginPrice,
+             MainUrl = ourPrice?.MainUrl ?? firstInGroup?.MainUrl,
+             Ean = ourPrice?.Ean ?? firstInGroup?.Ean,
+             Price = lowestCompetitorPrice?.Price ?? 0,
+             StoreName = lowestCompetitorPrice?.StoreName ?? "Brak konkurencyjnej ceny",
+             PriceWithDelivery = lowestCompetitorPrice?.PriceWithDelivery ?? 0,
+             CalculatedPrice = lowestCompetitorPrice?.CalculatedPrice ?? 0,
+             CalculatedPriceWithDelivery = lowestCompetitorPrice?.CalculatedPriceWithDelivery ?? 0,
+             MyStoreName = ourPrice?.StoreName,
+             OurCalculatedPrice = ourPrice?.CalculatedPrice ?? 0,
+             OurRegionName = ourRegionName,
+             RegionId = lowestCompetitorPrice?.RegionId ?? 0,
+             RegionName = regionName,
+             FlagIds = flagIds ?? new List<int>(),
+             OfferCount = offerCount // Przypisujemy obliczoną wyżej wartość
+         };
+     })
+     .ToList();
 
             await UpdateProgress("Przetwarzanie...", additionalProgressSteps: 1);
 
