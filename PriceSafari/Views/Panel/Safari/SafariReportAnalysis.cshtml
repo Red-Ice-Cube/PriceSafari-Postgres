@@ -171,7 +171,7 @@
                                  onclick="window.open('@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = item.ProductId, regionId = ViewBag.RegionId })', '_blank')">
 
                                 <div class="price-box-space">
-                                    <div class="price-box-column-name">@item.ProductName</div>
+                                    <div class="price-box-column-name" style="margin-bottom:30px;">@item.ProductName</div>
 
                                     <div class="flags-container">
                                         @foreach (var flagId in item.FlagIds)
@@ -209,7 +209,7 @@
                                         <div class="column-bottom-content">
 
                                             <span class="BD">
-                                                Liczba ofert: <strong> @item.OfferCount</strong>
+                                                Liczba ofert:&nbsp;<strong>@item.OfferCount</strong>
                                             </span>
 
                                         </div>
@@ -222,7 +222,8 @@
                                                 <div style="color:#444;">@myStoreName</div>
 
                                                 @{
-                                                    var displayRegion = string.IsNullOrWhiteSpace(item.OurRegionName) ? "Polska" : item.OurRegionName;
+                                                    // POPRAWKA 3: Jeśli region to "Unknown" lub null, ustaw "Polska"
+                                                    var displayRegion = (string.IsNullOrWhiteSpace(item.OurRegionName) || item.OurRegionName == "Unknown") ? "Polska" : item.OurRegionName;
                                                 }
                                                 <div style="display:flex; align-items:center;">
                                                     <img src="~/images/@(displayRegion).png" style="width: 22px; height: 14px; margin-right:5px;" onerror="this.src='/images/Polska.png';" />
@@ -232,11 +233,12 @@
                                                 <div class="margin-container">
                                                     @if (item.MarginPrice.HasValue)
                                                     {
-                                                        <div class="price-box-diff-margin-ib price-box-diff-margin-ib-neutral">
+                                                        <div class="price-box-diff-margin-ib price-box-diff-margin-ib-neutral" style="margin-top: 4px;">
                                                             <span class="price-badge price-badge-neutral">Cena zakupu</span>
                                                             <p style="margin:0">@item.MarginPrice.Value.ToString("0.00") PLN</p>
                                                         </div>
-                                                        <div class="price-box-diff-margin-ib @profitClass">
+
+                                                        <div class="price-box-diff-margin-ib @profitClass" style="margin-top: 3px;">
                                                             <span class="price-badge @marginBadgeClass">Zysk (narzut)</span>
                                                             <p style="margin:0">@(profitAmount >= 0 ? "+" : "")@profitAmount.ToString("0.00") PLN (@profitPercent.ToString("0.00")%)</p>
                                                         </div>

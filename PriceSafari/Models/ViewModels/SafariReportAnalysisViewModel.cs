@@ -35,6 +35,7 @@
         public List<int> FlagIds { get; set; }
         public string MainUrl { get; set; }
         public int OfferCount { get; set; }
+        public string Ean { get; set; }
     }
 
 

@@ -162,6 +162,7 @@ namespace PriceSafari.Controllers
                     gpr.OfferUrl,
 
                     ProductName = gpr.Product.ProductName,
+                    Ean = gpr.Product.Ean,
                     GoogleUrl = gpr.Product.GoogleUrl,
                     MarginPrice = gpr.Product.MarginPrice,
                     MainUrl = gpr.Product.MainUrl
@@ -260,10 +261,11 @@ namespace PriceSafari.Controllers
             ProductId = productId,
 
                         ProductName = ourPrice?.ProductName ?? firstInGroup?.ProductName,
+                      
                         GoogleUrl = ourPrice?.GoogleUrl ?? firstInGroup?.GoogleUrl,
                         MarginPrice = ourPrice?.MarginPrice ?? firstInGroup?.MarginPrice,
                         MainUrl = ourPrice?.MainUrl ?? firstInGroup?.MainUrl,
-
+                        Ean = ourPrice?.Ean ?? firstInGroup?.Ean,
                         Price = lowestCompetitorPrice?.Price ?? 0,
                         StoreName = lowestCompetitorPrice?.StoreName ?? "Brak konkurencyjnej ceny",
                         PriceWithDelivery = lowestCompetitorPrice?.PriceWithDelivery ?? 0,
