@@ -63,6 +63,12 @@ namespace PriceSafari.Areas.Identity.Pages.Account
             [Display(Name = "Potwierdź hasło")]
             [Compare("Password", ErrorMessage = "Wprowadzone hasła nie są identyczne.")]
             public string ConfirmPassword { get; set; }
+
+
+            [Display(Name = "Zgoda na przetwarzanie danych")]
+        
+            [Range(typeof(bool), "true", "true", ErrorMessage = "Musisz wyrazić zgodę na przetwarzanie danych, aby utworzyć konto.")]
+            public bool ConsentToDataProcessing { get; set; }
         }
 
         public void OnGet(string returnUrl = null)

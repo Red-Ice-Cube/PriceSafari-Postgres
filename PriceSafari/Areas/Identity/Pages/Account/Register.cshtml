@@ -61,7 +61,17 @@
                         <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
                     </div>
 
-
+                    <div class="form-group form-check" style="text-align: left; margin: 5px 0 5px 5px;">
+                        <input asp-for="Input.ConsentToDataProcessing" class="form-check-input" />
+                        <label class="form-check-label" asp-for="Input.ConsentToDataProcessing" >
+                            Wyrażam zgodę na przetwarzanie moich danych osobowych, zgodnie z
+                            <a href="https://pricesafari.pl/Home/PrivacyPolicy" class='CleanButton' target="_blank" style="text-decoration: underline;">polityką prywatności</a>.
+                        </label>
+                        <div style="display: block;">
+                            <span asp-validation-for="Input.ConsentToDataProcessing" class="text-danger"></span>
+                        </div>
+                    </div>
+        
 
             <div asp-validation-summary="ModelOnly" class="validation-summary-errors" role="alert"></div>
 
