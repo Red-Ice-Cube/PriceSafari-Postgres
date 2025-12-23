@@ -163,6 +163,7 @@
                             </div>
                         </div>
                     </form>
+                    <div asp-validation-summary="All" class="alert alert-danger"></div>
                 </div>
             </div>
         </div>
@@ -196,12 +197,15 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-
+            // A. Obsługa przycisku otwierania modala
             var btnOpen = document.getElementById('openPresetSelectorBtn');
             if (btnOpen) {
                 btnOpen.addEventListener('click', function() {
                     var modalEl = document.getElementById('competitorModal');
-                    if (!modalEl) return;
+                    if (!modalEl) {
+                        alert("Błąd: Modal nie został załadowany.");
+                        return;
+                    }
 
                     if (typeof window.openCompetitorsModal === 'function') {
                         window.openCompetitorsModal();
@@ -209,6 +213,7 @@
                 });
             }
 
+            // B. Obsługa zmiany źródła danych
             var selectSource = document.getElementById('SourceTypeSelect');
             if (selectSource) {
                 selectSource.addEventListener('change', async function() {
@@ -225,6 +230,7 @@
                 });
             }
 
+            // C. Obsługa koloru
             var colorInput = document.getElementById('ColorHexInput');
             if(colorInput){
                 colorInput.addEventListener('input', function() {
@@ -233,6 +239,7 @@
             }
         });
 
+        // Funkcja ładowania HTML
         async function loadModalHTML(typeValue) {
             try {
                 const response = await fetch(`${getModalUrl}?type=${typeValue}&storeId=${storeId}`);
@@ -248,30 +255,40 @@
             }
         }
 
+        // =======================================================================
+        // POPRAWIONA FUNKCJA ZAMYKANIA (Rozwiązuje problem $(...).modal is not a function)
+        // =======================================================================
         window.selectPresetForAutomation = function(presetId, presetName) {
+            // 1. Ustaw dane w formularzu
             var inputId = document.getElementById('CompetitorPresetId');
             var labelName = document.getElementById('selectedPresetName');
 
             if(inputId) inputId.value = presetId;
             if(labelName) labelName.innerText = presetName;
 
-            if (typeof $ !== 'undefined') {
-                $('#competitorModal').modal('hide');
-            } else {
-                var m = document.getElementById('competitorModal');
-                if(m) {
-                    m.classList.remove('show');
-                    m.style.display = 'none';
-                }
+            // 2. Zamknij modal "ręcznie" (Vanilla JS) - działa zawsze
+            var m = document.getElementById('competitorModal');
+            if (m) {
+                // Usuwamy klasy Bootstrapa
+                m.classList.remove('show');
+                m.style.display = 'none';
+                m.setAttribute('aria-hidden', 'true');
+                m.removeAttribute('aria-modal');
+                m.removeAttribute('role');
             }
 
+            // 3. Posprzątaj tło (Backdrop) i Scrollbara na body
             var backdrops = document.getElementsByClassName('modal-backdrop');
             while(backdrops.length > 0){
                 backdrops[0].parentNode.removeChild(backdrops[0]);
             }
+
             document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
         };
 
+        // Zmiana trybu strategii
         window.setStrategyMode = function(modeValue, btn) {
             var input = document.getElementById('StrategyModeInput');
             if(input) input.value = modeValue;

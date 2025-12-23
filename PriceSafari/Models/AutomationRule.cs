@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace PriceSafari.Models
 {
@@ -34,27 +35,26 @@ namespace PriceSafari.Models
         public string Name { get; set; }
 
         [Required]
-        [StringLength(7)] // Format np. #FF0000
-        public string ColorHex { get; set; } = "#3d85c6"; // Domyślny kolor
+        [StringLength(7)]
+
+        public string ColorHex { get; set; } = "#3d85c6";
 
         [Required]
         public AutomationSourceType SourceType { get; set; }
 
-        // Możemy tu dodać pole IsActive, żeby łatwo wyłączać regułę bez usuwania
         public bool IsActive { get; set; } = false;
 
         [Required]
         public AutomationStrategyMode StrategyMode { get; set; } = AutomationStrategyMode.Competitiveness;
 
-        // ID wybranego presetu konkurencji. Null oznacza "Domyślny / Wszystkie".
         public int? CompetitorPresetId { get; set; }
 
-        // Relacja do presetu (opcjonalna, jeśli chcesz mieć integrity check w bazie)
         [ForeignKey("CompetitorPresetId")]
+        [ValidateNever]
         public virtual CompetitorPresetClass CompetitorPreset { get; set; }
 
-        // Relacja do sklepu
         [ForeignKey("StoreId")]
+        [ValidateNever]
         public virtual StoreClass Store { get; set; }
     }
 }
