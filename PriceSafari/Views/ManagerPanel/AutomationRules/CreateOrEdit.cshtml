@@ -102,13 +102,19 @@
 
                         <div class="form-group mb-4">
                             <label class="small font-weight-bold">Źródło Danych</label>
-                            <select asp-for="SourceType" class="form-control" id="SourceTypeSelect" asp-items="Html.GetEnumSelectList<PriceSafari.Models.AutomationSourceType>()">
-                            </select>
+
+                            @* 1. Ukryte pole, aby wartość została wysłana w POST *@
+                            <input type="hidden" asp-for="SourceType" id="SourceTypeHidden" />
+
+                            @* 2. Pole tylko do odczytu dla użytkownika *@
+                            <input type="text" class="form-control" readonly
+                                   value="@(Model.SourceType == PriceSafari.Models.AutomationSourceType.Marketplace ? "Marketplace (Allegro)" : "Porównywarki Cen (Google/Ceneo)")"
+                                   style="background-color: #eaecf4;" />
+
                             <small class="form-text text-muted">
-                                Wybór źródła determinuje dostępne presety konkurencji. Zmiana źródła zresetuje wybrany preset.
+                                Źródło danych jest przypisane do kontekstu, w którym tworzysz regułę.
                             </small>
                         </div>
-
                         <hr class="my-4" />
 
                         <h5 class="font-weight-bold text-gray-800 mb-3">2. Strategia cenowa</h5>
@@ -163,7 +169,7 @@
                             </div>
                         </div>
                     </form>
-                    <div asp-validation-summary="All" class="alert alert-danger"></div>
+              
                 </div>
             </div>
         </div>
@@ -197,7 +203,7 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // A. Obsługa przycisku otwierania modala
+
             var btnOpen = document.getElementById('openPresetSelectorBtn');
             if (btnOpen) {
                 btnOpen.addEventListener('click', function() {
@@ -213,24 +219,8 @@
                 });
             }
 
-            // B. Obsługa zmiany źródła danych
-            var selectSource = document.getElementById('SourceTypeSelect');
-            if (selectSource) {
-                selectSource.addEventListener('change', async function() {
-                    const newType = parseInt(this.value);
-                    presetTypeContext = newType;
+          
 
-                    var inputId = document.getElementById('CompetitorPresetId');
-                    var labelName = document.getElementById('selectedPresetName');
-                    if(inputId) inputId.value = '';
-                    if(labelName) labelName.innerText = "Domyślny (Wszystkie sklepy)";
-                    if (window.currentPreset) window.currentPreset = null;
-
-                    await loadModalHTML(newType);
-                });
-            }
-
-            // C. Obsługa koloru
             var colorInput = document.getElementById('ColorHexInput');
             if(colorInput){
                 colorInput.addEventListener('input', function() {
@@ -239,7 +229,6 @@
             }
         });
 
-        // Funkcja ładowania HTML
         async function loadModalHTML(typeValue) {
             try {
                 const response = await fetch(`${getModalUrl}?type=${typeValue}&storeId=${storeId}`);
@@ -255,21 +244,17 @@
             }
         }
 
-        // =======================================================================
-        // POPRAWIONA FUNKCJA ZAMYKANIA (Rozwiązuje problem $(...).modal is not a function)
-        // =======================================================================
         window.selectPresetForAutomation = function(presetId, presetName) {
-            // 1. Ustaw dane w formularzu
+
             var inputId = document.getElementById('CompetitorPresetId');
             var labelName = document.getElementById('selectedPresetName');
 
             if(inputId) inputId.value = presetId;
             if(labelName) labelName.innerText = presetName;
 
-            // 2. Zamknij modal "ręcznie" (Vanilla JS) - działa zawsze
             var m = document.getElementById('competitorModal');
             if (m) {
-                // Usuwamy klasy Bootstrapa
+
                 m.classList.remove('show');
                 m.style.display = 'none';
                 m.setAttribute('aria-hidden', 'true');
@@ -277,7 +262,6 @@
                 m.removeAttribute('role');
             }
 
-            // 3. Posprzątaj tło (Backdrop) i Scrollbara na body
             var backdrops = document.getElementsByClassName('modal-backdrop');
             while(backdrops.length > 0){
                 backdrops[0].parentNode.removeChild(backdrops[0]);
@@ -288,7 +272,6 @@
             document.body.style.paddingRight = '';
         };
 
-        // Zmiana trybu strategii
         window.setStrategyMode = function(modeValue, btn) {
             var input = document.getElementById('StrategyModeInput');
             if(input) input.value = modeValue;
