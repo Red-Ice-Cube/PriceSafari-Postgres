@@ -917,31 +917,50 @@ document.addEventListener('keydown', function (event) {
         }
     }
 });
+document.addEventListener("click", function (event) {
 
-document.addEventListener("DOMContentLoaded", function () {
+    const closeBtn = event.target.closest("[data-dismiss='modal']");
 
-    const competitorModal = document.getElementById("competitorModal");
-    if (competitorModal) {
-        competitorModal.addEventListener("click", function (event) {
-            const closeBtn = event.target.closest("[data-dismiss='modal']");
-            if (closeBtn) {
-                competitorModal.style.display = "none";
-                competitorModal.classList.remove("show");
+    if (closeBtn) {
 
-                if (typeof priceHistoryPageContext !== 'undefined') {
-                    if (priceHistoryPageContext === 'index' && typeof loadPrices === 'function') {
-                        console.log("Closing modal on Index page (button), calling loadPrices().");
-                        loadPrices();
-                    } else if (priceHistoryPageContext === 'details') {
-                        console.log("Closing modal on Details page (button), reloading.");
-                        window.location.reload();
-                    }
-                } else {
-                    console.warn("priceHistoryPageContext is not defined.");
-                }
+        const modal = closeBtn.closest(".modal-sim") || document.getElementById("competitorModal");
 
+        if (modal) {
+            console.log("Zamykanie modala (Event Delegation)");
+            modal.style.display = "none";
+            modal.classList.remove("show");
+
+            const backdrops = document.getElementsByClassName('modal-backdrop');
+            while (backdrops.length > 0) {
+                backdrops[0].parentNode.removeChild(backdrops[0]);
             }
-        });
+            document.body.classList.remove('modal-open');
+
+            if (typeof priceHistoryPageContext !== 'undefined') {
+                if (priceHistoryPageContext === 'index' && typeof loadPrices === 'function') {
+                    loadPrices();
+                } else if (priceHistoryPageContext === 'details') {
+                    window.location.reload();
+                }
+            }
+        }
     }
 
+    if (event.target.classList.contains('modal-sim') || event.target.classList.contains('modal')) {
+        const modal = event.target;
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        document.body.classList.remove('modal-open');
+    }
+});
+
+document.addEventListener('keydown', function (event) {
+    if (event.key === "Escape") {
+        const modal = document.querySelector('.modal-sim.show') || document.getElementById('competitorModal');
+        if (modal && (modal.style.display === 'block' || modal.classList.contains('show'))) {
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+            document.body.classList.remove('modal-open');
+        }
+    }
 });

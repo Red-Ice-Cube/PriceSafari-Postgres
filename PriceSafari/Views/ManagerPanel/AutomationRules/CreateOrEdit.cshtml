@@ -8,7 +8,6 @@
 }
 
 <style>
-    /* ... style CSS ... */
     .mode-switch-container {
         display: flex;
         background-color: #f1f3f9;
@@ -106,18 +105,20 @@
                             <select asp-for="SourceType" class="form-control" id="SourceTypeSelect" asp-items="Html.GetEnumSelectList<PriceSafari.Models.AutomationSourceType>()">
                             </select>
                             <small class="form-text text-muted">
-                                Zmiana źródła zresetuje wybrany preset.
+                                Wybór źródła determinuje dostępne presety konkurencji. Zmiana źródła zresetuje wybrany preset.
                             </small>
                         </div>
 
                         <hr class="my-4" />
 
                         <h5 class="font-weight-bold text-gray-800 mb-3">2. Strategia cenowa</h5>
+
                         <div class="mode-switch-container">
                             <button type="button" class="mode-switch-btn @(Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "active" : "")"
                                     onclick="setStrategyMode(0, this)">
                                 <i class="fa-solid fa-bolt"></i> Lider Rynku
                             </button>
+
                             <button type="button" class="mode-switch-btn @(Model.StrategyMode == AutomationStrategyMode.Profit ? "active" : "")"
                                     onclick="setStrategyMode(1, this)">
                                 <i class="fa-solid fa-dollar-sign"></i> Rentowność
@@ -149,11 +150,16 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <div class="form-group form-check mb-0">
                                 <input class="form-check-input" asp-for="IsActive" />
-                                <label class="form-check-label" asp-for="IsActive">Reguła aktywna</label>
+                                <label class="form-check-label" asp-for="IsActive">
+                                    Reguła aktywna
+                                </label>
                             </div>
+
                             <div>
                                 <a asp-action="Index" asp-route-storeId="@Model.StoreId" asp-route-filterType="@Model.SourceType" class="btn btn-secondary mr-2">Anuluj</a>
-                                <button type="submit" class="btn btn-success px-4"><i class="fas fa-save"></i> Zapisz regułę</button>
+                                <button type="submit" class="btn btn-success px-4">
+                                    <i class="fas fa-save"></i> Zapisz regułę
+                                </button>
                             </div>
                         </div>
                     </form>
@@ -173,66 +179,42 @@
         @await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_PresetyPriceComparison.cshtml", null, new ViewDataDictionary(ViewData) { { "StoreId", Model.StoreId } })
     }
 </div>
+
 @section Scripts {
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
 
     <script>
-        // Definiujemy zmienne globalne
         var storeId = @Model.StoreId;
         window.presetContext = 'automationRule';
         var presetTypeContext = @((int)Model.SourceType);
-
-        // Bezpieczne generowanie adresu URL (jeśli to zadziała, Razor jest OK)
-        var getModalUrl = '/Member/AutomationRules/GetModalPartial'; // Używam ścieżki na sztywno dla pewności, dopasuj jeśli używasz innego controllera
+        var getModalUrl = '@Url.Action("GetModalPartial", "AutomationRules")';
     </script>
 
     <script src="~/js/member/CompetitorModal.js"></script>
 
     <script>
-        // Czekamy aż cały HTML się załaduje
         document.addEventListener("DOMContentLoaded", function() {
-            console.log("--> DOM załadowany. Inicjalizacja skryptów reguły...");
 
-            // --- A. Sprawdzamy czy przycisk istnieje ---
             var btnOpen = document.getElementById('openPresetSelectorBtn');
-
             if (btnOpen) {
-                console.log("--> Znaleziono przycisk 'Zmień Preset'. Podpinam zdarzenie click.");
-
                 btnOpen.addEventListener('click', function() {
-                    console.log("--> KLIKNIĘTO przycisk Zmień Preset");
-
-                    // 1. Sprawdzamy czy modal istnieje w HTML
                     var modalEl = document.getElementById('competitorModal');
-                    if (!modalEl) {
-                        alert("BŁĄD: Nie znaleziono modala w kodzie HTML (#competitorModal). Sprawdź czy Partial View się załadował.");
-                        return;
-                    }
+                    if (!modalEl) return;
 
-                    // 2. Sprawdzamy czy funkcja z pliku .js się załadowała
                     if (typeof window.openCompetitorsModal === 'function') {
-                        console.log("--> Uruchamiam funkcję openCompetitorsModal()...");
                         window.openCompetitorsModal();
-                    } else {
-                        console.error("BŁĄD: Funkcja 'openCompetitorsModal' nie istnieje.");
-                        alert("Błąd: Skrypt CompetitorModal.js nie został poprawnie załadowany.");
                     }
                 });
-            } else {
-                console.error("BŁĄD KRYTYCZNY: Nie znaleziono elementu o id 'openPresetSelectorBtn' w HTML!");
             }
 
-            // --- B. Obsługa zmiany Dropdowna (Dynamiczne ładowanie) ---
             var selectSource = document.getElementById('SourceTypeSelect');
             if (selectSource) {
                 selectSource.addEventListener('change', async function() {
-                    console.log("--> Zmieniono źródło danych na:", this.value);
                     const newType = parseInt(this.value);
                     presetTypeContext = newType;
 
-                    // Reset pól
                     var inputId = document.getElementById('CompetitorPresetId');
                     var labelName = document.getElementById('selectedPresetName');
                     if(inputId) inputId.value = '';
@@ -242,49 +224,40 @@
                     await loadModalHTML(newType);
                 });
             }
+
+            var colorInput = document.getElementById('ColorHexInput');
+            if(colorInput){
+                colorInput.addEventListener('input', function() {
+                    document.getElementById('ColorHexText').value = this.value;
+                });
+            }
         });
 
-        // --- C. Funkcja ładowania HTML (poza DOMContentLoaded, żeby była dostępna) ---
         async function loadModalHTML(typeValue) {
             try {
-                console.log(`--> Pobieram nowy modal z: ${getModalUrl}?type=${typeValue}&storeId=${storeId}`);
-
                 const response = await fetch(`${getModalUrl}?type=${typeValue}&storeId=${storeId}`);
-
-                if (!response.ok) {
-                    throw new Error(`Błąd sieci: ${response.status} ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error("Błąd sieci");
 
                 const html = await response.text();
-
                 var container = document.getElementById('dynamicModalContainer');
                 if (container) {
                     container.innerHTML = html;
-                    console.log("--> Sukces: Modal HTML został podmieniony.");
-                } else {
-                    console.error("BŁĄD: Nie znaleziono kontenera #dynamicModalContainer");
                 }
-
             } catch (error) {
-                console.error("--> Błąd w loadModalHTML:", error);
-                alert("Wystąpił błąd podczas pobierania widoku presetu.");
+                console.error("Błąd ładowania modala:", error);
             }
         }
 
-        // --- D. Callback globalny (musi być window. ...) ---
         window.selectPresetForAutomation = function(presetId, presetName) {
-            console.log("--> Wybrano preset:", presetName);
             var inputId = document.getElementById('CompetitorPresetId');
             var labelName = document.getElementById('selectedPresetName');
 
             if(inputId) inputId.value = presetId;
             if(labelName) labelName.innerText = presetName;
 
-            // Zamykanie modala (jQuery dla Bootstrapa)
             if (typeof $ !== 'undefined') {
                 $('#competitorModal').modal('hide');
             } else {
-                // Fallback jeśli nie ma jQuery
                 var m = document.getElementById('competitorModal');
                 if(m) {
                     m.classList.remove('show');
@@ -292,7 +265,6 @@
                 }
             }
 
-            // Sprzątanie backdropa
             var backdrops = document.getElementsByClassName('modal-backdrop');
             while(backdrops.length > 0){
                 backdrops[0].parentNode.removeChild(backdrops[0]);
@@ -300,7 +272,6 @@
             document.body.classList.remove('modal-open');
         };
 
-        // --- E. Inne funkcje pomocnicze ---
         window.setStrategyMode = function(modeValue, btn) {
             var input = document.getElementById('StrategyModeInput');
             if(input) input.value = modeValue;
