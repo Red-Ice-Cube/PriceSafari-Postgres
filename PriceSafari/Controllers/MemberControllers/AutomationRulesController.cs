@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
@@ -49,7 +50,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/ManagerPanel/AutomationRules/Dashboard.cshtml", model);
         }
 
-        // ZMODYFIKOWANA AKCJA: Index - Lista reguł dla konkretnego sklepu
         // GET: AutomationRules/Index?storeId=5&filterType=Marketplace
         public async Task<IActionResult> Index(int? storeId, AutomationSourceType? filterType)
         {
@@ -65,15 +65,17 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (storeName == null) return NotFound("Sklep nie istnieje.");
 
-            // Pobieranie reguł
-            var query = _context.AutomationRules
-                .Where(r => r.StoreId == storeId);
+            // --- POPRAWKA TUTAJ ---
+            // Zamiast 'var query = ...', używamy jawnego typu 'IQueryable<AutomationRule> query = ...'
+            IQueryable<AutomationRule> query = _context.AutomationRules
+                .Where(r => r.StoreId == storeId)
+                .Include(r => r.CompetitorPreset);
 
-            // Jeśli wybrano filtr (np. kliknięto w ikonę Allegro w Dashboardzie), filtrujemy listę
+            // Teraz to zadziała poprawnie, bo IQueryable może przyjąć wynik .Where()
             if (filterType.HasValue)
             {
                 query = query.Where(r => r.SourceType == filterType.Value);
-                ViewBag.CurrentFilter = filterType.Value; // Żeby wiedzieć co zaznaczyć w widoku
+                ViewBag.CurrentFilter = filterType.Value;
             }
 
             var rules = await query
@@ -86,16 +88,45 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/ManagerPanel/AutomationRules/Index.cshtml", rules);
         }
 
-        // ... Reszta metod (Create, Edit, Delete) pozostaje bez zmian ...
-        // ... (Create, Edit, Delete wklejone w poprzedniej odpowiedzi) ...
+        [HttpGet]
+        public IActionResult GetModalPartial(AutomationSourceType type, int storeId)
+        {
+            // Przekazujemy StoreId przez ViewData, tak jak ustaliliśmy wcześniej
+            var viewData = new ViewDataDictionary(new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider(), new Microsoft.AspNetCore.Mvc.ModelBinding.ModelStateDictionary())
+    {
+        { "StoreId", storeId }
+    };
 
-        // GET: AutomationRules/Create?storeId=5
-        public IActionResult Create(int storeId)
+            if (type == AutomationSourceType.Marketplace) // Zakładam, że enum 1 to Marketplace/Allegro
+            {
+                // Zwracamy widok dla Allegro
+                return new PartialViewResult
+                {
+                    ViewName = "~/Views/Shared/PartialViewsPanel/_PresetyMarketPlace.cshtml",
+                    ViewData = viewData
+                };
+            }
+            else
+            {
+                // Zwracamy widok dla Porównywarek (Google/Ceneo)
+                return new PartialViewResult
+                {
+                    ViewName = "~/Views/Shared/PartialViewsPanel/_PresetyPriceComparison.cshtml",
+                    ViewData = viewData
+                };
+            }
+        }
+
+        // GET: AutomationRules/Create
+        public IActionResult Create(int storeId, AutomationSourceType? sourceType)
         {
             var model = new AutomationRule
             {
                 StoreId = storeId,
-                ColorHex = "#4e73df"
+                ColorHex = "#4e73df",
+                // Domyślny typ źródła przekazany z dashboardu lub domyślnie Porównywarki
+                SourceType = sourceType ?? AutomationSourceType.PriceComparison,
+                StrategyMode = AutomationStrategyMode.Competitiveness // Domyślna strategia
             };
             return View("~/Views/ManagerPanel/AutomationRules/CreateOrEdit.cshtml", model);
         }
@@ -105,12 +136,16 @@ namespace PriceSafari.Controllers.MemberControllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(AutomationRule rule)
         {
-            rule.Id = 0;
+            rule.Id = 0; // Zabezpieczenie
+
+            // Jeśli użytkownik nie wybrał presetu (zostawił domyślny), upewniamy się że jest null
+            if (rule.CompetitorPresetId == 0) rule.CompetitorPresetId = null;
+
             if (ModelState.IsValid)
             {
                 _context.AutomationRules.Add(rule);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index), new { storeId = rule.StoreId });
+                return RedirectToAction(nameof(Index), new { storeId = rule.StoreId, filterType = rule.SourceType });
             }
             return View("~/Views/ManagerPanel/AutomationRules/CreateOrEdit.cshtml", rule);
         }
@@ -119,8 +154,13 @@ namespace PriceSafari.Controllers.MemberControllers
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
-            var rule = await _context.AutomationRules.FindAsync(id);
+
+            var rule = await _context.AutomationRules
+                .Include(r => r.CompetitorPreset)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
             if (rule == null) return NotFound();
+
             return View("~/Views/ManagerPanel/AutomationRules/CreateOrEdit.cshtml", rule);
         }
 
@@ -130,6 +170,10 @@ namespace PriceSafari.Controllers.MemberControllers
         public async Task<IActionResult> Edit(int id, AutomationRule rule)
         {
             if (id != rule.Id) return NotFound();
+
+            // Obsługa nulla dla presetu
+            if (rule.CompetitorPresetId == 0) rule.CompetitorPresetId = null;
+
             if (ModelState.IsValid)
             {
                 try
@@ -139,10 +183,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!AutomationRuleExists(rule.Id)) return NotFound();
+                    if (!_context.AutomationRules.Any(e => e.Id == rule.Id)) return NotFound();
                     else throw;
                 }
-                return RedirectToAction(nameof(Index), new { storeId = rule.StoreId });
+                return RedirectToAction(nameof(Index), new { storeId = rule.StoreId, filterType = rule.SourceType });
             }
             return View("~/Views/ManagerPanel/AutomationRules/CreateOrEdit.cshtml", rule);
         }
@@ -156,16 +200,12 @@ namespace PriceSafari.Controllers.MemberControllers
             if (rule != null)
             {
                 int storeId = rule.StoreId;
+                var type = rule.SourceType;
                 _context.AutomationRules.Remove(rule);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index), new { storeId = storeId });
+                return RedirectToAction(nameof(Index), new { storeId = storeId, filterType = type });
             }
             return NotFound();
-        }
-
-        private bool AutomationRuleExists(int id)
-        {
-            return _context.AutomationRules.Any(e => e.Id == id);
         }
     }
 }

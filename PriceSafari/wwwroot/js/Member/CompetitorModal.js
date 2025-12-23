@@ -61,7 +61,19 @@ async function refreshPresetDropdown() {
     newPresets.forEach(p => {
         const opt = document.createElement("option");
         opt.value = p.presetId;
-        opt.textContent = p.presetName + (p.nowInUse ? " [aktywny]" : "");
+
+        // Nowa logika etykiet
+        let suffix = "";
+        if (window.presetContext === 'automationRule') {
+            // W trybie reguł opcjonalnie możemy pokazać, który jest globalnie aktywny, 
+            // ale lepiej nie mylić użytkownika słowem "aktywny" w kontekście wyboru.
+            // Ewentualnie: suffix = p.nowInUse ? " (domyślny sklepu)" : "";
+        } else {
+            // W trybie zarządzania sklepem
+            if (p.nowInUse) suffix = " [aktywny]";
+        }
+
+        opt.textContent = p.presetName + suffix;
         presetSelect.appendChild(opt);
     });
 
@@ -204,19 +216,53 @@ async function loadBaseView() {
 
         if (activateBtn) {
             activateBtn.className = "Button-Page-Small";
-            if (window.currentPreset.nowInUse) {
-                activateBtn.textContent = "Aktywny";
-                activateBtn.disabled = true;
-                activateBtn.classList.add("active-preset");
+
+            // === NOWA LOGIKA: Sprawdzamy kontekst ===
+            if (window.presetContext === 'automationRule') {
+                // --- TRYB WYBORU DO REGULY ---
+
+                // Sprawdzamy, czy w formularzu reguły (w tle) pole ID jest puste (co oznacza BASE)
+                // Pobieramy wartość z hidden inputa w widoku CreateOrEdit.cshtml
+                const currentSelectedId = document.getElementById('CompetitorPresetId') ? document.getElementById('CompetitorPresetId').value : null;
+
+                // BASE jest wybrany, jeśli ID jest puste
+                const isSelected = (!currentSelectedId || currentSelectedId === "");
+
+                if (isSelected) {
+                    activateBtn.textContent = "Wybrany";
+                    activateBtn.disabled = true;
+                    activateBtn.classList.add("active-preset");
+                    activateBtn.onclick = null;
+                } else {
+                    activateBtn.textContent = "Wybierz ten widok";
+                    activateBtn.disabled = false;
+                    activateBtn.classList.remove("active-preset");
+
+                    activateBtn.onclick = function () {
+                        // Wywołujemy callback z CreateOrEdit.cshtml
+                        if (typeof window.selectPresetForAutomation === 'function') {
+                            // ID null/puste dla BASE, Nazwa "Domyślny..."
+                            window.selectPresetForAutomation('', 'Domyślny (Wszystkie sklepy)');
+                        }
+                    };
+                }
+
             } else {
-                activateBtn.classList.remove("active-preset");
-                activateBtn.textContent = "Ustaw jako aktywny";
-                activateBtn.disabled = false;
-                activateBtn.onclick = async function () {
-                    await deactivateAllPresets();
-                    await loadBaseView();
-                    await refreshPresetDropdown();
-                };
+                // --- STARA LOGIKA (Zarządzanie sklepem) ---
+                if (window.currentPreset.nowInUse) {
+                    activateBtn.textContent = "Aktywny";
+                    activateBtn.disabled = true;
+                    activateBtn.classList.add("active-preset");
+                } else {
+                    activateBtn.classList.remove("active-preset");
+                    activateBtn.textContent = "Ustaw jako aktywny";
+                    activateBtn.disabled = false;
+                    activateBtn.onclick = async function () {
+                        await deactivateAllPresets();
+                        await loadBaseView();
+                        await refreshPresetDropdown();
+                    };
+                }
             }
         }
 
@@ -283,23 +329,52 @@ async function loadSelectedPreset(presetId) {
 
         if (activateBtn) {
             activateBtn.className = "Button-Page-Small";
-            if (window.currentPreset.nowInUse) {
-                activateBtn.textContent = "Aktywny";
-                activateBtn.disabled = true;
-                activateBtn.classList.add("active-preset");
+
+            if (window.presetContext === 'automationRule') {
+                // --- TRYB WYBORU DO REGULY ---
+
+                const currentSelectedId = document.getElementById('CompetitorPresetId') ? document.getElementById('CompetitorPresetId').value : null;
+
+                // Sprawdzamy po ID
+                const isSelected = (currentSelectedId == window.currentPreset.presetId);
+
+                if (isSelected) {
+                    activateBtn.textContent = "Wybrany";
+                    activateBtn.disabled = true;
+                    activateBtn.classList.add("active-preset");
+                    activateBtn.onclick = null;
+                } else {
+                    activateBtn.textContent = "Wybierz ten preset";
+                    activateBtn.disabled = false;
+                    activateBtn.classList.remove("active-preset");
+
+                    activateBtn.onclick = function () {
+                        if (typeof window.selectPresetForAutomation === 'function') {
+                            window.selectPresetForAutomation(window.currentPreset.presetId, window.currentPreset.presetName);
+                        }
+                    };
+                }
+
             } else {
-                activateBtn.textContent = "Ustaw jako aktywny";
-                activateBtn.disabled = false;
-                activateBtn.classList.remove("active-preset");
-                activateBtn.onclick = function () {
-                    window.currentPreset.nowInUse = true;
-                    saveOrUpdatePreset().then(() => {
-                        refreshPresetDropdown();
-                    });
+                // --- STARA LOGIKA ---
+                if (window.currentPreset.nowInUse) {
                     activateBtn.textContent = "Aktywny";
                     activateBtn.disabled = true;
                     activateBtn.classList.add("active-preset");
-                };
+                } else {
+                    activateBtn.textContent = "Ustaw jako aktywny";
+                    activateBtn.disabled = false;
+                    activateBtn.classList.remove("active-preset");
+                    activateBtn.onclick = function () {
+                        window.currentPreset.nowInUse = true;
+                        saveOrUpdatePreset().then(() => {
+                            refreshPresetDropdown();
+                        });
+                        activateBtn.textContent = "Aktywny";
+                        activateBtn.disabled = true;
+                        activateBtn.classList.add("active-preset");
+                    };
+                }
             }
         }
 

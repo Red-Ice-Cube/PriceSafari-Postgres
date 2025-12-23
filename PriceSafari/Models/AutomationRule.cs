@@ -12,6 +12,15 @@ namespace PriceSafari.Models
         Marketplace = 1
     }
 
+    public enum AutomationStrategyMode
+    {
+        [Display(Name = "Lider Rynku")]
+        Competitiveness = 0,
+
+        [Display(Name = "Rentowność")]
+        Profit = 1
+    }
+
     public class AutomationRule
     {
         [Key]
@@ -33,6 +42,16 @@ namespace PriceSafari.Models
 
         // Możemy tu dodać pole IsActive, żeby łatwo wyłączać regułę bez usuwania
         public bool IsActive { get; set; } = false;
+
+        [Required]
+        public AutomationStrategyMode StrategyMode { get; set; } = AutomationStrategyMode.Competitiveness;
+
+        // ID wybranego presetu konkurencji. Null oznacza "Domyślny / Wszystkie".
+        public int? CompetitorPresetId { get; set; }
+
+        // Relacja do presetu (opcjonalna, jeśli chcesz mieć integrity check w bazie)
+        [ForeignKey("CompetitorPresetId")]
+        public virtual CompetitorPresetClass CompetitorPreset { get; set; }
 
         // Relacja do sklepu
         [ForeignKey("StoreId")]
