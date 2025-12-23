@@ -1,0 +1,74 @@
+﻿@model PriceSafari.Models.AutomationRule
+
+@{
+    bool isEdit = Model.Id > 0;
+    ViewData["Title"] = isEdit ? "Edycja Reguły" : "Nowa Reguła";
+}
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        @(isEdit ? "Edytuj regułę" : "Kreator nowej reguły")
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form asp-action="@(isEdit ? "Edit" : "Create")" method="post">
+                        <input type="hidden" asp-for="Id" />
+                        <input type="hidden" asp-for="StoreId" />
+
+                        <div class="form-group mb-4">
+                            <label class="font-weight-bold text-gray-800">1. Wybierz źródło danych</label>
+                            <p class="small text-muted mb-2">Określ, czy reguła dotyczy porównywarek cenowych czy Allegro.</p>
+                            <select asp-for="SourceType" class="form-control form-control-lg" asp-items="Html.GetEnumSelectList<PriceSafari.Models.AutomationSourceType>()">
+                            </select>
+                            <span asp-validation-for="SourceType" class="text-danger"></span>
+                        </div>
+
+                        <hr />
+
+                        <div class="form-group mb-4">
+                            <label class="font-weight-bold text-gray-800">2. Nazwij regułę i wybierz kolor</label>
+                            <div class="row">
+                                <div class="col-md-9">
+                                    <label>Nazwa reguły</label>
+                                    <input asp-for="Name" class="form-control" placeholder="np. Agresywna walka o Top 3" />
+                                    <span asp-validation-for="Name" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-3">
+                                    <label>Kolor etykiety</label>
+                                    <input asp-for="ColorHex" type="color" class="form-control" style="height: 38px; padding: 2px;" />
+                                    <span asp-validation-for="ColorHex" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group form-check">
+                            <input class="form-check-input" asp-for="IsActive" />
+                            <label class="form-check-label" asp-for="IsActive">
+                                Reguła jest aktywna
+                            </label>
+                        </div>
+
+                        <hr />
+
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Index" asp-route-storeId="@Model.StoreId" class="btn btn-secondary">Wróć do listy</a>
+                            <button type="submit" class="btn btn-success btn-lg px-5">
+                                <i class="fas fa-save"></i> Zapisz regułę
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

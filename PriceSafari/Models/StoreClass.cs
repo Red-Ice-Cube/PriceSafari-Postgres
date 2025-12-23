@@ -107,5 +107,6 @@ namespace PriceSafari.Models
         public ICollection<PriceSafariReport> PriceSafariReports { get; set; } = new List<PriceSafariReport>();
         public ICollection<InvoiceClass> Invoices { get; set; } = new List<InvoiceClass>();
         public ICollection<ScheduleTaskStore> ScheduleTaskStores { get; set; } = new List<ScheduleTaskStore>();
+        public ICollection<AutomationRule> AutomationRules { get; set; } = new List<AutomationRule>();
     }
 }

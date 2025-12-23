@@ -67,8 +67,9 @@ namespace PriceSafari.Data
         public DbSet<EmailTemplate> EmailTemplates { get; set; }
         public DbSet<ContactLabel> ContactLabels { get; set; }
 
-
         public DbSet<CoOfrStoreData> CoOfrStoreDatas { get; set; }
+
+        public DbSet<AutomationRule> AutomationRules { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -160,9 +161,9 @@ namespace PriceSafari.Data
                   .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<StoreClass>()
-                 .HasOne(s => s.PaymentData)       
-                 .WithOne(pd => pd.Store)          
-                 .HasForeignKey<UserPaymentData>(pd => pd.StoreId) 
+                 .HasOne(s => s.PaymentData)
+                 .WithOne(pd => pd.Store)
+                 .HasForeignKey<UserPaymentData>(pd => pd.StoreId)
                  .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<SchedulePlan>()
@@ -302,34 +303,35 @@ namespace PriceSafari.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
-
             modelBuilder.Entity<CoOfrStoreData>()
-                .HasOne(sd => sd.CoOfr)          // Dziecko ma jednego Rodzica
-                .WithMany(co => co.StoreData)    // Rodzic ma wiele Dzieci
-                .HasForeignKey(sd => sd.CoOfrClassId)
-                .OnDelete(DeleteBehavior.Cascade); // <-- TO JEST KLUCZOWE
+                .HasOne(sd => sd.CoOfr)
 
+                .WithMany(co => co.StoreData)
+
+                .HasForeignKey(sd => sd.CoOfrClassId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<PriceBridgeBatch>(entity =>
             {
                 entity.HasOne(b => b.Store)
-                      .WithMany() // Zakładam, że Store nie ma kolekcji Batches, jeśli ma - zmień to
+                      .WithMany()
+
                       .HasForeignKey(b => b.StoreId)
                       .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(b => b.User)
                       .WithMany()
                       .HasForeignKey(b => b.UserId)
-                      .OnDelete(DeleteBehavior.SetNull); // Jeśli użytkownik zniknie, historia zostaje (bez usera)
+                      .OnDelete(DeleteBehavior.SetNull);
+
             });
 
-            // Konfiguracja dla PriceBridgeItem
             modelBuilder.Entity<PriceBridgeItem>(entity =>
             {
                 entity.HasOne(i => i.Batch)
                       .WithMany(b => b.BridgeItems)
                       .HasForeignKey(i => i.PriceBridgeBatchId)
-                      .OnDelete(DeleteBehavior.Cascade); // Usunięcie paczki usuwa jej elementy
+                      .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(i => i.Product)
                       .WithMany()
@@ -339,9 +341,16 @@ namespace PriceSafari.Data
 
             modelBuilder.Entity<InvoiceClass>()
                 .HasOne(i => i.Store)
-                .WithMany(s => s.Invoices) // Upewnij się, że w StoreClass jest kolekcja Invoices, jeśli nie - usuń tę linię
+                .WithMany(s => s.Invoices)
+
                 .HasForeignKey(i => i.StoreId)
                 .OnDelete(DeleteBehavior.SetNull);
-                }
+
+            modelBuilder.Entity<AutomationRule>()
+                .HasOne(ar => ar.Store)
+                .WithMany() 
+                .HasForeignKey(ar => ar.StoreId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
     }
 }

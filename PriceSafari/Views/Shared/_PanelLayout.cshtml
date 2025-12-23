@@ -175,6 +175,10 @@
                 <div class="@(controllerName == "Invoice" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Invoice")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Faktury
                 </div>
+
+                <div class="@(controllerName == "AutomationRules" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashbord", "AutomationRules")'">
+                    <img src="~/images/OrderValue-bone.svg" alt="Panel Icon" class="menu-icon" />Reguly automatu
+                </div>
             }
 
             @if (isManager){

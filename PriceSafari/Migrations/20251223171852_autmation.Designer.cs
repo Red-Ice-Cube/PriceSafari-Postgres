@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceSafariContextModelSnapshot : ModelSnapshot
+    [Migration("20251223171852_autmation")]
+    partial class autmation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -776,15 +779,10 @@ namespace PriceSafari.Migrations
                     b.Property<int>("SourceType")
                         .HasColumnType("int");
 
-                    b.Property<int?>("StoreClassStoreId")
-                        .HasColumnType("int");
-
                     b.Property<int>("StoreId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("StoreClassStoreId");
 
                     b.HasIndex("StoreId");
 
@@ -2804,10 +2802,6 @@ namespace PriceSafari.Migrations
 
             modelBuilder.Entity("PriceSafari.Models.AutomationRule", b =>
                 {
-                    b.HasOne("PriceSafari.Models.StoreClass", null)
-                        .WithMany("AutomationRules")
-                        .HasForeignKey("StoreClassStoreId");
-
                     b.HasOne("PriceSafari.Models.StoreClass", "Store")
                         .WithMany()
                         .HasForeignKey("StoreId")
@@ -3291,8 +3285,6 @@ namespace PriceSafari.Migrations
                     b.Navigation("AllegroProducts");
 
                     b.Navigation("AllegroScrapeHistories");
-
-                    b.Navigation("AutomationRules");
 
                     b.Navigation("Categories");
 
