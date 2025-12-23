@@ -102,12 +102,6 @@ namespace PriceSafari.Controllers
             return View("~/Views/Panel/Safari/PriceSafariReport.cshtml", reports);
         }
 
-
-
-
-
-
-
         [HttpGet]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
         public async Task<IActionResult> SafariReportAnalysis(int reportId, int? regionId = null)
@@ -175,9 +169,6 @@ namespace PriceSafari.Controllers
                 .ToListAsync();
             await UpdateProgress("Ładowanie produktów ...");
 
-            // --- POCZĄTEK ZMIAN ---
-
-            // 1. Wczytujemy flagi sklepu, od razu filtrując, by pobrać tylko te, które nie są flagami marketplace.
             var storeFlags = await _context.Flags
                 .AsNoTracking()
                 .Where(f => f.StoreId == report.StoreId && !f.IsMarketplace)
@@ -198,21 +189,18 @@ namespace PriceSafari.Controllers
 
             await UpdateProgress("Ładowanie powiązań produktów z flagami...");
 
-            // 2. Tworzymy zbiór ID flag dla wydajniejszego zapytania do bazy danych.
             var relevantFlagIds = storeFlags.Select(f => f.FlagId).ToHashSet();
 
-            // 3. Pobieramy powiązania i tworzymy słownik w jednej, wydajnej i bezpiecznej operacji.
             var productFlagsDictionary = await _context.ProductFlags
                 .AsNoTracking()
-                // Filtrujemy rekordy, które mają przypisany ProductId i należą do naszych flag
+
                 .Where(pf => pf.ProductId.HasValue && relevantFlagIds.Contains(pf.FlagId))
-                .GroupBy(pf => pf.ProductId.Value) // Grupujemy po wartości, która na pewno nie jest null
+                .GroupBy(pf => pf.ProductId.Value)
+
                 .ToDictionaryAsync(
                     g => g.Key,
                     g => g.Select(pf => pf.FlagId).ToList()
                 );
-
-            // --- KONIEC ZMIAN ---
 
             await UpdateProgress("Ładowanie regionów...");
             var regions = await _context.Regions
@@ -223,51 +211,53 @@ namespace PriceSafari.Controllers
             ViewBag.RegionId = regionId;
 
             var productPrices = globalPriceReports
-                .GroupBy(gpr => gpr.ProductId)
-                .Where(group =>
-                {
-                    if (regionId.HasValue)
-                    {
-                        return group.Any(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
-                    }
-                    else
-                    {
-                        return true;
-                    }
-                })
-                .Select(group =>
-                {
-                    var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == report.Store.StoreName.ToLower());
-                    var firstInGroup = group.FirstOrDefault();
+    .GroupBy(gpr => gpr.ProductId)
+    .Where(group =>
+    {
+        if (regionId.HasValue)
+        {
+            return group.Any(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
+        }
+        else
+        {
+            return true;
+        }
+    })
+    .Select(group =>
+    {
+        // 1. Obliczamy liczbę ofert w danej grupie (dla danego produktu)
+        int offerCount = group.Count(); // <--- TUTAJ OBLICZAMY ILOŚĆ OFERT
 
-                    IEnumerable<dynamic> competitorPrices;
+        var ourPrice = group.FirstOrDefault(gpr => gpr.StoreName.ToLower() == report.Store.StoreName.ToLower());
+        var firstInGroup = group.FirstOrDefault();
 
-                    if (regionId.HasValue)
-                    {
-                        competitorPrices = group.Where(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
-                    }
-                    else
-                    {
-                        competitorPrices = group.Where(gpr => gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
-                    }
+        IEnumerable<dynamic> competitorPrices;
 
-                    var lowestCompetitorPrice = competitorPrices.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault();
+        if (regionId.HasValue)
+        {
+            competitorPrices = group.Where(gpr => gpr.RegionId == regionId.Value && gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
+        }
+        else
+        {
+            competitorPrices = group.Where(gpr => gpr.StoreName.ToLower() != report.Store.StoreName.ToLower());
+        }
 
-                    // Upewniamy się, że productId jest pobierany poprawnie nawet jeśli nasz produkt nie ma ceny
-                    int productId = ourPrice?.ProductId ?? lowestCompetitorPrice?.ProductId ?? firstInGroup?.ProductId ?? 0;
-                    productFlagsDictionary.TryGetValue(productId, out var flagIds);
+        var lowestCompetitorPrice = competitorPrices.OrderBy(gpr => gpr.CalculatedPrice).FirstOrDefault();
 
-                    var regionName = lowestCompetitorPrice?.RegionId != null && regions.ContainsKey(lowestCompetitorPrice.RegionId)
-                                         ? regions[lowestCompetitorPrice.RegionId]
-                                         : "Unknown";
+        int productId = ourPrice?.ProductId ?? lowestCompetitorPrice?.ProductId ?? firstInGroup?.ProductId ?? 0;
+        productFlagsDictionary.TryGetValue(productId, out var flagIds);
 
-                    var ourRegionName = ourPrice?.RegionId != null && regions.ContainsKey(ourPrice.RegionId)
-                                            ? regions[ourPrice.RegionId]
-                                            : "Unknown";
+        var regionName = lowestCompetitorPrice?.RegionId != null && regions.ContainsKey(lowestCompetitorPrice.RegionId)
+                            ? regions[lowestCompetitorPrice.RegionId]
+                            : "Unknown";
 
-                    return new ProductPriceViewModel
-                    {
-                        ProductId = productId,
+        var ourRegionName = ourPrice?.RegionId != null && regions.ContainsKey(ourPrice.RegionId)
+                                ? regions[ourPrice.RegionId]
+                                : "Unknown";
+
+        return new ProductPriceViewModel
+        {
+            ProductId = productId,
 
                         ProductName = ourPrice?.ProductName ?? firstInGroup?.ProductName,
                         GoogleUrl = ourPrice?.GoogleUrl ?? firstInGroup?.GoogleUrl,
@@ -284,8 +274,9 @@ namespace PriceSafari.Controllers
                         OurRegionName = ourRegionName,
                         RegionId = lowestCompetitorPrice?.RegionId ?? 0,
                         RegionName = regionName,
-                        FlagIds = flagIds ?? new List<int>()
-                    };
+                        FlagIds = flagIds ?? new List<int>(),
+                        OfferCount = offerCount
+        };
                 })
                 .ToList();
 
@@ -311,9 +302,6 @@ namespace PriceSafari.Controllers
 
             return View("~/Views/Panel/Safari/SafariReportAnalysis.cshtml", viewModel);
         }
-
-
-
 
         [HttpPost]
         [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]

@@ -34,7 +34,7 @@
         public decimal OurCalculatedPrice { get; set; }
         public List<int> FlagIds { get; set; }
         public string MainUrl { get; set; }
-        //public PriceSafari.Models.ProductClass Product { get; set; } // usuniete 
+        public int OfferCount { get; set; }
     }
 
 

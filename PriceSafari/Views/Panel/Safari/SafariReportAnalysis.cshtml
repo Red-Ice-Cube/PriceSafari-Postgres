@@ -84,7 +84,7 @@
                     </div>
                     <div>
                         <input class="diffCheckBox" type="checkbox" id="usePriceDifference" @(Model.UsePriceDiffSafari ? "checked" : "") />
-                      
+
                     </div>
                     <button id="savePriceValues" class="Button-Page-Small" style="margin-top: 10px;" data-store-id="@Model.StoreId">Przelicz i zapisz</button>
                 </div>
@@ -142,7 +142,7 @@
                     <div id="priceContainer" class="price-container">
                         @foreach (var item in Model.ProductPrices)
                         {
-                            // --- LOGIKA OBLICZEŃ (Bez zmian) ---
+
                             var priceDifference = Math.Round(item.OurCalculatedPrice - item.CalculatedPrice, 2);
                             decimal? percentageDifference = item.CalculatedPrice != 0
                             ? Math.Round(((item.OurCalculatedPrice - item.CalculatedPrice) / item.CalculatedPrice) * 100, 2)
@@ -161,7 +161,6 @@
                                 marginBadgeClass = profitAmount >= 0 ? "price-badge-positive" : "price-badge-negative";
                             }
 
-                            // --- STRUKTURA PRODUKTU ---
                             <div class="price-box prGray"
                                  data-pricedifference="@priceDifference.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
                                  data-percdifference="@(percentageDifference?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) ?? "null")"
@@ -180,7 +179,7 @@
                                             var flag = flagsList.FirstOrDefault(f => f.FlagId == flagId);
                                             if (flag != null)
                                             {
-                                                <span class="flag" style="color:@flag.FlagColor; border: 1px solid @flag.FlagColor; background-color:@HexToRgba(flag.FlagColor, 0.2); font-size:11px; padding:1px 6px;">@flag.FlagName</span>
+                                                <span class="flag" style="color:@flag.FlagColor; border:2px solid @flag.FlagColor; background-color:@HexToRgba(flag.FlagColor, 0.2);">@flag.FlagName</span>
                                             }
                                         }
                                     </div>
@@ -191,23 +190,62 @@
 
                                     <img data-src="@(string.IsNullOrEmpty(item.MainUrl) ? "/images/no-image.png" : item.MainUrl)"
                                          class="product-image lazy-load"
-                                         style="width:142px; height:182px; object-fit:contain; background:#fff; border:1px solid #eee; padding:8px; border-radius:4px; margin-right:3px; margin-left:3px;" />
+                                         style="width:142px; height:162px; object-fit:contain; background:#fff; border:1px solid #eee; padding:8px; border-radius:4px; margin-right:3px; margin-left:3px;" />
 
                                     <div class="price-box-column competitor-column">
                                         <div class="column-top-content">
                                             <div class="price-box-column-text">
                                                 <span style="font-weight: 500; font-size: 17px;">@item.CalculatedPrice.ToString("0.00") PLN</span><br />
-                                                <small style="color:#444;">@item.StoreName</small>
-                                            </div>
-                                        </div>
+                                                <div style="color:#444;">@item.StoreName</div>
 
-                                        <div class="column-bottom-content">
-                                            <div class="price-box-column-text">
                                                 <div style="display:flex; align-items:center;">
-                                                    <img src="~/images/@(item.RegionName).png" style="width: 24px; height: 16px; margin-right:5px;" />
-                                                    <small>@item.RegionName</small>
+                                                    <img src="~/images/@(item.RegionName).png" style="width: 22px; height: 14px; margin-right:5px;" />
+                                                    <div>@item.RegionName</div>
+                                                </div>
+
+                                            </div>
+
+                                        </div>
+                                        <div class="column-bottom-content">
+
+                                            <span class="BD">
+                                                Liczba ofert: <strong> @item.OfferCount</strong>
+                                            </span>
+
+                                        </div>
+                                    </div>
+
+                                    <div class="price-box-column my-price-column">
+                                        <div class="column-top-content">
+                                            <div class="price-box-column-text">
+                                                <span style="font-weight: 500; font-size: 17px;">@(item.OurCalculatedPrice > 0 ? item.OurCalculatedPrice.ToString("0.00") + " PLN" : "Brak Ceny")</span><br />
+                                                <div style="color:#444;">@myStoreName</div>
+
+                                                @{
+                                                    var displayRegion = string.IsNullOrWhiteSpace(item.OurRegionName) ? "Polska" : item.OurRegionName;
+                                                }
+                                                <div style="display:flex; align-items:center;">
+                                                    <img src="~/images/@(displayRegion).png" style="width: 22px; height: 14px; margin-right:5px;" onerror="this.src='/images/Polska.png';" />
+                                                    <div>@displayRegion</div>
+                                                </div>
+
+                                                <div class="margin-container">
+                                                    @if (item.MarginPrice.HasValue)
+                                                    {
+                                                        <div class="price-box-diff-margin-ib price-box-diff-margin-ib-neutral">
+                                                            <span class="price-badge price-badge-neutral">Cena zakupu</span>
+                                                            <p style="margin:0">@item.MarginPrice.Value.ToString("0.00") PLN</p>
+                                                        </div>
+                                                        <div class="price-box-diff-margin-ib @profitClass">
+                                                            <span class="price-badge @marginBadgeClass">Zysk (narzut)</span>
+                                                            <p style="margin:0">@(profitAmount >= 0 ? "+" : "")@profitAmount.ToString("0.00") PLN (@profitPercent.ToString("0.00")%)</p>
+                                                        </div>
+                                                    }
                                                 </div>
                                             </div>
+
+                                        </div>
+                                        <div class="column-bottom-content">
                                             <div class="market-index-container">
                                                 @if (item.OurCalculatedPrice > 0)
                                                 {
@@ -216,39 +254,7 @@
                                                     <span class="market-index-badge @idxCol" style="font-size:11px;">Twoja cena: @(diffIdx > 0 ? "+" : "")@diffIdx.ToString("0.00")%</span>
                                                 }
                                             </div>
-                                        </div>
-                                    </div>
 
-                                    <div class="price-box-column my-price-column">
-                                        <div class="column-top-content">
-                                            <div class="price-box-column-text">
-                                                <span style="font-weight: 500; font-size: 17px;">@(item.OurCalculatedPrice > 0 ? item.OurCalculatedPrice.ToString("0.00") + " PLN" : "Brak Ceny")</span><br />
-                                                <small style="color:#444;">@myStoreName</small>
-                                            </div>
-                                        </div>
-
-                                        <div class="column-bottom-content">
-                                            @{
-                                                var displayRegion = string.IsNullOrWhiteSpace(item.OurRegionName) ? "Polska" : item.OurRegionName;
-                                            }
-                                            <div class="price-box-column-text">
-                                                <div style="display:flex; align-items:center;">
-                                                    <img src="~/images/@(displayRegion).png" style="width: 24px; height: 16px; margin-right:5px;" onerror="this.src='/images/Polska.png';" />
-                                                    <small>@displayRegion</small>
-                                                </div>
-                                            </div>
-
-                                            @if (item.MarginPrice.HasValue)
-                                            {
-                                                <div class="price-box-diff-margin-ib price-box-diff-margin-ib-neutral">
-                                                    <span class="price-badge price-badge-neutral">Cena zakupu</span>
-                                                    <p style="margin:0">@item.MarginPrice.Value.ToString("0.00") PLN</p>
-                                                </div>
-                                                <div class="price-box-diff-margin-ib @profitClass">
-                                                    <span class="price-badge @marginBadgeClass">Zysk (narzut)</span>
-                                                    <p style="margin:0">@(profitAmount >= 0 ? "+" : "")@profitAmount.ToString("0.00") PLN (@profitPercent.ToString("0.00")%)</p>
-                                                </div>
-                                            }
                                         </div>
                                     </div>
 
@@ -372,15 +378,16 @@
         productBox.classList.add(colorClass);
         productBox.setAttribute('data-colorclass', colorClass);
 
-        const myPriceAttr = productBox.getAttribute('data-ourcalculatedprice');
+      const myPriceAttr = productBox.getAttribute('data-ourcalculatedprice');
         const myPrice = (myPriceAttr !== null && myPriceAttr !== 'null') ? parseFloat(myPriceAttr) : null;
         const marginPriceAttr = productBox.getAttribute('data-marginprice');
         const marginPrice = (marginPriceAttr !== null && marginPriceAttr !== 'null') ? parseFloat(marginPriceAttr) : null;
 
-        const competitorColumn = productBox.querySelector('.competitor-column');
-        if (competitorColumn && myPrice > 0) {
-            const oldBadge = competitorColumn.querySelector('.market-index-badge');
-            if (oldBadge) oldBadge.parentNode.remove();
+        const marketIndexContainer = productBox.querySelector('.market-index-container');
+
+        if (marketIndexContainer && myPrice > 0) {
+
+            marketIndexContainer.innerHTML = '';
 
             const percDiff = percentageDifference !== null ? percentageDifference : 0;
 
@@ -389,17 +396,17 @@
             else if (percDiff < -2) indexColorClass = 'index-green';
 
             const badgeHtml = `
-                <div style="margin-top: 5px;">
-                    <span class="market-index-badge ${indexColorClass}">
-                        Twoja cena: ${percDiff > 0 ? '+' : ''}${percDiff.toFixed(2)}%
-                    </span>
-                </div>`;
-            competitorColumn.insertAdjacentHTML('beforeend', badgeHtml);
+                <span class="market-index-badge ${indexColorClass}" style="font-size:11px;">
+                    Twoja cena: ${percDiff > 0 ? '+' : ''}${percDiff.toFixed(2)}%
+                </span>`;
+
+            marketIndexContainer.insertAdjacentHTML('beforeend', badgeHtml);
         }
 
-        const myPriceColumn = productBox.querySelector('.my-price-column');
-        if (myPriceColumn && marginPrice !== null) {
-            myPriceColumn.querySelectorAll('.price-box-diff-margin-ib').forEach(b => b.remove());
+        const marginContainer = productBox.querySelector('.margin-container');
+
+        if (marginContainer && marginPrice !== null && myPrice > 0) {
+            marginContainer.innerHTML = '';
 
             let marginAmount = myPrice - marginPrice;
             let marginPercentage = (marginPrice !== 0) ? (marginAmount / marginPrice) * 100 : 0;
@@ -424,9 +431,8 @@
                     <p style="margin:0;">${formattedAmount} ${formattedPercent}</p>
                 </div>`;
 
-            myPriceColumn.insertAdjacentHTML('beforeend', purchaseBoxHtml + profitBoxHtml);
+            marginContainer.insertAdjacentHTML('beforeend', purchaseBoxHtml + profitBoxHtml);
         }
-
         const matchesClassification = noClassificationFilter || selectedClasses.includes(colorClass);
 
         if (matchesSearch && matchesFlags && matchesClassification) {
