@@ -1,0 +1,81 @@
+﻿<div class="modal fade" id="selectedProductsModal" tabindex="-1" role="dialog" aria-labelledby="selectedProductsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content" style="margin: 10% auto; width:860px;">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="selectedProductsModalLabel">
+                    Zaznaczone produkty (<span id="selectedProductsModalCounter">0</span>)
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-4 p-3" style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="font-size: 1.1rem; color: #333;">Dostępne akcje masowe:</strong>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button id="openBulkFlagModalBtn" class="Button-Page-Small-bl">
+                                <i class="fa-solid fa-tags" style="margin-right: 5px;"></i> Zarządzaj flagami
+                            </button>
+
+                            <button id="openBulkAutomationModalBtn" class="Button-Page-Small" style="background-color: #4e73df; color: white; border: none;">
+                                <i class="fa-solid fa-robot" style="margin-right: 5px;"></i> Automatyzacja Cen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="selectedProductsList" class="table-scroll" style="max-height: 45vh; min-height: 40vh; overflow-y: auto;"> </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="automationSelectionModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="automationSelectionModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="automationSelectionModalLabel">Wybierz grupę automatyzacji</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p style="margin-bottom: 20px; color: #666;">
+                    Wybierz regułę, do której chcesz przypisać zaznaczone produkty (<span id="automationProductCountDisplay">0</span>).
+                    Jeśli produkt jest już w innej grupie, zostanie przeniesiony.
+                </p>
+
+                <div id="automationRulesListContainer" class="table-scroll" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+                    <div style="text-align:center; padding:20px;">
+                        <i class="fas fa-spinner fa-spin"></i> Ładowanie reguł...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Anuluj</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="flagModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="flagModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="flagModalLabel">Zarządzaj flagami</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="flagModalBody">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Anuluj</button>
+                <button type="button" class="Button-Page-Small-bl" id="saveFlagsButton">Zapisz zmiany</button>
+            </div>
+        </div>
+    </div>
+</div>

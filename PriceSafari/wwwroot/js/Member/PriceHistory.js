@@ -3934,6 +3934,238 @@
         }
     };
 
+    window.renderAutomationRulesInModal = function (rules, totalSelected) {
+        console.log("Renderowanie inteligentnych reguł...", rules);
+
+        const container = document.getElementById('automationRulesListContainer');
+        if (!container) {
+            console.error("BŁĄD: Nie znaleziono kontenera w modalu!");
+            return;
+        }
+
+        container.innerHTML = '';
+
+        const isAllegro = (typeof isAllegroContext !== 'undefined' && isAllegroContext === true);
+        const sourceTypeParam = isAllegro ? 1 : 0;
+
+        const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
+
+        const unassignDiv = document.createElement('div');
+        const hasAssignments = totalAssignedInSelection > 0;
+
+        unassignDiv.className = 'automation-rule-item';
+        unassignDiv.style.cssText = `
+            border: 1px dashed ${hasAssignments ? '#e74a3b' : '#ccc'}; 
+            border-radius: 8px; padding: 15px; 
+            cursor: ${hasAssignments ? 'pointer' : 'default'}; 
+            background-color: #fff; 
+            display: flex; justify-content: space-between; align-items: center; 
+            transition: all 0.2s; margin-bottom: 20px; opacity: ${hasAssignments ? '1' : '0.7'};
+        `;
+
+        if (hasAssignments) {
+            unassignDiv.onmouseover = () => { unassignDiv.style.backgroundColor = '#fff5f5'; };
+            unassignDiv.onmouseout = () => { unassignDiv.style.backgroundColor = '#fff'; };
+            unassignDiv.addEventListener('click', () => {
+                window.confirmAndUnassignRules();
+            });
+        }
+
+        unassignDiv.innerHTML = `
+            <div style="display:flex; align-items:center; gap:15px;">
+                <div style="width:6px; height:45px; background-color:${hasAssignments ? '#e74a3b' : '#ccc'}; border-radius:3px;"></div>
+                <div>
+                    <div style="font-weight:600; font-size:16px; color:${hasAssignments ? '#e74a3b' : '#888'};">
+                        Brak Automatyzacji (Odepnij)
+                    </div>
+                    <div style="font-size:13px; color:#666; margin-top:4px;">
+                        ${hasAssignments ? 'Usuń przypisanie dla zaznaczonych produktów.' : 'Żaden z zaznaczonych produktów nie ma reguły.'}
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:15px;">
+                <span style="font-weight:bold; color:#555; font-size:14px;">(${totalAssignedInSelection} / ${totalSelected})</span>
+                <button class="Button-Page-Small-r" type="button" style="pointer-events:none; ${!hasAssignments ? 'background-color:#ccc; border-color:#ccc;' : ''}">Odepnij</button>
+            </div>
+        `;
+        container.appendChild(unassignDiv);
+
+        if (!rules || rules.length === 0) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.innerHTML = `
+                <div class="alert alert-warning" style="text-align:center;">
+                    Brak zdefiniowanych reguł. <a href="/AutomationRules/Index?storeId=${storeId}&filterType=${sourceTypeParam}" target="_blank">Utwórz nową</a>.
+                </div>`;
+            container.appendChild(emptyDiv);
+            return;
+        }
+
+        rules.forEach(rule => {
+            const statusHtml = rule.isActive
+                ? '<span class="badge badge-success" style="font-weight:500; padding: 6px 10px;">Aktywna</span>'
+                : '<span class="badge badge-secondary" style="font-weight:500; padding: 6px 10px;">Nieaktywna</span>';
+
+            const strategyIcon = rule.strategyMode === 0
+                ? '<i class="fa-solid fa-bolt" style="color:#f6c23e;"></i>'
+                : '<i class="fa-solid fa-dollar-sign" style="color:#1cc88a;"></i>';
+            const strategyName = rule.strategyMode === 0 ? "Lider Rynku" : "Rentowność";
+
+            let backgroundStyle = '#fff';
+            let borderStyle = '#e3e6f0';
+
+            if (rule.matchingCount > 0) {
+
+                backgroundStyle = `linear-gradient(90deg, ${hexToRgba(rule.colorHex, 0.15)} 0%, #fff 100%)`;
+                borderStyle = rule.colorHex;
+            }
+
+            const div = document.createElement('div');
+            div.className = 'automation-rule-item';
+            div.style.cssText = `border: 1px solid ${borderStyle}; border-radius: 8px; padding: 15px; cursor: pointer; background: ${backgroundStyle}; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; margin-bottom: 10px;`;
+
+            div.onmouseover = () => { div.style.backgroundColor = '#f8f9fc'; div.style.borderColor = rule.colorHex; };
+            div.onmouseout = () => { div.style.background = backgroundStyle; div.style.borderColor = borderStyle; };
+
+            const countLabel = `<span style="font-weight:bold; font-size:14px; color:#333; margin-right:5px;">(${rule.matchingCount} / ${totalSelected})</span>`;
+
+            div.innerHTML = `
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <div style="width:6px; height:45px; background-color:${rule.colorHex}; border-radius:3px;"></div>
+                    <div>
+                        <div style="font-weight:600; font-size:16px; color:#333;">${rule.name}</div>
+                        <div style="font-size:13px; color:#666; margin-top:4px;">
+                            ${strategyIcon} ${strategyName} <span style="margin: 0 5px; color:#ccc;">|</span> Wszystkich produktów: <strong>${rule.totalCount}</strong>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    ${statusHtml}
+                    ${countLabel}
+                    <button class="Button-Page-Small-bl assign-rule-btn" type="button" style="pointer-events:none;">Wybierz</button>
+                </div>
+            `;
+
+            div.addEventListener('click', () => {
+                window.confirmAndAssignRule(rule.id, rule.name);
+            });
+
+            container.appendChild(div);
+        });
+    };
+
+    window.confirmAndAssignRule = function (ruleId, ruleName) {
+        if (!confirm(`Czy na pewno chcesz przypisać ${selectedProductIds.size} produktów do grupy "${ruleName}"?\n\nJeśli produkty były w innych grupach, zostaną przeniesione.`)) {
+            return;
+        }
+        executeAutomationAction('/AutomationRules/AssignProducts', { RuleId: ruleId });
+    };
+
+    window.confirmAndUnassignRules = function () {
+        if (!confirm(`Czy na pewno chcesz usunąć przypisanie do reguł automatyzacji dla ${selectedProductIds.size} produktów?`)) {
+            return;
+        }
+        executeAutomationAction('/AutomationRules/UnassignProducts', {});
+    };
+
+    function executeAutomationAction(url, extraData) {
+        const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
+        const isAllegro = (typeof isAllegroContext !== 'undefined' && isAllegroContext === true);
+
+        showLoading();
+        $('#automationSelectionModal').modal('hide');
+
+        const payload = {
+            ProductIds: productIdsArray,
+            IsAllegro: isAllegro,
+            ...extraData
+
+        };
+
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(response => {
+                if (response.ok) return response.json();
+                else return response.text().then(text => { throw new Error(text) });
+            })
+            .then(data => {
+                showGlobalUpdate(`<p style="font-weight:bold;">Sukces!</p><p>${data.message}</p>`);
+
+                selectedProductIds.clear();
+                clearSelectionFromStorage();
+                updateSelectionUI();
+                if (typeof updateVisibleProductSelectionButtons === 'function') {
+                    updateVisibleProductSelectionButtons();
+                }
+            })
+            .catch(error => {
+                console.error('Błąd:', error);
+                showGlobalNotification(`<p style="font-weight:bold;">Błąd</p><p>${error.message}</p>`);
+
+                setTimeout(() => $('#automationSelectionModal').modal('show'), 500);
+            })
+            .finally(() => {
+                hideLoading();
+            });
+    }
+
+    document.body.addEventListener('click', function (event) {
+        const targetBtn = event.target.closest('#openBulkAutomationModalBtn');
+
+        if (targetBtn) {
+            console.log("Kliknięto przycisk automatyzacji.");
+
+            if (selectedProductIds.size === 0) {
+                alert('Nie zaznaczono żadnych produktów.');
+                return;
+            }
+
+            const isAllegro = (typeof isAllegroContext !== 'undefined' && isAllegroContext === true);
+            const sourceType = isAllegro ? 1 : 0;
+            const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
+
+            const countDisplay = document.getElementById('automationProductCountDisplay');
+            if (countDisplay) countDisplay.textContent = selectedProductIds.size;
+
+            $('#selectedProductsModal').modal('hide');
+            showLoading();
+
+            fetch(`/AutomationRules/GetRulesStatusForProducts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    StoreId: storeId,
+                    SourceType: sourceType,
+                    IsAllegro: isAllegro,
+                    ProductIds: productIdsArray
+                })
+            })
+                .then(response => {
+                    if (!response.ok) throw new Error("Błąd sieci: " + response.statusText);
+                    return response.json();
+                })
+                .then(rules => {
+                    if (typeof window.renderAutomationRulesInModal === 'function') {
+
+                        window.renderAutomationRulesInModal(rules, selectedProductIds.size);
+                        hideLoading();
+                        $('#automationSelectionModal').modal('show');
+                    } else {
+                        console.error("CRITICAL: Funkcja renderAutomationRulesInModal nie znaleziona na window!");
+                        hideLoading();
+                    }
+                })
+                .catch(error => {
+                    console.error('Błąd pobierania reguł:', error);
+                    hideLoading();
+                    alert('Błąd komunikacji z serwerem. Sprawdź konsolę.');
+                    $('#selectedProductsModal').modal('show');
+                });
+        }
+    });
+
     document.getElementById('openBulkFlagModalBtn').addEventListener('click', function () {
         if (selectedProductIds.size === 0) {
             alert('Nie zaznaczono żadnych produktów.');
@@ -3941,6 +4173,9 @@
         }
 
         isBulkFlaggingMode = true;
+
+        const isAllegro = (typeof isAllegroContext !== 'undefined' && isAllegroContext === true);
+
         $('#selectedProductsModal').modal('hide');
         showLoading();
 
@@ -3949,11 +4184,16 @@
         fetch('/ProductFlags/GetFlagCountsForProducts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ productIds: productIds })
+
+            body: JSON.stringify({
+                productIds: productIds,
+                isAllegro: isAllegro
+            })
         })
             .then(response => response.json())
             .then(counts => {
                 populateBulkFlagModal(counts);
+
                 hideLoading();
                 $('#flagModal').modal('show');
             })
@@ -3961,6 +4201,8 @@
                 console.error('Błąd pobierania liczników flag:', error);
                 hideLoading();
                 alert('Nie udało się pobrać danych o flagach.');
+
+                $('#selectedProductsModal').modal('show');
             });
     });
 
@@ -4027,6 +4269,72 @@
             });
         });
     }
+
+    document.getElementById('saveFlagsButton').addEventListener('click', function () {
+
+        const flagsToAdd = [];
+        const flagsToRemove = [];
+
+        document.querySelectorAll('#flagModalBody .bulk-flag-item').forEach(item => {
+            const flagId = parseInt(item.dataset.flagId, 10);
+            const addCheckbox = item.querySelector('.bulk-flag-action[data-action="add"]');
+            const removeCheckbox = item.querySelector('.bulk-flag-action[data-action="remove"]');
+
+            if (addCheckbox && addCheckbox.checked) {
+                flagsToAdd.push(flagId);
+            }
+            if (removeCheckbox && removeCheckbox.checked) {
+                flagsToRemove.push(flagId);
+            }
+        });
+
+        if (flagsToAdd.length === 0 && flagsToRemove.length === 0) {
+            alert("Nie wybrano żadnych akcji do wykonania.");
+            return;
+        }
+
+        const isAllegro = (typeof isAllegroContext !== 'undefined' && isAllegroContext === true);
+
+        const data = {
+            productIds: Array.from(selectedProductIds).map(id => parseInt(id)),
+            flagsToAdd: flagsToAdd,
+            flagsToRemove: flagsToRemove,
+            isAllegro: isAllegro
+
+        };
+
+        showLoading();
+
+        fetch('/ProductFlags/UpdateFlagsForMultipleProducts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(response => {
+                if (response.success) {
+                    $('#flagModal').modal('hide');
+                    showGlobalUpdate(`<p>Pomyślnie zaktualizowano flagi dla ${data.productIds.length} produktów.</p>`);
+
+                    selectedProductIds.clear();
+                    clearSelectionFromStorage();
+                    updateSelectionUI();
+
+                    if (typeof updateVisibleProductSelectionButtons === 'function') {
+                        updateVisibleProductSelectionButtons();
+                    }
+
+                    loadPrices();
+                } else {
+                    alert('Błąd: ' + response.message);
+                }
+            })
+            .catch(error => {
+                console.error('Błąd masowej aktualizacji flag:', error);
+                alert('Wystąpił błąd połączenia.');
+            })
+            .finally(() => hideLoading());
+    });
 
     document.getElementById('saveFlagsButton').addEventListener('click', function () {
 
