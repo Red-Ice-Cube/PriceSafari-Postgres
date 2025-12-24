@@ -108,6 +108,24 @@ namespace PriceSafari.Models
         /// </summary>
         public bool IsMinimalMarginPercent { get; set; } = true;
 
+
+        /// <summary>
+        /// Czy blokować podwyzke ceny powyzej maxymalnego zysku/narzutu.
+        /// Jeśli true, system nie ustawi ceny wyzej niż (CenaZakupu + MaxMargin).
+        /// </summary>
+        public bool EnforceMaxMargin { get; set; } = false;
+
+        /// <summary>
+        /// Wartość maxymalnego narzutu. Może być tylko dodatnia.
+        /// </summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal MaxMarginValue { get; set; } = 100.00m;
+
+        /// <summary>
+        /// Czy MaxMarginValue jest wyrażone w procentach (true) czy w walucie (false).
+        /// </summary>
+        public bool IsMaxMarginPercent { get; set; } = true;
+
         // =================================================================================
         // SEKCJA 3: SPECYFICZNE DLA PRICE COMPARISON (Google/Ceneo)
         // =================================================================================
