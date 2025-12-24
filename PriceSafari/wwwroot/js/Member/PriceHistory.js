@@ -3963,20 +3963,37 @@
     `;
 
         statsHeader.innerHTML = `
-        <div>
-            <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Zaznaczone</div>
-            <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalSelected}</div>
-        </div>
-        <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
-        <div>
-            <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Ma już grupę</div>
-            <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalAssignedInSelection}</div>
-        </div>
-        <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
-        <div>
-            <div style="font-size: 11px; color: #e74a3b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Bez grupy</div>
-            <div style="font-size: 20px; font-weight: 700; color: #e74a3b;">${Math.max(0, totalUnassignedInSelection)}</div>
-        </div>
+            <div>
+                <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+                    Łącznie zaznaczone produkty
+                </div>
+                <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">
+                    ${totalSelected}
+                </div>
+            </div>
+
+            <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
+
+            <div>
+                <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+                    Zaznaczone przypisane do reguły
+                </div>
+                <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">
+                    ${totalAssignedInSelection}
+                </div>
+            </div>
+
+            <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
+
+            <div>
+                <div style="font-size: 11px; color: #e74a3b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+                    Zaznaczone nieprzypisane do reguły
+                </div>
+                <div style="font-size: 20px; font-weight: 700; color: #e74a3b;">
+                    ${Math.max(0, totalUnassignedInSelection)}
+                </div>
+            </div>
+
     `;
         container.appendChild(statsHeader);
 
@@ -4104,19 +4121,19 @@
                     <div style="display:flex; gap: 15px; margin-top:6px; font-size:13px; color:#666; align-items: center; flex-wrap: wrap;">
                         
                         <span title="Całkowita liczba produktów aktualnie przypisanych do tej reguły (w całym sklepie)">
-                            <i class="fa-solid fa-database" style="color:#999; margin-right:4px;"></i> Wszystkich w grupie: <strong>${globalTotalInRule}</strong>
+                            <i class="fa-solid fa-database" style="color:#999; margin-right:4px;"></i> Łączna ilość produktów w grupie: <strong>${globalTotalInRule}</strong>
                         </span>
 
                         <span style="color:#e3e6f0;">|</span>
 
                         <span title="Ile z aktualnie zaznaczonych przez Ciebie produktów znajduje się już w tej grupie">
-                            <i class="fa-solid fa-check-double" style="color:#999; margin-right:4px;"></i> Z zaznaczonych: <strong>${selectedAlreadyInRule}</strong>
+                            <i class="fa-solid fa-check-double" style="color:#999; margin-right:4px;"></i> Z obecnie wybranych: <strong>${selectedAlreadyInRule}</strong>
                         </span>
 
                         <span style="color:#e3e6f0;">|</span>
 
                         <span title="Liczba produktów, które zostaną dodane do tej grupy po kliknięciu">
-                             Zostanie dodanych: <strong style="color:#1cc88a;">+${toBeAdded}</strong>
+                             Po wybraniu, zostanie dodanych: <strong style="color:#1cc88a;">+${toBeAdded}</strong>
                         </span>
                     </div>
                 </div>
