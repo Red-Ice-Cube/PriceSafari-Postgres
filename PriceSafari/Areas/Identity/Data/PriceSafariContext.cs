@@ -70,6 +70,7 @@ namespace PriceSafari.Data
         public DbSet<CoOfrStoreData> CoOfrStoreDatas { get; set; }
 
         public DbSet<AutomationRule> AutomationRules { get; set; }
+        public DbSet<AutomationProductAssignment> AutomationProductAssignments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -351,6 +352,43 @@ namespace PriceSafari.Data
                 .WithMany() 
                 .HasForeignKey(ar => ar.StoreId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+
+            // 1. Unikalność dla ProductClass
+            modelBuilder.Entity<AutomationProductAssignment>()
+                .HasIndex(apa => apa.ProductId)
+                .IsUnique()
+                .HasFilter("[ProductId] IS NOT NULL");
+
+            // 2. Unikalność dla AllegroProductClass
+            modelBuilder.Entity<AutomationProductAssignment>()
+                .HasIndex(apa => apa.AllegroProductId)
+                .IsUnique()
+                .HasFilter("[AllegroProductId] IS NOT NULL");
+
+            // 3. Relacja z regułą (ZOSTAWIAMY CASCADE)
+            // Jeśli usuniesz Regułę, chcemy, żeby przypisania zniknęły automatycznie.
+            modelBuilder.Entity<AutomationProductAssignment>()
+                .HasOne(apa => apa.AutomationRule)
+                .WithMany()
+                .HasForeignKey(apa => apa.AutomationRuleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // 4. Relacja z ProductClass (ZMIENIAMY NA NO ACTION)
+            // Przerywamy cykl tutaj.
+            modelBuilder.Entity<AutomationProductAssignment>()
+                .HasOne(apa => apa.Product)
+                .WithMany()
+                .HasForeignKey(apa => apa.ProductId)
+                .OnDelete(DeleteBehavior.NoAction); // <--- Zmiana z Cascade na NoAction
+
+            // 5. Relacja z AllegroProductClass (ZMIENIAMY NA NO ACTION)
+            // Przerywamy cykl tutaj.
+            modelBuilder.Entity<AutomationProductAssignment>()
+                .HasOne(apa => apa.AllegroProduct)
+                .WithMany()
+                .HasForeignKey(apa => apa.AllegroProductId)
+                .OnDelete(DeleteBehavior.NoAction); // <--- Zmiana z Cascade na NoAction
         }
     }
 }

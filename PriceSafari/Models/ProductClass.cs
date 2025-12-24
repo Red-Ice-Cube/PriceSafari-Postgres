@@ -72,7 +72,7 @@ namespace PriceSafari.Models
         public string? CatalogNumber { get; set; }
         public string? Ean { get; set; }
         public string? MainUrl { get; set; }
-        //public decimal? ExternalPrice { get; set; }
+
         public bool IsScrapable { get; set; } = false;
         public bool IsRejected { get; set; } = false;
 
