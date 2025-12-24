@@ -3935,7 +3935,7 @@
     };
 
     window.renderAutomationRulesInModal = function (rules, totalSelected) {
-        console.log("Renderowanie inteligentnych reguł...", rules);
+        console.log("Renderowanie reguł (Sortowanie A-Z + Status obok strategii)...", rules);
 
         const container = document.getElementById('automationRulesListContainer');
         if (!container) {
@@ -3945,23 +3945,54 @@
 
         container.innerHTML = '';
 
-        const isAllegro = (typeof isAllegroContext !== 'undefined' && isAllegroContext === true);
-        const sourceTypeParam = isAllegro ? 1 : 0;
-
+        // --- 1. NAGŁÓWEK Z PODSUMOWANIEM ---
         const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
+        const totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
 
+        const statsHeader = document.createElement('div');
+        statsHeader.style.cssText = `
+        background-color: #f8f9fa;
+        border: 1px solid #e3e6f0;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        text-align: center;
+    `;
+
+        statsHeader.innerHTML = `
+        <div>
+            <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Zaznaczone</div>
+            <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalSelected}</div>
+        </div>
+        <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
+        <div>
+            <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Ma już grupę</div>
+            <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalAssignedInSelection}</div>
+        </div>
+        <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
+        <div>
+            <div style="font-size: 11px; color: #e74a3b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Bez grupy</div>
+            <div style="font-size: 20px; font-weight: 700; color: #e74a3b;">${Math.max(0, totalUnassignedInSelection)}</div>
+        </div>
+    `;
+        container.appendChild(statsHeader);
+
+        // --- 2. BLOK "ODEPNIJ" ---
         const unassignDiv = document.createElement('div');
         const hasAssignments = totalAssignedInSelection > 0;
 
         unassignDiv.className = 'automation-rule-item';
         unassignDiv.style.cssText = `
-            border: 1px dashed ${hasAssignments ? '#e74a3b' : '#ccc'}; 
-            border-radius: 8px; padding: 15px; 
-            cursor: ${hasAssignments ? 'pointer' : 'default'}; 
-            background-color: #fff; 
-            display: flex; justify-content: space-between; align-items: center; 
-            transition: all 0.2s; margin-bottom: 20px; opacity: ${hasAssignments ? '1' : '0.7'};
-        `;
+        border: 1px dashed ${hasAssignments ? '#e74a3b' : '#ccc'}; 
+        border-radius: 8px; padding: 10px 15px; 
+        cursor: ${hasAssignments ? 'pointer' : 'default'}; 
+        background-color: #fff; 
+        display: flex; justify-content: space-between; align-items: center; 
+        transition: background-color 0.2s; margin-bottom: 20px; opacity: ${hasAssignments ? '1' : '0.6'};
+    `;
 
         if (hasAssignments) {
             unassignDiv.onmouseover = () => { unassignDiv.style.backgroundColor = '#fff5f5'; };
@@ -3972,78 +4003,131 @@
         }
 
         unassignDiv.innerHTML = `
-            <div style="display:flex; align-items:center; gap:15px;">
-                <div style="width:6px; height:45px; background-color:${hasAssignments ? '#e74a3b' : '#ccc'}; border-radius:3px;"></div>
-                <div>
-                    <div style="font-weight:600; font-size:16px; color:${hasAssignments ? '#e74a3b' : '#888'};">
-                        Brak Automatyzacji (Odepnij)
-                    </div>
-                    <div style="font-size:13px; color:#666; margin-top:4px;">
-                        ${hasAssignments ? 'Usuń przypisanie dla zaznaczonych produktów.' : 'Żaden z zaznaczonych produktów nie ma reguły.'}
-                    </div>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <div style="width:6px; height:45px; background-color:${hasAssignments ? '#e74a3b' : '#ccc'}; border-radius:3px;"></div>
+            <div>
+                <div style="font-weight:600; font-size:15px; color:${hasAssignments ? '#e74a3b' : '#888'};">
+                    Brak Automatyzacji (Odepnij)
+                </div>
+                <div style="font-size:13px; color:#666; margin-top:2px;">
+                    ${hasAssignments
+                ? `Odepnij <strong>${totalAssignedInSelection}</strong> zaznaczonych produktów od ich obecnych reguł.`
+                : 'Żaden z zaznaczonych produktów nie jest przypisany do reguły.'}
                 </div>
             </div>
-            <div style="display:flex; align-items:center; gap:15px;">
-                <span style="font-weight:bold; color:#555; font-size:14px;">(${totalAssignedInSelection} / ${totalSelected})</span>
-                <button class="Button-Page-Small-r" type="button" style="pointer-events:none; ${!hasAssignments ? 'background-color:#ccc; border-color:#ccc;' : ''}">Odepnij</button>
-            </div>
-        `;
+        </div>
+        <button class="Button-Page-Small-r" type="button" style="pointer-events:none; ${!hasAssignments ? 'background-color:#ccc; border-color:#ccc;' : ''}">Odepnij</button>
+    `;
         container.appendChild(unassignDiv);
 
+        // --- 3. LISTA REGUŁ ---
         if (!rules || rules.length === 0) {
             const emptyDiv = document.createElement('div');
             emptyDiv.innerHTML = `
-                <div class="alert alert-warning" style="text-align:center;">
-                    Brak zdefiniowanych reguł. <a href="/AutomationRules/Index?storeId=${storeId}&filterType=${sourceTypeParam}" target="_blank">Utwórz nową</a>.
-                </div>`;
+            <div class="alert alert-warning" style="text-align:center;">
+                Brak zdefiniowanych reguł. <a href="/AutomationRules/Index?storeId=${storeId}" target="_blank">Utwórz nową</a>.
+            </div>`;
             container.appendChild(emptyDiv);
             return;
         }
 
-        rules.forEach(rule => {
-            const statusHtml = rule.isActive
-                ? '<span class="badge badge-success" style="font-weight:500; padding: 6px 10px;">Aktywna</span>'
-                : '<span class="badge badge-secondary" style="font-weight:500; padding: 6px 10px;">Nieaktywna</span>';
+        // *** SORTOWANIE ALFABETYCZNE (A-Z) ***
+        rules.sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }));
 
+        rules.forEach(rule => {
+            // Logika Statusu
+            const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b'; // Zielony / Czerwony
+            const statusText = rule.isActive ? 'Aktywna' : 'Nieaktywna';
+
+            // Logika Strategii
             const strategyIcon = rule.strategyMode === 0
-                ? '<i class="fa-solid fa-bolt" style="color:#f6c23e;"></i>'
-                : '<i class="fa-solid fa-dollar-sign" style="color:#1cc88a;"></i>';
+                ? '<i class="fa-solid fa-bolt" style="color:#888;"></i>'
+                : '<i class="fa-solid fa-dollar-sign" style="color:#888;"></i>';
             const strategyName = rule.strategyMode === 0 ? "Lider Rynku" : "Rentowność";
+
+            // Obliczenia liczbowe
+            const globalTotalInRule = rule.totalCount;
+            const selectedAlreadyInRule = rule.matchingCount;
+            const toBeAdded = totalSelected - selectedAlreadyInRule;
+            const projectedTotal = globalTotalInRule + toBeAdded;
 
             let backgroundStyle = '#fff';
             let borderStyle = '#e3e6f0';
 
-            if (rule.matchingCount > 0) {
-
-                backgroundStyle = `linear-gradient(90deg, ${hexToRgba(rule.colorHex, 0.15)} 0%, #fff 100%)`;
-                borderStyle = rule.colorHex;
+            if (selectedAlreadyInRule > 0) {
+                backgroundStyle = '#fcfcfc';
             }
 
             const div = document.createElement('div');
             div.className = 'automation-rule-item';
-            div.style.cssText = `border: 1px solid ${borderStyle}; border-radius: 8px; padding: 15px; cursor: pointer; background: ${backgroundStyle}; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; margin-bottom: 10px;`;
+            div.style.cssText = `
+            border: 1px solid ${borderStyle}; 
+            border-radius: 8px; 
+            padding: 12px 15px; 
+            cursor: pointer; 
+            background: ${backgroundStyle}; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            transition: background-color 0.2s, border-color 0.2s; 
+            margin-bottom: 10px;
+        `;
 
-            div.onmouseover = () => { div.style.backgroundColor = '#f8f9fc'; div.style.borderColor = rule.colorHex; };
+            div.onmouseover = () => { div.style.backgroundColor = '#f8f9fc'; div.style.borderColor = '#b7b9cc'; };
             div.onmouseout = () => { div.style.background = backgroundStyle; div.style.borderColor = borderStyle; };
 
-            const countLabel = `<span style="font-weight:bold; font-size:14px; color:#333; margin-right:5px;">(${rule.matchingCount} / ${totalSelected})</span>`;
-
             div.innerHTML = `
-                <div style="display:flex; align-items:center; gap:15px;">
-                    <div style="width:6px; height:45px; background-color:${rule.colorHex}; border-radius:3px;"></div>
-                    <div>
-                        <div style="font-weight:600; font-size:16px; color:#333;">${rule.name}</div>
-                        <div style="font-size:13px; color:#666; margin-top:4px;">
-                            ${strategyIcon} ${strategyName} <span style="margin: 0 5px; color:#ccc;">|</span> Wszystkich produktów: <strong>${rule.totalCount}</strong>
+            <div style="display:flex; align-items:center; gap:15px; flex-grow: 1;">
+                
+                <div style="width:6px; height:45px; background-color:${rule.colorHex}; border-radius:3px; flex-shrink: 0;"></div>
+
+                <div style="flex-grow: 1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        
+                        <div style="font-weight:600; font-size:15px; color:#333;">
+                            ${rule.name}
+                        </div>
+                        
+                        <div style="font-size:12px; color:#888; display:flex; align-items:center; gap:8px;">
+                             <span style="display:flex; align-items:center; gap:4px;">
+                                ${strategyIcon} ${strategyName}
+                             </span>
+
+                             <span style="color:#e3e6f0;">|</span>
+
+                             <span style="color:${statusColor}; font-weight:500; display:flex; align-items:center; gap:4px;">
+                                <i class="fa-solid fa-circle" style="font-size:6px;"></i> ${statusText}
+                             </span>
                         </div>
                     </div>
+
+                    <div style="display:flex; gap: 15px; margin-top:6px; font-size:13px; color:#666; align-items: center; flex-wrap: wrap;">
+                        
+                        <span title="Całkowita liczba produktów aktualnie przypisanych do tej reguły (w całym sklepie)">
+                            <i class="fa-solid fa-database" style="color:#999; margin-right:4px;"></i> Wszystkich w grupie: <strong>${globalTotalInRule}</strong>
+                        </span>
+
+                        <span style="color:#e3e6f0;">|</span>
+
+                        <span title="Ile z aktualnie zaznaczonych przez Ciebie produktów znajduje się już w tej grupie">
+                            <i class="fa-solid fa-check-double" style="color:#999; margin-right:4px;"></i> Z zaznaczonych: <strong>${selectedAlreadyInRule}</strong>
+                        </span>
+
+                        <span style="color:#e3e6f0;">|</span>
+
+                        <span title="Liczba produktów, które zostaną dodane do tej grupy po kliknięciu">
+                             Zostanie dodanych: <strong style="color:#1cc88a;">+${toBeAdded}</strong>
+                        </span>
+                    </div>
                 </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    ${statusHtml}
-                    ${countLabel}
-                    <button class="Button-Page-Small-bl assign-rule-btn" type="button" style="pointer-events:none;">Wybierz</button>
-                </div>
-            `;
+            </div>
+
+            <div style="margin-left: 20px;">
+                <button class="Button-Page-Small-bl assign-rule-btn" type="button" style="pointer-events:none; white-space:nowrap; padding: 5px 15px;">
+                    Wybierz
+                </button>
+            </div>
+        `;
 
             div.addEventListener('click', () => {
                 window.confirmAndAssignRule(rule.id, rule.name);
