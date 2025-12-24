@@ -1731,7 +1731,278 @@
                hideLoading();
                alert('Nie udało się pobrać danych o flagach.');
            });
-   });
+    });
+
+    // OBSŁUGA PRZYCISKU OTWIERANIA MODALA AUTOMATYZACJI (ALLEGRO)
+    document.body.addEventListener('click', function (event) {
+        const targetBtn = event.target.closest('#openBulkAutomationModalBtn');
+
+        if (targetBtn) {
+            console.log("Kliknięto przycisk automatyzacji (Allegro).");
+
+            if (selectedProductIds.size === 0) {
+                alert('Nie zaznaczono żadnych produktów.');
+                return;
+            }
+
+            // IsAllegro = true, SourceType = 1 (Marketplace/Allegro)
+            const isAllegro = true;
+            const sourceType = 1;
+            const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
+
+            // Aktualizacja licznika w modalu (jeśli istnieje taki element w widoku Allegro)
+            const countDisplay = document.getElementById('automationProductCountDisplay');
+            if (countDisplay) countDisplay.textContent = selectedProductIds.size;
+
+            // Ukryj modal z listą wybranych, pokaż loading
+            $('#selectedProductsModal').modal('hide');
+            showLoading();
+
+            fetch(`/AutomationRules/GetRulesStatusForProducts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    StoreId: storeId,
+                    SourceType: sourceType,
+                    IsAllegro: isAllegro,
+                    ProductIds: productIdsArray
+                })
+            })
+                .then(response => {
+                    if (!response.ok) throw new Error("Błąd sieci: " + response.statusText);
+                    return response.json();
+                })
+                .then(rules => {
+                    if (typeof window.renderAutomationRulesInModal === 'function') {
+                        window.renderAutomationRulesInModal(rules, selectedProductIds.size);
+                        hideLoading();
+                        $('#automationSelectionModal').modal('show');
+                    } else {
+                        console.error("CRITICAL: Funkcja renderAutomationRulesInModal nie znaleziona!");
+                        hideLoading();
+                    }
+                })
+                .catch(error => {
+                    console.error('Błąd pobierania reguł:', error);
+                    hideLoading();
+                    alert('Błąd komunikacji z serwerem. Sprawdź konsolę.');
+                    $('#selectedProductsModal').modal('show');
+                });
+        }
+    });
+
+    // ============================================================
+    // LOGIKA AUTOMATYZACJI (AUTOMATION RULES) DLA ALLEGRO
+    // ============================================================
+
+    window.renderAutomationRulesInModal = function (rules, totalSelected) {
+        console.log("Renderowanie reguł dla Allegro...", rules);
+
+        const container = document.getElementById('automationRulesListContainer');
+        if (!container) {
+            console.error("BŁĄD: Nie znaleziono kontenera 'automationRulesListContainer' w modalu!");
+            return;
+        }
+
+        container.innerHTML = '';
+
+        const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
+        const totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
+
+        // Sekcja statystyk (Header)
+        const statsHeader = document.createElement('div');
+        statsHeader.style.cssText = `
+            background-color: #f8f9fa; border: 1px solid #e3e6f0; border-radius: 8px;
+            padding: 15px; margin-bottom: 20px; display: flex;
+            justify-content: space-around; align-items: center; text-align: center;
+        `;
+
+        statsHeader.innerHTML = `
+            <div>
+                <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Łącznie zaznaczone</div>
+                <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalSelected}</div>
+            </div>
+            <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
+            <div>
+                <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Przypisane do reguły</div>
+                <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalAssignedInSelection}</div>
+            </div>
+            <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
+            <div>
+                <div style="font-size: 11px; color: #e74a3b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Nieprzypisane</div>
+                <div style="font-size: 20px; font-weight: 700; color: #e74a3b;">${Math.max(0, totalUnassignedInSelection)}</div>
+            </div>
+        `;
+        container.appendChild(statsHeader);
+
+        // Opcja "Odepnij" (Brak automatyzacji)
+        const unassignDiv = document.createElement('div');
+        const hasAssignments = totalAssignedInSelection > 0;
+
+        unassignDiv.className = 'automation-rule-item';
+        unassignDiv.style.cssText = `
+            border: 1px dashed ${hasAssignments ? '#e74a3b' : '#ccc'}; 
+            border-radius: 8px; padding: 10px 15px; 
+            cursor: ${hasAssignments ? 'pointer' : 'default'}; 
+            background-color: #fff; 
+            display: flex; justify-content: space-between; align-items: center; 
+            transition: background-color 0.2s; margin-bottom: 20px; opacity: ${hasAssignments ? '1' : '0.6'};
+        `;
+
+        if (hasAssignments) {
+            unassignDiv.onmouseover = () => { unassignDiv.style.backgroundColor = '#fff5f5'; };
+            unassignDiv.onmouseout = () => { unassignDiv.style.backgroundColor = '#fff'; };
+            unassignDiv.addEventListener('click', () => {
+                window.confirmAndUnassignRules();
+            });
+        }
+
+        unassignDiv.innerHTML = `
+            <div style="display:flex; align-items:center; gap:15px;">
+                <div style="width:6px; height:45px; background-color:${hasAssignments ? '#e74a3b' : '#ccc'}; border-radius:3px;"></div>
+                <div>
+                    <div style="font-weight:600; font-size:15px; color:${hasAssignments ? '#e74a3b' : '#888'};">Brak Automatyzacji (Odepnij)</div>
+                    <div style="font-size:13px; color:#666; margin-top:2px;">
+                        ${hasAssignments ? `Odepnij <strong>${totalAssignedInSelection}</strong> zaznaczonych produktów od ich obecnych reguł.` : 'Żaden z zaznaczonych produktów nie jest przypisany do reguły.'}
+                    </div>
+                </div>
+            </div>
+            <button class="Button-Page-Small-r" type="button" style="pointer-events:none; ${!hasAssignments ? 'background-color:#ccc; border-color:#ccc;' : ''}">Odepnij</button>
+        `;
+        container.appendChild(unassignDiv);
+
+        if (!rules || rules.length === 0) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.innerHTML = `<div class="alert alert-warning" style="text-align:center;">Brak zdefiniowanych reguł dla Allegro. <a href="/AutomationRules/Index?storeId=${storeId}&filterType=1" target="_blank">Utwórz nową</a>.</div>`;
+            container.appendChild(emptyDiv);
+            return;
+        }
+
+        rules.sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }));
+
+        rules.forEach(rule => {
+            const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b';
+            const statusText = rule.isActive ? 'Aktywna' : 'Nieaktywna';
+            // Dla Allegro strategie mogą być inne, ale zakładamy te same ikony co w Comparison
+            const strategyIcon = rule.strategyMode === 0 ? '<i class="fa-solid fa-bolt" style="color:#888;"></i>' : '<i class="fa-solid fa-dollar-sign" style="color:#888;"></i>';
+            const strategyName = rule.strategyMode === 0 ? "Lider Rynku" : "Rentowność";
+
+            const globalTotalInRule = rule.totalCount;
+            const selectedAlreadyInRule = rule.matchingCount;
+            const toBeAdded = totalSelected - selectedAlreadyInRule;
+
+            let backgroundStyle = selectedAlreadyInRule > 0 ? '#fcfcfc' : '#fff';
+            let borderStyle = '#e3e6f0';
+
+            const div = document.createElement('div');
+            div.className = 'automation-rule-item';
+            div.style.cssText = `
+                border: 1px solid ${borderStyle}; border-radius: 8px; padding: 12px 15px; 
+                cursor: pointer; background: ${backgroundStyle}; 
+                display: flex; justify-content: space-between; align-items: center; 
+                transition: background-color 0.2s, border-color 0.2s; margin-bottom: 10px;
+            `;
+
+            div.onmouseover = () => { div.style.backgroundColor = '#f8f9fc'; div.style.borderColor = '#b7b9cc'; };
+            div.onmouseout = () => { div.style.background = backgroundStyle; div.style.borderColor = borderStyle; };
+
+            div.innerHTML = `
+                <div style="display:flex; align-items:center; gap:15px; flex-grow: 1;">
+                    <div style="width:6px; height:45px; background-color:${rule.colorHex}; border-radius:3px; flex-shrink: 0;"></div>
+                    <div style="flex-grow: 1;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-weight:600; font-size:16px; color:#333;">${rule.name}</div>
+                            <div style="font-size:12px; color:#888; display:flex; align-items:center; gap:8px;">
+                                <span style="display:flex; align-items:center; gap:4px;">${strategyIcon} ${strategyName}</span>
+                                <span style="color:#e3e6f0;">|</span>
+                                <span style="color:${statusColor}; font-weight:500; display:flex; align-items:center; gap:4px;"><i class="fa-solid fa-circle" style="font-size:6px;"></i> ${statusText}</span>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap: 15px; margin-top:6px; font-size:13px; color:#666; align-items: center; flex-wrap: wrap;">
+                            <span title="Całkowita liczba produktów w tej regule"><i class="fa-solid fa-database" style="color:#999; margin-right:4px;"></i> Razem: <strong>${globalTotalInRule}</strong></span>
+                            <span style="color:#e3e6f0;">|</span>
+                            <span title="Ile z zaznaczonych jest tutaj"><i class="fa-solid fa-check-double" style="color:#999; margin-right:4px;"></i> Wybranych: <strong>${selectedAlreadyInRule}</strong></span>
+                            <span style="color:#e3e6f0;">|</span>
+                            <span title="Ile zostanie dodanych">Zostanie dodanych: <strong style="color:#1cc88a;">+${toBeAdded}</strong></span>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-left: 20px;">
+                    <button class="Button-Page-Small-bl assign-rule-btn" type="button" style="pointer-events:none; white-space:nowrap; padding: 5px 15px;">Wybierz</button>
+                </div>
+            `;
+
+            div.addEventListener('click', () => {
+                window.confirmAndAssignRule(rule.id, rule.name);
+            });
+
+            container.appendChild(div);
+        });
+    };
+
+    window.confirmAndAssignRule = function (ruleId, ruleName) {
+        if (!confirm(`Czy na pewno chcesz przypisać ${selectedProductIds.size} produktów Allegro do grupy "${ruleName}"?\n\nJeśli produkty były w innych grupach, zostaną przeniesione.`)) {
+            return;
+        }
+        executeAutomationAction('/AutomationRules/AssignProducts', { RuleId: ruleId });
+    };
+
+    window.confirmAndUnassignRules = function () {
+        if (!confirm(`Czy na pewno chcesz usunąć przypisanie do reguł automatyzacji dla ${selectedProductIds.size} produktów Allegro?`)) {
+            return;
+        }
+        executeAutomationAction('/AutomationRules/UnassignProducts', {});
+    };
+
+    function executeAutomationAction(url, extraData) {
+        const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
+
+        // ZAMKNIJ MODAL WYBORU
+        $('#automationSelectionModal').modal('hide');
+        showLoading();
+
+        // Budowanie payloadu - TU JEST KLUCZOWA ZMIANA DLA ALLEGRO
+        const payload = {
+            ProductIds: productIdsArray,
+            IsAllegro: true, // <--- WYMUSZENIE KONTEKSTU ALLEGRO
+            ...extraData
+        };
+
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(response => {
+                if (response.ok) return response.json();
+                else return response.text().then(text => { throw new Error(text) });
+            })
+            .then(data => {
+                showGlobalUpdate(`<p style="font-weight:bold;">Sukces!</p><p>${data.message}</p>`);
+
+                // Czyszczenie zaznaczenia i odświeżanie widoku
+                selectedProductIds.clear();
+                clearSelectionFromStorage();
+                updateSelectionUI();
+
+                // Odświeżenie przycisków na liście
+                if (typeof updateVisibleProductSelectionButtons === 'function') {
+                    updateVisibleProductSelectionButtons();
+                }
+
+                // Opcjonalnie: Przeładowanie cen, aby odświeżyć stan (jeśli ma to wpływ na widok)
+                // loadPrices(); 
+            })
+            .catch(error => {
+                console.error('Błąd:', error);
+                showGlobalNotification(`<p style="font-weight:bold;">Błąd</p><p>${error.message}</p>`);
+                // W razie błędu przywróć modal
+                setTimeout(() => $('#automationSelectionModal').modal('show'), 500);
+            })
+            .finally(() => {
+                hideLoading();
+            });
+    }
 
     function populateBulkFlagModal(flagCounts) {
         const modalBody = document.getElementById('flagModalBody');

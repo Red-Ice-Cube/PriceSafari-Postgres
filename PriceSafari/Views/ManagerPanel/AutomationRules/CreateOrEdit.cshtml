@@ -8,13 +8,15 @@
 }
 
 <style>
-    /* --- SENIOR DEV STYLES --- */
     :root {
         --primary-color: #4e73df;
         --secondary-bg: #f8f9fc;
         --border-color: #e3e6f0;
         --toggle-width: 140px;
         --toggle-height: 38px;
+        /* Kolory dla bool switch */
+        --success-color: #1cc88a; /* Zielony */
+        --danger-color: #e74a3b; /* Czerwony */
     }
 
     .settings-card {
@@ -42,36 +44,35 @@
             color: var(--primary-color);
         }
 
-    /* --- NARROW INPUTS --- */
     .input-narrow {
         max-width: 120px !important;
         display: inline-block;
         font-weight: 600;
         text-align: right;
-        height:38px;
+        height: 38px;
     }
 
     .form-control {
-        margin-top:0px;
+        margin-top: 0px;
     }
 
-
-    /* --- IOS STYLE UNIT TOGGLE --- */
-    .unit-switch-wrapper {
+    /* --- STYL PRZEŁĄCZNIKÓW (WSPÓLNY) --- */
+    .unit-switch-wrapper, .bool-switch-wrapper {
         display: inline-flex;
         align-items: center;
         background-color: #eaecf4;
         border-radius: 6px;
-     
         margin-left: 10px;
         height: 38px;
         vertical-align: middle;
         position: relative;
         cursor: pointer;
         user-select: none;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
     }
 
-        .unit-switch-wrapper input[type="checkbox"] {
+        .unit-switch-wrapper input[type="checkbox"],
+        .bool-switch-wrapper input[type="checkbox"] {
             display: none;
         }
 
@@ -83,14 +84,15 @@
         z-index: 2;
         transition: color 0.3s;
         line-height: 32px;
+        text-align: center;
+        min-width: 50px;
     }
 
-    /* Slider background */
     .unit-slider {
         position: absolute;
         top: 3px;
         left: 3px;
-        width: 50%; /* Will be calculated via JS or fixed width */
+        width: 50%;
         height: 32px;
         background-color: #fff;
         border-radius: 4px;
@@ -99,15 +101,18 @@
         z-index: 1;
     }
 
-    /* Active States */
-    .unit-switch-wrapper.active-right .unit-slider {
+    /* Logika przesuwania suwaka */
+    .unit-switch-wrapper.active-right .unit-slider,
+    .bool-switch-wrapper.active-right .unit-slider {
         transform: translateX(100%) translateX(-6px);
     }
 
-    .unit-switch-wrapper.active-left .unit-slider {
+    .unit-switch-wrapper.active-left .unit-slider,
+    .bool-switch-wrapper.active-left .unit-slider {
         transform: translateX(0);
     }
 
+    /* --- STYL DLA PLN / % (Oryginalny) --- */
     .unit-switch-wrapper.active-left .opt-left {
         color: var(--primary-color);
     }
@@ -116,7 +121,22 @@
         color: var(--primary-color);
     }
 
-    /* --- PRESET BOX --- */
+    /* --- STYL DLA TAK / NIE (Nowy) --- */
+    .bool-switch-wrapper {
+        width: 130px; /* Stała szerokość dla ładnego wyglądu */
+        justify-content: space-between;
+    }
+
+        .bool-switch-wrapper.active-left .opt-left {
+            color: var(--danger-color);
+        }
+        /* NIE - Czerwony */
+        .bool-switch-wrapper.active-right .opt-right {
+            color: var(--success-color);
+        }
+    /* TAK - Zielony */
+
+
     .preset-box {
         background: var(--secondary-bg);
         border: 2px dashed #d1d3e2;
@@ -133,12 +153,30 @@
             box-shadow: 0 5px 15px rgba(78, 115, 223, 0.1);
         }
 
-    /* --- CHECKBOX STYLING --- */
     .custom-control-label {
         font-weight: 600;
         color: #5a5c69;
         cursor: pointer;
     }
+
+    .switch-label {
+        font-weight: 600;
+        color: #5a5c69;
+        margin-bottom: 0;
+        cursor: default;
+    }
+
+    .switch-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #f1f3f9;
+    }
+
+        .switch-row:last-child {
+            border-bottom: none;
+        }
 </style>
 
 <div class="container-fluid">
@@ -246,14 +284,16 @@
                 <div class="settings-card" data-step="4">
                     <div class="section-title"><i class="fas fa-chart-line"></i> Limity Cenowe (Marża)</div>
 
-                    <div class="form-group mb-4 border-bottom pb-3">
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" class="custom-control-input" asp-for="UsePurchasePrice">
-                            <label class="custom-control-label font-weight-bold text-dark" asp-for="UsePurchasePrice">
-                                Bazuj na Cenie Zakupu (dla produktów z zdefiniowanym kosztem)
-                            </label>
+                    <div class="switch-row mb-3">
+                        <label class="switch-label" asp-for="UsePurchasePrice">Bazuj na Cenie Zakupu (gdy dostępna)</label>
+                        <div class="bool-switch-wrapper @(Model.UsePurchasePrice ? "active-right" : "active-left")" onclick="toggleBool(this)">
+                            <input type="checkbox" asp-for="UsePurchasePrice" />
+                            <div class="unit-slider"></div>
+                            <span class="unit-option opt-left">NIE</span>
+                            <span class="unit-option opt-right">TAK</span>
                         </div>
                     </div>
+                    <hr class="my-3" />
 
                     <div class="row">
                         <div class="col-md-6 border-right">
@@ -308,9 +348,15 @@
                 {
                     <div class="settings-card" data-step="5" style="border-left: 4px solid #36b9cc;">
                         <div class="section-title text-info"><i class="fas fa-truck"></i> Opcje Porównywarek</div>
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" class="custom-control-input" asp-for="UsePriceWithDelivery">
-                            <label class="custom-control-label font-weight-bold" asp-for="UsePriceWithDelivery">Uwzględniaj koszty dostawy przy porównywaniu</label>
+
+                        <div class="switch-row">
+                            <label class="switch-label" asp-for="UsePriceWithDelivery">Uwzględniaj koszty dostawy przy porównywaniu</label>
+                            <div class="bool-switch-wrapper @(Model.UsePriceWithDelivery ? "active-right" : "active-left")" onclick="toggleBool(this)">
+                                <input type="checkbox" asp-for="UsePriceWithDelivery" />
+                                <div class="unit-slider"></div>
+                                <span class="unit-option opt-left">NIE</span>
+                                <span class="unit-option opt-right">TAK</span>
+                            </div>
                         </div>
                     </div>
                 }
@@ -319,33 +365,57 @@
                     <div class="settings-card" data-step="5" style="border-left: 4px solid #f6c23e;">
                         <div class="section-title text-warning"><i class="fas fa-shopping-bag"></i> Opcje Allegro</div>
 
-                        <div class="form-group mb-4">
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" class="custom-control-input" asp-for="MarketplaceIncludeCommission">
-                                <label class="custom-control-label font-weight-bold" asp-for="MarketplaceIncludeCommission">Doliczaj prowizję Allegro do ceny końcowej (Auto-kalkulacja)</label>
+                        <div class="switch-row mb-3">
+                            <label class="switch-label" asp-for="MarketplaceIncludeCommission">Doliczaj prowizje Allegro do narzutu</label>
+                            <div class="bool-switch-wrapper @(Model.MarketplaceIncludeCommission ? "active-right" : "active-left")" onclick="toggleBool(this)">
+                                <input type="checkbox" asp-for="MarketplaceIncludeCommission" />
+                                <div class="unit-slider"></div>
+                                <span class="unit-option opt-left">NIE</span>
+                                <span class="unit-option opt-right">TAK</span>
                             </div>
                         </div>
 
-                        <h6 class="font-weight-bold text-gray-700 mb-3">Zmieniaj cenę dla ofert z odznaką:</h6>
+                        <h6 class="font-weight-bold text-gray-700 mb-3 mt-4 pt-3 border-top">Zezwól na zmianę ceny dla ofert z oznaczeniem:</h6>
+
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input" asp-for="MarketplaceChangePriceForBadgeSuperPrice">
-                                    <label class="custom-control-label" asp-for="MarketplaceChangePriceForBadgeSuperPrice">Super Cena / Super Sprzedawca</label>
+                            <div class="col-lg-6">
+                                <div class="switch-row">
+                                    <label class="switch-label" asp-for="MarketplaceChangePriceForBadgeSuperPrice">"SUPERCENA"</label>
+                                    <div class="bool-switch-wrapper @(Model.MarketplaceChangePriceForBadgeSuperPrice ? "active-right" : "active-left")" onclick="toggleBool(this)">
+                                        <input type="checkbox" asp-for="MarketplaceChangePriceForBadgeSuperPrice" />
+                                        <div class="unit-slider"></div>
+                                        <span class="unit-option opt-left">NIE</span>
+                                        <span class="unit-option opt-right">TAK</span>
+                                    </div>
                                 </div>
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input" asp-for="MarketplaceChangePriceForBadgeTopOffer">
-                                    <label class="custom-control-label" asp-for="MarketplaceChangePriceForBadgeTopOffer">Top Oferta</label>
+                                <div class="switch-row">
+                                    <label class="switch-label" asp-for="MarketplaceChangePriceForBadgeTopOffer">"Top Oferta"</label>
+                                    <div class="bool-switch-wrapper @(Model.MarketplaceChangePriceForBadgeTopOffer ? "active-right" : "active-left")" onclick="toggleBool(this)">
+                                        <input type="checkbox" asp-for="MarketplaceChangePriceForBadgeTopOffer" />
+                                        <div class="unit-slider"></div>
+                                        <span class="unit-option opt-left">NIE</span>
+                                        <span class="unit-option opt-right">TAK</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input" asp-for="MarketplaceChangePriceForBadgeBestPriceGuarantee">
-                                    <label class="custom-control-label" asp-for="MarketplaceChangePriceForBadgeBestPriceGuarantee">Gwarancja Najniższej Ceny</label>
+                            <div class="col-lg-6">
+                                <div class="switch-row">
+                                    <label class="switch-label" asp-for="MarketplaceChangePriceForBadgeBestPriceGuarantee">"Gwarancja Najniższej Ceny"</label>
+                                    <div class="bool-switch-wrapper @(Model.MarketplaceChangePriceForBadgeBestPriceGuarantee ? "active-right" : "active-left")" onclick="toggleBool(this)">
+                                        <input type="checkbox" asp-for="MarketplaceChangePriceForBadgeBestPriceGuarantee" />
+                                        <div class="unit-slider"></div>
+                                        <span class="unit-option opt-left">NIE</span>
+                                        <span class="unit-option opt-right">TAK</span>
+                                    </div>
                                 </div>
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input" asp-for="MarketplaceChangePriceForBadgeInCampaign">
-                                    <label class="custom-control-label" asp-for="MarketplaceChangePriceForBadgeInCampaign">Udział w Kampanii</label>
+                                <div class="switch-row">
+                                    <label class="switch-label" asp-for="MarketplaceChangePriceForBadgeInCampaign">Udział w Kampanii</label>
+                                    <div class="bool-switch-wrapper @(Model.MarketplaceChangePriceForBadgeInCampaign ? "active-right" : "active-left")" onclick="toggleBool(this)">
+                                        <input type="checkbox" asp-for="MarketplaceChangePriceForBadgeInCampaign" />
+                                        <div class="unit-slider"></div>
+                                        <span class="unit-option opt-left">NIE</span>
+                                        <span class="unit-option opt-right">TAK</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -401,7 +471,6 @@
     <script>
         document.addEventListener("DOMContentLoaded", function() {
 
-            // --- Modal Open ---
             var btnOpen = document.getElementById('openPresetSelectorBtn');
             if (btnOpen) {
                 btnOpen.addEventListener('click', function() {
@@ -412,7 +481,6 @@
                 });
             }
 
-            // --- Color Picker Sync ---
             var colorInput = document.getElementById('ColorHexInput');
             if(colorInput){
                 colorInput.addEventListener('input', function() {
@@ -421,15 +489,11 @@
             }
         });
 
-        // --- iOS Style Unit Toggle Logic ---
+        // Funkcja dla starego switcha (PLN / %)
         window.toggleUnit = function(wrapper) {
-            // 1. Znajdź checkbox w środku
             const checkbox = wrapper.querySelector('input[type="checkbox"]');
-
-            // 2. Zmień stan checkboxa
             checkbox.checked = !checkbox.checked;
 
-            // 3. Zaktualizuj wizualnie klasę
             if (checkbox.checked) {
                 wrapper.classList.remove('active-left');
                 wrapper.classList.add('active-right');
@@ -439,7 +503,24 @@
             }
         }
 
-        // --- Toggle Inputs Visibility/Opacity ---
+        // NOWA funkcja dla switcha (TAK / NIE)
+        window.toggleBool = function(wrapper) {
+            const checkbox = wrapper.querySelector('input[type="checkbox"]');
+            // Zmieniamy stan checkboxa
+            checkbox.checked = !checkbox.checked;
+
+            // Zmieniamy klasy wizualne
+            if (checkbox.checked) {
+                // TRUE -> TAK -> ZIELONE
+                wrapper.classList.remove('active-left');
+                wrapper.classList.add('active-right');
+            } else {
+                // FALSE -> NIE -> CZERWONE
+                wrapper.classList.remove('active-right');
+                wrapper.classList.add('active-left');
+            }
+        }
+
         window.toggleInputs = function(switchEl, containerId) {
             const container = document.getElementById(containerId);
             if (!container) return;
@@ -453,13 +534,10 @@
             }
         }
 
-        // --- Strategy Mode Switcher ---
         window.setStrategyMode = function(modeValue, btnLabel) {
-            // Update hidden input
+
             document.getElementById('StrategyModeInput').value = modeValue;
 
-            // Update UI buttons (Bootstrap labels workaround)
-            // Note: Bootstrap 'btn-group-toggle' handles visuals mostly, but we ensure consistency
             const labels = document.querySelectorAll('.btn-group-toggle label');
             labels.forEach(l => {
                 l.classList.remove('active');
@@ -470,7 +548,6 @@
             btnLabel.classList.add('shadow-sm');
             btnLabel.classList.add('font-weight-bold');
 
-            // Show/Hide Sections
             const compFields = document.getElementById('competitivenessFields');
             const profitFields = document.getElementById('profitFields');
 
@@ -483,7 +560,6 @@
             }
         }
 
-        // --- Modal Preset Selection Callback ---
         window.selectPresetForAutomation = function(presetId, presetName) {
             var inputId = document.getElementById('CompetitorPresetId');
             var labelName = document.getElementById('selectedPresetName');

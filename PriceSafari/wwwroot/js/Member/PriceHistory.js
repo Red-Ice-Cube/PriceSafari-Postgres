@@ -3660,7 +3660,6 @@
         localStorage.setItem('priceHistorySortingState_' + storeId, JSON.stringify(sortingState));
         filterPricesAndUpdateUI();
     });
-
     document.getElementById('sortRaisePercentage').addEventListener('click', function () {
         if (sortingState.sortRaisePercentage === null) {
             sortingState.sortRaisePercentage = 'asc';
@@ -3945,7 +3944,6 @@
 
         container.innerHTML = '';
 
-        // --- 1. NAGŁÓWEK Z PODSUMOWANIEM ---
         const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
         const totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
 
@@ -3997,7 +3995,6 @@
     `;
         container.appendChild(statsHeader);
 
-        // --- 2. BLOK "ODEPNIJ" ---
         const unassignDiv = document.createElement('div');
         const hasAssignments = totalAssignedInSelection > 0;
 
@@ -4037,7 +4034,6 @@
     `;
         container.appendChild(unassignDiv);
 
-        // --- 3. LISTA REGUŁ ---
         if (!rules || rules.length === 0) {
             const emptyDiv = document.createElement('div');
             emptyDiv.innerHTML = `
@@ -4048,21 +4044,19 @@
             return;
         }
 
-        // *** SORTOWANIE ALFABETYCZNE (A-Z) ***
         rules.sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }));
 
         rules.forEach(rule => {
-            // Logika Statusu
-            const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b'; // Zielony / Czerwony
+
+            const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b';
+
             const statusText = rule.isActive ? 'Aktywna' : 'Nieaktywna';
 
-            // Logika Strategii
             const strategyIcon = rule.strategyMode === 0
                 ? '<i class="fa-solid fa-bolt" style="color:#888;"></i>'
                 : '<i class="fa-solid fa-dollar-sign" style="color:#888;"></i>';
             const strategyName = rule.strategyMode === 0 ? "Lider Rynku" : "Rentowność";
 
-            // Obliczenia liczbowe
             const globalTotalInRule = rule.totalCount;
             const selectedAlreadyInRule = rule.matchingCount;
             const toBeAdded = totalSelected - selectedAlreadyInRule;
@@ -4095,16 +4089,16 @@
 
             div.innerHTML = `
             <div style="display:flex; align-items:center; gap:15px; flex-grow: 1;">
-                
+
                 <div style="width:6px; height:45px; background-color:${rule.colorHex}; border-radius:3px; flex-shrink: 0;"></div>
 
                 <div style="flex-grow: 1;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        
+
                         <div style="font-weight:600; font-size:16px; color:#333;">
                             ${rule.name}
                         </div>
-                        
+
                         <div style="font-size:12px; color:#888; display:flex; align-items:center; gap:8px;">
                              <span style="display:flex; align-items:center; gap:4px;">
                                 ${strategyIcon} ${strategyName}
@@ -4119,7 +4113,7 @@
                     </div>
 
                     <div style="display:flex; gap: 15px; margin-top:6px; font-size:13px; color:#666; align-items: center; flex-wrap: wrap;">
-                        
+
                         <span title="Całkowita liczba produktów aktualnie przypisanych do tej reguły (w całym sklepie)">
                             <i class="fa-solid fa-database" style="color:#999; margin-right:4px;"></i> Łączna ilość produktów w grupie: <strong>${globalTotalInRule}</strong>
                         </span>
