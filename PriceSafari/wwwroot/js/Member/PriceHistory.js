@@ -4084,7 +4084,7 @@
                 <div style="flex-grow: 1;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         
-                        <div style="font-weight:600; font-size:15px; color:#333;">
+                        <div style="font-weight:600; font-size:16px; color:#333;">
                             ${rule.name}
                         </div>
                         

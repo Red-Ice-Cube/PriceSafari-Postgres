@@ -1,6 +1,6 @@
 ﻿<div class="modal fade" id="selectedProductsModal" tabindex="-1" role="dialog" aria-labelledby="selectedProductsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl" role="document">
-        <div class="modal-content" style="margin: 5% auto; width: 1200px; max-width: 95%;">
+        <div class="modal-content" style="margin: 3% auto !important; width: 1100px !important; max-width: 95% !important;">
             <div class="modal-header">
                 <div class="price-box-column-name" id="selectedProductsModalLabel">
                     Zaznaczone produkty (<span id="selectedProductsModalCounter">0</span>)
@@ -35,7 +35,7 @@
 
 <div id="automationSelectionModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="automationSelectionModalLabel" aria-hidden="true" style="z-index: 1060;">
     <div class="modal-dialog modal-xl" role="document">
-        <div class="modal-content" style="margin: 5% auto; width: 1200px; max-width: 95%;">
+        <div class="modal-content" style="margin: 3% auto !important; width: 1100px !important; max-width: 95% !important;">
             <div class="modal-header">
                 <div class="price-box-column-name" id="automationSelectionModalLabel">Wybierz grupę automatyzacji</div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
@@ -48,7 +48,7 @@
                     Jeśli produkt jest już w innej grupie, zostanie przeniesiony.
                 </p>
 
-                <div id="automationRulesListContainer" class="table-scroll" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+                <div id="automationRulesListContainer" class="table-scroll" style="max-height: 60vh;  min-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;">
                     <div style="text-align:center; padding:20px;">
                         <i class="fas fa-spinner fa-spin"></i> Ładowanie reguł...
                     </div>
@@ -63,14 +63,14 @@
 
 <div id="flagModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="flagModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl" role="document">
-        <div class="modal-content" style="margin: 5% auto; width: 1200px; max-width: 95%;">
+        <div class="modal-content" style="margin: 3% auto !important; width: 1100px !important; max-width: 95% !important;">
             <div class="modal-header">
                 <div class="price-box-column-name" id="flagModalLabel">Zarządzaj flagami</div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body" id="flagModalBody">
+            <div class="modal-body" id="flagModalBody" style="max-height: 60vh; min-height: 60vh; overflow-y: auto; padding: 20px;">
             </div>
             <div class="modal-footer">
                 <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Anuluj</button>
