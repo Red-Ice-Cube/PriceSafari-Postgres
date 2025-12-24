@@ -9,7 +9,7 @@
 
 <style>
     :root {
-        --primary-color: #4e73df;
+        --primary-color: #343a40;
         --secondary-bg: #f8f9fc;
         --border-color: #e3e6f0;
         --toggle-width: 140px;
@@ -177,6 +177,87 @@
         .switch-row:last-child {
             border-bottom: none;
         }
+
+
+    .strategy-desc-box {
+        background: #f8f9fc;
+        border: 2px solid transparent;
+        border-radius: 10px;
+        padding: 20px;
+        height: 100%;
+        transition: all 0.3s ease;
+        opacity: 0.6; /* Domyślnie przygaszone */
+        filter: grayscale(80%); /* Domyślnie szare */
+        cursor: pointer;
+        position: relative;
+    }
+
+        .strategy-desc-box.active-strategy {
+            background: #fff;
+            opacity: 1;
+            filter: grayscale(0%);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        /* Kolory ramek dla aktywnej strategii */
+        .strategy-desc-box.strategy-comp.active-strategy {
+            border-color: rgba(113, 96, 232, 1); /* Turquoise / Info */
+        }
+
+        .strategy-desc-box.strategy-profit.active-strategy {
+            border-color: #0d2c56; /* Primary Blue */
+        }
+
+    .strategy-icon-header {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .strategy-comp .strategy-icon-header {
+        color: rgba(113, 96, 232, 1);
+    }
+
+    .strategy-profit .strategy-icon-header {
+        color: #0d2c56;
+    }
+
+    .strategy-mechanic {
+        background-color: #eaecf4;
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 15px;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .color-square {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        margin-top: 4px;
+        flex-shrink: 0;
+    }
+
+    .bg-comp {
+        background-color: rgba(113, 96, 232, 1);
+    }
+
+    .bg-profit {
+        background-color: #0d2c56;
+    }
+
+    .desc-text {
+        font-size: 0.9rem;
+        color: #6e707e;
+        line-height: 1.5;
+    }
 </style>
 
 <div class="container-fluid">
@@ -226,18 +307,64 @@
                     <div class="section-title"><i class="fas fa-chess"></i> Strategia Cenowa</div>
 
                     <div class="d-flex justify-content-center mb-4">
-                        <div class="btn-group btn-group-toggle" data-toggle="buttons" style="background: #f1f3f9; padding: 5px; border-radius: 8px;">
-                            <label class="btn btn-sm btn-light @(Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "active font-weight-bold shadow-sm" : "")" style="border-radius: 6px; border:none;" onclick="setStrategyMode(0, this)">
-                                <input type="radio" name="options" autocomplete="off" @(Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "checked" : "")> <i class="fa-solid fa-bolt mr-1"></i> Lider Rynku
-                            </label>
-                            <label class="btn btn-sm btn-light @(Model.StrategyMode == AutomationStrategyMode.Profit ? "active font-weight-bold shadow-sm" : "")" style="border-radius: 6px; border:none; margin-left: 5px;" onclick="setStrategyMode(1, this)">
-                                <input type="radio" name="options" autocomplete="off" @(Model.StrategyMode == AutomationStrategyMode.Profit ? "checked" : "")> <i class="fa-solid fa-dollar-sign mr-1"></i> Rentowność
-                            </label>
+                        <div class="mode-switch-container">
+                            <button type="button"
+                                    id="btn-mode-comp"
+                                    class="mode-switch-btn @(Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "active" : "")"
+                                    onclick="setStrategyMode(0)">
+                                <i class="fa-solid fa-bolt"></i> Lider Rynku
+                            </button>
+
+                            <button type="button"
+                                    id="btn-mode-profit"
+                                    class="mode-switch-btn @(Model.StrategyMode == AutomationStrategyMode.Profit ? "active" : "")"
+                                    onclick="setStrategyMode(1)">
+                                <i class="fa-solid fa-dollar-sign"></i> Rentowność
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <div id="descBoxComp" class="strategy-desc-box strategy-comp @(Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "active-strategy" : "")" onclick="triggerStrategyClick(0)">
+                                <div class="strategy-icon-header">
+                                    <i class="fa-solid fa-bolt"></i> Lider Rynku (Traffic Bringers)
+                                </div>
+                                <div class="desc-text">
+                                    Strategia walki o pozycję dla produktów przyciągających ruch. Celem jest bycie tańszym od najtańszego konkurenta lub zrównanie się z nim.
+                                </div>
+                                <div class="strategy-mechanic">
+                                    <div class="color-square bg-comp"></div>
+                                    <div>
+                                        <strong class="d-block text-dark mb-1">Mechanizm: Krok cenowy</strong>
+                                        Cena wyliczana względem <strong>najniższej ceny konkurencji</strong>. Np. krok -0.01 PLN oznacza przebicie najtańszego rywala o grosz.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div id="descBoxProfit" class="strategy-desc-box strategy-profit @(Model.StrategyMode == AutomationStrategyMode.Profit ? "active-strategy" : "")" onclick="triggerStrategyClick(1)">
+                                <div class="strategy-icon-header">
+                                    <i class="fa-solid fa-dollar-sign"></i> Rentowność (Basket Builders)
+                                </div>
+                                <div class="desc-text">
+                                    Strategia dla produktów budujących koszyk (cross-sell). Celem nie jest bycie najtańszym, lecz celowanie w <strong>Medianę Rynku</strong> (środek stawki).
+                                </div>
+                                <div class="strategy-mechanic">
+                                    <div class="color-square bg-profit"></div>
+                                    <div>
+                                        <strong class="d-block text-dark mb-1">Mechanizm: Indeks Cenowy (%)</strong>
+                                        Cena jako % od <strong>Mediany Rynku</strong>. Np. 100% to równanie do średniej rynkowej, 105% to cena wyższa o 5%.
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <div id="competitivenessFields" style="display: @(Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "block" : "none")">
-                        <div class="form-group text-center">
+                        <div class="form-group text-center border-top pt-4">
+                            <label class="d-block small font-weight-bold mb-2 text-uppercase text-info" style="letter-spacing: 1px;">Konfiguracja: Lider Rynku</label>
                             <label class="d-block small font-weight-bold mb-2">Krok cenowy (Price Step)</label>
                             <div class="d-flex justify-content-center align-items-center">
                                 <input asp-for="PriceStep" type="number" step="0.01" class="form-control input-narrow" />
@@ -254,13 +381,14 @@
                     </div>
 
                     <div id="profitFields" style="display: @(Model.StrategyMode == AutomationStrategyMode.Profit ? "block" : "none")">
-                        <div class="form-group text-center">
-                            <label class="d-block small font-weight-bold mb-2">Docelowy Index Cenowy</label>
+                        <div class="form-group text-center border-top pt-4">
+                            <label class="d-block small font-weight-bold mb-2 text-uppercase text-primary" style="letter-spacing: 1px;">Konfiguracja: Rentowność</label>
+                            <label class="d-block small font-weight-bold mb-2">Docelowy Index Cenowy (%)</label>
                             <div class="d-flex justify-content-center align-items-center">
                                 <input asp-for="PriceIndexTargetPercent" type="number" step="0.01" class="form-control input-narrow" />
-                                <span class="ml-2 font-weight-bold text-gray-600">%</span>
+                                <span class="ml-2 font-weight-bold text-gray-600"></span>
                             </div>
-                            <small class="text-muted mt-2 d-block">100% = średnia cena rynku.</small>
+                            <small class="text-muted mt-2 d-block">100% = równanie do mediany rynku.</small>
                         </div>
                     </div>
                 </div>
@@ -465,7 +593,7 @@
         var presetTypeContext = @((int)Model.SourceType);
         var getModalUrl = '@Url.Action("GetModalPartial", "AutomationRules")';
     </script>
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <script src="~/js/member/CompetitorModal.js"></script>
 
     <script>
@@ -534,30 +662,59 @@
             }
         }
 
-        window.setStrategyMode = function(modeValue, btnLabel) {
+            window.setStrategyMode = function(modeValue) {
 
-            document.getElementById('StrategyModeInput').value = modeValue;
+            // 1. Ustaw wartość w ukrytym polu formularza
+            const input = document.getElementById('StrategyModeInput');
+            if(input) input.value = modeValue;
 
-            const labels = document.querySelectorAll('.btn-group-toggle label');
-            labels.forEach(l => {
-                l.classList.remove('active');
-                l.classList.remove('shadow-sm');
-                l.classList.remove('font-weight-bold');
-            });
-            btnLabel.classList.add('active');
-            btnLabel.classList.add('shadow-sm');
-            btnLabel.classList.add('font-weight-bold');
+            // 2. Pobierz przyciski
+            const btnComp = document.getElementById('btn-mode-comp');
+            const btnProfit = document.getElementById('btn-mode-profit');
 
+            // 3. Przełącz klasę 'active' na przyciskach
+            if (modeValue === 0) {
+                // Wybrano: Lider Rynku
+                if(btnComp) btnComp.classList.add('active');
+                if(btnProfit) btnProfit.classList.remove('active');
+            } else {
+                // Wybrano: Rentowność
+                if(btnComp) btnComp.classList.remove('active');
+                if(btnProfit) btnProfit.classList.add('active');
+            }
+
+            // 4. Logika pokazywania/ukrywania pól (z poprzedniego kroku)
             const compFields = document.getElementById('competitivenessFields');
             const profitFields = document.getElementById('profitFields');
 
+            // 5. Logika styli dla opisów (te duże boxy z opisem)
+            const descBoxComp = document.getElementById('descBoxComp');
+            const descBoxProfit = document.getElementById('descBoxProfit');
+
             if (modeValue === 0) {
+                // Pokaż pola Lidera, ukryj Rentowność
                 if(compFields) compFields.style.display = 'block';
                 if(profitFields) profitFields.style.display = 'none';
+
+                // Aktywuj wizualnie lewy opis, wygaś prawy
+                if(descBoxComp) descBoxComp.classList.add('active-strategy');
+                if(descBoxProfit) descBoxProfit.classList.remove('active-strategy');
             } else {
+                // Pokaż pola Rentowność, ukryj Lidera
                 if(compFields) compFields.style.display = 'none';
                 if(profitFields) profitFields.style.display = 'block';
+
+                // Aktywuj wizualnie prawy opis, wygaś lewy
+                if(descBoxComp) descBoxComp.classList.remove('active-strategy');
+                if(descBoxProfit) descBoxProfit.classList.add('active-strategy');
             }
+        }
+
+        // Funkcja pomocnicza: pozwala kliknąć w cały duży box z opisem, aby wybrać strategię
+        window.triggerStrategyClick = function(modeValue) {
+            // Znajdujemy odpowiedni label przycisku i przekazujemy go do głównej funkcji
+            // Symulujemy kliknięcie, żeby zachować spójność
+            setStrategyMode(modeValue, null);
         }
 
         window.selectPresetForAutomation = function(presetId, presetName) {
