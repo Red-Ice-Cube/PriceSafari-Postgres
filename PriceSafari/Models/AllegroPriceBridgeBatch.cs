@@ -19,6 +19,9 @@ namespace PriceSafari.Models
         [ForeignKey("StoreId")]
         public virtual StoreClass Store { get; set; }
 
+        public bool IsAutomation { get; set; } = false;
+        public int? AutomationRuleId { get; set; }
+
         [Required]
         public int AllegroScrapeHistoryId { get; set; }
         [ForeignKey("AllegroScrapeHistoryId")]

@@ -58,5 +58,15 @@ namespace PriceSafari.Models
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal? StepPriceApplied { get; set; }
+
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? MinPriceLimit { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? MaxPriceLimit { get; set; }
+
+        public bool? WasLimitedByMin { get; set; }
+        public bool? WasLimitedByMax { get; set; }
     }
 }

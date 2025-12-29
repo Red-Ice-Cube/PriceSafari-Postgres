@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = $"Szczegóły Reguły: {Model.RuleName}";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
     // Helpery do kolorów
     string badgeClass = Model.IsActive ? "badge-success" : "badge-secondary";
@@ -11,6 +12,50 @@
     string sourceIcon = Model.SourceType == PriceSafari.Models.AutomationSourceType.PriceComparison ? "fa-tags" : "fa-shopping-bag";
     string borderClass = Model.SourceType == PriceSafari.Models.AutomationSourceType.PriceComparison ? "border-left-info" : "border-left-warning";
 }
+
+
+<style>
+    /* Wspólny styl dla kształtu badge'a */
+    .limit-badge {
+        display: inline-flex; /* Kluczowe dla wyśrodkowania ikony */
+        align-items: center; /* Centrowanie w pionie */
+        justify-content: center; /* Centrowanie w poziomie */
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #ffffff !important;
+        margin-right: 6px;
+        min-width: 55px; /* Stała szerokość dla estetyki */
+        height: 22px; /* Stała wysokość */
+    }
+
+    /* Kolory tła */
+    .badge-purchase {
+        background-color: #282828;
+    }
+
+    .badge-min {
+        background-color: rgba(171, 37, 32, 1);
+    }
+
+    .badge-max {
+        background-color: rgba(0, 145, 123, 1);
+    }
+
+    /* Styl samej kwoty (grubość 500) */
+    .limit-price-text {
+        font-weight: 500;
+        font-size: 13px;
+    }
+
+    /* Drobna poprawka dla ikony wewnątrz badge'a, żeby nie była przyklejona do tekstu */
+    .limit-badge i {
+        margin-left: 4px;
+        font-size: 10px; /* Trochę mniejsza ikona wygląda zgrabniej */
+    }
+
+</style>
 
 <div class="container-fluid">
 
@@ -71,7 +116,7 @@
         </div>
     </div>
 
-    <div class="card shadow mb-4">
+    <div class="Vert">
         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
             <h6 class="m-0 font-weight-bold text-primary">Symulacja Cen</h6>
 
@@ -79,14 +124,14 @@
                 <i class="fas fa-play"></i> Wykonaj Automatyzację
             </button>
         </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="automationTable" width="100%" cellspacing="0">
-                    <thead class="thead-light">
+        <div class="Vert-full">
+            <div class="Vert-table" style="height: 90vh;">
+                <table class="table-orders" id="automationTable" width="100%">
+                    <thead>
                         <tr>
-                            <th style="width: 50px;">Img</th>
-                            <th>Produkt</th>
-                            <th>Cena Zakupu /<br>Min. Limit</th>
+                            <th style="width: 50px;"></th>
+                            <th style="width: 250px;">Produkt</th>
+                            <th style="width: 220px;">Limity Cenowe</th>
                             <th>Aktualna Cena</th>
 
                             @if (Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness)
@@ -122,20 +167,53 @@
                                     <div class="font-weight-bold text-truncate" style="max-width: 250px;" title="@item.Name">@item.Name</div>
                                     <div class="small text-muted">@item.Identifier</div>
                                 </td>
-                                <td class="align-middle text-right">
-                                    @if (item.PurchasePrice.HasValue)
-                                    {
-                                        <div>@item.PurchasePrice.Value.ToString("F2")</div>
+
+                             <td class="align-middle">
+                                @if (item.PurchasePrice.HasValue)
+                                {
+                                    <div class="bg-light p-2 rounded border">
+            
+                                        <div class="d-flex justify-content-between align-items-center ">
+                                            <span class="limit-badge badge-purchase">
+                                                Zakup
+                                            </span>
+                                            <span class="limit-price-text" style="color: #282828;">
+                                                @item.PurchasePrice.Value.ToString("F2") PLN
+                                            </span>
+                                        </div>
+
                                         @if (item.MinPriceLimit.HasValue)
                                         {
-                                            <div class="small text-danger" title="Limit minimalny"><i class="fas fa-arrow-down"></i> @item.MinPriceLimit.Value.ToString("F2")</div>
+                                            <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
+                                                <span class="limit-badge badge-min" title="Minimalna marża (Podłoga)">
+                                                    MIN <i class="fa-solid fa-arrow-down"></i>
+                                                </span>
+                                                <span class="limit-price-text" style="color: rgba(171, 37, 32, 1);">
+                                                    @item.MinPriceLimit.Value.ToString("F2") PLN
+                                                </span>
+                                            </div>
                                         }
-                                    }
-                                    else
-                                    {
-                                        <span class="text-gray-400">-</span>
-                                    }
-                                </td>
+
+                                        @if (item.MaxPriceLimit.HasValue)
+                                        {
+                                            <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
+                                                <span class="limit-badge badge-max" title="Maksymalna marża (Sufit)">
+                                                    MAX <i class="fa-solid fa-arrow-up"></i>
+                                                </span>
+                                                <span class="limit-price-text" style="color: rgba(0, 145, 123, 1);">
+                                                    @item.MaxPriceLimit.Value.ToString("F2") PLN
+                                                </span>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="text-center text-gray-400 small">Brak ceny zakupu</div>
+                                }
+                            </td>
+                          
+
                                 <td class="align-middle text-right font-weight-bold">
                                     @(item.CurrentPrice.HasValue? item.CurrentPrice.Value.ToString("F2") : "-")
                                 </td>

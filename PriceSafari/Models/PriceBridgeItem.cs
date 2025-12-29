@@ -41,5 +41,11 @@ namespace PriceSafari.Models
         public decimal? StepPriceApplied { get; set; }
 
         public bool Success { get; set; } = true; // W tym modelu eksport zawsze zakłada sukces
+
+
+        public decimal? MinPriceLimit { get; set; }      // Wyliczony limit MIN (kwota)
+        public decimal? MaxPriceLimit { get; set; }      // Wyliczony limit MAX (kwota)
+        public bool? WasLimitedByMin { get; set; }        // Czy cena uderzyła w podłogę?
+        public bool? WasLimitedByMax { get; set; }        // Czy cena uderzyła w sufit?
     }
 }

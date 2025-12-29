@@ -24,14 +24,14 @@ namespace PriceSafari.Controllers.MemberControllers
         [HttpGet]
         public async Task<IActionResult> Details(int id)
         {
-            // 1. Pobierz regułę
             var rule = await _context.AutomationRules
                 .Include(r => r.Store)
+                .Include(r => r.CompetitorPreset)
+                    .ThenInclude(cp => cp.CompetitorItems)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (rule == null) return NotFound("Nie znaleziono reguły.");
 
-            // 2. Przygotuj ViewModel nagłówka
             var model = new AutomationDetailsViewModel
             {
                 RuleId = rule.Id,
@@ -44,7 +44,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 StoreName = rule.Store?.StoreName ?? "Nieznany sklep"
             };
 
-            // 3. Rozgałęzienie logiki w zależności od źródła
             if (rule.SourceType == AutomationSourceType.PriceComparison)
             {
                 await PreparePriceComparisonData(rule, model);
@@ -57,10 +56,8 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/ManagerPanel/PriceAutomation/Details.cshtml", model);
         }
 
-        // --- Logika dla Google/Ceneo ---
         private async Task PreparePriceComparisonData(AutomationRule rule, AutomationDetailsViewModel model)
         {
-            // a) Pobierz najnowszy scrap history ID dla tego sklepu
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == rule.StoreId)
                 .OrderByDescending(sh => sh.Date)
@@ -69,7 +66,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             model.LastScrapDate = latestScrap?.Date;
 
-            // b) Pobierz produkty przypisane do tej reguły
             var assignments = await _context.AutomationProductAssignments
                 .Where(a => a.AutomationRuleId == rule.Id && a.ProductId.HasValue)
                 .Include(a => a.Product)
@@ -80,7 +76,6 @@ namespace PriceSafari.Controllers.MemberControllers
             var productIds = assignments.Select(a => a.ProductId.Value).ToList();
             int scrapId = latestScrap?.Id ?? 0;
 
-            // c) Pobierz historię cen z ostatniego scrapowania dla tych produktów
             var priceHistories = new List<PriceHistoryClass>();
             if (scrapId > 0)
             {
@@ -89,7 +84,9 @@ namespace PriceSafari.Controllers.MemberControllers
                     .ToListAsync();
             }
 
-            // d) Mapowanie do ViewModelu
+            var competitorRules = GetCompetitorRulesForComparison(rule.CompetitorPreset);
+            string myStoreNameLower = rule.Store.StoreName.ToLower().Trim();
+
             foreach (var item in assignments)
             {
                 var p = item.Product;
@@ -97,20 +94,43 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var histories = priceHistories.Where(h => h.ProductId == p.ProductId).ToList();
 
-                // Znajdź naszą ofertę
-                // (Uproszczenie: szukamy po nazwie sklepu, zakładając że jest w bazie, lub bierzemy z Product table)
                 var myHistory = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(rule.Store.StoreName, StringComparison.OrdinalIgnoreCase))
-                                ?? histories.FirstOrDefault(h => h.StoreName == null); // Fallback
+                                ?? histories.FirstOrDefault(h => h.StoreName == null);
 
-                // Znajdź najlepszą konkurencję
-                var competitors = histories.Where(h => h != myHistory && h.Price > 0).OrderBy(h => h.Price).ToList();
-                var bestCompetitor = competitors.FirstOrDefault();
+                var rawCompetitors = histories.Where(h => h != myHistory && h.Price > 0).ToList();
+                var filteredCompetitors = new List<PriceHistoryClass>();
 
-                // Oblicz średnią (dla strategii Profit)
-                decimal? marketAvg = null;
-                if (competitors.Any())
+                if (rule.CompetitorPreset != null)
                 {
-                    marketAvg = competitors.Average(c => c.Price);
+                    bool blockGoogle = !rule.CompetitorPreset.SourceGoogle;
+                    bool blockCeneo = !rule.CompetitorPreset.SourceCeneo;
+
+                    foreach (var comp in rawCompetitors)
+                    {
+                        bool isGoogle = comp.IsGoogle;
+
+                        if (isGoogle && blockGoogle) continue;
+                        if (!isGoogle && blockCeneo) continue;
+
+                        // Używamy dedykowanej metody dla PriceComparison (bez rzutowania)
+                        if (IsCompetitorAllowedComparison(comp.StoreName, isGoogle, competitorRules, rule.CompetitorPreset.UseUnmarkedStores))
+                        {
+                            filteredCompetitors.Add(comp);
+                        }
+                    }
+                }
+                else
+                {
+                    filteredCompetitors = rawCompetitors;
+                }
+
+                filteredCompetitors = filteredCompetitors.OrderBy(h => h.Price).ToList();
+                var bestCompetitor = filteredCompetitors.FirstOrDefault();
+
+                decimal? marketAvg = null;
+                if (filteredCompetitors.Any())
+                {
+                    marketAvg = CalculateMedian(filteredCompetitors.Select(c => c.Price).ToList());
                 }
 
                 var row = new AutomationProductRowViewModel
@@ -119,30 +139,32 @@ namespace PriceSafari.Controllers.MemberControllers
                     Name = p.ProductName,
                     ImageUrl = p.MainUrl,
                     Identifier = p.Ean,
-                    CurrentPrice = myHistory?.Price, // Cena ze scrapu
+                    CurrentPrice = myHistory?.Price,
                     PurchasePrice = p.MarginPrice,
                     BestCompetitorPrice = bestCompetitor?.Price,
                     CompetitorName = bestCompetitor?.StoreName,
                     MarketAveragePrice = marketAvg,
-                    IsInStock = true // Tu można dodać logikę sprawdzania InStock z historii
+                    IsInStock = true
                 };
 
-                // Ranking
-                if (myHistory != null && myHistory.Position.HasValue)
-                    row.CurrentRanking = $"{myHistory.Position}/{competitors.Count + 1}";
+                if (myHistory != null && myHistory.Price > 0)
+                {
+                    var allPrices = filteredCompetitors.Select(c => c.Price).Concat(new[] { myHistory.Price }).OrderBy(x => x).ToList();
+                    var myRank = allPrices.IndexOf(myHistory.Price) + 1;
+                    row.CurrentRanking = $"{myRank}/{allPrices.Count}";
+                }
                 else
+                {
                     row.CurrentRanking = "-";
+                }
 
-                // Symulacja Ceny (Uproszczona)
                 CalculateSuggestedPrice(rule, row);
-
                 model.Products.Add(row);
             }
 
             model.TotalProducts = model.Products.Count;
         }
 
-        // --- Logika dla Allegro ---
         private async Task PrepareMarketplaceData(AutomationRule rule, AutomationDetailsViewModel model)
         {
             var latestScrap = await _context.AllegroScrapeHistories
@@ -171,6 +193,9 @@ namespace PriceSafari.Controllers.MemberControllers
                     .ToListAsync();
             }
 
+            var competitorRules = GetCompetitorRulesForMarketplace(rule.CompetitorPreset);
+            string myStoreNameAllegro = rule.Store.StoreNameAllegro;
+
             foreach (var item in assignments)
             {
                 var p = item.AllegroProduct;
@@ -178,24 +203,42 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var histories = priceHistories.Where(h => h.AllegroProductId == p.AllegroProductId).ToList();
 
-                // Znajdź naszą ofertę (po nazwie sklepu Allegro)
-                var myHistory = histories.FirstOrDefault(h => h.SellerName != null && h.SellerName.Equals(rule.Store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
+                var myHistory = histories.FirstOrDefault(h => h.SellerName != null && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase));
 
-                var competitors = histories.Where(h => h != myHistory && h.Price > 0).OrderBy(h => h.Price).ToList();
-                var bestCompetitor = competitors.FirstOrDefault();
+                var rawCompetitors = histories.Where(h => h != myHistory && h.Price > 0).ToList();
+                var filteredCompetitors = new List<AllegroPriceHistory>();
+
+                if (rule.CompetitorPreset != null)
+                {
+                    foreach (var comp in rawCompetitors)
+                    {
+                        // Używamy dedykowanej metody dla Marketplace (bez rzutowania)
+                        if (IsCompetitorAllowedMarketplace(comp.SellerName, competitorRules, rule.CompetitorPreset.UseUnmarkedStores))
+                        {
+                            filteredCompetitors.Add(comp);
+                        }
+                    }
+                }
+                else
+                {
+                    filteredCompetitors = rawCompetitors;
+                }
+
+                filteredCompetitors = filteredCompetitors.OrderBy(h => h.Price).ToList();
+                var bestCompetitor = filteredCompetitors.FirstOrDefault();
 
                 decimal? marketAvg = null;
-                if (competitors.Any())
+                if (filteredCompetitors.Any())
                 {
-                    marketAvg = competitors.Average(c => c.Price);
+                    marketAvg = CalculateMedian(filteredCompetitors.Select(c => c.Price).ToList());
                 }
 
                 var row = new AutomationProductRowViewModel
                 {
                     ProductId = p.AllegroProductId,
                     Name = p.AllegroProductName,
-                    ImageUrl = null, // Allegro products często nie mają URL w głównej tabeli w tym modelu, chyba że dodasz
-                    Identifier = p.AllegroOfferUrl, // ID Oferty
+                    ImageUrl = null,
+                    Identifier = p.AllegroOfferUrl,
                     CurrentPrice = myHistory?.Price,
                     PurchasePrice = p.AllegroMarginPrice,
                     BestCompetitorPrice = bestCompetitor?.Price,
@@ -204,10 +247,9 @@ namespace PriceSafari.Controllers.MemberControllers
                     IsInStock = true
                 };
 
-                // Ranking (wyliczamy dynamicznie, bo AllegroPriceHistory nie ma pola Position wprost w tym modelu, ale można policzyć index)
                 if (myHistory != null)
                 {
-                    var allPrices = competitors.Select(c => c.Price).Concat(new[] { myHistory.Price }).OrderBy(x => x).ToList();
+                    var allPrices = filteredCompetitors.Select(c => c.Price).Concat(new[] { myHistory.Price }).OrderBy(x => x).ToList();
                     var myRank = allPrices.IndexOf(myHistory.Price) + 1;
                     row.CurrentRanking = $"{myRank}/{allPrices.Count}";
                 }
@@ -223,34 +265,102 @@ namespace PriceSafari.Controllers.MemberControllers
             model.TotalProducts = model.Products.Count;
         }
 
-        // --- Wspólna logika wyliczania sugerowanej ceny ---
+        // --- Helpery ---
+
+        private Dictionary<(string Store, DataSourceType Source), bool> GetCompetitorRulesForComparison(CompetitorPresetClass preset)
+        {
+            if (preset == null) return null;
+            return preset.CompetitorItems
+                .Where(ci => ci.DataSource == DataSourceType.Ceneo || ci.DataSource == DataSourceType.Google)
+                .ToDictionary(
+                    ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource),
+                    ci => ci.UseCompetitor
+                );
+        }
+
+        private Dictionary<string, bool> GetCompetitorRulesForMarketplace(CompetitorPresetClass preset)
+        {
+            if (preset == null) return null;
+            return preset.CompetitorItems
+                .Where(ci => ci.DataSource == DataSourceType.Allegro)
+                .GroupBy(ci => ci.StoreName.ToLower().Trim())
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.First().UseCompetitor
+                );
+        }
+
+        // DEDYKOWANA METODA DLA COMPARISON (rozwiązuje problem rzutowania)
+        private bool IsCompetitorAllowedComparison(
+            string storeName,
+            bool isGoogle,
+            Dictionary<(string Store, DataSourceType Source), bool> rulesDict,
+            bool useUnmarkedStores)
+        {
+            if (string.IsNullOrEmpty(storeName)) return false;
+            string keyName = storeName.ToLower().Trim();
+
+            if (rulesDict == null) return true;
+
+            DataSourceType source = isGoogle ? DataSourceType.Google : DataSourceType.Ceneo;
+
+            if (rulesDict.TryGetValue((keyName, source), out bool useCompetitor))
+            {
+                return useCompetitor;
+            }
+
+            return useUnmarkedStores;
+        }
+
+        // DEDYKOWANA METODA DLA MARKETPLACE (rozwiązuje problem rzutowania)
+        private bool IsCompetitorAllowedMarketplace(
+            string storeName,
+            Dictionary<string, bool> rulesDict,
+            bool useUnmarkedStores)
+        {
+            if (string.IsNullOrEmpty(storeName)) return false;
+            string keyName = storeName.ToLower().Trim();
+
+            if (rulesDict == null) return true;
+
+            if (rulesDict.TryGetValue(keyName, out bool useCompetitor))
+            {
+                return useCompetitor;
+            }
+
+            return useUnmarkedStores;
+        }
+
+        private decimal? CalculateMedian(List<decimal> prices)
+        {
+            if (prices == null || prices.Count == 0) return null;
+            var sortedPrices = prices.OrderBy(x => x).ToList();
+            int count = sortedPrices.Count;
+            if (count % 2 == 0)
+                return (sortedPrices[count / 2 - 1] + sortedPrices[count / 2]) / 2m;
+            else
+                return sortedPrices[count / 2];
+        }
+
         private void CalculateSuggestedPrice(AutomationRule rule, AutomationProductRowViewModel row)
         {
             decimal suggested = row.CurrentPrice ?? 0;
             bool calculationPossible = false;
 
-            // 1. Wylicz cenę bazową wg Strategii
             if (rule.StrategyMode == AutomationStrategyMode.Competitiveness)
             {
-                // Strategia Lidera
                 if (row.BestCompetitorPrice.HasValue)
                 {
                     if (rule.IsPriceStepPercent)
-                    {
-                        // Np. przebij o 1%
                         suggested = row.BestCompetitorPrice.Value + (row.BestCompetitorPrice.Value * (rule.PriceStep / 100));
-                    }
                     else
-                    {
-                        // Np. przebij o 0.01 PLN (rule.PriceStep usually negative like -0.01)
                         suggested = row.BestCompetitorPrice.Value + rule.PriceStep;
-                    }
+
                     calculationPossible = true;
                 }
             }
             else if (rule.StrategyMode == AutomationStrategyMode.Profit)
             {
-                // Strategia Rentowności (Target Index względem średniej)
                 if (row.MarketAveragePrice.HasValue && row.MarketAveragePrice.Value > 0)
                 {
                     suggested = row.MarketAveragePrice.Value * (rule.PriceIndexTargetPercent / 100);
@@ -264,9 +374,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return;
             }
 
-            // 2. Strażnicy Marży (Min/Max)
-
-            // Minimalna marża (Podłoga)
             if (rule.EnforceMinimalMargin && row.PurchasePrice.HasValue)
             {
                 decimal minLimit;
@@ -275,16 +382,15 @@ namespace PriceSafari.Controllers.MemberControllers
                 else
                     minLimit = row.PurchasePrice.Value + rule.MinimalMarginValue;
 
-                row.MinPriceLimit = minLimit; // Dla informacji w widoku
+                row.MinPriceLimit = minLimit;
 
                 if (suggested < minLimit)
                 {
                     suggested = minLimit;
-                    row.IsMarginWarning = true; // Oznaczamy, że cena została podbita przez limit
+                    row.IsMarginWarning = true;
                 }
             }
 
-            // Maksymalna marża (Sufit)
             if (rule.EnforceMaxMargin && row.PurchasePrice.HasValue)
             {
                 decimal maxLimit;
@@ -293,14 +399,14 @@ namespace PriceSafari.Controllers.MemberControllers
                 else
                     maxLimit = row.PurchasePrice.Value + rule.MaxMarginValue;
 
+                row.MaxPriceLimit = maxLimit; // <--- NOWE PRZYPISANIE DO MODELU
+
                 if (suggested > maxLimit)
                 {
                     suggested = maxLimit;
+                    // Opcjonalnie: można tu dodać flagę ostrzegawczą, jeśli potrzebujesz wiedzieć, że cena została obcięta z góry
                 }
             }
-
-            // Marketplace: Opcjonalnie tutaj można dodać logikę doliczania prowizji (jeśli włączona w regule)
-            // if (rule.SourceType == AutomationSourceType.Marketplace && rule.MarketplaceIncludeCommission) { ... }
 
             row.SuggestedPrice = Math.Round(suggested, 2);
 

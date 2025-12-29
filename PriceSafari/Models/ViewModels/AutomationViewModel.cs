@@ -34,7 +34,8 @@ namespace PriceSafari.Models.ViewModels
         // Ceny i Koszty
         public decimal? CurrentPrice { get; set; }
         public decimal? PurchasePrice { get; set; } // Cena zakupu / MarginPrice
-        public decimal? MinPriceLimit { get; set; } // Wyliczona na podstawie marży minimalnej
+        public decimal? MinPriceLimit { get; set; }
+        public decimal? MaxPriceLimit { get; set; }
 
         // Dane z rynku (zależne od SourceType)
         public decimal? BestCompetitorPrice { get; set; }
@@ -49,5 +50,33 @@ namespace PriceSafari.Models.ViewModels
         // Statusy
         public bool IsInStock { get; set; }
         public bool IsMarginWarning { get; set; } // Czy sugerowana cena łamie marżę
+    }
+
+
+    public class AutomationExecutionRequest
+    {
+        public int RuleId { get; set; }
+        public int StoreId { get; set; }
+        public AutomationSourceType SourceType { get; set; }
+        public List<AutomationProductResultDto> Products { get; set; }
+    }
+
+    public class AutomationProductResultDto
+    {
+        public int ProductId { get; set; }
+        public string Identifier { get; set; } // EAN lub OfferId
+        public decimal CurrentPrice { get; set; }
+        public decimal NewPrice { get; set; }
+        public decimal? PurchasePrice { get; set; } // MarginPrice
+
+        // Rankingi (opcjonalne, do logów)
+        public string CurrentRanking { get; set; }
+        public string NewRanking { get; set; } // Symulowany
+
+        // Szczegóły limitów
+        public decimal? MinPriceLimit { get; set; }
+        public decimal? MaxPriceLimit { get; set; }
+        public bool WasLimitedByMin { get; set; }
+        public bool WasLimitedByMax { get; set; }
     }
 }

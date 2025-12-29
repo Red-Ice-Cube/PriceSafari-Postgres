@@ -18,6 +18,9 @@ namespace PriceSafari.Models
         [Key]
         public int Id { get; set; }
 
+        public bool IsAutomation { get; set; } = false;
+        public int? AutomationRuleId { get; set; }
+
         public int StoreId { get; set; }
         [ForeignKey("StoreId")]
         // Uwaga: Tutaj upewnij się, że typ to StoreClass lub Store w zależności od nazwy Twojej klasy encji
