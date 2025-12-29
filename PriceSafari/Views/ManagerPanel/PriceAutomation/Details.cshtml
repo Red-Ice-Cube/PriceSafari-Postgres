@@ -1,0 +1,247 @@
+﻿@model PriceSafari.Models.ViewModels.AutomationDetailsViewModel
+
+@{
+    ViewData["Title"] = $"Szczegóły Reguły: {Model.RuleName}";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+    // Helpery do kolorów
+    string badgeClass = Model.IsActive ? "badge-success" : "badge-secondary";
+    string strategyIcon = Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness ? "fa-bolt" : "fa-dollar-sign";
+    string strategyName = Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness ? "Lider Rynku" : "Rentowność";
+    string sourceIcon = Model.SourceType == PriceSafari.Models.AutomationSourceType.PriceComparison ? "fa-tags" : "fa-shopping-bag";
+    string borderClass = Model.SourceType == PriceSafari.Models.AutomationSourceType.PriceComparison ? "border-left-info" : "border-left-warning";
+}
+
+<div class="container-fluid">
+
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="fas @sourceIcon text-gray-400 mr-2"></i> @Model.RuleName
+            </h1>
+            <div class="mt-2">
+                <span class="badge @badgeClass p-2"><i class="fas fa-power-off"></i> @(Model.IsActive ? "Aktywna" : "Wyłączona")</span>
+                <span class="badge badge-light p-2 border ml-1"><i class="fas @strategyIcon"></i> @strategyName</span>
+                <span class="text-xs text-muted ml-2">Sklep: <strong>@Model.StoreName</strong></span>
+            </div>
+        </div>
+        <div>
+            <a asp-controller="AutomationRules" asp-action="Edit" asp-route-id="@Model.RuleId" class="btn btn-sm btn-primary shadow-sm">
+                <i class="fas fa-cog fa-sm text-white-50"></i> Konfiguruj Regułę
+            </a>
+            <a asp-controller="AutomationRules" asp-action="Index" asp-route-storeId="@Model.StoreId" asp-route-filterType="@Model.SourceType" class="btn btn-sm btn-secondary shadow-sm">
+                <i class="fas fa-arrow-left fa-sm text-white-50"></i> Powrót
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card @borderClass shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">Przypisane Produkty</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.TotalProducts</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-box fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100 py-2 border-left-primary">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Ostatnia Analiza</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                @(Model.LastScrapDate.HasValue? Model.LastScrapDate.Value.ToString("dd.MM.yyyy HH:mm") : "Brak danych")
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-history fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Symulacja Cen</h6>
+
+            <button class="btn btn-success btn-sm" onclick="alert('Tu będzie logika wysłania cen do API - do implementacji w PriceAutomationController')">
+                <i class="fas fa-play"></i> Wykonaj Automatyzację
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="automationTable" width="100%" cellspacing="0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width: 50px;">Img</th>
+                            <th>Produkt</th>
+                            <th>Cena Zakupu /<br>Min. Limit</th>
+                            <th>Aktualna Cena</th>
+
+                            @if (Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness)
+                            {
+                                <th>Najlepszy Rywal</th>
+                            }
+                            else
+                            {
+                                <th>Średnia Rynku</th>
+                            }
+
+                            <th>Ranking</th>
+                            <th class="bg-gradient-light border-left-primary">Sugerowana Cena</th>
+                            <th>Zmiana</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Products)
+                        {
+                            <tr>
+                                <td class="text-center align-middle">
+                                    @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                    {
+                                        <img src="@item.ImageUrl" alt="img" style="max-height: 40px; max-width: 40px;" />
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-image text-gray-400"></i>
+                                    }
+                                </td>
+                                <td class="align-middle">
+                                    <div class="font-weight-bold text-truncate" style="max-width: 250px;" title="@item.Name">@item.Name</div>
+                                    <div class="small text-muted">@item.Identifier</div>
+                                </td>
+                                <td class="align-middle text-right">
+                                    @if (item.PurchasePrice.HasValue)
+                                    {
+                                        <div>@item.PurchasePrice.Value.ToString("F2")</div>
+                                        @if (item.MinPriceLimit.HasValue)
+                                        {
+                                            <div class="small text-danger" title="Limit minimalny"><i class="fas fa-arrow-down"></i> @item.MinPriceLimit.Value.ToString("F2")</div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-gray-400">-</span>
+                                    }
+                                </td>
+                                <td class="align-middle text-right font-weight-bold">
+                                    @(item.CurrentPrice.HasValue? item.CurrentPrice.Value.ToString("F2") : "-")
+                                </td>
+
+                                <td class="align-middle text-right">
+                                    @if (Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness)
+                                    {
+                                        @if (item.BestCompetitorPrice.HasValue)
+                                        {
+                                            <div class="text-primary font-weight-bold">@item.BestCompetitorPrice.Value.ToString("F2")</div>
+                                            <div class="small text-muted">@item.CompetitorName</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-light">Brak konkurencji</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @if (item.MarketAveragePrice.HasValue)
+                                        {
+                                            <div class="text-info font-weight-bold">@item.MarketAveragePrice.Value.ToString("F2")</div>
+                                            <div class="small text-muted">Mediana</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-gray-400">-</span>
+                                        }
+                                    }
+                                </td>
+
+                                <td class="align-middle text-center">
+                                    <span class="badge badge-secondary">@item.CurrentRanking</span>
+                                </td>
+
+                                <td class="align-middle text-right bg-light border-left-primary font-weight-bold" style="font-size: 1.1em;">
+                                    @if (item.SuggestedPrice.HasValue)
+                                    {
+                                        @if (item.IsMarginWarning)
+                                        {
+                                            <span class="text-warning" title="Cena ograniczona marżą minimalną">
+                                                <i class="fas fa-exclamation-triangle"></i> @item.SuggestedPrice.Value.ToString("F2")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-success">@item.SuggestedPrice.Value.ToString("F2")</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Brak danych</span>
+                                    }
+                                </td>
+
+                                <td class="align-middle text-center">
+                                    @if (item.PriceChange.HasValue && item.PriceChange.Value != 0)
+                                    {
+                                        @if (item.PriceChange.Value < 0)
+                                        {
+                                            <span class="text-success"><i class="fas fa-arrow-down"></i> @Math.Abs(item.PriceChange.Value).ToString("F2")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-danger"><i class="fas fa-arrow-up"></i> @item.PriceChange.Value.ToString("F2")</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-gray-400">=</span>
+                                    }
+                                </td>
+
+                                <td class="align-middle text-center">
+                                    @if (item.IsMarginWarning)
+                                    {
+                                        <span class="badge badge-warning">Limit Marży</span>
+                                    }
+                                    else if (item.SuggestedPrice.HasValue)
+                                    {
+                                        <span class="badge badge-success">Gotowy</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-light">Brak danych</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('#automationTable').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Polish.json"
+                },
+                "pageLength": 25,
+                "order": [[ 6, "desc" ]] // Sortuj po "Sugerowana Cena" (lub innej kolumnie)
+            });
+        });
+    </script>
+}
