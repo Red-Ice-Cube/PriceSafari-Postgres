@@ -35,6 +35,15 @@ namespace PriceSafari.Models
 
         public int FailedCount { get; set; } = 0;
 
+
+        public int? TotalProductsCount { get; set; }
+
+        // Ile produktów spełniało założenia strategii (np. przebiło rywala)
+        public int? TargetMetCount { get; set; }
+
+        // Ile produktów nie spełniało (np. blokada minimalnej marży)
+        public int? TargetUnmetCount { get; set; }
+
         public virtual ICollection<AllegroPriceBridgeItem> BridgeItems { get; set; } = new List<AllegroPriceBridgeItem>();
     }
 }

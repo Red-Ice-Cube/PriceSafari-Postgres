@@ -15,24 +15,21 @@ namespace PriceSafari.Models
 
         public int ProductId { get; set; }
         [ForeignKey("ProductId")]
-        // ZMIANA: Product -> ProductClass
+
         public virtual ProductClass Product { get; set; }
 
-        // Dane historyczne w momencie zmiany
         [Column(TypeName = "decimal(18,2)")]
         public decimal PriceBefore { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
-        public decimal PriceAfter { get; set; } // Nowa cena
+        public decimal PriceAfter { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
-        public decimal? MarginPrice { get; set; } // Cena zakupu w momencie zmiany
+        public decimal? MarginPrice { get; set; }
 
-        // Rankingi przed zmianą (informacyjnie)
         public string? RankingGoogleBefore { get; set; }
         public string? RankingCeneoBefore { get; set; }
 
-        // Symulowane rankingi po zmianie
         public string? RankingGoogleAfterSimulated { get; set; }
         public string? RankingCeneoAfterSimulated { get; set; }
 
@@ -40,12 +37,16 @@ namespace PriceSafari.Models
         public decimal? PriceIndexTarget { get; set; }
         public decimal? StepPriceApplied { get; set; }
 
-        public bool Success { get; set; } = true; // W tym modelu eksport zawsze zakłada sukces
+        public bool Success { get; set; } = true;
 
+        public decimal? MinPriceLimit { get; set; }
 
-        public decimal? MinPriceLimit { get; set; }      // Wyliczony limit MIN (kwota)
-        public decimal? MaxPriceLimit { get; set; }      // Wyliczony limit MAX (kwota)
-        public bool? WasLimitedByMin { get; set; }        // Czy cena uderzyła w podłogę?
-        public bool? WasLimitedByMax { get; set; }        // Czy cena uderzyła w sufit?
+        public decimal? MaxPriceLimit { get; set; }
+
+        public bool? WasLimitedByMin { get; set; }
+
+        public bool? WasLimitedByMax { get; set; }
+
     }
 }
+

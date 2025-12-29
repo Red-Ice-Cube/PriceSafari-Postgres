@@ -51,10 +51,10 @@ namespace PriceSafari.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal? CommissionAfter_Verified { get; set; }
 
-        public string? Mode { get; set; } // "profit" lub "competitiveness"
+        public string? Mode { get; set; } 
 
         [Column(TypeName = "decimal(18,2)")]
-        public decimal? PriceIndexTarget { get; set; } // np. 100.00, 95.00
+        public decimal? PriceIndexTarget { get; set; } 
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal? StepPriceApplied { get; set; }

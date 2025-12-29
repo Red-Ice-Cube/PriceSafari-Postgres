@@ -5,16 +5,21 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-    // Helpery do kolorów
     string badgeClass = Model.IsActive ? "badge-success" : "badge-secondary";
     string strategyIcon = Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness ? "fa-bolt" : "fa-dollar-sign";
     string strategyName = Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness ? "Lider Rynku" : "Rentowność";
     string sourceIcon = Model.SourceType == PriceSafari.Models.AutomationSourceType.PriceComparison ? "fa-tags" : "fa-shopping-bag";
     string borderClass = Model.SourceType == PriceSafari.Models.AutomationSourceType.PriceComparison ? "border-left-info" : "border-left-warning";
+
+    // --- NOWE OBLICZENIA DO DASHBOARDU ---
+    int total = Model.TotalProducts > 0 ? Model.TotalProducts : 1;
+    int met = Model.CountTargetMet; // Te pola dodaliśmy w ViewModelu
+    int unmet = Model.CountTargetUnmet;
+    int percentMet = (int)Math.Round((double)met / total * 100);
 }
 
 <style>
-    /* Wspólny styl dla kształtu badge'a */
+    /* --- Istniejące style dla cen (bez zmian) --- */
     .limit-badge {
         display: inline-flex;
         align-items: center;
@@ -29,40 +34,62 @@
         height: 22px;
     }
 
-    /* Kolory tła */
     .badge-purchase { background-color: #282828; }
     .badge-min { background-color: rgba(171, 37, 32, 1); }
     .badge-max { background-color: rgba(0, 145, 123, 1); }
 
-    /* Styl samej kwoty */
     .limit-price-text {
         font-weight: 500;
         font-size: 13px;
     }
 
-    /* Drobna poprawka dla ikony wewnątrz badge'a */
     .limit-badge i {
         margin-left: 4px;
         font-size: 10px;
     }
-    
-    /* Style dla ikon rankingu */
+
     .rank-icon {
-        width: 16px; 
-        height: 16px; 
-        vertical-align: middle; 
-        margin-right: 5px;
+        width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;
     }
-    
+
     .rank-row {
-        display: flex;
-        align-items: center;
-        margin-bottom: 4px;
+        display: flex; align-items: center; margin-bottom: 4px;
     }
+
+    /* --- NOWE STYLE DLA STATUSU --- */
     
-    .rank-val {
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 12px; /* Nieco większy padding */
+        border-radius: 4px;
+        font-size: 11px;
         font-weight: 600;
-        font-size: 0.85rem;
+        color: #ffffff !important;
+        min-width: 120px; /* Szersze, żeby mieścił się tekst "Cel Osiągnięty" */
+        height: 24px;
+        margin-bottom: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        gap:4px;
+    }
+
+    /* Kolor sukcesu (ten sam co MAX) */
+    .status-ok { 
+        background-color: rgba(0, 145, 123, 1); 
+    }
+
+    /* Kolor błędu (ten sam co MIN) */
+    .status-bad { 
+        background-color: rgba(171, 37, 32, 1); 
+    }
+
+    /* Styl tekstu pod spodem */
+    .status-text {
+        font-size: 11px;
+        font-weight: 600; /* Zgodnie z prośbą pogrubiony */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 </style>
 
@@ -119,6 +146,40 @@
                 </div>
             </div>
         </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100 py-2 border-left-success">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Skuteczność (Symulacja)
+                            </div>
+                            <div class="row no-gutters align-items-center">
+                                <div class="col-auto">
+                                    <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">@percentMet%</div>
+                                </div>
+                                <div class="col">
+                                    <div class="progress progress-sm mr-2">
+                                        <div class="progress-bar bg-success" role="progressbar" 
+                                             style="width: @percentMet%" aria-valuenow="@percentMet" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2 small">
+                                <span class="text-success font-weight-bold"><i class="fas fa-check"></i> @met</span> cel osiągnięty
+                                <span class="text-gray-400 mx-1">|</span>
+                                <span class="text-danger font-weight-bold"><i class="fas fa-exclamation-triangle"></i> @unmet</span> zablokowanych
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
      <div class="Vert">
@@ -301,18 +362,40 @@
                                     }
                                 </td>
 
-                                <td class="align-middle text-center">
-                                    @if (item.IsMarginWarning)
+                              <td class="align-middle text-center">
+                                    @if (item.SuggestedPrice.HasValue)
                                     {
-                                        <span class="badge badge-warning">Limit Marży</span>
-                                    }
-                                    else if (item.SuggestedPrice.HasValue)
-                                    {
-                                        <span class="badge badge-success">Gotowy</span>
+                                        @if (item.IsTargetMet)
+                                        {
+                                            <div class="status-badge status-ok">
+                                                <i class="fas fa-check mr-2"></i> Cel Osiągnięty
+                                            </div>
+                                            <div class="status-text" style="color: rgba(0, 145, 123, 1);">
+                                                Warunki spełnione
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="status-badge status-bad" 
+                                                 title="Cena została ograniczona przez limity (np. Min/Max) i nie spełnia w pełni założeń strategii.">
+                                                <i class="fas fa-exclamation-triangle mr-2"></i> Cel Niespełniony
+                                            </div>
+            
+                                            <div class="status-text" style="color: rgba(171, 37, 32, 1);">
+                                                @if (item.IsMarginWarning)
+                                                {
+                                                    <span>Blokada Marży</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>Limity cenowe</span>
+                                                }
+                                            </div>
+                                        }
                                     }
                                     else
                                     {
-                                        <span class="badge badge-light">Brak danych</span>
+                                        <span class="badge badge-light border px-3 py-2">Brak wyceny</span>
                                     }
                                 </td>
                             </tr>
@@ -326,29 +409,31 @@
 
 @section Scripts {
     <script>
-        // --- POPRAWKA: Serializacja z nowymi nazwami pól (BEZ CurrentRanking) ---
+
         var productsData = @Html.Raw(Json.Serialize(Model.Products.Select(p => new {
             ProductId = p.ProductId,
             Identifier = p.Identifier,
             CurrentPrice = p.CurrentPrice ?? 0,
             NewPrice = p.SuggestedPrice ?? 0,
             PurchasePrice = p.PurchasePrice,
-            
-            // Nowe, specyficzne pola rankingów (CurrentRanking USUNIĘTY)
+
             CurrentRankingAllegro = p.CurrentRankingAllegro,
             NewRankingAllegro = p.NewRankingAllegro,
-            
+
             CurrentRankingGoogle = p.CurrentRankingGoogle,
             NewRankingGoogle = p.NewRankingGoogle,
-            
+
             CurrentRankingCeneo = p.CurrentRankingCeneo,
             NewRankingCeneo = p.NewRankingCeneo,
 
             MinPriceLimit = p.MinPriceLimit,
             MaxPriceLimit = p.MaxPriceLimit,
-            
+
             WasLimitedByMin = (p.SuggestedPrice.HasValue && p.MinPriceLimit.HasValue && p.SuggestedPrice.Value == p.MinPriceLimit.Value),
-            WasLimitedByMax = (p.SuggestedPrice.HasValue && p.MaxPriceLimit.HasValue && p.SuggestedPrice.Value == p.MaxPriceLimit.Value)
+            WasLimitedByMax = (p.SuggestedPrice.HasValue && p.MaxPriceLimit.HasValue && p.SuggestedPrice.Value == p.MaxPriceLimit.Value),
+            
+            // --- BARDZO WAŻNE: PRZEKAZANIE FLAGI DO KONTROLERA ABY MÓGŁ ZLICZYĆ STATYSTYKI ---
+            IsTargetMet = p.IsTargetMet 
         })));
 
         var ruleId = @Model.RuleId;
@@ -356,8 +441,7 @@
         var sourceType = @((int)Model.SourceType);
 
         function executeAutomation() {
-            // Filtrujemy tylko te, które mają wyliczoną nową cenę
-            // Używamy małej litery 'newPrice' bo Json.Serialize używa camelCase
+
             var validProducts = productsData.filter(function(p) {
                 return parseFloat(p.newPrice) > 0; 
             });
@@ -400,7 +484,7 @@
                     "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Polish.json"
                 },
                 "pageLength": 25,
-                "order": [[ 6, "desc" ]] // Sortuj po "Sugerowana Cena"
+                "order": [[ 7, "asc" ]] // Sortowanie po statusie (domyślnie pokazuje problemy na górze lub dole w zależności od implementacji)
             });
         });
     </script>

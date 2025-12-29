@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PriceSafari.Models
 {
-    // 1. Definicja Enuma dla typu eksportu
+
     public enum PriceExportMethod
     {
         Csv = 0,
@@ -23,7 +23,7 @@ namespace PriceSafari.Models
 
         public int StoreId { get; set; }
         [ForeignKey("StoreId")]
-        // Uwaga: Tutaj upewnij się, że typ to StoreClass lub Store w zależności od nazwy Twojej klasy encji
+
         public virtual StoreClass Store { get; set; }
 
         public int ScrapHistoryId { get; set; }
@@ -35,7 +35,15 @@ namespace PriceSafari.Models
         public DateTime ExecutionDate { get; set; } = DateTime.Now;
         public int SuccessfulCount { get; set; }
 
-        // 2. Nowa właściwość przechowująca sposób eksportu
+
+        public int? TotalProductsCount { get; set; }
+
+        // Ile produktów spełniało założenia strategii (np. przebiło rywala)
+        public int? TargetMetCount { get; set; }
+
+        // Ile produktów nie spełniało (np. blokada minimalnej marży)
+        public int? TargetUnmetCount { get; set; }
+
         public PriceExportMethod ExportMethod { get; set; }
 
         public virtual ICollection<PriceBridgeItem> BridgeItems { get; set; }

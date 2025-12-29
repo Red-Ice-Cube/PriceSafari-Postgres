@@ -1,12 +1,12 @@
 ﻿using PriceSafari.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq; // Potrzebne do LINQ (Count)
 
 namespace PriceSafari.Models.ViewModels
 {
     public class AutomationDetailsViewModel
     {
-        // Info o regule
         public int RuleId { get; set; }
         public string RuleName { get; set; }
         public string RuleColor { get; set; }
@@ -16,49 +16,55 @@ namespace PriceSafari.Models.ViewModels
         public int StoreId { get; set; }
         public string StoreName { get; set; }
 
-        // Statystyki
         public int TotalProducts { get; set; }
         public DateTime? LastScrapDate { get; set; }
 
-        // Lista produktów
         public List<AutomationProductRowViewModel> Products { get; set; } = new List<AutomationProductRowViewModel>();
+
+        // --- NOWE POLA POMOCNICZE (do wyświetlania licznika na dashboardzie) ---
+        // Dzięki temu w Widoku @Model.CountTargetMet zwróci gotową liczbę bez pisania logiki w HTML
+        public int CountTargetMet => Products.Count(p => p.IsTargetMet);
+        public int CountTargetUnmet => Products.Count(p => !p.IsTargetMet && p.SuggestedPrice.HasValue);
     }
 
     public class AutomationProductRowViewModel
     {
-        public int ProductId { get; set; } // ID produktu z tabeli Products lub AllegroProducts
+        public int ProductId { get; set; }
+
         public string Name { get; set; }
         public string ImageUrl { get; set; }
-        public string Identifier { get; set; } // EAN lub ID oferty
+        public string Identifier { get; set; }
 
-        // Ceny i Koszty
         public decimal? CurrentPrice { get; set; }
-        public decimal? PurchasePrice { get; set; } // Cena zakupu / MarginPrice
+        public decimal? PurchasePrice { get; set; }
+
         public decimal? MinPriceLimit { get; set; }
         public decimal? MaxPriceLimit { get; set; }
 
-        // Dane z rynku (zależne od SourceType)
         public decimal? BestCompetitorPrice { get; set; }
         public string CompetitorName { get; set; }
-        public decimal? MarketAveragePrice { get; set; } // Dla strategii Profit
+        public decimal? MarketAveragePrice { get; set; }
+
         public string CurrentRankingAllegro { get; set; }
         public string NewRankingAllegro { get; set; }
 
-        // Dla Price Comparison
         public string CurrentRankingGoogle { get; set; }
         public string CurrentRankingCeneo { get; set; }
         public string NewRankingGoogle { get; set; }
         public string NewRankingCeneo { get; set; }
 
-        // Wynik kalkulacji automatyzacji
         public decimal? SuggestedPrice { get; set; }
-        public decimal? PriceChange { get; set; } // Różnica Suggested - Current
+        public decimal? PriceChange { get; set; }
 
-        // Statusy
         public bool IsInStock { get; set; }
-        public bool IsMarginWarning { get; set; } // Czy sugerowana cena łamie marżę
-    }
+        public bool IsMarginWarning { get; set; }
 
+        // --- NOWE POLE ---
+        // Określa, czy dla tego konkretnego produktu udało się zrealizować strategię (np. być liderem),
+        // czy też cena została ograniczona przez limity (Min/Max).
+        // True = Zielony ptaszek, False = Czerwony wykrzyknik.
+        public bool IsTargetMet { get; set; }
+    }
 
     public class AutomationExecutionRequest
     {
@@ -86,8 +92,12 @@ namespace PriceSafari.Models.ViewModels
         public decimal? MinPriceLimit { get; set; }
         public decimal? MaxPriceLimit { get; set; }
 
-        // ZMIANA NA NULLABLE BOOL
         public bool? WasLimitedByMin { get; set; }
         public bool? WasLimitedByMax { get; set; }
+
+        // --- NOWE POLE ---
+        // Służy do przesłania informacji z JavaScript do Kontrolera (SaveBatch).
+        // Kontroler zliczy "true" w tym polu, aby wypełnić TargetMetCount w bazie.
+        public bool IsTargetMet { get; set; }
     }
 }
