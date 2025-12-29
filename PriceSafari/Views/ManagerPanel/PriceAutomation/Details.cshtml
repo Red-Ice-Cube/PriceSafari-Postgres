@@ -13,48 +13,57 @@
     string borderClass = Model.SourceType == PriceSafari.Models.AutomationSourceType.PriceComparison ? "border-left-info" : "border-left-warning";
 }
 
-
 <style>
     /* Wspólny styl dla kształtu badge'a */
     .limit-badge {
-        display: inline-flex; /* Kluczowe dla wyśrodkowania ikony */
-        align-items: center; /* Centrowanie w pionie */
-        justify-content: center; /* Centrowanie w poziomie */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         padding: 2px 8px;
         border-radius: 4px;
         font-size: 11px;
         font-weight: 600;
         color: #ffffff !important;
         margin-right: 6px;
-        min-width: 55px; /* Stała szerokość dla estetyki */
-        height: 22px; /* Stała wysokość */
+        min-width: 55px;
+        height: 22px;
     }
 
     /* Kolory tła */
-    .badge-purchase {
-        background-color: #282828;
-    }
+    .badge-purchase { background-color: #282828; }
+    .badge-min { background-color: rgba(171, 37, 32, 1); }
+    .badge-max { background-color: rgba(0, 145, 123, 1); }
 
-    .badge-min {
-        background-color: rgba(171, 37, 32, 1);
-    }
-
-    .badge-max {
-        background-color: rgba(0, 145, 123, 1);
-    }
-
-    /* Styl samej kwoty (grubość 500) */
+    /* Styl samej kwoty */
     .limit-price-text {
         font-weight: 500;
         font-size: 13px;
     }
 
-    /* Drobna poprawka dla ikony wewnątrz badge'a, żeby nie była przyklejona do tekstu */
+    /* Drobna poprawka dla ikony wewnątrz badge'a */
     .limit-badge i {
         margin-left: 4px;
-        font-size: 10px; /* Trochę mniejsza ikona wygląda zgrabniej */
+        font-size: 10px;
     }
-
+    
+    /* Style dla ikon rankingu */
+    .rank-icon {
+        width: 16px; 
+        height: 16px; 
+        vertical-align: middle; 
+        margin-right: 5px;
+    }
+    
+    .rank-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 4px;
+    }
+    
+    .rank-val {
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
 </style>
 
 <div class="container-fluid">
@@ -89,9 +98,7 @@
                             <div class="text-xs font-weight-bold text-uppercase mb-1">Przypisane Produkty</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.TotalProducts</div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-box fa-2x text-gray-300"></i>
-                        </div>
+                        <div class="col-auto"><i class="fas fa-box fa-2x text-gray-300"></i></div>
                     </div>
                 </div>
             </div>
@@ -104,19 +111,17 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Ostatnia Analiza</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                @(Model.LastScrapDate.HasValue? Model.LastScrapDate.Value.ToString("dd.MM.yyyy HH:mm") : "Brak danych")
+                                @(Model.LastScrapDate.HasValue ? Model.LastScrapDate.Value.ToString("dd.MM.yyyy HH:mm") : "Brak danych")
                             </div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-history fa-2x text-gray-300"></i>
-                        </div>
+                        <div class="col-auto"><i class="fas fa-history fa-2x text-gray-300"></i></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="Vert">
+     <div class="Vert">
         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
             <h6 class="m-0 font-weight-bold text-primary">Symulacja Cen</h6>
 
@@ -129,7 +134,7 @@
                 <table class="table-orders" id="automationTable" width="100%">
                     <thead>
                         <tr>
-                            <th style="width: 50px;"></th>
+                            <th style="width: 50px;">Img</th>
                             <th style="width: 250px;">Produkt</th>
                             <th style="width: 220px;">Limity Cenowe</th>
                             <th>Aktualna Cena</th>
@@ -143,7 +148,7 @@
                                 <th>Średnia Rynku</th>
                             }
 
-                            <th>Ranking</th>
+                            <th style="min-width: 140px;">Ranking (Obecny <i class="fas fa-arrow-right fa-xs"></i> Nowy)</th>
                             <th class="bg-gradient-light border-left-primary">Sugerowana Cena</th>
                             <th>Zmiana</th>
                             <th>Status</th>
@@ -168,54 +173,40 @@
                                     <div class="small text-muted">@item.Identifier</div>
                                 </td>
 
-                             <td class="align-middle">
-                                @if (item.PurchasePrice.HasValue)
-                                {
-                                    <div class="bg-light p-2 rounded border">
-            
-                                        <div class="d-flex justify-content-between align-items-center ">
-                                            <span class="limit-badge badge-purchase">
-                                                Zakup
-                                            </span>
-                                            <span class="limit-price-text" style="color: #282828;">
-                                                @item.PurchasePrice.Value.ToString("F2") PLN
-                                            </span>
+                                <td class="align-middle">
+                                    @if (item.PurchasePrice.HasValue)
+                                    {
+                                        <div class="bg-light p-2 rounded border">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="limit-badge badge-purchase">Zakup</span>
+                                                <span class="limit-price-text" style="color: #282828;">@item.PurchasePrice.Value.ToString("F2") PLN</span>
+                                            </div>
+
+                                            @if (item.MinPriceLimit.HasValue)
+                                            {
+                                                <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
+                                                    <span class="limit-badge badge-min" title="Minimalna marża (Podłoga)">MIN <i class="fa-solid fa-arrow-down"></i></span>
+                                                    <span class="limit-price-text" style="color: rgba(171, 37, 32, 1);">@item.MinPriceLimit.Value.ToString("F2") PLN</span>
+                                                </div>
+                                            }
+
+                                            @if (item.MaxPriceLimit.HasValue)
+                                            {
+                                                <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
+                                                    <span class="limit-badge badge-max" title="Maksymalna marża (Sufit)">MAX <i class="fa-solid fa-arrow-up"></i></span>
+                                                    <span class="limit-price-text" style="color: rgba(0, 145, 123, 1);">@item.MaxPriceLimit.Value.ToString("F2") PLN</span>
+                                                </div>
+                                            }
                                         </div>
-
-                                        @if (item.MinPriceLimit.HasValue)
-                                        {
-                                            <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
-                                                <span class="limit-badge badge-min" title="Minimalna marża (Podłoga)">
-                                                    MIN <i class="fa-solid fa-arrow-down"></i>
-                                                </span>
-                                                <span class="limit-price-text" style="color: rgba(171, 37, 32, 1);">
-                                                    @item.MinPriceLimit.Value.ToString("F2") PLN
-                                                </span>
-                                            </div>
-                                        }
-
-                                        @if (item.MaxPriceLimit.HasValue)
-                                        {
-                                            <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
-                                                <span class="limit-badge badge-max" title="Maksymalna marża (Sufit)">
-                                                    MAX <i class="fa-solid fa-arrow-up"></i>
-                                                </span>
-                                                <span class="limit-price-text" style="color: rgba(0, 145, 123, 1);">
-                                                    @item.MaxPriceLimit.Value.ToString("F2") PLN
-                                                </span>
-                                            </div>
-                                        }
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div class="text-center text-gray-400 small">Brak ceny zakupu</div>
-                                }
-                            </td>
-                          
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center text-gray-400 small">Brak ceny zakupu</div>
+                                    }
+                                </td>
 
                                 <td class="align-middle text-right font-weight-bold">
-                                    @(item.CurrentPrice.HasValue? item.CurrentPrice.Value.ToString("F2") : "-")
+                                    @(item.CurrentPrice.HasValue ? item.CurrentPrice.Value.ToString("F2") : "-")
                                 </td>
 
                                 <td class="align-middle text-right">
@@ -245,8 +236,31 @@
                                     }
                                 </td>
 
-                                <td class="align-middle text-center">
-                                    <span class="badge badge-secondary">@item.CurrentRanking</span>
+                                <td class="align-middle">
+                                    @if (Model.SourceType == PriceSafari.Models.AutomationSourceType.Marketplace)
+                                    {
+                                        <div class="rank-row">
+                                            <img src="/images/AllegroIcon.png" alt="Allegro" class="rank-icon">
+                                            <span class="badge badge-light border mr-1">@item.CurrentRankingAllegro</span>
+                                            <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
+                                            <span class="badge badge-primary">@item.NewRankingAllegro</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="rank-row border-bottom pb-1 mb-1">
+                                            <img src="/images/GoogleShopping.png" alt="Google" class="rank-icon">
+                                            <span class="badge badge-light border mr-1">@item.CurrentRankingGoogle</span>
+                                            <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
+                                            <span class="badge badge-primary">@item.NewRankingGoogle</span>
+                                        </div>
+                                        <div class="rank-row">
+                                            <img src="/images/Ceneo.png" alt="Ceneo" class="rank-icon">
+                                            <span class="badge badge-light border mr-1">@item.CurrentRankingCeneo</span>
+                                            <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
+                                            <span class="badge badge-primary">@item.NewRankingCeneo</span>
+                                        </div>
+                                    }
                                 </td>
 
                                 <td class="align-middle text-right bg-light border-left-primary font-weight-bold" style="font-size: 1.1em;">
@@ -309,20 +323,30 @@
         </div>
     </div>
 </div>
+
 @section Scripts {
     <script>
-        // Zrzucamy dane produktów do zmiennej JS
+        // --- POPRAWKA: Serializacja z nowymi nazwami pól (BEZ CurrentRanking) ---
         var productsData = @Html.Raw(Json.Serialize(Model.Products.Select(p => new {
             ProductId = p.ProductId,
             Identifier = p.Identifier,
             CurrentPrice = p.CurrentPrice ?? 0,
-            // Jeśli SuggestedPrice jest null, wstawiamy 0.
             NewPrice = p.SuggestedPrice ?? 0,
             PurchasePrice = p.PurchasePrice,
-            CurrentRanking = p.CurrentRanking,
-            // Logika limitów - zapisujemy konkretne wartości bool
+            
+            // Nowe, specyficzne pola rankingów (CurrentRanking USUNIĘTY)
+            CurrentRankingAllegro = p.CurrentRankingAllegro,
+            NewRankingAllegro = p.NewRankingAllegro,
+            
+            CurrentRankingGoogle = p.CurrentRankingGoogle,
+            NewRankingGoogle = p.NewRankingGoogle,
+            
+            CurrentRankingCeneo = p.CurrentRankingCeneo,
+            NewRankingCeneo = p.NewRankingCeneo,
+
             MinPriceLimit = p.MinPriceLimit,
             MaxPriceLimit = p.MaxPriceLimit,
+            
             WasLimitedByMin = (p.SuggestedPrice.HasValue && p.MinPriceLimit.HasValue && p.SuggestedPrice.Value == p.MinPriceLimit.Value),
             WasLimitedByMax = (p.SuggestedPrice.HasValue && p.MaxPriceLimit.HasValue && p.SuggestedPrice.Value == p.MaxPriceLimit.Value)
         })));
@@ -332,20 +356,14 @@
         var sourceType = @((int)Model.SourceType);
 
         function executeAutomation() {
-            console.log("Wszystkie produkty:", productsData); // DEBUG: Zobacz co siedzi w danych
-
-            // Filtrujemy tylko te, które mają wyliczoną nową cenę (> 0)
-            // Używamy parseFloat, żeby mieć pewność, że to liczba, choć po Serialize powinno być ok
+            // Filtrujemy tylko te, które mają wyliczoną nową cenę
+            // Używamy małej litery 'newPrice' bo Json.Serialize używa camelCase
             var validProducts = productsData.filter(function(p) {
-                return parseFloat(p.newPrice) > 0; // Uwaga na wielkość liter: Json.Serialize zamienia PascalCase na camelCase domyślnie!
+                return parseFloat(p.newPrice) > 0; 
             });
 
-            console.log("Produkty do wysłania:", validProducts); // DEBUG
-
             if (validProducts.length === 0) {
-                // Sprawdźmy dlaczego jest 0. Może SuggestedPrice wszędzie jest null?
-                // W takim przypadku wyświetlamy alert
-                alert("Brak produktów z wyliczoną nową ceną (SuggestedPrice > 0).");
+                alert("Brak produktów z wyliczoną nową ceną.");
                 return;
             }
 
@@ -367,7 +385,7 @@
                 data: JSON.stringify(payload),
                 success: function(response) {
                     alert("Sukces! Zapisano log automatyzacji. Przetworzono: " + response.count);
-                    location.reload(); 
+                    location.reload();
                 },
                 error: function(xhr, status, error) {
                     alert("Błąd serwera: " + error);
@@ -375,6 +393,15 @@
                 }
             });
         }
+
+        $(document).ready(function() {
+            $('#automationTable').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Polish.json"
+                },
+                "pageLength": 25,
+                "order": [[ 6, "desc" ]] // Sortuj po "Sugerowana Cena"
+            });
+        });
     </script>
-    
-    }
+}

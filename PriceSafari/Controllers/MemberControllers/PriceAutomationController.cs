@@ -56,6 +56,47 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/ManagerPanel/PriceAutomation/Details.cshtml", model);
         }
 
+
+
+        // Helper do wyliczania rankingu (np. "1/5" lub "2-3/10" przy remisie cenowym)
+        private string CalculateRanking(List<decimal> competitors, decimal myPrice)
+        {
+            // 1. Tworzymy nową listę na bazie konkurencji, aby nie modyfikować oryginału
+            var allPrices = new List<decimal>(competitors);
+
+            // 2. Dodajemy naszą cenę do zestawienia
+            allPrices.Add(myPrice);
+
+            // 3. Sortujemy rosnąco (najniższa cena = 1. miejsce)
+            allPrices.Sort();
+
+            // 4. Znajdujemy indeksy (pierwsze i ostatnie wystąpienie naszej ceny)
+            // IndexOf zwraca indeks liczony od 0
+            int firstIndex = allPrices.IndexOf(myPrice);
+            int lastIndex = allPrices.LastIndexOf(myPrice);
+
+            // Zabezpieczenie (teoretycznie niemożliwe, bo dodaliśmy cenę w kroku 2)
+            if (firstIndex == -1) return "-";
+
+            // 5. Przeliczamy na pozycje (indeks + 1)
+            int startRank = firstIndex + 1;
+            int endRank = lastIndex + 1;
+            int totalCount = allPrices.Count;
+
+            // 6. Formatowanie wyniku
+            if (startRank == endRank)
+            {
+                // Sytuacja, gdy nasza cena jest unikalna na danej pozycji (np. "1/5")
+                return $"{startRank}/{totalCount}";
+            }
+            else
+            {
+                // Sytuacja, gdy wiele ofert ma tę samą cenę (remis, np. "2-4/10")
+                return $"{startRank}-{endRank}/{totalCount}";
+            }
+        }
+
+
         private async Task PreparePriceComparisonData(AutomationRule rule, AutomationDetailsViewModel model)
         {
             var latestScrap = await _context.ScrapHistories
@@ -94,12 +135,15 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var histories = priceHistories.Where(h => h.ProductId == p.ProductId).ToList();
 
+                // 1. Znajdź naszą ofertę
                 var myHistory = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(rule.Store.StoreName, StringComparison.OrdinalIgnoreCase))
                                 ?? histories.FirstOrDefault(h => h.StoreName == null);
 
+                // 2. Pobierz WSZYSTKICH konkurentów
                 var rawCompetitors = histories.Where(h => h != myHistory && h.Price > 0).ToList();
                 var filteredCompetitors = new List<PriceHistoryClass>();
 
+                // 3. LOGIKA FILTROWANIA
                 if (rule.CompetitorPreset != null)
                 {
                     bool blockGoogle = !rule.CompetitorPreset.SourceGoogle;
@@ -112,7 +156,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         if (isGoogle && blockGoogle) continue;
                         if (!isGoogle && blockCeneo) continue;
 
-                        // Używamy dedykowanej metody dla PriceComparison (bez rzutowania)
                         if (IsCompetitorAllowedComparison(comp.StoreName, isGoogle, competitorRules, rule.CompetitorPreset.UseUnmarkedStores))
                         {
                             filteredCompetitors.Add(comp);
@@ -124,6 +167,36 @@ namespace PriceSafari.Controllers.MemberControllers
                     filteredCompetitors = rawCompetitors;
                 }
 
+                // --- PRZYGOTOWANIE DANYCH DO RANKINGU ---
+
+                // Rozdzielamy przefiltrowaną konkurencję na Google i Ceneo
+                var googleCompetitorPrices = filteredCompetitors
+                    .Where(c => c.IsGoogle == true && c.Price > 0)
+                    .Select(c => c.Price).ToList();
+
+                var ceneoCompetitorPrices = filteredCompetitors
+                    .Where(c => (c.IsGoogle == false || c.IsGoogle == null) && c.Price > 0)
+                    .Select(c => c.Price).ToList();
+
+                // Znajdujemy nasze rekordy specyficznie dla każdego kanału
+                var myGoogleRecord = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(rule.Store.StoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle == true);
+                var myCeneoRecord = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(rule.Store.StoreName, StringComparison.OrdinalIgnoreCase) && (h.IsGoogle == false || h.IsGoogle == null));
+
+                // Wyliczamy AKTUALNE rankingi
+                string currentRankGoogle = "-";
+                string currentRankCeneo = "-";
+
+                if (myGoogleRecord != null && myGoogleRecord.Price > 0)
+                {
+                    currentRankGoogle = CalculateRanking(new List<decimal>(googleCompetitorPrices), myGoogleRecord.Price);
+                }
+
+                if (myCeneoRecord != null && myCeneoRecord.Price > 0)
+                {
+                    currentRankCeneo = CalculateRanking(new List<decimal>(ceneoCompetitorPrices), myCeneoRecord.Price);
+                }
+
+                // Sortowanie po cenie (dla BestCompetitorPrice)
                 filteredCompetitors = filteredCompetitors.OrderBy(h => h.Price).ToList();
                 var bestCompetitor = filteredCompetitors.FirstOrDefault();
 
@@ -144,21 +217,35 @@ namespace PriceSafari.Controllers.MemberControllers
                     BestCompetitorPrice = bestCompetitor?.Price,
                     CompetitorName = bestCompetitor?.StoreName,
                     MarketAveragePrice = marketAvg,
-                    IsInStock = true
+                    IsInStock = true,
+
+                    // Przypisanie wyliczonych rankingów Google/Ceneo
+                    CurrentRankingGoogle = currentRankGoogle,
+                    CurrentRankingCeneo = currentRankCeneo,
+
+                    // Allegro w tym przypadku nie dotyczy, więc null
+                    CurrentRankingAllegro = null
                 };
 
-                if (myHistory != null && myHistory.Price > 0)
+                CalculateSuggestedPrice(rule, row); // To ustawia row.SuggestedPrice
+
+                // --- WYLICZENIE NOWYCH RANKINGÓW (SYMULACJA) ---
+                string newRankGoogle = "-";
+                string newRankCeneo = "-";
+
+                if (row.SuggestedPrice.HasValue)
                 {
-                    var allPrices = filteredCompetitors.Select(c => c.Price).Concat(new[] { myHistory.Price }).OrderBy(x => x).ToList();
-                    var myRank = allPrices.IndexOf(myHistory.Price) + 1;
-                    row.CurrentRanking = $"{myRank}/{allPrices.Count}";
-                }
-                else
-                {
-                    row.CurrentRanking = "-";
+                    decimal newPrice = row.SuggestedPrice.Value;
+
+                    // Symulujemy ranking przy założeniu nowej ceny w obu kanałach
+                    newRankGoogle = CalculateRanking(new List<decimal>(googleCompetitorPrices), newPrice);
+                    newRankCeneo = CalculateRanking(new List<decimal>(ceneoCompetitorPrices), newPrice);
                 }
 
-                CalculateSuggestedPrice(rule, row);
+                row.NewRankingGoogle = newRankGoogle;
+                row.NewRankingCeneo = newRankCeneo;
+                row.NewRankingAllegro = null; // Tutaj też null, bo to PC
+
                 model.Products.Add(row);
             }
 
@@ -212,7 +299,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     foreach (var comp in rawCompetitors)
                     {
-                        // Używamy dedykowanej metody dla Marketplace (bez rzutowania)
                         if (IsCompetitorAllowedMarketplace(comp.SellerName, competitorRules, rule.CompetitorPreset.UseUnmarkedStores))
                         {
                             filteredCompetitors.Add(comp);
@@ -224,41 +310,62 @@ namespace PriceSafari.Controllers.MemberControllers
                     filteredCompetitors = rawCompetitors;
                 }
 
+                // --- PRZYGOTOWANIE DANYCH ---
+
+                // Lista cen konkurencji (już przefiltrowana)
+                var competitorPrices = filteredCompetitors.Select(c => c.Price).ToList();
+
+                // Sortowanie do wyliczenia BestCompetitor
                 filteredCompetitors = filteredCompetitors.OrderBy(h => h.Price).ToList();
                 var bestCompetitor = filteredCompetitors.FirstOrDefault();
 
                 decimal? marketAvg = null;
                 if (filteredCompetitors.Any())
                 {
-                    marketAvg = CalculateMedian(filteredCompetitors.Select(c => c.Price).ToList());
+                    marketAvg = CalculateMedian(competitorPrices);
+                }
+
+                // 1. Aktualny Ranking Allegro
+                string currentRankAllegro = "-";
+                if (myHistory != null && myHistory.Price > 0)
+                {
+                    currentRankAllegro = CalculateRanking(new List<decimal>(competitorPrices), myHistory.Price);
                 }
 
                 var row = new AutomationProductRowViewModel
                 {
                     ProductId = p.AllegroProductId,
                     Name = p.AllegroProductName,
-                    ImageUrl = null,
-                    Identifier = p.AllegroOfferUrl,
+                    ImageUrl = null, // Allegro products często nie mają URL w głównej tabeli w tym modelu
+                    Identifier = p.AllegroOfferUrl, // Lub p.AllegroOfferId jeśli masz takie pole
                     CurrentPrice = myHistory?.Price,
                     PurchasePrice = p.AllegroMarginPrice,
                     BestCompetitorPrice = bestCompetitor?.Price,
                     CompetitorName = bestCompetitor?.SellerName,
                     MarketAveragePrice = marketAvg,
-                    IsInStock = true
+                    IsInStock = true, // W Allegro zazwyczaj scrapujemy tylko aktywne, ale można dodać logikę
+
+                    // Przypisanie rankingu Allegro
+                    CurrentRankingAllegro = currentRankAllegro,
+
+                    // Pola Google/Ceneo pozostają null (domyślnie), co jest poprawne dla Marketplace
+                    CurrentRankingGoogle = null,
+                    CurrentRankingCeneo = null,
+               
                 };
 
-                if (myHistory != null)
+                CalculateSuggestedPrice(rule, row); // Wylicza SuggestedPrice
+
+                // 2. Symulowany Ranking Allegro
+                string newRankAllegro = "-";
+                if (row.SuggestedPrice.HasValue)
                 {
-                    var allPrices = filteredCompetitors.Select(c => c.Price).Concat(new[] { myHistory.Price }).OrderBy(x => x).ToList();
-                    var myRank = allPrices.IndexOf(myHistory.Price) + 1;
-                    row.CurrentRanking = $"{myRank}/{allPrices.Count}";
-                }
-                else
-                {
-                    row.CurrentRanking = "-";
+                    newRankAllegro = CalculateRanking(new List<decimal>(competitorPrices), row.SuggestedPrice.Value);
                 }
 
-                CalculateSuggestedPrice(rule, row);
+                row.NewRankingAllegro = newRankAllegro;
+                // Pola Google/Ceneo "New" też zostają null
+
                 model.Products.Add(row);
             }
 
@@ -442,7 +549,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return Ok(new { success = true, count = request.Products.Count });
         }
-
         private async Task SavePriceComparisonBatch(AutomationExecutionRequest request, string? userId, AutomationRule rule)
         {
             var latestScrap = await _context.ScrapHistories
@@ -455,12 +561,12 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 StoreId = request.StoreId,
                 ScrapHistoryId = latestScrap,
-                UserId = userId, // Tutaj trafi NULL
+                UserId = userId,
                 ExecutionDate = DateTime.Now,
                 SuccessfulCount = request.Products.Count,
                 ExportMethod = PriceExportMethod.Api,
-                IsAutomation = true,        // Flaga, że to automat
-                AutomationRuleId = rule.Id, // Powiązanie z regułą (zamiast nazwy użytkownika)
+                IsAutomation = true,
+                AutomationRuleId = rule.Id,
                 BridgeItems = new List<PriceBridgeItem>()
             };
 
@@ -472,17 +578,23 @@ namespace PriceSafari.Controllers.MemberControllers
                     PriceBefore = p.CurrentPrice,
                     PriceAfter = p.NewPrice,
                     MarginPrice = p.PurchasePrice,
-                    RankingGoogleBefore = p.CurrentRanking,
-                    RankingGoogleAfterSimulated = p.NewRanking,
 
+                    // --- MAPOWANIE RANKINGÓW DLA PRICE COMPARISON ---
+                    // Pobieramy z DTO pola specyficzne dla Google/Ceneo
+                    RankingGoogleBefore = p.CurrentRankingGoogle,
+                    RankingCeneoBefore = p.CurrentRankingCeneo,
+
+                    RankingGoogleAfterSimulated = p.NewRankingGoogle,
+                    RankingCeneoAfterSimulated = p.NewRankingCeneo,
+
+                    // Logowanie strategii
                     Mode = rule.StrategyMode.ToString(),
                     PriceIndexTarget = rule.StrategyMode == AutomationStrategyMode.Profit ? rule.PriceIndexTargetPercent : (decimal?)null,
                     StepPriceApplied = rule.StrategyMode == AutomationStrategyMode.Competitiveness ? rule.PriceStep : (decimal?)null,
 
+                    // Limity
                     MinPriceLimit = p.MinPriceLimit,
                     MaxPriceLimit = p.MaxPriceLimit,
-
-                    // Przypisanie nullable bool
                     WasLimitedByMin = p.WasLimitedByMin,
                     WasLimitedByMax = p.WasLimitedByMax,
 
@@ -493,6 +605,12 @@ namespace PriceSafari.Controllers.MemberControllers
             _context.PriceBridgeBatches.Add(batch);
             await _context.SaveChangesAsync();
         }
+
+
+
+
+
+
 
         private async Task SaveMarketplaceBatch(AutomationExecutionRequest request, string? userId, AutomationRule rule)
         {
@@ -506,11 +624,11 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 StoreId = request.StoreId,
                 AllegroScrapeHistoryId = latestScrap,
-                UserId = userId, // Tutaj trafi NULL
+                UserId = userId,
                 ExecutionDate = DateTime.UtcNow,
                 SuccessfulCount = request.Products.Count,
-                IsAutomation = true,        // Flaga
-                AutomationRuleId = rule.Id  // Powiązanie
+                IsAutomation = true,
+                AutomationRuleId = rule.Id
             };
 
             foreach (var p in request.Products)
@@ -523,8 +641,11 @@ namespace PriceSafari.Controllers.MemberControllers
                     PriceAfter_Simulated = p.NewPrice,
                     PriceAfter_Verified = p.NewPrice,
                     MarginPrice = p.PurchasePrice,
-                    RankingBefore = p.CurrentRanking,
-                    RankingAfter_Simulated = p.NewRanking,
+
+                    // --- MAPOWANIE RANKINGÓW DLA ALLEGRO ---
+                    // Bierzemy ranking z pola "Allegro" w DTO i wrzucamy do ogólnego pola w bazie
+                    RankingBefore = p.CurrentRankingAllegro,
+                    RankingAfter_Simulated = p.NewRankingAllegro,
 
                     Mode = rule.StrategyMode.ToString(),
                     PriceIndexTarget = rule.StrategyMode == AutomationStrategyMode.Profit ? rule.PriceIndexTargetPercent : (decimal?)null,
@@ -532,8 +653,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     MinPriceLimit = p.MinPriceLimit,
                     MaxPriceLimit = p.MaxPriceLimit,
-
-                    // Przypisanie nullable bool
                     WasLimitedByMin = p.WasLimitedByMin,
                     WasLimitedByMax = p.WasLimitedByMax,
 

@@ -41,7 +41,14 @@ namespace PriceSafari.Models.ViewModels
         public decimal? BestCompetitorPrice { get; set; }
         public string CompetitorName { get; set; }
         public decimal? MarketAveragePrice { get; set; } // Dla strategii Profit
-        public string CurrentRanking { get; set; } // np. "1/5" lub "Top"
+        public string CurrentRankingAllegro { get; set; }
+        public string NewRankingAllegro { get; set; }
+
+        // Dla Price Comparison
+        public string CurrentRankingGoogle { get; set; }
+        public string CurrentRankingCeneo { get; set; }
+        public string NewRankingGoogle { get; set; }
+        public string NewRankingCeneo { get; set; }
 
         // Wynik kalkulacji automatyzacji
         public decimal? SuggestedPrice { get; set; }
@@ -69,8 +76,12 @@ namespace PriceSafari.Models.ViewModels
         public decimal NewPrice { get; set; }
         public decimal? PurchasePrice { get; set; }
 
-        public string CurrentRanking { get; set; }
-        public string NewRanking { get; set; }
+        public string CurrentRankingAllegro { get; set; }
+        public string NewRankingAllegro { get; set; }
+        public string CurrentRankingGoogle { get; set; }
+        public string CurrentRankingCeneo { get; set; }
+        public string NewRankingGoogle { get; set; }
+        public string NewRankingCeneo { get; set; }
 
         public decimal? MinPriceLimit { get; set; }
         public decimal? MaxPriceLimit { get; set; }
