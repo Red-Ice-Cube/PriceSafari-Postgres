@@ -415,5 +415,135 @@ namespace PriceSafari.Controllers.MemberControllers
                 row.PriceChange = row.SuggestedPrice.Value - row.CurrentPrice.Value;
             }
         }
+
+
+        [HttpPost]
+        public async Task<IActionResult> ExecuteAutomation([FromBody] AutomationExecutionRequest request)
+        {
+            if (request == null || !request.Products.Any()) return BadRequest("Brak danych.");
+
+            // KROK 1: Nie pobieramy Usera, bo to akcja systemowa
+            // string userId = _userManager.GetUserId(User); -> USUNIĘTE
+
+            // Pobierz regułę, by mieć pewność co do powiązania
+            var rule = await _context.AutomationRules.FindAsync(request.RuleId);
+            if (rule == null) return NotFound("Reguła nie istnieje.");
+
+            if (request.SourceType == AutomationSourceType.PriceComparison)
+            {
+                // Przekazujemy null zamiast userId
+                await SavePriceComparisonBatch(request, null, rule);
+            }
+            else
+            {
+                // Przekazujemy null zamiast userId
+                await SaveMarketplaceBatch(request, null, rule);
+            }
+
+            return Ok(new { success = true, count = request.Products.Count });
+        }
+
+        private async Task SavePriceComparisonBatch(AutomationExecutionRequest request, string? userId, AutomationRule rule)
+        {
+            var latestScrap = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == request.StoreId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => sh.Id)
+                .FirstOrDefaultAsync();
+
+            var batch = new PriceBridgeBatch
+            {
+                StoreId = request.StoreId,
+                ScrapHistoryId = latestScrap,
+                UserId = userId, // Tutaj trafi NULL
+                ExecutionDate = DateTime.Now,
+                SuccessfulCount = request.Products.Count,
+                ExportMethod = PriceExportMethod.Api,
+                IsAutomation = true,        // Flaga, że to automat
+                AutomationRuleId = rule.Id, // Powiązanie z regułą (zamiast nazwy użytkownika)
+                BridgeItems = new List<PriceBridgeItem>()
+            };
+
+            foreach (var p in request.Products)
+            {
+                batch.BridgeItems.Add(new PriceBridgeItem
+                {
+                    ProductId = p.ProductId,
+                    PriceBefore = p.CurrentPrice,
+                    PriceAfter = p.NewPrice,
+                    MarginPrice = p.PurchasePrice,
+                    RankingGoogleBefore = p.CurrentRanking,
+                    RankingGoogleAfterSimulated = p.NewRanking,
+
+                    Mode = rule.StrategyMode.ToString(),
+                    PriceIndexTarget = rule.StrategyMode == AutomationStrategyMode.Profit ? rule.PriceIndexTargetPercent : (decimal?)null,
+                    StepPriceApplied = rule.StrategyMode == AutomationStrategyMode.Competitiveness ? rule.PriceStep : (decimal?)null,
+
+                    MinPriceLimit = p.MinPriceLimit,
+                    MaxPriceLimit = p.MaxPriceLimit,
+
+                    // Przypisanie nullable bool
+                    WasLimitedByMin = p.WasLimitedByMin,
+                    WasLimitedByMax = p.WasLimitedByMax,
+
+                    Success = true
+                });
+            }
+
+            _context.PriceBridgeBatches.Add(batch);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SaveMarketplaceBatch(AutomationExecutionRequest request, string? userId, AutomationRule rule)
+        {
+            var latestScrap = await _context.AllegroScrapeHistories
+                .Where(sh => sh.StoreId == request.StoreId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => sh.Id)
+                .FirstOrDefaultAsync();
+
+            var batch = new AllegroPriceBridgeBatch
+            {
+                StoreId = request.StoreId,
+                AllegroScrapeHistoryId = latestScrap,
+                UserId = userId, // Tutaj trafi NULL
+                ExecutionDate = DateTime.UtcNow,
+                SuccessfulCount = request.Products.Count,
+                IsAutomation = true,        // Flaga
+                AutomationRuleId = rule.Id  // Powiązanie
+            };
+
+            foreach (var p in request.Products)
+            {
+                batch.BridgeItems.Add(new AllegroPriceBridgeItem
+                {
+                    AllegroProductId = p.ProductId,
+                    AllegroOfferId = p.Identifier,
+                    PriceBefore = p.CurrentPrice,
+                    PriceAfter_Simulated = p.NewPrice,
+                    PriceAfter_Verified = p.NewPrice,
+                    MarginPrice = p.PurchasePrice,
+                    RankingBefore = p.CurrentRanking,
+                    RankingAfter_Simulated = p.NewRanking,
+
+                    Mode = rule.StrategyMode.ToString(),
+                    PriceIndexTarget = rule.StrategyMode == AutomationStrategyMode.Profit ? rule.PriceIndexTargetPercent : (decimal?)null,
+                    StepPriceApplied = rule.StrategyMode == AutomationStrategyMode.Competitiveness ? rule.PriceStep : (decimal?)null,
+
+                    MinPriceLimit = p.MinPriceLimit,
+                    MaxPriceLimit = p.MaxPriceLimit,
+
+                    // Przypisanie nullable bool
+                    WasLimitedByMin = p.WasLimitedByMin,
+                    WasLimitedByMax = p.WasLimitedByMax,
+
+                    Success = true,
+                    IncludeCommissionInMargin = rule.MarketplaceIncludeCommission
+                });
+            }
+
+            _context.AllegroPriceBridgeBatches.Add(batch);
+            await _context.SaveChangesAsync();
+        }
     }
 }

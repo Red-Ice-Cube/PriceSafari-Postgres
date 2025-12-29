@@ -64,19 +64,19 @@ namespace PriceSafari.Models.ViewModels
     public class AutomationProductResultDto
     {
         public int ProductId { get; set; }
-        public string Identifier { get; set; } // EAN lub OfferId
+        public string Identifier { get; set; }
         public decimal CurrentPrice { get; set; }
         public decimal NewPrice { get; set; }
-        public decimal? PurchasePrice { get; set; } // MarginPrice
+        public decimal? PurchasePrice { get; set; }
 
-        // Rankingi (opcjonalne, do logów)
         public string CurrentRanking { get; set; }
-        public string NewRanking { get; set; } // Symulowany
+        public string NewRanking { get; set; }
 
-        // Szczegóły limitów
         public decimal? MinPriceLimit { get; set; }
         public decimal? MaxPriceLimit { get; set; }
-        public bool WasLimitedByMin { get; set; }
-        public bool WasLimitedByMax { get; set; }
+
+        // ZMIANA NA NULLABLE BOOL
+        public bool? WasLimitedByMin { get; set; }
+        public bool? WasLimitedByMax { get; set; }
     }
 }

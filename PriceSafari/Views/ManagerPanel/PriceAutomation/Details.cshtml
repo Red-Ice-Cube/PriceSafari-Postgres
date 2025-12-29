@@ -120,9 +120,9 @@
         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
             <h6 class="m-0 font-weight-bold text-primary">Symulacja Cen</h6>
 
-            <button class="btn btn-success btn-sm" onclick="alert('Tu będzie logika wysłania cen do API - do implementacji w PriceAutomationController')">
-                <i class="fas fa-play"></i> Wykonaj Automatyzację
-            </button>
+             <button class="btn btn-success btn-sm" onclick="executeAutomation()">
+            <i class="fas fa-play"></i> Wykonaj Automatyzację (Symulacja)
+        </button>
         </div>
         <div class="Vert-full">
             <div class="Vert-table" style="height: 90vh;">
@@ -309,17 +309,72 @@
         </div>
     </div>
 </div>
-
 @section Scripts {
     <script>
-        $(document).ready(function() {
-            $('#automationTable').DataTable({
-                "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Polish.json"
-                },
-                "pageLength": 25,
-                "order": [[ 6, "desc" ]] // Sortuj po "Sugerowana Cena" (lub innej kolumnie)
+        // Zrzucamy dane produktów do zmiennej JS
+        var productsData = @Html.Raw(Json.Serialize(Model.Products.Select(p => new {
+            ProductId = p.ProductId,
+            Identifier = p.Identifier,
+            CurrentPrice = p.CurrentPrice ?? 0,
+            // Jeśli SuggestedPrice jest null, wstawiamy 0.
+            NewPrice = p.SuggestedPrice ?? 0,
+            PurchasePrice = p.PurchasePrice,
+            CurrentRanking = p.CurrentRanking,
+            // Logika limitów - zapisujemy konkretne wartości bool
+            MinPriceLimit = p.MinPriceLimit,
+            MaxPriceLimit = p.MaxPriceLimit,
+            WasLimitedByMin = (p.SuggestedPrice.HasValue && p.MinPriceLimit.HasValue && p.SuggestedPrice.Value == p.MinPriceLimit.Value),
+            WasLimitedByMax = (p.SuggestedPrice.HasValue && p.MaxPriceLimit.HasValue && p.SuggestedPrice.Value == p.MaxPriceLimit.Value)
+        })));
+
+        var ruleId = @Model.RuleId;
+        var storeId = @Model.StoreId;
+        var sourceType = @((int)Model.SourceType);
+
+        function executeAutomation() {
+            console.log("Wszystkie produkty:", productsData); // DEBUG: Zobacz co siedzi w danych
+
+            // Filtrujemy tylko te, które mają wyliczoną nową cenę (> 0)
+            // Używamy parseFloat, żeby mieć pewność, że to liczba, choć po Serialize powinno być ok
+            var validProducts = productsData.filter(function(p) {
+                return parseFloat(p.newPrice) > 0; // Uwaga na wielkość liter: Json.Serialize zamienia PascalCase na camelCase domyślnie!
             });
-        });
+
+            console.log("Produkty do wysłania:", validProducts); // DEBUG
+
+            if (validProducts.length === 0) {
+                // Sprawdźmy dlaczego jest 0. Może SuggestedPrice wszędzie jest null?
+                // W takim przypadku wyświetlamy alert
+                alert("Brak produktów z wyliczoną nową ceną (SuggestedPrice > 0).");
+                return;
+            }
+
+            if (!confirm("Czy na pewno chcesz zapisać symulację zmian cen dla " + validProducts.length + " produktów?")) {
+                return;
+            }
+
+            var payload = {
+                RuleId: ruleId,
+                StoreId: storeId,
+                SourceType: sourceType,
+                Products: validProducts
+            };
+
+            $.ajax({
+                url: '@Url.Action("ExecuteAutomation", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: function(response) {
+                    alert("Sukces! Zapisano log automatyzacji. Przetworzono: " + response.count);
+                    location.reload(); 
+                },
+                error: function(xhr, status, error) {
+                    alert("Błąd serwera: " + error);
+                    console.error(xhr);
+                }
+            });
+        }
     </script>
-}
+    
+    }
