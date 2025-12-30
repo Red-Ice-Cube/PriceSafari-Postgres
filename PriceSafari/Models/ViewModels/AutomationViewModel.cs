@@ -65,12 +65,19 @@ namespace PriceSafari.Models.ViewModels
         public decimal? MarkupAmount { get; set; }  // Wyliczony narzut kwotowy (Cena - Zakup - Prowizja)
         public decimal? MarkupPercent { get; set; } // Wyliczony narzut procentowy ((Narzut / Zakup) * 100)
 
+        public decimal? CurrentMarkupAmount { get; set; }  // Narzut kwotowy dla aktualnej ceny
+        public decimal? CurrentMarkupPercent { get; set; }
+
         // Pola specyficzne dla Allegro
         public bool IsBestPriceGuarantee { get; set; } // Gwarancja Najniższej Ceny
         public bool IsSuperPrice { get; set; }         // Super Cena
         public bool IsTopOffer { get; set; }           // Top Oferta
         public bool IsInAnyCampaign { get; set; }
         public bool IsSubsidyActive { get; set; }
+
+        public bool CompetitorIsBestPriceGuarantee { get; set; }
+        public bool CompetitorIsSuperPrice { get; set; }
+        public bool CompetitorIsTopOffer { get; set; }
 
         public decimal? ApiAllegroPriceFromUser { get; set; }
         // Informacje biznesowe

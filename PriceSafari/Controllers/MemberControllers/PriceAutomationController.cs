@@ -124,10 +124,24 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var histories = priceHistories.Where(h => h.ProductId == p.ProductId).ToList();
 
-                var myHistory = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(rule.Store.StoreName, StringComparison.OrdinalIgnoreCase))
+                // Pobieramy nazwę naszego sklepu do porównania (zabezpieczamy przed null)
+                string myStoreName = rule.Store.StoreName ?? "";
+
+                // Znajdujemy naszą ofertę (do wyświetlenia "Aktualna cena") - to zostaje bez zmian
+                var myHistory = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase))
                                 ?? histories.FirstOrDefault(h => h.StoreName == null);
 
-                var rawCompetitors = histories.Where(h => h != myHistory && h.Price > 0).ToList();
+                // --- POPRAWKA TUTAJ ---
+                // Zamiast sprawdzać (h != myHistory), sprawdzamy czy nazwa sklepu NIE zawiera nazwy naszego sklepu.
+                var rawCompetitors = histories
+                    .Where(h =>
+                        h.Price > 0 && // Cena musi być większa od 0
+                        h != myHistory && // Nie jest to obiekt zidentyfikowany jako "nasz główny"
+                        (h.StoreName == null || !h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase)) // KLUCZOWE: Nazwa sklepu nie może być naszą nazwą
+                    )
+                    .ToList();
+                // ----------------------
+
                 var filteredCompetitors = new List<PriceHistoryClass>();
 
                 if (rule.CompetitorPreset != null)
@@ -206,6 +220,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 };
 
                 CalculateSuggestedPrice(rule, row);
+                CalculateCurrentMarkup(row);
 
                 string newRankGoogle = "-";
                 string newRankCeneo = "-";
@@ -273,11 +288,24 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var histories = priceHistories.Where(h => h.AllegroProductId == p.AllegroProductId).ToList();
 
+             
+
+                // Znajdź Twoją historię - to zostaje
                 var myHistory = histories.FirstOrDefault(h => h.SellerName != null && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase));
 
                 var extInfo = extendedInfos.FirstOrDefault(x => x.AllegroProductId == p.AllegroProductId);
 
-                var rawCompetitors = histories.Where(h => h != myHistory && h.Price > 0).ToList();
+                // --- POPRAWKA TUTAJ ---
+                // Filtrujemy po SellerName, aby wyrzucić wszystkie oferty Twojego sklepu
+                var rawCompetitors = histories
+                    .Where(h =>
+                        h.Price > 0 &&
+                        h != myHistory &&
+                        (h.SellerName == null || !h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase)) // KLUCZOWE: Nazwa sprzedawcy nie może być Twoja
+                    )
+                    .ToList();
+                // ----------------------
+
                 var filteredCompetitors = new List<AllegroPriceHistory>();
 
                 if (rule.CompetitorPreset != null)
@@ -329,11 +357,15 @@ namespace PriceSafari.Controllers.MemberControllers
                     IsBestPriceGuarantee = myHistory?.IsBestPriceGuarantee ?? false,
                     IsSuperPrice = myHistory?.SuperPrice ?? false,
                     IsTopOffer = myHistory?.TopOffer ?? false,
+                    CompetitorIsBestPriceGuarantee = bestCompetitor?.IsBestPriceGuarantee ?? false,
+                    CompetitorIsSuperPrice = bestCompetitor?.SuperPrice ?? false,
+                    CompetitorIsTopOffer = bestCompetitor?.TopOffer ?? false,
 
                     IsCommissionIncluded = rule.MarketplaceIncludeCommission
                 };
 
                 CalculateSuggestedPrice(rule, row);
+                CalculateCurrentMarkup(row);
 
                 string newRankAllegro = "-";
                 if (row.SuggestedPrice.HasValue)
@@ -575,6 +607,26 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 row.MarkupAmount = sellPrice - purchase - commissionCost;
                 row.MarkupPercent = (row.MarkupAmount.Value / purchase) * 100;
+            }
+        }
+
+        private void CalculateCurrentMarkup(AutomationProductRowViewModel row)
+        {
+            // Liczymy tylko jeśli mamy cenę aktualną i cenę zakupu
+            if (row.CurrentPrice.HasValue && row.PurchasePrice.HasValue && row.PurchasePrice.Value > 0)
+            {
+                decimal sellPrice = row.CurrentPrice.Value;
+                decimal purchase = row.PurchasePrice.Value;
+                decimal commissionCost = 0;
+
+                // Jeśli w regule zaznaczono "Uwzględniaj prowizję" i mamy tę prowizję pobraną
+                if (row.IsCommissionIncluded && row.CommissionAmount.HasValue)
+                {
+                    commissionCost = row.CommissionAmount.Value;
+                }
+
+                row.CurrentMarkupAmount = sellPrice - purchase - commissionCost;
+                row.CurrentMarkupPercent = (row.CurrentMarkupAmount.Value / purchase) * 100;
             }
         }
 

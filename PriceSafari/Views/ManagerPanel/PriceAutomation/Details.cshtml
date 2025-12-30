@@ -32,8 +32,8 @@
     .badge-min { background-color: rgba(171, 37, 32, 1); }
     .badge-max { background-color: rgba(0, 145, 123, 1); }
     .limit-price-text { font-weight: 500; font-size: 13px; }
-    .rank-icon { width: 16px; height: 16px; vertical-align: middle; margin-right: 5px; }
-    .rank-row { display: flex; align-items: center; margin-bottom: 4px; }
+    .rank-icon { width: 11px; height: 11px; vertical-align: middle; margin-right: 5px; }
+    .rank-row { display: flex; align-items: center;  }
 
     /* --- STYLE STATUSU --- */
     .status-badge {
@@ -65,28 +65,23 @@
         color: #169A23 !important; /* Zielony dla Gwarancji */
     }
 
-    /* --- STACK STYLES (Informacje finansowe) --- */
-    .subsidy-stack, .Commission-stack, .price-box-diff-margin-ib {
-        text-align: right; margin-top: 4px; width: 100%;
-        line-height: 1.2;
+    .commission-stack-badge {
+        width:52px;
     }
-    .subsidy-stack-badge, .commission-stack-badge, .price-badge {
-        display: inline-block; font-size: 9px; font-weight: 600;
-        padding: 1px 5px; border-radius: 3px; text-transform: uppercase;
-        margin-bottom: 1px;
+
+    .price-badge {
+     width:52px;
     }
-    .subsidy-stack-badge { background-color: #e8f3ff; color: #0d6efd; border: 1px solid #cce5ff; }
-    .subsidy-stack p { margin: 0; font-size: 11px; font-weight: 600; color: #0d6efd; }
-    .Commission-stack-badge { background-color: #f8f9fa; color: #6c757d; border: 1px solid #e3e6f0; }
-    .Commission-stack p { margin: 0; font-size: 11px; color: #5a5c69; }
-    .price-box-diff-margin-ib { padding: 3px 6px; border-radius: 4px; border: 1px solid transparent; display: flex; flex-direction: column; align-items: flex-end; }
-    .price-box-diff-margin-ib-positive { background-color: #f0fdf4; border-color: #dcfce7; }
-    .price-box-diff-margin-ib-negative { background-color: #fef2f2; border-color: #fee2e2; }
-    .price-box-diff-margin-ib-neutral { background-color: #f8f9fa; border-color: #e3e6f0; }
-    .price-badge-positive { background-color: #1cc88a; color: white; }
-    .price-badge-negative { background-color: #e74a3b; color: white; }
-    .price-badge-neutral { background-color: #858796; color: white; }
-    .price-box-diff-margin-ib p { margin: 0; font-size: 11px; font-weight: 700; color: #333; }
+
+   .text-muted {
+       font-size:12px;
+  
+   }
+   .column-flex-min-gap{
+       display:flex;
+       flex-direction:column;
+       gap:2px;
+   }
 
 </style>
 
@@ -183,278 +178,323 @@
         <div class="Vert-full">
             <div class="Vert-table" style="height: 90vh;">
                 <table class="table-orders" id="automationTable" width="100%">
-                    <thead>
-                        <tr>
-                            @if (!isMarketplace)
-                            {
-                                <th style="width: 50px;">Img</th>
-                            }
-                            
-                            <th style="width: 250px;">Produkt</th>
-                            <th style="width: 220px;">Limity Cenowe</th>
-                            
-                            <th>Aktualna Cena</th>
+    <thead>
+        <tr>
+            @if (!isMarketplace)
+            {
+                <th style="width: 50px;"></th>
+            }
+            
+            <th style="width: 250px;">Produkt</th>
+            <th style="width: 200px;">Limity Cenowe</th>
+            
+            <th style="width: 280px;">Aktualna Cena</th>
 
-                            @if (Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness)
-                            {
-                                <th>Najlepszy Rywal</th>
-                            }
-                            else
-                            {
-                                <th>Średnia Rynku</th>
-                            }
+            @if (Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness)
+            {
+                <th style="width: 280px;">Najlepszy Rywal</th>
+            }
+            else
+            {
+                <th style="width: 280px;">Średnia Rynku</th>
+            }
 
-                            <th style="min-width: 140px;">Ranking</th>
-                            <th class="bg-gradient-light border-left-primary" style="width: 180px;">Sugerowana Cena</th>
-                            <th>Zmiana</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in Model.Products)
+            <th style="min-width: 130px; width: 140px;">Zmiana</th>
+            
+            <th class="bg-gradient-light border-left-primary" style="width: 210px;">Sugerowana Cena</th>
+            
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.Products)
+        {
+            <tr>
+                @if (!isMarketplace)
+                {
+                    <td class="text-center align-middle">
+                        @if (!string.IsNullOrEmpty(item.ImageUrl))
                         {
-                            <tr>
-                                @if (!isMarketplace)
-                                {
-                                    <td class="text-center align-middle">
-                                        @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                        {
-                                            <img src="@item.ImageUrl" alt="img" style="max-height: 40px; max-width: 40px;" />
-                                        }
-                                        else
-                                        {
-                                            <i class="fas fa-image text-gray-400"></i>
-                                        }
-                                    </td>
-                                }
-
-                                <td class="align-middle">
-                                    <div class="font-weight-bold text-truncate" style="max-width: 250px;" title="@item.Name">@item.Name</div>
-                                    <div class="small text-muted mb-1">
-                                        @item.Identifier
-                                        @if(item.ApiAllegroPriceFromUser.HasValue) {
-                                             <span class="text-xs ml-1 text-gray-500" title="Cena bazowa w API (przed dopłatami)">(API: @item.ApiAllegroPriceFromUser)</span>
-                                        }
-                                    </div>
-                                </td>
-                                
-                                <td class="align-middle">
-                                    @if (item.PurchasePrice.HasValue)
-                                    {
-                                        <div class="bg-light p-2 rounded border">
-                                            @if (item.MaxPriceLimit.HasValue)
-                                            {
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <span class="limit-badge badge-max">MAX <i class="fa-solid fa-arrow-up"></i></span>
-                                                    <span class="limit-price-text" style="color: rgba(0, 145, 123, 1);">@item.MaxPriceLimit.Value.ToString("F2") PLN</span>
-                                                </div>
-                                            }
-                                            @if (item.MinPriceLimit.HasValue)
-                                            {
-                                                <div class="d-flex justify-content-between align-items-center @(item.MaxPriceLimit.HasValue ? "border-top pt-1 mt-1" : "mb-1")">
-                                                    <span class="limit-badge badge-min">MIN <i class="fa-solid fa-arrow-down"></i></span>
-                                                    <span class="limit-price-text" style="color: rgba(171, 37, 32, 1);">@item.MinPriceLimit.Value.ToString("F2") PLN</span>
-                                                </div>
-                                            }
-                                            <div class="d-flex justify-content-between align-items-center @(item.MinPriceLimit.HasValue || item.MaxPriceLimit.HasValue ? "border-top pt-1 mt-1" : "")">
-                                                <span class="limit-badge badge-purchase">Zakup</span>
-                                                <span class="limit-price-text" style="color: #282828;">@item.PurchasePrice.Value.ToString("F2") PLN</span>
-                                            </div>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <div class="text-center text-gray-400 small">Brak ceny zakupu</div>
-                                    }
-                                </td>
-
-                                <td class="align-middle text-right">
-                                    <div class="price-row-block">
-                                        <span class="price-main-style @(item.IsBestPriceGuarantee ? "price-green" : "")">
-                                            @(item.CurrentPrice.HasValue ? item.CurrentPrice.Value.ToString("F2") : "-")
-                                        </span>
-
-                                        @if (item.IsBestPriceGuarantee)
-                                        {
-                                            <div title="Gwarancja Najniższej Ceny">
-                                                <img src="/images/TopPrice.png" alt="Gwarancja" style="width: 18px; height: 18px; vertical-align: middle;">
-                                            </div>
-                                        }
-                                        @if (item.IsSuperPrice)
-                                        {
-                                            <div class="SuperPrice">SUPERCENA</div>
-                                        }
-                                        @if (item.IsTopOffer)
-                                        {
-                                            <div class="TopOffer">Top oferta</div>
-                                        }
-                                        @if (item.IsInAnyCampaign)
-                                        {
-                                            <span class="badge badge-info ml-1" title="Udział w kampanii promocyjnej" style="font-size:10px;">PROMO</span>
-                                        }
-                                    </div>
-                                    <div class="small text-muted ">@Model.StoreName</div>
-                                </td>
-
-                                <td class="align-middle text-right">
-                                    @if (Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness)
-                                    {
-                                        @if (item.BestCompetitorPrice.HasValue)
-                                        {
-                                            <span class="price-main-style">@item.BestCompetitorPrice.Value.ToString("F2")</span>
-                                            <div class="small text-muted ">@item.CompetitorName</div>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge badge-light">Brak konkurencji</span>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        @if (item.MarketAveragePrice.HasValue)
-                                        {
-                                            <span class="price-main-style text-info">@item.MarketAveragePrice.Value.ToString("F2")</span>
-                                            <div class="small text-muted ">Mediana</div>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-gray-400">-</span>
-                                        }
-                                    }
-                                </td>
-
-                                <td class="align-middle">
-                                    @if (Model.SourceType == PriceSafari.Models.AutomationSourceType.Marketplace)
-                                    {
-                                        <div class="rank-row">
-                                            <img src="/images/AllegroIcon.png" alt="Allegro" class="rank-icon">
-                                            <span class="badge badge-light border mr-1">@item.CurrentRankingAllegro</span>
-                                            <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
-                                            <span class="badge badge-primary">@item.NewRankingAllegro</span>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <div class="rank-row border-bottom pb-1 mb-1">
-                                            <img src="/images/GoogleShopping.png" alt="Google" class="rank-icon">
-                                            <span class="badge badge-light border mr-1">@item.CurrentRankingGoogle</span>
-                                            <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
-                                            <span class="badge badge-primary">@item.NewRankingGoogle</span>
-                                        </div>
-                                        <div class="rank-row">
-                                            <img src="/images/Ceneo.png" alt="Ceneo" class="rank-icon">
-                                            <span class="badge badge-light border mr-1">@item.CurrentRankingCeneo</span>
-                                            <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
-                                            <span class="badge badge-primary">@item.NewRankingCeneo</span>
-                                        </div>
-                                    }
-                                </td>
-
-                                <td class="align-middle text-right bg-light border-left-primary">
-                                    <div class="d-flex flex-column align-items-end" style="width:100%;">
-                                        
-                                        @if (item.IsBlockedByStatus)
-                                        {
-                                             <div class="mb-1 text-right">
-                                                 <span class="badge badge-secondary" style="font-size: 10px;">BLOKADA: @item.BlockReason.ToUpper()</span>
-                                             </div>
-                                             <div class="font-weight-bold text-secondary" style="font-size: 1.1em;">
-                                                 @(item.SuggestedPrice?.ToString("F2") ?? "-")
-                                             </div>
-                                        }
-                                        else
-                                        {
-                                            <span class="price-main-style @(item.IsMarginWarning ? "text-warning" : "text-success")">
-                                                @(item.SuggestedPrice.HasValue ? item.SuggestedPrice.Value.ToString("F2") : "-")
-                                            </span>
-                                        }
-
-                                        @if (item.IsSubsidyActive && item.ApiAllegroPriceFromUser.HasValue)
-                                        {
-                                            <div class="subsidy-stack">
-                                                <span class="subsidy-stack-badge">Kampania z dopł. | Twoja cena</span>
-                                                <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
-                                            </div>
-                                        }
-                                        
-                                        @if (item.CommissionAmount.HasValue)
-                                        {
-                                            <div class="Commission-stack">
-                                                <span class="commission-stack-badge">Koszt Allegro</span>
-                                                <p>
-                                                    @item.CommissionAmount.Value.ToString("F2") PLN
-                                                    @if(item.IsCommissionIncluded) { <span style="font-weight: 400; color: #555;"> | uwzgl.</span> }
-                                                    else { <span style="font-weight: 400; color: #999;"> | nieuwzgl.</span> }
-                                                </p>
-                                            </div>
-                                        }
-
-                                        @if (item.SuggestedPrice.HasValue && item.MarkupAmount.HasValue)
-                                        {
-                                             <div class="price-box-diff-margin-ib @(item.MarkupAmount > 0 ? "price-box-diff-margin-ib-positive" : "price-box-diff-margin-ib-negative")" style="margin-top: 4px; width: 100%;">
-                                                  <span class="price-badge @(item.MarkupAmount > 0 ? "price-badge-positive" : "price-badge-negative")">Narzut</span>
-                                                  <p>@item.MarkupAmount.Value.ToString("F2") PLN (@item.MarkupPercent.Value.ToString("F2")%)</p>
-                                             </div>
-                                        }
-                                    </div>
-                                </td>
-
-                                <td class="align-middle text-center">
-                                    @if (item.PriceChange.HasValue && item.PriceChange.Value != 0 && !item.IsBlockedByStatus)
-                                    {
-                                        @if (item.PriceChange.Value < 0)
-                                        {
-                                            <span class="text-success"><i class="fas fa-arrow-down"></i> @Math.Abs(item.PriceChange.Value).ToString("F2")</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-danger"><i class="fas fa-arrow-up"></i> @item.PriceChange.Value.ToString("F2")</span>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span class="text-gray-400">=</span>
-                                    }
-                                </td>
-
-                                <td class="align-middle text-center">
-                                    @if (item.IsBlockedByStatus)
-                                    {
-                                        <div class="status-badge status-neutral">
-                                            <i class="fas fa-ban mr-2"></i> Blokada
-                                        </div>
-                                    }
-                                    else if (item.SuggestedPrice.HasValue)
-                                    {
-                                        @if (item.IsTargetMet)
-                                        {
-                                            <div class="status-badge status-ok">
-                                                <i class="fas fa-check mr-2"></i> Cel Osiągnięty
-                                            </div>
-                                            <div class="status-text" style="color: rgba(0, 145, 123, 1);">
-                                                Warunki spełnione
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="status-badge status-bad" title="Cena ograniczona przez limity.">
-                                                <i class="fas fa-exclamation-triangle mr-2"></i> Cel Niespełniony
-                                            </div>
-                                            <div class="status-text" style="color: rgba(171, 37, 32, 1);">
-                                                @if (item.IsMarginWarning) { <span>Blokada Marży</span> }
-                                                else { <span>Limity cenowe</span> }
-                                            </div>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span class="badge badge-light border px-3 py-2">Brak wyceny</span>
-                                    }
-                                </td>
-                            </tr>
+                            <img src="@item.ImageUrl" alt="img" style="max-height: 40px; max-width: 40px;" />
                         }
-                    </tbody>
-                </table>
+                        else
+                        {
+                            <i class="fas fa-image text-gray-400"></i>
+                        }
+                    </td>
+                }
+
+                <td class="align-middle">
+                    <div class="font-weight-bold text-truncate" style="max-width: 250px;" title="@item.Name">@item.Name</div>
+                    <div class="small text-muted mb-1">
+                        @item.Identifier
+                        @if(item.ApiAllegroPriceFromUser.HasValue) {
+                                <span class="text-xs ml-1 text-gray-500" title="Cena bazowa w API (przed dopłatami)">(API: @item.ApiAllegroPriceFromUser)</span>
+                        }
+                    </div>
+                </td>
+                
+                <td class="align-middle">
+                    @if (item.PurchasePrice.HasValue)
+                    {
+                        <div class="bg-light p-2 rounded border">
+                            @if (item.MaxPriceLimit.HasValue)
+                            {
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="limit-badge badge-max">MAX <i class="fa-solid fa-arrow-up"></i></span>
+                                    <span class="limit-price-text" style="color: rgba(0, 145, 123, 1);">@item.MaxPriceLimit.Value.ToString("F2") PLN</span>
+                                </div>
+                            }
+                            @if (item.MinPriceLimit.HasValue)
+                            {
+                                <div class="d-flex justify-content-between align-items-center @(item.MaxPriceLimit.HasValue ? "border-top pt-1 mt-1" : "mb-1")">
+                                    <span class="limit-badge badge-min">MIN <i class="fa-solid fa-arrow-down"></i></span>
+                                    <span class="limit-price-text" style="color: rgba(171, 37, 32, 1);">@item.MinPriceLimit.Value.ToString("F2") PLN</span>
+                                </div>
+                            }
+                            <div class="d-flex justify-content-between align-items-center @(item.MinPriceLimit.HasValue || item.MaxPriceLimit.HasValue ? "border-top pt-1 mt-1" : "")">
+                                <span class="limit-badge badge-purchase">Zakup</span>
+                                <span class="limit-price-text" style="color: #282828;">@item.PurchasePrice.Value.ToString("F2") PLN</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center text-gray-400 small">Brak ceny zakupu</div>
+                    }
+                </td>
+
+                <td class="align-middle text-right">
+                <div class="price-row-block"> <span class="price-main-style @(item.IsBestPriceGuarantee ? "price-green" : "")">
+                        @(item.CurrentPrice.HasValue ? item.CurrentPrice.Value.ToString("F2")  : "-") PLN
+                    </span>
+
+                    @if (item.IsBestPriceGuarantee)
+                    {
+                        <div title="Gwarancja Najniższej Ceny">
+                            <img src="/images/TopPrice.png" alt="Gwarancja" style="width: 18px; height: 18px; vertical-align: middle;">
+                        </div>
+                    }
+                    @if (item.IsSuperPrice)
+                    {
+                        <div class="SuperPrice">SUPERCENA</div>
+                    }
+                    @if (item.IsTopOffer)
+                    {
+                        <div class="TopOffer">Top oferta</div>
+                    }
+                    @if (item.IsInAnyCampaign)
+                    {
+                        <span class="badge badge-info ml-1" title="Udział w kampanii promocyjnej" style="font-size:10px;">PROMO</span>
+                    }
+                </div>
+    
+                <div class="small text-muted ">@Model.StoreName</div>
+
+                @if (item.CommissionAmount.HasValue)
+                {
+                    <div class="Commission-stack">
+                        <span class="commission-stack-badge">Prowizja</span>
+                        <p>
+                            @item.CommissionAmount.Value.ToString("F2") PLN
+                            @if(item.IsCommissionIncluded) { <span style="font-weight: 400; color: #555;"> | uwzg.</span> }
+                            else { <span style="font-weight: 400; color: #999;"> | nieuwzg.</span> }
+                        </p>
+                    </div>
+                }
+
+                @if (item.CurrentMarkupAmount.HasValue && item.CurrentMarkupPercent.HasValue)
+                {
+                    <div class="price-box-diff-margin-ib @(item.CurrentMarkupAmount > 0 ? "price-box-diff-margin-ib-positive" : "price-box-diff-margin-ib-negative")" style="margin-top: 4px; width: 100%;">
+                            <span class="price-badge @(item.CurrentMarkupAmount > 0 ? "price-badge-positive" : "price-badge-negative")">Narzut</span>
+                            <p>@item.CurrentMarkupAmount.Value.ToString("F2") PLN (@item.CurrentMarkupPercent.Value.ToString("F2")%)</p>
+                    </div>
+                }
+            </td>
+                <td class="align-middle text-right">
+                    @if (Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness)
+                    {
+                        @if (item.BestCompetitorPrice.HasValue)
+                        {
+                            <div class="price-row-block">
+                                <span class="price-main-style @(item.CompetitorIsBestPriceGuarantee ? "price-green" : "")">
+                                    @item.BestCompetitorPrice.Value.ToString("F2") PLN
+                                </span>
+        
+                                @if (item.CompetitorIsBestPriceGuarantee)
+                                {
+                                    <div title="Gwarancja Najniższej Ceny Rywala">
+                                        <img src="/images/TopPrice.png" alt="Gwarancja" style="width: 18px; height: 18px; vertical-align: middle;">
+                                    </div>
+                                }
+        
+                                @if (item.CompetitorIsSuperPrice)
+                                {
+                                    <div class="SuperPrice">SUPERCENA</div>
+                                }
+        
+                                @if (item.CompetitorIsTopOffer)
+                                {
+                                    <div class="TopOffer">Top oferta</div>
+                                }
+                            </div>
+                            
+                            
+                            <div class="small text-muted">@item.CompetitorName</div>
+                        }
+                        else
+                        {
+                            <span class="badge badge-light">Brak konkurencji</span>
+                        }
+                    }
+                    else
+                    {
+                        }
+                </td>
+
+                <td class="align-middle text-center">
+                    
+                    <div class="price-row-block">
+                         @if (item.PriceChange.HasValue && item.PriceChange.Value != 0 && !item.IsBlockedByStatus)
+                         {
+                             @if (item.PriceChange.Value < 0)
+                             {
+                                 /* Obniżka ceny - zielony */
+                                 <span class="price-main-style text-success">
+                                     <i class="fas fa-arrow-down fa-xs mr-4"></i>@Math.Abs(item.PriceChange.Value).ToString("F2") PLN
+                                 </span>
+                             }
+                             else
+                             {
+                                 /* Podwyżka ceny - czerwony */
+                                 <span class="price-main-style text-danger">
+                                     <i class="fas fa-arrow-up fa-xs mr-1"></i>@item.PriceChange.Value.ToString("F2") PLN
+                                 </span>
+                             }
+                         }
+                         else
+                         {
+                             /* Brak zmiany */
+                             <span class="price-main-style text-gray-400">=</span>
+                         }
+                    </div>
+                    <div class="column-flex-min-gap">
+                         @if (Model.SourceType == PriceSafari.Models.AutomationSourceType.Marketplace)
+                    {
+                        <div class="rank-row">
+                            <img src="/images/AllegroIcon.png" alt="Allegro" class="rank-icon">
+                            <span class="text-muted">@item.CurrentRankingAllegro</span>
+                            <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
+                            <span class="text-muted">@item.NewRankingAllegro</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="rank-row">
+                            <img src="/images/GoogleShopping.png" alt="Google" class="rank-icon">
+                            <span class="text-muted">@item.CurrentRankingGoogle</span>
+                            <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
+                            <span class="text-muted">@item.NewRankingGoogle</span>
+                        </div>
+                        <div class="rank-row">
+                            <img src="/images/Ceneo.png" alt="Ceneo" class="rank-icon">
+                            <span class="text-muted">@item.CurrentRankingCeneo</span>
+                            <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
+                            <span class="text-muted">@item.NewRankingCeneo</span>
+                        </div>
+                    }
+                    </div>
+                   
+                </td>
+
+                <td class="align-middle text-right bg-light border-left-primary">
+                    <div class="d-flex flex-column" style="width:100%;">
+                        
+                        @if (item.IsBlockedByStatus)
+                        {
+                                <div class="mb-1 text-right">
+                                    <span class="badge badge-secondary" style="font-size: 10px;">BLOKADA: @item.BlockReason.ToUpper()</span>
+                                </div>
+                                <div class="font-weight-bold text-secondary" style="font-size: 1.1em;">
+                                    @(item.SuggestedPrice?.ToString("F2") ?? "-") PLN
+                                </div>
+                        }
+                        else
+                        {
+                            <span class="price-main-style @(item.IsMarginWarning ? "text-warning" : "text-success")">
+                                @(item.SuggestedPrice.HasValue ? item.SuggestedPrice.Value.ToString("F2") : "-") PLN
+                            </span>
+                        }
+                            <div class="small text-muted ">@Model.StoreName</div>
+
+                        @if (item.IsSubsidyActive && item.ApiAllegroPriceFromUser.HasValue)
+                        {
+                            <div class="subsidy-stack">
+                                <span class="subsidy-stack-badge">Kampania z dopł. | Twoja cena</span>
+                                <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
+                            </div>
+                        }
+                        
+                        @if (item.CommissionAmount.HasValue)
+                        {
+                            <div class="Commission-stack">
+                                <span class="commission-stack-badge">Prowizja</span>
+                                <p>
+                                    @item.CommissionAmount.Value.ToString("F2") PLN
+                                    @if(item.IsCommissionIncluded) { <span style="font-weight: 400; color: #555;"> | uwzg.</span> }
+                                    else { <span style="font-weight: 400; color: #999;"> | nieuwzg.</span> }
+                                </p>
+                            </div>
+                        }
+
+                        @if (item.SuggestedPrice.HasValue && item.MarkupAmount.HasValue)
+                        {
+                                <div class="price-box-diff-margin-ib @(item.MarkupAmount > 0 ? "price-box-diff-margin-ib-positive" : "price-box-diff-margin-ib-negative")" style="margin-top: 4px; width: 100%;">
+                                        <span class="price-badge @(item.MarkupAmount > 0 ? "price-badge-positive" : "price-badge-negative")">Narzut</span>
+                                        <p>@item.MarkupAmount.Value.ToString("F2") PLN (@item.MarkupPercent.Value.ToString("F2")%)</p>
+                                </div>
+                        }
+                    </div>
+                </td>
+
+                <td class="align-middle text-center">
+                    @if (item.IsBlockedByStatus)
+                    {
+                        <div class="status-badge status-neutral">
+                            <i class="fas fa-ban mr-2"></i> Blokada
+                        </div>
+                    }
+                    else if (item.SuggestedPrice.HasValue)
+                    {
+                        @if (item.IsTargetMet)
+                        {
+                            <div class="status-badge status-ok">
+                                <i class="fas fa-check mr-2"></i> Cel Osiągnięty
+                            </div>
+                            <div class="status-text" style="color: rgba(0, 145, 123, 1);">
+                                Warunki spełnione
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="status-badge status-bad" title="Cena ograniczona przez limity.">
+                                <i class="fas fa-exclamation-triangle mr-2"></i> Cel Niespełniony
+                            </div>
+                            <div class="status-text" style="color: rgba(171, 37, 32, 1);">
+                                @if (item.IsMarginWarning) { <span>Blokada Marży</span> }
+                                else { <span>Limity cenowe</span> }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <span class="badge badge-light border px-3 py-2">Brak wyceny</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
             </div>
         </div>
     </div>
