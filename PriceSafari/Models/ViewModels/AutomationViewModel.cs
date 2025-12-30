@@ -59,11 +59,26 @@ namespace PriceSafari.Models.ViewModels
         public bool IsInStock { get; set; }
         public bool IsMarginWarning { get; set; }
 
-        // --- NOWE POLE ---
-        // Określa, czy dla tego konkretnego produktu udało się zrealizować strategię (np. być liderem),
-        // czy też cena została ograniczona przez limity (Min/Max).
-        // True = Zielony ptaszek, False = Czerwony wykrzyknik.
+        public decimal? CommissionAmount { get; set; } // Kwota prowizji (jeśli dotyczy)
+        public bool IsCommissionIncluded { get; set; } // Czy prowizja została wliczona w kalkulacje
+
+        public decimal? MarkupAmount { get; set; }  // Wyliczony narzut kwotowy (Cena - Zakup - Prowizja)
+        public decimal? MarkupPercent { get; set; } // Wyliczony narzut procentowy ((Narzut / Zakup) * 100)
+
+        // Pola specyficzne dla Allegro
+        public bool IsBestPriceGuarantee { get; set; } // Gwarancja Najniższej Ceny
+        public bool IsSuperPrice { get; set; }         // Super Cena
+        public bool IsTopOffer { get; set; }           // Top Oferta
+        public bool IsInAnyCampaign { get; set; }
+        public bool IsSubsidyActive { get; set; }
+
+        public decimal? ApiAllegroPriceFromUser { get; set; }
+        // Informacje biznesowe
+        public bool IsBlockedByStatus { get; set; }
+        public string BlockReason { get; set; }
         public bool IsTargetMet { get; set; }
+
+
     }
 
     public class AutomationExecutionRequest
@@ -95,9 +110,7 @@ namespace PriceSafari.Models.ViewModels
         public bool? WasLimitedByMin { get; set; }
         public bool? WasLimitedByMax { get; set; }
 
-        // --- NOWE POLE ---
-        // Służy do przesłania informacji z JavaScript do Kontrolera (SaveBatch).
-        // Kontroler zliczy "true" w tym polu, aby wypełnić TargetMetCount w bazie.
+   
         public bool IsTargetMet { get; set; }
     }
 }

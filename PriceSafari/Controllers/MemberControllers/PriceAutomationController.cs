@@ -227,9 +227,9 @@ namespace PriceSafari.Controllers.MemberControllers
 
             model.TotalProducts = model.Products.Count;
         }
-
         private async Task PrepareMarketplaceData(AutomationRule rule, AutomationDetailsViewModel model)
         {
+
             var latestScrap = await _context.AllegroScrapeHistories
                .Where(sh => sh.StoreId == rule.StoreId)
                .OrderByDescending(sh => sh.Date)
@@ -237,6 +237,7 @@ namespace PriceSafari.Controllers.MemberControllers
                .FirstOrDefaultAsync();
 
             model.LastScrapDate = latestScrap?.Date;
+            int scrapId = latestScrap?.Id ?? 0;
 
             var assignments = await _context.AutomationProductAssignments
                 .Where(a => a.AutomationRuleId == rule.Id && a.AllegroProductId.HasValue)
@@ -246,13 +247,19 @@ namespace PriceSafari.Controllers.MemberControllers
             if (!assignments.Any()) return;
 
             var productIds = assignments.Select(a => a.AllegroProductId.Value).ToList();
-            int scrapId = latestScrap?.Id ?? 0;
 
             var priceHistories = new List<AllegroPriceHistory>();
+            var extendedInfos = new List<AllegroPriceHistoryExtendedInfoClass>();
+
             if (scrapId > 0)
             {
+
                 priceHistories = await _context.AllegroPriceHistories
                     .Where(ph => ph.AllegroScrapeHistoryId == scrapId && productIds.Contains(ph.AllegroProductId))
+                    .ToListAsync();
+
+                extendedInfos = await _context.AllegroPriceHistoryExtendedInfos
+                    .Where(x => x.ScrapHistoryId == scrapId && productIds.Contains(x.AllegroProductId))
                     .ToListAsync();
             }
 
@@ -268,6 +275,8 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var myHistory = histories.FirstOrDefault(h => h.SellerName != null && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase));
 
+                var extInfo = extendedInfos.FirstOrDefault(x => x.AllegroProductId == p.AllegroProductId);
+
                 var rawCompetitors = histories.Where(h => h != myHistory && h.Price > 0).ToList();
                 var filteredCompetitors = new List<AllegroPriceHistory>();
 
@@ -276,9 +285,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     foreach (var comp in rawCompetitors)
                     {
                         if (IsCompetitorAllowedMarketplace(comp.SellerName, competitorRules, rule.CompetitorPreset.UseUnmarkedStores))
-                        {
                             filteredCompetitors.Add(comp);
-                        }
                     }
                 }
                 else
@@ -287,42 +294,43 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
 
                 var competitorPrices = filteredCompetitors.Select(c => c.Price).ToList();
-
                 filteredCompetitors = filteredCompetitors.OrderBy(h => h.Price).ToList();
                 var bestCompetitor = filteredCompetitors.FirstOrDefault();
 
                 decimal? marketAvg = null;
-                if (filteredCompetitors.Any())
-                {
-                    marketAvg = CalculateMedian(competitorPrices);
-                }
+                if (filteredCompetitors.Any()) marketAvg = CalculateMedian(competitorPrices);
 
                 string currentRankAllegro = "-";
                 if (myHistory != null && myHistory.Price > 0)
-                {
                     currentRankAllegro = CalculateRanking(new List<decimal>(competitorPrices), myHistory.Price);
-                }
 
                 var row = new AutomationProductRowViewModel
                 {
                     ProductId = p.AllegroProductId,
                     Name = p.AllegroProductName,
-                    ImageUrl = null,
-
                     Identifier = p.AllegroOfferUrl,
 
                     CurrentPrice = myHistory?.Price,
+
                     PurchasePrice = p.AllegroMarginPrice,
+
                     BestCompetitorPrice = bestCompetitor?.Price,
                     CompetitorName = bestCompetitor?.SellerName,
                     MarketAveragePrice = marketAvg,
+                    CurrentRankingAllegro = currentRankAllegro,
                     IsInStock = true,
 
-                    CurrentRankingAllegro = currentRankAllegro,
+                    CommissionAmount = extInfo?.ApiAllegroCommission,
+                    ApiAllegroPriceFromUser = extInfo?.ApiAllegroPriceFromUser,
 
-                    CurrentRankingGoogle = null,
-                    CurrentRankingCeneo = null,
+                    IsInAnyCampaign = extInfo?.AnyPromoActive ?? false,
+                    IsSubsidyActive = extInfo?.IsSubsidyActive ?? false,
 
+                    IsBestPriceGuarantee = myHistory?.IsBestPriceGuarantee ?? false,
+                    IsSuperPrice = myHistory?.SuperPrice ?? false,
+                    IsTopOffer = myHistory?.TopOffer ?? false,
+
+                    IsCommissionIncluded = rule.MarketplaceIncludeCommission
                 };
 
                 CalculateSuggestedPrice(rule, row);
@@ -332,7 +340,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     newRankAllegro = CalculateRanking(new List<decimal>(competitorPrices), row.SuggestedPrice.Value);
                 }
-
                 row.NewRankingAllegro = newRankAllegro;
 
                 model.Products.Add(row);
@@ -413,21 +420,66 @@ namespace PriceSafari.Controllers.MemberControllers
             else
                 return sortedPrices[count / 2];
         }
-
         private void CalculateSuggestedPrice(AutomationRule rule, AutomationProductRowViewModel row)
         {
-            decimal suggested = row.CurrentPrice ?? 0;
+
+            if (rule.SourceType == AutomationSourceType.Marketplace)
+            {
+
+                if (row.IsInAnyCampaign && !rule.MarketplaceChangePriceForBadgeInCampaign)
+                {
+                    ApplyBlock(row, "Aktywna Kampania");
+                    return;
+                }
+
+                if (row.IsSuperPrice && !rule.MarketplaceChangePriceForBadgeSuperPrice)
+                {
+                    ApplyBlock(row, "Super Cena");
+                    return;
+                }
+
+                if (row.IsTopOffer && !rule.MarketplaceChangePriceForBadgeTopOffer)
+                {
+                    ApplyBlock(row, "Top Oferta");
+                    return;
+                }
+
+                if (row.IsBestPriceGuarantee && !rule.MarketplaceChangePriceForBadgeBestPriceGuarantee)
+                {
+                    ApplyBlock(row, "Gwarancja Ceny");
+                    return;
+                }
+            }
+
+            decimal basePrice = row.ApiAllegroPriceFromUser ?? row.CurrentPrice ?? 0;
+
+            if (basePrice == 0)
+
+            {
+                row.SuggestedPrice = null;
+                row.IsTargetMet = false;
+                return;
+            }
+
+            decimal suggested = basePrice;
             bool calculationPossible = false;
 
-            // 1. Obliczenie ceny wynikającej ze strategii (BEZ LIMITÓW)
             if (rule.StrategyMode == AutomationStrategyMode.Competitiveness)
             {
                 if (row.BestCompetitorPrice.HasValue)
                 {
+
+                    decimal targetVisiblePrice;
                     if (rule.IsPriceStepPercent)
-                        suggested = row.BestCompetitorPrice.Value + (row.BestCompetitorPrice.Value * (rule.PriceStep / 100));
+                        targetVisiblePrice = row.BestCompetitorPrice.Value + (row.BestCompetitorPrice.Value * (rule.PriceStep / 100));
                     else
-                        suggested = row.BestCompetitorPrice.Value + rule.PriceStep;
+                        targetVisiblePrice = row.BestCompetitorPrice.Value + rule.PriceStep;
+
+                    decimal subsidyAmount = (row.ApiAllegroPriceFromUser.HasValue && row.CurrentPrice.HasValue)
+                                            ? row.ApiAllegroPriceFromUser.Value - row.CurrentPrice.Value
+                                            : 0;
+
+                    suggested = targetVisiblePrice + subsidyAmount;
 
                     calculationPossible = true;
                 }
@@ -436,30 +488,42 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 if (row.MarketAveragePrice.HasValue && row.MarketAveragePrice.Value > 0)
                 {
-                    suggested = row.MarketAveragePrice.Value * (rule.PriceIndexTargetPercent / 100);
+
+                    decimal targetVisiblePrice = row.MarketAveragePrice.Value * (rule.PriceIndexTargetPercent / 100);
+
+                    decimal subsidyAmount = (row.ApiAllegroPriceFromUser.HasValue && row.CurrentPrice.HasValue)
+                                            ? row.ApiAllegroPriceFromUser.Value - row.CurrentPrice.Value
+                                            : 0;
+
+                    suggested = targetVisiblePrice + subsidyAmount;
                     calculationPossible = true;
                 }
             }
 
-            // Jeśli nie da się wyliczyć ceny (np. brak konkurencji), cel nie jest spełniony
             if (!calculationPossible)
             {
                 row.SuggestedPrice = null;
-                row.IsTargetMet = false; // NOWE
+                row.IsTargetMet = false;
                 return;
             }
 
-            // Zapamiętujemy cenę "idealną" przed nałożeniem kagańca limitów
             decimal idealPrice = suggested;
 
-            // 2. Nakładanie limitów (Min/Max Margin)
+            decimal extraCost = 0;
+            if (rule.SourceType == AutomationSourceType.Marketplace &&
+                rule.MarketplaceIncludeCommission &&
+                row.CommissionAmount.HasValue)
+            {
+                extraCost = row.CommissionAmount.Value;
+            }
+
             if (rule.EnforceMinimalMargin && row.PurchasePrice.HasValue)
             {
                 decimal minLimit;
                 if (rule.IsMinimalMarginPercent)
-                    minLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MinimalMarginValue / 100));
+                    minLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MinimalMarginValue / 100)) + extraCost;
                 else
-                    minLimit = row.PurchasePrice.Value + rule.MinimalMarginValue;
+                    minLimit = row.PurchasePrice.Value + rule.MinimalMarginValue + extraCost;
 
                 row.MinPriceLimit = minLimit;
 
@@ -474,9 +538,9 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 decimal maxLimit;
                 if (rule.IsMaxMarginPercent)
-                    maxLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MaxMarginValue / 100));
+                    maxLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MaxMarginValue / 100)) + extraCost;
                 else
-                    maxLimit = row.PurchasePrice.Value + rule.MaxMarginValue;
+                    maxLimit = row.PurchasePrice.Value + rule.MaxMarginValue + extraCost;
 
                 row.MaxPriceLimit = maxLimit;
 
@@ -488,15 +552,42 @@ namespace PriceSafari.Controllers.MemberControllers
 
             row.SuggestedPrice = Math.Round(suggested, 2);
 
-            // 3. Sprawdzenie czy cel biznesowy został spełniony (NOWE)
-            // Cel jest spełniony, jeśli cena końcowa jest taka sama jak cena idealna (czyli limity jej nie zmieniły)
-            // Używamy zaokrąglenia dla obu stron porównania, żeby uniknąć błędów groszowych
             row.IsTargetMet = Math.Round(idealPrice, 2) == row.SuggestedPrice;
 
-            if (row.CurrentPrice.HasValue)
+            row.PriceChange = row.SuggestedPrice.Value - basePrice;
+
+            CalculateMarkup(row);
+        }
+
+        private void CalculateMarkup(AutomationProductRowViewModel row)
+        {
+            if (row.SuggestedPrice.HasValue && row.PurchasePrice.HasValue && row.PurchasePrice.Value > 0)
             {
-                row.PriceChange = row.SuggestedPrice.Value - row.CurrentPrice.Value;
+
+                decimal sellPrice = row.SuggestedPrice.Value;
+                decimal purchase = row.PurchasePrice.Value;
+                decimal commissionCost = 0;
+
+                if (row.IsCommissionIncluded && row.CommissionAmount.HasValue)
+                {
+                    commissionCost = row.CommissionAmount.Value;
+                }
+
+                row.MarkupAmount = sellPrice - purchase - commissionCost;
+                row.MarkupPercent = (row.MarkupAmount.Value / purchase) * 100;
             }
+        }
+
+        private void ApplyBlock(AutomationProductRowViewModel row, string reason)
+        {
+            row.IsBlockedByStatus = true;
+            row.BlockReason = reason;
+
+            row.SuggestedPrice = row.ApiAllegroPriceFromUser ?? row.CurrentPrice;
+
+            row.IsTargetMet = true;
+            row.PriceChange = 0;
+            CalculateMarkup(row);
         }
 
         [HttpPost]
@@ -528,11 +619,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(sh => sh.Id)
                 .FirstOrDefaultAsync();
 
-            // --- NOWE: Obliczanie statystyk biznesowych ---
             int totalCount = request.Products.Count;
             int metCount = request.Products.Count(p => p.IsTargetMet);
             int unmetCount = request.Products.Count(p => !p.IsTargetMet);
-            // ----------------------------------------------
 
             var batch = new PriceBridgeBatch
             {
@@ -541,13 +630,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 UserId = userId,
                 ExecutionDate = DateTime.Now,
 
-                SuccessfulCount = totalCount, // Techniczny licznik (tu zakładamy 100% sukcesu symulacji)
+                SuccessfulCount = totalCount,
 
-                // --- NOWE: Zapis statystyk do bazy ---
                 TotalProductsCount = totalCount,
                 TargetMetCount = metCount,
                 TargetUnmetCount = unmetCount,
-                // -------------------------------------
 
                 ExportMethod = PriceExportMethod.Api,
                 IsAutomation = true,
@@ -582,10 +669,6 @@ namespace PriceSafari.Controllers.MemberControllers
             await _context.SaveChangesAsync();
         }
 
-
-
-
-
         private async Task SaveMarketplaceBatch(AutomationExecutionRequest request, string? userId, AutomationRule rule)
         {
             var latestScrap = await _context.AllegroScrapeHistories
@@ -594,11 +677,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(sh => sh.Id)
                 .FirstOrDefaultAsync();
 
-            // --- NOWE: Obliczanie statystyk biznesowych ---
             int totalCount = request.Products.Count;
             int metCount = request.Products.Count(p => p.IsTargetMet);
             int unmetCount = request.Products.Count(p => !p.IsTargetMet);
-            // ----------------------------------------------
 
             var batch = new AllegroPriceBridgeBatch
             {
@@ -609,15 +690,14 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 SuccessfulCount = totalCount,
 
-                // --- NOWE: Zapis statystyk do bazy ---
                 TotalProductsCount = totalCount,
                 TargetMetCount = metCount,
                 TargetUnmetCount = unmetCount,
-                // -------------------------------------
 
                 IsAutomation = true,
                 AutomationRuleId = rule.Id,
-                BridgeItems = new List<AllegroPriceBridgeItem>() // Inicjalizacja listy
+                BridgeItems = new List<AllegroPriceBridgeItem>()
+
             };
 
             foreach (var p in request.Products)
@@ -647,16 +727,6 @@ namespace PriceSafari.Controllers.MemberControllers
             _context.AllegroPriceBridgeBatches.Add(batch);
             await _context.SaveChangesAsync();
         }
-
-
-
-
-
-
-
-
-
-
 
     }
 }
