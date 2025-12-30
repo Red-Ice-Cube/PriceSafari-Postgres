@@ -1,10 +1,19 @@
 ﻿using PriceSafari.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq; // Potrzebne do LINQ (Count)
+using System.Linq;
 
 namespace PriceSafari.Models.ViewModels
 {
+    // Nowy Enum definiujący 4 stany produktu
+    public enum AutomationCalculationStatus
+    {
+        TargetMet,        // Zielony: Warunki spełnione, cena zmieniona
+        TargetMaintained, // Niebieski: Warunki spełnione, cena bez zmian (idealna)
+        PriceLimited,     // Żółty: Cena zmieniona, ale ograniczona przez widełki/marżę
+        Blocked           // Czerwony: Nie można wyliczyć ceny (błąd danych, kampania itp.)
+    }
+
     public class AutomationDetailsViewModel
     {
         public int RuleId { get; set; }
@@ -21,10 +30,28 @@ namespace PriceSafari.Models.ViewModels
 
         public List<AutomationProductRowViewModel> Products { get; set; } = new List<AutomationProductRowViewModel>();
 
-        // --- NOWE POLA POMOCNICZE (do wyświetlania licznika na dashboardzie) ---
-        // Dzięki temu w Widoku @Model.CountTargetMet zwróci gotową liczbę bez pisania logiki w HTML
-        public int CountTargetMet => Products.Count(p => p.IsTargetMet);
-        public int CountTargetUnmet => Products.Count(p => !p.IsTargetMet && p.SuggestedPrice.HasValue);
+        // --- STATYSTYKI OPARTE O NOWY STATUS ---
+
+        // Ile produktów ma status BLOKADA (Czerwony)
+        public int CountBlocked => Products.Count(p => p.Status == AutomationCalculationStatus.Blocked);
+
+        // Ile produktów ma status LIMIT (Żółty)
+        public int CountLimited => Products.Count(p => p.Status == AutomationCalculationStatus.PriceLimited);
+
+        // Ile produktów ma status CEL UTRZYMANY (Niebieski)
+        public int CountMaintained => Products.Count(p => p.Status == AutomationCalculationStatus.TargetMaintained);
+
+        // Ile produktów ma status CEL OSIĄGNIĘTY (Zielony - zmiana ceny)
+        public int CountMet => Products.Count(p => p.Status == AutomationCalculationStatus.TargetMet);
+
+        // Statystyki dynamiki (Wzrosty/Spadki) - liczymy dla wszystkich, którzy nie są zablokowani
+        public int CountIncreased => Products.Count(p => p.Status != AutomationCalculationStatus.Blocked && p.PriceChange > 0);
+        public int CountDecreased => Products.Count(p => p.Status != AutomationCalculationStatus.Blocked && p.PriceChange < 0);
+
+        // Ogólna skuteczność (wszystko co nie jest błędem/blokadą liczymy jako sukces procesu)
+        public int SuccessRate => TotalProducts > 0
+            ? (int)Math.Round((double)(CountMet + CountMaintained + CountLimited) / TotalProducts * 100)
+            : 0;
     }
 
     public class AutomationProductRowViewModel
@@ -59,19 +86,19 @@ namespace PriceSafari.Models.ViewModels
         public bool IsInStock { get; set; }
         public bool IsMarginWarning { get; set; }
 
-        public decimal? CommissionAmount { get; set; } // Kwota prowizji (jeśli dotyczy)
-        public bool IsCommissionIncluded { get; set; } // Czy prowizja została wliczona w kalkulacje
+        public decimal? CommissionAmount { get; set; }
+        public bool IsCommissionIncluded { get; set; }
 
-        public decimal? MarkupAmount { get; set; }  // Wyliczony narzut kwotowy (Cena - Zakup - Prowizja)
-        public decimal? MarkupPercent { get; set; } // Wyliczony narzut procentowy ((Narzut / Zakup) * 100)
+        public decimal? MarkupAmount { get; set; }
+        public decimal? MarkupPercent { get; set; }
 
-        public decimal? CurrentMarkupAmount { get; set; }  // Narzut kwotowy dla aktualnej ceny
+        public decimal? CurrentMarkupAmount { get; set; }
         public decimal? CurrentMarkupPercent { get; set; }
 
-        // Pola specyficzne dla Allegro
-        public bool IsBestPriceGuarantee { get; set; } // Gwarancja Najniższej Ceny
-        public bool IsSuperPrice { get; set; }         // Super Cena
-        public bool IsTopOffer { get; set; }           // Top Oferta
+        public bool IsBestPriceGuarantee { get; set; }
+        public bool IsSuperPrice { get; set; }
+        public bool IsTopOffer { get; set; }
+
         public bool IsInAnyCampaign { get; set; }
         public bool IsSubsidyActive { get; set; }
 
@@ -80,12 +107,21 @@ namespace PriceSafari.Models.ViewModels
         public bool CompetitorIsTopOffer { get; set; }
 
         public decimal? ApiAllegroPriceFromUser { get; set; }
-        // Informacje biznesowe
-        public bool IsBlockedByStatus { get; set; }
+
+        // --- NOWE POLA STATUSU ---
+
+        // Główny status wiersza (zastępuje stare flagi)
+        public AutomationCalculationStatus Status { get; set; }
+
+        // Powód blokady (tekstowy)
         public string BlockReason { get; set; }
-        public bool IsTargetMet { get; set; }
 
+        // Helper dla kompatybilności wstecznej (czy w ogóle udało się wyliczyć cenę)
+        // Zwraca true dla Zielonego, Niebieskiego i Żółtego
+        public bool IsTargetMet => Status != AutomationCalculationStatus.Blocked;
 
+        // Helper sprawdzający czy wiersz jest zablokowany (dla kompatybilności widoku)
+        public bool IsBlockedByStatus => Status == AutomationCalculationStatus.Blocked;
     }
 
     public class AutomationExecutionRequest
@@ -117,7 +153,6 @@ namespace PriceSafari.Models.ViewModels
         public bool? WasLimitedByMin { get; set; }
         public bool? WasLimitedByMax { get; set; }
 
-   
         public bool IsTargetMet { get; set; }
     }
 }

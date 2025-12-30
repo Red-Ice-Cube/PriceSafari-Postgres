@@ -124,23 +124,21 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var histories = priceHistories.Where(h => h.ProductId == p.ProductId).ToList();
 
-                // Pobieramy nazwę naszego sklepu do porównania (zabezpieczamy przed null)
                 string myStoreName = rule.Store.StoreName ?? "";
 
-                // Znajdujemy naszą ofertę (do wyświetlenia "Aktualna cena") - to zostaje bez zmian
                 var myHistory = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase))
                                 ?? histories.FirstOrDefault(h => h.StoreName == null);
 
-                // --- POPRAWKA TUTAJ ---
-                // Zamiast sprawdzać (h != myHistory), sprawdzamy czy nazwa sklepu NIE zawiera nazwy naszego sklepu.
                 var rawCompetitors = histories
                     .Where(h =>
-                        h.Price > 0 && // Cena musi być większa od 0
-                        h != myHistory && // Nie jest to obiekt zidentyfikowany jako "nasz główny"
-                        (h.StoreName == null || !h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase)) // KLUCZOWE: Nazwa sklepu nie może być naszą nazwą
+                        h.Price > 0 &&
+
+                        h != myHistory &&
+
+                        (h.StoreName == null || !h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase))
+
                     )
                     .ToList();
-                // ----------------------
 
                 var filteredCompetitors = new List<PriceHistoryClass>();
 
@@ -288,23 +286,18 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var histories = priceHistories.Where(h => h.AllegroProductId == p.AllegroProductId).ToList();
 
-             
-
-                // Znajdź Twoją historię - to zostaje
                 var myHistory = histories.FirstOrDefault(h => h.SellerName != null && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase));
 
                 var extInfo = extendedInfos.FirstOrDefault(x => x.AllegroProductId == p.AllegroProductId);
 
-                // --- POPRAWKA TUTAJ ---
-                // Filtrujemy po SellerName, aby wyrzucić wszystkie oferty Twojego sklepu
                 var rawCompetitors = histories
                     .Where(h =>
                         h.Price > 0 &&
                         h != myHistory &&
-                        (h.SellerName == null || !h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase)) // KLUCZOWE: Nazwa sprzedawcy nie może być Twoja
+                        (h.SellerName == null || !h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+
                     )
                     .ToList();
-                // ----------------------
 
                 var filteredCompetitors = new List<AllegroPriceHistory>();
 
@@ -452,12 +445,12 @@ namespace PriceSafari.Controllers.MemberControllers
             else
                 return sortedPrices[count / 2];
         }
+
+
         private void CalculateSuggestedPrice(AutomationRule rule, AutomationProductRowViewModel row)
         {
-
             if (rule.SourceType == AutomationSourceType.Marketplace)
             {
-
                 if (row.IsInAnyCampaign && !rule.MarketplaceChangePriceForBadgeInCampaign)
                 {
                     ApplyBlock(row, "Aktywna Kampania");
@@ -483,13 +476,21 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
+            // NOWE: Sprawdzenie krytyczne - jeśli reguła wymaga marży, a nie ma ceny zakupu -> BLOKADA
+            if ((rule.EnforceMinimalMargin || rule.EnforceMaxMargin) && (!row.PurchasePrice.HasValue || row.PurchasePrice <= 0))
+            {
+                ApplyBlock(row, "Brak ceny zakupu");
+                return;
+            }
+
             decimal basePrice = row.ApiAllegroPriceFromUser ?? row.CurrentPrice ?? 0;
 
             if (basePrice == 0)
-
             {
                 row.SuggestedPrice = null;
-                row.IsTargetMet = false;
+                // NOWE: Ustawiamy status Blocked zamiast IsTargetMet = false
+                row.Status = AutomationCalculationStatus.Blocked;
+                row.BlockReason = "Brak ceny obecnej";
                 return;
             }
 
@@ -500,7 +501,6 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 if (row.BestCompetitorPrice.HasValue)
                 {
-
                     decimal targetVisiblePrice;
                     if (rule.IsPriceStepPercent)
                         targetVisiblePrice = row.BestCompetitorPrice.Value + (row.BestCompetitorPrice.Value * (rule.PriceStep / 100));
@@ -520,7 +520,6 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 if (row.MarketAveragePrice.HasValue && row.MarketAveragePrice.Value > 0)
                 {
-
                     decimal targetVisiblePrice = row.MarketAveragePrice.Value * (rule.PriceIndexTargetPercent / 100);
 
                     decimal subsidyAmount = (row.ApiAllegroPriceFromUser.HasValue && row.CurrentPrice.HasValue)
@@ -535,7 +534,9 @@ namespace PriceSafari.Controllers.MemberControllers
             if (!calculationPossible)
             {
                 row.SuggestedPrice = null;
-                row.IsTargetMet = false;
+                // NOWE: Ustawiamy status Blocked
+                row.Status = AutomationCalculationStatus.Blocked;
+                row.BlockReason = "Brak danych do wyliczenia";
                 return;
             }
 
@@ -548,6 +549,9 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 extraCost = row.CommissionAmount.Value;
             }
+
+            // NOWE: Flaga sprawdzająca, czy cena została ograniczona przez widełki
+            bool wasLimited = false;
 
             if (rule.EnforceMinimalMargin && row.PurchasePrice.HasValue)
             {
@@ -563,6 +567,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     suggested = minLimit;
                     row.IsMarginWarning = true;
+                    wasLimited = true; // Oznaczamy, że uderzyliśmy w podłogę
                 }
             }
 
@@ -579,14 +584,34 @@ namespace PriceSafari.Controllers.MemberControllers
                 if (suggested > maxLimit)
                 {
                     suggested = maxLimit;
+                    wasLimited = true; // Oznaczamy, że uderzyliśmy w sufit
                 }
             }
 
             row.SuggestedPrice = Math.Round(suggested, 2);
 
-            row.IsTargetMet = Math.Round(idealPrice, 2) == row.SuggestedPrice;
+            decimal finalSuggested = row.SuggestedPrice.Value;
+            decimal finalBase = Math.Round(basePrice, 2);
 
-            row.PriceChange = row.SuggestedPrice.Value - basePrice;
+            // Obliczamy zmianę
+            row.PriceChange = Math.Round(finalSuggested - finalBase, 2);
+
+            // NOWE: Logika przypisywania statusu (Żółty vs Niebieski vs Zielony)
+            if (wasLimited)
+            {
+                // Cena zmieniona/ustalona, ale ograniczona przez limity -> ŻÓŁTY
+                row.Status = AutomationCalculationStatus.PriceLimited;
+            }
+            else if (row.PriceChange == 0)
+            {
+                // Cena wyliczona jest idealna i równa obecnej -> NIEBIESKI
+                row.Status = AutomationCalculationStatus.TargetMaintained;
+            }
+            else
+            {
+                // Cena wyliczona jest inna i mieści się w limitach -> ZIELONY
+                row.Status = AutomationCalculationStatus.TargetMet;
+            }
 
             CalculateMarkup(row);
         }
@@ -612,14 +637,13 @@ namespace PriceSafari.Controllers.MemberControllers
 
         private void CalculateCurrentMarkup(AutomationProductRowViewModel row)
         {
-            // Liczymy tylko jeśli mamy cenę aktualną i cenę zakupu
+
             if (row.CurrentPrice.HasValue && row.PurchasePrice.HasValue && row.PurchasePrice.Value > 0)
             {
                 decimal sellPrice = row.CurrentPrice.Value;
                 decimal purchase = row.PurchasePrice.Value;
                 decimal commissionCost = 0;
 
-                // Jeśli w regule zaznaczono "Uwzględniaj prowizję" i mamy tę prowizję pobraną
                 if (row.IsCommissionIncluded && row.CommissionAmount.HasValue)
                 {
                     commissionCost = row.CommissionAmount.Value;
@@ -632,13 +656,16 @@ namespace PriceSafari.Controllers.MemberControllers
 
         private void ApplyBlock(AutomationProductRowViewModel row, string reason)
         {
-            row.IsBlockedByStatus = true;
+            // Ustawiamy status na BLOCKED (Czerwony) - to automatycznie ustawi flagi pomocnicze w modelu
+            row.Status = AutomationCalculationStatus.Blocked;
+
             row.BlockReason = reason;
 
+            // W przypadku blokady sugerowana cena to cena obecna (brak zmian)
             row.SuggestedPrice = row.ApiAllegroPriceFromUser ?? row.CurrentPrice;
 
-            row.IsTargetMet = true;
             row.PriceChange = 0;
+
             CalculateMarkup(row);
         }
 

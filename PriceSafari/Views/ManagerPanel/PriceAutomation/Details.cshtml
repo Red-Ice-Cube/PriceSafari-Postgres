@@ -1,4 +1,5 @@
 ﻿@model PriceSafari.Models.ViewModels.AutomationDetailsViewModel
+@using PriceSafari.Models.ViewModels
 
 @{
     ViewData["Title"] = $"Szczegóły Reguły: {Model.RuleName}";
@@ -11,18 +12,19 @@
     string sourceIcon = Model.SourceType == PriceSafari.Models.AutomationSourceType.PriceComparison ? "fa-tags" : "fa-shopping-bag";
     string borderClass = Model.SourceType == PriceSafari.Models.AutomationSourceType.PriceComparison ? "border-left-info" : "border-left-warning";
 
-    // Sprawdzamy czy to Allegro (Marketplace)
     bool isMarketplace = Model.SourceType == PriceSafari.Models.AutomationSourceType.Marketplace;
 
-    // --- OBLICZENIA DASHBOARDU ---
+    // Statystyki oparte na nowym modelu
     int total = Model.TotalProducts > 0 ? Model.TotalProducts : 1;
-    int met = Model.CountTargetMet;
-    int unmet = Model.CountTargetUnmet;
-    int percentMet = (int)Math.Round((double)met / total * 100);
+    
+    // Sukces = Met + Maintained + Limited (wszystko co zostało przeliczone)
+    int successCount = Model.CountMet + Model.CountMaintained + Model.CountLimited;
+    int blockedCount = Model.CountBlocked;
+    
+    int percentSuccess = Model.SuccessRate;
 }
 
 <style>
-    /* --- STYLE PODSTAWOWE --- */
     .limit-badge {
         display: inline-flex; align-items: center; justify-content: center;
         padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
@@ -32,37 +34,44 @@
     .badge-min { background-color: rgba(171, 37, 32, 1); }
     .badge-max { background-color: rgba(0, 145, 123, 1); }
     .limit-price-text { font-weight: 500; font-size: 13px; }
-    .rank-icon { width: 11px; height: 11px; vertical-align: middle; margin-right: 5px; }
+    .rank-icon { width: 12px; height: 12px; vertical-align: middle; margin-right: 5px; }
     .rank-row { display: flex; align-items: center;  }
 
-    /* --- STYLE STATUSU --- */
+    /* Style statusów */
     .status-badge {
         display: inline-flex; align-items: center; justify-content: center;
         padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 600;
-        color: #ffffff !important; min-width: 120px; height: 24px;
+        color: #ffffff !important; min-width: 130px; height: 24px;
         margin-bottom: 3px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); gap:4px;
     }
-    .status-ok { background-color: rgba(0, 145, 123, 1); }
-    .status-bad { background-color: rgba(171, 37, 32, 1); }
-    .status-neutral { background-color: #858796; }
-    .status-text { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-
-.price-row-block {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
     
-    /* --- STYL CEN (Zgodnie z wymogami) --- */
+    .status-ok { background-color: rgba(0, 145, 123, 1); } /* Zielony */
+    .status-maintained { background-color: rgba(13, 110, 253, 0.7); } /* Niebieski */
+    .status-limited { background-color: #f6c23e; color: #fff !important; } /* Żółty */
+    .status-blocked { background-color: rgba(171, 37, 32, 1); } /* Czerwony */
+    .status-neutral { background-color: #858796; } /* Szary */
+
+    .status-text { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    .status-text-ok { color: rgba(0, 145, 123, 1); }
+    .status-text-maintained { color: rgba(13, 110, 253, 0.7); }
+    .status-text-limited { color: #f6c23e; }
+    .status-text-blocked { color: rgba(171, 37, 32, 1); }
+
+    .price-row-block {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+
     .price-main-style {
         font-weight: 500;
         font-size: 17px;
-        color: #000; /* Domyślny czarny */
+        color: #000; 
     }
     .price-green {
-        color: #169A23 !important; /* Zielony dla Gwarancji */
+        color: #169A23 !important; 
     }
 
     .commission-stack-badge {
@@ -70,19 +79,26 @@
     }
 
     .price-badge {
-     width:52px;
+        width:52px;
     }
 
-   .text-muted {
-       font-size:12px;
-  
-   }
-   .column-flex-min-gap{
-       display:flex;
-       flex-direction:column;
-       gap:2px;
-   }
+    .text-muted {
+        font-size:12px;
+    }
+    
+    .column-flex-min-gap{
+        display:flex;
+        flex-direction:column;
+        gap:2px;
+    }
 
+    .dynamics-stat {
+        font-size: 11px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        margin-right: 10px;
+    }
 </style>
 
 <div class="container-fluid">
@@ -147,21 +163,47 @@
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Skuteczność (Symulacja)</div>
                             <div class="row no-gutters align-items-center">
                                 <div class="col-auto">
-                                    <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">@percentMet%</div>
+                                    <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">@percentSuccess%</div>
                                 </div>
                                 <div class="col">
                                     <div class="progress progress-sm mr-2">
-                                        <div class="progress-bar bg-success" role="progressbar" style="width: @percentMet%" aria-valuenow="@percentMet" aria-valuemin="0" aria-valuemax="100"></div>
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: @percentSuccess%" aria-valuenow="@percentSuccess" aria-valuemin="0" aria-valuemax="100"></div>
                                     </div>
                                 </div>
                             </div>
                             <div class="mt-2 small">
-                                <span class="text-success font-weight-bold"><i class="fas fa-check"></i> @met</span> cel osiągnięty
+                                <span class="text-success font-weight-bold"><i class="fas fa-check"></i> @successCount</span> przeliczone
                                 <span class="text-gray-400 mx-1">|</span>
-                                <span class="text-danger font-weight-bold"><i class="fas fa-exclamation-triangle"></i> @unmet</span> zablokowanych
+                                <span class="text-danger font-weight-bold"><i class="fas fa-ban"></i> @blockedCount</span> blokada
                             </div>
                         </div>
                         <div class="col-auto"><i class="fas fa-chart-line fa-2x text-gray-300"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100 py-2 border-left-info">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Dynamika Zmian</div>
+                            
+                            <div class="d-flex flex-wrap mt-2">
+                                <div class="dynamics-stat text-danger mr-3" title="Podwyżki">
+                                    <i class="fas fa-arrow-up mr-1"></i> @Model.CountIncreased
+                                </div>
+                                <div class="dynamics-stat text-success mr-3" title="Obniżki">
+                                    <i class="fas fa-arrow-down mr-1"></i> @Model.CountDecreased
+                                </div>
+                                <div class="dynamics-stat text-primary" title="Cena utrzymana (optymalna)">
+                                    <i class="fas fa-equals mr-1"></i> @Model.CountMaintained
+                                </div>
+                            </div>
+
+                        </div>
+                        <div class="col-auto"><i class="fas fa-chart-bar fa-2x text-gray-300"></i></div>
                     </div>
                 </div>
             </div>
@@ -184,10 +226,10 @@
             {
                 <th style="width: 50px;"></th>
             }
-            
+
             <th style="width: 250px;">Produkt</th>
             <th style="width: 200px;">Limity Cenowe</th>
-            
+
             <th style="width: 280px;">Dane z rynku - Twoja oferta</th>
 
             @if (Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness)
@@ -200,9 +242,9 @@
             }
 
             <th style="min-width: 130px; width: 140px;">Zmiana</th>
-            
+
             <th class="bg-gradient-light border-left-primary" style="width: 210px;">Wyznaczona Cena</th>
-            
+
             <th>Status</th>
         </tr>
     </thead>
@@ -233,7 +275,7 @@
                         }
                     </div>
                 </td>
-                
+
                 <td class="align-middle">
                     @if (item.PurchasePrice.HasValue)
                     {
@@ -288,7 +330,7 @@
                         <span class="badge badge-info ml-1" title="Udział w kampanii promocyjnej" style="font-size:10px;">PROMO</span>
                     }
                 </div>
-    
+
                 <div class="small text-muted ">@Model.StoreName</div>
 
                 @if (item.CommissionAmount.HasValue)
@@ -320,26 +362,25 @@
                                 <span class="price-main-style @(item.CompetitorIsBestPriceGuarantee ? "price-green" : "")">
                                     @item.BestCompetitorPrice.Value.ToString("F2") PLN
                                 </span>
-        
+
                                 @if (item.CompetitorIsBestPriceGuarantee)
                                 {
                                     <div title="Gwarancja Najniższej Ceny Rywala">
                                         <img src="/images/TopPrice.png" alt="Gwarancja" style="width: 18px; height: 18px; vertical-align: middle;">
                                     </div>
                                 }
-        
+
                                 @if (item.CompetitorIsSuperPrice)
                                 {
                                     <div class="SuperPrice">SUPERCENA</div>
                                 }
-        
+
                                 @if (item.CompetitorIsTopOffer)
                                 {
                                     <div class="TopOffer">Top oferta</div>
                                 }
                             </div>
-                            
-                            
+
                             <div class="small text-muted">@item.CompetitorName</div>
                         }
                         else
@@ -349,17 +390,21 @@
                     }
                     else
                     {
+                        @if (item.MarketAveragePrice.HasValue)
+                        {
+                             <span class="price-main-style">@item.MarketAveragePrice.Value.ToString("F2") PLN</span>
                         }
+                    }
                 </td>
 
                 <td class="align-middle text-center">
-                    
+
                   <div class="price-row-block">
-                        @if (item.PriceChange.HasValue && item.PriceChange.Value != 0 && !item.IsBlockedByStatus)
+                        @if (item.PriceChange.HasValue && item.PriceChange.Value != 0 && item.Status != AutomationCalculationStatus.Blocked)
                         {
                             @if (item.PriceChange.Value < 0)
                             {
-                                /* Obniżka ceny - zielony */
+
                                 <span class="price-main-style text-success" style="display: inline-flex; align-items: center;">
                                     <i class="fas fa-arrow-down" style="margin-right: 5px; font-weight: 900; font-size: 0.8em;"></i>
                                     @Math.Abs(item.PriceChange.Value).ToString("F2") PLN
@@ -367,20 +412,24 @@
                             }
                             else
                             {
-                                /* Podwyżka ceny - czerwony */
+
                                 <span class="price-main-style text-danger" style="display: inline-flex; align-items: center;">
                                     <i class="fas fa-arrow-up" style="margin-right: 5px; font-weight: 900; font-size: 0.8em;"></i>
                                     @item.PriceChange.Value.ToString("F2") PLN
                                 </span>
                             }
                         }
+                        else if (item.Status == AutomationCalculationStatus.TargetMaintained)
+                        {
+
+                         <span class="price-main-style" style="display: inline-flex; align-items: center; color: rgba(13, 110, 253, 0.7);">
+                             <i class="no-change-icon-turquoise" style="font-style:normal;"></i>
+                             Brak zmian
+                        </span>
+                        }
                         else
                         {
-                            /* Brak zmiany - Kolor i styl zgodny z wymaganiem */
-                            <span class="price-main-style" style="display: inline-flex; align-items: center; color: rgba(13, 110, 253, 0.7);">
-                                 <i class="no-change-icon-turquoise" style="font-style:normal;"></i>
-                                 Brak zmian
-                            </span>
+                             <span class="price-main-style text-gray-400">Blokada</span>
                         }
                     </div>
                     <div class="column-flex-min-gap">
@@ -409,13 +458,13 @@
                         </div>
                     }
                     </div>
-                   
+
                 </td>
 
                 <td class="align-middle text-right bg-light border-left-primary">
                     <div class="d-flex flex-column" style="width:100%;">
-                        
-                        @if (item.IsBlockedByStatus)
+
+                        @if (item.Status == AutomationCalculationStatus.Blocked)
                         {
                                 <div class="mb-1 text-right">
                                     <span class="badge badge-secondary" style="font-size: 10px;">BLOKADA: @item.BlockReason.ToUpper()</span>
@@ -439,7 +488,7 @@
                                 <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
                             </div>
                         }
-                        
+
                         @if (item.CommissionAmount.HasValue)
                         {
                             <div class="Commission-stack">
@@ -462,38 +511,49 @@
                     </div>
                 </td>
 
-                <td class="align-middle text-center">
-                    @if (item.IsBlockedByStatus)
+               <td class="align-middle text-center">
+                    @switch (item.Status)
                     {
-                        <div class="status-badge status-neutral">
-                            <i class="fas fa-ban mr-2"></i> Blokada
-                        </div>
-                    }
-                    else if (item.SuggestedPrice.HasValue)
-                    {
-                        @if (item.IsTargetMet)
-                        {
+                        case AutomationCalculationStatus.TargetMet:
                             <div class="status-badge status-ok">
                                 <i class="fas fa-check mr-2"></i> Cel Osiągnięty
                             </div>
-                            <div class="status-text" style="color: rgba(0, 145, 123, 1);">
+                            <div class="status-text status-text-ok">
                                 Warunki spełnione
                             </div>
-                        }
-                        else
-                        {
-                            <div class="status-badge status-bad" title="Cena ograniczona przez limity.">
-                                <i class="fas fa-exclamation-triangle mr-2"></i> Cel Niespełniony
+                            break;
+
+                        case AutomationCalculationStatus.TargetMaintained:
+                            <div class="status-badge status-maintained">
+                                <i class="fas fa-check-circle mr-2"></i> Cel Utrzymany
                             </div>
-                            <div class="status-text" style="color: rgba(171, 37, 32, 1);">
-                                @if (item.IsMarginWarning) { <span>Blokada Marży</span> }
-                                else { <span>Limity cenowe</span> }
+                            <div class="status-text status-text-maintained">
+                                Cena optymalna
                             </div>
-                        }
-                    }
-                    else
-                    {
-                        <span class="badge badge-light border px-3 py-2">Brak wyceny</span>
+                            break;
+
+                        case AutomationCalculationStatus.PriceLimited:
+                            <div class="status-badge status-limited">
+                                <i class="fas fa-filter mr-2"></i> Limit Ceny
+                            </div>
+                            <div class="status-text status-text-limited">
+                                @if (item.IsMarginWarning) { <span>Ogr. Marżą Min</span> }
+                                else { <span>Ogr. Widełkami</span> }
+                            </div>
+                            break;
+
+                        case AutomationCalculationStatus.Blocked:
+                            <div class="status-badge status-blocked">
+                                <i class="fas fa-ban mr-2"></i> Blokada
+                            </div>
+                            <div class="status-text status-text-blocked font-weight-bold">
+                                @item.BlockReason.ToUpper()
+                            </div>
+                            break;
+
+                        default:
+                            <span class="badge badge-light border px-3 py-2">Brak danych</span>
+                            break;
                     }
                 </td>
             </tr>
@@ -526,8 +586,7 @@
 
             WasLimitedByMin = (p.SuggestedPrice.HasValue && p.MinPriceLimit.HasValue && p.SuggestedPrice.Value == p.MinPriceLimit.Value),
             WasLimitedByMax = (p.SuggestedPrice.HasValue && p.MaxPriceLimit.HasValue && p.SuggestedPrice.Value == p.MaxPriceLimit.Value),
-            
-            // Flaga celu
+
             IsTargetMet = p.IsTargetMet 
         })));
 
@@ -578,7 +637,7 @@
                     "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Polish.json"
                 },
                 "pageLength": 25,
-                "order": [[ 7, "asc" ]] // Sortowanie po statusie
+                "order": [[ 7, "asc" ]] 
             });
         });
     </script>
