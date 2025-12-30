@@ -26,7 +26,7 @@
     .limit-badge {
         display: inline-flex; align-items: center; justify-content: center;
         padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
-        color: #ffffff !important; margin-right: 6px; min-width: 55px; height: 22px;
+        color: #ffffff !important; margin-right: 6px; min-width: 55px; height: 22px; gap:4px;
     }
     .badge-purchase { background-color: #282828; }
     .badge-min { background-color: rgba(171, 37, 32, 1); }
@@ -188,7 +188,7 @@
             <th style="width: 250px;">Produkt</th>
             <th style="width: 200px;">Limity Cenowe</th>
             
-            <th style="width: 280px;">Aktualna Cena</th>
+            <th style="width: 280px;">Dane z rynku - Twoja oferta</th>
 
             @if (Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness)
             {
@@ -196,12 +196,12 @@
             }
             else
             {
-                <th style="width: 280px;">Średnia Rynku</th>
+                <th style="width: 280px;">Mediana Rynku</th>
             }
 
             <th style="min-width: 130px; width: 140px;">Zmiana</th>
             
-            <th class="bg-gradient-light border-left-primary" style="width: 210px;">Sugerowana Cena</th>
+            <th class="bg-gradient-light border-left-primary" style="width: 210px;">Wyznaczona Cena</th>
             
             <th>Status</th>
         </tr>
@@ -238,7 +238,7 @@
                     @if (item.PurchasePrice.HasValue)
                     {
                         <div class="bg-light p-2 rounded border">
-                            @if (item.MaxPriceLimit.HasValue)
+                           @if (item.MaxPriceLimit.HasValue)
                             {
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <span class="limit-badge badge-max">MAX <i class="fa-solid fa-arrow-up"></i></span>
@@ -354,29 +354,34 @@
 
                 <td class="align-middle text-center">
                     
-                    <div class="price-row-block">
-                         @if (item.PriceChange.HasValue && item.PriceChange.Value != 0 && !item.IsBlockedByStatus)
-                         {
-                             @if (item.PriceChange.Value < 0)
-                             {
-                                 /* Obniżka ceny - zielony */
-                                 <span class="price-main-style text-success">
-                                     <i class="fas fa-arrow-down fa-xs mr-4"></i>@Math.Abs(item.PriceChange.Value).ToString("F2") PLN
-                                 </span>
-                             }
-                             else
-                             {
-                                 /* Podwyżka ceny - czerwony */
-                                 <span class="price-main-style text-danger">
-                                     <i class="fas fa-arrow-up fa-xs mr-1"></i>@item.PriceChange.Value.ToString("F2") PLN
-                                 </span>
-                             }
-                         }
-                         else
-                         {
-                             /* Brak zmiany */
-                             <span class="price-main-style text-gray-400">=</span>
-                         }
+                  <div class="price-row-block">
+                        @if (item.PriceChange.HasValue && item.PriceChange.Value != 0 && !item.IsBlockedByStatus)
+                        {
+                            @if (item.PriceChange.Value < 0)
+                            {
+                                /* Obniżka ceny - zielony */
+                                <span class="price-main-style text-success" style="display: inline-flex; align-items: center;">
+                                    <i class="fas fa-arrow-down" style="margin-right: 5px; font-weight: 900; font-size: 0.8em;"></i>
+                                    @Math.Abs(item.PriceChange.Value).ToString("F2") PLN
+                                </span>
+                            }
+                            else
+                            {
+                                /* Podwyżka ceny - czerwony */
+                                <span class="price-main-style text-danger" style="display: inline-flex; align-items: center;">
+                                    <i class="fas fa-arrow-up" style="margin-right: 5px; font-weight: 900; font-size: 0.8em;"></i>
+                                    @item.PriceChange.Value.ToString("F2") PLN
+                                </span>
+                            }
+                        }
+                        else
+                        {
+                            /* Brak zmiany - Kolor i styl zgodny z wymaganiem */
+                            <span class="price-main-style" style="display: inline-flex; align-items: center; color: rgba(13, 110, 253, 0.7);">
+                                 <i class="no-change-icon-turquoise" style="font-style:normal;"></i>
+                                 Brak zmian
+                            </span>
+                        }
                     </div>
                     <div class="column-flex-min-gap">
                          @if (Model.SourceType == PriceSafari.Models.AutomationSourceType.Marketplace)
