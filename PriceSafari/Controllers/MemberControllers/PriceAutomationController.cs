@@ -95,6 +95,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .FirstOrDefaultAsync();
 
             model.LastScrapDate = latestScrap?.Date;
+            model.LatestScrapId = latestScrap?.Id;
 
             var assignments = await _context.AutomationProductAssignments
                 .Where(a => a.AutomationRuleId == rule.Id && a.ProductId.HasValue)
@@ -250,6 +251,7 @@ namespace PriceSafari.Controllers.MemberControllers
                .FirstOrDefaultAsync();
 
             model.LastScrapDate = latestScrap?.Date;
+            model.LatestScrapId = latestScrap?.Id;
             int scrapId = latestScrap?.Id ?? 0;
 
             var assignments = await _context.AutomationProductAssignments

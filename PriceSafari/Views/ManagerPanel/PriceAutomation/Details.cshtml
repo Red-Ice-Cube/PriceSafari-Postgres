@@ -109,7 +109,7 @@
 
     .purchase-wrapper {
         position: relative;
-        min-width: 160px;
+        min-width: 185px;
     }
 
     .price-actions-display {
@@ -168,6 +168,24 @@
 
     .d-none {
         display: none !important;
+    }
+
+    .product-name-wrap {
+        white-space: normal !important; 
+        word-wrap: break-word;          
+        width: 250px;                   
+        line-height: 1.3;               
+    }
+
+    .simulationProductTitle {
+        text-decoration: none;
+        color: inherit; 
+        transition: color 0.2s ease-in-out;
+    }
+
+    .simulationProductTitle:hover {
+        color: #41C7C7 !important; 
+        text-decoration: none;
     }
 </style>
 
@@ -298,7 +316,7 @@
             }
 
             <th style="width: 250px;">Produkt</th>
-            <th style="width: 200px; min-width: 170px;">Limity Cenowe</th>
+            <th style="width: 200px; min-width: 190px;">Limity Cenowe</th>
 
             <th style="min-width: 225px;">Dane z rynku - Twoja oferta</th>
 
@@ -337,9 +355,39 @@
             }
 
             <td class="align-middle">
-                <div class="font-weight-bold text-truncate" style="max-width: 250px;" title="@item.Name">@item.Name</div>
-                <div class="small text-muted mb-1">
-                    @item.Identifier
+                <div class="font-weight-bold product-name-wrap" title="@item.Name">
+                    @{
+
+                        string linkUrl = null;
+
+                        if (isMarketplace)
+                        {
+
+                            linkUrl = $"/AllegroPriceHistory/Details?storeId={Model.StoreId}&productId={item.ProductId}";
+                        }
+                        else if (Model.LatestScrapId.HasValue)
+                        {
+
+                            linkUrl = $"/PriceHistory/Details?scrapId={Model.LatestScrapId}&productId={item.ProductId}";
+                        }
+                    }
+
+                    @if (!string.IsNullOrEmpty(linkUrl))
+                    {
+                        <a href="@linkUrl" 
+                           target="_blank" 
+                           rel="noopener noreferrer" 
+                           class="simulationProductTitle">
+                            @item.Name
+                        </a>
+                    }
+                    else
+                    {
+                        @item.Name
+                    }
+                </div>
+
+                <div class="small text-muted mb-1 mt-1"> @item.Identifier
                     @if(item.ApiAllegroPriceFromUser.HasValue) {
                             <span class="text-xs ml-1 text-gray-500" title="Cena bazowa w API (przed dopłatami)">(API: @item.ApiAllegroPriceFromUser)</span>
                     }
@@ -701,22 +749,6 @@
         }
 
         $(document).ready(function() {
-            console.log("Skrypt załadowany.");
-
-            try {
-                if ($.fn.DataTable) {
-                    $('#automationTable').DataTable({
-                        "language": { "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Polish.json" },
-                        "pageLength": 25,
-                        "order": [[ 7, "asc" ]] 
-                    });
-                } else {
-                    console.warn("Brak biblioteki DataTables - tabela będzie zwykła, ale edycja zadziała.");
-                }
-            } catch (err) {
-                console.error("Błąd DataTables:", err);
-
-            }
 
             $(document).on('click', '.edit-btn', function(e) {
                 e.preventDefault();

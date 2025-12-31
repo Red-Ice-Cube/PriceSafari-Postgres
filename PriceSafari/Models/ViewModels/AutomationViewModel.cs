@@ -28,6 +28,8 @@ namespace PriceSafari.Models.ViewModels
         public int TotalProducts { get; set; }
         public DateTime? LastScrapDate { get; set; }
 
+        public int? LatestScrapId { get; set; }
+
         public List<AutomationProductRowViewModel> Products { get; set; } = new List<AutomationProductRowViewModel>();
 
         // --- STATYSTYKI OPARTE O NOWY STATUS ---
