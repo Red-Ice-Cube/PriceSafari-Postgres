@@ -112,6 +112,7 @@
 /* Nowe style dla szybkiej edycji ceny zakupu */
     .purchase-wrapper {
         position: relative;
+        min-width: 160px;
     }
 
     /* Styl dla trybu wyświetlania */
@@ -129,12 +130,12 @@
 
     .edit-trigger {
         cursor: pointer;
-        font-size: 11px;
+        font-size: 10px;
         color: #6c757d;
     }
     .edit-trigger:hover {
-        color: #2e59d9; /* Niebieski przy hover */
-        transform: scale(1.1);
+          color: #5a5c69;
+       
     }
 
     /* Styl dla trybu edycji */
@@ -304,20 +305,20 @@
             <th style="width: 250px;">Produkt</th>
             <th style="width: 200px; min-width: 170px;">Limity Cenowe</th>
 
-            <th style="width: 280px;">Dane z rynku - Twoja oferta</th>
+            <th style="min-width: 225px;">Dane z rynku - Twoja oferta</th>
 
             @if (Model.StrategyMode == PriceSafari.Models.AutomationStrategyMode.Competitiveness)
             {
-                <th style="width: 280px;">Najlepszy Rywal</th>
+                <th style="min-width: 225px;">Najlepszy Rywal</th>
             }
             else
             {
-                <th style="width: 280px;">Mediana Rynku</th>
+                <th style="min-width: 225px;">Mediana Rynku</th>
             }
 
             <th style="min-width: 130px; width: 140px;">Zmiana</th>
 
-            <th class="bg-gradient-light border-left-primary" style="width: 280px;">Wyznaczona Cena</th>
+            <th class="bg-gradient-light border-left-primary" style="min-width: 225px;">Wyznaczona Cena</th>
 
             <th>Status</th>
         </tr>
@@ -388,10 +389,12 @@
                         else
                         {
                             <div class="text-center text-gray-400 small purchase-row py-2 border rounded bg-light">
-                                Brak ceny zakupu
-                                <span class="ml-2 cursor-pointer edit-btn edit-trigger" title="Dodaj cenę zakupu">
-                                    <i class="fas fa-plus-circle text-gray-500" style="font-size: 14px;"></i>
+                                
+                                     <span class="ml-2 cursor-pointer edit-btn edit-trigger" title="Dodaj cenę zakupu">
+                                    <i class="fas fa-plus-circle text-gray-500" style="font-size: 12px;"></i>
                                 </span>
+                                Brak ceny zakupu
+                           
                             </div>
                         }
                     </div>
@@ -438,7 +441,7 @@
                     }
                     @if (item.IsTopOffer)
                     {
-                        <div class="TopOffer">Top oferta</div>
+                        <div class="TopOffer">Top</div>
                     }
                     @if (item.IsInAnyCampaign)
                     {
@@ -493,7 +496,7 @@
 
                             @if (item.CompetitorIsTopOffer)
                             {
-                                <div class="TopOffer">Top oferta</div>
+                                <div class="TopOffer">Top</div>
                             }
                         </div>
 
@@ -667,29 +670,19 @@
         </div>
     </div>
 </div>
-
 @section Scripts {
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap4.min.css">
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap4.min.js"></script>
+
     <script>
+        // Dane do symulacji
         var productsData = @Html.Raw(Json.Serialize(Model.Products.Select(p => new {
             ProductId = p.ProductId,
             Identifier = p.Identifier,
             CurrentPrice = p.CurrentPrice ?? 0,
             NewPrice = p.SuggestedPrice ?? 0,
             PurchasePrice = p.PurchasePrice,
-
-            CurrentRankingAllegro = p.CurrentRankingAllegro,
-            NewRankingAllegro = p.NewRankingAllegro,
-            CurrentRankingGoogle = p.CurrentRankingGoogle,
-            NewRankingGoogle = p.NewRankingGoogle,
-            CurrentRankingCeneo = p.CurrentRankingCeneo,
-            NewRankingCeneo = p.NewRankingCeneo,
-
-            MinPriceLimit = p.MinPriceLimit,
-            MaxPriceLimit = p.MaxPriceLimit,
-
-            WasLimitedByMin = (p.SuggestedPrice.HasValue && p.MinPriceLimit.HasValue && p.SuggestedPrice.Value == p.MinPriceLimit.Value),
-            WasLimitedByMax = (p.SuggestedPrice.HasValue && p.MaxPriceLimit.HasValue && p.SuggestedPrice.Value == p.MaxPriceLimit.Value),
-
             IsTargetMet = p.IsTargetMet 
         })));
 
@@ -697,149 +690,150 @@
         var storeId = @Model.StoreId;
         var sourceType = @((int)Model.SourceType);
 
+        // Funkcja symulacji
         function executeAutomation() {
-            var validProducts = productsData.filter(function(p) {
-                return parseFloat(p.newPrice) > 0; 
-            });
-
-            if (validProducts.length === 0) {
-                alert("Brak produktów z wyliczoną nową ceną.");
-                return;
-            }
-
-            if (!confirm("Czy na pewno chcesz zapisać symulację zmian cen dla " + validProducts.length + " produktów?")) {
-                return;
-            }
-
-            var payload = {
-                RuleId: ruleId,
-                StoreId: storeId,
-                SourceType: sourceType,
-                Products: validProducts
-            };
+            var validProducts = productsData.filter(function(p) { return parseFloat(p.newPrice) > 0; });
+            if (validProducts.length === 0) { alert("Brak produktów z wyliczoną nową ceną."); return; }
+            if (!confirm("Czy na pewno chcesz zapisać symulację?")) { return; }
 
             $.ajax({
                 url: '@Url.Action("ExecuteAutomation", "PriceAutomation")',
                 type: 'POST',
                 contentType: 'application/json',
-                data: JSON.stringify(payload),
-                success: function(response) {
-                    alert("Sukces! Zapisano log automatyzacji. Przetworzono: " + response.count);
-                    location.reload();
-                },
-                error: function(xhr, status, error) {
-                    alert("Błąd serwera: " + error);
-                    console.error(xhr);
-                }
+                data: JSON.stringify({ RuleId: ruleId, StoreId: storeId, SourceType: sourceType, Products: validProducts }),
+                success: function(r) { alert("Sukces! " + r.count); location.reload(); },
+                error: function(e) { alert("Błąd serwera."); console.error(e); }
             });
         }
 
         $(document).ready(function() {
-            $('#automationTable').DataTable({
-                "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Polish.json"
-                },
-                "pageLength": 25,
-                "order": [[ 7, "asc" ]] 
+            console.log("Skrypt załadowany.");
+
+            // 1. Inicjalizacja Tabeli (ZABEZPIECZONA przed błędem)
+            try {
+                if ($.fn.DataTable) {
+                    $('#automationTable').DataTable({
+                        "language": { "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Polish.json" },
+                        "pageLength": 25,
+                        "order": [[ 7, "asc" ]] 
+                    });
+                } else {
+                    console.warn("Brak biblioteki DataTables - tabela będzie zwykła, ale edycja zadziała.");
+                }
+            } catch (err) {
+                console.error("Błąd DataTables:", err);
+                // Ignorujemy błąd tabeli, żeby reszta skryptu działała!
+            }
+
+            // ---------------------------------------------------------
+            // OBSŁUGA EDYCJI (To teraz zadziała nawet przy błędzie tabeli)
+            // ---------------------------------------------------------
+
+            // Kliknięcie w EDYTUJ (Ołówek lub Plus)
+            $(document).on('click', '.edit-btn', function(e) {
+                e.preventDefault();
+                e.stopPropagation(); // Zatrzymaj propagację, żeby nie klikało w wiersz tabeli
+                
+                var wrapper = $(this).closest('.purchase-wrapper');
+                
+                // Reset innych otwartych edycji (opcjonalne, dla porządku)
+                $('.edit-mode').not(wrapper.find('.edit-mode')).addClass('d-none');
+                $('.display-mode').not(wrapper.find('.display-mode')).removeClass('d-none');
+
+                wrapper.find('.display-mode').addClass('d-none');
+                wrapper.find('.edit-mode').removeClass('d-none');
+                
+                var input = wrapper.find('input');
+                var val = input.val();
+                input.val('').val(val); // Kursor na koniec
+                input.focus();
             });
-        });
 
-        $(document).ready(function() {
-        
-        // 1. Obsługa przycisku Edycji/Plusa
-        $(document).on('click', '.edit-btn', function() {
-            var wrapper = $(this).closest('.purchase-wrapper');
-            wrapper.find('.display-mode').addClass('d-none');
-            wrapper.find('.edit-mode').removeClass('d-none');
-            // Focus na input
-            var input = wrapper.find('input');
-            input.focus().select();
-        });
+            // Kliknięcie w ANULUJ
+            $(document).on('click', '.cancel-btn', function(e) {
+                e.preventDefault();
+                var wrapper = $(this).closest('.purchase-wrapper');
+                wrapper.find('.edit-mode').addClass('d-none');
+                wrapper.find('.display-mode').removeClass('d-none');
+            });
 
-        // 2. Obsługa przycisku Anuluj
-        $(document).on('click', '.cancel-btn', function() {
-            var wrapper = $(this).closest('.purchase-wrapper');
-            wrapper.find('.edit-mode').addClass('d-none');
-            wrapper.find('.display-mode').removeClass('d-none');
-        });
+            // Kliknięcie w ZAPISZ (Ptaszek)
+            $(document).on('click', '.save-btn', function(e) {
+                e.preventDefault();
+                var btn = $(this);
+                var wrapper = btn.closest('.purchase-wrapper');
+                var input = wrapper.find('input');
+                
+                var val = input.val().replace(',', '.'); // Zamiana przecinka na kropkę
 
-        // 3. Obsługa przycisku Zapisz
-        $(document).on('click', '.save-btn', function() {
-            var btn = $(this);
-            var wrapper = btn.closest('.purchase-wrapper');
-            var input = wrapper.find('input');
-            var newVal = input.val();
+                if(val === '' || isNaN(val) || parseFloat(val) < 0) {
+                    alert("Podaj poprawną cenę.");
+                    return;
+                }
+                
+                sendPriceUpdate(wrapper, parseFloat(val), btn);
+            });
 
-            // Walidacja
-            if(!newVal || newVal < 0) {
-                alert("Podaj poprawną cenę.");
-                return;
-            }
+            // Kliknięcie w KOSZ (Usuwanie)
+            $(document).on('click', '.delete-btn-inner', function(e) {
+                e.preventDefault();
+                if(!confirm("Czy na pewno chcesz usunąć cenę zakupu?")) return;
+                
+                var btn = $(this);
+                var wrapper = btn.closest('.purchase-wrapper');
+                sendPriceUpdate(wrapper, null, btn);
+            });
 
-            var productId = wrapper.data('id');
-            var storeId = wrapper.data('store-id');
-            var isMarketplace = wrapper.data('is-marketplace'); // true/false (boolean from razor converted to string usually)
-
-            // Przygotowanie danych w zależności od typu
-            var url = '';
-            var payload = {};
-
-            if (isMarketplace === true || isMarketplace === "true") {
-                // Allegro
-                url = '@Url.Action("UpdateAllegroPurchasePrice", "AllegroProduct")?storeId=' + storeId;
-                payload = {
-                    AllegroProductId: parseInt(productId),
-                    NewPrice: parseFloat(newVal)
-                };
-            } else {
-                // Price Comparison (Sklep)
-                url = '@Url.Action("UpdatePurchasePrice", "Product")?storeId=' + storeId;
-                payload = {
-                    ProductId: parseInt(productId),
-                    NewPrice: parseFloat(newVal)
-                };
-            }
-
-            // UI Loading state
-            var originalIcon = btn.html();
-            btn.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
-
-            // Pobranie tokenu (zakładam, że jest w layoutcie lub formie, jeśli nie - AJAX może wymagać konfiguracji)
-            var token = $('input[name="__RequestVerificationToken"]').val();
-
-            $.ajax({
-                url: url,
-                type: 'POST',
-                contentType: 'application/json',
-                headers: {
-                    'RequestVerificationToken': token
-                },
-                data: JSON.stringify(payload),
-                success: function(response) {
-                    if(response.success) {
-                        // Sukces - odświeżamy stronę, żeby przeliczyć reguły
-                        // Można by też zaktualizować tylko DOM, ale tutaj reguły (min/max/suggested) zależą od ceny zakupu
-                        // więc reload jest bezpieczniejszy dla spójności danych widoku.
-                        location.reload(); 
-                    } else {
-                        alert("Błąd: " + response.message);
-                        btn.html(originalIcon).prop('disabled', false);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    alert("Wystąpił błąd serwera.");
-                    console.error(error);
-                    btn.html(originalIcon).prop('disabled', false);
+            // Enter w inpucie
+            $(document).on('keypress', '.price-edit-input', function(e) {
+                if(e.which == 13) {
+                    e.preventDefault();
+                    $(this).closest('.edit-mode').find('.save-btn').click();
                 }
             });
-        });
-        
-        // Zapisywanie enterem w polu input
-        $(document).on('keypress', '.price-edit-input', function(e) {
-            if(e.which == 13) {
-                $(this).closest('.edit-mode').find('.save-btn').click();
+
+            // Funkcja wysyłająca do serwera
+            function sendPriceUpdate(wrapper, priceValue, btnElement) {
+                var productId = wrapper.data('id');
+                var storeId = wrapper.data('store-id');
+                var isMktStr = String(wrapper.data('is-marketplace')).toLowerCase();
+                var isMarketplaceBool = (isMktStr === 'true');
+
+                var token = $('input[name="__RequestVerificationToken"]').val();
+                if (!token) { alert("Błąd: Brak tokenu weryfikacyjnego."); return; }
+
+                var url = isMarketplaceBool 
+                    ? '@Url.Action("UpdateAllegroPurchasePrice", "AllegroProduct")?storeId=' + storeId
+                    : '@Url.Action("UpdatePurchasePrice", "Product")?storeId=' + storeId;
+                
+                var payload = isMarketplaceBool
+                    ? { AllegroProductId: parseInt(productId), NewPrice: priceValue }
+                    : { ProductId: parseInt(productId), NewPrice: priceValue };
+
+                var originalContent = btnElement.html();
+                btnElement.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    headers: { 'RequestVerificationToken': token },
+                    data: JSON.stringify(payload),
+                    success: function(response) {
+                        if(response.success) {
+                            location.reload();
+                        } else {
+                            alert("Błąd: " + response.message);
+                            btnElement.html(originalContent).prop('disabled', false);
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error(xhr);
+                        alert("Błąd serwera: " + xhr.status);
+                        btnElement.html(originalContent).prop('disabled', false);
+                    }
+                });
             }
         });
-    });
     </script>
 }
