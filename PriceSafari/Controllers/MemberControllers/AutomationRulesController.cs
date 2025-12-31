@@ -10,7 +10,7 @@ using System.Linq;
 
 namespace PriceSafari.Controllers.MemberControllers
 {
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin, Member")]
     public class AutomationRulesController : Controller
     {
         private readonly PriceSafariContext _context;

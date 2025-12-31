@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace PriceSafari.Controllers.MemberControllers
 {
-    [Authorize(Roles = "Admin, Manager")]
+    [Authorize(Roles = "Admin, Member")]
     public class PriceAutomationController : Controller
     {
         private readonly PriceSafariContext _context;
