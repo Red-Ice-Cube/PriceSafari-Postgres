@@ -488,9 +488,13 @@ namespace PriceSafari.Controllers.MemberControllers
 
         private void CalculateCurrentMarkup(AutomationProductRowViewModel row)
         {
-            if (row.CurrentPrice.HasValue && row.PurchasePrice.HasValue && row.PurchasePrice.Value > 0)
+            // ZMIANA: Jeśli mamy cenę API (dla Allegro), używamy jej jako bazowej do liczenia marży/narzutu.
+            // Jeśli nie, bierzemy CurrentPrice (cena widoczna dla klienta).
+            decimal basePriceForMarkup = row.ApiAllegroPriceFromUser ?? row.CurrentPrice ?? 0;
+
+            if (basePriceForMarkup > 0 && row.PurchasePrice.HasValue && row.PurchasePrice.Value > 0)
             {
-                decimal sellPrice = row.CurrentPrice.Value;
+                decimal sellPrice = basePriceForMarkup;
                 decimal purchase = row.PurchasePrice.Value;
                 decimal commissionCost = 0;
 

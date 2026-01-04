@@ -513,6 +513,14 @@
                             <p>@item.CurrentMarkupAmount.Value.ToString("F2") PLN (@item.CurrentMarkupPercent.Value.ToString("F2")%)</p>
                     </div>
                 }
+
+                                    @if (item.IsSubsidyActive && item.ApiAllegroPriceFromUser.HasValue)
+                                    {
+                                        <div class="subsidy-stack" style="margin-top: 4px;">
+                                            <span class="subsidy-stack-badge">Kampania z dopł. | Twoja cena</span>
+                                            <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
+                                        </div>
+                                    }
             </td>
 
             <td class="align-middle text-right">
@@ -672,13 +680,7 @@
 
                     <div class="small text-muted ">@Model.StoreName</div>
 
-                    @if (item.IsSubsidyActive && item.ApiAllegroPriceFromUser.HasValue)
-                    {
-                        <div class="subsidy-stack">
-                            <span class="subsidy-stack-badge">Kampania z dopł. | Twoja cena</span>
-                            <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
-                        </div>
-                    }
+              
 
                     @if (item.CommissionAmount.HasValue)
                     {
