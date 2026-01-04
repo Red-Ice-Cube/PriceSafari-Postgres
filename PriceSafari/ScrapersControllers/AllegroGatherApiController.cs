@@ -214,12 +214,22 @@ namespace PriceSafari.ScrapersControllers
                 return Ok(new { message = $"Otrzymano {productDtos.Count} produktów, ale wszystkie to duplikaty." });
             }
 
-            var newProducts = newProductDtos.Select(dto => new AllegroProductClass
+            var newProducts = newProductDtos.Select(dto =>
             {
-                StoreId = store.StoreId,
-                AllegroProductName = dto.Name,
-                AllegroOfferUrl = dto.Url,
-                AddedDate = DateTime.UtcNow
+                // 1. Tworzymy obiekt produktu
+                var product = new AllegroProductClass
+                {
+                    StoreId = store.StoreId,
+                    AllegroProductName = dto.Name,
+                    AllegroOfferUrl = dto.Url,
+                    AddedDate = DateTime.UtcNow
+                };
+
+                // 2. WYWOŁUJEMY METODĘ DO GENEROWANIA ID
+                // Dzięki temu pole IdOnAllegro uzupełni się automatycznie na podstawie URL-a
+                product.CalculateIdFromUrl();
+
+                return product;
             }).ToList();
 
             await _context.AllegroProducts.AddRangeAsync(newProducts);
@@ -228,7 +238,6 @@ namespace PriceSafari.ScrapersControllers
             if (AllegroTaskManager.ActiveTasks.TryGetValue(storeName, out var taskState))
             {
                 taskState.IncrementOffers(newProducts.Count);
-
                 await _hubContext.Clients.All.SendAsync("UpdateTaskProgress", storeName, taskState);
             }
 
