@@ -1044,7 +1044,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     ProductId = p.AllegroProductId,
                     Name = p.AllegroProductName,
-                    Identifier = p.AllegroOfferUrl,
+                    Identifier = p.IdOnAllegro,
                     CurrentPrice = myHistory?.Price,
                     PurchasePrice = p.AllegroMarginPrice,
                     BestCompetitorPrice = bestCompetitor?.Price,
