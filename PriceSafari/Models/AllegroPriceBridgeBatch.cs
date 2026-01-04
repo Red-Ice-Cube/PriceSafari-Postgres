@@ -44,6 +44,11 @@ namespace PriceSafari.Models
         // Ile produktów nie spełniało (np. blokada minimalnej marży)
         public int? TargetUnmetCount { get; set; }
 
+
+        public int? PriceIncreasedCount { get; set; }   // Ile podwyżek
+        public int? PriceDecreasedCount { get; set; }   // Ile obniżek
+        public int? PriceMaintainedCount { get; set; }
+
         public virtual ICollection<AllegroPriceBridgeItem> BridgeItems { get; set; } = new List<AllegroPriceBridgeItem>();
     }
 }
