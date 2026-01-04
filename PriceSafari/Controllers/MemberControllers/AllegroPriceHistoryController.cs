@@ -75,6 +75,31 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/AllegroPriceHistory/Index.cshtml");
         }
 
+
+        //aktualizacja id w bazie dla allegro
+
+        //[HttpGet]
+        //[Authorize(Roles = "Admin")]
+        //public async Task<IActionResult> FixIdsInDatabase()
+        //{
+        //    // Pobierz wszystkie produkty, które mają URL, a nie mają ID
+        //    var products = await _context.AllegroProducts
+        //        .Where(p => p.AllegroOfferUrl != null && p.IdOnAllegro == null)
+        //        .ToListAsync();
+
+        //    int count = 0;
+        //    foreach (var product in products)
+        //    {
+        //        // WYWOŁANIE LOGIKI Z KLASY - CZYSTY KOD!
+        //        product.CalculateIdFromUrl();
+
+        //        if (product.IdOnAllegro != null) count++;
+        //    }
+
+        //    await _context.SaveChangesAsync();
+        //    return Ok($"Zaktualizowano pole IdOnAllegro dla {count} produktów.");
+        //}
+
         [HttpGet]
         public async Task<IActionResult> GetAllegroPrices(int? storeId)
         {
