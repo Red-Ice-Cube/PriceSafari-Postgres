@@ -41,7 +41,10 @@ namespace PriceSafari.Services.AllegroServices
 
            int? automationRuleId = null,
            int? targetMetCount = null,
-            int? targetUnmetCount = null)
+            int? targetUnmetCount = null,
+            int? priceIncreasedCount = null,
+            int? priceDecreasedCount = null,
+            int? priceMaintainedCount = null)
 
         {
             var result = new PriceBridgeResult();
@@ -82,7 +85,10 @@ namespace PriceSafari.Services.AllegroServices
 
                 TotalProductsCount = itemsToBridge.Count,
                 TargetMetCount = targetMetCount,
-                TargetUnmetCount = targetUnmetCount
+                TargetUnmetCount = targetUnmetCount,
+                PriceIncreasedCount = priceIncreasedCount,
+                PriceDecreasedCount = priceDecreasedCount,
+                PriceMaintainedCount = priceMaintainedCount
             };
 
             _context.AllegroPriceBridgeBatches.Add(newBatch);
