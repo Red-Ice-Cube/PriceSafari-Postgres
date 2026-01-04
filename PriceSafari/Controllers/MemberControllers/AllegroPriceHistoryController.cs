@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
+using PriceSafari.Models.DTOs;
 using PriceSafari.Models.ViewModels;
 using PriceSafari.Services.AllegroServices;
 using PriceSafari.ViewModels;
@@ -913,24 +914,7 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(result);
         }
 
-        public class AllegroPriceBridgeItemRequest
-        {
-
-            public int ProductId { get; set; }
-            public string OfferId { get; set; }
-            public decimal? MarginPrice { get; set; }
-            public bool IncludeCommissionInMargin { get; set; }
-
-            public decimal PriceBefore { get; set; }
-            public decimal? CommissionBefore { get; set; }
-            public string RankingBefore { get; set; }
-
-            public decimal PriceAfter_Simulated { get; set; }
-            public string RankingAfter_Simulated { get; set; }
-            public string? Mode { get; set; }              // "profit" or "competitiveness"
-            public decimal? PriceIndexTarget { get; set; } // np. 100.00
-            public decimal? StepPriceApplied { get; set; }
-        }
+  
 
         public class PriceBridgeError
         {

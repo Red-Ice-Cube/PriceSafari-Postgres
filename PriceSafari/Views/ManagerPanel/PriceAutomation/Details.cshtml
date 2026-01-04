@@ -719,40 +719,47 @@
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap4.min.js"></script>
 
     <script>
-
-        var productsData = @Html.Raw(Json.Serialize(Model.Products.Select(p => new {
-            ProductId = p.ProductId,
-            Identifier = p.Identifier,
-            CurrentPrice = p.CurrentPrice ?? 0,
-            NewPrice = p.SuggestedPrice ?? 0,
-            PurchasePrice = p.PurchasePrice,
-            IsTargetMet = p.IsTargetMet 
-        })));
-
+        // Pobieramy ID reguły z modelu (to jedyna rzecz potrzebna backendowi)
         var ruleId = @Model.RuleId;
-        var storeId = @Model.StoreId;
-        var sourceType = @((int)Model.SourceType);
 
+        // --- NOWA, LEKKA FUNKCJA WYKONUJĄCA ---
         function executeAutomation() {
-            var validProducts = productsData.filter(function(p) { return parseFloat(p.newPrice) > 0; });
-            if (validProducts.length === 0) { alert("Brak produktów z wyliczoną nową ceną."); return; }
-            if (!confirm("Czy na pewno chcesz zapisać symulację?")) { return; }
+            if (!confirm("Czy na pewno chcesz wykonać automatyzację? Ceny zostaną przeliczone na serwerze i wysłane do Allegro.")) { return; }
+
+            // Przycisk zmienia stan na ładowanie (opcjonalnie, dla lepszego UX)
+            var btn = $(event.target).closest('button');
+            var originalText = btn.html();
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Przetwarzanie...');
 
             $.ajax({
                 url: '@Url.Action("ExecuteAutomation", "PriceAutomation")',
                 type: 'POST',
                 contentType: 'application/json',
-                data: JSON.stringify({ RuleId: ruleId, StoreId: storeId, SourceType: sourceType, Products: validProducts }),
-                success: function(r) { alert("Sukces! " + r.count); location.reload(); },
-                error: function(e) { alert("Błąd serwera."); console.error(e); }
+                // Wysyłamy TYLKO ID reguły. Backend sam sobie pobierze produkty i przeliczy ceny.
+                data: JSON.stringify({ RuleId: ruleId }),
+                success: function(r) {
+                    if(r.count === 0) {
+                        alert("Wykonano, ale nie zaktualizowano żadnych ofert (brak zmian lub blokady).");
+                    } else {
+                        alert("Sukces! Zaktualizowano " + r.count + " ofert.");
+                    }
+                    location.reload();
+                },
+                error: function(xhr) {
+                    alert("Błąd: " + (xhr.responseText || xhr.statusText));
+                    console.error(xhr);
+                    // Przywracamy przycisk w razie błędu
+                    btn.prop('disabled', false).html(originalText);
+                }
             });
         }
 
+        // --- Poniżej logika edycji cen zakupu (lokalna, bez zmian) ---
         $(document).ready(function() {
 
             $(document).on('click', '.edit-btn', function(e) {
                 e.preventDefault();
-                e.stopPropagation(); 
+                e.stopPropagation();
 
                 var wrapper = $(this).closest('.purchase-wrapper');
 
@@ -764,7 +771,7 @@
 
                 var input = wrapper.find('input');
                 var val = input.val();
-                input.val('').val(val); 
+                input.val('').val(val);
 
                 input.focus();
             });
@@ -782,7 +789,7 @@
                 var wrapper = btn.closest('.purchase-wrapper');
                 var input = wrapper.find('input');
 
-                var val = input.val().replace(',', '.'); 
+                var val = input.val().replace(',', '.');
 
                 if(val === '' || isNaN(val) || parseFloat(val) < 0) {
                     alert("Podaj poprawną cenę.");
@@ -817,7 +824,7 @@
                 var token = $('input[name="__RequestVerificationToken"]').val();
                 if (!token) { alert("Błąd: Brak tokenu weryfikacyjnego."); return; }
 
-                var url = isMarketplaceBool 
+                var url = isMarketplaceBool
                     ? '@Url.Action("UpdateAllegroPurchasePrice", "AllegroProduct")?storeId=' + storeId
                     : '@Url.Action("UpdatePurchasePrice", "Product")?storeId=' + storeId;
 
