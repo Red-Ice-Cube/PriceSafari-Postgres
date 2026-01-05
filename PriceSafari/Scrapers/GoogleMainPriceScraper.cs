@@ -586,7 +586,7 @@ public class GoogleMainPriceScraper
     {
         _httpClient = new HttpClient();
 
-        _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36");
+        _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
     }
 
     public async Task<List<CoOfrPriceHistoryClass>> ScrapePricesAsync(CoOfrClass coOfr)
@@ -600,14 +600,6 @@ public class GoogleMainPriceScraper
             Console.WriteLine($"[BŁĄD] Nie można wyodrębnić ID produktu z URL: {coOfr.GoogleOfferUrl}");
             return finalPriceHistory;
         }
-
-        // Dodano gl:4, usunięto fs oraz isp
-
-        // Dodano gl:4, usunięto fs oraz isp
-
-        // Dodano gl:4, usunięto fs oraz isp
-
-        // Dodano gl:4, usunięto fs oraz isp
 
         string urlTemplate;
         if (!string.IsNullOrEmpty(coOfr.GoogleGid))
@@ -625,7 +617,7 @@ public class GoogleMainPriceScraper
         int startIndex = 0;
         const int pageSize = 10;
         int lastFetchCount;
-        const int maxRetries = 5;
+        const int maxRetries = 3;
 
         do
         {
@@ -639,19 +631,50 @@ public class GoogleMainPriceScraper
                     string rawResponse = await _httpClient.GetStringAsync(currentUrl);
                     newOffers = GoogleShoppingApiParser.Parse(rawResponse);
 
-                    if (newOffers.Any() || rawResponse.Length < 40) break;
+                    if (newOffers.Count == 0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"[PRÓBA {attempt}/{maxRetries}] Znaleziono 0 produktow. URL: {currentUrl}");
 
-                    if (attempt < maxRetries) await Task.Delay(4000);
+                        // --- DIAGNOSTYKA: POKAŻ CO PRZYSZŁO ---
+                        // Pobieramy pierwsze 500 znaków odpowiedzi, żeby zobaczyć czy to HTML, JSON czy błąd
+                        string preview = rawResponse.Length > 500 ? rawResponse.Substring(0, 500) : rawResponse;
+                        // Usuwamy znaki nowej linii, żeby log był czytelny
+                        preview = preview.Replace("\n", " ").Replace("\r", "");
+                        Console.WriteLine($"[DEBUG TREŚCI]: {preview}...");
+                        // ---------------------------------------
+
+                        Console.ResetColor();
+                    }
+
+                    // 2. WARUNEK SUKCESU - przerywamy pętlę TYLKO gdy mamy oferty
+                    // Usunęliśmy warunek 'rawResponse.Length < 40', aby wymusić retry przy 0 ofertach
+                    if (newOffers.Count > 0)
+                    {
+                        break;
+                    }
+
+                    // 3. ŻÓŁTY LOG I PONOWIENIE - jeśli to nie była ostatnia próba i nadal mamy 0 ofert
+                    if (attempt < maxRetries)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine($"Ponawiam probe za 2 sekundy... (Próba {attempt} z {maxRetries})");
+                        Console.ResetColor();
+
+                        await Task.Delay(2000);
+                    }
                 }
                 catch (HttpRequestException ex)
                 {
                     if (attempt == maxRetries)
                     {
-                        Console.WriteLine($"[BŁĄD KRYTYCZNY] Nie udało się pobrać ofert z {currentUrl} po {maxRetries} próbach. Błąd: {ex.Message}");
+                        Console.WriteLine($"[BŁĄD KRYTYCZNY] Nie udało się pobrać ofert po {maxRetries} próbach. Błąd: {ex.Message}");
                     }
                     else
                     {
-
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine($"Błąd HTTP. Ponawiam probe za 4 sekundy... (Próba {attempt} z {maxRetries})");
+                        Console.ResetColor();
                         await Task.Delay(4000);
                     }
                 }
@@ -661,6 +684,7 @@ public class GoogleMainPriceScraper
             allFoundOffers.AddRange(newOffers);
             startIndex += pageSize;
 
+            // Opóźnienie między stronami paginacji (jeśli pobrał 10 sztuk i idzie po kolejne)
             if (lastFetchCount == pageSize) await Task.Delay(new Random().Next(500, 800));
 
         } while (lastFetchCount == pageSize);
@@ -679,7 +703,6 @@ public class GoogleMainPriceScraper
 
         foreach (var item in finalOffersToProcess.OrderBy(i => ParsePrice(i.offer.Price)))
         {
-
             string? isBiddingValue = null;
 
             if (!string.IsNullOrEmpty(item.offer.Badge))
@@ -687,16 +710,12 @@ public class GoogleMainPriceScraper
                 string badgeLower = item.offer.Badge.ToLower();
 
                 if (badgeLower.Contains("cena"))
-
                 {
                     isBiddingValue = "bpg";
-
                 }
                 else if (badgeLower.Contains("popularn") || badgeLower.Contains("wybór"))
-
                 {
                     isBiddingValue = "hpg";
-
                 }
             }
 
@@ -705,11 +724,8 @@ public class GoogleMainPriceScraper
                 GoogleStoreName = item.offer.Seller,
                 GooglePrice = ParsePrice(item.offer.Price),
                 GooglePriceWithDelivery = ParsePrice(item.offer.Price) + ParseDeliveryPrice(item.offer.Delivery),
-
                 GooglePosition = item.offer.OriginalIndex.ToString(),
-
                 IsBidding = isBiddingValue,
-
                 GoogleInStock = item.offer.IsInStock,
                 GoogleOfferPerStoreCount = item.count
             });
