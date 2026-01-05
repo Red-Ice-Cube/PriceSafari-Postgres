@@ -5,6 +5,8 @@
         ViewSafari,
         CreateSafari,
         ViewMargin,
-        SetMargin
+        SetMargin,
+        ViewPriceAutomation,
+        EditPriceAutomation
     }
 }

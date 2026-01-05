@@ -2,7 +2,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PriceSafari.Attributes;
 using PriceSafari.Data;
+using PriceSafari.Enums;
 using PriceSafari.Models;
 using PriceSafari.Models.DTOs;
 
@@ -30,6 +32,7 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         [HttpGet]
+        [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public async Task<IActionResult> Details(int id)
         {
             var rule = await _context.AutomationRules
@@ -71,6 +74,7 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         [HttpPost]
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> ExecuteAutomation([FromBody] AutomationTriggerRequest request)
         {
             if (request == null || request.RuleId <= 0) return BadRequest("Nieprawidłowe żądanie.");

@@ -2,7 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
+using PriceSafari.Attributes;
 using PriceSafari.Data;
+using PriceSafari.Enums;
 using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
 
@@ -21,6 +23,7 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         [HttpGet]
+        [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public async Task<IActionResult> Dashboard()
         {
 
@@ -46,6 +49,7 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/AutomationRules/Dashboard.cshtml", model);
         }
 
+        [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public async Task<IActionResult> Index(int? storeId, AutomationSourceType? filterType)
         {
             if (storeId == null)
@@ -81,6 +85,7 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         [HttpGet]
+        [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public IActionResult GetModalPartial(AutomationSourceType type, int storeId)
         {
 
@@ -110,6 +115,7 @@ namespace PriceSafari.Controllers.MemberControllers
             }
         }
 
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public IActionResult Create(int storeId, AutomationSourceType? sourceType)
         {
             var model = new AutomationRule
@@ -126,6 +132,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> Create(AutomationRule rule)
         {
             rule.Id = 0;
@@ -141,6 +148,7 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/AutomationRules/CreateOrEdit.cshtml", rule);
         }
 
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
@@ -156,6 +164,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> Edit(int id, AutomationRule rule)
         {
             if (id != rule.Id) return NotFound();
@@ -181,6 +190,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> Delete(int id)
         {
             var rule = await _context.AutomationRules.FindAsync(id);
@@ -238,6 +248,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
         // 1. Pobieranie listy reguł z licznikami (zastępuje stare GetRulesForModal)
         [HttpPost]
+        [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public async Task<IActionResult> GetRulesStatusForProducts([FromBody] RulesStatusRequest request)
         {
             if (request == null) return BadRequest();
@@ -287,6 +298,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
         // 2. Przypisywanie produktów (Zastępuje stare AssignProducts)
         [HttpPost]
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> AssignProducts([FromBody] AssignProductsDto model)
         {
             if (model == null || model.ProductIds == null || !model.ProductIds.Any())
@@ -345,6 +357,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
         // 3. Odpinanie produktów (Nowa metoda dla czerwonego kafelka)
         [HttpPost]
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> UnassignProducts([FromBody] AssignProductsDto model)
         {
             if (model == null || model.ProductIds == null || !model.ProductIds.Any())

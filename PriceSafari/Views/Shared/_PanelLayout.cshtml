@@ -107,9 +107,12 @@
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Konkurencja
                 </div>
 
-                <div class="@(controllerName == "AutomationRules" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
-                    <img src="~/images/OrderValue-bone.svg" alt="Panel Icon" class="menu-icon" />Automatyzacja
-                </div>
+                @if (user?.AccesToViewPriceAutomation == true)
+                {
+                    <div class="@(controllerName == "AutomationRules" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
+                        <img src="~/images/OrderValue-bone.svg" alt="Panel Icon" class="menu-icon" />Automatyzacja
+                    </div>
+                }
                 @if (user?.AccesToViewSafari == true)
                 {
                     <div class="@(controllerName == "Safari" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Chanel", "Safari")'">
@@ -238,9 +241,12 @@
             <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
         </div>
 
-                <div class="@(controllerName == "AutomationRules" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
-                    <img src="~/images/OrderValue-bone.svg" alt="Panel Icon" class="menu-icon" />
-                </div>
+                @if (user?.AccesToViewPriceAutomation == true)
+                {
+                    <div class="@(controllerName == "AutomationRules" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
+                        <img src="~/images/OrderValue-bone.svg" alt="Panel Icon" class="menu-icon" />
+                    </div>
+                }
         
         @if (user?.AccesToViewSafari == true)
         {

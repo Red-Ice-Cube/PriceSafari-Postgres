@@ -50,6 +50,17 @@ public class RequireUserAccessFilter : IAsyncAuthorizationFilter
             case UserAccessRequirement.SetMargin:
                 hasAccess = user.AccesToSetMargin;
                 break;
+
+            // --- NOWA OBSŁUGA ---
+            case UserAccessRequirement.ViewPriceAutomation:
+                // Dostęp ma ten kto ma flagę View LUB flagę Edit (bo jak edytuje to logicznie też widzi)
+                hasAccess = user.AccesToViewPriceAutomation || user.AccesToEditPriceAutomation;
+                break;
+
+            case UserAccessRequirement.EditPriceAutomation:
+                hasAccess = user.AccesToEditPriceAutomation;
+                break;
+
             default:
                 hasAccess = false;
                 break;
@@ -57,7 +68,7 @@ public class RequireUserAccessFilter : IAsyncAuthorizationFilter
 
         if (!hasAccess)
         {
-            context.Result = new ForbidResult();
+            context.Result = new ForbidResult(); // Lub RedirectToAction("AccessDenied")
             return;
         }
     }
