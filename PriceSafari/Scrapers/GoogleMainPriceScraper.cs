@@ -423,6 +423,45 @@ public class GoogleMainPriceScraper
         }
 
 
+
+        //string urlTemplate;
+        //if (!string.IsNullOrEmpty(coOfr.GoogleGid))
+        //{
+        //    Console.WriteLine($"Używam GID: {coOfr.GoogleGid} dla CID: {catalogId}");
+        //    // Dodano gl:4, usunięto fs oraz isp
+        //    urlTemplate = $"https://www.google.com/async/oapv?udm=3&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,sori:{{0}},mno:10,query:1,gl:4,pvt:hg,_fmt:jspb";
+        //}
+        //else
+        //{
+        //    Console.WriteLine($"GID nie znaleziony dla CID: {catalogId}. Używam zapytania bez gpcid.");
+        //    // Dodano gl:4, usunięto fs oraz isp
+        //    urlTemplate = $"https://www.google.com/async/oapv?udm=3&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,sori:{{0}},mno:10,query:1,gl:4,pvt:hg,_fmt:jspb";
+        //}
+
+        //nowy z catalogid
+
+        //string urlTemplate;
+        //if (!string.IsNullOrEmpty(coOfr.GoogleGid))
+        //{
+        //    Console.WriteLine($"Używam GID: {coOfr.GoogleGid} dla CID: {catalogId}");
+        //    // Dodano gl:4, usunięto fs oraz isp
+        //    urlTemplate = $"https://www.google.com/async/oapv?udm=3&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,sori:{{0}},mno:10,query:1,gl:4,pvt:hg,_fmt:jspb";
+        //}
+        //else
+        //{
+        //    Console.WriteLine($"GID nie znaleziony dla CID: {catalogId}. Używam zapytania bez gpcid.");
+        //    // Dodano gl:4, usunięto fs oraz isp
+        //    urlTemplate = $"https://www.google.com/async/oapv?udm=3&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,sori:{{0}},mno:10,query:1,gl:4,pvt:hg,_fmt:jspb";
+        //}
+
+
+
+
+
+
+
+        //stary niepelny schemat
+
         //string urlTemplate;
         //if (!string.IsNullOrEmpty(coOfr.GoogleGid))
         //{
@@ -435,16 +474,20 @@ public class GoogleMainPriceScraper
         //    urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
         //}
 
+
+
+        //bez isp
+
         string urlTemplate;
         if (!string.IsNullOrEmpty(coOfr.GoogleGid))
         {
             Console.WriteLine($"metoda bez gid dla CID: {catalogId}");
-            urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
+            urlTemplate = $"https://www.google.com/async/oapv?udm=3&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
         }
         else
         {
             Console.WriteLine($"GID nie znaleziony dla CID: {catalogId}. Używam zapytania bez gpcid.");
-            urlTemplate = $"https://www.google.com/async/oapv?udm=28&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,isp:true,query:1,pvt:hg,_fmt:jspb";
+            urlTemplate = $"https://www.google.com/async/oapv?udm=3&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
         }
 
         var allFoundOffers = new List<TempOffer>();
