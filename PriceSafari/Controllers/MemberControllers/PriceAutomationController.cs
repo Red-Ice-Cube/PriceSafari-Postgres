@@ -67,7 +67,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 model.LatestScrapId = calculationResult.ScrapId;
             }
 
-            return View("~/Views/ManagerPanel/PriceAutomation/Details.cshtml", model);
+            return View("~/Views/Panel/PriceAutomation/Details.cshtml", model);
         }
 
         [HttpPost]

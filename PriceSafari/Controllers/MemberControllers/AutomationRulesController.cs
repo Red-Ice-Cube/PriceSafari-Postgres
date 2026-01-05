@@ -43,7 +43,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 MarketplaceRulesCount = s.AutomationRules.Count(r => r.SourceType == AutomationSourceType.Marketplace)
             }).ToList();
 
-            return View("~/Views/ManagerPanel/AutomationRules/Dashboard.cshtml", model);
+            return View("~/Views/Panel/AutomationRules/Dashboard.cshtml", model);
         }
 
         public async Task<IActionResult> Index(int? storeId, AutomationSourceType? filterType)
@@ -77,7 +77,7 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.StoreId = storeId;
             ViewBag.StoreName = storeName;
 
-            return View("~/Views/ManagerPanel/AutomationRules/Index.cshtml", rules);
+            return View("~/Views/Panel/AutomationRules/Index.cshtml", rules);
         }
 
         [HttpGet]
@@ -121,7 +121,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 StrategyMode = AutomationStrategyMode.Competitiveness
 
             };
-            return View("~/Views/ManagerPanel/AutomationRules/CreateOrEdit.cshtml", model);
+            return View("~/Views/Panel/AutomationRules/CreateOrEdit.cshtml", model);
         }
 
         [HttpPost]
@@ -138,7 +138,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index), new { storeId = rule.StoreId, filterType = rule.SourceType });
             }
-            return View("~/Views/ManagerPanel/AutomationRules/CreateOrEdit.cshtml", rule);
+            return View("~/Views/Panel/AutomationRules/CreateOrEdit.cshtml", rule);
         }
 
         public async Task<IActionResult> Edit(int? id)
@@ -151,7 +151,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (rule == null) return NotFound();
 
-            return View("~/Views/ManagerPanel/AutomationRules/CreateOrEdit.cshtml", rule);
+            return View("~/Views/Panel/AutomationRules/CreateOrEdit.cshtml", rule);
         }
 
         [HttpPost]
@@ -176,7 +176,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
                 return RedirectToAction(nameof(Index), new { storeId = rule.StoreId, filterType = rule.SourceType });
             }
-            return View("~/Views/ManagerPanel/AutomationRules/CreateOrEdit.cshtml", rule);
+            return View("~/Views/Panel/AutomationRules/CreateOrEdit.cshtml", rule);
         }
 
         [HttpPost]
