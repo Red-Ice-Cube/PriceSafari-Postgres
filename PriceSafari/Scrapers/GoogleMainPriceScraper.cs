@@ -564,8 +564,6 @@
 
 
 
-
-
 using PriceSafari.Models;
 using System;
 using System.Collections.Generic;
@@ -636,25 +634,19 @@ public class GoogleMainPriceScraper
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine($"[PRÓBA {attempt}/{maxRetries}] Znaleziono 0 produktow. URL: {currentUrl}");
 
-                        // --- DIAGNOSTYKA: POKAŻ CO PRZYSZŁO ---
-                        // Pobieramy pierwsze 500 znaków odpowiedzi, żeby zobaczyć czy to HTML, JSON czy błąd
                         string preview = rawResponse.Length > 500 ? rawResponse.Substring(0, 500) : rawResponse;
-                        // Usuwamy znaki nowej linii, żeby log był czytelny
+
                         preview = preview.Replace("\n", " ").Replace("\r", "");
                         Console.WriteLine($"[DEBUG TREŚCI]: {preview}...");
-                        // ---------------------------------------
 
                         Console.ResetColor();
                     }
 
-                    // 2. WARUNEK SUKCESU - przerywamy pętlę TYLKO gdy mamy oferty
-                    // Usunęliśmy warunek 'rawResponse.Length < 40', aby wymusić retry przy 0 ofertach
                     if (newOffers.Count > 0)
                     {
                         break;
                     }
 
-                    // 3. ŻÓŁTY LOG I PONOWIENIE - jeśli to nie była ostatnia próba i nadal mamy 0 ofert
                     if (attempt < maxRetries)
                     {
                         Console.ForegroundColor = ConsoleColor.Yellow;
@@ -684,7 +676,6 @@ public class GoogleMainPriceScraper
             allFoundOffers.AddRange(newOffers);
             startIndex += pageSize;
 
-            // Opóźnienie między stronami paginacji (jeśli pobrał 10 sztuk i idzie po kolejne)
             if (lastFetchCount == pageSize) await Task.Delay(new Random().Next(500, 800));
 
         } while (lastFetchCount == pageSize);
@@ -763,12 +754,11 @@ public class GoogleMainPriceScraper
     }
     #endregion
 }
-
 public static class GoogleShoppingApiParser
 {
-
     private static readonly Regex PricePattern = new(@"^\s*\d[\d\s,.]*\s*(?:PLN|zł|EUR|USD)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+    // Ta lista nie jest już krytyczna przy nowej metodzie, ale zostawiamy dla porządku
     private static readonly HashSet<string> InvalidSellerNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "PLN", "EUR", "USD", "GBP", "zł", "Google", "Shopping", "null", "true", "false", "0", "1",
@@ -797,7 +787,6 @@ public static class GoogleShoppingApiParser
 
     private static void FindAndParseAllOffers(JsonElement root, JsonElement node, List<TempOffer> allOffers)
     {
-
         if (node.ValueKind == JsonValueKind.Array)
         {
             if (IsPotentialSingleOffer(node))
@@ -826,7 +815,6 @@ public static class GoogleShoppingApiParser
 
     private static bool IsPotentialSingleOffer(JsonElement node)
     {
-
         if (node.ValueKind != JsonValueKind.Array || node.GetArrayLength() < 3) return false;
 
         int checks = 0;
@@ -856,7 +844,6 @@ public static class GoogleShoppingApiParser
     {
         try
         {
-
             var flatElements = Flatten(offerData, 20).ToList();
 
             var strings = flatElements
@@ -871,11 +858,15 @@ public static class GoogleShoppingApiParser
             var outOfStockKeywords = new[] { "out of stock", "niedostępny", "brak w magazynie", "asortyment niedostępny" };
             if (strings.Any(text => outOfStockKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase)))) isInStock = false;
 
+            // 1. Pobieramy URL
             string? url = strings.FirstOrDefault(s => s.StartsWith("http") && !s.Contains("google.com/search") && !s.Contains("gstatic.com"));
             if (url == null) return null;
 
-            string? price = null;
+            // 2. [ZMIANA] Sprzedawca zawsze z domeny (usuwamy starą pętlę foreach)
+            string seller = GetDomainName(url);
 
+            // 3. Cena
+            string? price = null;
             price = strings.FirstOrDefault(s => PricePattern.IsMatch(s) && !s.Trim().StartsWith("+"));
 
             if (price == null)
@@ -912,34 +903,7 @@ public static class GoogleShoppingApiParser
 
             if (price == null) return null;
 
-            string? seller = null;
-
-            foreach (var s in strings)
-            {
-                if (!s.StartsWith("http") &&
-                    !PricePattern.IsMatch(s) &&
-                    s.Length > 2 && s.Length < 40 &&
-                    !InvalidSellerNames.Contains(s) &&
-                    !s.All(char.IsDigit) &&
-                    !s.Contains("opis", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (s.Contains("dostawa", StringComparison.OrdinalIgnoreCase)) continue;
-                    seller = s;
-                    break;
-                }
-            }
-
-            if (string.IsNullOrWhiteSpace(seller))
-            {
-                try
-                {
-                    var uri = new Uri(url);
-                    seller = uri.Host.Replace("www.", "").Replace(".pl", "").Replace(".com", "");
-                    if (seller.Length > 0) seller = char.ToUpper(seller[0]) + seller.Substring(1);
-                }
-                catch { seller = "Nieznany"; }
-            }
-
+            // 4. Dostawa
             string? delivery = null;
             string? rawDeliveryText = strings.FirstOrDefault(s => s.Trim().StartsWith("+") && PricePattern.IsMatch(s))
                                       ?? strings.FirstOrDefault(s => s.Contains("dostawa", StringComparison.OrdinalIgnoreCase) && PricePattern.IsMatch(s));
@@ -961,6 +925,30 @@ public static class GoogleShoppingApiParser
         catch
         {
             return null;
+        }
+    }
+
+    // [NOWA METODA] Wyciąganie nazwy z domeny
+    private static string GetDomainName(string url)
+    {
+        try
+        {
+            var uri = new Uri(url);
+            string host = uri.Host.ToLower();
+
+            // Usuwamy prefiks www.
+            if (host.StartsWith("www."))
+                host = host.Substring(4);
+
+            // Opcjonalnie: Wielka litera na początku (np. loombard.pl -> Loombard.pl)
+            if (host.Length > 0)
+                return char.ToUpper(host[0]) + host.Substring(1);
+
+            return host;
+        }
+        catch
+        {
+            return "Nieznany";
         }
     }
 
