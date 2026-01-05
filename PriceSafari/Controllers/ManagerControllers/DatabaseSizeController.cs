@@ -206,17 +206,27 @@ namespace PriceSafari.Controllers.ManagerControllers
         }
 
         #region Akcje Usuwania
+
         [HttpPost, ActionName("DeleteSelectedScrapHistories")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteSelectedScrapHistories(int[] selectedIds, int storeId)
         {
             if (selectedIds != null && selectedIds.Any())
             {
-                var entitiesToRemove = await _context.ScrapHistories.Where(sh => selectedIds.Contains(sh.Id)).ToListAsync();
-                if (entitiesToRemove.Any())
+                // Wydłużamy czas na wypadek dużej bazy
+                _context.Database.SetCommandTimeout(TimeSpan.FromMinutes(10));
+
+                foreach (var id in selectedIds)
                 {
-                    _context.ScrapHistories.RemoveRange(entitiesToRemove);
-                    await _context.SaveChangesAsync();
+                    // 1. Najcięższa operacja: Usuń setki tysięcy cen BEZPOŚREDNIO w bazie (omija RAM)
+                    // Upewnij się, że tabela w bazie nazywa się 'PriceHistories'
+                    await _context.Database.ExecuteSqlRawAsync(
+                        "DELETE FROM [PriceHistories] WHERE [ScrapHistoryId] = {0}", id);
+
+                    // 2. Usuń nagłówek historii (teraz jest już lekki, bo nie ma dzieci)
+                    // Używamy prostego zapytania SQL również tutaj dla spójności i szybkości
+                    await _context.Database.ExecuteSqlRawAsync(
+                        "DELETE FROM [ScrapHistories] WHERE [Id] = {0}", id);
                 }
             }
             return RedirectToAction(nameof(StoreDetails), new { storeId });
@@ -228,41 +238,65 @@ namespace PriceSafari.Controllers.ManagerControllers
         {
             if (selectedIds != null && selectedIds.Any())
             {
-                var gprToRemove = await _context.GlobalPriceReports.Where(gpr => selectedIds.Contains(gpr.PriceSafariReportId)).ToListAsync();
-                if (gprToRemove.Any()) _context.GlobalPriceReports.RemoveRange(gprToRemove);
+                _context.Database.SetCommandTimeout(TimeSpan.FromMinutes(10));
 
-                var reportsToRemove = await _context.PriceSafariReports.Where(psr => selectedIds.Contains(psr.ReportId)).ToListAsync();
-                if (reportsToRemove.Any()) _context.PriceSafariReports.RemoveRange(reportsToRemove);
+                foreach (var reportId in selectedIds)
+                {
+                    // 1. Usuń szczegóły raportu bezpośrednim SQL
+                    await _context.Database.ExecuteSqlRawAsync(
+                        "DELETE FROM [GlobalPriceReports] WHERE [PriceSafariReportId] = {0}", reportId);
 
-                await _context.SaveChangesAsync();
+                    // 2. Usuń nagłówek raportu
+                    await _context.Database.ExecuteSqlRawAsync(
+                        "DELETE FROM [PriceSafariReports] WHERE [ReportId] = {0}", reportId);
+                }
             }
             return RedirectToAction(nameof(StoreDetails), new { storeId });
         }
-
         [HttpPost, ActionName("DeleteSelectedAllegroScrapHistories")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteSelectedAllegroScrapHistories(int[] selectedIds, int storeId)
         {
             if (selectedIds != null && selectedIds.Any())
             {
+                // Ustawiamy długi timeout, bo operacji jest teraz więcej
+                _context.Database.SetCommandTimeout(TimeSpan.FromMinutes(10));
+                int deletedCount = 0;
 
-                var entitiesToRemove = await _context.AllegroScrapeHistories
-                    .Where(ash => selectedIds.Contains(ash.Id))
-                    .ToListAsync();
-
-                if (entitiesToRemove.Any())
+                foreach (var id in selectedIds)
                 {
+                    // KROK 1: Usuń ceny (to co robiliśmy wcześniej)
+                    await _context.Database.ExecuteSqlRawAsync(
+                        "DELETE FROM [AllegroPriceHistories] WHERE [AllegroScrapeHistoryId] = {0}", id);
 
-                    _context.AllegroScrapeHistories.RemoveRange(entitiesToRemove);
+                    // KROK 2: Usuń powiązane "Bridge Batches" (TO NAPRAWIA TWOJEGO BŁĘDA)
+                    // Usuwamy rekordy z tabeli, która blokowała usunięcie constraintem FK
+                    await _context.Database.ExecuteSqlRawAsync(
+                        "DELETE FROM [AllegroPriceBridgeBatches] WHERE [AllegroScrapeHistoryId] = {0}", id);
 
-                    await _context.SaveChangesAsync();
+                    // KROK 3: Usuń samą historię (rodzica)
+                    // Teraz, gdy usunęliśmy dzieci z obu tabel, rodzica można bezpiecznie usunąć.
+                    var entity = await _context.AllegroScrapeHistories.FindAsync(id);
+                    if (entity != null)
+                    {
+                        _context.AllegroScrapeHistories.Remove(entity);
+                        await _context.SaveChangesAsync();
 
-                    TempData["SuccessMessage"] = $"Pomyślnie usunięto {entitiesToRemove.Count} wpisów historii i wszystkie powiązane dane.";
+                        // Czyścimy śledzenie zmian, żeby nie zatykać RAMu
+                        _context.ChangeTracker.Clear();
+                        deletedCount++;
+                    }
+                }
+
+                if (deletedCount > 0)
+                {
+                    TempData["SuccessMessage"] = $"Pomyślnie usunięto {deletedCount} wpisów historii.";
                 }
             }
 
             return RedirectToAction(nameof(StoreDetails), new { storeId });
         }
+
         #endregion
 
         #region Metody Pomocnicze
