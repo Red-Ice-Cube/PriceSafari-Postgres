@@ -33,6 +33,7 @@ namespace PriceSafari.Controllers
             var model = users.Select(user => new UserStoresViewModel
             {
                 UserId = user.Id,
+                Email = user.Email,
                 FullName = $"{user.PartnerName} {user.PartnerSurname}",
                 Stores = _context.UserStores
                     .Where(us => us.UserId == user.Id)

@@ -6,7 +6,7 @@
         public string FullName { get; set; }
         public List<StoreClass> Stores { get; set; }
 
-
+        public string Email { get; set; }
         public bool AccesToViewSafari { get; set; }
         public bool AccesToCreateSafari { get; set; }
         public bool AccesToViewMargin { get; set; }

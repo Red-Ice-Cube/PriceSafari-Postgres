@@ -4,71 +4,273 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+<style>
+    /* Nowoczesny styl dla tabeli i kontenera */
+    .table-header-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 0 10px;
+    }
+
+    .search-wrapper {
+        position: relative;
+        max-width: 300px;
+        width: 100%;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 10px 15px 10px 40px;
+        border: 1px solid #e0e0e0;
+        border-radius: 25px;
+        font-size: 0.95em;
+        transition: box-shadow 0.2s;
+    }
+    .search-input:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        border-color: #80bdff;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #aaa;
+    }
+
+    /* Tabela */
+    .custom-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 8px; /* Odstęp między wierszami */
+    }
+
+    .custom-table thead th {
+        color: #8898aa;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85em;
+        padding: 10px 20px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .custom-table tbody tr {
+        background: #fff;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        transition: background-color 0.2s; /* Tylko zmiana koloru, bez ruchu */
+    }
+    
+    /* ZMIANA: Usunięto transform (podskakiwanie), zostawiono tylko zmianę tła */
+    .custom-table tbody tr:hover {
+        background-color: #f8f9fa; 
+    }
+
+    .custom-table td {
+        padding: 15px 20px;
+        vertical-align: middle;
+        font-size: 0.95em;
+        color: #525f7f;
+    }
+    
+    .custom-table td:first-child {
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+    }
+    .custom-table td:last-child {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+    }
+
+    /* Dane Użytkownika */
+    .user-info {
+        display: flex;
+        flex-direction: column;
+    }
+    .user-name {
+        font-weight: 600;
+        color: #32325d;
+    }
+    .user-email {
+        font-size: 0.85em;
+        color: #8898aa;
+        margin-top: 2px;
+    }
+
+    /* Sklepy */
+    .store-badge {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    .store-logo-mini {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+        margin-right: 8px;
+        border-radius: 3px;
+        border: 1px solid #eee;
+        background: #fff;
+    }
+    .store-icon-fallback {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 8px;
+        color: #adb5bd;
+    }
+
+    /* Uprawnienia (Badges) */
+    .perm-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.75em;
+        font-weight: 600;
+        margin: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .perm-safari { background: #e0f2f1; color: #00695c; }
+    .perm-margin { background: #fff3e0; color: #e65100; }
+    .perm-auto { background: #e3f2fd; color: #0d47a1; }
+
+    /* Przycisk akcji */
+    .btn-edit-action {
+        color: #5e72e4;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 6px 12px;
+        border-radius: 5px;
+        background: #f6f9fc;
+        transition: all 0.2s;
+    }
+    .btn-edit-action:hover {
+        background: #5e72e4;
+        color: #fff;
+        text-decoration: none;
+    }
+</style>
+
 <div class="Page-Box">
     <div class="Page-Box-Container">
+        
         <div class="Page-Box-Category">
             <div class="Category-Box-Title">
-                Kanały
+                Użytkownicy i Sklepy
             </div>
-
             <partial name="_ManageNavCol" />
         </div>
-        <div class="Vert-table">
-            <table class="table-orders">
-                <thead>
-                    <tr>
-                        <th>Użytkownik</th>
-                        <th>Sklep</th>
-                        <th>Uprawnienia</th>
-                        <th>Działanie</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var user in Model)
-                    {
+
+        <div style="flex: 1; padding: 20px;">
+            
+            <div class="table-header-controls">
+                <div class="search-wrapper">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="tableSearch" class="search-input" placeholder="Szukaj użytkownika...">
+                </div>
+            </div>
+
+            <div class="Vert-table">
+                <table class="custom-table" id="usersTable">
+                    <thead>
                         <tr>
-                            <td>@user.FullName</td>
-                            <td>
-                                @foreach (var store in user.Stores)
-                                {
-                                    <span>@store.StoreName</span>
-                                    <br />
-                                }
-                            </td>
-                            <td>
-                                @if (user.AccesToViewSafari)
-                                {
-                                    <span>View Safari</span>
-
-                                    <br />
-                                }
-                                @if (user.AccesToCreateSafari)
-                                {
-                                    <span>Create Safari</span>
-
-                                    <br />
-                                }
-                                @if (user.AccesToViewMargin)
-                                {
-                                    <span>View Margin</span>
-
-                                    <br />
-                                }
-                                @if (user.AccesToSetMargin)
-                                {
-                                    <span>Set Margin</span>
-
-                                    <br />
-                                }
-                            </td>
-                            <td>
-                                <a asp-action="AssignStores" asp-route-userId="@user.UserId" class="Button-Page-Small">Edytuj</a>
-                            </td>
+                            <th>Użytkownik</th>
+                            <th>Przypisane Sklepy</th>
+                            <th>Uprawnienia</th>
+                            <th style="text-align: right;">Akcja</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="user-info">
+                                        <span class="user-name">@user.FullName</span>
+                                        <span class="user-email">@user.Email</span> 
+                                    </div>
+                                </td>
+                                <td>
+                                    @if (user.Stores != null && user.Stores.Any())
+                                    {
+                                        @foreach (var store in user.Stores)
+                                        {
+                                            <div class="store-badge">
+                                                @if (!string.IsNullOrEmpty(store.StoreLogoUrl))
+                                                {
+                                                    <img src="@store.StoreLogoUrl" class="store-logo-mini" alt="logo" />
+                                                }
+                                                else
+                                                {
+                                                    <div class="store-icon-fallback"><i class="fas fa-shopping-bag"></i></div>
+                                                }
+                                                <span>@store.StoreName</span>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">Brak sklepów</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (user.AccesToViewSafari)
+                                    {
+                                        <span class="perm-badge perm-safari">View Safari</span>
+                                    }
+                                    @if (user.AccesToCreateSafari)
+                                    {
+                                        <span class="perm-badge perm-safari">Create Safari</span>
+                                    }
+                                    
+                                    @if (user.AccesToViewMargin)
+                                    {
+                                        <span class="perm-badge perm-margin">View Margin</span>
+                                    }
+                                    @if (user.AccesToSetMargin)
+                                    {
+                                        <span class="perm-badge perm-margin">Set Margin</span>
+                                    }
+
+                                    @if (user.AccesToViewPriceAutomation)
+                                    {
+                                        <span class="perm-badge perm-auto">View Auto</span>
+                                    }
+                                    @if (user.AccesToEditPriceAutomation)
+                                    {
+                                        <span class="perm-badge perm-auto">Edit Auto</span>
+                                    }
+                                </td>
+                                <td style="text-align: right;">
+                                    <a asp-action="AssignStores" asp-route-userId="@user.UserId" class="btn-edit-action">
+                                        <i class="fas fa-edit"></i> Edytuj
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            
         </div>
-        
     </div>
 </div>
+
+<script>
+    document.getElementById('tableSearch').addEventListener('keyup', function() {
+        let filter = this.value.toLowerCase();
+        let rows = document.querySelectorAll('#usersTable tbody tr');
+
+        rows.forEach(row => {
+            let text = row.innerText.toLowerCase();
+            row.style.display = text.includes(filter) ? '' : 'none';
+        });
+    });
+</script>
