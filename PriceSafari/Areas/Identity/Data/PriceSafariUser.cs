@@ -31,7 +31,7 @@ public class PriceSafariUser : IdentityUser
     public bool AccesToViewMargin { get; set; } = false;
     public bool AccesToSetMargin { get; set; } = false;
 
-    public bool AccesToViewPriceAutomation { get; set; } = false; // Tylko podgląd
+    public bool AccesToViewPriceAutomation { get; set; } = false; 
     public bool AccesToEditPriceAutomation { get; set; } = false;
     public DateTime? LastLoginDateTime { get; set; }
     public int LoginCount { get; set; } = 0;

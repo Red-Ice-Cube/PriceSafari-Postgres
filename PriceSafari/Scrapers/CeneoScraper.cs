@@ -533,7 +533,6 @@ namespace PriceSafari.Scrapers
 
         private async Task<bool?> GetAvailabilityFromOfferNodeAsync(ElementHandle offerNode)
         {
-
             var availabilityNode = await offerNode.QuerySelectorAsync(
                 "span.instock, span.onrequest, span.shipmentday-fastestdelivery, span.shipmentday-otherdeliveries, div.product-availability span"
             );
@@ -554,18 +553,20 @@ namespace PriceSafari.Scrapers
                     return null;
                 }
 
+               
                 if (availabilityText.Contains("Wysyłka w 1 dzień") ||
                     availabilityText.Contains("Wysyłka jutro") ||
-                    availabilityText.Contains("Wysyłka pojutrze"))
+                    availabilityText.Contains("Wysyłka pojutrze") ||
+                    availabilityText.Contains("Wysyłka do 3 dni"))
                 {
                     return true;
                 }
 
+               
                 if (availabilityText.StartsWith("Wysyłka"))
                 {
                     return false;
                 }
-
             }
 
             return null;
