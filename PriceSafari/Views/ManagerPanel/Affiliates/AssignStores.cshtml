@@ -1,90 +1,436 @@
-﻿
-
-
-@model PriceSafari.Models.ManagerViewModels.AssignStoresViewModel
+﻿@model PriceSafari.Models.ManagerViewModels.AssignStoresViewModel
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+<style>
+    /* --- UKŁAD GŁÓWNY (GRID) --- */
+    .assign-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr 300px; /* 3 kolumny */
+        gap: 20px;
+        /* Ustawiamy sztywną wysokość względem okna, aby scroll był wewnątrz kolumn */
+        height: calc(100vh - 140px); 
+        min-height: 500px;
+    }
+
+    .assign-column {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column; /* Układ pionowy wewnątrz kolumny */
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        overflow: hidden; /* Ważne: zapobiega wylewaniu się scrolla */
+    }
+
+    /* Nagłówek kolumny i wyszukiwarka są "sztywne" */
+    .column-header {
+        padding: 15px 15px 10px 15px;
+        font-weight: 700;
+        font-size: 1.1em;
+        border-bottom: 1px solid #eee;
+        background-color: #fff;
+        z-index: 10;
+    }
+
+    .search-wrapper {
+        padding: 10px 15px;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #eee;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 0.9em;
+        transition: border-color 0.2s;
+    }
+    .search-input:focus {
+        outline: none;
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+
+    /* --- LISTA PRZEWIJALNA --- */
+    /* To jest kluczowe dla wysokości: lista zajmuje całą resztę miejsca */
+    .scrollable-list {
+        flex-grow: 1; 
+        overflow-y: auto;
+        padding: 0; 
+    }
+
+    /* --- KARTY UŻYTKOWNIKÓW --- */
+    .list-item-card {
+        padding: 12px 15px;
+        border-bottom: 1px solid #f0f0f0;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .user-card:hover {
+        background-color: #f1f3f5;
+    }
+    
+    .user-card.selected {
+        background-color: #e7f1ff; /* Jasny niebieski */
+        border-left: 4px solid #0d6efd;
+        padding-left: 11px; /* Kompensacja border-left */
+    }
+
+    /* --- KARTY SKLEPÓW (KOLORYZACJA) --- */
+    .store-card {
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    /* Wybrany sklep - zielony */
+    .store-card.store-selected {
+        background-color: #d1e7dd; /* Bootstrap success light */
+        border-left: 4px solid #198754;
+        padding-left: 11px;
+    }
+
+    /* Niewybrany sklep - lekki czerwony */
+    .store-card.store-unselected {
+        background-color: #fff5f5; /* Bardzo jasny czerwony */
+        border-left: 4px solid #dc3545; /* Czerwony pasek */
+        padding-left: 11px;
+        opacity: 0.9;
+    }
+    
+    .store-card:hover {
+        filter: brightness(0.96); /* Lekkie przyciemnienie przy hover */
+    }
+
+    /* --- ELEMENTY WEWNĄTRZ KART --- */
+    .user-initials {
+        width: 36px;
+        height: 36px;
+        background: #495057;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        margin-right: 12px;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .store-logo-small {
+        width: 36px;
+        height: 36px;
+        object-fit: contain;
+        margin: 0 12px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        background: #fff;
+        flex-shrink: 0;
+    }
+    
+    .item-details {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow: hidden; /* Dla długich tekstów */
+    }
+
+    .item-title {
+        font-weight: 600;
+        color: #212529;
+        font-size: 0.95em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .item-subtitle {
+        font-size: 0.8em;
+        color: #6c757d;
+    }
+
+    .item-badge {
+        font-size: 0.75em;
+        background: rgba(0,0,0,0.08);
+        padding: 2px 8px;
+        border-radius: 12px;
+        margin-top: 4px;
+        display: inline-block;
+        color: #495057;
+    }
+
+    /* --- CHECKBOX --- */
+    /* Niestandardowy styl dla checkboxa, aby nie był ucinany */
+    .custom-store-checkbox {
+        width: 20px;
+        height: 20px;
+        margin-right: 5px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    /* --- UPRAWNIENIA --- */
+    .permissions-container {
+        padding: 15px;
+        overflow-y: auto;
+        flex-grow: 1;
+    }
+    
+    .permission-switch {
+        margin-bottom: 10px;
+        padding: 10px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        background: #f8f9fa;
+    }
+    .permission-switch.bg-highlight {
+        background-color: #e9ecef;
+        border-color: #ced4da;
+    }
+
+    .custom-control-label {
+        cursor: pointer;
+        user-select: none;
+    }
+</style>
+
 <div class="Page-Box">
     <div class="Page-Box-Container">
+        
         <div class="Page-Box-Category">
             <div class="Category-Box-Title">
-                Kanały
+                Zarządzanie Dostępami
             </div>
-
             <partial name="_ManageNavCol" />
         </div>
 
-        <div class="Column-30">
+        <div style="flex: 1; padding: 20px; height: 100%;">
             @if (TempData["SuccessMessage"] != null)
             {
-                <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+                <div class="alert alert-success shadow-sm">@TempData["SuccessMessage"]</div>
             }
             @if (TempData["ErrorMessage"] != null)
             {
-                <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+                <div class="alert alert-danger shadow-sm">@TempData["ErrorMessage"]</div>
             }
 
-            <form asp-action="AssignStores" method="post">
+            <form asp-action="AssignStores" method="post" id="assignForm" style="height: 100%;">
                 @Html.AntiForgeryToken()
+                <input type="hidden" name="SelectedUserId" id="hiddenSelectedUserId" value="@Model.SelectedUserId" />
 
-                @Html.HiddenFor(m => m.SelectedUserId)
+                <div class="assign-container">
+                    
+                    <div class="assign-column">
+                        <div class="column-header">
+                            <i class="fas fa-users text-primary"></i> Wybierz Użytkownika
+                        </div>
+                        <div class="search-wrapper">
+                            <input type="text" id="searchUser" class="search-input" placeholder="Szukaj (imię, email)...">
+                        </div>
+                        
+                        <div class="scrollable-list" id="userList">
+                            @foreach (var user in Model.Users)
+                            {
+                                string initials = "U";
+                                if(!string.IsNullOrEmpty(user.PartnerName)) {
+                                    initials = user.PartnerName.Substring(0,1).ToUpper();
+                                    if(!string.IsNullOrEmpty(user.PartnerSurname)) initials += user.PartnerSurname.Substring(0,1).ToUpper();
+                                }
 
-                <input type="hidden" name="SelectedUserId" value="@Model.SelectedUserId" />
+                                var userCurrentStores = user.UserStores != null 
+                                    ? string.Join(", ", user.UserStores.Select(us => us.StoreClass?.StoreName).Where(s => s != null)) 
+                                    : "";
 
-                <div class="form-group">
-                    <label>Users</label>
-                    <div>
-                        @foreach (var user in Model.Users)
-                        {
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="SelectedUserId" value="@user.Id" id="user_@user.Id" @(user.Id == Model.SelectedUserId ? "checked" : "")>
-                                <label class="form-check-label" for="user_@user.Id">
-                                    @user.Email
-                                </label>
+                                <div class="list-item-card user-card d-flex align-items-center @(user.Id == Model.SelectedUserId ? "selected" : "")" 
+                                     onclick="selectUser(this, '@user.Id')">
+                                    
+                                    <div class="user-initials">@initials</div>
+                                    
+                                    <div class="item-details w-100">
+                                        <div class="d-flex justify-content-between">
+                                            <span class="item-title">@user.PartnerName @user.PartnerSurname</span>
+                                        </div>
+                                        <span class="item-subtitle">@user.Email</span>
+                                        @if (!string.IsNullOrEmpty(userCurrentStores))
+                                        {
+                                            <div>
+                                                <span class="item-badge" title="Przypisane sklepy">
+                                                    <i class="fas fa-shopping-bag"></i> @userCurrentStores
+                                                </span>
+                                            </div>
+                                        }
+                                    </div>
+                                    
+                                    <input type="radio" name="SelectedUserId_Radio" value="@user.Id" style="display:none;" @(user.Id == Model.SelectedUserId ? "checked" : "")>
+                                </div>
+                            }
+                        </div>
+                        @Html.ValidationMessage("SelectedUserIds", "", new { @class = "text-danger p-2" })
+                    </div>
+
+                    <div class="assign-column">
+                        <div class="column-header">
+                            <i class="fas fa-store text-success"></i> Przypisz Sklepy
+                        </div>
+                        <div class="search-wrapper">
+                            <input type="text" id="searchStore" class="search-input" placeholder="Szukaj sklepu...">
+                        </div>
+
+                        <div class="scrollable-list" id="storeList">
+                            @foreach (var store in Model.Stores)
+                            {
+                                bool isChecked = Model.SelectedStoreIds != null && Model.SelectedStoreIds.Contains(store.StoreId);
+                                string rowClass = isChecked ? "store-selected" : "store-unselected";
+
+                                <div class="list-item-card store-card @rowClass">
+                                    <div class="d-flex align-items-center w-100" style="padding-left: 5px;">
+                                        
+                                        <input class="custom-store-checkbox" 
+                                               type="checkbox" 
+                                               name="SelectedStoreIds" 
+                                               value="@store.StoreId" 
+                                               id="store_@store.StoreId" 
+                                               @(isChecked ? "checked" : "")
+                                               onchange="toggleStoreRow(this)">
+                                        
+                                        @if (!string.IsNullOrEmpty(store.StoreLogoUrl))
+                                        {
+                                            <img src="@store.StoreLogoUrl" class="store-logo-small" alt="logo" />
+                                        }
+                                        else
+                                        {
+                                            <div class="store-logo-small d-flex align-items-center justify-content-center text-muted">
+                                                <i class="fas fa-shopping-bag"></i>
+                                            </div>
+                                        }
+
+                                        <label class="item-details w-100 m-0" for="store_@store.StoreId" style="cursor: pointer;">
+                                            <span class="item-title">@store.StoreName</span>
+                                            @if(!string.IsNullOrEmpty(store.StoreProfile))
+                                            {
+                                                <span class="item-subtitle">ID: @store.StoreProfile</span>
+                                            }
+                                        </label>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        @Html.ValidationMessage("SelectedStoreIds", "", new { @class = "text-danger p-2" })
+                    </div>
+
+                    <div class="assign-column">
+                        <div class="column-header">
+                            <i class="fas fa-user-shield text-info"></i> Uprawnienia
+                        </div>
+
+                        <div class="permissions-container custom-scrollbar">
+                            <div class="permission-switch">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" asp-for="AccesToViewSafari">
+                                    <label class="custom-control-label font-weight-bold" asp-for="AccesToViewSafari">View Safari</label>
+                                    <div class="text-muted small">Dostęp do podglądu Safari.</div>
+                                </div>
                             </div>
-                        }
-                    </div>
-                    @Html.ValidationMessage("SelectedUserIds")
-                </div>
 
-                <div class="form-group">
-                    <label>Stores</label>
-                    <div>
-                        @foreach (var store in Model.Stores)
-                        {
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="SelectedStoreIds" value="@store.StoreId" id="store_@store.StoreId" @(Model.SelectedStoreIds.Contains(store.StoreId) ? "checked" : "")>
-                                <label class="form-check-label" for="store_@store.StoreId">
-                                    @store.StoreName
-                                </label>
+                            <div class="permission-switch">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" asp-for="AccesToCreateSafari">
+                                    <label class="custom-control-label font-weight-bold" asp-for="AccesToCreateSafari">Create Safari</label>
+                                </div>
                             </div>
-                        }
-                    </div>
-                    @Html.ValidationMessage("SelectedStoreIds")
-                </div>
-                <div class="form-group">
-                    <label>Permissions</label>
-                    <div>
-                        @Html.CheckBoxFor(m => m.AccesToViewSafari)
-                        @Html.LabelFor(m => m.AccesToViewSafari, "Access To View Safari")
-                        <br />
-                        @Html.CheckBoxFor(m => m.AccesToCreateSafari)
-                        @Html.LabelFor(m => m.AccesToCreateSafari, "Access To Create Safari")
-                        <br />
-                        @Html.CheckBoxFor(m => m.AccesToViewMargin)
-                        @Html.LabelFor(m => m.AccesToViewMargin, "Access To View Margin")
-                        <br />
-                        @Html.CheckBoxFor(m => m.AccesToSetMargin)
-                        @Html.LabelFor(m => m.AccesToSetMargin, "Access To Set Margin")
-                    </div>
-                </div>
 
-                <button type="submit" class="btn btn-primary mt-3">Assign Stores and Permissions</button>
+                            <div class="permission-switch">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" asp-for="AccesToViewMargin">
+                                    <label class="custom-control-label font-weight-bold" asp-for="AccesToViewMargin">View Margin</label>
+                                </div>
+                            </div>
+
+                            <div class="permission-switch">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" asp-for="AccesToSetMargin">
+                                    <label class="custom-control-label font-weight-bold" asp-for="AccesToSetMargin">Set Margin</label>
+                                </div>
+                            </div>
+                            
+                            <hr class="my-3"/>
+                            <div class="text-uppercase small text-muted mb-2 font-weight-bold pl-1">Automatyzacja</div>
+
+                            <div class="permission-switch bg-highlight">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" asp-for="AccesToViewPriceAutomation">
+                                    <label class="custom-control-label font-weight-bold" asp-for="AccesToViewPriceAutomation">View Automation</label>
+                                </div>
+                            </div>
+
+                            <div class="permission-switch bg-highlight">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" asp-for="AccesToEditPriceAutomation">
+                                    <label class="custom-control-label font-weight-bold" asp-for="AccesToEditPriceAutomation">Edit Automation</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="padding: 15px; border-top: 1px solid #eee; background: #fff;">
+                            <button type="submit" class="btn btn-primary btn-block btn-lg shadow-sm">
+                                <i class="fas fa-save"></i> Zapisz Zmiany
+                            </button>
+                            <a href="@Url.Action("UserStore")" class="btn btn-outline-secondary btn-block mt-2">Anuluj</a>
+                        </div>
+                    </div>
+
+                </div>
             </form>
         </div>
     </div>
 </div>
 
+<script>
+    // 1. Filtrowanie Użytkowników
+    document.getElementById('searchUser').addEventListener('keyup', function() {
+        let filter = this.value.toLowerCase();
+        let items = document.querySelectorAll('#userList .user-card');
+        items.forEach(function(item) {
+            let text = item.innerText.toLowerCase();
+            item.style.display = text.includes(filter) ? "flex" : "none";
+        });
+    });
+
+    // 2. Filtrowanie Sklepów
+    document.getElementById('searchStore').addEventListener('keyup', function() {
+        let filter = this.value.toLowerCase();
+        let items = document.querySelectorAll('#storeList .store-card');
+        items.forEach(function(item) {
+            let text = item.innerText.toLowerCase();
+            item.style.display = text.includes(filter) ? "flex" : "none";
+        });
+    });
+
+    // 3. Wybór użytkownika (Reload)
+    function selectUser(element, userId) {
+        document.querySelectorAll('.user-card').forEach(el => el.classList.remove('selected'));
+        element.classList.add('selected');
+        document.getElementById('hiddenSelectedUserId').value = userId;
+        window.location.href = '@Url.Action("AssignStores")?userId=' + userId;
+    }
+
+    // 4. Dynamiczna zmiana koloru wiersza sklepu (Zielony/Czerwony)
+    function toggleStoreRow(checkbox) {
+        // Znajdź najbliższego rodzica o klasie .store-card
+        const row = checkbox.closest('.store-card');
+        
+        if (checkbox.checked) {
+            row.classList.remove('store-unselected');
+            row.classList.add('store-selected');
+        } else {
+            row.classList.remove('store-selected');
+            row.classList.add('store-unselected');
+        }
+    }
+</script>

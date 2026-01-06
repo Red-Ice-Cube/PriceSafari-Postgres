@@ -41,7 +41,10 @@ namespace PriceSafari.Controllers
                 AccesToViewSafari = user.AccesToViewSafari,
                 AccesToCreateSafari = user.AccesToCreateSafari,
                 AccesToViewMargin = user.AccesToViewMargin,
-                AccesToSetMargin = user.AccesToSetMargin
+                AccesToSetMargin = user.AccesToSetMargin,
+                // --- NOWE POLA ---
+                AccesToViewPriceAutomation = user.AccesToViewPriceAutomation,
+                AccesToEditPriceAutomation = user.AccesToEditPriceAutomation
             }).ToList();
 
             return View("~/Views/ManagerPanel/Affiliates/UserStore.cshtml", model);
@@ -79,6 +82,9 @@ namespace PriceSafari.Controllers
                     model.AccesToCreateSafari = selectedUser.AccesToCreateSafari;
                     model.AccesToViewMargin = selectedUser.AccesToViewMargin;
                     model.AccesToSetMargin = selectedUser.AccesToSetMargin;
+                    // --- NOWE POLA (Odczyt z bazy) ---
+                    model.AccesToViewPriceAutomation = selectedUser.AccesToViewPriceAutomation;
+                    model.AccesToEditPriceAutomation = selectedUser.AccesToEditPriceAutomation;
                 }
             }
 
@@ -124,6 +130,9 @@ namespace PriceSafari.Controllers
                     user.AccesToCreateSafari = model.AccesToCreateSafari;
                     user.AccesToViewMargin = model.AccesToViewMargin;
                     user.AccesToSetMargin = model.AccesToSetMargin;
+                    // --- NOWE POLA (Zapis do bazy) ---
+                    user.AccesToViewPriceAutomation = model.AccesToViewPriceAutomation;
+                    user.AccesToEditPriceAutomation = model.AccesToEditPriceAutomation;
 
                     var result = await _userManager.UpdateAsync(user);
                     if (!result.Succeeded)
@@ -165,8 +174,5 @@ namespace PriceSafari.Controllers
             model.Users = usersInMemberRole.ToList();
             model.Stores = await _context.Stores.ToListAsync();
         }
-
-
-
     }
 }

@@ -14,10 +14,12 @@ namespace PriceSafari.Models.ManagerViewModels
 
         public List<int> SelectedStoreIds { get; set; } = new List<int>();
 
-        // New properties for user permissions
+
         public bool AccesToViewSafari { get; set; }
         public bool AccesToCreateSafari { get; set; }
         public bool AccesToViewMargin { get; set; }
         public bool AccesToSetMargin { get; set; }
+        public bool AccesToViewPriceAutomation { get; set; }
+        public bool AccesToEditPriceAutomation { get; set; }
     }
 }
