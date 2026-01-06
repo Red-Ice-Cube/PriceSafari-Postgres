@@ -253,8 +253,22 @@ public class InvoiceDocument
             var paymentInfo = section.AddParagraph("Prosimy o dokonanie płatności na poniższy rachunek bankowy w terminie 14 dni:");
             paymentInfo.Style = "Bold";
             paymentInfo.Format.SpaceBefore = "1cm";
-            section.AddParagraph("PKO Bank Polski");
-            section.AddParagraph("Nr konta: PL88 1020 1664 0000 3302 0645 9798");
+
+         
+            if (_invoice.IssueDate.Year >= 2026)
+            {
+               
+                section.AddParagraph("ING Bank Śląski");
+             
+                section.AddParagraph("Nr konta: PL 47 1050 1142 1000 0090 8605 6679");
+            }
+            else
+            {
+           
+                section.AddParagraph("PKO Bank Polski");
+                section.AddParagraph("Nr konta: PL88 1020 1664 0000 3302 0645 9798");
+            }
+
             section.AddParagraph($"Tytuł płatności: {_invoice.InvoiceNumber}");
         }
 
