@@ -1,4 +1,18 @@
-﻿<div class="modal fade" id="selectedProductsModal" tabindex="-1" role="dialog" aria-labelledby="selectedProductsModalLabel" aria-hidden="true">
+﻿@using Microsoft.AspNetCore.Identity
+@using PriceSafari.Models
+@inject UserManager<PriceSafariUser> UserManager
+
+@{
+   
+    var user = await UserManager.GetUserAsync(User);
+
+   
+    bool canEditAutomation = user?.AccesToEditPriceAutomation ?? false;
+
+    string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen. Skontaktuj sie z nami biuro@pricesafari.pl";
+}
+
+<div class="modal fade" id="selectedProductsModal" tabindex="-1" role="dialog" aria-labelledby="selectedProductsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl" role="document">
         <div class="modal-content" style="margin: 3% auto !important; width: 1100px !important; max-width: 95% !important;">
             <div class="modal-header">
@@ -20,9 +34,22 @@
                                 <i class="fa-solid fa-tags" style="margin-right: 5px;"></i> Zarządzaj flagami
                             </button>
 
-                            <button id="openBulkAutomationModalBtn" class="Button-Page-Small" style="background-color: #4e73df; color: white; border: none;">
-                                <i class="fa-solid fa-robot" style="margin-right: 5px;"></i> Automatyzacja Cen
-                            </button>
+                         
+                            @if (canEditAutomation)
+                            {
+                            
+                                <button id="openBulkAutomationModalBtn" class="Button-Page-Small" style="background-color: #4e73df; color: white; border: none;">
+                                    <i class="fa-solid fa-robot" style="margin-right: 5px;"></i> Automatyzacja Cen
+                                </button>
+                            }
+                            else
+                            {
+                              
+                                <button type="button" onclick="alert('@Html.Raw(noAccessMessage)')" class="Button-Page-Small" style="background-color: #858796; color: white; border: none; opacity: 0.6; cursor: not-allowed;">
+                                    <i class="fas fa-robot" style="margin-right: 5px;"></i> Automatyzacja Cen <i class="fas fa-lock ml-1" style="font-size: 0.8em;"></i>
+                                </button>
+                            }
+
                         </div>
                     </div>
                 </div>
