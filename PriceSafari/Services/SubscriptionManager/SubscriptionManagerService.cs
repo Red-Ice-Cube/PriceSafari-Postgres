@@ -140,8 +140,6 @@ namespace PriceSafari.Services.SubscriptionService
                 await context.SaveChangesAsync(ct);
             }
 
-            // Pobieramy sklepy, które są oznaczone jako "Płacący" (IsPayingCustomer = true)
-            // To uwzględnia też konta testowe, jeśli ustawiłeś im tę flagę ręcznie lub systemowo.
             var stores = await context.Stores
                 .Include(s => s.Plan)
                 .Include(s => s.PaymentData)
@@ -151,11 +149,10 @@ namespace PriceSafari.Services.SubscriptionService
             int count = 0;
             foreach (var store in stores)
             {
-                // 1. Sprawdzenie daty startu (wspólne dla wszystkich)
+                // 1. Sprawdzenie daty startu
                 if (store.SubscriptionStartDate == null || store.SubscriptionStartDate.Value > DateTime.Today) continue;
 
-                // 2. Odejmowanie dni (wspólne dla wszystkich - Testowych i Płatnych)
-                // Jeśli mają dni, zabieramy jeden dzień.
+                // 2. Odejmowanie dni (to dzieje się zawsze, dopóki sklep ma dni)
                 if (store.RemainingDays > 0)
                 {
                     store.RemainingDays--;
@@ -164,31 +161,43 @@ namespace PriceSafari.Services.SubscriptionService
                 // 3. Sprawdzenie co robić, gdy dni się skończą (<= 0)
                 if (store.RemainingDays <= 0)
                 {
+                    // =================================================================
+                    // TUTAJ DODAJEMY WARUNEK USER WANTS EXIT
+                    // =================================================================
+                    if (store.UserWantsExit)
+                    {
+                        // Użytkownik oznaczył, że chce zrezygnować.
+                        // Dni zeszły do 0, więc subskrypcja wygasa naturalnie.
+                        // Nie wystawiamy nowej faktury i nie dodajemy nowych dni.
+
+                        _logger.LogInformation($"Sklep {store.StoreId} ({store.StoreName}) zakończył subskrypcję (UserWantsExit = true). Nie odnawiam.");
+
+                        // Opcjonalnie: Możesz tu odznaczyć IsPayingCustomer na false, 
+                        // aby w przyszłości generator w ogóle nie pobierał tego sklepu z bazy w tym zapytaniu.
+                        // store.IsPayingCustomer = false; 
+
+                        continue; // Przechodzimy do następnego sklepu
+                    }
+                    // =================================================================
+
                     // === NOWA LOGIKA DLA KONT TESTOWYCH (FREE) ===
-                    // Jeśli plan jest oznaczony jako Testowy/Free:
-                    // - Nie wystawiamy faktury.
-                    // - Nie dodajemy nowych dni (subskrypcja wygasa).
-                    // - Nie wysyłamy maila.
                     if (store.Plan.IsTestPlan)
                     {
-                        // Możesz opcjonalnie zalogować, że konto testowe wygasło, ale nie podejmujemy akcji.
-                        // _logger.LogInformation($"Sklep {store.StoreId} (Testowy) wyczerpał dni. Brak akcji.");
-                        continue; // Przechodzimy do następnego sklepu, pomijając logikę fakturowania
+                        continue;
                     }
 
                     // === LOGIKA DLA KLIENTÓW PŁATNYCH (STANDARDOWA) ===
-                    // Wykona się tylko jeśli to NIE jest plan testowy I cena jest > 0
                     if (store.Plan.NetPrice > 0)
                     {
-                        // Tutaj sprawdzamy czy mamy dane płatnika, aby uniknąć faktur na "Brak Danych"
                         if (store.PaymentData != null)
                         {
+                            // Ta metoda wystawia fakturę ORAZ dodaje dni (store.RemainingDays += ...)
                             await GenerateInvoiceOnly(context, store, invoiceCounter, deviceName);
                             count++;
                         }
                         else
                         {
-                            _logger.LogWarning($"Pominięto sklep {store.StoreId}: Płatny plan, ale brak danych do faktury (PaymentData is null).");
+                            _logger.LogWarning($"Pominięto sklep {store.StoreId}: Płatny plan, ale brak danych do faktury.");
                         }
                     }
                 }
