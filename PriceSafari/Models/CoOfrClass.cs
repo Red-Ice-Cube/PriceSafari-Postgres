@@ -28,7 +28,6 @@ public class CoOfrClass
     public List<string> StoreNames { get; set; } = new List<string>();
     public List<string> StoreProfiles { get; set; } = new List<string>();
 
-    // NOWA RELACJA:
     public virtual ICollection<CoOfrStoreData> StoreData { get; set; } = new List<CoOfrStoreData>();
 
 }

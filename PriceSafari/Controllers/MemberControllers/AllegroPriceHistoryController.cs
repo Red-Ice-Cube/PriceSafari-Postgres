@@ -76,7 +76,7 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
 
-        //aktualizacja id w bazie dla allegro
+        ////aktualizacja id w bazie dla allegro
 
         //[HttpGet]
         //[Authorize(Roles = "Admin")]
@@ -166,14 +166,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(g =>
                 {
                     var product = g.Key;
+                    // NOWY KOD - korzystamy z gotowego pola IdOnAllegro
                     long? targetOfferId = null;
-                    if (!string.IsNullOrEmpty(product.AllegroOfferUrl))
+                    if (long.TryParse(product.IdOnAllegro, out var parsedId))
                     {
-                        var idString = product.AllegroOfferUrl.Split('-').LastOrDefault();
-                        if (long.TryParse(idString, out var parsedId))
-                        {
-                            targetOfferId = parsedId;
-                        }
+                        targetOfferId = parsedId;
                     }
 
                     var myOffer = targetOfferId.HasValue
@@ -736,19 +733,34 @@ namespace PriceSafari.Controllers.MemberControllers
                 .ToList();
 
             var allMyProducts = await _context.AllegroProducts
-                .Where(p => p.StoreId == storeId)
-                .Select(p => new { p.AllegroProductId, p.AllegroOfferUrl })
-                .ToListAsync();
+                  .Where(p => p.StoreId == storeId)
+                  .Select(p => new { p.AllegroProductId, p.IdOnAllegro }) // <--- Zmiana: pobieramy IdOnAllegro zamiast URL
+                  .ToListAsync();
 
+            // NOWA WERSJA BUDOWANIA MAPY
             var navigationMap = new Dictionary<long, int>();
+
+            // Tworzymy słownik pomocniczy z naszych produktów (IdOnAllegro -> ProductId)
+            var myProductsLookup = new Dictionary<long, int>();
+
+            foreach (var p in allMyProducts)
+            {
+                if (long.TryParse(p.IdOnAllegro, out var parsedId))
+                {
+                    // Zabezpieczenie na wypadek duplikatów ID (teoretycznie niemożliwe na Allegro, ale bezpieczniej)
+                    if (!myProductsLookup.ContainsKey(parsedId))
+                    {
+                        myProductsLookup[parsedId] = p.AllegroProductId;
+                    }
+                }
+            }
+
+            // Teraz błyskawicznie mapujemy oferty z listy
             foreach (var offerId in myOfferIdsInList)
             {
-                var matchingProduct = allMyProducts.FirstOrDefault(p =>
-                    !string.IsNullOrEmpty(p.AllegroOfferUrl) && p.AllegroOfferUrl.EndsWith($"-{offerId}")
-                );
-                if (matchingProduct != null)
+                if (myProductsLookup.TryGetValue(offerId, out var productIdTarget))
                 {
-                    navigationMap[offerId] = matchingProduct.AllegroProductId;
+                    navigationMap[offerId] = productIdTarget;
                 }
             }
 
@@ -769,14 +781,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 TargetProductId = navigationMap.ContainsKey(aph.IdAllegro) ? navigationMap[aph.IdAllegro] : (int?)null
             }).ToList();
 
+            // Zastąp fragment parsowania URL tym:
             long? mainOfferId = null;
-            if (!string.IsNullOrEmpty(product.AllegroOfferUrl))
+            if (long.TryParse(product.IdOnAllegro, out var parsedMainId))
             {
-                var idString = product.AllegroOfferUrl.Split('-').LastOrDefault();
-                if (long.TryParse(idString, out var parsedId))
-                {
-                    mainOfferId = parsedId;
-                }
+                mainOfferId = parsedMainId;
             }
 
             var priceSettings = await _context.PriceValues.FirstOrDefaultAsync(pv => pv.StoreId == storeId);
@@ -809,13 +818,9 @@ namespace PriceSafari.Controllers.MemberControllers
             if (store == null) return NotFound("Store not found.");
 
             long? mainOfferId = null;
-            if (!string.IsNullOrEmpty(product.AllegroOfferUrl))
+            if (long.TryParse(product.IdOnAllegro, out var parsedId))
             {
-                var idString = product.AllegroOfferUrl.Split('-').LastOrDefault();
-                if (long.TryParse(idString, out var parsedId))
-                {
-                    mainOfferId = parsedId;
-                }
+                mainOfferId = parsedId;
             }
 
             var activePreset = await _context.CompetitorPresets

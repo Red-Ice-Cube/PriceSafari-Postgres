@@ -21,7 +21,7 @@ namespace PriceSafari.Models
 
         public string AllegroOfferUrl { get; set; }
 
-        // --- NOWE POLE (Twoja nazwa) ---
+        // --- NOWE POLE 
         [MaxLength(50)]
         public string? IdOnAllegro { get; set; }
 

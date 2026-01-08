@@ -297,7 +297,7 @@ namespace PriceSafari.Services.ScheduleService
                 GoogleIsScraped = false,
                 IsRejected = false,
                 GoogleIsRejected = false,
-                // Inicjalizujemy domyślnie na false, logika poniżej je ewentualnie włączy
+             
                 UseGPID = false,
                 UseWRGA = false
             };
@@ -305,7 +305,7 @@ namespace PriceSafari.Services.ScheduleService
             var uniqueStoreNames = new HashSet<string>();
             var uniqueStoreProfiles = new HashSet<string>();
 
-            // Zmienne pomocnicze do wykrycia flag
+         
             bool foundUseGPID = false;
             bool foundUseWRGA = false;
 
@@ -323,11 +323,9 @@ namespace PriceSafari.Services.ScheduleService
                     uniqueStoreNames.Add(product.Store.StoreName);
                     uniqueStoreProfiles.Add(product.Store.StoreProfile);
 
-                    // === NOWA LOGIKA: Sprawdzamy ustawienia sklepu ===
-                    // Jeśli sklep ma włączone UseGPID, oznaczamy, że ten URL ma być tak scrapowany
                     if (product.Store.UseGPID) foundUseGPID = true;
 
-                    // Jeśli sklep ma włączone UseWRGA, oznaczamy, że ten URL ma być tak scrapowany
+             
                     if (product.Store.UseWRGA) foundUseWRGA = true;
 
 
@@ -345,7 +343,6 @@ namespace PriceSafari.Services.ScheduleService
                 }
             }
 
-            // Przypisujemy wykryte wartości do obiektu CoOfr
             coOfr.UseGPID = foundUseGPID;
             coOfr.UseWRGA = foundUseWRGA;
 
