@@ -22,8 +22,9 @@ public class CoOfrClass
     public int? CeneoSalesCount { get; set; }
 
 
-
-
+    // zmienne dla googla
+    public bool UseGPID { get; set; } = false;
+    public bool UseWRGA { get; set; } = false;
     public List<string> StoreNames { get; set; } = new List<string>();
     public List<string> StoreProfiles { get; set; } = new List<string>();
 

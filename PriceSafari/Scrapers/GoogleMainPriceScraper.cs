@@ -1005,8 +1005,8 @@ namespace PriceSafari.Services
 
     public class GoogleMainPriceScraper
     {
-        // FLAGA: Włączamy tryb inteligentnego zapytania (WRGA)
-        private const bool USE_SMART_Q_MODE = true;
+        // USUNIĘTO: private const bool USE_SMART_Q_MODE = true; <- Już niepotrzebne jako stała
+
         // LIMITER: Próg odchylenia ceny dla WRGA (0.8 = 80%)
         private const decimal WRGA_PRICE_DEVIATION_LIMIT = 0.8m;
 
@@ -1032,15 +1032,19 @@ namespace PriceSafari.Services
             }
 
             string urlTemplate;
-            if (!string.IsNullOrEmpty(coOfr.GoogleGid))
+
+            // === ZMIANA 1: Logika użycia GPID ===
+            // Warunek: Mamy GID w bazie ORAZ flaga UseGPID jest ustawiona na true
+            if (!string.IsNullOrEmpty(coOfr.GoogleGid) && coOfr.UseGPID)
             {
-                Console.WriteLine($"metoda bez gid dla CID: {catalogId}");
-                urlTemplate = $"https://www.google.com/async/oapv?udm=3&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,gl:4,pvt:hg,_fmt:jspb";
+                Console.WriteLine($"[INFO] Używam metody z GPCID dla CID: {catalogId} (UseGPID = true)");
+                urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
             }
             else
             {
-                Console.WriteLine($"GID nie znaleziony dla CID: {catalogId}. Używam zapytania bez gpcid.");
-                urlTemplate = $"https://www.google.com/async/oapv?udm=3&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,gl:4,pvt:hg,_fmt:jspb";
+                // Jeśli nie ma GID lub UseGPID jest false -> lecimy po samym CatalogID
+                Console.WriteLine($"[INFO] Metoda standardowa (bez gpcid) dla CID: {catalogId}.");
+                urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
             }
 
             var allFoundOffers = new List<TempOffer>();
@@ -1129,8 +1133,10 @@ namespace PriceSafari.Services
             } while (lastFetchCount == pageSize);
 
             // --- 2. TRYB SMART Q (WRGA) Z LIMITEREM CENOWYM ---
-            if (USE_SMART_Q_MODE && !string.IsNullOrEmpty(firstPageRawResponse))
+            if (coOfr.UseWRGA && !string.IsNullOrEmpty(firstPageRawResponse))
             {
+                Console.WriteLine($"[INFO] Uruchamiam tryb WRGA (Smart Q) dla produktu: {catalogId}");
+
                 // Obliczamy średnią cenę z OAPV jako punkt odniesienia (Baseline)
                 decimal baselinePrice = 0;
                 if (allFoundOffers.Any())
@@ -1156,20 +1162,18 @@ namespace PriceSafari.Services
 
                         foreach (var off in wrgaOffers)
                         {
-                           
                             if (baselinePrice > 0)
                             {
                                 decimal wrgaPrice = ParsePrice(off.Price);
-                                decimal diff = wrgaPrice - baselinePrice; 
-                                decimal percentageDiff = diff / baselinePrice; 
+                                decimal diff = wrgaPrice - baselinePrice;
+                                decimal percentageDiff = diff / baselinePrice;
 
-                             
                                 if (percentageDiff < -0.8m || percentageDiff > 2.0m)
                                 {
                                     Console.ForegroundColor = ConsoleColor.DarkGray;
                                     Console.WriteLine($"[LIMITER] Odrzucono ofertę WRGA ({off.Seller}). Cena: {wrgaPrice} vs Średnia OAPV: {baselinePrice:F2} (Różnica: {percentageDiff:P0})");
                                     Console.ResetColor();
-                                    continue; 
+                                    continue;
                                 }
                             }
 
@@ -1187,7 +1191,7 @@ namespace PriceSafari.Services
                 }
             }
 
-         
+
             var groupedBySeller = allFoundOffers.GroupBy(o => o.Seller);
             var finalOffersToProcess = new List<(TempOffer offer, int count)>();
 
