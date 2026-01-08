@@ -165,6 +165,11 @@
 //    }
 //}
 
+
+
+
+
+
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
@@ -185,7 +190,6 @@ namespace PriceSafari.Services.ScheduleService
 
         public async Task<(int totalProducts, List<string> distinctStoreNames)> GroupAndSaveUniqueUrls(List<int> storeIds)
         {
-            // 1. POBIERANIE DANYCH (Optymalizacja: filtrowanie w bazie)
             var products = await _context.Products
                 .Include(p => p.Store)
                 .Where(p => p.IsScrapable && p.Store.RemainingDays > 0)
@@ -200,13 +204,11 @@ namespace PriceSafari.Services.ScheduleService
 
             int totalProducts = products.Count;
 
-            // --- LOGIKA GRUPOWANIA (W pamięci RAM) ---
             var productsWithOffer = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl)).ToList();
             var productsWithoutOffer = products.Where(p => string.IsNullOrEmpty(p.OfferUrl)).ToList();
 
             var coOfrs = new List<CoOfrClass>();
 
-            // A. Grupy z URL oferty
             var groupsByOfferUrl = productsWithOffer
                 .GroupBy(p => p.OfferUrl ?? "")
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -219,7 +221,6 @@ namespace PriceSafari.Services.ScheduleService
                 coOfrs.Add(coOfr);
             }
 
-            // B. Grupy bez URL oferty (tylko GoogleUrl)
             var groupsByGoogleUrlForNoOffer = productsWithoutOffer
                 .Where(p => !string.IsNullOrEmpty(p.GoogleUrl))
                 .GroupBy(p => p.GoogleUrl ?? "")
@@ -233,7 +234,6 @@ namespace PriceSafari.Services.ScheduleService
                 coOfrs.Add(coOfr);
             }
 
-            // C. Produkty "sieroty" (bez żadnego URL)
             var productsWithNoUrl = productsWithoutOffer.Where(p => string.IsNullOrEmpty(p.GoogleUrl)).ToList();
             if (productsWithNoUrl.Any())
             {
@@ -241,27 +241,18 @@ namespace PriceSafari.Services.ScheduleService
                 coOfrs.Add(coOfr);
             }
 
-            // 2. BEZPIECZNE KASOWANIE I ZAPIS (Obsługa SqlServerRetryingExecutionStrategy)
-
-            // Pobieramy strategię wykonania z kontekstu bazy
             var strategy = _context.Database.CreateExecutionStrategy();
 
-            // Wykonujemy wszystko wewnątrz strategii (wymagane przy EnableRetryOnFailure)
             await strategy.ExecuteAsync(async () =>
             {
-                // Dopiero tutaj otwieramy transakcję
                 using var transaction = await _context.Database.BeginTransactionAsync();
 
                 try
                 {
-                    // KROK A: Czyścimy tabele podrzędne (Dzieci)
                     await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrStoreDatas]");
                     await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrPriceHistories]");
-
-                    // KROK B: Czyścimy tabelę główną (Rodzica)
                     await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrs]");
 
-                    // KROK C: Reset liczników ID (Identity)
                     try
                     {
                         await _context.Database.ExecuteSqlRawAsync("DBCC CHECKIDENT ('[CoOfrs]', RESEED, 0)");
@@ -269,21 +260,17 @@ namespace PriceSafari.Services.ScheduleService
                     }
                     catch
                     {
-                        // Ignorujemy błędy resetowania ID
                     }
 
-                    // KROK D: Zapis nowych danych
                     _context.CoOfrs.AddRange(coOfrs);
                     await _context.SaveChangesAsync();
 
-                    // Zatwierdzenie transakcji
                     await transaction.CommitAsync();
                 }
                 catch
                 {
-                    // W razie błędu cofamy zmiany
                     await transaction.RollbackAsync();
-                    throw; // Rzucamy wyjątek wyżej, by strategia wiedziała, że operacja się nie udała
+                    throw;
                 }
             });
 
@@ -309,11 +296,18 @@ namespace PriceSafari.Services.ScheduleService
                 IsScraped = false,
                 GoogleIsScraped = false,
                 IsRejected = false,
-                GoogleIsRejected = false
+                GoogleIsRejected = false,
+                // Inicjalizujemy domyślnie na false, logika poniżej je ewentualnie włączy
+                UseGPID = false,
+                UseWRGA = false
             };
 
             var uniqueStoreNames = new HashSet<string>();
             var uniqueStoreProfiles = new HashSet<string>();
+
+            // Zmienne pomocnicze do wykrycia flag
+            bool foundUseGPID = false;
+            bool foundUseWRGA = false;
 
             foreach (var product in productList)
             {
@@ -329,6 +323,14 @@ namespace PriceSafari.Services.ScheduleService
                     uniqueStoreNames.Add(product.Store.StoreName);
                     uniqueStoreProfiles.Add(product.Store.StoreProfile);
 
+                    // === NOWA LOGIKA: Sprawdzamy ustawienia sklepu ===
+                    // Jeśli sklep ma włączone UseGPID, oznaczamy, że ten URL ma być tak scrapowany
+                    if (product.Store.UseGPID) foundUseGPID = true;
+
+                    // Jeśli sklep ma włączone UseWRGA, oznaczamy, że ten URL ma być tak scrapowany
+                    if (product.Store.UseWRGA) foundUseWRGA = true;
+
+
                     if (product.Store.FetchExtendedData && product.ExternalId.HasValue)
                     {
                         var storeData = new CoOfrStoreData
@@ -342,6 +344,10 @@ namespace PriceSafari.Services.ScheduleService
                     }
                 }
             }
+
+            // Przypisujemy wykryte wartości do obiektu CoOfr
+            coOfr.UseGPID = foundUseGPID;
+            coOfr.UseWRGA = foundUseWRGA;
 
             coOfr.StoreNames = uniqueStoreNames.ToList();
             coOfr.StoreProfiles = uniqueStoreProfiles.ToList();

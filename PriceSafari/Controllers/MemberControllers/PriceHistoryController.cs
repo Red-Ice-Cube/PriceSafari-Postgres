@@ -844,7 +844,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     string productNameForUrl = System.Net.WebUtility.UrlEncode(product.ProductName);
 
-                    newGoogleUrl = $"https://www.google.com/search?q={productNameForUrl}&udm=3#oshopproduct=cid:{productIdCid},pvt:hg,pvo:3&oshop=apv";
+                    newGoogleUrl = $"https://www.google.com/search?q={productNameForUrl}&udm=28#oshopproduct=cid:{productIdCid},pvt:hg,pvo:3&oshop=apv";
                 }
             }
 

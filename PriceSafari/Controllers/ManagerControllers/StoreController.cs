@@ -140,7 +140,8 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.StoreNameCeneo = store.StoreNameCeneo;
             existingStore.FetchExtendedData = store.FetchExtendedData;
             existingStore.StoreSystemType = store.StoreSystemType;
-
+            existingStore.UseGPID = store.UseGPID;
+            existingStore.UseWRGA = store.UseWRGA;
             existingStore.UseGoogleXMLFeedPrice = store.UseGoogleXMLFeedPrice;
             existingStore.UseCeneoXMLFeedPrice = store.UseCeneoXMLFeedPrice;
             existingStore.OnCeneo = store.OnCeneo;

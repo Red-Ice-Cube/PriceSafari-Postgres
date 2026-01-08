@@ -281,30 +281,56 @@
         <div class="card-header">
             <h4>Aktywacja Modułów</h4>
         </div>
-        <div class="card-body">
-            <p class="text-muted">Zaznacz, które moduły i źródła danych mają być aktywne dla tego sklepu.</p>
-            <div class="form-group">
-                <div class="form-check">
-                    <input asp-for="OnCeneo" class="form-check-input" type="checkbox" />
-                    <label asp-for="OnCeneo" class="form-check-label">Ceneo aktywne</label>
-                </div>
-                <div class="form-check">
-                    <input asp-for="OnGoogle" class="form-check-input" type="checkbox" />
-                    <label asp-for="OnGoogle" class="form-check-label">Google aktywne</label>
-                </div>
-                <div class="form-check">
-                    <input asp-for="OnAllegro" class="form-check-input" type="checkbox" />
-                    <label asp-for="OnAllegro" class="form-check-label">Allegro aktywne</label>
-                </div>
-                <hr />
-                <div class="form-check">
-                    <input asp-for="UseGoogleXMLFeedPrice" class="form-check-input" type="checkbox" />
-                    <label asp-for="UseGoogleXMLFeedPrice" class="form-check-label font-weight-bold">Importuj ceny z pliku Google XML (ostrzykiwanie)</label>
-                </div>
+        <div class="card">
+            <div class="card-header">
+                <h4>Aktywacja Modułów</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Zaznacz, które moduły i źródła danych mają być aktywne dla tego sklepu.</p>
+                <div class="form-group">
+                    <div class="form-check">
+                        <input asp-for="OnCeneo" class="form-check-input" type="checkbox" />
+                        <label asp-for="OnCeneo" class="form-check-label">Ceneo aktywne</label>
+                    </div>
+                    <div class="form-check">
+                        <input asp-for="OnGoogle" class="form-check-input" type="checkbox" />
+                        <label asp-for="OnGoogle" class="form-check-label">Google aktywne</label>
+                    </div>
+                    <div class="form-check">
+                        <input asp-for="OnAllegro" class="form-check-input" type="checkbox" />
+                        <label asp-for="OnAllegro" class="form-check-label">Allegro aktywne</label>
+                    </div>
 
-                <div class="form-check">
-                    <input asp-for="UseCeneoXMLFeedPrice" class="form-check-input" type="checkbox" />
-                    <label asp-for="UseCeneoXMLFeedPrice" class="form-check-label font-weight-bold">Importuj ceny z pliku Ceneo XML (ostrzykiwanie)</label>
+                    <hr />
+                    <h6 class="text-primary"><i class="fas fa-file-import"></i> Feed XML (Ceny)</h6>
+
+                    <div class="form-check">
+                        <input asp-for="UseGoogleXMLFeedPrice" class="form-check-input" type="checkbox" />
+                        <label asp-for="UseGoogleXMLFeedPrice" class="form-check-label font-weight-bold">Importuj ceny z pliku Google XML (ostrzykiwanie)</label>
+                    </div>
+
+                    <div class="form-check">
+                        <input asp-for="UseCeneoXMLFeedPrice" class="form-check-input" type="checkbox" />
+                        <label asp-for="UseCeneoXMLFeedPrice" class="form-check-label font-weight-bold">Importuj ceny z pliku Ceneo XML (ostrzykiwanie)</label>
+                    </div>
+
+                    <hr />
+                    <h6 class="text-primary"><i class="fab fa-google"></i> Zaawansowane Opcje Scrapera Google</h6>
+                    <div class="alert alert-light border p-2 mb-2">
+                        <small class="text-muted">Te opcje wpływają na sposób budowania linków i metodę pobierania ofert z Google Shopping.</small>
+                    </div>
+
+                    <div class="form-check mb-2">
+                        <input asp-for="UseGPID" class="form-check-input" type="checkbox" />
+                        <label asp-for="UseGPID" class="form-check-label font-weight-bold">Używaj parametru GPID (Google Product ID)</label>
+                        <small class="d-block text-muted">Wymusza użycie parametru <code>gpcid</code> w linku zapytania, jeśli produkt posiada zdefiniowany GID.</small>
+                    </div>
+
+                    <div class="form-check">
+                        <input asp-for="UseWRGA" class="form-check-input" type="checkbox" />
+                        <label asp-for="UseWRGA" class="form-check-label font-weight-bold">Włącz tryb Smart Q (WRGA)</label>
+                        <small class="d-block text-muted">Aktywuje inteligentne dopytywanie po tytule produktu w przypadku braku wyników w głównym zapytaniu.</small>
+                    </div>
                 </div>
             </div>
         </div>
