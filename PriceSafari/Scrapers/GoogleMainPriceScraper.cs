@@ -1156,20 +1156,20 @@ namespace PriceSafari.Services
 
                         foreach (var off in wrgaOffers)
                         {
-                            // === LIMITER CENOWY DLA WRGA ===
+                           
                             if (baselinePrice > 0)
                             {
                                 decimal wrgaPrice = ParsePrice(off.Price);
-                                decimal diff = wrgaPrice - baselinePrice; // Różnica (może być ujemna)
-                                decimal percentageDiff = diff / baselinePrice; // Procent różnicy
+                                decimal diff = wrgaPrice - baselinePrice; 
+                                decimal percentageDiff = diff / baselinePrice; 
 
-                                // Jeśli tańsze o więcej niż 80% LUB droższe o więcej niż 200% -> ODRZUĆ
+                             
                                 if (percentageDiff < -0.8m || percentageDiff > 2.0m)
                                 {
                                     Console.ForegroundColor = ConsoleColor.DarkGray;
                                     Console.WriteLine($"[LIMITER] Odrzucono ofertę WRGA ({off.Seller}). Cena: {wrgaPrice} vs Średnia OAPV: {baselinePrice:F2} (Różnica: {percentageDiff:P0})");
                                     Console.ResetColor();
-                                    continue; // Pomiń tę ofertę
+                                    continue; 
                                 }
                             }
 
@@ -1187,7 +1187,7 @@ namespace PriceSafari.Services
                 }
             }
 
-            // --- 3. PRZETWARZANIE WYNIKÓW ---
+         
             var groupedBySeller = allFoundOffers.GroupBy(o => o.Seller);
             var finalOffersToProcess = new List<(TempOffer offer, int count)>();
 

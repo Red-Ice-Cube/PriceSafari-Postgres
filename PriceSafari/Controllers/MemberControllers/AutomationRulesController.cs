@@ -7,8 +7,7 @@ using PriceSafari.Data;
 using PriceSafari.Enums;
 using PriceSafari.Models;
 using PriceSafari.Models.ViewModels;
-
-using System.Linq;
+using System.Security.Claims;
 
 namespace PriceSafari.Controllers.MemberControllers
 {
@@ -26,12 +25,21 @@ namespace PriceSafari.Controllers.MemberControllers
         [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public async Task<IActionResult> Dashboard()
         {
+            // 2. Pobierz ID zalogowanego użytkownika
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var stores = await _context.Stores
-                .Include(s => s.AutomationRules)
+            // 3. Zmień zapytanie: pobierz UserStores dla tego usera, dołącz StoreClass i Reguły
+            var userStores = await _context.UserStores
+                .Where(us => us.UserId == userId)
+                .Include(us => us.StoreClass)                 // Dołącz obiekt Sklepu
+                    .ThenInclude(s => s.AutomationRules)      // Dołącz reguły do Sklepu (potrzebne do zliczeń)
                 .AsNoTracking()
                 .ToListAsync();
 
+            // 4. Wyciągnij same obiekty sklepów z relacji UserStores
+            var stores = userStores.Select(us => us.StoreClass).ToList();
+
+            // 5. Reszta logiki mapowania pozostaje bez zmian
             var model = stores.Select(s => new AutomationStoreListViewModel
             {
                 StoreId = s.StoreId,
@@ -48,6 +56,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return View("~/Views/Panel/AutomationRules/Dashboard.cshtml", model);
         }
+
 
         [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public async Task<IActionResult> Index(int? storeId, AutomationSourceType? filterType)
@@ -205,18 +214,13 @@ namespace PriceSafari.Controllers.MemberControllers
             return NotFound();
         }
 
-
-
-
-
-
-
-
         public class AssignProductsDto
         {
-            public int RuleId { get; set; } // Ignorowane przy Unassign
+            public int RuleId { get; set; }
+
             public List<int> ProductIds { get; set; } = new List<int>();
-            public bool IsAllegro { get; set; } // <--- Nowe pole, kluczowe!
+            public bool IsAllegro { get; set; }
+
         }
 
         public class RulesStatusRequest
@@ -235,25 +239,17 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool IsActive { get; set; }
             public int StrategyMode { get; set; }
 
-            // Ile z ZAZNACZONYCH produktów jest już w tej regule
             public int MatchingCount { get; set; }
 
-            // Ile w ogóle produktów jest w tej regule (informacyjnie)
             public int TotalCount { get; set; }
         }
 
-        // =====================================================================
-        // NOWE METODY API
-        // =====================================================================
-
-        // 1. Pobieranie listy reguł z licznikami (zastępuje stare GetRulesForModal)
         [HttpPost]
         [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public async Task<IActionResult> GetRulesStatusForProducts([FromBody] RulesStatusRequest request)
         {
             if (request == null) return BadRequest();
 
-            // A. Pobierz wszystkie reguły danego typu dla sklepu
             var rules = await _context.AutomationRules
                 .Where(r => r.StoreId == request.StoreId && r.SourceType == request.SourceType)
                 .AsNoTracking()
@@ -261,8 +257,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var result = new List<RuleStatusViewModel>();
 
-            // B. Pobierz przypisania TYLKO dla produktów z listy (zaznaczonych)
-            // Dzięki temu wiemy, gdzie one teraz "siedzą"
             var relevantAssignments = await _context.AutomationProductAssignments
                 .Where(a => request.IsAllegro
                     ? (a.AllegroProductId.HasValue && request.ProductIds.Contains(a.AllegroProductId.Value))
@@ -270,13 +264,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(a => new { a.AutomationRuleId })
                 .ToListAsync();
 
-            // C. Dla każdej reguły policz statystyki
             foreach (var rule in rules)
             {
-                // Ile z ZAZNACZONYCH jest tutaj?
+
                 int matchingCount = relevantAssignments.Count(a => a.AutomationRuleId == rule.Id);
 
-                // Ile w ogóle jest w tej regule? (To zapytanie jest szybkie na indeksach)
                 int totalCount = await _context.AutomationProductAssignments
                     .CountAsync(a => a.AutomationRuleId == rule.Id);
 
@@ -292,11 +284,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 });
             }
 
-            // Sortowanie: najpierw te, gdzie już coś mamy, potem alfabetycznie
             return Json(result.OrderByDescending(r => r.MatchingCount).ThenBy(r => r.Name));
         }
 
-        // 2. Przypisywanie produktów (Zastępuje stare AssignProducts)
         [HttpPost]
         [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> AssignProducts([FromBody] AssignProductsDto model)
@@ -309,8 +299,6 @@ namespace PriceSafari.Controllers.MemberControllers
             var rule = await _context.AutomationRules.FindAsync(model.RuleId);
             if (rule == null) return NotFound("Reguła nie istnieje.");
 
-            // Pobierz istniejące przypisania dla tych produktów, aby je zaktualizować (przenieść)
-            // Zamiast tworzyć duplikaty (co wywaliłoby błąd UNIQUE constraint)
             var existingAssignments = await _context.AutomationProductAssignments
                 .Where(a => model.IsAllegro
                     ? (a.AllegroProductId.HasValue && model.ProductIds.Contains(a.AllegroProductId.Value))
@@ -319,15 +307,14 @@ namespace PriceSafari.Controllers.MemberControllers
 
             foreach (var prodId in model.ProductIds)
             {
-                // Sprawdź czy ten produkt ma już jakąś regułę
+
                 var existing = model.IsAllegro
                     ? existingAssignments.FirstOrDefault(a => a.AllegroProductId == prodId)
                     : existingAssignments.FirstOrDefault(a => a.ProductId == prodId);
 
                 if (existing != null)
                 {
-                    // SCENARIUSZ A: Aktualizacja (Przeniesienie do innej grupy)
-                    // Zmieniamy tylko ID reguły
+
                     if (existing.AutomationRuleId != model.RuleId)
                     {
                         existing.AutomationRuleId = model.RuleId;
@@ -337,12 +324,12 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
                 else
                 {
-                    // SCENARIUSZ B: Nowe przypisanie
+
                     var newAssignment = new AutomationProductAssignment
                     {
                         AutomationRuleId = model.RuleId,
                         AssignedDate = DateTime.UtcNow,
-                        // Ustawiamy odpowiednie ID w zależności od kontekstu
+
                         ProductId = model.IsAllegro ? null : prodId,
                         AllegroProductId = model.IsAllegro ? prodId : null
                     };
@@ -355,7 +342,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return Ok(new { success = true, message = $"Pomyślnie przypisano {model.ProductIds.Count} produktów do grupy: {rule.Name}" });
         }
 
-        // 3. Odpinanie produktów (Nowa metoda dla czerwonego kafelka)
         [HttpPost]
         [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> UnassignProducts([FromBody] AssignProductsDto model)
@@ -365,7 +351,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return BadRequest("Brak danych.");
             }
 
-            // Znajdź wszystkie przypisania dla wybranych produktów
             var assignmentsToRemove = await _context.AutomationProductAssignments
                 .Where(a => model.IsAllegro
                     ? (a.AllegroProductId.HasValue && model.ProductIds.Contains(a.AllegroProductId.Value))
