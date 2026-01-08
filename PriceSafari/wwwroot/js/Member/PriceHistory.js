@@ -930,24 +930,30 @@
 
     function convertPriceValue(price, usePriceDifference) {
         if (price.onlyMe) {
-
             return { valueToUse: null, colorClass: 'prOnlyMe' };
         } else {
             let valueForColorCalculation;
             let displayValueToUse;
 
             if (usePriceDifference) {
+             
                 valueForColorCalculation = (price.savings !== null ? price.savings : price.priceDifference);
                 displayValueToUse = valueForColorCalculation;
             } else {
-
+              
                 displayValueToUse = price.percentageDifference;
 
+         
                 if (price.myPrice && price.lowestPrice && parseFloat(price.myPrice) > parseFloat(price.lowestPrice) && !price.isUniqueBestPrice && !price.isSharedBestPrice) {
                     valueForColorCalculation = ((parseFloat(price.myPrice) - parseFloat(price.lowestPrice)) / parseFloat(price.myPrice)) * 100;
                 } else {
-
-                    valueForColorCalculation = price.percentageDifference;
+                
+              
+                    if (price.isUniqueBestPrice && price.savings && price.myPrice) {
+                        valueForColorCalculation = (parseFloat(price.savings) / parseFloat(price.myPrice)) * 100;
+                    } else {
+                        valueForColorCalculation = price.percentageDifference;
+                    }
                 }
             }
 
@@ -1115,7 +1121,12 @@
                             if (price.myPrice && price.lowestPrice && parseFloat(price.myPrice) > parseFloat(price.lowestPrice) && !price.isUniqueBestPrice && !price.isSharedBestPrice) {
                                 valueToUseForColorCalculation = ((parseFloat(price.myPrice) - parseFloat(price.lowestPrice)) / parseFloat(price.myPrice)) * 100;
                             } else {
-                                valueToUseForColorCalculation = price.percentageDifference;
+                            
+                                if (price.isUniqueBestPrice && price.savings && price.myPrice) {
+                                    valueToUseForColorCalculation = (parseFloat(price.savings) / parseFloat(price.myPrice)) * 100;
+                                } else {
+                                    valueToUseForColorCalculation = price.percentageDifference;
+                                }
                             }
                         }
 
@@ -1451,13 +1462,24 @@
     }
 
     function getColorClass(valueToUse, isUniqueBestPrice = false, isSharedBestPrice = false) {
+      
         if (isSharedBestPrice) {
             return "prGood";
         }
+
+   
         if (isUniqueBestPrice) {
-            return valueToUse <= setPrice1 ? "prIdeal" : "prToLow";
+           
+            if (!usePriceDifference) {
+         
+                return Math.abs(valueToUse) > setPrice1 ? "prToLow" : "prIdeal";
+            } else {
+          
+                return valueToUse <= setPrice1 ? "prIdeal" : "prToLow";
+            }
         }
 
+       
         return valueToUse < setPrice2 ? "prMid" : "prToHigh";
     }
 
