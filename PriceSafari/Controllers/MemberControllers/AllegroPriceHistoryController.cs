@@ -100,6 +100,82 @@ namespace PriceSafari.Controllers.MemberControllers
         //    return Ok($"Zaktualizowano pole IdOnAllegro dla {count} produktów.");
         //}
 
+
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetDuplicateProductsByIdOnAllegro()
+        {
+            // 1. Znajdź wszystkie IdOnAllegro, które się powtarzają (Count > 1)
+            var duplicateKeys = await _context.AllegroProducts
+                .AsNoTracking()
+                .Where(p => p.IdOnAllegro != null)
+                .GroupBy(p => p.IdOnAllegro)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToListAsync();
+
+            if (!duplicateKeys.Any())
+            {
+                return Ok("Brak produktów ze zduplikowanym IdOnAllegro.");
+            }
+
+            // 2. Pobierz pełne obiekty produktów, które mają te ID
+            var products = await _context.AllegroProducts
+                .AsNoTracking()
+                .Include(p => p.Store) // Dołączamy sklep, żeby wiedzieć gdzie leży produkt
+                .Where(p => duplicateKeys.Contains(p.IdOnAllegro))
+                .ToListAsync();
+
+            // 3. Wyciągamy listę ID naszych produktów, żeby poszukać ich cen
+            var productIds = products.Select(p => p.AllegroProductId).Distinct().ToList();
+
+            // 4. Pobieramy najnowszą cenę dla każdego produktu.
+            // Uwaga: Pobieramy "płaską" listę cen z datami, a grupowanie zrobimy w pamięci (dla wydajności SQL)
+            var pricesRaw = await _context.AllegroPriceHistories
+                .AsNoTracking()
+                .Include(ph => ph.AllegroScrapeHistory)
+                .Where(ph => productIds.Contains(ph.AllegroProductId))
+                .Select(ph => new
+                {
+                    ph.AllegroProductId,
+                    ph.Price,
+                    Date = ph.AllegroScrapeHistory.Date,
+                    ph.SellerName // Opcjonalnie: żeby upewnić się czy to nasza oferta, czy konkurencji
+                })
+                .ToListAsync();
+
+            // Grupujemy ceny po ID produktu i bierzemy tę z najświeższą datą
+            var latestPricesDict = pricesRaw
+                .GroupBy(x => x.AllegroProductId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(x => x.Date).Select(x => x.Price).FirstOrDefault()
+                );
+
+            // 5. Budujemy wynik końcowy - pogrupowany ładnie po IdOnAllegro
+            var result = products
+                .GroupBy(p => p.IdOnAllegro)
+                .Select(g => new
+                {
+                    CommonIdOnAllegro = g.Key,
+                    DuplicateCount = g.Count(),
+                    Products = g.Select(p => new
+                    {
+                        InternalDbId = p.AllegroProductId,
+                        StoreName = p.Store?.StoreNameAllegro ?? "Nieznany sklep",
+                        ProductName = p.AllegroProductName,
+                        Ean = p.AllegroEan,
+                        Url = p.AllegroOfferUrl,
+                        LatestScrapedPrice = latestPricesDict.ContainsKey(p.AllegroProductId)
+                            ? latestPricesDict[p.AllegroProductId]
+                            : (decimal?)null
+                    }).ToList()
+                })
+                .ToList();
+
+            return Json(result);
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetAllegroPrices(int? storeId)
         {

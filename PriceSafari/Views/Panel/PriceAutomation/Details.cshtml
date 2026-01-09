@@ -258,6 +258,46 @@
         cursor: not-allowed;
         pointer-events: auto !important;
     }
+
+
+
+
+
+
+    /* Nowe style dla statusu wgrania (przerywana ramka) */
+    .status-box-dashed {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px; /* Zero góra/dół, bo border zabiera miejsce */
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700; /* Nieco grubszy font dla czytelności bez tła */
+        width: 124px;
+        min-width: 120px;
+        height: 24px;
+        gap: 4px;
+        background-color: transparent;
+        border-style: dashed;
+        border-width: 2px;
+        text-transform: uppercase;
+    }
+
+    /* Warianty kolorystyczne */
+    .status-dashed-success {
+        border-color: #1cc88a;
+        color: #1cc88a !important;
+    }
+
+    .status-dashed-danger {
+        border-color: #e74a3b;
+        color: #e74a3b !important;
+    }
+
+    .status-dashed-secondary {
+        border-color: #858796;
+        color: #858796 !important;
+    }
 </style>
 
 <div class="container-fluid">
@@ -789,7 +829,53 @@
                                         }
                                     </div>
                                 </td>
-                                <td class="align-middle text-center"></td>
+                                <td class="align-middle text-center">
+                                    <div class="d-flex flex-column align-items-center" style="gap: 4px;">
+
+                                        @if (item.IsAlreadyUpdated)
+                                        {
+                                            @* --- STAN 1: WGRANO (Zielona przerywana ramka) --- *@
+                                            <div class="status-box-dashed status-dashed-success" title="Cena wgrana: @(item.UpdateDate?.ToString("dd.MM HH:mm") ?? "-")">
+                                                <i class="fas fa-check mr-1"></i> WGRANO
+                                            </div>
+
+                                            @* Data wgrania *@
+                                            @if (item.UpdateDate.HasValue)
+                                            {
+                                                <div style="font-size: 10px; color: #858796; line-height: 1.1;">
+                                                    @item.UpdateDate.Value.ToString("dd.MM")<br>
+                                                    @item.UpdateDate.Value.ToString("HH:mm")
+                                                </div>
+                                            }
+
+                                            @* Cena wgrana *@
+                                            @if (item.UpdatedPrice.HasValue)
+                                            {
+                                                <div style="font-size: 11px; color: #1cc88a; font-weight: 700; margin-top: 2px;">
+                                                    @item.UpdatedPrice.Value.ToString("F2") PLN
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            @* --- STAN 2: NIE WGRANO (Czerwona przerywana ramka) --- *@
+                                            @if (item.Status != AutomationCalculationStatus.Blocked && item.SuggestedPrice.HasValue)
+                                            {
+                                                <div class="status-box-dashed status-dashed-danger">
+                                                    <i class="fas fa-times mr-1"></i> NIE WGRANO
+                                                </div>
+                                                <span class="text-xs text-gray-400">Oczekuje</span>
+                                            }
+                                            else
+                                            {
+                                                @* --- STAN 3: BLOKADA (Szara przerywana ramka) --- *@
+                                                <div class="status-box-dashed status-dashed-secondary">
+                                                    <i class="fas fa-ban mr-1"></i> BLOKADA
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                </td>
                             </tr>
                         }
                     </tbody>

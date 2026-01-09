@@ -124,6 +124,17 @@ namespace PriceSafari.Models.ViewModels
 
         // Helper sprawdzający czy wiersz jest zablokowany (dla kompatybilności widoku)
         public bool IsBlockedByStatus => Status == AutomationCalculationStatus.Blocked;
+
+
+
+
+
+
+
+
+        public bool IsAlreadyUpdated { get; set; }
+        public decimal? UpdatedPrice { get; set; }
+        public DateTime? UpdateDate { get; set; }
     }
 
     public class AutomationExecutionRequest

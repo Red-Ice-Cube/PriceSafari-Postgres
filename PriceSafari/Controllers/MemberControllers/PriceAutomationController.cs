@@ -185,16 +185,34 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             var resultProducts = new List<AutomationProductRowViewModel>();
 
+            // 1. Pobieramy ostatni Scrap History
             var latestScrap = await _context.AllegroScrapeHistories
-               .Where(sh => sh.StoreId == rule.StoreId)
-               .OrderByDescending(sh => sh.Date)
-               .Select(sh => new { sh.Id, sh.Date })
-               .FirstOrDefaultAsync();
+                .Where(sh => sh.StoreId == rule.StoreId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => new { sh.Id, sh.Date })
+                .FirstOrDefaultAsync();
 
             if (latestScrap == null) return (resultProducts, 0, null);
 
             int scrapId = latestScrap.Id;
 
+            // --- NOWY FRAGMENT: Pobieranie historii aktualizacji dla tego scrapu ---
+            // Pobieramy wpisy z mostka, które zakończyły się sukcesem i dotyczą tego konkretnego scrapowania
+            var committedChanges = await _context.AllegroPriceBridgeItems
+                .Include(i => i.PriceBridgeBatch)
+                .Where(i => i.PriceBridgeBatch.StoreId == rule.StoreId
+                         && i.PriceBridgeBatch.AllegroScrapeHistoryId == scrapId
+                         && i.Success)
+                .ToListAsync();
+
+            // Tworzymy słownik dla szybkiego wyszukiwania po ProductId
+            // Bierzemy najnowszą aktualizację (na wypadek gdyby było kilka prób)
+            var committedLookup = committedChanges
+                .GroupBy(i => i.AllegroProductId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.PriceBridgeBatch.ExecutionDate).First());
+            // ---------------------------------------------------------------------
+
+            // Pobieranie przypisań produktów
             var assignments = await _context.AutomationProductAssignments
                 .Where(a => a.AutomationRuleId == rule.Id && a.AllegroProductId.HasValue)
                 .Include(a => a.AllegroProduct)
@@ -204,6 +222,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var productIds = assignments.Select(a => a.AllegroProductId.Value).ToList();
 
+            // Pobieranie historii cen i dodatkowych info
             var priceHistories = await _context.AllegroPriceHistories
                 .Where(ph => ph.AllegroScrapeHistoryId == scrapId && productIds.Contains(ph.AllegroProductId))
                 .ToListAsync();
@@ -287,6 +306,14 @@ namespace PriceSafari.Controllers.MemberControllers
                     newRankAllegro = CalculateRanking(new List<decimal>(competitorPrices), row.SuggestedPrice.Value);
                 }
                 row.NewRankingAllegro = newRankAllegro;
+
+                if (committedLookup.TryGetValue(p.AllegroProductId, out var committedItem))
+                {
+                    row.IsAlreadyUpdated = true;
+                    // Preferujemy cenę zweryfikowaną przez API po update, a jak nie ma to symulowaną
+                    row.UpdatedPrice = committedItem.PriceAfter_Verified ?? committedItem.PriceAfter_Simulated;
+                    row.UpdateDate = committedItem.PriceBridgeBatch.ExecutionDate;
+                }
 
                 resultProducts.Add(row);
             }
