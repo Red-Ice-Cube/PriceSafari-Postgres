@@ -825,18 +825,22 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return RedirectToAction("MappedProducts", new { storeId });
             }
         }
-
         public async Task<IActionResult> MappedProductsAllegro(int storeId)
         {
             var store = await _context.Stores.FindAsync(storeId);
-            if (store == null)
-            {
-                return NotFound("Sklep nie znaleziony.");
-            }
+            if (store == null) return NotFound("Sklep nie znaleziony.");
 
             var allegroProducts = await _context.AllegroProducts
                 .Where(p => p.StoreId == storeId)
                 .ToListAsync();
+
+            // Wykrywanie duplikatów ID
+            var duplicateIds = allegroProducts
+                .Where(p => !string.IsNullOrEmpty(p.IdOnAllegro))
+                .GroupBy(p => p.IdOnAllegro)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToHashSet();
 
             var vmList = new List<MappedProductAllegroViewModel>();
 
@@ -851,26 +855,36 @@ namespace PriceSafari.Controllers.ManagerControllers
                     MarginPrice = p.AllegroMarginPrice,
                     IsScrapable = p.IsScrapable,
                     IsRejected = p.IsRejected,
-                    AddedDate = p.AddedDate
+                    AddedDate = p.AddedDate,
+                    // Nowe dane
+                    IdOnAllegro = p.IdOnAllegro,
+                    IsDuplicate = !string.IsNullOrEmpty(p.IdOnAllegro) && duplicateIds.Contains(p.IdOnAllegro)
                 };
                 vmList.Add(vm);
             }
+
+            // Sortujemy tak, aby duplikaty były na górze i zgrupowane po ID
+            vmList = vmList
+                .OrderByDescending(x => x.IsDuplicate) // Najpierw duplikaty
+                .ThenBy(x => x.IdOnAllegro)            // Potem grupowanie po ID
+                .ThenByDescending(x => x.AddedDate)    // Reszta po dacie
+                .ToList();
 
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreId = storeId;
 
             return View("~/Views/ManagerPanel/ProductMapping/MappedProductsAllegro.cshtml", vmList);
         }
+
+
+
         [HttpPost]
         public async Task<IActionResult> RemoveSelectedAllegroProducts(int storeId, [FromBody] List<int> productIds)
         {
             if (productIds == null || !productIds.Any())
-                return BadRequest("Brak produktów do usunięcia.");
+                return BadRequest(new { success = false, message = "Brak produktów do usunięcia." });
 
-            // Zabezpieczenie: konwertujemy listę na string do zapytania SQL (bezpieczne dla intów)
-            // Dzięki temu unikniemy problemu z limitem parametrów w EF Core
-            var idsString = string.Join(",", productIds);
-
+            // Używamy strategii wykonania dla transakcji (bezpieczeństwo przy EF Core)
             var strategy = _context.Database.CreateExecutionStrategy();
 
             return await strategy.ExecuteAsync(async () =>
@@ -878,43 +892,46 @@ namespace PriceSafari.Controllers.ManagerControllers
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // Wykonujemy czyste SQL DELETE - to jest błyskawiczne
-                    // KOLEJNOŚĆ JEST KLUCZOWA (najpierw dzieci, potem rodzic)
+                    // Konwersja listy ID na string do bezpiecznego użycia w SQL IN (...)
+                    var idsString = string.Join(",", productIds);
 
-                    // 1. Usuń z tabeli blokującej (BridgeItems) - to naprawia Twój błąd
+                    // 1. Usuń z tabeli blokującej (BridgeItems)
+                    // Musimy to zrobić SQL-em, bo EF Core może mieć problemy z kaskadą przy skomplikowanych zależnościach
                     await _context.Database.ExecuteSqlRawAsync(
                         $"DELETE FROM AllegroPriceBridgeItems WHERE AllegroProductId IN ({idsString})");
 
-                    // 2. Usuń Flagi
+                    // 2. Usuń Flagi produktów
                     await _context.Database.ExecuteSqlRawAsync(
                         $"DELETE FROM ProductFlags WHERE AllegroProductId IN ({idsString})");
 
-                    // 3. Usuń Extended Info
+                    // 3. Usuń Extended Info (szczegóły scrapowania)
                     await _context.Database.ExecuteSqlRawAsync(
                         $"DELETE FROM AllegroPriceHistoryExtendedInfos WHERE AllegroProductId IN ({idsString})");
 
-                    // 4. Usuń Historie
+                    // 4. Usuń Historię Cen
                     await _context.Database.ExecuteSqlRawAsync(
                         $"DELETE FROM AllegroPriceHistories WHERE AllegroProductId IN ({idsString})");
 
-                    // 5. Na końcu usuń produkty główne
-                    // Tu używamy parametru dla storeId dla bezpieczeństwa, a ID wklejamy w string
-                    // Zakładam, że tabela w bazie nazywa się "AllegroProducts"
+                    // 5. Na końcu usuń same produkty Allegro
+                    // Dodatkowo sprawdzamy StoreId dla bezpieczeństwa
                     var deletedCount = await _context.Database.ExecuteSqlRawAsync(
                         $"DELETE FROM AllegroProducts WHERE StoreId = {storeId} AND AllegroProductId IN ({idsString})");
 
                     await transaction.CommitAsync();
 
-                    return Json(new { success = true, count = deletedCount, message = "Usunięto błyskawicznie" });
+                    return Json(new { success = true, count = deletedCount, message = $"Pomyślnie usunięto {deletedCount} produktów." });
                 }
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                    var msg = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-                    return Json(new { success = false, message = $"Błąd SQL: {msg}" });
+                    // Logujemy błąd wewnętrzny (opcjonalnie)
+                    var msg = ex.InnerException?.Message ?? ex.Message;
+                    return Json(new { success = false, message = $"Błąd bazy danych: {msg}" });
                 }
             });
         }
+
+
         public class MappedProductAllegroViewModel
         {
             public int AllegroProductId { get; set; }
@@ -925,6 +942,10 @@ namespace PriceSafari.Controllers.ManagerControllers
             public bool IsScrapable { get; set; }
             public bool IsRejected { get; set; }
             public DateTime AddedDate { get; set; }
+
+            // --- NOWE POLA ---
+            public string IdOnAllegro { get; set; }
+            public bool IsDuplicate { get; set; }
         }
     }
 }

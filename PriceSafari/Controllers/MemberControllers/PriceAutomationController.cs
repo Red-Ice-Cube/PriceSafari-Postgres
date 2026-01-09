@@ -240,11 +240,45 @@ namespace PriceSafari.Controllers.MemberControllers
                 if (p == null) continue;
 
                 var histories = priceHistories.Where(h => h.AllegroProductId == p.AllegroProductId).ToList();
-                var myHistory = histories.FirstOrDefault(h => h.SellerName != null && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase));
+
+                
+
+                // --- ZMIANA: Ścisłe dopasowanie oferty (BEZ FALLBACKU) ---
+
+                // 1. Parsowanie ID
+                long? targetOfferId = null;
+                if (long.TryParse(p.IdOnAllegro, out var parsedId))
+                {
+                    targetOfferId = parsedId;
+                }
+
+                AllegroPriceHistory myHistory = null;
+
+                if (targetOfferId.HasValue)
+                {
+                    // SCENARIUSZ A: Mamy zdefiniowane ID oferty.
+                    // Szukamy ŚCIŚLE tego ID. Jeśli nie ma go w wynikach scrapowania -> myHistory pozostaje null.
+                    // Nie szukamy "zapasowo" po nazwie, aby nie pobrać ceny z innej oferty (np. outlet).
+                    myHistory = histories.FirstOrDefault(h => h.IdAllegro == targetOfferId.Value);
+                }
+                else
+                {
+                    // SCENARIUSZ B: Nie mamy ID w bazie (stary produkt lub niepodpięty).
+                    // Tylko wtedy szukamy po nazwie sklepu.
+                    myHistory = histories.FirstOrDefault(h => h.SellerName != null && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase));
+                }
+
+                // ---------------------------------------------------------
+
                 var extInfo = extendedInfos.FirstOrDefault(x => x.AllegroProductId == p.AllegroProductId);
 
+                // Wykluczanie konkurencji (ważne, żeby inne nasze oferty nie były traktowane jako rywal)
                 var rawCompetitors = histories
-                    .Where(h => h.Price > 0 && h != myHistory && (h.SellerName == null || !h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase)))
+                    .Where(h => h.Price > 0
+                             // Wykluczamy ofertę, którą uznaliśmy za "naszą" (po ID)
+                             && (targetOfferId == null || h.IdAllegro != targetOfferId)
+                             // ORAZ wykluczamy wszystkie inne oferty naszego sklepu (żeby outlet nie był konkurentem)
+                             && (h.SellerName == null || !h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase)))
                     .ToList();
 
                 var filteredCompetitors = new List<AllegroPriceHistory>();

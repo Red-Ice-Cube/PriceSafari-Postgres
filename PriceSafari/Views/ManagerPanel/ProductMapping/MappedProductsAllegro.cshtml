@@ -13,6 +13,7 @@
     var activeCount = Model.Count(p => p.IsScrapable && !p.IsRejected);
     var rejectedCount = Model.Count(p => p.IsRejected);
     var inactiveCount = Model.Count(p => !p.IsScrapable && !p.IsRejected);
+    var duplicateCount = Model.Count(p => p.IsDuplicate);
 
     var eanCount = Model.Count(p => !string.IsNullOrEmpty(p.Ean));
     var marginPriceCount = Model.Count(p => p.MarginPrice.HasValue);
@@ -39,6 +40,7 @@
                     <ul>
                         <li>Zdefiniowany EAN: @eanCount</li>
                         <li>Z ceną minimalną (Margin): @marginPriceCount</li>
+                        <li class="text-warning fw-bold">Wykryte duplikaty ID: @duplicateCount</li>
                     </ul>
                 </div>
             </div>
@@ -50,20 +52,43 @@
             <i class="fas fa-filter me-1"></i> Filtry Wyświetlania
         </div>
         <div class="card-body">
-            <div class="filter-section">
-                <h5>Status produktu</h5>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input status-filter" type="checkbox" id="statusActive" data-status="active" checked>
-                    <label class="form-check-label text-success fw-bold" for="statusActive">Aktywne</label>
+            <div class="row align-items-center g-3">
+
+                <div class="col-md-5">
+                    <h5 class="mb-2">Status produktu</h5>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input status-filter" type="checkbox" id="statusActive" data-status="active" checked>
+                        <label class="form-check-label text-success fw-bold" for="statusActive">Aktywne</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input status-filter" type="checkbox" id="statusInactive" data-status="inactive" checked>
+                        <label class="form-check-label text-muted" for="statusInactive">Nieaktywne</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input status-filter" type="checkbox" id="statusRejected" data-status="rejected" checked>
+                        <label class="form-check-label text-danger fw-bold" for="statusRejected">Odrzucone</label>
+                    </div>
                 </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input status-filter" type="checkbox" id="statusInactive" data-status="inactive" checked>
-                    <label class="form-check-label text-muted" for="statusInactive">Nieaktywne</label>
+
+                <div class="col-md-3 border-start ps-4">
+                    <h5 class="mb-2">Problemy</h5>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="showDuplicatesOnly">
+                        <label class="form-check-label fw-bold text-warning" for="showDuplicatesOnly">
+                            <i class="fas fa-clone"></i> Pokaż tylko duplikaty ID
+                        </label>
+                    </div>
                 </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input status-filter" type="checkbox" id="statusRejected" data-status="rejected" checked>
-                    <label class="form-check-label text-danger fw-bold" for="statusRejected">Odrzucone</label>
+
+                <div class="col-md-4 border-start ps-4">
+                    <h5 class="mb-2">Szukaj w URL (Offer ID)</h5>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" id="urlSearchInput" class="form-control" placeholder="Wpisz fragment linku lub ID...">
+                    </div>
+                    <small class="text-muted">Np. wpisz 'offerId' aby znaleźć stary typ linków</small>
                 </div>
+
             </div>
 
             <div class="mt-3 border-top pt-3">
@@ -83,13 +108,14 @@
             <table class="table table-bordered table-hover" id="allegro-table" style="width: 100%;">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 40%">Nazwa Produktu</th>
+                        <th style="width: 20%">Nazwa Produktu</th>
+                        <th>Allegro ID</th>
                         <th>EAN</th>
                         <th>Cena Margin</th>
                         <th>Data dodania</th>
                         <th>Scrap?</th>
                         <th>Reject?</th>
-                        <th>Link</th>
+                        <th style="width: 25%">Pełny Link (URL)</th>
                         <th>ID</th>
                     </tr>
                 </thead>
@@ -97,19 +123,30 @@
                     @if (!Model.Any())
                     {
                         <tr>
-                            <td colspan="8" class="text-center text-muted p-4">Brak produktów Allegro dla tego sklepu.</td>
+                            <td colspan="9" class="text-center text-muted p-4">Brak produktów Allegro dla tego sklepu.</td>
                         </tr>
                     }
                     @foreach (var item in Model)
                     {
-
                         string statusCategory = "inactive";
                         if (item.IsRejected) { statusCategory = "rejected"; }
                         else if (item.IsScrapable) { statusCategory = "active"; }
 
-                        <tr data-product-id="@item.AllegroProductId" data-status="@statusCategory">
+                        // Dodajemy data-url aby JS mógł szybko filtrować
+                        <tr data-product-id="@item.AllegroProductId"
+                            data-status="@statusCategory"
+                            data-is-duplicate="@item.IsDuplicate.ToString().ToLower()"
+                            data-url="@(item.Url ?? "")">
+
                             <td>
                                 <strong>@item.ProductName</strong>
+                                @if (item.IsDuplicate)
+                                {
+                                    <span class="badge bg-warning text-dark ms-2">Duplikat</span>
+                                }
+                            </td>
+                            <td class="text-primary font-monospace">
+                                @(item.IdOnAllegro ?? "-")
                             </td>
                             <td>@(item.Ean ?? "-")</td>
                             <td>
@@ -124,7 +161,6 @@
                                 }
                                 else
                                 {
-
                                     <i class="fas fa-times-circle text-muted"></i>
                                 }
                             </td>
@@ -135,17 +171,25 @@
                                 }
                                 else
                                 {
-
                                     <span class="text-muted">-</span>
                                 }
                             </td>
 
-                            <td class="text-center">
+                            <td style="word-break: break-all; font-size: 0.85em;">
                                 @if (!string.IsNullOrEmpty(item.Url))
                                 {
-                                    <a href="@item.Url" target="_blank" class="btn btn-sm btn-outline-warning" title="Idź do oferty Allegro">
-                                        <i class="fas fa-external-link-alt"></i>
-                                    </a>
+                                    <div>
+                                        <a href="@item.Url" target="_blank" class="text-decoration-none">
+                                            <i class="fas fa-external-link-alt me-1"></i> Otwórz
+                                        </a>
+                                    </div>
+                                    <div class="text-muted mt-1">
+                                        @item.Url
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
                                 }
                             </td>
                             <td class="text-muted small">@item.AllegroProductId</td>
@@ -161,32 +205,56 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const statusCheckboxes = document.querySelectorAll('.status-filter');
+            const duplicateCheckbox = document.getElementById('showDuplicatesOnly');
+            const urlSearchInput = document.getElementById('urlSearchInput'); // Nowy input
+
             const tableRows = document.querySelectorAll('#allegro-table tbody tr');
             const visibleCountSpan = document.getElementById('visible-count');
             const removeFilteredBtn = document.getElementById('remove-filtered');
+
             const storeNameForJs = @Json.Serialize(storeName);
             const currentStoreId = @Json.Serialize(storeId);
 
             function applyFilters() {
+                // 1. Pobierz wybrane statusy
                 const selectedStatuses = Array.from(statusCheckboxes)
                     .filter(ch => ch.checked).map(ch => ch.dataset.status);
+
+                // 2. Pobierz stan checkboxa duplikatów
+                const showOnlyDuplicates = duplicateCheckbox.checked;
+
+                // 3. Pobierz tekst z wyszukiwarki URL (małe litery)
+                const searchText = urlSearchInput.value.toLowerCase().trim();
 
                 let visibleRowCount = 0;
 
                 tableRows.forEach(row => {
-
                     if (!row.dataset.status) return;
 
                     const rowStatus = row.dataset.status;
+                    const isDuplicate = row.dataset.isDuplicate === 'true';
+                    const rowUrl = (row.dataset.url || "").toLowerCase(); // Pobieramy URL z atrybutu
 
                     let shouldShow = false;
 
+                    // Logika Statusów
                     if (rowStatus === 'rejected') {
                         shouldShow = selectedStatuses.includes('rejected');
                     } else {
                         shouldShow = selectedStatuses.includes(rowStatus);
                     }
 
+                    // Logika Duplikatów (AND)
+                    if (showOnlyDuplicates && !isDuplicate) {
+                        shouldShow = false;
+                    }
+
+                    // Logika Wyszukiwarki URL (AND)
+                    if (searchText && !rowUrl.includes(searchText)) {
+                        shouldShow = false;
+                    }
+
+                    // Finalne zastosowanie
                     if (shouldShow) {
                         row.style.display = '';
                         visibleRowCount++;
@@ -200,8 +268,19 @@
                 }
             }
 
+            // Event Listeners
             statusCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
 
+            if (duplicateCheckbox) {
+                duplicateCheckbox.addEventListener('change', applyFilters);
+            }
+
+            // Listener dla wyszukiwarki (reaguje na wpisywanie)
+            if (urlSearchInput) {
+                urlSearchInput.addEventListener('input', applyFilters);
+            }
+
+            // Logika usuwania (bez zmian)
             if (removeFilteredBtn) {
                 removeFilteredBtn.addEventListener('click', () => {
                     const visibleIds = [];
@@ -231,7 +310,6 @@
                         const data = await response.json();
                         if (data.success) {
                             alert(`Usunięto ${data.count} produktów.`);
-
                             tableRows.forEach(row => {
                                 if (row.dataset.productId && visibleIds.includes(parseInt(row.dataset.productId))) {
                                     row.remove();
