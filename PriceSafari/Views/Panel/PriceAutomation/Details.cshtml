@@ -421,9 +421,29 @@
 
     <div class="Vert">
         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-            <h6 class="m-0 font-weight-bold text-primary">Symulacja Cen</h6>
+            <div class="d-flex align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary mr-3">Symulacja Cen</h6>
 
-            @* 2. PRZYCISK WYKONAJ AUTOMATYZACJĘ *@
+                @* --- NOWOŚĆ: Pasek zaznaczania --- *@
+                <div id="selectionContainer" class="selection-container" style="display: flex; gap: 4px; align-items: center;">
+                    <span id="selectedProductsCounter" class="ProductCount" style="width:126px; height:30px; display:flex; align-items:center; justify-content:center; background:#f8f9fc; border:1px solid #e3e6f0; border-radius:4px; font-size:12px; font-weight:600; color:#5a5c69;">Wybrano: 0</span>
+
+                    <button id="selectAllVisibleBtn" class="btn btn-sm btn-light border" style="width:40px; height:30px;" title="Zaznacz wszystkie widoczne produkty">
+                        <i class="fa-solid fa-square-check text-gray-600"></i>
+                    </button>
+
+                    <button id="deselectAllVisibleBtn" class="btn btn-sm btn-light border" style="width:40px; height:30px;" title="Odznacz wszystkie widoczne produkty">
+                        <i class="fa-solid fa-square-xmark text-gray-600"></i>
+                    </button>
+
+                    <button id="showSelectedProductsBtn" class="btn btn-sm btn-primary shadow-sm" style="height:30px; font-size:12px;">
+                        Akcje masowe
+                    </button>
+                </div>
+                @* -------------------------------- *@
+            </div>
+
+            @* Twoje istniejące przyciski *@
             @if (canEdit)
             {
                 <button class="btn btn-success btn-sm" onclick="executeAutomation()">
@@ -510,6 +530,14 @@
                                         {
                                             <span class="text-xs ml-1 text-gray-500" title="Cena bazowa w API (przed dopłatami)">(API: @item.ApiAllegroPriceFromUser)</span>
                                         }
+                                    </div>
+                                    <div class="mt-2">
+                                        <button class="select-product-btn btn btn-sm btn-light border"
+                                                data-product-id="@item.ProductId"
+                                                data-product-name="@item.Name"
+                                                style="font-size: 11px; padding: 2px 8px; width: 100px;">
+                                            Zaznacz
+                                        </button>
                                     </div>
                                 </td>
                                 <td class="align-middle">
@@ -894,22 +922,105 @@
     </div>
 </div>
 
+
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
 @section Scripts {
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap4.min.css">
+
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap4.min.js"></script>
 
     <script>
+        // --- KONFIGURACJA ---
+        const storeId = @Model.StoreId;
+        const currentRuleId = @Model.RuleId;
+        // Rozróżnienie kontekstu (Allegro vs Ceneo/Google)
+        const isAllegroContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
+        const sourceTypeInt = isAllegroContext ? 1 : 0;
+
+        // Przechowywanie zaznaczeń
+        let selectedProductIds = new Set();
+        let selectedProductNames = new Map();
+
+        // --- FUNKCJE POMOCNICZE UI ---
 
         function showNoAccessAlert() {
             alert('@Html.Raw(noAccessMessage)');
         }
 
+        function showLoading() { $('#loadingOverlay').css('display', 'flex'); }
+        function hideLoading() { $('#loadingOverlay').hide(); }
+
+        function updateCounter() {
+            $('#selectedProductsCounter').text(`Wybrano: ${selectedProductIds.size}`);
+
+            // Aktualizujemy też licznik wewnątrz modalu (z partiala)
+            const modalCounter = document.getElementById('selectedProductsModalCounter');
+            if(modalCounter) modalCounter.textContent = selectedProductIds.size;
+        }
+
+        function updateBtnState(btn, isSelected) {
+            if (isSelected) {
+                btn.text('Wybrano');
+                btn.removeClass('btn-light border').addClass('btn-primary text-white');
+            } else {
+                btn.text('Zaznacz');
+                btn.removeClass('btn-primary text-white').addClass('btn-light border');
+            }
+        }
+
+        // --- FUNKCJA RYSOWANIA TABELI W MODALU (POPRAWIONY WYGLĄD) ---
+        function renderSelectedList() {
+            const container = $('#selectedProductsList');
+            container.empty();
+
+            if (selectedProductIds.size === 0) {
+                container.html('<div class="alert alert-info text-center m-3">Brak zaznaczonych produktów.</div>');
+                return;
+            }
+
+            // Tworzymy tabelę z klasami Bootstrapa dla ładnego wyglądu
+            let html = `
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover mb-0" style="width:100%; background-color:#fff;">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="align-middle pl-3">Nazwa produktu</th>
+                                <th class="text-center align-middle" style="width:100px;">Akcja</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            selectedProductIds.forEach(pid => {
+                const name = selectedProductNames.get(pid) || `Produkt ID: ${pid}`;
+                html += `
+                            <tr>
+                                <td class="align-middle px-3 py-2" style="font-weight:500; font-size:13px;">
+                                    ${name}
+                                </td>
+                                <td class="text-center align-middle px-3 py-2">
+                                    <button class="btn btn-sm btn-outline-danger remove-from-selection" data-id="${pid}" title="Usuń z zaznaczenia" style="padding: 2px 8px;">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>`;
+            });
+
+            html += `   </tbody>
+                    </table>
+                </div>`;
+
+            container.html(html);
+        }
+
+        // --- LOGIKA BIZNESOWA ---
+
+        // 1. Wykonanie symulacji (stary przycisk)
         var ruleId = @Model.RuleId;
-
         function executeAutomation() {
-            if (!confirm("Czy na pewno chcesz wykonać automatyzację? Ceny zostaną przeliczone na serwerze i wysłane do Allegro.")) { return; }
-
+            if (!confirm("Czy na pewno chcesz wykonać automatyzację?")) { return; }
             var btn = $(event.target).closest('button');
             var originalText = btn.html();
             btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Przetwarzanie...');
@@ -920,122 +1031,294 @@
                 contentType: 'application/json',
                 data: JSON.stringify({ RuleId: ruleId }),
                 success: function(r) {
-                    if(r.count === 0) {
-                        alert("Wykonano, ale nie zaktualizowano żadnych ofert (brak zmian lub blokady).");
-                    } else {
-                        alert("Sukces! Zaktualizowano " + r.count + " ofert.");
-                    }
+                    if(r.count === 0) alert("Wykonano, ale brak zmian do aktualizacji.");
+                    else alert("Sukces! Zaktualizowano " + r.count + " ofert.");
                     location.reload();
                 },
                 error: function(xhr) {
                     alert("Błąd: " + (xhr.responseText || xhr.statusText));
-                    console.error(xhr);
                     btn.prop('disabled', false).html(originalText);
                 }
             });
         }
 
+        // 2. Edycja pojedynczej ceny (stary ołówek)
+        function sendPriceUpdate(wrapper, priceValue, btnElement) {
+            var productId = wrapper.data('id');
+            var storeId = wrapper.data('store-id');
+            var isMktStr = String(wrapper.data('is-marketplace')).toLowerCase();
+            var isMarketplaceBool = (isMktStr === 'true');
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            if (!token) { alert("Brak tokenu CSRF."); return; }
+
+            var url = isMarketplaceBool
+                ? '@Url.Action("UpdateAllegroPurchasePrice", "AllegroProduct")?storeId=' + storeId
+                : '@Url.Action("UpdatePurchasePrice", "Product")?storeId=' + storeId;
+
+            var payload = isMarketplaceBool
+                ? { AllegroProductId: parseInt(productId), NewPrice: priceValue }
+                : { ProductId: parseInt(productId), NewPrice: priceValue };
+
+            var originalContent = btnElement.html();
+            btnElement.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                contentType: 'application/json',
+                headers: { 'RequestVerificationToken': token },
+                data: JSON.stringify(payload),
+                success: function(response) {
+                    if(response.success) location.reload();
+                    else { alert("Błąd: " + response.message); btnElement.html(originalContent).prop('disabled', false); }
+                },
+                error: function(xhr) {
+                    alert("Błąd serwera.");
+                    btnElement.html(originalContent).prop('disabled', false);
+                }
+            });
+        }
+
+        // --- INICJALIZACJA ---
         $(document).ready(function() {
 
+            // === A. OBSŁUGA POJEDYNCZYCH EDYCJI (OŁÓWEK) ===
             $(document).on('click', '.edit-btn', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
+                e.preventDefault(); e.stopPropagation();
                 var wrapper = $(this).closest('.purchase-wrapper');
-
-                $('.edit-mode').not(wrapper.find('.edit-mode')).addClass('d-none');
-                $('.display-mode').not(wrapper.find('.display-mode')).removeClass('d-none');
-
-                wrapper.find('.display-mode').addClass('d-none');
-                wrapper.find('.edit-mode').removeClass('d-none');
-
-                var input = wrapper.find('input');
-                var val = input.val();
-                input.val('').val(val);
-
-                input.focus();
+                $('.edit-mode').addClass('d-none'); $('.display-mode').removeClass('d-none');
+                wrapper.find('.display-mode').addClass('d-none'); wrapper.find('.edit-mode').removeClass('d-none');
+                var inp = wrapper.find('input'); inp.val(inp.val()); inp.focus();
             });
-
             $(document).on('click', '.cancel-btn', function(e) {
                 e.preventDefault();
-                var wrapper = $(this).closest('.purchase-wrapper');
-                wrapper.find('.edit-mode').addClass('d-none');
-                wrapper.find('.display-mode').removeClass('d-none');
+                $(this).closest('.purchase-wrapper').find('.edit-mode').addClass('d-none').end().find('.display-mode').removeClass('d-none');
             });
-
             $(document).on('click', '.save-btn', function(e) {
                 e.preventDefault();
-                var btn = $(this);
-                var wrapper = btn.closest('.purchase-wrapper');
-                var input = wrapper.find('input');
-
-                var val = input.val().replace(',', '.');
-
-                if(val === '' || isNaN(val) || parseFloat(val) < 0) {
-                    alert("Podaj poprawną cenę.");
-                    return;
-                }
-
-                sendPriceUpdate(wrapper, parseFloat(val), btn);
+                var wrap = $(this).closest('.purchase-wrapper');
+                var val = wrap.find('input').val().replace(',', '.');
+                if(val==='' || isNaN(val) || parseFloat(val)<0) { alert("Błędna cena."); return; }
+                sendPriceUpdate(wrap, parseFloat(val), $(this));
             });
-
             $(document).on('click', '.delete-btn-inner', function(e) {
                 e.preventDefault();
-                if(!confirm("Czy na pewno chcesz usunąć cenę zakupu?")) return;
-
-                var btn = $(this);
-                var wrapper = btn.closest('.purchase-wrapper');
-                sendPriceUpdate(wrapper, null, btn);
+                if(confirm("Usunąć cenę zakupu?")) sendPriceUpdate($(this).closest('.purchase-wrapper'), null, $(this));
             });
-
             $(document).on('keypress', '.price-edit-input', function(e) {
-                if(e.which == 13) {
-                    e.preventDefault();
-                    $(this).closest('.edit-mode').find('.save-btn').click();
-                }
+                if(e.which == 13) { e.preventDefault(); $(this).closest('.edit-mode').find('.save-btn').click(); }
             });
 
-            function sendPriceUpdate(wrapper, priceValue, btnElement) {
-                var productId = wrapper.data('id');
-                var storeId = wrapper.data('store-id');
-                var isMktStr = String(wrapper.data('is-marketplace')).toLowerCase();
-                var isMarketplaceBool = (isMktStr === 'true');
+            // === B. OBSŁUGA ZAZNACZANIA PRODUKTÓW ===
 
-                var token = $('input[name="__RequestVerificationToken"]').val();
-                if (!token) { alert("Błąd: Brak tokenu weryfikacyjnego."); return; }
+            // B.1. Pojedyncze zaznaczenie "Zaznacz"
+            $('.select-product-btn').on('click', function() {
+                const btn = $(this);
+                const pid = btn.data('product-id').toString();
+                const pname = btn.data('product-name');
 
-                var url = isMarketplaceBool
-                    ? '@Url.Action("UpdateAllegroPurchasePrice", "AllegroProduct")?storeId=' + storeId
-                    : '@Url.Action("UpdatePurchasePrice", "Product")?storeId=' + storeId;
+                if (selectedProductIds.has(pid)) {
+                    selectedProductIds.delete(pid);
+                    selectedProductNames.delete(pid);
+                    updateBtnState(btn, false);
+                } else {
+                    selectedProductIds.add(pid);
+                    selectedProductNames.set(pid, pname);
+                    updateBtnState(btn, true);
+                }
+                updateCounter();
+            });
 
-                var payload = isMarketplaceBool
-                    ? { AllegroProductId: parseInt(productId), NewPrice: priceValue }
-                    : { ProductId: parseInt(productId), NewPrice: priceValue };
+            // B.2. Zaznacz wszystko widoczne
+            $('#selectAllVisibleBtn').on('click', function() {
+                $('.select-product-btn').each(function() {
+                    const btn = $(this);
+                    const pid = btn.data('product-id').toString();
+                    const pname = btn.data('product-name');
+                    selectedProductIds.add(pid);
+                    selectedProductNames.set(pid, pname);
+                    updateBtnState(btn, true);
+                });
+                updateCounter();
+            });
 
-                var originalContent = btnElement.html();
-                btnElement.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+            // B.3. Odznacz wszystko widoczne
+            $('#deselectAllVisibleBtn').on('click', function() {
+                $('.select-product-btn').each(function() {
+                    const btn = $(this);
+                    const pid = btn.data('product-id').toString();
+                    selectedProductIds.delete(pid);
+                    selectedProductNames.delete(pid);
+                    updateBtnState(btn, false);
+                });
+                updateCounter();
+            });
 
-                $.ajax({
-                    url: url,
-                    type: 'POST',
-                    contentType: 'application/json',
-                    headers: { 'RequestVerificationToken': token },
-                    data: JSON.stringify(payload),
-                    success: function(response) {
-                        if(response.success) {
-                            location.reload();
-                        } else {
-                            alert("Błąd: " + response.message);
-                            btnElement.html(originalContent).prop('disabled', false);
-                        }
-                    },
-                    error: function(xhr) {
-                        console.error(xhr);
-                        alert("Błąd serwera: " + xhr.status);
-                        btnElement.html(originalContent).prop('disabled', false);
-                    }
+            // === C. OBSŁUGA MODALI I MASOWYCH AKCJI ===
+
+            // C.1. Otwórz modal z listą zaznaczonych
+            $('#showSelectedProductsBtn').on('click', function() {
+                if (selectedProductIds.size === 0) {
+                    alert('Nie zaznaczono żadnych produktów.');
+                    return;
+                }
+                renderSelectedList();
+                $('#selectedProductsModal').modal('show');
+            });
+
+            // C.2. Usunięcie produktu z listy wewnątrz modalu
+            $(document).on('click', '.remove-from-selection', function() {
+                const pid = $(this).data('id').toString();
+                selectedProductIds.delete(pid);
+                selectedProductNames.delete(pid);
+
+                // Aktualizacja przycisku na głównej liście
+                const mainBtn = $(`.select-product-btn[data-product-id="${pid}"]`);
+                if(mainBtn.length) updateBtnState(mainBtn, false);
+
+                updateCounter();
+                renderSelectedList();
+            });
+
+            // C.3. Kliknięcie "Automatyzacja Cen" w partialu _MassAction.cshtml
+            // ID przycisku: #openBulkAutomationModalBtn (tak jest w Twoim kodzie partiala)
+            $(document).on('click', '#openBulkAutomationModalBtn', function() {
+                $('#selectedProductsModal').modal('hide');
+                loadAndShowRules(); // Ładuje reguły i otwiera #automationSelectionModal
+            });
+
+            // C.4. Kliknięcie "Zarządzaj flagami" w partialu
+            $(document).on('click', '#openBulkFlagModalBtn', function() {
+                // Tutaj logika flag, jeśli potrzebna. Na razie placeholder.
+                alert("Funkcja flag dostępna wkrótce.");
+            });
+        });
+
+        // --- FUNKCJE LOGIKI MODALI ---
+
+        function loadAndShowRules() {
+            showLoading();
+            const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
+
+            // Pobieramy status reguł dla wybranych produktów
+            fetch(`/AutomationRules/GetRulesStatusForProducts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    StoreId: storeId,
+                    SourceType: sourceTypeInt,
+                    IsAllegro: isAllegroContext,
+                    ProductIds: productIdsArray
+                })
+            })
+            .then(r => r.json())
+            .then(rules => {
+                renderRulesList(rules);
+                hideLoading();
+                $('#automationSelectionModal').modal('show');
+            })
+            .catch(err => {
+                console.error(err);
+                hideLoading();
+                alert('Błąd pobierania reguł.');
+            });
+        }
+
+        function renderRulesList(rules) {
+            const container = $('#automationRulesListContainer');
+            container.empty();
+
+            // Użytkownik chce przenieść, więc nie pokazujemy bieżącej reguły
+            const validRules = rules.filter(r => r.id !== currentRuleId);
+
+            // Dodajemy opcję "ODEPNIJ" (Brak automatyzacji) na górze listy
+            const unassignDiv = document.createElement('div');
+            unassignDiv.className = 'p-3 border border-danger rounded mb-3 bg-white d-flex justify-content-between align-items-center';
+            unassignDiv.style.cursor = 'pointer';
+            unassignDiv.style.backgroundColor = '#fff5f5'; // Lekko czerwone tło
+            unassignDiv.innerHTML = `
+                <div class="d-flex align-items-center text-danger">
+                    <div style="width:5px; height:40px; background:#e74a3b; margin-right:15px; border-radius:3px;"></div>
+                    <div>
+                        <div class="font-weight-bold">Brak Automatyzacji (Odepnij)</div>
+                        <div class="small">Usuń przypisanie z bieżącej reguły</div>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-danger">Odepnij</button>
+            `;
+            $(unassignDiv).on('click', function() {
+                if(!confirm(`Czy na pewno chcesz ODPIĄĆ ${selectedProductIds.size} produktów z automatu?`)) return;
+                executeMassAction('/AutomationRules/UnassignProducts', {});
+            });
+            container.append(unassignDiv);
+
+            // Renderowanie pozostałych reguł (do przeniesienia)
+            if (validRules.length > 0) {
+                const header = document.createElement('h6');
+                header.className = "mt-3 mb-2 text-muted text-uppercase font-weight-bold";
+                header.style.fontSize = "12px";
+                header.innerText = "Lub przenieś do innej reguły:";
+                container.append(header);
+
+                validRules.forEach(r => {
+                    const div = document.createElement('div');
+                    div.className = 'p-3 border rounded mb-2 bg-white d-flex justify-content-between align-items-center';
+                    div.style.cursor = 'pointer';
+                    div.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <div style="width:5px; height:40px; background:${r.colorHex}; margin-right:15px; border-radius:3px;"></div>
+                            <div>
+                                <div class="font-weight-bold">${r.name}</div>
+                                <div class="small text-muted">Obecnie produktów: ${r.totalCount}</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary">Wybierz</button>
+                    `;
+
+                    $(div).hover(
+                        function() { $(this).addClass('shadow-sm bg-light'); },
+                        function() { $(this).removeClass('shadow-sm bg-light'); }
+                    );
+
+                    $(div).on('click', function() {
+                        if(!confirm(`Czy PRZENIEŚĆ zaznaczone produkty do reguły "${r.name}"?`)) return;
+                        executeMassAction('/AutomationRules/AssignProducts', { RuleId: r.id });
+                    });
+
+                    container.append(div);
                 });
             }
-        });
+        }
+
+        function executeMassAction(url, extraData) {
+            // Ukrywamy modale
+            $('.modal').modal('hide');
+            showLoading();
+
+            const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
+
+            const payload = {
+                ProductIds: productIdsArray,
+                IsAllegro: isAllegroContext, // Ważne dla backendu
+                ...extraData
+            };
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: function(res) {
+                    hideLoading();
+                    alert(res.message || 'Operacja zakończona sukcesem.');
+                    location.reload();
+                },
+                error: function(xhr) {
+                    hideLoading();
+                    alert('Błąd: ' + (xhr.responseJSON ? xhr.responseJSON.message : xhr.statusText));
+                }
+            });
+        }
     </script>
 }
