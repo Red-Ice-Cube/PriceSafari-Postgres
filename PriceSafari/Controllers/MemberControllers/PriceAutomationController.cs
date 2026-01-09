@@ -303,6 +303,24 @@ namespace PriceSafari.Controllers.MemberControllers
                 if (filteredCompetitors.Any()) marketAvg = CalculateMedian(competitorPrices);
 
                 string currentRankAllegro = "-";
+                bool hasCheaperOwnOffer = false;
+
+                if (myHistory != null && myHistory.Price > 0)
+                {
+                    // Pobieramy wszystkie inne oferty mojego sklepu dla tego produktu
+                    var myOtherOffers = histories
+                        .Where(h => h.SellerName != null
+                                 && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase)
+                                 && h.IdAllegro != myHistory.IdAllegro // Pomijamy tę, którą właśnie analizujemy
+                                 && h.Price > 0)
+                        .ToList();
+
+                    // Sprawdzamy, czy którakolwiek z nich jest tańsza
+                    if (myOtherOffers.Any(other => other.Price < myHistory.Price))
+                    {
+                        hasCheaperOwnOffer = true;
+                    }
+                }
                 if (myHistory != null && myHistory.Price > 0)
                     currentRankAllegro = CalculateRanking(new List<decimal>(competitorPrices), myHistory.Price);
 
@@ -328,7 +346,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     CompetitorIsBestPriceGuarantee = bestCompetitor?.IsBestPriceGuarantee ?? false,
                     CompetitorIsSuperPrice = bestCompetitor?.SuperPrice ?? false,
                     CompetitorIsTopOffer = bestCompetitor?.TopOffer ?? false,
-                    IsCommissionIncluded = rule.MarketplaceIncludeCommission
+                    IsCommissionIncluded = rule.MarketplaceIncludeCommission,
+                    HasCheaperOwnOffer = hasCheaperOwnOffer,
                 };
 
                 CalculateSuggestedPrice(rule, row);

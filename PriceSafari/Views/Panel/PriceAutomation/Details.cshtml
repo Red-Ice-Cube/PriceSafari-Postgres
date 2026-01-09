@@ -605,6 +605,15 @@
                                         <span class="price-main-style @(item.IsBestPriceGuarantee ? "price-green" : "")">
                                             @(item.CurrentPrice.HasValue? item.CurrentPrice.Value.ToString("F2")  : "-") PLN
                                         </span>
+                                        @if (item.HasCheaperOwnOffer)
+                                        {
+                                            <span class="text-danger mr-1"
+                                                  data-toggle="tooltip"
+                                                  title="UWAGA: Posiadasz inną, tańszą ofertę podpiętą pod ten sam katalog!"
+                                                  style="cursor: help; font-size: 14px;">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                            </span>
+                                        }
                                         @if (item.IsBestPriceGuarantee)
                                         {
                                             <div title="Gwarancja Najniższej Ceny">

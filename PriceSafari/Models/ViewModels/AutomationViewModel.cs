@@ -135,6 +135,8 @@ namespace PriceSafari.Models.ViewModels
         public bool IsAlreadyUpdated { get; set; }
         public decimal? UpdatedPrice { get; set; }
         public DateTime? UpdateDate { get; set; }
+
+        public bool HasCheaperOwnOffer { get; set; }
     }
 
     public class AutomationExecutionRequest
