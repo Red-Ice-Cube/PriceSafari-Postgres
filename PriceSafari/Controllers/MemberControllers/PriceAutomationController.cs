@@ -96,13 +96,13 @@ namespace PriceSafari.Controllers.MemberControllers
             }
             else if (rule.SourceType == AutomationSourceType.Marketplace)
             {
-                // 1. Pobieramy przeliczone dane
-                // 1. Pobieramy i przeliczamy dane
+         
                 var calcResult = await GetCalculatedMarketplaceData(rule);
 
                 if (calcResult.ScrapId == 0) return BadRequest("Brak danych historycznych.");
 
-                // --- STATYSTYKI OGÓLNE (Met/Unmet) ---
+                int totalProductsInRule = calcResult.Products.Count;
+
                 int metCount = calcResult.Products.Count(p =>
                     p.Status == AutomationCalculationStatus.TargetMet ||
                     p.Status == AutomationCalculationStatus.TargetMaintained ||
@@ -111,8 +111,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 int unmetCount = calcResult.Products.Count(p =>
                     p.Status == AutomationCalculationStatus.Blocked);
 
-                // --- NOWE: STATYSTYKI DYNAMIKI (Podwyżki/Obniżki/Utrzymane) ---
-                // Logika skopiowana z ViewModelu, aby dane w bazie pokrywały się z widokiem
+           
 
                 int increasedCount = calcResult.Products.Count(p =>
                     p.Status != AutomationCalculationStatus.Blocked && p.PriceChange > 0);
@@ -122,10 +121,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 int maintainedCount = calcResult.Products.Count(p =>
                     p.Status == AutomationCalculationStatus.TargetMaintained);
-                // Alternatywnie: p.Status != AutomationCalculationStatus.Blocked && p.PriceChange == 0
-                // -------------------------------------------------------------
 
-                // 2. Mapowanie do wysyłki (pomijamy zablokowane)
                 var itemsToBridge = new List<AllegroPriceBridgeItemRequest>();
 
                 foreach (var row in calcResult.Products)
@@ -135,7 +131,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     itemsToBridge.Add(new AllegroPriceBridgeItemRequest
                     {
-                        // ... (przypisywanie pól bez zmian) ...
+                      
                         ProductId = row.ProductId,
                         OfferId = row.Identifier,
                         MarginPrice = row.PurchasePrice,
@@ -155,7 +151,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     });
                 }
 
-                // 3. Wywołanie serwisu z PEŁNYM ZESTAWEM STATYSTYK
+              
                 var result = await _allegroBridgeService.ExecutePriceChangesAsync(
                     storeId: rule.StoreId,
                     allegroScrapeHistoryId: calcResult.ScrapId,
@@ -164,12 +160,11 @@ namespace PriceSafari.Controllers.MemberControllers
                     itemsToBridge: itemsToBridge,
                     isAutomation: true,
                     automationRuleId: rule.Id,
-
-                    // Statystyki skuteczności
+                    totalProductsInRule: totalProductsInRule,
                     targetMetCount: metCount,
                     targetUnmetCount: unmetCount,
 
-                    // NOWE: Statystyki dynamiki
+                 
                     priceIncreasedCount: increasedCount,
                     priceDecreasedCount: decreasedCount,
                     priceMaintainedCount: maintainedCount

@@ -1560,8 +1560,8 @@
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+
     <script>
-        // Zmienne globalne dla instancji wykresów
         var chartEff = null;
         var chartDyn = null;
 
@@ -1599,7 +1599,7 @@
             if (!chartEff) return;
 
             var option = {
-                title: { text: 'Skuteczność + Total', left: 'center', textStyle: { fontSize: 13 } },
+                title: { text: 'Skuteczność', left: 'center', textStyle: { fontSize: 13 } },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
                 legend: { bottom: 0, data: ['Spełnione', 'Niespełnione/Blok', 'Razem'] },
                 grid: { left: '3%', right: '4%', bottom: '10%', top: '35px', containLabel: true },
@@ -1610,25 +1610,37 @@
                         name: 'Spełnione',
                         type: 'bar',
                         stack: 'total',
-                        color: '#1cc88a',
+                        itemStyle: {
+                            color: 'rgba(25, 135, 84, 0.8)',  // Półprzezroczyste tło
+                            borderColor: '#198754',           // Pełna ramka
+                            borderWidth: 1,
+                            borderRadius: 0
+                        },
                         data: data.targetMet
                     },
                     {
                         name: 'Niespełnione/Blok',
                         type: 'bar',
                         stack: 'total',
-                        color: '#e74a3b',
+                        itemStyle: {
+                            color: 'rgba(108, 117, 125, 0.8)', // Półprzezroczyste tło
+                            borderColor: '#6C757D',            // Pełna ramka
+                            borderWidth: 1,
+                            borderRadius: 0
+                        },
                         data: data.targetUnmet
                     },
-                    // --- NOWA LINIA: TOTAL ---
                     {
                         name: 'Razem',
                         type: 'line',
                         data: data.totalProducts,
-                        itemStyle: { color: '#858796' },
-                        lineStyle: { type: 'dashed', width: 2 },
-                        symbol: 'circle',
-                        symbolSize: 6
+                        symbol: 'none',
+                        itemStyle: { color: '#000000' },
+                        lineStyle: {
+                            type: 'dashed',
+                            width: 3,
+                            color: '#000000'
+                        }
                     }
                 ]
             };
@@ -1639,48 +1651,64 @@
             if (!chartDyn) return;
 
             var option = {
-                title: { text: 'Dynamika Zmian + Total', left: 'center', textStyle: { fontSize: 13 } },
+                title: { text: 'Dynamika Zmian', left: 'center', textStyle: { fontSize: 13 } },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                // Legenda w kolejności logicznej dla użytkownika (od góry wykresu)
                 legend: { bottom: 0, data: ['Wzrosty', 'Utrzymane', 'Spadki', 'Razem'] },
                 grid: { left: '3%', right: '4%', bottom: '10%', top: '35px', containLabel: true },
                 xAxis: { type: 'category', data: data.dates },
                 yAxis: { type: 'value' },
                 series: [
-                    // Kolejność w tablicy series decyduje o kolejności na stosie (od dołu do góry)
-                    // 1. Dół: Spadki
+                    // 1. DÓŁ: Spadki (Zielony)
                     {
                         name: 'Spadki',
                         type: 'bar',
-                        stack: 'total', // Stacked
-                        color: '#1cc88a', // Zielony
+                        stack: 'total',
+                        itemStyle: {
+                            color: 'rgba(25, 135, 84, 0.8)',
+                            borderColor: '#198754',
+                            borderWidth: 1,
+                            borderRadius: 0
+                        },
                         data: data.decreased
                     },
-                    // 2. Środek: Utrzymane
+                    // 2. ŚRODEK: Utrzymane (Niebieski)
                     {
                         name: 'Utrzymane',
                         type: 'bar',
-                        stack: 'total', // Stacked
-                        color: '#4e73df', // Niebieski
+                        stack: 'total',
+                        itemStyle: {
+                            color: 'rgba(13, 110, 253, 0.8)',
+                            borderColor: '#0d6efd',
+                            borderWidth: 1,
+                            borderRadius: 0
+                        },
                         data: data.maintained
                     },
-                    // 3. Góra: Wzrosty
+                    // 3. GÓRA: Wzrosty (Czerwony)
                     {
                         name: 'Wzrosty',
                         type: 'bar',
-                        stack: 'total', // Stacked
-                        color: '#e74a3b', // Czerwony
+                        stack: 'total',
+                        itemStyle: {
+                            color: 'rgba(231, 74, 59, 0.8)',
+                            borderColor: '#e74a3b',
+                            borderWidth: 1,
+                            borderRadius: 0
+                        },
                         data: data.increased
                     },
-                    // --- NOWA LINIA: TOTAL ---
+                    // LINIA: Razem
                     {
                         name: 'Razem',
                         type: 'line',
                         data: data.totalProducts,
-                        itemStyle: { color: '#858796' }, // Szary
-                        lineStyle: { type: 'dashed', width: 2 },
-                        symbol: 'circle',
-                        symbolSize: 6
+                        symbol: 'none',
+                        itemStyle: { color: '#000000' },
+                        lineStyle: {
+                            type: 'dashed',
+                            width: 3,
+                            color: '#000000'
+                        }
                     }
                 ]
             };
@@ -1688,8 +1716,6 @@
         }
 
         $(document).ready(function() {
-            console.log("Inicjalizacja ECharts...");
-
             var elemEff = document.getElementById('chartEffectiveness');
             var elemDyn = document.getElementById('chartDynamics');
 
@@ -1697,15 +1723,12 @@
                 chartEff = echarts.init(elemEff);
                 chartDyn = echarts.init(elemDyn);
 
-                // Domyślne ładowanie (7 dni)
                 loadHistoryData(7);
 
                 window.addEventListener('resize', function() {
                     chartEff.resize();
                     chartDyn.resize();
                 });
-            } else {
-                console.warn("Nie znaleziono kontenerów wykresów.");
             }
 
             $('.history-btn').click(function() {

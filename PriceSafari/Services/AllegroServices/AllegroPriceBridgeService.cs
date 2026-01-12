@@ -32,20 +32,22 @@ namespace PriceSafari.Services.AllegroServices
         }
 
         public async Task<PriceBridgeResult> ExecutePriceChangesAsync(
-           int storeId,
-           int allegroScrapeHistoryId,
-           string userId,
-           bool includeCommissionInMargin,
-           List<AllegroPriceBridgeItemRequest> itemsToBridge,
-           bool isAutomation = false,
+    int storeId,
+    int allegroScrapeHistoryId,
+    string userId,
+    bool includeCommissionInMargin,
+    List<AllegroPriceBridgeItemRequest> itemsToBridge,
+    bool isAutomation = false,
 
-           int? automationRuleId = null,
-           int? targetMetCount = null,
-            int? targetUnmetCount = null,
-            int? priceIncreasedCount = null,
-            int? priceDecreasedCount = null,
-            int? priceMaintainedCount = null)
-
+    int? automationRuleId = null,
+    int? targetMetCount = null,
+    int? targetUnmetCount = null,
+    int? priceIncreasedCount = null,
+    int? priceDecreasedCount = null,
+    int? priceMaintainedCount = null,
+    // --- DODAJ TEN PARAMETR NA KOŃCU ---
+    int? totalProductsInRule = null)
+        // -----------------------------------
         {
             var result = new PriceBridgeResult();
             var store = await _context.Stores.FindAsync(storeId);
@@ -83,14 +85,17 @@ namespace PriceSafari.Services.AllegroServices
                 IsAutomation = isAutomation,
                 AutomationRuleId = automationRuleId,
 
-                TotalProductsCount = itemsToBridge.Count,
+                // --- ZMIEŃ TĘ LINIJKĘ ---
+                // Jeśli przekazano totalProductsInRule, użyj go. Jeśli nie (np. ręczne wywołanie), użyj itemsToBridge.Count
+                TotalProductsCount = totalProductsInRule.HasValue ? totalProductsInRule.Value : itemsToBridge.Count,
+                // ------------------------
+
                 TargetMetCount = targetMetCount,
                 TargetUnmetCount = targetUnmetCount,
                 PriceIncreasedCount = priceIncreasedCount,
                 PriceDecreasedCount = priceDecreasedCount,
                 PriceMaintainedCount = priceMaintainedCount
             };
-
             _context.AllegroPriceBridgeBatches.Add(newBatch);
 
             var itemsToVerify = new List<AllegroPriceBridgeItem>();
