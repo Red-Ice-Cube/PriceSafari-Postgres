@@ -13,10 +13,18 @@
     bool canEdit = user?.AccesToEditPriceAutomation ?? false;
     string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen. Skontaktuj sie z nami biuro@pricesafari.pl";
 
-    string badgeClass = Model.IsActive ? "badge-success" : "badge-secondary";
-    string strategyIcon = Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "fa-bolt" : "fa-dollar-sign";
-    string strategyName = Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "Lider Rynku" : "Rentowność";
-    string sourceIcon = Model.SourceType == AutomationSourceType.PriceComparison ? "fa-tags" : "fa-shopping-bag";
+    // --- NOWA LOGIKA DLA STYLI (Tu naprawiamy błąd) ---
+    bool isCompetitiveness = Model.StrategyMode == AutomationStrategyMode.Competitiveness;
+
+    // Definiujemy zmienne używane w nowym HTML
+    string strategyClass = isCompetitiveness ? "strategy-comp" : "strategy-prof";
+    string strategyIconClass = isCompetitiveness ? "fa-bolt" : "fa-dollar-sign";
+    string strategyLabel = isCompetitiveness ? "Lider Rynku" : "Rentowność";
+
+    string statusClass = Model.IsActive ? "status-active-color" : "status-inactive-color";
+    string statusLabel = Model.IsActive ? "Aktywny" : "Wyłączony";
+
+    // Stare zmienne (dla reszty widoku)
     string borderClass = Model.SourceType == AutomationSourceType.PriceComparison ? "border-left-info" : "border-left-warning";
 
     bool isMarketplace = Model.SourceType == AutomationSourceType.Marketplace;
@@ -259,20 +267,14 @@
         pointer-events: auto !important;
     }
 
-
-
-
-
-
-    /* Nowe style dla statusu wgrania (przerywana ramka) */
     .status-box-dashed {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0 4px; /* Zero góra/dół, bo border zabiera miejsce */
+        padding: 0 4px;
         border-radius: 4px;
         font-size: 11px;
-        font-weight: 700; /* Nieco grubszy font dla czytelności bez tła */
+        font-weight: 700;
         width: 124px;
         min-width: 120px;
         height: 24px;
@@ -283,7 +285,6 @@
         text-transform: uppercase;
     }
 
-    /* Warianty kolorystyczne */
     .status-dashed-success {
         border-color: #1cc88a;
         color: #1cc88a !important;
@@ -298,44 +299,121 @@
         border-color: #858796;
         color: #858796 !important;
     }
+
+
+    /* Nowe style dla nagłówka statusu/strategii */
+    .header-info-box {
+        display: inline-flex;
+        padding: 4px 16px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        background: #e3e3e3;
+        min-height: 34px;
+        gap: 12px; /* Odstęp między elementami a separatorem */
+        margin-left: 15px;
+    }
+
+    .strategy-text {
+        font-weight: 600;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Kolory strategii */
+    .strategy-comp {
+        color: rgba(113, 96, 232, 1); /* Fioletowy dla Lidera Rynku */
+    }
+
+    .strategy-prof {
+        color: #0d2c56; /* Ciemny granat dla Rentowności */
+    }
+
+    /* Separator pionowy */
+    .header-separator {
+        color: #bbb;
+        font-weight: 300;
+        font-size: 16px;
+    }
+
+    /* Status (Aktywna/Nieaktywna) */
+    .status-indicator-text {
+        font-weight: 600;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .status-active-color {
+        color: #1cc88a; /* Zieleń */
+    }
+
+    .status-inactive-color {
+        color: #e74a3b; /* Czerwień */
+    }
 </style>
 
-<div class="container-fluid">
+<div class="View">
 
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <div>
-            <h1 class="h3 mb-0 text-gray-800">
-                <i class="fas @sourceIcon text-gray-400 mr-2"></i> @Model.RuleName
-            </h1>
-            <div class="mt-2">
-                <span class="badge @badgeClass p-2"><i class="fas fa-power-off"></i> @(Model.IsActive ? "Aktywna" : "Wyłączona")</span>
-                <span class="badge badge-light p-2 border ml-1"><i class="fas @strategyIcon"></i> @strategyName</span>
-                <span class="text-xs text-muted ml-2">Sklep: <strong>@Model.StoreName</strong></span>
+    <div class="Vert">
+        <div class="Date" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+
+            <div style="display: flex; align-items: center;">
+                <div class="Order-Container-Title" style="margin-bottom: 0; display:flex; flex-direction:column; line-height:1.2; gap:0px;">
+                    <span style="font-size: 23px;">Automat cenowy <strong>@Model.RuleName</strong></span>
+                    <span style="font-size: 12px; color: #858796; font-weight:400;">@Model.StoreName</span>
+                </div>
+
+                <div class="header-info-box">
+
+                    <div class="strategy-text @strategyClass">
+                        <i class="fa-solid @strategyIconClass"></i> @strategyLabel
+                    </div>
+
+                    <span class="header-separator">|</span>
+
+                    <div class="status-indicator-text @statusClass">
+                        <i class="fa-solid fa-circle" style="font-size: 6px;"></i> @statusLabel
+                    </div>
+
+                </div>
             </div>
-        </div>
-        <div>
-            @* 1. PRZYCISK KONFIGURACJI *@
-            @if (canEdit)
-            {
-                <a asp-controller="AutomationRules" asp-action="Edit" asp-route-id="@Model.RuleId" class="btn btn-sm btn-primary shadow-sm">
-                    <i class="fas fa-cog fa-sm text-white-50"></i> Konfiguruj Regułę
-                </a>
-            }
-            else
-            {
-                <a href="#" onclick="showNoAccessAlert(); return false;" class="btn btn-sm btn-secondary shadow-sm btn-disabled-access">
-                    <i class="fas fa-cog fa-sm text-white-50"></i> Konfiguruj Regułę
-                </a>
-            }
 
-            <a asp-controller="AutomationRules" asp-action="Index" asp-route-storeId="@Model.StoreId" asp-route-filterType="@Model.SourceType" class="btn btn-sm btn-secondary shadow-sm">
-                <i class="fas fa-arrow-left fa-sm text-white-50"></i> Powrót
-            </a>
+            <div>
+                @if (canEdit)
+                {
+                    <a asp-controller="AutomationRules" asp-action="Edit" asp-route-id="@Model.RuleId" class="btn btn-sm btn-primary shadow-sm">
+                        <i class="fas fa-cog fa-sm text-white-50"></i> Konfiguruj Regułę
+                    </a>
+                }
+                else
+                {
+                    <a href="#" onclick="showNoAccessAlert(); return false;" class="btn btn-sm btn-secondary shadow-sm btn-disabled-access">
+                        <i class="fas fa-cog fa-sm text-white-50"></i> Konfiguruj Regułę
+                    </a>
+                }
+
+                <a asp-controller="AutomationRules" asp-action="Index" asp-route-storeId="@Model.StoreId" asp-route-filterType="@Model.SourceType" class="btn btn-sm btn-secondary shadow-sm">
+                    <i class="fas fa-arrow-left fa-sm text-white-50"></i> Powrót
+                </a>
+            </div>
+
         </div>
     </div>
 
+
+
+
+
+
+
     <div class="row">
-        @* KAFELKI STATYSTYK (bez zmian) *@
+       
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card @borderClass shadow h-100 py-2">
                 <div class="card-body">
@@ -346,13 +424,6 @@
                         </div>
                         <div class="col-auto"><i class="fas fa-box fa-2x text-gray-300"></i></div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card shadow h-100 py-2 border-left-primary">
-                <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Ostatnia Analiza</div>
@@ -365,6 +436,7 @@
                 </div>
             </div>
         </div>
+
 
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card shadow h-100 py-2 border-left-success">
@@ -419,44 +491,53 @@
         </div>
     </div>
 
+
+
     <div class="Vert">
-        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-            <div class="d-flex align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary mr-3">Symulacja Cen</h6>
+        <div class="Date" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
 
-                @* --- NOWOŚĆ: Pasek zaznaczania --- *@
-                <div id="selectionContainer" class="selection-container" style="display: flex; gap: 4px; align-items: center;">
-                    <span id="selectedProductsCounter" class="ProductCount" style="width:126px; height:30px; display:flex; align-items:center; justify-content:center; background:#f8f9fc; border:1px solid #e3e6f0; border-radius:4px; font-size:12px; font-weight:600; color:#5a5c69;">Wybrano: 0</span>
+            <div style="display: flex; align-items: center;">
+                <input type="text" id="productSearch" style="max-width:150px; height:33.99px;" placeholder="Wyszukaj produkt">
 
-                    <button id="selectAllVisibleBtn" class="btn btn-sm btn-light border" style="width:40px; height:30px;" title="Zaznacz wszystkie widoczne produkty">
-                        <i class="fa-solid fa-square-check text-gray-600"></i>
+                @if (canEdit)
+                {
+                    <button class="btn btn-success btn-sm" onclick="executeAutomation()">
+                        <i class="fas fa-play"></i> Wykonaj Automatyzację 
                     </button>
-
-                    <button id="deselectAllVisibleBtn" class="btn btn-sm btn-light border" style="width:40px; height:30px;" title="Odznacz wszystkie widoczne produkty">
-                        <i class="fa-solid fa-square-xmark text-gray-600"></i>
+                }
+                else
+                {
+                    <button class="btn btn-success btn-sm btn-disabled-access" onclick="showNoAccessAlert()">
+                        <i class="fas fa-play"></i> Wykonaj Automatyzację
                     </button>
-
-                    <button id="showSelectedProductsBtn" class="btn btn-sm btn-primary shadow-sm" style="height:30px; font-size:12px;">
-                        Akcje masowe
-                    </button>
-                </div>
-                @* -------------------------------- *@
+                }
             </div>
 
-            @* Twoje istniejące przyciski *@
-            @if (canEdit)
-            {
-                <button class="btn btn-success btn-sm" onclick="executeAutomation()">
-                    <i class="fas fa-play"></i> Wykonaj Automatyzację (Symulacja)
-                </button>
-            }
-            else
-            {
-                <button class="btn btn-success btn-sm btn-disabled-access" onclick="showNoAccessAlert()">
-                    <i class="fas fa-play"></i> Wykonaj Automatyzację (Symulacja)
-                </button>
-            }
+            <div>
+
+
+                <div id="selectionContainer" class="selection-container">
+                    <span id="selectedProductsCounter" class="ProductCount" style="width:126px; height:33.99px;">Wybrano: 0</span>
+                    <button id="selectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Zaznacz wszystkie widoczne produkty">
+                        <i class="fa-solid fa-square-check"></i>
+                    </button>
+                    <button id="deselectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Odznacz wszystkie widoczne produkty">
+                        <i class="fa-solid fa-square-xmark"></i>
+                    </button>
+                    <button id="showSelectedProductsBtn" class="Button-Page-Small" style="width:89.25px;">Akcje</button>
+                </div>
+
+
+
+
+            </div>
+
         </div>
+    </div>
+
+
+    <div class="Vert">
+      
         <div class="Vert-full">
             <div class="Vert-table" style="height: 90vh;">
                 <table class="table-orders" id="automationTable" width="100%">
@@ -532,10 +613,11 @@
                                         }
                                     </div>
                                     <div class="mt-2">
-                                        <button class="select-product-btn btn btn-sm btn-light border"
+                                   
+                                        <button class="select-product-btn"
                                                 data-product-id="@item.ProductId"
                                                 data-product-name="@item.Name"
-                                                style="font-size: 11px; padding: 2px 8px; width: 100px;">
+                                                style="font-size: 11px; padding: 2px 8px; width: 100px; pointer-events: auto;">
                                             Zaznacz
                                         </button>
                                     </div>
@@ -569,7 +651,7 @@
                                                         <span class="limit-badge badge-purchase">Zakup</span>
                                                         <div class="d-flex align-items-center">
                                                             <span class="price-actions-display">
-                                                                @* 3a. EDYCJA CENY ZAKUPU (OŁÓWEK) *@
+                                                               
                                                                 @if (canEdit)
                                                                 {
                                                                     <i class="fas fa-pencil-alt edit-btn edit-trigger" title="Edytuj cenę zakupu"></i>
@@ -588,7 +670,7 @@
                                             {
                                                 <div class="text-center text-gray-400 small purchase-row py-2 border rounded bg-light">
                                                     <span class="ml-2 cursor-pointer" title="Dodaj cenę zakupu">
-                                                        @* 3b. DODAWANIE CENY ZAKUPU (PLUS) *@
+                                                      
                                                         @if (canEdit)
                                                         {
                                                             <i class="fas fa-plus-circle text-gray-500 edit-btn edit-trigger" style="font-size: 12px;"></i>
@@ -603,7 +685,7 @@
                                             }
                                         </div>
 
-                                        @* Sekcja edycji jest renderowana zawsze, ale bez klasy 'edit-trigger' u góry JS jej nie pokaże *@
+                                   
                                         <div class="edit-mode d-none bg-white p-2 rounded border shadow-sm" style="position:absolute; z-index:10; width:100%; top:50%; left:0; transform: translateY(-50%);">
                                             <div class="d-flex align-items-center justify-content-between">
                                                 <input type="number" step="0.01" class="price-edit-input" value="@(item.PurchasePrice?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) ?? "")" placeholder="0.00">
@@ -656,10 +738,7 @@
                                         {
                                             <div class="TopOffer">Top</div>
                                         }
-                                        @if (item.IsInAnyCampaign)
-                                        {
-                                            <span class="badge badge-info ml-1" title="Udział w kampanii promocyjnej" style="font-size:10px;">PROMO</span>
-                                        }
+                                      
                                     </div>
                                     <div class="small text-muted ">@Model.StoreName</div>
                                     @if (item.CommissionAmount.HasValue)
@@ -871,12 +950,12 @@
 
                                         @if (item.IsAlreadyUpdated)
                                         {
-                                            @* --- STAN 1: WGRANO (Zielona przerywana ramka) --- *@
+                                      
                                             <div class="status-box-dashed status-dashed-success" title="Cena wgrana: @(item.UpdateDate?.ToString("dd.MM HH:mm") ?? "-")">
                                                 <i class="fas fa-check mr-1"></i> WGRANO
                                             </div>
 
-                                            @* Data wgrania *@
+                                         
                                             @if (item.UpdateDate.HasValue)
                                             {
                                                 <div style="font-size: 10px; color: #858796; line-height: 1.1;">
@@ -885,7 +964,7 @@
                                                 </div>
                                             }
 
-                                            @* Cena wgrana *@
+                                         
                                             @if (item.UpdatedPrice.HasValue)
                                             {
                                                 <div style="font-size: 11px; color: #1cc88a; font-weight: 700; margin-top: 2px;">
@@ -895,7 +974,7 @@
                                         }
                                         else
                                         {
-                                            @* --- STAN 2: NIE WGRANO (Czerwona przerywana ramka) --- *@
+                                          
                                             @if (item.Status != AutomationCalculationStatus.Blocked && item.SuggestedPrice.HasValue)
                                             {
                                                 <div class="status-box-dashed status-dashed-danger">
@@ -905,7 +984,7 @@
                                             }
                                             else
                                             {
-                                                @* --- STAN 3: BLOKADA (Szara przerywana ramka) --- *@
+                                              
                                                 <div class="status-box-dashed status-dashed-secondary">
                                                     <i class="fas fa-ban mr-1"></i> BLOKADA
                                                 </div>
@@ -922,7 +1001,6 @@
     </div>
 </div>
 
-
 @await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
 @section Scripts {
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap4.min.css">
@@ -933,14 +1011,13 @@
     <script>
         const storeId = @Model.StoreId;
         const currentRuleId = @Model.RuleId;
-        // Rozróżnienie kontekstu (Allegro vs Ceneo/Google)
-        const isAllegroContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
-        const sourceTypeInt = isAllegroContext ? 1 : 0; // 1 = Marketplace, 0 = Comparison
 
-        // Przechowywanie stanu zaznaczenia
+        const isAllegroContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
+        const sourceTypeInt = isAllegroContext ? 1 : 0;
+
         let selectedProductIds = new Set();
         let selectedProductNames = new Map();
-        let selectedProductIdentifiers = new Map(); // EAN lub ID
+        let selectedProductIdentifiers = new Map();
 
         function showNoAccessAlert() {
             alert('@Html.Raw(noAccessMessage)');
@@ -949,14 +1026,11 @@
         function showLoading() { $('#loadingOverlay').css('display', 'flex'); }
         function hideLoading() { $('#loadingOverlay').hide(); }
 
-        // --- UI Updates ---
-
         function updateCounter() {
-            // Aktualizacja licznika na pasku głównym
+
             const count = selectedProductIds.size;
             $('#selectedProductsCounter').text(`Wybrano: ${count}`);
 
-            // Aktualizacja licznika w modalu
             const modalCounter = document.getElementById('selectedProductsModalCounter');
             if (modalCounter) modalCounter.textContent = count;
 
@@ -964,16 +1038,13 @@
             if (automationCount) automationCount.textContent = count;
         }
 
-        function updateBtnState(btn, isSelected) {
+              function updateBtnState(btn, isSelected) {
             if (isSelected) {
                 btn.text('Wybrano');
                 btn.addClass('selected');
-                // Usuwamy bootstrapowe klasy stylu, aby użyć naszego CSS
-                btn.removeClass('btn-light border');
             } else {
                 btn.text('Zaznacz');
                 btn.removeClass('selected');
-                btn.addClass('btn-light border');
             }
         }
 
@@ -988,8 +1059,6 @@
                 }
             });
         }
-
-        // --- Renderowanie listy zaznaczonych (Tabela 1:1 jak w źródle) ---
 
         function renderSelectedList() {
             const container = document.getElementById('selectedProductsList');
@@ -1007,7 +1076,7 @@
 
             selectedProductIds.forEach(productId => {
                 const name = selectedProductNames.get(productId) || '---';
-                // Pobieramy identyfikator, jeśli go zapisaliśmy, lub placeholder
+
                 const identifier = selectedProductIdentifiers.get(productId) || '';
 
                 const tr = document.createElement('tr');
@@ -1026,8 +1095,6 @@
             container.appendChild(table);
         }
 
-        // --- Logika Modala Automatyzacji (Kluczowa sekcja z kodu źródłowego) ---
-
         function renderAutomationRulesInModal(rules, totalSelected) {
             console.log("Renderowanie reguł...", rules);
             const container = document.getElementById('automationRulesListContainer');
@@ -1035,11 +1102,9 @@
 
             container.innerHTML = '';
 
-            // Obliczenia statystyk
             const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
             const totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
 
-            // 1. Header Statystyk
             const statsHeader = document.createElement('div');
             statsHeader.style.cssText = `
                 background-color: #f8f9fa; border: 1px solid #e3e6f0; border-radius: 8px;
@@ -1065,7 +1130,6 @@
             `;
             container.appendChild(statsHeader);
 
-            // 2. Opcja "Odepnij" (Unassign)
             const unassignDiv = document.createElement('div');
             const hasAssignments = totalAssignedInSelection > 0;
 
@@ -1108,20 +1172,13 @@
                 return;
             }
 
-            // 3. Lista Reguł
-            // Filtrujemy obecną regułę, aby nie pokazywać jej na liście (chyba że chcemy pozwolić na ponowne przypisanie)
-            // W oryginalnym kodzie sortowali po nazwie
             rules.sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }));
 
             rules.forEach(rule => {
-                // Pomijamy bieżącą regułę jeśli to ten sam widok szczegółów (opcjonalne)
-                // if (rule.id === currentRuleId) return;
 
                 const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b';
                 const statusText = rule.isActive ? 'Aktywna' : 'Nieaktywna';
 
-                // Ikony strategii (zgodne z Twoim kodem C#)
-                // 0 = Competitiveness (Bolt), 1 = Profit (Dollar)
                 const isCompetitiveness = rule.strategyMode === 0;
                 const strategyIcon = isCompetitiveness ? '<i class="fa-solid fa-bolt" style="color:#888;"></i>' : '<i class="fa-solid fa-dollar-sign" style="color:#888;"></i>';
                 const strategyName = isCompetitiveness ? "Lider Rynku" : "Rentowność";
@@ -1130,7 +1187,6 @@
                 const selectedAlreadyInRule = rule.matchingCount;
                 const toBeAdded = totalSelected - selectedAlreadyInRule;
 
-                // Styl tła (wyróżnij jeśli produkty już tam są)
                 let backgroundStyle = selectedAlreadyInRule > 0 ? '#fcfcfc' : '#fff';
                 let borderStyle = '#e3e6f0';
 
@@ -1177,8 +1233,6 @@
             });
         }
 
-        // --- Logika wykonywania akcji (Fetch / Ajax) ---
-
         function confirmAndAssignRule(targetRuleId, ruleName) {
             if (!confirm(`Czy na pewno chcesz przypisać ${selectedProductIds.size} produktów do grupy "${ruleName}"?\n\nJeśli produkty były w innych grupach, zostaną przeniesione.`)) {
                 return;
@@ -1213,30 +1267,26 @@
                 success: function(res) {
                     hideLoading();
                     alert(res.message || 'Operacja zakończona sukcesem.');
-                    // Przeładowanie strony, aby odświeżyć tabelę (produkty mogą zniknąć z tej reguły lub zmienić status)
+
                     location.reload();
                 },
                 error: function(xhr) {
                     hideLoading();
                     alert('Błąd: ' + (xhr.responseJSON ? xhr.responseJSON.message : xhr.statusText));
-                    // Przywróć modal w razie błędu
+
                     setTimeout(() => $('#automationSelectionModal').modal('show'), 500);
                 }
             });
         }
 
-        // --- Listenery i Inicjalizacja ---
-
         $(document).ready(function() {
 
-            // Obsługa kliknięcia "Zaznacz" w tabeli
             $(document).on('click', '.select-product-btn', function(e) {
                 e.stopPropagation();
                 const btn = $(this);
                 const pid = btn.data('product-id').toString();
                 const pname = btn.data('product-name');
 
-                // Próbujemy pobrać identyfikator z wiersza tabeli (EAN/ID wyświetlany w kolumnie Produkt)
                 const row = btn.closest('tr');
                 const identifierText = row.find('.small.text-muted').text().trim();
 
@@ -1254,7 +1304,6 @@
                 updateCounter();
             });
 
-            // Zaznacz wszystkie widoczne
             $('#selectAllVisibleBtn').on('click', function() {
                 $('.select-product-btn').each(function() {
                     const btn = $(this);
@@ -1273,7 +1322,6 @@
                 updateCounter();
             });
 
-            // Odznacz wszystkie widoczne
             $('#deselectAllVisibleBtn').on('click', function() {
                 $('.select-product-btn').each(function() {
                     const btn = $(this);
@@ -1289,7 +1337,6 @@
                 updateCounter();
             });
 
-            // Otwieranie modala "Zaznaczone produkty"
             $('#showSelectedProductsBtn').on('click', function() {
                 if (selectedProductIds.size === 0) {
                     alert('Nie zaznaczono żadnych produktów.');
@@ -1299,7 +1346,6 @@
                 $('#selectedProductsModal').modal('show');
             });
 
-            // Usuwanie z listy w modalu
             $(document).on('click', '.remove-selection-btn', function(e) {
                 e.stopPropagation();
                 const pid = $(this).data('product-id').toString();
@@ -1307,7 +1353,6 @@
                 selectedProductNames.delete(pid);
                 selectedProductIdentifiers.delete(pid);
 
-                // Aktualizuj przycisk w głównej tabeli jeśli jest widoczny
                 const mainBtn = $(`.select-product-btn[data-product-id="${pid}"]`);
                 if(mainBtn.length) updateBtnState(mainBtn, false);
 
@@ -1315,7 +1360,6 @@
                 renderSelectedList();
             });
 
-            // Otwieranie modala Automatyzacji (z modala zaznaczonych)
             $(document).on('click', '#openBulkAutomationModalBtn', function() {
                 if (selectedProductIds.size === 0) {
                     alert('Nie zaznaczono żadnych produktów.');
@@ -1350,17 +1394,14 @@
                     console.error('Błąd pobierania reguł:', error);
                     hideLoading();
                     alert('Błąd komunikacji z serwerem.');
-                    // Przywróć poprzedni modal
+
                     $('#selectedProductsModal').modal('show');
                 });
             });
 
-            // Placeholder dla flag
             $(document).on('click', '#openBulkFlagModalBtn', function() {
                 alert("Zarządzanie flagami dla tego widoku zostanie dodane wkrótce.");
             });
-
-            // --- Obsługa Edycji Cen (Istniejąca logika view) ---
 
             $(document).on('click', '.edit-btn', function(e) {
                 e.preventDefault(); e.stopPropagation();
@@ -1389,7 +1430,6 @@
             });
         });
 
-        // --- Helper function for single price update ---
         function sendPriceUpdate(wrapper, priceValue, btnElement) {
             var productId = wrapper.data('id');
             var storeId = wrapper.data('store-id');
@@ -1427,7 +1467,6 @@
             });
         }
 
-        // --- Wykonywanie Automatyzacji (Istniejący przycisk na górze) ---
         function executeAutomation() {
             if (!confirm("Czy na pewno chcesz wykonać automatyzację?")) { return; }
             var btn = $(event.target).closest('button');

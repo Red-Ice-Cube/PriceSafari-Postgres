@@ -1664,7 +1664,6 @@ img.lazy-load-flex {
     color: #4B4B4B;
     font-size: 26px;
     font-weight: 300;
-    flex-direction: column;
     justify-content: flex-end;
     justify-content: space-between;
 }
