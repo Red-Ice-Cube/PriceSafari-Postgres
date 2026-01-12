@@ -166,7 +166,6 @@ namespace PriceSafari.Services.AllegroServices
         {
             try
             {
-
                 var offerDataTask = GetOfferData(accessToken, offerId);
                 var badgesTask = GetBadgesAsync(accessToken, offerId);
 
@@ -203,22 +202,27 @@ namespace PriceSafari.Services.AllegroServices
 
                 decimal sellerEarns = basePrice;
                 decimal customerPays = basePrice;
-                string? invitationPriceStr = null;
+                string? invitationPriceStr = null; // To pole pozostanie null, chyba że dodasz inną logikę dla "prawdziwych" zaproszeń (inny status niż ACTIVE)
                 bool isAnyPromoActive = false;
                 bool isSubsidyActive = false;
                 bool isInvitationActive = false;
 
+                // 1. Priorytet: AlleObniżka (AlleDiscount)
                 var activeAlleDiscount = alleDiscountCampaigns.FirstOrDefault();
 
+                // 2. Badges typu Subsidy (Dopłaty, np. Allegro Prices), ale bez AlleObniżki (żeby nie dublować)
                 var activeSubsidyBadge = badgeCampaigns.FirstOrDefault(b =>
                     b.BadgeNode?["prices"]?["subsidy"] != null &&
                     !(b.CampaignName.Contains("AlleObniżka") || b.CampaignName.Contains("AlleDiscount"))
                 );
 
+                // 3. Badges typu Bargain (Zwykłe przeceny)
                 var activeBargainBadge = badgeCampaigns.FirstOrDefault(b =>
                     b.BadgeNode?["prices"]?["bargain"] != null &&
                     b.BadgeNode?["prices"]?["subsidy"] == null
                 );
+
+                // --- ZMIENIONA LOGIKA PONIŻEJ ---
 
                 if (activeAlleDiscount != null)
                 {
@@ -234,47 +238,33 @@ namespace PriceSafari.Services.AllegroServices
                 }
                 else if (activeSubsidyBadge != null)
                 {
+                    // TUTAJ NASTĄPIŁA POPRAWKA PRODUKCYJNA
+                    // Usunięto logikę "if (basePrice == marketPrice ...)", która błędnie wykrywała zaproszenia.
 
                     var targetPriceStr = activeSubsidyBadge.BadgeNode?["prices"]?["subsidy"]?["targetPrice"]?["amount"]?.ToString();
                     var originalPriceStr = activeSubsidyBadge.BadgeNode?["prices"]?["subsidy"]?["originalPrice"]?["amount"]?.ToString();
-                    var marketPriceInBadgeStr = activeSubsidyBadge.BadgeNode?["prices"]?["market"]?["amount"]?.ToString();
 
                     if (decimal.TryParse(targetPriceStr, CultureInfo.InvariantCulture, out var targetPrice))
                     {
-                        bool isTrueInvitation = false;
-                        if (decimal.TryParse(marketPriceInBadgeStr, CultureInfo.InvariantCulture, out var marketPriceInBadge))
-                        {
-                            if (basePrice == marketPriceInBadge && basePrice > targetPrice)
-                            {
-                                isTrueInvitation = true;
-                            }
-                        }
+                        // Skoro badge jest ACTIVE i ma subsidy -> to jest dopłata.
+                        isAnyPromoActive = true;
+                        isSubsidyActive = true;
+                        customerPays = targetPrice;
 
-                        if (isTrueInvitation)
+                        // Jeśli Allegro podaje originalPrice, to tyle zarabiasz.
+                        // Jeśli jest null, zarabiasz swoją basePrice.
+                        if (decimal.TryParse(originalPriceStr, CultureInfo.InvariantCulture, out var originalPrice))
                         {
-                            isInvitationActive = true;
-                            invitationPriceStr = targetPriceStr;
+                            sellerEarns = originalPrice;
                         }
                         else
                         {
-                            isAnyPromoActive = true;
-                            isSubsidyActive = true;
-                            customerPays = targetPrice;
-
-                            if (decimal.TryParse(originalPriceStr, CultureInfo.InvariantCulture, out var originalPrice))
-                            {
-                                sellerEarns = originalPrice;
-                            }
-                            else
-                            {
-                                sellerEarns = basePrice;
-                            }
+                            sellerEarns = basePrice;
                         }
                     }
                 }
                 else if (activeBargainBadge != null)
                 {
-
                     var bargainPriceStr = activeBargainBadge.BadgeNode?["prices"]?["bargain"]?["amount"]?.ToString();
                     if (decimal.TryParse(bargainPriceStr, CultureInfo.InvariantCulture, out var bargainPrice))
                     {
