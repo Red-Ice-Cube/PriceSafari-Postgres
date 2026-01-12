@@ -823,5 +823,97 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             public int RuleId { get; set; }
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> GetAutomationHistory([FromBody] HistoryRequest request)
+        {
+            if (request == null || request.RuleId <= 0) return BadRequest();
+
+            int limit = request.Limit > 0 ? request.Limit : 7;
+
+            var rule = await _context.AutomationRules.FindAsync(request.RuleId);
+            if (rule == null) return NotFound();
+
+            var model = new AutomationHistoryChartViewModel();
+
+            // Wspólna definicja anonimowa, żeby kod był czytelny
+            var rawData = new List<dynamic>();
+
+            if (rule.SourceType == AutomationSourceType.Marketplace)
+            {
+                rawData = await _context.AllegroPriceBridgeBatches
+                    .Where(b => b.AutomationRuleId == rule.Id && b.IsAutomation)
+                    .OrderByDescending(b => b.ExecutionDate)
+                    .Take(limit)
+                    .Select(b => new
+                    {
+                        Date = b.ExecutionDate,
+                        Met = b.TargetMetCount ?? 0,
+                        Unmet = b.TargetUnmetCount ?? 0,
+                        Inc = b.PriceIncreasedCount ?? 0,
+                        Dec = b.PriceDecreasedCount ?? 0,
+                        Main = b.PriceMaintainedCount ?? 0,
+                        Total = b.TotalProductsCount ?? 0 // Pobieramy Total
+                    })
+                    .ToListAsync<dynamic>();
+            }
+            else // PriceComparison
+            {
+                rawData = await _context.PriceBridgeBatches
+                    .Where(b => b.AutomationRuleId == rule.Id && b.IsAutomation)
+                    .OrderByDescending(b => b.ExecutionDate)
+                    .Take(limit)
+                    .Select(b => new
+                    {
+                        Date = b.ExecutionDate,
+                        Met = b.TargetMetCount ?? 0,
+                        Unmet = b.TargetUnmetCount ?? 0,
+                        Inc = b.PriceIncreasedCount ?? 0,
+                        Dec = b.PriceDecreasedCount ?? 0,
+                        Main = b.PriceMaintainedCount ?? 0,
+                        Total = b.TotalProductsCount ?? 0 // Pobieramy Total
+                    })
+                    .ToListAsync<dynamic>();
+            }
+
+            // Sortujemy od najstarszej do najnowszej
+            var sortedData = rawData.OrderBy(x => x.Date).ToList();
+
+            foreach (var item in sortedData)
+            {
+                model.Dates.Add(item.Date.ToString("dd.MM HH:mm"));
+
+                model.TargetMet.Add(item.Met);
+                model.TargetUnmet.Add(item.Unmet);
+
+                model.Increased.Add(item.Inc);
+                model.Decreased.Add(item.Dec);
+                model.Maintained.Add(item.Main);
+
+                model.TotalProducts.Add(item.Total); // Dodajemy do modelu
+            }
+
+            return Ok(model);
+        }
+
+        // Helper class for payload
+        public class HistoryRequest
+        {
+            public int RuleId { get; set; }
+            public int Limit { get; set; }
+        }
     }
 }

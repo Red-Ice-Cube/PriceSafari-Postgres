@@ -38,15 +38,14 @@ namespace PriceSafari.Models
 
         public int? TotalProductsCount { get; set; }
 
-        // Ile produktów spełniało założenia strategii (np. przebiło rywala)
+     
         public int? TargetMetCount { get; set; }
 
-        // Ile produktów nie spełniało (np. blokada minimalnej marży)
         public int? TargetUnmetCount { get; set; }
 
 
-        public int? PriceIncreasedCount { get; set; }   // Ile podwyżek
-        public int? PriceDecreasedCount { get; set; }   // Ile obniżek
+        public int? PriceIncreasedCount { get; set; }   
+        public int? PriceDecreasedCount { get; set; }   
         public int? PriceMaintainedCount { get; set; }
 
         public PriceExportMethod ExportMethod { get; set; }

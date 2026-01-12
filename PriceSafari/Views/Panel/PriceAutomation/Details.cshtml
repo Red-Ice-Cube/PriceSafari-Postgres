@@ -356,6 +356,28 @@
     .status-inactive-color {
         color: #e74a3b; /* Czerwień */
     }
+
+
+
+
+
+    .Chart-Box-a {
+        display: flex;
+        flex-grow: 1;
+        min-height: 320px;
+        padding: 24px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        align-self: stretch;
+        gap: 24px;
+        border-radius: 8px;
+        background: #FFF;
+        box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
+        min-width: 200px;
+    }
+
+ 
 </style>
 
 <div class="View">
@@ -412,9 +434,9 @@
 
 
 
-    <div class="row">
+    <div class="Vert">
        
-        <div class="col-xl-3 col-md-6 mb-4">
+        <div class="Chart-Box-a">
             <div class="card @borderClass shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
@@ -438,7 +460,7 @@
         </div>
 
 
-        <div class="col-xl-3 col-md-6 mb-4">
+        <div class="Chart-Box-a">
             <div class="card shadow h-100 py-2 border-left-success">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
@@ -466,7 +488,7 @@
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
+        <div class="Chart-Box-a">
             <div class="card shadow h-100 py-2 border-left-info">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
@@ -490,6 +512,53 @@
             </div>
         </div>
     </div>
+
+
+
+
+
+
+
+
+
+
+
+
+    <div class="Vert" style="margin-top: 20px;">
+        <div class="Chart-Box-a" style="width: 100%; min-height: 400px; padding: 15px;">
+
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 15px;">
+                <h5 style="font-weight: 700; color: #5a5c69; margin: 0;">
+                    <i class="fas fa-chart-area mr-2"></i>Historia Wykonań Reguły
+                </h5>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-primary active history-btn" data-days="7">7 Analiz</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary history-btn" data-days="14">14 Analiz</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary history-btn" data-days="30">30 Analiz</button>
+                </div>
+            </div>
+
+            <div style="display: flex; width: 100%; gap: 20px; flex-wrap: wrap;">
+
+                <div style="flex: 1; min-width: 300px; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+                    <div id="chartEffectiveness" style="width: 100%; height: 100%;"></div>
+                </div>
+
+                <div style="flex: 1; min-width: 300px; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+                    <div id="chartDynamics" style="width: 100%; height: 100%;"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -1489,5 +1558,162 @@
                 }
             });
         }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script>
+        // Zmienne globalne dla instancji wykresów
+        var chartEff = null;
+        var chartDyn = null;
+
+        function showChartLoading() {
+            if (chartEff) chartEff.showLoading();
+            if (chartDyn) chartDyn.showLoading();
+        }
+
+        function hideChartLoading() {
+            if (chartEff) chartEff.hideLoading();
+            if (chartDyn) chartDyn.hideLoading();
+        }
+
+        function loadHistoryData(limit) {
+            showChartLoading();
+
+            $.ajax({
+                url: '@Url.Action("GetAutomationHistory", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ RuleId: @Model.RuleId, Limit: limit }),
+                success: function(data) {
+                    hideChartLoading();
+                    renderEffectivenessChart(data);
+                    renderDynamicsChart(data);
+                },
+                error: function(xhr, status, error) {
+                    hideChartLoading();
+                    console.error("Błąd pobierania danych:", error);
+                }
+            });
+        }
+
+        function renderEffectivenessChart(data) {
+            if (!chartEff) return;
+
+            var option = {
+                title: { text: 'Skuteczność + Total', left: 'center', textStyle: { fontSize: 13 } },
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                legend: { bottom: 0, data: ['Spełnione', 'Niespełnione/Blok', 'Razem'] },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '35px', containLabel: true },
+                xAxis: { type: 'category', data: data.dates },
+                yAxis: { type: 'value' },
+                series: [
+                    {
+                        name: 'Spełnione',
+                        type: 'bar',
+                        stack: 'total',
+                        color: '#1cc88a',
+                        data: data.targetMet
+                    },
+                    {
+                        name: 'Niespełnione/Blok',
+                        type: 'bar',
+                        stack: 'total',
+                        color: '#e74a3b',
+                        data: data.targetUnmet
+                    },
+                    // --- NOWA LINIA: TOTAL ---
+                    {
+                        name: 'Razem',
+                        type: 'line',
+                        data: data.totalProducts,
+                        itemStyle: { color: '#858796' },
+                        lineStyle: { type: 'dashed', width: 2 },
+                        symbol: 'circle',
+                        symbolSize: 6
+                    }
+                ]
+            };
+            chartEff.setOption(option);
+        }
+
+        function renderDynamicsChart(data) {
+            if (!chartDyn) return;
+
+            var option = {
+                title: { text: 'Dynamika Zmian + Total', left: 'center', textStyle: { fontSize: 13 } },
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                // Legenda w kolejności logicznej dla użytkownika (od góry wykresu)
+                legend: { bottom: 0, data: ['Wzrosty', 'Utrzymane', 'Spadki', 'Razem'] },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '35px', containLabel: true },
+                xAxis: { type: 'category', data: data.dates },
+                yAxis: { type: 'value' },
+                series: [
+                    // Kolejność w tablicy series decyduje o kolejności na stosie (od dołu do góry)
+                    // 1. Dół: Spadki
+                    {
+                        name: 'Spadki',
+                        type: 'bar',
+                        stack: 'total', // Stacked
+                        color: '#1cc88a', // Zielony
+                        data: data.decreased
+                    },
+                    // 2. Środek: Utrzymane
+                    {
+                        name: 'Utrzymane',
+                        type: 'bar',
+                        stack: 'total', // Stacked
+                        color: '#4e73df', // Niebieski
+                        data: data.maintained
+                    },
+                    // 3. Góra: Wzrosty
+                    {
+                        name: 'Wzrosty',
+                        type: 'bar',
+                        stack: 'total', // Stacked
+                        color: '#e74a3b', // Czerwony
+                        data: data.increased
+                    },
+                    // --- NOWA LINIA: TOTAL ---
+                    {
+                        name: 'Razem',
+                        type: 'line',
+                        data: data.totalProducts,
+                        itemStyle: { color: '#858796' }, // Szary
+                        lineStyle: { type: 'dashed', width: 2 },
+                        symbol: 'circle',
+                        symbolSize: 6
+                    }
+                ]
+            };
+            chartDyn.setOption(option);
+        }
+
+        $(document).ready(function() {
+            console.log("Inicjalizacja ECharts...");
+
+            var elemEff = document.getElementById('chartEffectiveness');
+            var elemDyn = document.getElementById('chartDynamics');
+
+            if (elemEff && elemDyn) {
+                chartEff = echarts.init(elemEff);
+                chartDyn = echarts.init(elemDyn);
+
+                // Domyślne ładowanie (7 dni)
+                loadHistoryData(7);
+
+                window.addEventListener('resize', function() {
+                    chartEff.resize();
+                    chartDyn.resize();
+                });
+            } else {
+                console.warn("Nie znaleziono kontenerów wykresów.");
+            }
+
+            $('.history-btn').click(function() {
+                $('.history-btn').removeClass('active');
+                $(this).addClass('active');
+                var days = $(this).data('days');
+                loadHistoryData(days);
+            });
+        });
     </script>
 }

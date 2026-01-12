@@ -170,4 +170,23 @@ namespace PriceSafari.Models.ViewModels
 
         public bool IsTargetMet { get; set; }
     }
+
+
+
+    public class AutomationHistoryChartViewModel
+    {
+        public List<string> Dates { get; set; } = new List<string>();
+
+        // Wykres 1: Skuteczność
+        public List<int> TargetMet { get; set; } = new List<int>();
+        public List<int> TargetUnmet { get; set; } = new List<int>();
+
+        // Wykres 2: Dynamika
+        public List<int> Increased { get; set; } = new List<int>();
+        public List<int> Decreased { get; set; } = new List<int>();
+        public List<int> Maintained { get; set; } = new List<int>();
+
+
+        public List<int> TotalProducts { get; set; } = new List<int>();
+    }
 }
