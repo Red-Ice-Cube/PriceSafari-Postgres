@@ -27,7 +27,7 @@ namespace PriceSafari.ScrapersControllers
             _context = context;
             _hubContext = hubContext;
         }
-        // --- Uproszczona funkcja do wysyłania logów ---
+
         private async Task SendLog(string message, string level = "INFO")
         {
             await _hubContext.Clients.All.SendAsync("ReceiveLog", DateTime.Now.ToString("HH:mm:ss"), message, level);
@@ -43,7 +43,8 @@ namespace PriceSafari.ScrapersControllers
             var scraper = AllegroTaskManager.ActiveScrapers.AddOrUpdate(
                 scraperName,
                 new ScraperClient { Name = scraperName, Status = ScraperLiveStatus.Idle, LastCheckIn = DateTime.UtcNow },
-                (key, existingClient) => {
+                (key, existingClient) =>
+                {
                     existingClient.Status = ScraperLiveStatus.Idle;
                     existingClient.LastCheckIn = DateTime.UtcNow;
                     existingClient.CurrentTaskUsername = null;
@@ -101,7 +102,6 @@ namespace PriceSafari.ScrapersControllers
             return NotFound("Nie znaleziono anulowanego zadania o podanej nazwie.");
         }
 
-        // NOWY ENDPOINT do usuwania scrapera
         [HttpPost("remove-scraper/{scraperName}")]
         public async Task<IActionResult> RemoveScraper(string scraperName, [FromHeader(Name = "X-Api-Key")] string receivedApiKey)
         {
@@ -125,7 +125,7 @@ namespace PriceSafari.ScrapersControllers
                 !string.IsNullOrEmpty(taskState.AssignedScraperName) &&
                 AllegroTaskManager.ActiveScrapers.TryGetValue(taskState.AssignedScraperName, out var scraper))
             {
-                // ZAKTUALIZOWANA LOGIKA
+
                 bool statusChanged = false;
                 switch (report.Message)
                 {
@@ -136,13 +136,14 @@ namespace PriceSafari.ScrapersControllers
                         break;
 
                     case "NETWORK_RESET_SUCCESS":
-                        scraper.Status = ScraperLiveStatus.Busy; // Wracamy do normalnej pracy
+                        scraper.Status = ScraperLiveStatus.Busy;
+
                         taskState.LastProgressMessage = "Sieć zresetowana. Wznawiam scrapowanie...";
                         statusChanged = true;
                         break;
 
                     default:
-                        // Jeśli to zwykły raport, a scraper był w stanie resetu, przywróć go do Busy
+
                         if (scraper.Status == ScraperLiveStatus.ResettingNetwork)
                         {
                             scraper.Status = ScraperLiveStatus.Busy;
@@ -153,9 +154,8 @@ namespace PriceSafari.ScrapersControllers
                 }
 
                 taskState.LastUpdateTime = DateTime.UtcNow;
-                scraper.LastCheckIn = DateTime.UtcNow; // Zawsze aktualizuj czas ostatniego kontaktu
+                scraper.LastCheckIn = DateTime.UtcNow;
 
-                // Wyślij aktualizację statusu scrapera tylko jeśli się zmienił
                 if (statusChanged)
                 {
                     await _hubContext.Clients.All.SendAsync("UpdateScraperStatus", scraper);
@@ -187,11 +187,10 @@ namespace PriceSafari.ScrapersControllers
             }
             return Ok(new { message = "Zadanie oznaczone jako zakończone." });
         }
-
         [HttpPost("submit-products")]
         public async Task<IActionResult> SubmitProducts(
-      [FromHeader(Name = "X-Api-Key")] string receivedApiKey,
-      [FromBody] List<AllegroProductDto> productDtos)
+            [FromHeader(Name = "X-Api-Key")] string receivedApiKey,
+            [FromBody] List<AllegroProductDto> productDtos)
         {
             if (receivedApiKey != ApiKey) return Unauthorized("Błędny klucz API.");
             if (productDtos == null || !productDtos.Any()) return BadRequest("Otrzymano pustą listę produktów.");
@@ -200,37 +199,46 @@ namespace PriceSafari.ScrapersControllers
             var store = await _context.Stores.FirstOrDefaultAsync(s => s.StoreNameAllegro == storeName);
             if (store == null) return NotFound($"Nie znaleziono sklepu dla {storeName}");
 
-            var allExistingUrlsForStore = await _context.AllegroProducts
-                .Where(p => p.StoreId == store.StoreId)
-                .Select(p => p.AllegroOfferUrl)
+            // 1. Zamiast URL, pobieramy HashSet istniejących IdOnAllegro dla tego sklepu
+            // Pobieramy tylko te, które nie są nullem
+            var existingIdsForStore = await _context.AllegroProducts
+                .Where(p => p.StoreId == store.StoreId && p.IdOnAllegro != null)
+                .Select(p => p.IdOnAllegro)
                 .ToHashSetAsync();
 
-            var newProductDtos = productDtos
-                .Where(p => !allExistingUrlsForStore.Contains(p.Url))
-                .ToList();
+            // 2. Tworzymy listę kandydatów - zamieniamy DTO na obiekty domenowe
+            // Musimy to zrobić TERAZ, aby wywołać CalculateIdFromUrl() przed sprawdzeniem duplikatu
+            var candidates = new List<AllegroProductClass>();
 
-            if (!newProductDtos.Any())
+            foreach (var dto in productDtos)
             {
-                return Ok(new { message = $"Otrzymano {productDtos.Count} produktów, ale wszystkie to duplikaty." });
-            }
-
-            var newProducts = newProductDtos.Select(dto =>
-            {
-                // 1. Tworzymy obiekt produktu
                 var product = new AllegroProductClass
                 {
                     StoreId = store.StoreId,
                     AllegroProductName = dto.Name,
-                    AllegroOfferUrl = dto.Url,
+                    AllegroOfferUrl = dto.Url, // Zapisujemy oryginalny URL od scrapera
                     AddedDate = DateTime.UtcNow
                 };
 
-                // 2. WYWOŁUJEMY METODĘ DO GENEROWANIA ID
-                // Dzięki temu pole IdOnAllegro uzupełni się automatycznie na podstawie URL-a
+                // Tu dzieje się magia - wyciągamy ID z URL (np. z parametru offerId lub z końca stringa)
                 product.CalculateIdFromUrl();
 
-                return product;
-            }).ToList();
+                candidates.Add(product);
+            }
+
+            // 3. Filtrujemy kandydatów
+            // a) IdOnAllegro nie może być nullem (błąd parsowania URL)
+            // b) IdOnAllegro nie może istnieć w bazie (existingIdsForStore)
+            // c) DistinctBy - zabezpieczenie, gdyby scraper przysłał duplikaty w jednej paczce
+            var newProducts = candidates
+                .Where(p => !string.IsNullOrEmpty(p.IdOnAllegro) && !existingIdsForStore.Contains(p.IdOnAllegro))
+                .DistinctBy(p => p.IdOnAllegro)
+                .ToList();
+
+            if (!newProducts.Any())
+            {
+                return Ok(new { message = $"Otrzymano {productDtos.Count} produktów, ale wszystkie to duplikaty (na podstawie ID)." });
+            }
 
             await _context.AllegroProducts.AddRangeAsync(newProducts);
             await _context.SaveChangesAsync();
@@ -241,19 +249,10 @@ namespace PriceSafari.ScrapersControllers
                 await _hubContext.Clients.All.SendAsync("UpdateTaskProgress", storeName, taskState);
             }
 
-            return Ok(new { message = $"Zapisano {newProducts.Count} nowych produktów (pominięto {productDtos.Count - newProductDtos.Count} duplikatów)." });
-        }
-
-        [HttpGet("task-progress")]
-        public IActionResult GetTaskProgress()
-        {
-            var progressData = AllegroTaskManager.ActiveTasks
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.CollectedOffersCount);
-            return Ok(progressData);
+            return Ok(new { message = $"Zapisano {newProducts.Count} nowych produktów (pominięto {productDtos.Count - newProducts.Count} duplikatów)." });
         }
     }
-
-    public class AllegroProductDto
+        public class AllegroProductDto
     {
         public string Name { get; set; }
         public string Url { get; set; }
