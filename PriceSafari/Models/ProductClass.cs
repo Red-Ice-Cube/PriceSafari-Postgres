@@ -101,5 +101,11 @@ namespace PriceSafari.Models
         // Relacje
         public ICollection<PriceHistoryClass> PriceHistories { get; set; } = new List<PriceHistoryClass>();
         public ICollection<ProductFlag> ProductFlags { get; set; } = new List<ProductFlag>();
+
+
+
+        // domapowane katalogi google 
+
+        public ICollection<ProductGoogleCatalog> GoogleCatalogs { get; set; } = new List<ProductGoogleCatalog>();
     }
 }

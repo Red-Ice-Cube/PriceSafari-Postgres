@@ -53,13 +53,71 @@ public class GoogleScraperController : Controller
         private string _googleUrl;
         private string _cid;
         private string _googleGid;
-        public ProductStatus Status { get => _status; set { if (_status != value) { _status = value; IsDirty = true; } } }
-        public string GoogleUrl { get => _googleUrl; set { if (_googleUrl != value) { _googleUrl = value; IsDirty = true; } } }
-        public string Cid { get => _cid; set { if (_cid != value) { _cid = value; IsDirty = true; } } }
-        public string GoogleGid { get => _googleGid; set { if (_googleGid != value) { _googleGid = value; IsDirty = true; } } }
+
+        public ProductStatus Status
+        {
+            get => _status;
+            set
+            {
+                if (_status != value)
+                {
+                    _status = value;
+                    IsDirty = true;
+                }
+            }
+        }
+
+        public string GoogleUrl
+        {
+            get => _googleUrl;
+            set
+            {
+                if (_googleUrl != value)
+                {
+                    _googleUrl = value;
+                    IsDirty = true;
+                }
+            }
+        }
+
+        public string Cid
+        {
+            get => _cid;
+            set
+            {
+                if (_cid != value)
+                {
+                    _cid = value;
+                    IsDirty = true;
+                }
+            }
+        }
+
+        public string GoogleGid
+        {
+            get => _googleGid;
+            set
+            {
+                if (_googleGid != value)
+                {
+                    _googleGid = value;
+                    IsDirty = true;
+                }
+            }
+        }
 
         public int? ProcessingByTaskId { get; set; }
         public bool IsDirty { get; set; }
+
+        // --- NOWE POLA DLA OBSŁUGI RELACJI 1:N ---
+
+        // Lista tymczasowa na nowe znalezione katalogi (przechowuje je przed zapisem do bazy)
+        public ConcurrentBag<ProductGoogleCatalog> NewCatalogsFound { get; set; } = new ConcurrentBag<ProductGoogleCatalog>();
+
+        // Zbiór znanych GID-ów (Główny + Dodatkowe), aby unikać duplikatów w locie
+        public HashSet<string> KnownCids { get; set; } = new HashSet<string>();
+
+        // ------------------------------------------
 
         public ProductProcessingState(ProductClass product, Func<string, string> cleanUrlFunc)
         {
@@ -69,16 +127,43 @@ public class GoogleScraperController : Controller
             ProductNameInStoreForGoogle = product.ProductNameInStoreForGoogle;
             Ean = product.Ean;
             ProducerCode = product.ProducerCode;
+
             if (product.FoundOnGoogle == true)
             {
                 _status = ProductStatus.Found;
                 _googleUrl = product.GoogleUrl;
-
                 _googleGid = product.GoogleGid;
             }
-            else if (product.FoundOnGoogle == false) { _status = ProductStatus.NotFound; }
-            else { _status = ProductStatus.Pending; }
+            else if (product.FoundOnGoogle == false)
+            {
+                _status = ProductStatus.NotFound;
+            }
+            else
+            {
+                _status = ProductStatus.Pending;
+            }
+
             IsDirty = false;
+
+            // --- INICJALIZACJA ZNANYCH KATALOGÓW ---
+
+            // 1. Dodajemy główny katalog, jeśli istnieje
+            if (!string.IsNullOrEmpty(product.GoogleGid))
+            {
+                KnownCids.Add(product.GoogleGid);
+            }
+
+            // 2. Dodajemy istniejące dodatkowe katalogi (jeśli zostały załadowane z bazy przez .Include)
+            if (product.GoogleCatalogs != null)
+            {
+                foreach (var catalog in product.GoogleCatalogs)
+                {
+                    if (!string.IsNullOrEmpty(catalog.GoogleGid))
+                    {
+                        KnownCids.Add(catalog.GoogleGid);
+                    }
+                }
+            }
         }
 
         public void UpdateStatus(ProductStatus newStatus, string googleUrl = null, string cid = null, string gid = null)
@@ -94,6 +179,30 @@ public class GoogleScraperController : Controller
                 this.GoogleUrl = googleUrl;
                 this.Cid = cid;
                 this.GoogleGid = gid;
+            }
+        }
+
+        // --- NOWA METODA DO DODAWANIA DODATKOWYCH KATALOGÓW ---
+        public void AddCatalog(string cid, string gid, string url)
+        {
+            if (string.IsNullOrEmpty(gid)) return;
+
+            // Blokujemy zbiór KnownCids, aby zapewnić bezpieczeństwo wątków przy sprawdzaniu duplikatów
+            lock (KnownCids)
+            {
+                if (!KnownCids.Contains(gid))
+                {
+                    KnownCids.Add(gid);
+                    NewCatalogsFound.Add(new ProductGoogleCatalog
+                    {
+                        ProductId = this.ProductId,
+                        GoogleCid = cid,
+                        GoogleGid = gid,
+                        GoogleUrl = url,
+                        FoundDate = DateTime.UtcNow
+                    });
+                    IsDirty = true; // Oznaczamy stan jako "brudny", aby Timer lub BatchSave zapisał te zmiany
+                }
             }
         }
     }
@@ -2093,5 +2202,496 @@ public class GoogleScraperController : Controller
         await _context.SaveChangesAsync();
 
         return Ok();
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    [HttpPost]
+    public async Task<IActionResult> StartScrapingForAdditionalCatalogs(
+        int storeId,
+        List<int> productIds,
+        int numberOfConcurrentScrapers = 5,
+        int maxCidsToProcess = 8,
+        string productNamePrefix = null,
+        bool allowManualCaptchaSolving = false)
+    {
+        if (_isScrapingActive)
+        {
+            return Conflict("Proces scrapowania jest już aktywny.");
+        }
+        _isScrapingActive = true;
+
+        string finalMessage = $"Proces Multi-Catalog dla sklepu {storeId} zainicjowany.";
+
+        // === ZMIANA: ZATRZYMUJEMY GLOBALNY TIMER, ABY NIE KRADŁ DANYCH ===
+        lock (_lockTimer)
+        {
+            if (_batchSaveTimer != null)
+            {
+                _batchSaveTimer.Dispose();
+                _batchSaveTimer = null;
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Multi-Catalog] Zatrzymano globalny timer zapisu, aby uniknąć konfliktów.");
+            }
+        }
+        // =================================================================
+
+        _currentGlobalScrapingOperationCts = new CancellationTokenSource();
+        _currentCaptchaGlobalCts = new CancellationTokenSource();
+
+        try
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Multi-Catalog] START. Tryb READ-ONLY dla głównego produktu.");
+
+            var scraperInstances = new List<GoogleScraper>();
+            var initTasks = new List<Task>();
+            for (int i = 0; i < numberOfConcurrentScrapers; i++)
+            {
+                var sc = new GoogleScraper();
+                scraperInstances.Add(sc);
+                initTasks.Add(sc.InitializeBrowserAsync());
+            }
+            await Task.WhenAll(initTasks);
+            var availableScrapersPool = new ConcurrentBag<GoogleScraper>(scraperInstances);
+
+            InitializeMasterProductListForMultiCatalog(storeId, productIds);
+
+            var semaphore = new SemaphoreSlim(numberOfConcurrentScrapers, numberOfConcurrentScrapers);
+            var activeScrapingTasks = new List<Task>();
+
+            while (!_currentGlobalScrapingOperationCts.IsCancellationRequested)
+            {
+                // Próba zapisu w każdym obiegu pętli
+                await BatchUpdateMultiCatalogAsync(false, CancellationToken.None);
+
+                List<int> pendingProductIds;
+                lock (_lockMasterListInit)
+                {
+                    pendingProductIds = _masterProductStateList
+                        .Where(kvp => kvp.Value.ProcessingByTaskId == null)
+                        .Select(kvp => kvp.Key).ToList();
+                }
+
+                if (!pendingProductIds.Any())
+                {
+                    if (activeScrapingTasks.Any(t => !t.IsCompleted))
+                    {
+                        await Task.WhenAny(activeScrapingTasks.Where(t => !t.IsCompleted).ToArray());
+                        activeScrapingTasks.RemoveAll(t => t.IsCompleted);
+                        continue;
+                    }
+                    else
+                    {
+                        break; // Koniec
+                    }
+                }
+
+                await semaphore.WaitAsync(_currentGlobalScrapingOperationCts.Token);
+                if (_currentGlobalScrapingOperationCts.IsCancellationRequested) { semaphore.Release(); break; }
+
+                int selectedProductId;
+                ProductProcessingState productStateToProcess;
+
+                lock (_lockMasterListInit)
+                {
+                    var currentPending = _masterProductStateList
+                        .Where(kvp => kvp.Value.ProcessingByTaskId == null)
+                        .Select(kvp => kvp.Key).ToList();
+
+                    if (!currentPending.Any()) { semaphore.Release(); continue; }
+
+                    selectedProductId = currentPending[_random.Next(currentPending.Count)];
+                    productStateToProcess = _masterProductStateList[selectedProductId];
+                }
+
+                if (availableScrapersPool.TryTake(out var assignedScraper))
+                {
+                    lock (productStateToProcess)
+                    {
+                        productStateToProcess.ProcessingByTaskId = Task.CurrentId ?? Thread.CurrentThread.ManagedThreadId;
+                    }
+
+                    var task = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await ProcessSingleProduct_MultiCatalogMatchAsync(
+                                productStateToProcess,
+                                assignedScraper,
+                                _currentGlobalScrapingOperationCts,
+                                maxCidsToProcess,
+                                productNamePrefix,
+                                allowManualCaptchaSolving);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[Multi-Catalog] BŁĄD ID {productStateToProcess.ProductId}: {ex.Message}");
+                        }
+                        finally
+                        {
+                            // Usuwamy z listy roboczej
+                            ProductProcessingState trash;
+                            _masterProductStateList.TryRemove(productStateToProcess.ProductId, out trash);
+
+                            availableScrapersPool.Add(assignedScraper);
+                            semaphore.Release();
+                        }
+                    });
+                    activeScrapingTasks.Add(task);
+                }
+                else
+                {
+                    semaphore.Release();
+                    await Task.Delay(100);
+                }
+            }
+
+            await Task.WhenAll(activeScrapingTasks.ToArray());
+            finalMessage = "Proces Multi-Catalog zakończony pomyślnie.";
+        }
+        catch (OperationCanceledException) { finalMessage = "Zatrzymano scrapowanie."; }
+        catch (Exception ex) { finalMessage = $"Błąd krytyczny: {ex.Message}"; }
+        finally
+        {
+            await BatchUpdateMultiCatalogAsync(true, CancellationToken.None);
+
+            lock (_lockTimer) { _batchSaveTimer?.Dispose(); _batchSaveTimer = null; }
+            _isScrapingActive = false;
+            _currentGlobalScrapingOperationCts?.Dispose();
+            _currentCaptchaGlobalCts?.Dispose();
+        }
+
+        return Ok(finalMessage);
+    }
+
+    private void InitializeMasterProductListForMultiCatalog(int storeId, List<int> productIds)
+    {
+        lock (_lockMasterListInit)
+        {
+            _masterProductStateList.Clear();
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Multi-Catalog] Inicjalizacja listy produktów (tylko te, które już mają główny link)...");
+
+            using (var scope = _scopeFactory.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+
+                // Pobieramy produkty:
+                // 1. Ze wskazanego sklepu
+                // 2. Które MAJĄ już status FoundOnGoogle = true (bo to tryb dodatkowy)
+                // 3. Które MAJĄ Kod Producenta (niezbędny do weryfikacji)
+                var query = context.Products
+                    .Include(p => p.GoogleCatalogs) // Ładujemy relację
+                    .AsNoTracking() // Ważne: AsNoTracking, żeby nie śledzić zmian w głównym produkcie
+                    .Where(p => p.StoreId == storeId && p.FoundOnGoogle == true && !string.IsNullOrEmpty(p.ProducerCode));
+
+                if (productIds != null && productIds.Any())
+                {
+                    query = query.Where(p => productIds.Contains(p.ProductId));
+                }
+
+                var products = query.ToList();
+                var tempScraper = new GoogleScraper();
+
+                foreach (var p in products)
+                {
+                    var state = new ProductProcessingState(p, tempScraper.CleanUrlParameters);
+
+                    // Wypełniamy KnownCids, aby nie dublować
+                    lock (state.KnownCids)
+                    {
+                        if (!string.IsNullOrEmpty(p.GoogleGid)) state.KnownCids.Add(p.GoogleGid);
+                        foreach (var existing in p.GoogleCatalogs)
+                        {
+                            if (!string.IsNullOrEmpty(existing.GoogleGid))
+                                state.KnownCids.Add(existing.GoogleGid);
+                        }
+                    }
+
+                    // Resetujemy IsDirty na false, bo inicjalizacja mogła go ustawić w konstruktorze
+                    state.IsDirty = false;
+
+                    _masterProductStateList.TryAdd(p.ProductId, state);
+                }
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Multi-Catalog] Załadowano {products.Count} produktów do analizy.");
+            }
+        }
+    }
+
+    private async Task ProcessSingleProduct_MultiCatalogMatchAsync(
+        ProductProcessingState productState,
+        GoogleScraper scraper,
+        CancellationTokenSource cts,
+        int maxCidsToProcess,
+        string namePrefix,
+        bool allowManualCaptchaSolving)
+    {
+    RestartSearch:
+
+        if (cts.IsCancellationRequested && !allowManualCaptchaSolving) return;
+
+        // 1. Przygotowanie danych (Tylko odczyt ze stanu)
+        string targetProducerCode = productState.ProducerCode?.Replace(" ", "").Trim();
+
+        // Logika budowania zapytania
+        string searchTerm = productState.ProductNameInStoreForGoogle;
+        if (!string.IsNullOrWhiteSpace(namePrefix)) searchTerm = $"{namePrefix} {searchTerm}";
+        if (!string.IsNullOrWhiteSpace(productState.ProducerCode)) searchTerm = $"{searchTerm} {productState.ProducerCode}";
+
+        // LOGOWANIE SZCZEGÓŁOWE - START
+        lock (_consoleLock)
+        {
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"\n[Multi-Catalog] >>> START ID: {productState.ProductId}");
+            Console.WriteLine($"   > Nazwa: {productState.ProductNameInStoreForGoogle}");
+            Console.WriteLine($"   > Kod Producenta (CEL): [{targetProducerCode}]");
+            Console.WriteLine($"   > Zapytanie do Google: '{searchTerm}'");
+            Console.ResetColor();
+        }
+
+        if (string.IsNullOrEmpty(targetProducerCode))
+        {
+            Console.WriteLine($"   > [SKIP] Brak kodu producenta dla ID {productState.ProductId}.");
+            return;
+        }
+
+        // 2. Pobieranie listy wyników (CIDów)
+        var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTerm, maxItemsToExtract: maxCidsToProcess);
+
+        // --- OBSŁUGA CAPTCHA (Identyfikatory) ---
+        if (identifierResult.CaptchaEncountered)
+        {
+            if (allowManualCaptchaSolving)
+            {
+                Console.BackgroundColor = ConsoleColor.DarkRed;
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine($"!!! CAPTCHA WYKRYTA (Lista wyników) - Czekam na rozwiązanie... !!!");
+                Console.ResetColor();
+
+                bool solved = await HandleManualCaptchaAsync(scraper, TimeSpan.FromMinutes(5));
+                if (solved) goto RestartSearch;
+                else return;
+            }
+            else
+            {
+                if (!cts.IsCancellationRequested) cts.Cancel();
+                return;
+            }
+        }
+        // -----------------------------------------
+
+        if (!identifierResult.IsSuccess || !identifierResult.Data.Any())
+        {
+            Console.WriteLine($"   > [INFO] Brak wyników wyszukiwania dla ID {productState.ProductId}.");
+            return;
+        }
+
+        Console.WriteLine($"   > Znaleziono {identifierResult.Data.Count} potencjalnych katalogów. Rozpoczynam weryfikację...");
+
+        int verifiedCount = 0;
+
+        // 3. Weryfikacja każdego wyniku
+        foreach (var identifier in identifierResult.Data)
+        {
+            if (cts.IsCancellationRequested && !allowManualCaptchaSolving) break;
+
+            // Sprawdzenie duplikatów
+            bool isKnown = false;
+            lock (productState.KnownCids) { if (productState.KnownCids.Contains(identifier.Gid)) isKnown = true; }
+
+            if (isKnown)
+            {
+                Console.WriteLine($"   > [DUPLIKAT] Pomijam GID: {identifier.Gid} (już przypisany).");
+                continue;
+            }
+
+            // Pobieranie szczegółów z API
+            var detailsResult = await scraper.GetProductDetailsFromApiAsync(identifier.Cid, identifier.Gid);
+
+            // --- OBSŁUGA CAPTCHA (Detale API) ---
+            if (detailsResult.CaptchaEncountered)
+            {
+                if (allowManualCaptchaSolving)
+                {
+                    Console.BackgroundColor = ConsoleColor.DarkRed;
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine($"!!! CAPTCHA WYKRYTA (API Detale) - Czekam na rozwiązanie... !!!");
+                    Console.ResetColor();
+
+                    bool solved = await HandleManualCaptchaAsync(scraper, TimeSpan.FromMinutes(5));
+                    if (solved) goto RestartSearch;
+                    else return;
+                }
+                else
+                {
+                    if (!cts.IsCancellationRequested) cts.Cancel();
+                    break;
+                }
+            }
+            // ------------------------------------
+
+            if (detailsResult.IsSuccess && detailsResult.Data?.Details != null)
+            {
+                var details = detailsResult.Data.Details;
+
+                // LOGOWANIE ODPOWIEDZI API
+                lock (_consoleLock)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine($"      [Analiza CID: {identifier.Cid}]");
+                    Console.WriteLine($"      -> Tytuł Główny: {details.MainTitle}");
+                    if (details.OfferTitles.Any())
+                    {
+                        Console.WriteLine($"      -> Przykładowe oferty ({details.OfferTitles.Count}): {string.Join(" | ", details.OfferTitles.Take(2))}...");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"      -> Brak tytułów ofert.");
+                    }
+                    Console.ResetColor();
+                }
+
+                var allTitles = new List<string>();
+                if (!string.IsNullOrEmpty(details.MainTitle)) allTitles.Add(details.MainTitle);
+                if (details.OfferTitles != null) allTitles.AddRange(details.OfferTitles);
+
+                // Szukanie Kodu Producenta w tytułach
+                bool matchFound = allTitles.Any(title =>
+                    !string.IsNullOrEmpty(title) &&
+                    title.Replace(" ", "").Contains(targetProducerCode, StringComparison.OrdinalIgnoreCase));
+
+                if (matchFound)
+                {
+                    string googleUrl = $"https://www.google.com/shopping/product/{identifier.Cid}";
+
+                    // Dodajemy TYLKO do listy nowych katalogów (nie ruszamy statusu produktu)
+                    productState.AddCatalog(identifier.Cid, identifier.Gid, googleUrl);
+                    verifiedCount++;
+
+                    lock (_consoleLock)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"      [SUKCES] Kod {targetProducerCode} znaleziony!");
+                        Console.WriteLine($"      >>> Dodano katalog do kolejki zapisu.");
+                        Console.ResetColor();
+                    }
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"      [PORAŻKA] Kod {targetProducerCode} NIE występuje w tytułach.");
+                    Console.ResetColor();
+                }
+            }
+            else
+            {
+                Console.WriteLine($"      [BŁĄD API] Nie udało się pobrać szczegółów dla CID {identifier.Cid}.");
+            }
+
+            // Opóźnienie
+            await Task.Delay(250);
+        }
+
+        Console.WriteLine($"[Multi-Catalog] Zakończono dla ID {productState.ProductId}. Dodano {verifiedCount} nowych powiązań.");
+    }
+
+   private async Task BatchUpdateMultiCatalogAsync(bool isFinalSave, CancellationToken cancellationToken)
+    {
+        // DEBUG: Sprawdzamy czy metoda w ogóle jest wywoływana
+        // Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [DEBUG] BatchUpdateMultiCatalogAsync check..."); 
+
+        List<ProductProcessingState> dirtyProducts;
+        lock (_lockMasterListInit)
+        {
+            // Filtrujemy tylko te, które mają coś w worku NewCatalogsFound
+            dirtyProducts = _masterProductStateList.Values
+                .Where(p => !p.NewCatalogsFound.IsEmpty)
+                .ToList();
+        }
+
+        if (!dirtyProducts.Any()) return; 
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [DB-SAVE] Znaleziono {dirtyProducts.Count} produktów z nowymi katalogami. Rozpoczynam transakcję...");
+        Console.ResetColor();
+
+        using (var scope = _scopeFactory.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+            int addedCount = 0;
+
+            foreach (var state in dirtyProducts)
+            {
+                ProductGoogleCatalog[] catalogsToSave;
+                
+                lock (state.KnownCids) 
+                {
+                    catalogsToSave = state.NewCatalogsFound.ToArray();
+                    state.NewCatalogsFound = new ConcurrentBag<ProductGoogleCatalog>(); // Czyścimy worek
+                }
+
+                if (catalogsToSave.Any())
+                {
+                    foreach (var cat in catalogsToSave)
+                    {
+                        // Sprawdzenie duplikatów w bazie
+                        bool exists = await context.Set<ProductGoogleCatalog>()
+                            .AsNoTracking()
+                            .AnyAsync(x => x.ProductId == cat.ProductId && x.GoogleGid == cat.GoogleGid, cancellationToken);
+
+                        if (!exists)
+                        {
+                            // Upewnij się, że ID jest 0 (auto-increment)
+                            cat.Id = 0; 
+                            // Upewnij się, że referencja do Product jest null (żeby EF nie próbował dodać produktu)
+                            cat.Product = null; 
+
+                            await context.Set<ProductGoogleCatalog>().AddAsync(cat, cancellationToken);
+                            addedCount++;
+                            
+                            Console.WriteLine($"   + [INSERT PREPARE] ID Produktu: {cat.ProductId} -> Google CID: {cat.GoogleCid}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"   - [SKIP DUPLICATE] ID {cat.ProductId} GID {cat.GoogleGid} już w bazie.");
+                        }
+                    }
+                }
+            }
+
+            if (addedCount > 0)
+            {
+                try 
+                {
+                    await context.SaveChangesAsync(cancellationToken);
+                    
+                    Console.BackgroundColor = ConsoleColor.DarkGreen;
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [DB-SUCCESS] ZAPISANO {addedCount} NOWYCH KATALOGÓW W BAZIE DANYCH.");
+                    Console.ResetColor();
+                }
+                catch(Exception ex)
+                {
+                    Console.BackgroundColor = ConsoleColor.Red;
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [DB-ERROR] Błąd podczas SaveChanges: {ex.Message}");
+                    if(ex.InnerException != null) Console.WriteLine($"   Inner: {ex.InnerException.Message}");
+                    Console.ResetColor();
+                }
+            }
+        }
     }
 }

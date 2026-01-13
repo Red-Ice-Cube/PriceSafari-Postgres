@@ -43,8 +43,9 @@
             <input type="number" class="form-control" id="numberOfConcurrentScrapers" value="7" min="1">
         </div>
         <div class="col-md-3">
-            <label for="maxCidsToProcessPerProduct" class="form-label">Max CIDów na produkt:</label>
+            <label for="maxCidsToProcessPerProduct" class="form-label">Max CIDów / Wyników:</label>
             <input type="number" class="form-control" id="maxCidsToProcessPerProduct" value="5" min="1">
+            <small class="text-muted">Dla Multi-Catalog zalecane 8-10</small>
         </div>
         <div class="col-md-3">
             <label for="searchTermSource" class="form-label">Źródło terminu wyszukiwania:</label>
@@ -58,7 +59,7 @@
         <div class="col-md-3" id="productNameOptionsContainer">
             <div class="mb-2">
                 <label for="productNamePrefix" class="form-label">Prefix dla nazwy produktu (opcjonalnie):</label>
-                <input type="text" class="form-control" id="productNamePrefix" placeholder="jakis sklep">
+                <input type="text" class="form-control" id="productNamePrefix" placeholder="np. sklep">
             </div>
 
             <div class="form-check">
@@ -72,14 +73,19 @@
 </div>
 
 <div class="d-flex mb-3 flex-wrap">
+    <button id="startScraping" class="btn btn-primary me-2 mb-2">Uruchom BOT (Główny)</button>
 
-    <button id="startScraping" class="btn btn-primary me-2 mb-2">Uruchom BOT z powyższymi opcjami</button>
+    <button id="startMultiCatalogScraping" class="btn btn-info me-2 mb-2 text-white">
+        <i class="bi bi-collection"></i> Szukaj Dodatkowych Katalogów (Multi)
+    </button>
 
     <button id="stopScrapingButton" class="btn me-2 mb-2" style="background-color: purple; color: white;">Zatrzymaj BOTa</button>
 
+    <div class="vr mx-2"></div>
+
     <button id="updatePendingStatuses" class="btn btn-secondary me-2 mb-2">Przelicz korekty</button>
     <button id="resetNotFoundStatuses" class="btn btn-warning me-2 mb-2">Resetuj nieznalezione</button>
-    <button id="resetIncorrectGoogleStatuses" class="btn btn-danger me-2 mb-2">Resetuj Niepoprawnie znalezione produkty Google</button>
+    <button id="resetIncorrectGoogleStatuses" class="btn btn-danger me-2 mb-2">Resetuj Błędne Google</button>
     <button id="clearGoogleUrls" class="btn btn-danger mb-2">Wyczyść Google URLs</button>
 </div>
 
@@ -90,7 +96,7 @@
     <p>Liczba produktów nieznalezionych: <span id="notFoundCount" class="badge bg-danger">0</span></p>
 </div>
 
-<table class="table table-bordered table-striped">
+<table class="table table-bordered table-striped table-hover">
     <thead class="table-dark">
         <tr>
             <th><input type="checkbox" id="selectAllProducts" /></th>
@@ -98,285 +104,218 @@
             <th>EAN</th>
             <th>Kod Producenta</th>
             <th>Product URL</th>
-            <th>Found on Google</th>
-            <th>Google URL (stary)</th>
-            <th>Google URL (nowy)</th>
+            <th>Status</th>
+            <th>Google URL</th>
+            <th>Akcja</th>
             <th>GID/CID</th>
         </tr>
     </thead>
     <tbody id="productTable">
     </tbody>
 </table>
+
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function () {
-              console.log("Document ready, loading products...");
-              loadProducts();
+            console.log("Document ready, loading products...");
+            loadProducts();
 
-              // === NOWA FUNKCJA DO OBSŁUGI WIDOCZNOŚCI OPCJI POŚREDNICH ===
-              function toggleIntermediateOptions() {
-                  if ($('#ensureNameMatch').is(':checked')) {
-                      $('#compareOnlyCurrentProductCodeContainer').show();
-                  } else {
-                      $('#compareOnlyCurrentProductCodeContainer').hide();
-                  }
-              }
-              // ==========================================================
-
-              // Obsługa zmiany źródła terminu wyszukiwania (ISTNIEJĄCY KOD)
-              $('#searchTermSource').change(function() {
-                  if ($(this).val() === 'ProductName') {
-                      $('#productNameOptionsContainer').show();
-                  } else {
-                      $('#productNameOptionsContainer').hide();
-                  }
-              }).trigger('change');
-
-              // === NOWA OBSŁUGA DLA PRZEŁĄCZNIKA TRYBU POŚREDNIEGO ===
-              $('#ensureNameMatch').change(toggleIntermediateOptions).trigger('change');
-              // ====================================================
-
-              $('#selectAllProducts').click(function () {
-                  $('.product-checkbox').prop('checked', this.checked);
-              });
-
-              $('#startScraping').click(function () {
-                  console.log("Start Scraping button clicked.");
-                  startScraping();
-              });
-
-              $('#stopScrapingButton').click(function () {
-                  console.log("Stop Scraping button clicked.");
-                  if (confirm("Czy na pewno chcesz zatrzymać proces scrapowania? Bieżące zmiany zostaną zapisane.")) {
-                      stopScrapingProcess();
-                  }
-              });
-
-              $('#updatePendingStatuses').click(function () {
-                  console.log("Update Pending Statuses button clicked.");
-                  updatePendingProducts();
-              });
-
-              $('#resetNotFoundStatuses').click(function () {
-                  console.log("Reset Not Found Statuses button clicked.");
-                  resetNotFoundProducts();
-              });
-
-              $('#resetIncorrectGoogleStatuses').click(function () {
-                  console.log("Reset Incorrect Google Statuses button clicked.");
-                  resetIncorrectGoogleStatuses();
-              });
-
-              $('#clearGoogleUrls').click(function () {
-                  console.log("Clear Google URLs button clicked.");
-                  clearGoogleUrls();
-              });
-
-              function loadProducts() {
-                  console.log("Sending GET request to load products...");
-                  $.ajax({
-                      type: "GET",
-                      url: '@Url.Action("GoogleProducts", "GoogleScraper")',
-                      data: { storeId: '@storeId' },
-                      success: function (products) {
-                          console.log("Received products from server:", products);
-                          updateTable(products);
-                      },
-                      error: function (xhr, status, error) {
-                          console.error("Error loading products: ", error);
-                          console.error("Response status: ", status);
-                          console.error("Response details: ", xhr.responseText);
-                      }
-                  });
-              }
-
-          function startScraping() {
-              console.log("Sending POST request to start scraping...");
-
-              var selectedProductIds = [];
-              $('.product-checkbox:checked').each(function () {
-                  selectedProductIds.push(parseInt($(this).val(), 10));
-              });
-
-              if (selectedProductIds.length > 0) {
-                  console.log(`Starting scraping for ${selectedProductIds.length} selected products.`);
-              } else {
-                  console.log("No products selected, starting scraping for all eligible products.");
-              }
-          var termSource = $('#searchTermSource').val();
-                  var prefix = $('#productNamePrefix').val();
-
-                         var scrapingData = {
-              storeId: '@storeId',
-              productIds: selectedProductIds,
-              numberOfConcurrentScrapers: parseInt($('#numberOfConcurrentScrapers').val(), 10),
-              maxCidsToProcessPerProduct: parseInt($('#maxCidsToProcessPerProduct').val(), 10),
-              searchTermSource: termSource,
-              useFirstMatchLogic: $('#useFirstMatchLogic').is(':checked'),
-              ensureNameMatch: $('#ensureNameMatch').is(':checked'),
-              // === DODANIE NOWEGO PARAMETRU ===
-              compareOnlyCurrentProductCode: $('#compareOnlyCurrentProductCode').is(':checked'),
-              // ===============================
-              allowManualCaptchaSolving: $('#allowManualCaptchaSolving').is(':checked'),
-              appendProducerCode: $('#appendProducerCode').is(':checked')
-          };
-
-                  if (termSource === 'ProductName' && prefix && prefix.trim() !== '') {
-                      scrapingData.productNamePrefix = prefix;
-                  }
-
-                  $.ajax({
-                  type: "POST",
-                  url: '@Url.Action("StartScrapingForProducts", "GoogleScraper")',
-                  data: scrapingData,
-                  traditional: true,
-                  success: function (response) {
-                      alert("Rozpoczęto scrapowanie: " + response);
-                  },
-                  error: function (xhr) {
-                      console.error("Error starting scraping: ", xhr.responseText);
-                      alert("Błąd podczas uruchamiania scrapowania: " + xhr.responseText);
-                  }
-              });
-          }
-
-              function stopScrapingProcess() {
-                  console.log("Sending POST request to stop scraping...");
-                  $.ajax({
-                      type: "POST",
-                      url: '@Url.Action("StopScraping", "GoogleScraper")',
-
-                      success: function (response) {
-                          console.log("Stop request sent successfully. Response:", response);
-                          alert("Wysłano żądanie zatrzymania scrapowania. " + response);
-
-                      },
-                      error: function (xhr, status, error) {
-                          console.error("Error sending stop request: ", error);
-                          console.error("Response status: ", status);
-                          console.error("Response details: ", xhr.responseText);
-                          alert("Błąd podczas wysyłania żądania zatrzymania: " + xhr.responseText);
-                      }
-                  });
-              }
-
-            function updatePendingProducts() {
-                console.log("Sending POST request to update pending products...");
-                $.ajax({
-                    type: "POST",
-                    url: '@Url.Action("UpdatePendingProducts", "GoogleScraper")',
-                    data: { storeId: '@storeId' },
-                    success: function (response) {
-                        console.log("Pending products updated successfully.");
-                        loadProducts();
-                    },
-                    error: function (xhr, status, error) {
-                        console.error("Error updating pending products: ", error);
-                        console.error("Response status: ", status);
-                        console.error("Response details: ", xhr.responseText);
-                    }
-                });
-            }
-
-            function resetNotFoundProducts() {
-                console.log("Sending POST request to reset not found products...");
-                $.ajax({
-                    type: "POST",
-                    url: '@Url.Action("ResetNotFoundProducts", "GoogleScraper")',
-                    data: { storeId: '@storeId' },
-                    success: function (response) {
-                        console.log("Not Found products reset successfully.");
-                        loadProducts();
-                    },
-                    error: function (xhr, status, error) {
-                        console.error("Error resetting not found products: ", error);
-                        console.error("Response status: ", status);
-                        console.error("Response details: ", xhr.responseText);
-                    }
-                });
-            }
-
-            function resetIncorrectGoogleStatuses() {
-                console.log("Sending POST request to reset incorrect Google statuses...");
-                $.ajax({
-                    type: "POST",
-                    url: '@Url.Action("ResetIncorrectGoogleStatuses", "GoogleScraper")',
-                    data: { storeId: '@storeId' },
-                    success: function (response) {
-                        console.log("Incorrect Google statuses reset successfully.");
-                        loadProducts();
-                    },
-                    error: function (xhr, status, error) {
-                        console.error("Error resetting incorrect Google statuses: ", error);
-                        console.error("Response status: ", status);
-                        console.error("Response details: ", xhr.responseText);
-                    }
-                });
-            }
-
-            function clearGoogleUrls() {
-                console.log("Sending POST request to clear Google URLs...");
-                $.ajax({
-                    type: "POST",
-                    url: '@Url.Action("ClearGoogleUrls", "GoogleScraper")',
-                    data: { storeId: '@storeId' },
-                    success: function (response) {
-                        console.log("Google URLs cleared successfully.");
-                        loadProducts();
-                    },
-                    error: function (xhr, status, error) {
-                        console.error("Error clearing Google URLs: ", error);
-                        console.error("Response status: ", status);
-                        console.error("Response details: ", xhr.responseText);
-                    }
-                });
-            }
-
-                 function updateTable(products) {
-            console.log("Updating product table...");
-
-            $('#productTable').empty();
-            var foundCount = 0;
-            var pendingCount = 0;
-            var notFoundCount = 0;
-
-            $.each(products, function (index, product) {
-                var foundOnGoogleBadge = '<span class="badge bg-secondary">Pending</span>';
-                if (product.foundOnGoogle === true) {
-                    foundOnGoogleBadge = '<span class="badge bg-success">Found</span>';
-                    foundCount++;
-                } else if (product.foundOnGoogle === false) {
-                    foundOnGoogleBadge = '<span class="badge bg-danger">Not Found</span>';
-                    notFoundCount++;
+            // === UI LOGIC ===
+            function toggleIntermediateOptions() {
+                if ($('#ensureNameMatch').is(':checked')) {
+                    $('#compareOnlyCurrentProductCodeContainer').show();
                 } else {
-                    pendingCount++;
+                    $('#compareOnlyCurrentProductCodeContainer').hide();
+                }
+            }
+
+            $('#searchTermSource').change(function () {
+                if ($(this).val() === 'ProductName') {
+                    $('#productNameOptionsContainer').show();
+                } else {
+                    $('#productNameOptionsContainer').hide();
+                }
+            }).trigger('change');
+
+            $('#ensureNameMatch').change(toggleIntermediateOptions).trigger('change');
+
+            $('#selectAllProducts').click(function () {
+                $('.product-checkbox').prop('checked', this.checked);
+            });
+
+            // === BUTTON HANDLERS ===
+
+            // 1. STANDARD SCRAPING
+            $('#startScraping').click(function () {
+                startScrapingProcess('@Url.Action("StartScrapingForProducts", "GoogleScraper")');
+            });
+
+            // 2. MULTI-CATALOG SCRAPING (NOWY PRZYCISK)
+            $('#startMultiCatalogScraping').click(function () {
+                // Dla trybu Multi warto wymusić nieco większą liczbę CIDów
+                let maxCids = parseInt($('#maxCidsToProcessPerProduct').val(), 10);
+                if(maxCids < 5) {
+                    if(!confirm("Tryb Multi-Catalog działa najlepiej przy sprawdzaniu min. 5-8 wyników. Czy kontynuować z obecną liczbą (" + maxCids + ")?")) return;
+                }
+                startScrapingProcess('@Url.Action("StartScrapingForAdditionalCatalogs", "GoogleScraper")');
+            });
+
+            $('#stopScrapingButton').click(function () {
+                if (confirm("Czy na pewno chcesz zatrzymać proces scrapowania?")) {
+                    sendPostRequest('@Url.Action("StopScraping", "GoogleScraper")', {}, "Wysłano żądanie zatrzymania.");
+                }
+            });
+
+            $('#updatePendingStatuses').click(() => sendPostRequest('@Url.Action("UpdatePendingProducts", "GoogleScraper")', { storeId: '@storeId' }, "Zaktualizowano statusy."));
+            $('#resetNotFoundStatuses').click(() => sendPostRequest('@Url.Action("ResetNotFoundProducts", "GoogleScraper")', { storeId: '@storeId' }, "Zresetowano nieznalezione."));
+            $('#resetIncorrectGoogleStatuses').click(() => sendPostRequest('@Url.Action("ResetIncorrectGoogleStatuses", "GoogleScraper")', { storeId: '@storeId' }, "Zresetowano błędne statusy."));
+            $('#clearGoogleUrls').click(() => sendPostRequest('@Url.Action("ClearGoogleUrls", "GoogleScraper")', { storeId: '@storeId' }, "Wyczyszczono URL Google."));
+
+
+            // === CORE FUNCTIONS ===
+
+            function loadProducts() {
+                $.ajax({
+                    type: "GET",
+                    url: '@Url.Action("GoogleProducts", "GoogleScraper")',
+                    data: { storeId: '@storeId' },
+                    success: function (products) {
+                        updateTable(products);
+                    },
+                    error: function (xhr) {
+                        console.error("Error loading products: ", xhr.responseText);
+                    }
+                });
+            }
+
+            // Główna funkcja uruchamiająca scrapowanie (używana przez oba przyciski)
+            function startScrapingProcess(actionUrl) {
+                var selectedProductIds = [];
+                $('.product-checkbox:checked').each(function () {
+                    selectedProductIds.push(parseInt($(this).val(), 10));
+                });
+
+                var termSource = $('#searchTermSource').val();
+                var prefix = $('#productNamePrefix').val();
+
+                var scrapingData = {
+                    storeId: '@storeId',
+                    productIds: selectedProductIds,
+                    numberOfConcurrentScrapers: parseInt($('#numberOfConcurrentScrapers').val(), 10),
+                    maxCidsToProcessPerProduct: parseInt($('#maxCidsToProcessPerProduct').val(), 10),
+                    // Dla nowego endpointu nazwa parametru w kontrolerze to maxCidsToProcess, ale MVC zmapuje to jeśli nazwy są podobne lub jeśli dodasz alias w JS.
+                    // Najbezpieczniej wysłać oba lub ujednolicić w kontrolerze.
+                    maxCidsToProcess: parseInt($('#maxCidsToProcessPerProduct').val(), 10), // Dla nowego kontrolera
+
+                    searchTermSource: termSource,
+                    useFirstMatchLogic: $('#useFirstMatchLogic').is(':checked'),
+                    ensureNameMatch: $('#ensureNameMatch').is(':checked'),
+                    compareOnlyCurrentProductCode: $('#compareOnlyCurrentProductCode').is(':checked'),
+                    allowManualCaptchaSolving: $('#allowManualCaptchaSolving').is(':checked'),
+                    appendProducerCode: $('#appendProducerCode').is(':checked')
+                };
+
+                if (termSource === 'ProductName' && prefix && prefix.trim() !== '') {
+                    scrapingData.productNamePrefix = prefix;
                 }
 
-                var googleLinkHtml = '';
-                if (product.generatedGoogleUrl) {
-                    googleLinkHtml = `<a href="${product.generatedGoogleUrl}" target="_blank">Zobacz w Google</a>`;
-                }
+                $.ajax({
+                    type: "POST",
+                    url: actionUrl,
+                    data: scrapingData,
+                    traditional: true,
+                    success: function (response) {
+                        alert("Rozpoczęto: " + response);
+                    },
+                    error: function (xhr) {
+                        alert("Błąd: " + xhr.responseText);
+                    }
+                });
+            }
 
-        var row = `<tr id="productRow-${product.productId}">
-                        <td><input type="checkbox" class="product-checkbox" value="${product.productId}" /></td>
-                        <td>${product.productNameInStoreForGoogle || ''}</td>
-                        <td>${product.ean || ''}</td>
-                        <td>${product.producerCode || ''}</td>
-                        <td><a href="${product.url || ''}" target="_blank">${product.url || ''}</a></td>
-                        <td>${foundOnGoogleBadge}</td>
-                        <td>${product.googleUrl || ''}</td>
-                        <td>${googleLinkHtml}</td>
-                        <td>${product.googleGid || ''}</td>
-                    </tr>`;
+            function sendPostRequest(url, data, successMsg) {
+                $.ajax({
+                    type: "POST",
+                    url: url,
+                    data: data,
+                    success: function () {
+                        console.log(successMsg);
+                        loadProducts();
+                    },
+                    error: function (xhr) {
+                        console.error("Error: ", xhr.responseText);
+                    }
+                });
+            }
+
+         // === TABLE RENDERING (Z PEŁNYMI URLAMI) ===
+            function updateTable(products) {
+                $('#productTable').empty();
+                var foundCount = 0;
+                var pendingCount = 0;
+                var notFoundCount = 0;
+
+                $.each(products, function (index, product) {
+                    // Licznik
+                    var badge = '<span class="badge bg-secondary">Pending</span>';
+                    if (product.foundOnGoogle === true) {
+                        badge = '<span class="badge bg-success">Found</span>';
+                        foundCount++;
+                    } else if (product.foundOnGoogle === false) {
+                        badge = '<span class="badge bg-danger">Not Found</span>';
+                        notFoundCount++;
+                    } else {
+                        pendingCount++;
+                    }
+
+                    var googleLinkHtml = product.generatedGoogleUrl ? `<a href="${product.generatedGoogleUrl}" target="_blank" class="btn btn-sm btn-outline-primary">Szukaj</a>` : '';
+
+                    // ZMIANA TUTAJ: Wyświetlamy product.googleUrl zamiast słowa "Link"
+                    // Dodano style="word-break: break-all; font-size: 0.8rem;" aby długi link mieścił się w komórce
+                    var mainGoogleUrl = product.googleUrl ? `<a href="${product.googleUrl}" target="_blank" style="word-break: break-all; font-size: 0.85rem;">${product.googleUrl}</a>` : '';
+
+                    // 1. GŁÓWNY WIERSZ
+                    var row = `
+                        <tr id="productRow-${product.productId}">
+                            <td><input type="checkbox" class="product-checkbox" value="${product.productId}" /></td>
+                            <td><small>${product.productNameInStoreForGoogle || ''}</small></td>
+                            <td>${product.ean || ''}</td>
+                            <td class="fw-bold text-primary">${product.producerCode || ''}</td>
+                            <td><a href="${product.url || '#'}" target="_blank">Sklep</a></td>
+                            <td>${badge}</td>
+                            <td>${mainGoogleUrl}</td> <td>${googleLinkHtml}</td>
+                            <td><small>${product.googleGid || ''}</small></td>
+                        </tr>`;
 
                     $('#productTable').append(row);
-                });
-            updateProductCounts(foundCount, pendingCount, notFoundCount);
-        }
 
-            function updateProductCounts(foundCount, pendingCount, notFoundCount) {
-                console.log("Updating UI counts...");
+                    // 2. WIERSZE DODATKOWE (MULTI-CATALOG)
+                    if (product.googleCatalogs && product.googleCatalogs.length > 0) {
+                        $.each(product.googleCatalogs, function(i, cat) {
+                            var subRow = `
+                                <tr style="background-color: #e8f4f8;">
+                                    <td></td>
+                                    <td colspan="4" class="text-end text-muted">
+                                        <i class="bi bi-arrow-return-right"></i> Dodatkowy katalog (${i+1}):
+                                    </td>
+                                    <td><span class="badge bg-info text-dark">Extra</span></td>
+
+                                    <td>
+                                        <a href="${cat.googleUrl}" target="_blank" style="word-break: break-all; font-size: 0.85rem;">
+                                            ${cat.googleUrl}
+                                        </a>
+                                    </td>
+
+                                    <td></td>
+                                    <td><small class="text-muted">${cat.googleGid || cat.googleCid}</small></td>
+                                </tr>
+                            `;
+                            $('#productTable').append(subRow);
+                        });
+                    }
+                });
+
                 $('#foundCount').text(foundCount);
                 $('#pendingCount').text(pendingCount);
                 $('#notFoundCount').text(notFoundCount);

@@ -72,6 +72,8 @@ namespace PriceSafari.Data
         public DbSet<AutomationRule> AutomationRules { get; set; }
         public DbSet<AutomationProductAssignment> AutomationProductAssignments { get; set; }
 
+        public DbSet<ProductGoogleCatalog> ProductGoogleCatalogs { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
