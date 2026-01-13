@@ -2217,18 +2217,14 @@ public class GoogleScraperController : Controller
 
 
 
-
-
-
-
     [HttpPost]
     public async Task<IActionResult> StartScrapingForAdditionalCatalogs(
-        int storeId,
-        List<int> productIds,
-        int numberOfConcurrentScrapers = 5,
-        int maxCidsToProcess = 8,
-        string productNamePrefix = null,
-        bool allowManualCaptchaSolving = false)
+    int storeId,
+    List<int> productIds,
+    int numberOfConcurrentScrapers = 5,
+    int maxCidsToProcess = 8,
+    string productNamePrefix = null,
+    bool allowManualCaptchaSolving = false)
     {
         if (_isScrapingActive)
         {
@@ -2238,20 +2234,23 @@ public class GoogleScraperController : Controller
 
         string finalMessage = $"Proces Multi-Catalog dla sklepu {storeId} zainicjowany.";
 
-        // === ZMIANA: ZATRZYMUJEMY GLOBALNY TIMER, ABY NIE KRADŁ DANYCH ===
+        // Zatrzymujemy globalny timer, aby nie kradł danych (tak jak u Ciebie)
         lock (_lockTimer)
         {
             if (_batchSaveTimer != null)
             {
                 _batchSaveTimer.Dispose();
                 _batchSaveTimer = null;
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Multi-Catalog] Zatrzymano globalny timer zapisu, aby uniknąć konfliktów.");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Multi-Catalog] Zatrzymano globalny timer zapisu.");
             }
         }
-        // =================================================================
 
         _currentGlobalScrapingOperationCts = new CancellationTokenSource();
         _currentCaptchaGlobalCts = new CancellationTokenSource();
+
+        // 1. Dodajemy lokalną listę przetworzonych ID, aby nie przetwarzać ich ponownie
+        // skoro nie możemy ich usuwać z głównej listy przed zapisem.
+        var processedIds = new ConcurrentDictionary<int, byte>();
 
         try
         {
@@ -2275,14 +2274,15 @@ public class GoogleScraperController : Controller
 
             while (!_currentGlobalScrapingOperationCts.IsCancellationRequested)
             {
-                // Próba zapisu w każdym obiegu pętli
+                // Próba zapisu w każdym obiegu pętli - teraz zadziała, bo obiekty nadal będą w liście
                 await BatchUpdateMultiCatalogAsync(false, CancellationToken.None);
 
                 List<int> pendingProductIds;
                 lock (_lockMasterListInit)
                 {
+                    // 2. Zmieniamy warunek: Wybieramy te, które nie są przetwarzane ORAZ nie zostały jeszcze zakończone
                     pendingProductIds = _masterProductStateList
-                        .Where(kvp => kvp.Value.ProcessingByTaskId == null)
+                        .Where(kvp => kvp.Value.ProcessingByTaskId == null && !processedIds.ContainsKey(kvp.Key))
                         .Select(kvp => kvp.Key).ToList();
                 }
 
@@ -2296,7 +2296,7 @@ public class GoogleScraperController : Controller
                     }
                     else
                     {
-                        break; // Koniec
+                        break; // Koniec - brak zadań i brak aktywnych workerów
                     }
                 }
 
@@ -2308,8 +2308,9 @@ public class GoogleScraperController : Controller
 
                 lock (_lockMasterListInit)
                 {
+                    // Ponowne sprawdzenie wewnątrz locka
                     var currentPending = _masterProductStateList
-                        .Where(kvp => kvp.Value.ProcessingByTaskId == null)
+                        .Where(kvp => kvp.Value.ProcessingByTaskId == null && !processedIds.ContainsKey(kvp.Key))
                         .Select(kvp => kvp.Key).ToList();
 
                     if (!currentPending.Any()) { semaphore.Release(); continue; }
@@ -2343,9 +2344,13 @@ public class GoogleScraperController : Controller
                         }
                         finally
                         {
-                            // Usuwamy z listy roboczej
-                            ProductProcessingState trash;
-                            _masterProductStateList.TryRemove(productStateToProcess.ProductId, out trash);
+                            // 3. KLUCZOWA ZMIANA:
+                            // NIE USUWAMY z _masterProductStateList (TryRemove wyrzucone).
+                            // Zamiast tego oznaczamy ID jako przetworzone lokalnie:
+                            processedIds.TryAdd(productStateToProcess.ProductId, 1);
+
+                            // Czyścimy flagę taska, aby logika nie zwariowała (chociaż processedIds i tak go zablokuje)
+                            lock (productStateToProcess) { productStateToProcess.ProcessingByTaskId = null; }
 
                             availableScrapersPool.Add(assignedScraper);
                             semaphore.Release();
@@ -2367,12 +2372,16 @@ public class GoogleScraperController : Controller
         catch (Exception ex) { finalMessage = $"Błąd krytyczny: {ex.Message}"; }
         finally
         {
+            // 4. Ostateczny zapis wszystkiego, co zostało w pamięci
             await BatchUpdateMultiCatalogAsync(true, CancellationToken.None);
 
             lock (_lockTimer) { _batchSaveTimer?.Dispose(); _batchSaveTimer = null; }
             _isScrapingActive = false;
             _currentGlobalScrapingOperationCts?.Dispose();
             _currentCaptchaGlobalCts?.Dispose();
+
+            // Opcjonalnie tutaj możesz wyczyścić _masterProductStateList, jeśli chcesz zwolnić pamięć
+            _masterProductStateList.Clear();
         }
 
         return Ok(finalMessage);
