@@ -1,29 +1,23 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using PriceSafari.Models;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace PriceSafari.Models
+public class ProductGoogleCatalog
 {
-    public class ProductGoogleCatalog
-    {
-        [Key]
-        public int Id { get; set; }
+    [Key]
+    public int Id { get; set; }
 
-        public int ProductId { get; set; }
+    public int ProductId { get; set; }
 
-        [ForeignKey("ProductId")]
-        public ProductClass Product { get; set; }
+    [ForeignKey("ProductId")]
+    public ProductClass Product { get; set; }
 
-        // Cid jest teraz opcjonalny (string?), bo możemy mieć tylko Hid
-        public string? GoogleCid { get; set; }
+    public string? GoogleCid { get; set; } // Catalog ID
+    public string? GoogleGid { get; set; } // Global Product ID
+    public string? GoogleHid { get; set; } // Headline Offer DocID
 
-        public string GoogleGid { get; set; }
+    // Flaga: true gdy produkt to pojedyncza oferta (przez HID), false gdy to katalog (przez CID)
+    public bool IsExtendedOfferByHid { get; set; }
 
-        // TO JEST POLE, KTÓREGO BRAKOWAŁO (GoogleUrl)
-        public string GoogleUrl { get; set; }
-
-        // Nowe pole, o które prosiłeś
-        public string? GoogleHid { get; set; }
-
-        public DateTime FoundDate { get; set; } = DateTime.UtcNow;
-    }
+    public DateTime FoundDate { get; set; } = DateTime.UtcNow;
 }

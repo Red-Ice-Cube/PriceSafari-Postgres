@@ -406,16 +406,46 @@ namespace PriceSafari.Services.ScheduleService
                     AddToGoogleMap(googleTaskMap, product.GoogleUrl, product.GoogleGid, cid, false, product);
                 }
 
-                // B. Katalogi DODATKOWE (tylko jeśli opcja w sklepie jest włączona)
+                //// B. Katalogi DODATKOWE (tylko jeśli opcja w sklepie jest włączona)
+                //if (product.Store.UseAdditionalCatalogsForGoogle && product.GoogleCatalogs != null)
+                //{
+                //    foreach (var extra in product.GoogleCatalogs)
+                //    {
+                //        if (!string.IsNullOrEmpty(extra.GoogleUrl))
+                //        {
+                //            // Używamy pola GoogleCid z tabeli lub wyciągamy z URL
+                //            string? cid = extra.GoogleCid ?? ExtractCid(extra.GoogleUrl);
+                //            AddToGoogleMap(googleTaskMap, extra.GoogleUrl, extra.GoogleGid, cid, true, product);
+                //        }
+                //    }
+                //}
+
+             // DO POPRAWKI
                 if (product.Store.UseAdditionalCatalogsForGoogle && product.GoogleCatalogs != null)
                 {
                     foreach (var extra in product.GoogleCatalogs)
                     {
-                        if (!string.IsNullOrEmpty(extra.GoogleUrl))
+                        string generatedUrl = "";
+
+                        // 1. Decydujemy, jaki URL zbudować na podstawie flagi lub zawartości pól
+                        if (!extra.IsExtendedOfferByHid && !string.IsNullOrEmpty(extra.GoogleCid))
                         {
-                            // Używamy pola GoogleCid z tabeli lub wyciągamy z URL
-                            string? cid = extra.GoogleCid ?? ExtractCid(extra.GoogleUrl);
-                            AddToGoogleMap(googleTaskMap, extra.GoogleUrl, extra.GoogleGid, cid, true, product);
+                            // --- TRYB KATALOGU ---
+                            generatedUrl = $"https://www.google.com/shopping/product/{extra.GoogleCid}";
+                        }
+                        else if (!string.IsNullOrEmpty(extra.GoogleHid))
+                        {
+                            // --- TRYB OFERTY ROZSZERZONEJ (HID) ---
+                            // Używamy nazwy produktu do zapytania, aby Google poprawnie otworzyło panel boczny
+                            string encodedName = System.Net.WebUtility.UrlEncode(product.ProductNameInStoreForGoogle ?? "");
+                            generatedUrl = $"https://www.google.com/search?q={encodedName}&udm=28#oshopproduct=gid:{extra.GoogleGid},hid:{extra.GoogleHid},pvt:hg,pvo:3&oshop=apv";
+                        }
+
+                        // 2. Jeśli udało się wygenerować URL, dodajemy zadanie do mapy
+                        if (!string.IsNullOrEmpty(generatedUrl))
+                        {
+                            // Przekazujemy CID (może być null dla ofert HID, co jest poprawne)
+                            AddToGoogleMap(googleTaskMap, generatedUrl, extra.GoogleGid, extra.GoogleCid, true, product);
                         }
                     }
                 }

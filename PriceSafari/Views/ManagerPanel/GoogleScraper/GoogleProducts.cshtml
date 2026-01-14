@@ -245,7 +245,7 @@
                 });
             }
 
-            // === TABLE RENDERING Z FILTROWANIEM ===
+          // === TABLE RENDERING Z FILTROWANIEM ===
             function updateTable(products) {
                 const tableBody = $('#productTable');
                 tableBody.empty();
@@ -259,20 +259,34 @@
                 $.each(products, function (index, product) {
                     const hasExtraCatalogs = product.googleCatalogs && product.googleCatalogs.length > 0;
 
-                    // FILTR: Jeśli zaznaczono "Tylko Multi", a produkt nie ma dodatkowych katalogów - pomiń go
                     if (onlyMulti && !hasExtraCatalogs) {
-                        return true; // continue
+                        return true;
                     }
 
-                    // Liczniki (zliczamy tylko to, co widoczne po filtrze)
                     if (product.foundOnGoogle === true) foundCount++;
                     else if (product.foundOnGoogle === false) notFoundCount++;
                     else pendingCount++;
 
-                    // Status Badge
-                    let badge = '<span class="badge bg-secondary">Pending</span>';
-                    if (product.foundOnGoogle === true) badge = '<span class="badge bg-success">Found</span>';
-                    else if (product.foundOnGoogle === false) badge = '<span class="badge bg-danger">Not Found</span>';
+                    // Badge statusu (Found/Pending)
+                    let statusBadge = '<span class="badge bg-secondary">Pending</span>';
+                    if (product.foundOnGoogle === true) statusBadge = '<span class="badge bg-success">Found</span>';
+                    else if (product.foundOnGoogle === false) statusBadge = '<span class="badge bg-danger">Not Found</span>';
+
+                    // Naklejka typu dla produktu głównego
+                    let typeBadge = '';
+                    if (product.googleCid) {
+                        typeBadge = '<span class="badge bg-success" style="font-size: 0.7rem;">KATALOG</span>';
+                    } else if (product.googleHid) {
+                        typeBadge = '<span class="badge bg-warning text-dark" style="font-size: 0.7rem;">OFERTA</span>';
+                    }
+
+                    // Identyfikatory jeden pod drugim
+                    let mainIdsHtml = `
+                        <div style="font-size: 0.75rem; line-height: 1.2;">
+                            ${product.googleGid ? `GID: ${product.googleGid}<br/>` : ''}
+                            ${product.googleCid ? `CID: ${product.googleCid}<br/>` : ''}
+                            ${product.googleHid ? `HID: ${product.googleHid}` : ''}
+                        </div>`;
 
                     let googleLinkHtml = product.generatedGoogleUrl ? `<a href="${product.generatedGoogleUrl}" target="_blank" class="btn btn-sm btn-outline-primary">Szukaj</a>` : '';
                     let mainGoogleUrl = product.googleUrl ? `<a href="${product.googleUrl}" target="_blank" style="word-break: break-all; font-size: 0.85rem;">${product.googleUrl}</a>` : '';
@@ -281,35 +295,57 @@
                     let row = `
                         <tr id="productRow-${product.productId}" class="${hasExtraCatalogs ? 'table-info' : ''}">
                             <td><input type="checkbox" class="product-checkbox" value="${product.productId}" /></td>
-                            <td><small>${product.productNameInStoreForGoogle || ''}</small></td>
+                            <td><small>${product.productNameInStoreForGoogle || ''}</small><br/>${typeBadge}</td>
                             <td>${product.ean || ''}</td>
                             <td class="fw-bold text-primary">${product.producerCode || ''}</td>
                             <td><a href="${product.url || '#'}" target="_blank">Sklep</a></td>
-                            <td>${badge}</td>
+                            <td>${statusBadge}</td>
                             <td>${mainGoogleUrl}</td>
                             <td>${googleLinkHtml}</td>
-                            <td><small>${product.googleGid || ''}</small></td>
+                            <td>${mainIdsHtml}</td>
                         </tr>`;
 
                     tableBody.append(row);
 
-                    // 2. Wiersze dodatkowe (jeśli istnieją)
+                    // 2. Wiersze dodatkowe (Multi-Catalog)
                     if (hasExtraCatalogs) {
                         $.each(product.googleCatalogs, function(i, cat) {
+                            // Generowanie URL dynamicznie na podstawie typu
+                            let dynamicUrl = '';
+                            let subTypeBadge = '';
+
+                            if (cat.isExtendedOfferByHid) {
+                                // Typ Oferta (przez HID)
+                                let name = encodeURIComponent(product.productNameInStoreForGoogle);
+                                dynamicUrl = `https://www.google.com/search?q=${name}&udm=28#oshopproduct=gid:${cat.googleGid},hid:${cat.googleHid},pvt:hg,pvo:3&oshop=apv`;
+                                subTypeBadge = '<span class="badge bg-warning text-dark" style="font-size: 0.6rem;">OFERTA</span>';
+                            } else {
+                                // Typ Katalog (przez CID)
+                                dynamicUrl = `https://www.google.com/shopping/product/${cat.googleCid}`;
+                                subTypeBadge = '<span class="badge bg-success" style="font-size: 0.6rem;">KATALOG</span>';
+                            }
+
+                            let subIdsHtml = `
+                                <div style="font-size: 0.7rem; line-height: 1.1;">
+                                    ${cat.googleGid ? `Gid: ${cat.googleGid}<br/>` : ''}
+                                    ${cat.googleCid ? `Cid: ${cat.googleCid}<br/>` : ''}
+                                    ${cat.googleHid ? `Hid: ${cat.googleHid}` : ''}
+                                </div>`;
+
                             let subRow = `
                                 <tr style="background-color: #f0faff;">
                                     <td></td>
                                     <td colspan="4" class="text-end text-muted small">
-                                        <i class="bi bi-arrow-return-right"></i> Dodatkowy katalog (${i+1}):
+                                        <i class="bi bi-arrow-return-right"></i> Dodatkowy (${i+1}):
                                     </td>
-                                    <td><span class="badge bg-info text-dark">Extra</span></td>
+                                    <td>${subTypeBadge}</td>
                                     <td>
-                                        <a href="${cat.googleUrl}" target="_blank" style="word-break: break-all; font-size: 0.8rem;">
-                                            ${cat.googleUrl}
+                                        <a href="${dynamicUrl}" target="_blank" style="word-break: break-all; font-size: 0.8rem;">
+                                            Link do Google
                                         </a>
                                     </td>
                                     <td></td>
-                                    <td><small class="text-muted">CID: ${cat.googleCid}</small></td>
+                                    <td>${subIdsHtml}</td>
                                 </tr>`;
                             tableBody.append(subRow);
                         });

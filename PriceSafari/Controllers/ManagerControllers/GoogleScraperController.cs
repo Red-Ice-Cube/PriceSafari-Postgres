@@ -128,13 +128,12 @@ public class GoogleScraperController : Controller
             Ean = product.Ean;
             ProducerCode = product.ProducerCode;
 
+            // Standardowe przypisanie statusu
             if (product.FoundOnGoogle == true)
             {
                 _status = ProductStatus.Found;
                 _googleUrl = product.GoogleUrl;
                 _googleGid = product.GoogleGid;
-                // Ważne: Jeśli masz pole Cid w klasie ProductClass, przypisz je tutaj:
-                // _cid = product.GoogleCid; 
             }
             else if (product.FoundOnGoogle == false)
             {
@@ -147,28 +146,43 @@ public class GoogleScraperController : Controller
 
             IsDirty = false;
 
-            // --- INICJALIZACJA ZNANYCH KATALOGÓW NA BAZIE CID ---
+            // --- LOGIKA INICJALIZACJI ZNANYCH IDENTYFIKATORÓW (KnownCids) ---
+            // KnownCids służy jako HashSet, aby scraper nie analizował ponownie tego, co już mamy.
 
-            // 1. Dodajemy CID głównego produktu (wyciągnięty z jego GoogleUrl)
+            // 1. Produkt Główny: Wyciągamy CID z URL (metoda stara/normalna)
             string? mainCid = ExtractCidFromUrl(product.GoogleUrl);
             if (!string.IsNullOrEmpty(mainCid))
             {
                 KnownCids.Add(mainCid);
             }
 
-            // 2. Dodajemy CID-y z istniejących dodatkowych katalogów
+            // Jeśli produkt główny ma zapisany GID, też go blokujemy
+            if (!string.IsNullOrEmpty(product.GoogleGid))
+            {
+                KnownCids.Add(product.GoogleGid);
+            }
+
+            // 2. Katalogi Dodatkowe: Pobieramy dane z nowej struktury (bez wyciągania z URL)
             if (product.GoogleCatalogs != null)
             {
                 foreach (var catalog in product.GoogleCatalogs)
                 {
-                    // Próbujemy wziąć CID z dedykowanego pola, a jeśli puste - wyciągamy z URL
-                    string? extraCid = !string.IsNullOrEmpty(catalog.GoogleCid)
-                                       ? catalog.GoogleCid
-                                       : ExtractCidFromUrl(catalog.GoogleUrl);
-
-                    if (!string.IsNullOrEmpty(extraCid))
+                    // Dodajemy CID (jeśli to był wpis typu Katalog)
+                    if (!string.IsNullOrEmpty(catalog.GoogleCid))
                     {
-                        KnownCids.Add(extraCid);
+                        KnownCids.Add(catalog.GoogleCid);
+                    }
+
+                    // Dodajemy HID (jeśli to był wpis typu Oferta)
+                    if (!string.IsNullOrEmpty(catalog.GoogleHid))
+                    {
+                        KnownCids.Add(catalog.GoogleHid);
+                    }
+
+                    // Opcjonalnie GID
+                    if (!string.IsNullOrEmpty(catalog.GoogleGid))
+                    {
+                        KnownCids.Add(catalog.GoogleGid);
                     }
                 }
             }
@@ -190,11 +204,13 @@ public class GoogleScraperController : Controller
             }
         }
 
-        // Wewnątrz klasy ProductProcessingState:
-        public void AddCatalog(string cid, string gid, string url, string hid = null)
+        public void AddCatalog(string cid, string gid, string hid = null)
         {
-            // Klucz: unikalność sprawdzamy po CID lub HID
-            string uniqueKey = cid ?? hid;
+            string? cleanCid = string.IsNullOrWhiteSpace(cid) ? null : cid;
+            string? cleanHid = string.IsNullOrWhiteSpace(hid) ? null : hid;
+            string? cleanGid = string.IsNullOrWhiteSpace(gid) ? null : gid;
+
+            string uniqueKey = cleanCid ?? cleanHid;
             if (string.IsNullOrEmpty(uniqueKey)) return;
 
             lock (KnownCids)
@@ -205,10 +221,11 @@ public class GoogleScraperController : Controller
                     NewCatalogsFound.Add(new ProductGoogleCatalog
                     {
                         ProductId = this.ProductId,
-                        GoogleCid = cid,
-                        GoogleGid = gid,
-                        GoogleHid = hid, // Zapisujemy HID
-                        GoogleUrl = url,
+                        GoogleCid = cleanCid,
+                        GoogleGid = cleanGid,
+                        GoogleHid = cleanHid,
+                        // Logika: Jeśli brak CID, to znaczy że lecimy po HID (Extended Offer)
+                        IsExtendedOfferByHid = (cleanCid == null),
                         FoundDate = DateTime.UtcNow
                     });
                     IsDirty = true;
@@ -2035,7 +2052,6 @@ public class GoogleScraperController : Controller
         var store = await _context.Stores.FindAsync(storeId);
         if (store == null) return NotFound();
 
-        // 1. DODANO .Include(p => p.GoogleCatalogs), aby pobrać relacje
         var products = await _context.Products
             .Include(p => p.GoogleCatalogs)
             .Where(p => p.StoreId == storeId && p.OnGoogle)
@@ -2047,7 +2063,8 @@ public class GoogleScraperController : Controller
                 string generatedUrl = null;
                 string productIdCid = ExtractProductIdFromUrl(p.GoogleUrl);
 
-                if (!string.IsNullOrEmpty(productIdCid) && !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle))
+                // Logika dla linku głównego
+                if (!string.IsNullOrEmpty(productIdCid))
                 {
                     string productNameForUrl = System.Net.WebUtility.UrlEncode(p.ProductNameInStoreForGoogle);
                     generatedUrl = $"https://www.google.com/search?q={productNameForUrl}&udm=28#oshopproduct=cid:{productIdCid},pvt:hg,pvo:3&oshop=apv";
@@ -2063,13 +2080,15 @@ public class GoogleScraperController : Controller
                     p.Ean,
                     p.ProducerCode,
                     p.GoogleGid,
+                    // Pobieramy HID z bazy jeśli istnieje (zakładając że masz to pole w ProductClass)
+                    // GoogleHid = p.GoogleHid, 
                     GeneratedGoogleUrl = generatedUrl,
-                    // 2. MAPOWANIE DODATKOWYCH KATALOGÓW DO JSON
+                    // KLUCZOWA POPRAWKA: Przekazujemy IsExtendedOfferByHid
                     GoogleCatalogs = p.GoogleCatalogs?.Select(gc => new {
                         gc.GoogleCid,
                         gc.GoogleGid,
                         gc.GoogleHid,
-                        gc.GoogleUrl
+                        gc.IsExtendedOfferByHid // <-- DODANO TEGO BOOLA
                     }).ToList()
                 };
             }).ToList();
@@ -2391,7 +2410,9 @@ public class GoogleScraperController : Controller
         catch (Exception ex) { finalMessage = $"Błąd krytyczny: {ex.Message}"; }
         finally
         {
-            // 4. Ostateczny zapis wszystkiego, co zostało w pamięci
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Multi-Catalog] Wykonywanie zapisu końcowego...");
+
+            // KLUCZOWA ZMIANA: Musisz wywołać metodę od MultiCatalog, nie od statusów!
             await BatchUpdateMultiCatalogAsync(true, CancellationToken.None);
 
             lock (_lockTimer) { _batchSaveTimer?.Dispose(); _batchSaveTimer = null; }
@@ -2399,7 +2420,7 @@ public class GoogleScraperController : Controller
             _currentGlobalScrapingOperationCts?.Dispose();
             _currentCaptchaGlobalCts?.Dispose();
 
-            // Opcjonalnie tutaj możesz wyczyścić _masterProductStateList, jeśli chcesz zwolnić pamięć
+            // Opcjonalnie: wyczyść listę dopiero PO zapisie
             _masterProductStateList.Clear();
         }
 
@@ -2411,25 +2432,17 @@ public class GoogleScraperController : Controller
         lock (_lockMasterListInit)
         {
             _masterProductStateList.Clear();
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Multi-Catalog] Inicjalizacja listy produktów (tylko te, które już mają główny link)...");
-
             using (var scope = _scopeFactory.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
 
-                // Pobieramy produkty:
-                // 1. Ze wskazanego sklepu
-                // 2. Które MAJĄ już status FoundOnGoogle = true (bo to tryb dodatkowy)
-                // 3. Które MAJĄ Kod Producenta (niezbędny do weryfikacji)
                 var query = context.Products
-                    .Include(p => p.GoogleCatalogs) // Ładujemy relację
-                    .AsNoTracking() // Ważne: AsNoTracking, żeby nie śledzić zmian w głównym produkcie
+                    .Include(p => p.GoogleCatalogs)
+                    .AsNoTracking()
                     .Where(p => p.StoreId == storeId && p.FoundOnGoogle == true && !string.IsNullOrEmpty(p.ProducerCode));
 
                 if (productIds != null && productIds.Any())
-                {
                     query = query.Where(p => productIds.Contains(p.ProductId));
-                }
 
                 var products = query.ToList();
                 var tempScraper = new GoogleScraper();
@@ -2438,34 +2451,29 @@ public class GoogleScraperController : Controller
                 {
                     var state = new ProductProcessingState(p, tempScraper.CleanUrlParameters);
 
-                    // Wypełniamy KnownCids, aby nie dublować
-                    //lock (state.KnownCids)
-                    //{
-                    //    if (!string.IsNullOrEmpty(p.GoogleGid)) state.KnownCids.Add(p.GoogleGid);
-                    //    foreach (var existing in p.GoogleCatalogs)
-                    //    {
-                    //        if (!string.IsNullOrEmpty(existing.GoogleGid))
-                    //            state.KnownCids.Add(existing.GoogleGid);
-                    //    }
-                    //}
+                    // DODAJEMY ISTNIEJĄCE IDENTYFIKATORY DO "ZNANYCH"
+                    if (!string.IsNullOrEmpty(p.GoogleGid)) state.KnownCids.Add(p.GoogleGid);
 
-                    // Resetujemy IsDirty na false, bo inicjalizacja mogła go ustawić w konstruktorze
+                    foreach (var existing in p.GoogleCatalogs)
+                    {
+                        if (!string.IsNullOrEmpty(existing.GoogleCid)) state.KnownCids.Add(existing.GoogleCid);
+                        if (!string.IsNullOrEmpty(existing.GoogleHid)) state.KnownCids.Add(existing.GoogleHid);
+                    }
+
                     state.IsDirty = false;
-
                     _masterProductStateList.TryAdd(p.ProductId, state);
                 }
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Multi-Catalog] Załadowano {products.Count} produktów do analizy.");
             }
         }
     }
 
     private async Task ProcessSingleProduct_MultiCatalogMatchAsync(
-     ProductProcessingState productState,
-     GoogleScraper scraper,
-     CancellationTokenSource cts,
-     int maxCidsToProcess,
-     string namePrefix,
-     bool allowManualCaptchaSolving)
+      ProductProcessingState productState,
+      GoogleScraper scraper,
+      CancellationTokenSource cts,
+      int maxCidsToProcess,
+      string namePrefix,
+      bool allowManualCaptchaSolving)
     {
     RestartSearch:
 
@@ -2550,8 +2558,13 @@ public class GoogleScraperController : Controller
                 continue;
             }
 
-            // 3. Pobieranie szczegółów z API (Przekazujemy HID, scraper sam wybierze parametr catalogid vs headlineOfferDocid)
-            var detailsResult = await scraper.GetProductDetailsFromApiAsync(identifier.Cid, identifier.Gid, identifier.Hid);
+            // 3. Pobieranie szczegółów z API (Przekazujemy HID i targetCode)
+            var detailsResult = await scraper.GetProductDetailsFromApiAsync(
+                identifier.Cid,
+                identifier.Gid,
+                identifier.Hid,
+                targetCode: targetProducerCode
+            );
 
             // --- OBSŁUGA CAPTCHA (Detale API) ---
             if (detailsResult.CaptchaEncountered)
@@ -2574,96 +2587,89 @@ public class GoogleScraperController : Controller
                 }
             }
 
-            if (detailsResult.IsSuccess && detailsResult.Data?.Details != null)
+            // --- LOGIKA WERYFIKACJI WYNIKU ---
+            if (!detailsResult.IsSuccess)
             {
-                var details = detailsResult.Data.Details;
+                // To jest prawdziwy błąd techniczny (pusta odpowiedź, zablokowane IP)
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"      [BŁĄD API] Nie udało się pobrać danych dla {effectiveId}.");
+                Console.ResetColor();
+                continue;
+            }
 
-                // LOGOWANIE ODPOWIEDZI API
-                lock (_consoleLock)
+            // Jeśli IsSuccess == true, oznacza to, że Google zwróciło dane produktu.
+            // Teraz sprawdzamy, czy w surowej odpowiedzi (RawResponse) lub tytułach jest nasz kod.
+            var details = detailsResult.Data.Details;
+            string rawData = detailsResult.Data.RawResponse;
+
+            bool matchFound = rawData.Contains(targetProducerCode, StringComparison.OrdinalIgnoreCase) ||
+                              rawData.Replace(" ", "").Contains(targetProducerCode.Replace(" ", ""), StringComparison.OrdinalIgnoreCase);
+
+            // LOGOWANIE ANALIZY DANYCH
+            lock (_consoleLock)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine($"      [Analiza {(!string.IsNullOrEmpty(identifier.Cid) ? "CID: " + identifier.Cid : "HID: " + identifier.Hid)}]");
+                Console.WriteLine($"      -> Produkt: {details.MainTitle}");
+                Console.ResetColor();
+            }
+
+            if (matchFound)
+            {
+                // SUKCES: Kod producenta jest w odpowiedzi API
+                string googleUrl;
+                if (!string.IsNullOrEmpty(identifier.Cid))
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine($"      [Analiza {(!string.IsNullOrEmpty(identifier.Cid) ? "CID: " + identifier.Cid : "HID: " + identifier.Hid)}]");
-                    Console.WriteLine($"      -> Tytuł Główny: {details.MainTitle}");
-                    if (details.OfferTitles.Any())
-                    {
-                        Console.WriteLine($"      -> Przykładowe oferty ({details.OfferTitles.Count}): {string.Join(" | ", details.OfferTitles.Take(2))}...");
-                    }
-                    Console.ResetColor();
-                }
-
-                var allTitles = new List<string>();
-                if (!string.IsNullOrEmpty(details.MainTitle)) allTitles.Add(details.MainTitle);
-                if (details.OfferTitles != null) allTitles.AddRange(details.OfferTitles);
-
-                // Szukanie Kodu Producenta w tytułach
-                bool matchFound = allTitles.Any(title =>
-                    !string.IsNullOrEmpty(title) &&
-                    title.Replace(" ", "").Contains(targetProducerCode, StringComparison.OrdinalIgnoreCase));
-
-                if (matchFound)
-                {
-                    // 4. Budowanie URL:
-                    // Jeśli mamy CID - link standardowy do strony produktu.
-                    // Jeśli brak CID - link do wyszukiwarki z parametrami GID i HID (otwiera panel ofert).
-                    string googleUrl;
-                    if (!string.IsNullOrEmpty(identifier.Cid))
-                    {
-                        googleUrl = $"https://www.google.com/shopping/product/{identifier.Cid}";
-                    }
-                    else
-                    {
-                        string encodedName = System.Net.WebUtility.UrlEncode(productState.ProductNameInStoreForGoogle);
-                        googleUrl = $"https://www.google.com/search?q={encodedName}&udm=28#oshopproduct=gid:{identifier.Gid},hid:{identifier.Hid},pvt:hg,pvo:3&oshop=apv";
-                    }
-
-                    // 5. Dodajemy do listy nowych katalogów (Przesyłamy HID)
-                    productState.AddCatalog(identifier.Cid, identifier.Gid, googleUrl, identifier.Hid);
-                    verifiedCount++;
-
-                    lock (_consoleLock)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"      [SUKCES] Kod {targetProducerCode} znaleziony!");
-                        Console.WriteLine($"      >>> Dodano powiązanie ({(!string.IsNullOrEmpty(identifier.Cid) ? "CID" : "HID")}) do bazy.");
-                        Console.ResetColor();
-                    }
+                    googleUrl = $"https://www.google.com/shopping/product/{identifier.Cid}";
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"      [PORAŻKA] Kod {targetProducerCode} NIE występuje w tytułach dla tego identyfikatora.");
+                    string encodedName = System.Net.WebUtility.UrlEncode(productState.ProductNameInStoreForGoogle);
+                    googleUrl = $"https://www.google.com/search?q={encodedName}&udm=28#oshopproduct=gid:{identifier.Gid},hid:{identifier.Hid},pvt:hg,pvo:3&oshop=apv";
+                }
+
+                productState.AddCatalog(identifier.Cid, identifier.Gid, identifier.Hid);
+                verifiedCount++;
+
+                lock (_consoleLock)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"      [SUKCES] Kod {targetProducerCode} znaleziony w treści API!");
+                    Console.WriteLine($"      >>> Dodano powiązanie do bazy.");
                     Console.ResetColor();
                 }
             }
             else
             {
-                Console.WriteLine($"      [BŁĄD API] Nie udało się pobrać szczegółów (API Fail).");
+                // NIE MA KODU, ALE TO NIE BŁĄD API: Po prostu inny produkt
+                lock (_consoleLock)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"      [INFO] Produkt poprawny technicznie, ale brak kodu {targetProducerCode} w treści.");
+                    Console.ResetColor();
+                }
             }
 
-            await Task.Delay(250); // Mały delay między zapytaniami API
+            await Task.Delay(250);
         }
 
-        Console.WriteLine($"[Multi-Catalog] Zakończono dla ID {productState.ProductId}. Dodano {verifiedCount} nowych powiązań.");
+        lock (_consoleLock)
+        {
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"[Multi-Catalog] Zakończono dla ID {productState.ProductId}. Dodano {verifiedCount} nowych powiązań.");
+            Console.ResetColor();
+        }
     }
+
     private async Task BatchUpdateMultiCatalogAsync(bool isFinalSave, CancellationToken cancellationToken)
     {
-        // DEBUG: Sprawdzamy czy metoda w ogóle jest wywoływana
-        // Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [DEBUG] BatchUpdateMultiCatalogAsync check..."); 
-
         List<ProductProcessingState> dirtyProducts;
         lock (_lockMasterListInit)
         {
-            // Filtrujemy tylko te, które mają coś w worku NewCatalogsFound
-            dirtyProducts = _masterProductStateList.Values
-                .Where(p => !p.NewCatalogsFound.IsEmpty)
-                .ToList();
+            dirtyProducts = _masterProductStateList.Values.Where(p => !p.NewCatalogsFound.IsEmpty).ToList();
         }
 
-        if (!dirtyProducts.Any()) return; 
-
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [DB-SAVE] Znaleziono {dirtyProducts.Count} produktów z nowymi katalogami. Rozpoczynam transakcję...");
-        Console.ResetColor();
+        if (!dirtyProducts.Any()) return;
 
         using (var scope = _scopeFactory.CreateScope())
         {
@@ -2673,61 +2679,40 @@ public class GoogleScraperController : Controller
             foreach (var state in dirtyProducts)
             {
                 ProductGoogleCatalog[] catalogsToSave;
-                
-                lock (state.KnownCids) 
+                lock (state.KnownCids)
                 {
                     catalogsToSave = state.NewCatalogsFound.ToArray();
-                    state.NewCatalogsFound = new ConcurrentBag<ProductGoogleCatalog>(); // Czyścimy worek
+                    state.NewCatalogsFound = new ConcurrentBag<ProductGoogleCatalog>();
                 }
 
-                if (catalogsToSave.Any())
+                foreach (var cat in catalogsToSave)
                 {
-                    foreach (var cat in catalogsToSave)
+                    // Sprawdzamy duplikat (Id produktu + którykolwiek z identyfikatorów)
+                    bool exists = await context.Set<ProductGoogleCatalog>().AnyAsync(x =>
+                        x.ProductId == cat.ProductId &&
+                        ((cat.GoogleCid != null && x.GoogleCid == cat.GoogleCid) ||
+                         (cat.GoogleHid != null && x.GoogleHid == cat.GoogleHid)), cancellationToken);
+
+                    if (!exists)
                     {
-                        // Wewnątrz pętli zapisu:
-                        bool exists = await context.Set<ProductGoogleCatalog>()
-                            .AsNoTracking()
-                            .AnyAsync(x => x.ProductId == cat.ProductId && x.GoogleCid == cat.GoogleCid, cancellationToken);
+                        cat.Id = 0;
+                        cat.Product = null;
+                        await context.Set<ProductGoogleCatalog>().AddAsync(cat, cancellationToken);
+                        addedCount++;
 
-                        if (!exists)
-                        {
-                            // Upewnij się, że ID jest 0 (auto-increment)
-                            cat.Id = 0; 
-                            // Upewnij się, że referencja do Product jest null (żeby EF nie próbował dodać produktu)
-                            cat.Product = null; 
-
-                            await context.Set<ProductGoogleCatalog>().AddAsync(cat, cancellationToken);
-                            addedCount++;
-                            
-                            Console.WriteLine($"   + [INSERT PREPARE] ID Produktu: {cat.ProductId} -> Google CID: {cat.GoogleCid}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"   - [SKIP DUPLICATE] ID {cat.ProductId} GID {cat.GoogleGid} już w bazie.");
-                        }
+                        Console.ForegroundColor = cat.IsExtendedOfferByHid ? ConsoleColor.Yellow : ConsoleColor.Green;
+                        Console.WriteLine($"   + [DB] Dodano: {cat.ProductId} | Typ: {(cat.IsExtendedOfferByHid ? "HID (Oferta)" : "CID (Katalog)")}");
+                        Console.ResetColor();
                     }
                 }
             }
 
             if (addedCount > 0)
             {
-                try 
-                {
-                    await context.SaveChangesAsync(cancellationToken);
-                    
-                    Console.BackgroundColor = ConsoleColor.DarkGreen;
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [DB-SUCCESS] ZAPISANO {addedCount} NOWYCH KATALOGÓW W BAZIE DANYCH.");
-                    Console.ResetColor();
-                }
-                catch(Exception ex)
-                {
-                    Console.BackgroundColor = ConsoleColor.Red;
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [DB-ERROR] Błąd podczas SaveChanges: {ex.Message}");
-                    if(ex.InnerException != null) Console.WriteLine($"   Inner: {ex.InnerException.Message}");
-                    Console.ResetColor();
-                }
+                await context.SaveChangesAsync(cancellationToken);
+                Console.BackgroundColor = ConsoleColor.DarkGreen;
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [DB-SUCCESS] Zapisano {addedCount} katalogów/ofert.");
+                Console.ResetColor();
             }
         }
     }

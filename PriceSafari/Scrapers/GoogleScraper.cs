@@ -1342,122 +1342,116 @@ public class GoogleScraper
         }
     }
 
-    public async Task<ScraperResult<GoogleApiDetailsResult>> GetProductDetailsFromApiAsync(string cid, string gid, string hid = null)
+    public async Task<ScraperResult<GoogleApiDetailsResult>> GetProductDetailsFromApiAsync(string cid, string gid, string hid = null, string targetCode = null)
     {
-        // LOGIKA PRIORYTETÓW:
-        // 1. Jeśli mamy CID (catalogid), używamy go - to daje najpełniejsze dane o produkcie.
-        // 2. Jeśli CID jest puste, używamy HID (headlineOfferDocid) - to prowadzi do konkretnej oferty.
+        string identifierParam = !string.IsNullOrEmpty(cid) ? $"catalogid:{cid}" : $"headlineOfferDocid:{hid}";
+        var gpcidPart = !string.IsNullOrEmpty(gid) ? $"gpcid:{gid}," : "";
+        var url = $"https://www.google.com/async/oapv?udm=3&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async={gpcidPart}{identifierParam},pvo:3,fs:%2Fshopping%2Foffers,sori:0,mno:10,query:1,pvt:hg,_fmt:jspb";
 
-        string identifierParam;
-        if (!string.IsNullOrEmpty(cid))
-        {
-            identifierParam = $"catalogid:{cid}";
-            Console.WriteLine($"[API] Zapytanie przez CID: {cid}");
-        }
-        else if (!string.IsNullOrEmpty(hid))
-        {
-            identifierParam = $"headlineOfferDocid:{hid}";
-            Console.WriteLine($"[API] Brak CID. Zapytanie przez HID: {hid}");
-        }
-        else
-        {
-            return ScraperResult<GoogleApiDetailsResult>.Fail("Brak CID i HID - nie można zbudować zapytania.");
-        }
+        Console.WriteLine($"\n--- [API REQUEST] ---------------------------------------");
+        Console.WriteLine($"[Tryb]: {(!string.IsNullOrEmpty(cid) ? "CATALOG" : "OFFER")}");
+        if (!string.IsNullOrEmpty(targetCode)) Console.WriteLine($"[Szukany Kod]: {targetCode}");
+        Console.WriteLine($"[URL]: {url}");
 
-        var url = $"https://www.google.com/async/oapv?udm=3&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{gid},{identifierParam},pvo:3,fs:%2Fshopping%2Foffers,sori:0,mno:10,query:1,pvt:hg,_fmt:jspb";
         try
         {
             var responseString = await _httpClient.GetStringAsync(url);
 
-            if (responseString.Contains("/sorry/Captcha") || responseString.Contains("unusual traffic"))
-            {
-                return ScraperResult<GoogleApiDetailsResult>.Captcha();
-            }
+            // Logowanie 200 znaków dla diagnostyki
+            string debugSnippet = responseString.Length > 200 ? responseString.Substring(0, 200) : responseString;
+            Console.WriteLine($"[RAW]: {debugSnippet.Replace("\n", " ").Replace("\r", " ")}");
 
-            if (string.IsNullOrWhiteSpace(responseString))
-            {
-                return ScraperResult<GoogleApiDetailsResult>.Fail("API zwróciło pustą odpowiedź.");
-            }
+            if (responseString.Contains("/sorry/Captcha")) return ScraperResult<GoogleApiDetailsResult>.Captcha();
 
             string cleanedJson = responseString.StartsWith(")]}'") ? responseString.Substring(5) : responseString;
 
+            string mainTitle = null;
+            var offerTitles = new HashSet<string>();
+            bool isGhostResponse = false;
+
             using (JsonDocument doc = JsonDocument.Parse(cleanedJson))
             {
-                JsonElement root = doc.RootElement;
-                string mainTitle = null;
-                var offerTitles = new HashSet<string>();
-
-                if (root.TryGetProperty("ProductDetailsResult", out var detailsResult) && detailsResult.ValueKind == JsonValueKind.Array)
+                if (doc.RootElement.TryGetProperty("ProductDetailsResult", out var dr) && dr.ValueKind == JsonValueKind.Array)
                 {
-                    var titleElement = detailsResult.EnumerateArray().FirstOrDefault();
-                    if (titleElement.ValueKind == JsonValueKind.String)
+                    if (dr.GetArrayLength() > 0 && dr[0].ValueKind == JsonValueKind.String)
                     {
-                        mainTitle = titleElement.GetString();
+                        mainTitle = dr[0].GetString();
+                    }
+
+                    // Jeśli tablica jest pusta lub pierwszy element to pusty string - to jest "pusta odpowiedź"
+                    if (dr.GetArrayLength() == 0 || string.IsNullOrWhiteSpace(mainTitle))
+                    {
+                        isGhostResponse = true;
                     }
                 }
-
-                void FindOfferTitlesRecursively(JsonElement element)
+                else
                 {
-                    if (element.ValueKind == JsonValueKind.Array)
-                    {
-
-                        if (element.GetArrayLength() > 4 &&
-                            element[0].ValueKind == JsonValueKind.String &&
-                            element[1].ValueKind == JsonValueKind.String &&
-                            element[2].ValueKind == JsonValueKind.Null &&
-
-                            element[3].ValueKind == JsonValueKind.String)
-                        {
-
-                            foreach (var item in element.EnumerateArray())
-                            {
-                                if (item.ValueKind == JsonValueKind.String)
-                                {
-                                    string potentialTitle = item.GetString();
-
-                                    if (!string.IsNullOrWhiteSpace(potentialTitle) && potentialTitle.Contains(' ') && !potentialTitle.StartsWith("http"))
-                                    {
-                                        offerTitles.Add(potentialTitle);
-                                    }
-                                }
-                            }
-                        }
-                        else
-
-                        {
-                            foreach (var item in element.EnumerateArray())
-                            {
-                                FindOfferTitlesRecursively(item);
-                            }
-                        }
-                    }
-                    else if (element.ValueKind == JsonValueKind.Object)
-                    {
-                        foreach (var property in element.EnumerateObject())
-                        {
-                            FindOfferTitlesRecursively(property.Value);
-                        }
-                    }
+                    isGhostResponse = true;
                 }
 
-                FindOfferTitlesRecursively(root);
-
-                var productDetails = new GoogleProductDetails(mainTitle, offerTitles.ToList());
-                var apiResult = new GoogleApiDetailsResult(productDetails, url, cleanedJson);
-
-                if (string.IsNullOrEmpty(mainTitle) && !offerTitles.Any())
+                // Pomocnicze szukanie innych tytułów (zawsze warto sprawdzić)
+                void FindTitlesRecursive(JsonElement el)
                 {
-                    return ScraperResult<GoogleApiDetailsResult>.Fail("Nie znaleziono żadnych tytułów w odpowiedzi API.");
+                    if (el.ValueKind == JsonValueKind.Array) foreach (var i in el.EnumerateArray()) FindTitlesRecursive(i);
+                    else if (el.ValueKind == JsonValueKind.Object) foreach (var p in el.EnumerateObject()) FindTitlesRecursive(p.Value);
+                    else if (el.ValueKind == JsonValueKind.String)
+                    {
+                        string t = el.GetString();
+                        if (t.Length > 10 && t.Contains(' ') && !t.StartsWith("http") && !t.Contains("??")) offerTitles.Add(t);
+                    }
                 }
+                FindTitlesRecursive(doc.RootElement);
+            }
 
-                return ScraperResult<GoogleApiDetailsResult>.Success(apiResult);
+            // --- LOGIKA DECYZYJNA ---
+
+            // 1. CZY TO TOTALNIE PUSTA ODPOWIEDŹ (BŁĄD API)?
+            if (isGhostResponse && offerTitles.Count == 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[BŁĄD API] Odpowiedź nie zawiera żadnych danych produktu (Empty Result).");
+                Console.ResetColor();
+                return ScraperResult<GoogleApiDetailsResult>.Fail("API Fail: Empty Response");
+            }
+
+            // 2. CZY KOD ZNAJDUJE SIĘ W CAŁEJ ODPOWIEDZI (RAW SEARCH)?
+            bool isCodeFound = false;
+            if (!string.IsNullOrEmpty(targetCode))
+            {
+                isCodeFound = responseString.Contains(targetCode, StringComparison.OrdinalIgnoreCase) ||
+                              responseString.Replace(" ", "").Contains(targetCode.Replace(" ", ""), StringComparison.OrdinalIgnoreCase);
+            }
+
+            var details = new GoogleProductDetails(mainTitle ?? offerTitles.FirstOrDefault(), offerTitles.ToList());
+
+            if (isCodeFound)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"[SUKCES] Kod '{targetCode}' ZNALEZIONY w odpowiedzi!");
+                Console.WriteLine($"[PRODUKT]: {details.MainTitle}");
+                Console.ResetColor();
+                return ScraperResult<GoogleApiDetailsResult>.Success(new GoogleApiDetailsResult(details, url, responseString));
+            }
+            else
+            {
+                // Odpowiedź była poprawna (mamy dane), ale kod nie pasuje
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"[DANE OK] Odpowiedź poprawna, ale kod '{targetCode}' NIE występuje w treści.");
+                Console.WriteLine($"[PRODUKT]: {details.MainTitle}");
+                Console.ResetColor();
+                return ScraperResult<GoogleApiDetailsResult>.Fail($"Match fail: {targetCode} not in response");
             }
         }
         catch (Exception ex)
         {
-            return ScraperResult<GoogleApiDetailsResult>.Fail($"Błąd podczas parsowania detali produktu: {ex.Message}");
+            Console.ForegroundColor = ConsoleColor.DarkRed;
+            Console.WriteLine($"[API EXCEPTION] {ex.Message}");
+            Console.ResetColor();
+            return ScraperResult<GoogleApiDetailsResult>.Fail(ex.Message);
         }
     }
+
+
     public string CleanUrlParameters(string url)
     {
         if (string.IsNullOrEmpty(url))
