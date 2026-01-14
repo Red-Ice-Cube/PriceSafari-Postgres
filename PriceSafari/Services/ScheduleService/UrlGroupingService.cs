@@ -354,6 +354,226 @@
 //    }
 //}
 
+
+
+
+
+
+
+
+
+
+//using Microsoft.EntityFrameworkCore;
+//using PriceSafari.Data;
+//using PriceSafari.Models;
+//using System.Collections.Generic;
+//using System.Linq;
+//using System.Text.RegularExpressions;
+//using System.Threading.Tasks;
+
+//namespace PriceSafari.Services.ScheduleService
+//{
+//    public class UrlGroupingService
+//    {
+//        private readonly PriceSafariContext _context;
+
+//        public UrlGroupingService(PriceSafariContext context)
+//        {
+//            _context = context;
+//        }
+
+//        // Pomocnicza metoda do wyciągania CID z adresu URL
+//        private string? ExtractCid(string url)
+//        {
+//            if (string.IsNullOrEmpty(url)) return null;
+//            var match = Regex.Match(url, @"/product/(\d+)");
+//            return match.Success ? match.Groups[1].Value : null;
+//        }
+
+//        public async Task<(int totalProducts, List<string> distinctStoreNames)> GroupAndSaveUniqueUrls(List<int> storeIds)
+//        {
+//            var products = await _context.Products
+//                .Include(p => p.Store)
+//                .Include(p => p.GoogleCatalogs) // Pobieramy dodatkowe katalogi
+//                .Where(p => p.IsScrapable && p.Store.RemainingDays > 0)
+//                .Where(p => storeIds.Contains(p.StoreId))
+//                .AsNoTracking()
+//                .ToListAsync();
+
+//            var distinctStoreNames = products.Select(p => p.Store.StoreName).Distinct().ToList();
+//            int totalProducts = products.Count;
+
+//            // Zmieniona mapa: Kluczem jest URL, wartością dane potrzebne do stworzenia zadania
+//            var googleTaskMap = new Dictionary<string, (string? Gid, string? Cid, bool IsAdditional, List<ProductClass> Products)>();
+
+//            foreach (var product in products)
+//            {
+//                // A. Katalog GŁÓWNY
+//                if (!string.IsNullOrEmpty(product.GoogleUrl))
+//                {
+//                    string? cid = ExtractCid(product.GoogleUrl);
+//                    AddToGoogleMap(googleTaskMap, product.GoogleUrl, product.GoogleGid, cid, false, product);
+//                }
+
+//                //// B. Katalogi DODATKOWE (tylko jeśli opcja w sklepie jest włączona)
+//                //if (product.Store.UseAdditionalCatalogsForGoogle && product.GoogleCatalogs != null)
+//                //{
+//                //    foreach (var extra in product.GoogleCatalogs)
+//                //    {
+//                //        if (!string.IsNullOrEmpty(extra.GoogleUrl))
+//                //        {
+//                //            // Używamy pola GoogleCid z tabeli lub wyciągamy z URL
+//                //            string? cid = extra.GoogleCid ?? ExtractCid(extra.GoogleUrl);
+//                //            AddToGoogleMap(googleTaskMap, extra.GoogleUrl, extra.GoogleGid, cid, true, product);
+//                //        }
+//                //    }
+//                //}
+
+//             // DO POPRAWKI
+//                if (product.Store.UseAdditionalCatalogsForGoogle && product.GoogleCatalogs != null)
+//                {
+//                    foreach (var extra in product.GoogleCatalogs)
+//                    {
+//                        string generatedUrl = "";
+
+//                        // 1. Decydujemy, jaki URL zbudować na podstawie flagi lub zawartości pól
+//                        if (!extra.IsExtendedOfferByHid && !string.IsNullOrEmpty(extra.GoogleCid))
+//                        {
+//                            // --- TRYB KATALOGU ---
+//                            generatedUrl = $"https://www.google.com/shopping/product/{extra.GoogleCid}";
+//                        }
+//                        else if (!string.IsNullOrEmpty(extra.GoogleHid))
+//                        {
+//                            // --- TRYB OFERTY ROZSZERZONEJ (HID) ---
+//                            // Używamy nazwy produktu do zapytania, aby Google poprawnie otworzyło panel boczny
+//                            string encodedName = System.Net.WebUtility.UrlEncode(product.ProductNameInStoreForGoogle ?? "");
+//                            generatedUrl = $"https://www.google.com/search?q={encodedName}&udm=28#oshopproduct=gid:{extra.GoogleGid},hid:{extra.GoogleHid},pvt:hg,pvo:3&oshop=apv";
+//                        }
+
+//                        // 2. Jeśli udało się wygenerować URL, dodajemy zadanie do mapy
+//                        if (!string.IsNullOrEmpty(generatedUrl))
+//                        {
+//                            // Przekazujemy CID (może być null dla ofert HID, co jest poprawne)
+//                            AddToGoogleMap(googleTaskMap, generatedUrl, extra.GoogleGid, extra.GoogleCid, true, product);
+//                        }
+//                    }
+//                }
+//            }
+
+//            var coOfrs = new List<CoOfrClass>();
+
+//            // Tworzenie zadań Google
+//            foreach (var entry in googleTaskMap)
+//            {
+//                var url = entry.Key;
+//                var info = entry.Value;
+//                var coOfr = CreateCoOfrClass(info.Products, null, url, info.Gid, info.Cid, info.IsAdditional);
+//                coOfr.IsGoogle = true;
+//                coOfrs.Add(coOfr);
+//            }
+
+//            // Standardowe zadania Ceneo/Inne (OfferUrl)
+//            var groupsByOfferUrl = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl))
+//                .GroupBy(p => p.OfferUrl ?? "")
+//                .ToList();
+
+//            foreach (var group in groupsByOfferUrl)
+//            {
+//                coOfrs.Add(CreateCoOfrClass(group.ToList(), group.Key, null, null, null, false));
+//            }
+
+//            // Zapis do bazy danych
+//            var strategy = _context.Database.CreateExecutionStrategy();
+//            await strategy.ExecuteAsync(async () =>
+//            {
+//                using var transaction = await _context.Database.BeginTransactionAsync();
+//                try
+//                {
+//                    await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrStoreDatas]");
+//                    await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrPriceHistories]");
+//                    await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrs]");
+
+//                    _context.CoOfrs.AddRange(coOfrs);
+//                    await _context.SaveChangesAsync();
+//                    await transaction.CommitAsync();
+//                }
+//                catch
+//                {
+//                    await transaction.RollbackAsync();
+//                    throw;
+//                }
+//            });
+
+//            return (totalProducts, distinctStoreNames);
+//        }
+
+//        private void AddToGoogleMap(Dictionary<string, (string? Gid, string? Cid, bool IsAdditional, List<ProductClass> Products)> map,
+//            string url, string? gid, string? cid, bool isAdditional, ProductClass product)
+//        {
+//            if (!map.ContainsKey(url))
+//            {
+//                map[url] = (gid, cid, isAdditional, new List<ProductClass>());
+//            }
+//            map[url].Products.Add(product);
+//        }
+
+//        private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl, string? googleGid, string? googleCid, bool isAdditional)
+//        {
+//            // Wyciągamy ustawienia flag z pierwszego produktu w liście (wszystkie należą do tego samego sklepu w danej grupie)
+//            // lub sprawdzamy czy jakikolwiek produkt w grupie ma te flagi włączone.
+//            bool useGPID = productList.Any(p => p.Store?.UseGPID == true);
+//            bool useWRGA = productList.Any(p => p.Store?.UseWRGA == true);
+
+//            var coOfr = new CoOfrClass
+//            {
+//                OfferUrl = offerUrl,
+//                GoogleOfferUrl = googleUrl,
+//                GoogleGid = googleGid,
+//                GoogleCid = googleCid,
+//                IsAdditionalCatalog = isAdditional,
+
+//                // PRZYPISANIE FLAG STERUJĄCYCH SCRAPEREM
+//                UseGPID = useGPID,
+//                UseWRGA = useWRGA,
+
+//                ProductIds = productList.Select(p => p.ProductId).ToList(),
+//                ProductIdsGoogle = googleUrl != null ? productList.Select(p => p.ProductId).ToList() : new List<int>(),
+//                StoreNames = productList.Select(p => p.Store?.StoreName ?? "Unknown").Distinct().ToList(),
+//                StoreProfiles = productList.Select(p => p.Store?.StoreProfile ?? "").Distinct().ToList(),
+//                IsScraped = false,
+//                GoogleIsScraped = false,
+//                IsGoogle = googleUrl != null,
+//                IsRejected = false,
+//                GoogleIsRejected = false
+//            };
+
+//            foreach (var p in productList)
+//            {
+//                // Obsługa danych rozszerzonych API
+//                if (p.Store != null && p.Store.FetchExtendedData && p.ExternalId.HasValue)
+//                {
+//                    coOfr.StoreData.Add(new CoOfrStoreData
+//                    {
+//                        StoreId = p.StoreId,
+//                        ProductExternalId = p.ExternalId.Value.ToString(),
+//                        IsApiProcessed = false,
+//                        ExtendedDataApiPrice = null
+//                    });
+//                }
+//            }
+
+//            return coOfr;
+//        }
+//    }
+//}
+
+
+
+
+
+
+
+
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
@@ -394,8 +614,9 @@ namespace PriceSafari.Services.ScheduleService
             var distinctStoreNames = products.Select(p => p.Store.StoreName).Distinct().ToList();
             int totalProducts = products.Count;
 
-            // Zmieniona mapa: Kluczem jest URL, wartością dane potrzebne do stworzenia zadania
-            var googleTaskMap = new Dictionary<string, (string? Gid, string? Cid, bool IsAdditional, List<ProductClass> Products)>();
+            // Rozszerzona mapa: Kluczem jest unikalny identyfikator grupy (URL lub ID techniczne)
+            // Wartość: (Gid, Cid, Hid, IsAdditional, UseHidOffer, Products)
+            var googleTaskMap = new Dictionary<string, (string? Gid, string? Cid, string? Hid, bool IsAdditional, bool UseHidOffer, List<ProductClass> Products)>();
 
             foreach (var product in products)
             {
@@ -403,49 +624,36 @@ namespace PriceSafari.Services.ScheduleService
                 if (!string.IsNullOrEmpty(product.GoogleUrl))
                 {
                     string? cid = ExtractCid(product.GoogleUrl);
-                    AddToGoogleMap(googleTaskMap, product.GoogleUrl, product.GoogleGid, cid, false, product);
+                    // Dla głównego katalogu kluczem jest URL, nie używamy HID
+                    AddToGoogleMap(googleTaskMap, product.GoogleUrl, product.GoogleGid, cid, null, false, false, product);
                 }
 
-                //// B. Katalogi DODATKOWE (tylko jeśli opcja w sklepie jest włączona)
-                //if (product.Store.UseAdditionalCatalogsForGoogle && product.GoogleCatalogs != null)
-                //{
-                //    foreach (var extra in product.GoogleCatalogs)
-                //    {
-                //        if (!string.IsNullOrEmpty(extra.GoogleUrl))
-                //        {
-                //            // Używamy pola GoogleCid z tabeli lub wyciągamy z URL
-                //            string? cid = extra.GoogleCid ?? ExtractCid(extra.GoogleUrl);
-                //            AddToGoogleMap(googleTaskMap, extra.GoogleUrl, extra.GoogleGid, cid, true, product);
-                //        }
-                //    }
-                //}
-
-             // DO POPRAWKI
+                // B. Katalogi DODATKOWE (tylko jeśli opcja w sklepie jest włączona)
                 if (product.Store.UseAdditionalCatalogsForGoogle && product.GoogleCatalogs != null)
                 {
                     foreach (var extra in product.GoogleCatalogs)
                     {
-                        string generatedUrl = "";
+                        string? gid = extra.GoogleGid;
+                        string? cid = extra.GoogleCid;
+                        string? hid = extra.GoogleHid;
+                        bool isHidMode = extra.IsExtendedOfferByHid;
 
-                        // 1. Decydujemy, jaki URL zbudować na podstawie flagi lub zawartości pól
-                        if (!extra.IsExtendedOfferByHid && !string.IsNullOrEmpty(extra.GoogleCid))
-                        {
-                            // --- TRYB KATALOGU ---
-                            generatedUrl = $"https://www.google.com/shopping/product/{extra.GoogleCid}";
-                        }
-                        else if (!string.IsNullOrEmpty(extra.GoogleHid))
-                        {
-                            // --- TRYB OFERTY ROZSZERZONEJ (HID) ---
-                            // Używamy nazwy produktu do zapytania, aby Google poprawnie otworzyło panel boczny
-                            string encodedName = System.Net.WebUtility.UrlEncode(product.ProductNameInStoreForGoogle ?? "");
-                            generatedUrl = $"https://www.google.com/search?q={encodedName}&udm=28#oshopproduct=gid:{extra.GoogleGid},hid:{extra.GoogleHid},pvt:hg,pvo:3&oshop=apv";
-                        }
+                        string key;
+                        string? finalUrl = null;
 
-                        // 2. Jeśli udało się wygenerować URL, dodajemy zadanie do mapy
-                        if (!string.IsNullOrEmpty(generatedUrl))
+                        if (!isHidMode && !string.IsNullOrEmpty(cid))
                         {
-                            // Przekazujemy CID (może być null dla ofert HID, co jest poprawne)
-                            AddToGoogleMap(googleTaskMap, generatedUrl, extra.GoogleGid, extra.GoogleCid, true, product);
+                            // SCENARIUSZ 1: Dodatkowe domapowanie przez CID
+                            finalUrl = $"https://www.google.com/shopping/product/{cid}";
+                            key = finalUrl;
+                            AddToGoogleMap(googleTaskMap, key, gid, cid, null, true, false, product);
+                        }
+                        else if (!string.IsNullOrEmpty(hid))
+                        {
+                            // SCENARIUSZ 2: Dodatkowe domapowanie przez HID (UseGoogleHidOffer = true)
+                            // Nie generujemy GoogleOfferUrl, kluczem jest techniczny identyfikator HID
+                            key = "HID_TASK_" + hid;
+                            AddToGoogleMap(googleTaskMap, key, gid, null, hid, true, true, product);
                         }
                     }
                 }
@@ -456,9 +664,13 @@ namespace PriceSafari.Services.ScheduleService
             // Tworzenie zadań Google
             foreach (var entry in googleTaskMap)
             {
-                var url = entry.Key;
+                var key = entry.Key;
                 var info = entry.Value;
-                var coOfr = CreateCoOfrClass(info.Products, null, url, info.Gid, info.Cid, info.IsAdditional);
+
+                // GoogleOfferUrl ustawiamy tylko jeśli nie jesteśmy w trybie HID
+                string? googleUrl = info.UseHidOffer ? null : key;
+
+                var coOfr = CreateCoOfrClass(info.Products, null, googleUrl, info.Gid, info.Cid, info.Hid, info.IsAdditional, info.UseHidOffer);
                 coOfr.IsGoogle = true;
                 coOfrs.Add(coOfr);
             }
@@ -470,7 +682,7 @@ namespace PriceSafari.Services.ScheduleService
 
             foreach (var group in groupsByOfferUrl)
             {
-                coOfrs.Add(CreateCoOfrClass(group.ToList(), group.Key, null, null, null, false));
+                coOfrs.Add(CreateCoOfrClass(group.ToList(), group.Key, null, null, null, null, false, false));
             }
 
             // Zapis do bazy danych
@@ -498,20 +710,18 @@ namespace PriceSafari.Services.ScheduleService
             return (totalProducts, distinctStoreNames);
         }
 
-        private void AddToGoogleMap(Dictionary<string, (string? Gid, string? Cid, bool IsAdditional, List<ProductClass> Products)> map,
-            string url, string? gid, string? cid, bool isAdditional, ProductClass product)
+        private void AddToGoogleMap(Dictionary<string, (string? Gid, string? Cid, string? Hid, bool IsAdditional, bool UseHidOffer, List<ProductClass> Products)> map,
+            string key, string? gid, string? cid, string? hid, bool isAdditional, bool useHidOffer, ProductClass product)
         {
-            if (!map.ContainsKey(url))
+            if (!map.ContainsKey(key))
             {
-                map[url] = (gid, cid, isAdditional, new List<ProductClass>());
+                map[key] = (gid, cid, hid, isAdditional, useHidOffer, new List<ProductClass>());
             }
-            map[url].Products.Add(product);
+            map[key].Products.Add(product);
         }
 
-        private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl, string? googleGid, string? googleCid, bool isAdditional)
+        private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl, string? googleGid, string? googleCid, string? googleHid, bool isAdditional, bool useHidOffer)
         {
-            // Wyciągamy ustawienia flag z pierwszego produktu w liście (wszystkie należą do tego samego sklepu w danej grupie)
-            // lub sprawdzamy czy jakikolwiek produkt w grupie ma te flagi włączone.
             bool useGPID = productList.Any(p => p.Store?.UseGPID == true);
             bool useWRGA = productList.Any(p => p.Store?.UseWRGA == true);
 
@@ -521,26 +731,26 @@ namespace PriceSafari.Services.ScheduleService
                 GoogleOfferUrl = googleUrl,
                 GoogleGid = googleGid,
                 GoogleCid = googleCid,
+                GoogleHid = googleHid,
                 IsAdditionalCatalog = isAdditional,
+                UseGoogleHidOffer = useHidOffer,
 
-                // PRZYPISANIE FLAG STERUJĄCYCH SCRAPEREM
                 UseGPID = useGPID,
                 UseWRGA = useWRGA,
 
                 ProductIds = productList.Select(p => p.ProductId).ToList(),
-                ProductIdsGoogle = googleUrl != null ? productList.Select(p => p.ProductId).ToList() : new List<int>(),
+                ProductIdsGoogle = (googleUrl != null || useHidOffer) ? productList.Select(p => p.ProductId).ToList() : new List<int>(),
                 StoreNames = productList.Select(p => p.Store?.StoreName ?? "Unknown").Distinct().ToList(),
                 StoreProfiles = productList.Select(p => p.Store?.StoreProfile ?? "").Distinct().ToList(),
                 IsScraped = false,
                 GoogleIsScraped = false,
-                IsGoogle = googleUrl != null,
+                IsGoogle = (googleUrl != null || useHidOffer),
                 IsRejected = false,
                 GoogleIsRejected = false
             };
 
             foreach (var p in productList)
             {
-                // Obsługa danych rozszerzonych API
                 if (p.Store != null && p.Store.FetchExtendedData && p.ExternalId.HasValue)
                 {
                     coOfr.StoreData.Add(new CoOfrStoreData

@@ -144,8 +144,6 @@ public class GoogleMainPriceScraperController : Controller
     {
         _logger.LogInformation($"Google PerformScrapingLogicInternalAsyncWithCaptchaFlag started. Consecutive CAPTCHA resets: {_consecutiveCaptchaResets}");
 
-        // Ta flaga jest mniej istotna w nowym modelu, ale zostawiamy ją dla spójności z mechanizmem resetu sieci.
-        // Teraz będzie sygnalizować ogólny, uporczywy błąd, a niekoniecznie CAPTCHA.
         bool persistentErrorDetected = false;
 
         using (var scope = _serviceScopeFactory.CreateScope())
@@ -159,8 +157,10 @@ public class GoogleMainPriceScraperController : Controller
                 return persistentErrorDetected;
             }
 
+            // --- KLUCZOWA ZMIANA TUTAJ ---
+            // Musimy pobrać rekordy, które mają URL LUB mają włączony tryb HID
             var coOfrsToScrape = await dbContext.CoOfrs
-                .Where(c => !string.IsNullOrEmpty(c.GoogleOfferUrl) && !c.GoogleIsScraped)
+                .Where(c => (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer) && !c.GoogleIsScraped)
                 .ToListAsync(cancellationToken);
 
             if (cancellationToken.IsCancellationRequested)
@@ -194,14 +194,12 @@ public class GoogleMainPriceScraperController : Controller
             {
                 tasks.Add(Task.Run(async () =>
                 {
-                    // Inicjalizacja scrapera jest teraz bardzo lekka.
                     GoogleMainPriceScraper scraper;
                     try
                     {
                         await semaphore.WaitAsync(cancellationToken);
                         if (cancellationToken.IsCancellationRequested) return;
 
-                        // Tworzymy instancję scrapera. Nie wymaga on już inicjalizacji z ustawieniami.
                         scraper = new GoogleMainPriceScraper();
 
                         while (true)
@@ -221,31 +219,27 @@ public class GoogleMainPriceScraperController : Controller
                                 {
                                     var productDbContext = productTaskScope.ServiceProvider.GetRequiredService<PriceSafariContext>();
 
-                                    _logger.LogDebug($"Task {Task.CurrentId}: Scraping {coOfr.GoogleOfferUrl}");
+                                    // POPRAWKA LOGOWANIA: Jeśli URL jest null, logujemy ID katalogu/oferty
+                                    string identifier = coOfr.UseGoogleHidOffer ? $"HID:{coOfr.GoogleHid}" : coOfr.GoogleOfferUrl;
+                                    _logger.LogDebug($"Task {Task.CurrentId}: Scraping {identifier}");
 
-                                    // **KLUCZOWA ZMIANA**: Wywołujemy nową wersję metody scrapującej,
-                                    // przekazując cały obiekt 'coOfr', a nie tylko URL.
                                     var scrapedPrices = await scraper.ScrapePricesAsync(coOfr);
 
                                     if (cancellationToken.IsCancellationRequested) break;
 
                                     var coOfrTracked = await productDbContext.CoOfrs.FindAsync(coOfr.Id);
-                                    if (coOfrTracked == null)
-                                    {
-                                        _logger.LogWarning($"Product with ID {coOfr.Id} not found in DB within product task scope.");
-                                        continue;
-                                    }
+                                    if (coOfrTracked == null) continue;
 
                                     if (scrapedPrices.Any())
                                     {
                                         foreach (var ph in scrapedPrices)
                                         {
                                             ph.CoOfrClassId = coOfrTracked.Id;
-                                            // KLUCZOWE: Przepisujemy CID z zadania do rekordu historii
+                                            // CID może być null dla HID, co jest poprawne (scraper i tak spróbuje go wyciągnąć)
                                             ph.GoogleCid = coOfrTracked.GoogleCid;
                                         }
 
-                                        productDbContext.CoOfrPriceHistories.AddRange((IEnumerable<CoOfrPriceHistoryClass>)scrapedPrices);
+                                        productDbContext.CoOfrPriceHistories.AddRange(scrapedPrices);
                                         coOfrTracked.GoogleIsScraped = true;
                                         coOfrTracked.GooglePricesCount = scrapedPrices.Count;
                                         coOfrTracked.GoogleIsRejected = false;

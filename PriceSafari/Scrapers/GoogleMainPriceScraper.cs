@@ -1716,32 +1716,42 @@ namespace PriceSafari.Services
         public async Task<List<CoOfrPriceHistoryClass>> ScrapePricesAsync(CoOfrClass coOfr)
         {
             var finalPriceHistory = new List<CoOfrPriceHistoryClass>();
-            // Używamy CID z obiektu coOfr (uzupełnionego przez UrlGroupingService) 
-            // lub wyciągamy go awaryjnie z URL
-            string? catalogId = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl);
-
-            if (string.IsNullOrEmpty(catalogId))
-            {
-                Console.WriteLine($"[BŁĄD] Brak CID dla zadania ID: {coOfr.Id}");
-                return finalPriceHistory;
-            }
-
             string urlTemplate;
 
-            // === ZMIANA 1: Logika użycia GPID ===
-            // Warunek: Mamy GID w bazie ORAZ flaga UseGPID jest ustawiona na true
-            if (!string.IsNullOrEmpty(coOfr.GoogleGid) && coOfr.UseGPID)
+            // --- NOWA LOGIKA BUDOWANIA URL (Obsługa HID / CID) ---
+            // Najpierw sprawdzamy czy zadanie wymusza tryb HID
+            if (coOfr.UseGoogleHidOffer && !string.IsNullOrEmpty(coOfr.GoogleHid))
             {
-                Console.WriteLine($"[INFO] Używam metody z GPCID dla CID: {catalogId} (UseGPID = true)");
-                urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+                Console.WriteLine($"[INFO] Używam metody HID dla GID: {coOfr.GoogleGid} | HID: {coOfr.GoogleHid} (UseGoogleHidOffer = true)");
+                // W trybie HID zawsze wymagane jest gpcid oraz headlineOfferDocid zamiast catalogid
+                urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},headlineOfferDocid:{coOfr.GoogleHid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
             }
             else
             {
-                // Jeśli nie ma GID lub UseGPID jest false -> lecimy po samym CatalogID
-                Console.WriteLine($"[INFO] Metoda standardowa (bez gpcid) dla CID: {catalogId}.");
-                urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
-            }
+                // Tryb standardowy (Katalogowy) - dotychczasowa logika
+                string? catalogId = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl);
 
+                if (string.IsNullOrEmpty(catalogId))
+                {
+                    Console.WriteLine($"[BŁĄD] Brak CID dla zadania ID: {coOfr.Id}");
+                    return finalPriceHistory;
+                }
+
+                if (!string.IsNullOrEmpty(coOfr.GoogleGid) && coOfr.UseGPID)
+                {
+                    Console.WriteLine($"[INFO] Używam metody z GPCID dla CID: {catalogId} (UseGPID = true)");
+                    urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+                }
+                else
+                {
+                    Console.WriteLine($"[INFO] Metoda standardowa (bez gpcid) dla CID: {catalogId}.");
+                    urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+                }
+            }
+            // --- KONIEC ZMIAN W BUDOWANIU URL ---
+
+
+            // --- RESZTA LOGIKI BEZ ZMIAN (1:1) ---
             var allFoundOffers = new List<TempOffer>();
             string? firstPageRawResponse = null;
 
@@ -1830,7 +1840,9 @@ namespace PriceSafari.Services
             // --- 2. TRYB SMART Q (WRGA) Z LIMITEREM CENOWYM ---
             if (coOfr.UseWRGA && !string.IsNullOrEmpty(firstPageRawResponse))
             {
-                Console.WriteLine($"[INFO] Uruchamiam tryb WRGA (Smart Q) dla produktu: {catalogId}");
+                // Ustalenie catalogId do logów WRGA
+                string? catalogIdForLog = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl);
+                Console.WriteLine($"[INFO] Uruchamiam tryb WRGA (Smart Q) dla produktu: {catalogIdForLog}");
 
                 // Obliczamy średnią cenę z OAPV jako punkt odniesienia (Baseline)
                 decimal baselinePrice = 0;
@@ -1842,7 +1854,7 @@ namespace PriceSafari.Services
                         // Mediana jest odporna na błędy parsowania (outliery)
                         var sortedPrices = prices.OrderBy(p => p).ToList();
                         baselinePrice = sortedPrices[sortedPrices.Count / 2];
-                        Console.WriteLine($"[DEBUG] Baseline (Mediana) dla CID {catalogId}: {baselinePrice:F2} zł");
+                        Console.WriteLine($"[DEBUG] Baseline (Mediana) dla zadania {coOfr.Id}: {baselinePrice:F2} zł");
                     }
                 }
 
@@ -1889,7 +1901,6 @@ namespace PriceSafari.Services
                 }
             }
 
-
             var groupedBySeller = allFoundOffers.GroupBy(o => o.Seller);
             var finalOffersToProcess = new List<(TempOffer offer, int count)>();
 
@@ -1914,7 +1925,7 @@ namespace PriceSafari.Services
                 finalPriceHistory.Add(new CoOfrPriceHistoryClass
                 {
                     CoOfrClassId = coOfr.Id, // Przypisanie ID zadania
-                    GoogleCid = catalogId,   // KLUCZOWE: Przypisujemy CID katalogu do historii ceny
+                    GoogleCid = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl), // CID do historii
                     GoogleStoreName = item.offer.Seller,
                     GooglePrice = ParsePrice(item.offer.Price),
                     GooglePriceWithDelivery = ParsePrice(item.offer.Price) + ParseDeliveryPrice(item.offer.Delivery),
@@ -1927,7 +1938,6 @@ namespace PriceSafari.Services
 
             return finalPriceHistory;
         }
-
         #region Helper Methods
         private bool AreUrlsEqual(string url1, string url2)
         {

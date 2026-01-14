@@ -32,7 +32,8 @@ public class CoOfrClass
 
     public string? GoogleCid { get; set; }
 
-    // DODAJ TO: Pozwala łatwo odróżnić w bazie główne zadanie od tych "dodatkowych"
+    public string? GoogleHid { get; set; }
+    public bool UseGoogleHidOffer { get; set; } = false;
     public bool IsAdditionalCatalog { get; set; } = false;
 
 }
