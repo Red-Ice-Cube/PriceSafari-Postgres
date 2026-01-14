@@ -190,22 +190,24 @@ public class GoogleScraperController : Controller
             }
         }
 
-        // --- NOWA METODA DO DODAWANIA DODATKOWYCH KATALOGÓW ---
-        public void AddCatalog(string cid, string gid, string url)
+        // Wewnątrz klasy ProductProcessingState:
+        public void AddCatalog(string cid, string gid, string url, string hid = null)
         {
-            // Kluczowa zmiana: Operujemy na CID
-            if (string.IsNullOrEmpty(cid)) return;
+            // Klucz: unikalność sprawdzamy po CID lub HID
+            string uniqueKey = cid ?? hid;
+            if (string.IsNullOrEmpty(uniqueKey)) return;
 
             lock (KnownCids)
             {
-                if (!KnownCids.Contains(cid))
+                if (!KnownCids.Contains(uniqueKey))
                 {
-                    KnownCids.Add(cid);
+                    KnownCids.Add(uniqueKey);
                     NewCatalogsFound.Add(new ProductGoogleCatalog
                     {
                         ProductId = this.ProductId,
-                        GoogleCid = cid, // Zapisujemy czysty CID
+                        GoogleCid = cid,
                         GoogleGid = gid,
+                        GoogleHid = hid, // Zapisujemy HID
                         GoogleUrl = url,
                         FoundDate = DateTime.UtcNow
                     });
@@ -2066,6 +2068,7 @@ public class GoogleScraperController : Controller
                     GoogleCatalogs = p.GoogleCatalogs?.Select(gc => new {
                         gc.GoogleCid,
                         gc.GoogleGid,
+                        gc.GoogleHid,
                         gc.GoogleUrl
                     }).ToList()
                 };
@@ -2457,12 +2460,12 @@ public class GoogleScraperController : Controller
     }
 
     private async Task ProcessSingleProduct_MultiCatalogMatchAsync(
-        ProductProcessingState productState,
-        GoogleScraper scraper,
-        CancellationTokenSource cts,
-        int maxCidsToProcess,
-        string namePrefix,
-        bool allowManualCaptchaSolving)
+     ProductProcessingState productState,
+     GoogleScraper scraper,
+     CancellationTokenSource cts,
+     int maxCidsToProcess,
+     string namePrefix,
+     bool allowManualCaptchaSolving)
     {
     RestartSearch:
 
@@ -2493,7 +2496,7 @@ public class GoogleScraperController : Controller
             return;
         }
 
-        // 2. Pobieranie listy wyników (CIDów)
+        // 2. Pobieranie listy wyników (CID, GID oraz HID)
         var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTerm, maxItemsToExtract: maxCidsToProcess);
 
         // --- OBSŁUGA CAPTCHA (Identyfikatory) ---
@@ -2516,7 +2519,6 @@ public class GoogleScraperController : Controller
                 return;
             }
         }
-        // -----------------------------------------
 
         if (!identifierResult.IsSuccess || !identifierResult.Data.Any())
         {
@@ -2532,21 +2534,24 @@ public class GoogleScraperController : Controller
         {
             if (cts.IsCancellationRequested && !allowManualCaptchaSolving) break;
 
-            // SPRAWDZANIE PO CID
+            // SPRAWDZANIE UNIKALNOŚCI: CID (jeśli jest) lub HID (jako fallback)
+            string effectiveId = !string.IsNullOrEmpty(identifier.Cid) ? identifier.Cid : identifier.Hid;
+
             bool isKnown = false;
             lock (productState.KnownCids)
             {
-                if (productState.KnownCids.Contains(identifier.Cid)) isKnown = true;
+                if (!string.IsNullOrEmpty(effectiveId) && productState.KnownCids.Contains(effectiveId))
+                    isKnown = true;
             }
 
             if (isKnown)
             {
-                Console.WriteLine($"    > [POMINIĘTO] Katalog CID: {identifier.Cid} jest już przypisany.");
+                Console.WriteLine($"    > [POMINIĘTO] Katalog {(!string.IsNullOrEmpty(identifier.Cid) ? "CID" : "HID")}: {effectiveId} jest już przypisany.");
                 continue;
             }
 
-            // Pobieranie szczegółów z API
-            var detailsResult = await scraper.GetProductDetailsFromApiAsync(identifier.Cid, identifier.Gid);
+            // 3. Pobieranie szczegółów z API (Przekazujemy HID, scraper sam wybierze parametr catalogid vs headlineOfferDocid)
+            var detailsResult = await scraper.GetProductDetailsFromApiAsync(identifier.Cid, identifier.Gid, identifier.Hid);
 
             // --- OBSŁUGA CAPTCHA (Detale API) ---
             if (detailsResult.CaptchaEncountered)
@@ -2568,7 +2573,6 @@ public class GoogleScraperController : Controller
                     break;
                 }
             }
-            // ------------------------------------
 
             if (detailsResult.IsSuccess && detailsResult.Data?.Details != null)
             {
@@ -2578,15 +2582,11 @@ public class GoogleScraperController : Controller
                 lock (_consoleLock)
                 {
                     Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine($"      [Analiza CID: {identifier.Cid}]");
+                    Console.WriteLine($"      [Analiza {(!string.IsNullOrEmpty(identifier.Cid) ? "CID: " + identifier.Cid : "HID: " + identifier.Hid)}]");
                     Console.WriteLine($"      -> Tytuł Główny: {details.MainTitle}");
                     if (details.OfferTitles.Any())
                     {
                         Console.WriteLine($"      -> Przykładowe oferty ({details.OfferTitles.Count}): {string.Join(" | ", details.OfferTitles.Take(2))}...");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"      -> Brak tytułów ofert.");
                     }
                     Console.ResetColor();
                 }
@@ -2602,40 +2602,50 @@ public class GoogleScraperController : Controller
 
                 if (matchFound)
                 {
-                    string googleUrl = $"https://www.google.com/shopping/product/{identifier.Cid}";
+                    // 4. Budowanie URL:
+                    // Jeśli mamy CID - link standardowy do strony produktu.
+                    // Jeśli brak CID - link do wyszukiwarki z parametrami GID i HID (otwiera panel ofert).
+                    string googleUrl;
+                    if (!string.IsNullOrEmpty(identifier.Cid))
+                    {
+                        googleUrl = $"https://www.google.com/shopping/product/{identifier.Cid}";
+                    }
+                    else
+                    {
+                        string encodedName = System.Net.WebUtility.UrlEncode(productState.ProductNameInStoreForGoogle);
+                        googleUrl = $"https://www.google.com/search?q={encodedName}&udm=28#oshopproduct=gid:{identifier.Gid},hid:{identifier.Hid},pvt:hg,pvo:3&oshop=apv";
+                    }
 
-                    // Dodajemy TYLKO do listy nowych katalogów (nie ruszamy statusu produktu)
-                    productState.AddCatalog(identifier.Cid, identifier.Gid, googleUrl);
+                    // 5. Dodajemy do listy nowych katalogów (Przesyłamy HID)
+                    productState.AddCatalog(identifier.Cid, identifier.Gid, googleUrl, identifier.Hid);
                     verifiedCount++;
 
                     lock (_consoleLock)
                     {
                         Console.ForegroundColor = ConsoleColor.Green;
                         Console.WriteLine($"      [SUKCES] Kod {targetProducerCode} znaleziony!");
-                        Console.WriteLine($"      >>> Dodano katalog do kolejki zapisu.");
+                        Console.WriteLine($"      >>> Dodano powiązanie ({(!string.IsNullOrEmpty(identifier.Cid) ? "CID" : "HID")}) do bazy.");
                         Console.ResetColor();
                     }
                 }
                 else
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"      [PORAŻKA] Kod {targetProducerCode} NIE występuje w tytułach.");
+                    Console.WriteLine($"      [PORAŻKA] Kod {targetProducerCode} NIE występuje w tytułach dla tego identyfikatora.");
                     Console.ResetColor();
                 }
             }
             else
             {
-                Console.WriteLine($"      [BŁĄD API] Nie udało się pobrać szczegółów dla CID {identifier.Cid}.");
+                Console.WriteLine($"      [BŁĄD API] Nie udało się pobrać szczegółów (API Fail).");
             }
 
-            // Opóźnienie
-            await Task.Delay(250);
+            await Task.Delay(250); // Mały delay między zapytaniami API
         }
 
         Console.WriteLine($"[Multi-Catalog] Zakończono dla ID {productState.ProductId}. Dodano {verifiedCount} nowych powiązań.");
     }
-
-   private async Task BatchUpdateMultiCatalogAsync(bool isFinalSave, CancellationToken cancellationToken)
+    private async Task BatchUpdateMultiCatalogAsync(bool isFinalSave, CancellationToken cancellationToken)
     {
         // DEBUG: Sprawdzamy czy metoda w ogóle jest wywoływana
         // Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [DEBUG] BatchUpdateMultiCatalogAsync check..."); 
