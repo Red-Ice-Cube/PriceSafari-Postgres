@@ -1108,27 +1108,68 @@ public class GoogleScraper
     public async Task InitializeBrowserAsync()
     {
         IsCaptchaEncountered = false;
+        Console.WriteLine("Starting browser initialization (Images & JS Enabled)...");
+
         var browserFetcher = new BrowserFetcher();
         await browserFetcher.DownloadAsync();
 
         _browser = await Puppeteer.LaunchAsync(new LaunchOptions
         {
-            Headless = false,
+            Headless = false, // Ustaw na true, jeśli nie chcesz widzieć okna
             Args = new[]
             {
-                 "--no-sandbox",
-                 "--disable-setuid-sandbox",
-                 "--disable-gpu",
-                 "--disable-blink-features=AutomationControlled",
-                 "--disable-software-rasterizer",
-                 "--disable-extensions",
-                 "--disable-dev-shm-usage",
-                 "--disable-features=IsolateOrigins,site-per-process",
-                 "--disable-infobars"
-            }
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-gpu",
+            "--disable-blink-features=AutomationControlled", // Kluczowe dla ukrycia bota
+            "--disable-software-rasterizer",
+            "--disable-extensions",
+            "--disable-dev-shm-usage",
+            "--disable-features=IsolateOrigins,site-per-process",
+            "--disable-infobars"
+            // USUNIĘTO: "--blink-settings=imagesEnabled=false" aby obrazki działały
+        }
         });
 
+        if (_browser == null)
+        {
+            throw new Exception("Browser failed to launch.");
+        }
+
         _page = await _browser.NewPageAsync();
+        if (_page == null)
+        {
+            throw new Exception("Failed to create a new page.");
+        }
+
+        // Włączamy JavaScript (domyślnie jest włączony, ale dla pewności ustawiamy)
+        await _page.SetJavaScriptEnabledAsync(true);
+
+        // Skrypt maskujący (ukrywanie 'webdriver' i fałszowanie pluginów)
+        await _page.EvaluateFunctionOnNewDocumentAsync(@"() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+        Object.defineProperty(navigator, 'plugins', {
+            get: () => [
+                { name: 'Chrome PDF Viewer' },
+                { name: 'Native Client' },
+                { name: 'Widevine Content Decryption Module' }
+            ],
+            configurable: true
+        });
+    }");
+
+        // Ustawienie losowego Viewportu (rozdzielczości) - standardowy laptop
+        var commonResolutions = new List<(int width, int height)>
+    {
+        (1366, 768),
+        (1920, 1080)
+    };
+
+        var random = new Random();
+        var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
+        await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
+
+        // USUNIĘTO: Skrypt wycinający CSS i Style, ponieważ chciałeś ładowanie obrazków i pełny rendering.
     }
 
     public async Task<ScraperResult<List<GoogleProductIdentifier>>> SearchInitialProductIdentifiersAsync(string title, int maxItemsToExtract = 20)
