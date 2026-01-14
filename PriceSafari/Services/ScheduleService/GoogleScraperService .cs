@@ -138,8 +138,10 @@ namespace PriceSafari.Services.ScheduleService
             }
 
             var coOfrsToScrape = await dbContext.CoOfrs
-                .Where(c => !string.IsNullOrEmpty(c.GoogleOfferUrl) && !c.GoogleIsScraped)
-                .ToListAsync();
+           .Where(c => !string.IsNullOrEmpty(c.GoogleOfferUrl) && !c.GoogleIsScraped)
+           // Nie musimy tu nic zmieniać w zapytaniu, bo 'GoogleCid' jest w głównej tabeli CoOfrs, 
+           // ale upewnij się, że scraper go dostaje.
+           .ToListAsync();
 
             int totalUrls = coOfrsToScrape.Count;
 
@@ -190,7 +192,11 @@ namespace PriceSafari.Services.ScheduleService
 
                                 if (prices != null && prices.Any())
                                 {
-                                    foreach (var p in prices) p.CoOfrClassId = trackedItem.Id;
+                                    foreach (var p in prices)
+                                    {
+                                        p.CoOfrClassId = trackedItem.Id;
+                                        p.GoogleCid = trackedItem.GoogleCid; // DODATKOWE ZABEZPIECZENIE
+                                    }
                                     db.CoOfrPriceHistories.AddRange(prices);
                                     trackedItem.GoogleIsScraped = true;
                                     trackedItem.GoogleIsRejected = false;

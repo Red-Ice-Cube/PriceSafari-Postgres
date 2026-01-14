@@ -99,6 +99,8 @@ namespace PriceSafari.Models
         public bool UseGPID { get; set; } = false;
         public bool UseWRGA { get; set; } = false;
 
+        public bool UseAdditionalCatalogsForGoogle { get; set; } = false;
+
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
         public ICollection<ProductClass> Products { get; set; } = new List<ProductClass>();
         public ICollection<AllegroProductClass> AllegroProducts { get; set; } = new List<AllegroProductClass>();

@@ -238,7 +238,12 @@ public class GoogleMainPriceScraperController : Controller
 
                                     if (scrapedPrices.Any())
                                     {
-                                        foreach (var ph in scrapedPrices) ph.CoOfrClassId = coOfrTracked.Id;
+                                        foreach (var ph in scrapedPrices)
+                                        {
+                                            ph.CoOfrClassId = coOfrTracked.Id;
+                                            // KLUCZOWE: Przepisujemy CID z zadania do rekordu historii
+                                            ph.GoogleCid = coOfrTracked.GoogleCid;
+                                        }
 
                                         productDbContext.CoOfrPriceHistories.AddRange((IEnumerable<CoOfrPriceHistoryClass>)scrapedPrices);
                                         coOfrTracked.GoogleIsScraped = true;

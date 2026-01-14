@@ -133,6 +133,8 @@ public class GoogleScraperController : Controller
                 _status = ProductStatus.Found;
                 _googleUrl = product.GoogleUrl;
                 _googleGid = product.GoogleGid;
+                // Ważne: Jeśli masz pole Cid w klasie ProductClass, przypisz je tutaj:
+                // _cid = product.GoogleCid; 
             }
             else if (product.FoundOnGoogle == false)
             {
@@ -145,22 +147,28 @@ public class GoogleScraperController : Controller
 
             IsDirty = false;
 
-            // --- INICJALIZACJA ZNANYCH KATALOGÓW ---
+            // --- INICJALIZACJA ZNANYCH KATALOGÓW NA BAZIE CID ---
 
-            // 1. Dodajemy główny katalog, jeśli istnieje
-            if (!string.IsNullOrEmpty(product.GoogleGid))
+            // 1. Dodajemy CID głównego produktu (wyciągnięty z jego GoogleUrl)
+            string? mainCid = ExtractCidFromUrl(product.GoogleUrl);
+            if (!string.IsNullOrEmpty(mainCid))
             {
-                KnownCids.Add(product.GoogleGid);
+                KnownCids.Add(mainCid);
             }
 
-            // 2. Dodajemy istniejące dodatkowe katalogi (jeśli zostały załadowane z bazy przez .Include)
+            // 2. Dodajemy CID-y z istniejących dodatkowych katalogów
             if (product.GoogleCatalogs != null)
             {
                 foreach (var catalog in product.GoogleCatalogs)
                 {
-                    if (!string.IsNullOrEmpty(catalog.GoogleGid))
+                    // Próbujemy wziąć CID z dedykowanego pola, a jeśli puste - wyciągamy z URL
+                    string? extraCid = !string.IsNullOrEmpty(catalog.GoogleCid)
+                                       ? catalog.GoogleCid
+                                       : ExtractCidFromUrl(catalog.GoogleUrl);
+
+                    if (!string.IsNullOrEmpty(extraCid))
                     {
-                        KnownCids.Add(catalog.GoogleGid);
+                        KnownCids.Add(extraCid);
                     }
                 }
             }
@@ -185,23 +193,23 @@ public class GoogleScraperController : Controller
         // --- NOWA METODA DO DODAWANIA DODATKOWYCH KATALOGÓW ---
         public void AddCatalog(string cid, string gid, string url)
         {
-            if (string.IsNullOrEmpty(gid)) return;
+            // Kluczowa zmiana: Operujemy na CID
+            if (string.IsNullOrEmpty(cid)) return;
 
-            // Blokujemy zbiór KnownCids, aby zapewnić bezpieczeństwo wątków przy sprawdzaniu duplikatów
             lock (KnownCids)
             {
-                if (!KnownCids.Contains(gid))
+                if (!KnownCids.Contains(cid))
                 {
-                    KnownCids.Add(gid);
+                    KnownCids.Add(cid);
                     NewCatalogsFound.Add(new ProductGoogleCatalog
                     {
                         ProductId = this.ProductId,
-                        GoogleCid = cid,
+                        GoogleCid = cid, // Zapisujemy czysty CID
                         GoogleGid = gid,
                         GoogleUrl = url,
                         FoundDate = DateTime.UtcNow
                     });
-                    IsDirty = true; // Oznaczamy stan jako "brudny", aby Timer lub BatchSave zapisał te zmiany
+                    IsDirty = true;
                 }
             }
         }
@@ -2023,21 +2031,18 @@ public class GoogleScraperController : Controller
     public async Task<IActionResult> GoogleProducts(int storeId)
     {
         var store = await _context.Stores.FindAsync(storeId);
-        if (store == null)
-        {
-            return NotFound();
-        }
+        if (store == null) return NotFound();
 
+        // 1. DODANO .Include(p => p.GoogleCatalogs), aby pobrać relacje
         var products = await _context.Products
+            .Include(p => p.GoogleCatalogs)
             .Where(p => p.StoreId == storeId && p.OnGoogle)
             .ToListAsync();
 
         if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
         {
             var jsonProducts = products.Select(p => {
-
                 string generatedUrl = null;
-
                 string productIdCid = ExtractProductIdFromUrl(p.GoogleUrl);
 
                 if (!string.IsNullOrEmpty(productIdCid) && !string.IsNullOrEmpty(p.ProductNameInStoreForGoogle))
@@ -2056,7 +2061,13 @@ public class GoogleScraperController : Controller
                     p.Ean,
                     p.ProducerCode,
                     p.GoogleGid,
-                    GeneratedGoogleUrl = generatedUrl
+                    GeneratedGoogleUrl = generatedUrl,
+                    // 2. MAPOWANIE DODATKOWYCH KATALOGÓW DO JSON
+                    GoogleCatalogs = p.GoogleCatalogs?.Select(gc => new {
+                        gc.GoogleCid,
+                        gc.GoogleGid,
+                        gc.GoogleUrl
+                    }).ToList()
                 };
             }).ToList();
 
@@ -2067,7 +2078,6 @@ public class GoogleScraperController : Controller
         ViewBag.StoreId = storeId;
         return View("~/Views/ManagerPanel/GoogleScraper/GoogleProducts.cshtml", products);
     }
-
     private string ExtractProductIdFromUrl(string googleUrl)
     {
         if (string.IsNullOrEmpty(googleUrl) || !googleUrl.Contains("/product/"))
@@ -2214,7 +2224,13 @@ public class GoogleScraperController : Controller
 
 
 
-
+    private static string ExtractCidFromUrl(string url)
+    {
+        if (string.IsNullOrEmpty(url)) return null;
+        // Szukamy ciągu cyfr po "/product/"
+        var match = System.Text.RegularExpressions.Regex.Match(url, @"/product/(\d+)");
+        return match.Success ? match.Groups[1].Value : null;
+    }
 
 
     [HttpPost]
@@ -2420,15 +2436,15 @@ public class GoogleScraperController : Controller
                     var state = new ProductProcessingState(p, tempScraper.CleanUrlParameters);
 
                     // Wypełniamy KnownCids, aby nie dublować
-                    lock (state.KnownCids)
-                    {
-                        if (!string.IsNullOrEmpty(p.GoogleGid)) state.KnownCids.Add(p.GoogleGid);
-                        foreach (var existing in p.GoogleCatalogs)
-                        {
-                            if (!string.IsNullOrEmpty(existing.GoogleGid))
-                                state.KnownCids.Add(existing.GoogleGid);
-                        }
-                    }
+                    //lock (state.KnownCids)
+                    //{
+                    //    if (!string.IsNullOrEmpty(p.GoogleGid)) state.KnownCids.Add(p.GoogleGid);
+                    //    foreach (var existing in p.GoogleCatalogs)
+                    //    {
+                    //        if (!string.IsNullOrEmpty(existing.GoogleGid))
+                    //            state.KnownCids.Add(existing.GoogleGid);
+                    //    }
+                    //}
 
                     // Resetujemy IsDirty na false, bo inicjalizacja mogła go ustawić w konstruktorze
                     state.IsDirty = false;
@@ -2512,18 +2528,20 @@ public class GoogleScraperController : Controller
 
         int verifiedCount = 0;
 
-        // 3. Weryfikacja każdego wyniku
         foreach (var identifier in identifierResult.Data)
         {
             if (cts.IsCancellationRequested && !allowManualCaptchaSolving) break;
 
-            // Sprawdzenie duplikatów
+            // SPRAWDZANIE PO CID
             bool isKnown = false;
-            lock (productState.KnownCids) { if (productState.KnownCids.Contains(identifier.Gid)) isKnown = true; }
+            lock (productState.KnownCids)
+            {
+                if (productState.KnownCids.Contains(identifier.Cid)) isKnown = true;
+            }
 
             if (isKnown)
             {
-                Console.WriteLine($"   > [DUPLIKAT] Pomijam GID: {identifier.Gid} (już przypisany).");
+                Console.WriteLine($"    > [POMINIĘTO] Katalog CID: {identifier.Cid} jest już przypisany.");
                 continue;
             }
 
@@ -2656,10 +2674,10 @@ public class GoogleScraperController : Controller
                 {
                     foreach (var cat in catalogsToSave)
                     {
-                        // Sprawdzenie duplikatów w bazie
+                        // Wewnątrz pętli zapisu:
                         bool exists = await context.Set<ProductGoogleCatalog>()
                             .AsNoTracking()
-                            .AnyAsync(x => x.ProductId == cat.ProductId && x.GoogleGid == cat.GoogleGid, cancellationToken);
+                            .AnyAsync(x => x.ProductId == cat.ProductId && x.GoogleCid == cat.GoogleCid, cancellationToken);
 
                         if (!exists)
                         {

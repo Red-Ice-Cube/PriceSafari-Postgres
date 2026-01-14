@@ -30,4 +30,9 @@ public class CoOfrClass
 
     public virtual ICollection<CoOfrStoreData> StoreData { get; set; } = new List<CoOfrStoreData>();
 
+    public string? GoogleCid { get; set; }
+
+    // DODAJ TO: Pozwala łatwo odróżnić w bazie główne zadanie od tych "dodatkowych"
+    public bool IsAdditionalCatalog { get; set; } = false;
+
 }

@@ -170,11 +170,196 @@
 
 
 
+//using Microsoft.EntityFrameworkCore;
+//using PriceSafari.Data;
+//using PriceSafari.Models;
+//using System.Collections.Generic;
+//using System.Linq;
+//using System.Threading.Tasks;
+
+//namespace PriceSafari.Services.ScheduleService
+//{
+//    public class UrlGroupingService
+//    {
+//        private readonly PriceSafariContext _context;
+
+//        public UrlGroupingService(PriceSafariContext context)
+//        {
+//            _context = context;
+//        }
+
+//        public async Task<(int totalProducts, List<string> distinctStoreNames)> GroupAndSaveUniqueUrls(List<int> storeIds)
+//        {
+//            var products = await _context.Products
+//                .Include(p => p.Store)
+//                .Where(p => p.IsScrapable && p.Store.RemainingDays > 0)
+//                .Where(p => storeIds.Contains(p.StoreId))
+//                .AsNoTracking()
+//                .ToListAsync();
+
+//            var distinctStoreNames = products
+//                .Select(p => p.Store.StoreName)
+//                .Distinct()
+//                .ToList();
+
+//            int totalProducts = products.Count;
+
+//            var productsWithOffer = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl)).ToList();
+//            var productsWithoutOffer = products.Where(p => string.IsNullOrEmpty(p.OfferUrl)).ToList();
+
+//            var coOfrs = new List<CoOfrClass>();
+
+//            var groupsByOfferUrl = productsWithOffer
+//                .GroupBy(p => p.OfferUrl ?? "")
+//                .ToDictionary(g => g.Key, g => g.ToList());
+
+//            foreach (var kvp in groupsByOfferUrl)
+//            {
+//                var productList = kvp.Value;
+//                var representativeProduct = productList.FirstOrDefault(p => !string.IsNullOrEmpty(p.GoogleUrl));
+//                var coOfr = CreateCoOfrClass(productList, kvp.Key, representativeProduct?.GoogleUrl, representativeProduct?.GoogleGid);
+//                coOfrs.Add(coOfr);
+//            }
+
+//            var groupsByGoogleUrlForNoOffer = productsWithoutOffer
+//                .Where(p => !string.IsNullOrEmpty(p.GoogleUrl))
+//                .GroupBy(p => p.GoogleUrl ?? "")
+//                .ToDictionary(g => g.Key, g => g.ToList());
+
+//            foreach (var kvp in groupsByGoogleUrlForNoOffer)
+//            {
+//                var productList = kvp.Value;
+//                var representativeGid = productList.FirstOrDefault()?.GoogleGid;
+//                var coOfr = CreateCoOfrClass(productList, null, kvp.Key, representativeGid);
+//                coOfrs.Add(coOfr);
+//            }
+
+//            var productsWithNoUrl = productsWithoutOffer.Where(p => string.IsNullOrEmpty(p.GoogleUrl)).ToList();
+//            if (productsWithNoUrl.Any())
+//            {
+//                var coOfr = CreateCoOfrClass(productsWithNoUrl, null, null, null);
+//                coOfrs.Add(coOfr);
+//            }
+
+//            var strategy = _context.Database.CreateExecutionStrategy();
+
+//            await strategy.ExecuteAsync(async () =>
+//            {
+//                using var transaction = await _context.Database.BeginTransactionAsync();
+
+//                try
+//                {
+//                    await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrStoreDatas]");
+//                    await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrPriceHistories]");
+//                    await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrs]");
+
+//                    try
+//                    {
+//                        await _context.Database.ExecuteSqlRawAsync("DBCC CHECKIDENT ('[CoOfrs]', RESEED, 0)");
+//                        await _context.Database.ExecuteSqlRawAsync("DBCC CHECKIDENT ('[CoOfrStoreDatas]', RESEED, 0)");
+//                    }
+//                    catch
+//                    {
+//                    }
+
+//                    _context.CoOfrs.AddRange(coOfrs);
+//                    await _context.SaveChangesAsync();
+
+//                    await transaction.CommitAsync();
+//                }
+//                catch
+//                {
+//                    await transaction.RollbackAsync();
+//                    throw;
+//                }
+//            });
+
+//            return (totalProducts, distinctStoreNames);
+//        }
+
+//        private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl, string? googleGid)
+//        {
+//            if (string.IsNullOrEmpty(offerUrl)) offerUrl = null;
+//            if (string.IsNullOrEmpty(googleUrl)) googleUrl = null;
+//            if (string.IsNullOrEmpty(googleGid)) googleGid = null;
+
+//            var coOfr = new CoOfrClass
+//            {
+//                OfferUrl = offerUrl,
+//                GoogleOfferUrl = googleUrl,
+//                GoogleGid = googleGid,
+//                ProductIds = new List<int>(),
+//                ProductIdsGoogle = new List<int>(),
+//                StoreNames = new List<string>(),
+//                StoreProfiles = new List<string>(),
+//                StoreData = new List<CoOfrStoreData>(),
+//                IsScraped = false,
+//                GoogleIsScraped = false,
+//                IsRejected = false,
+//                GoogleIsRejected = false,
+
+//                UseGPID = false,
+//                UseWRGA = false
+//            };
+
+//            var uniqueStoreNames = new HashSet<string>();
+//            var uniqueStoreProfiles = new HashSet<string>();
+
+
+//            bool foundUseGPID = false;
+//            bool foundUseWRGA = false;
+
+//            foreach (var product in productList)
+//            {
+//                coOfr.ProductIds.Add(product.ProductId);
+
+//                if (!string.IsNullOrEmpty(googleUrl) && product.GoogleUrl == googleUrl)
+//                {
+//                    coOfr.ProductIdsGoogle.Add(product.ProductId);
+//                }
+
+//                if (product.Store != null)
+//                {
+//                    uniqueStoreNames.Add(product.Store.StoreName);
+//                    uniqueStoreProfiles.Add(product.Store.StoreProfile);
+
+//                    if (product.Store.UseGPID) foundUseGPID = true;
+
+
+//                    if (product.Store.UseWRGA) foundUseWRGA = true;
+
+
+//                    if (product.Store.FetchExtendedData && product.ExternalId.HasValue)
+//                    {
+//                        var storeData = new CoOfrStoreData
+//                        {
+//                            StoreId = product.StoreId,
+//                            ProductExternalId = product.ExternalId.Value.ToString(),
+//                            IsApiProcessed = false,
+//                            ExtendedDataApiPrice = null
+//                        };
+//                        coOfr.StoreData.Add(storeData);
+//                    }
+//                }
+//            }
+
+//            coOfr.UseGPID = foundUseGPID;
+//            coOfr.UseWRGA = foundUseWRGA;
+
+//            coOfr.StoreNames = uniqueStoreNames.ToList();
+//            coOfr.StoreProfiles = uniqueStoreProfiles.ToList();
+
+//            return coOfr;
+//        }
+//    }
+//}
+
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace PriceSafari.Services.ScheduleService
@@ -188,83 +373,89 @@ namespace PriceSafari.Services.ScheduleService
             _context = context;
         }
 
+        // Pomocnicza metoda do wyciągania CID z adresu URL
+        private string? ExtractCid(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return null;
+            var match = Regex.Match(url, @"/product/(\d+)");
+            return match.Success ? match.Groups[1].Value : null;
+        }
+
         public async Task<(int totalProducts, List<string> distinctStoreNames)> GroupAndSaveUniqueUrls(List<int> storeIds)
         {
             var products = await _context.Products
                 .Include(p => p.Store)
+                .Include(p => p.GoogleCatalogs) // Pobieramy dodatkowe katalogi
                 .Where(p => p.IsScrapable && p.Store.RemainingDays > 0)
                 .Where(p => storeIds.Contains(p.StoreId))
                 .AsNoTracking()
                 .ToListAsync();
 
-            var distinctStoreNames = products
-                .Select(p => p.Store.StoreName)
-                .Distinct()
-                .ToList();
-
+            var distinctStoreNames = products.Select(p => p.Store.StoreName).Distinct().ToList();
             int totalProducts = products.Count;
 
-            var productsWithOffer = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl)).ToList();
-            var productsWithoutOffer = products.Where(p => string.IsNullOrEmpty(p.OfferUrl)).ToList();
+            // Zmieniona mapa: Kluczem jest URL, wartością dane potrzebne do stworzenia zadania
+            var googleTaskMap = new Dictionary<string, (string? Gid, string? Cid, bool IsAdditional, List<ProductClass> Products)>();
+
+            foreach (var product in products)
+            {
+                // A. Katalog GŁÓWNY
+                if (!string.IsNullOrEmpty(product.GoogleUrl))
+                {
+                    string? cid = ExtractCid(product.GoogleUrl);
+                    AddToGoogleMap(googleTaskMap, product.GoogleUrl, product.GoogleGid, cid, false, product);
+                }
+
+                // B. Katalogi DODATKOWE (tylko jeśli opcja w sklepie jest włączona)
+                if (product.Store.UseAdditionalCatalogsForGoogle && product.GoogleCatalogs != null)
+                {
+                    foreach (var extra in product.GoogleCatalogs)
+                    {
+                        if (!string.IsNullOrEmpty(extra.GoogleUrl))
+                        {
+                            // Używamy pola GoogleCid z tabeli lub wyciągamy z URL
+                            string? cid = extra.GoogleCid ?? ExtractCid(extra.GoogleUrl);
+                            AddToGoogleMap(googleTaskMap, extra.GoogleUrl, extra.GoogleGid, cid, true, product);
+                        }
+                    }
+                }
+            }
 
             var coOfrs = new List<CoOfrClass>();
 
-            var groupsByOfferUrl = productsWithOffer
+            // Tworzenie zadań Google
+            foreach (var entry in googleTaskMap)
+            {
+                var url = entry.Key;
+                var info = entry.Value;
+                var coOfr = CreateCoOfrClass(info.Products, null, url, info.Gid, info.Cid, info.IsAdditional);
+                coOfr.IsGoogle = true;
+                coOfrs.Add(coOfr);
+            }
+
+            // Standardowe zadania Ceneo/Inne (OfferUrl)
+            var groupsByOfferUrl = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl))
                 .GroupBy(p => p.OfferUrl ?? "")
-                .ToDictionary(g => g.Key, g => g.ToList());
+                .ToList();
 
-            foreach (var kvp in groupsByOfferUrl)
+            foreach (var group in groupsByOfferUrl)
             {
-                var productList = kvp.Value;
-                var representativeProduct = productList.FirstOrDefault(p => !string.IsNullOrEmpty(p.GoogleUrl));
-                var coOfr = CreateCoOfrClass(productList, kvp.Key, representativeProduct?.GoogleUrl, representativeProduct?.GoogleGid);
-                coOfrs.Add(coOfr);
+                coOfrs.Add(CreateCoOfrClass(group.ToList(), group.Key, null, null, null, false));
             }
 
-            var groupsByGoogleUrlForNoOffer = productsWithoutOffer
-                .Where(p => !string.IsNullOrEmpty(p.GoogleUrl))
-                .GroupBy(p => p.GoogleUrl ?? "")
-                .ToDictionary(g => g.Key, g => g.ToList());
-
-            foreach (var kvp in groupsByGoogleUrlForNoOffer)
-            {
-                var productList = kvp.Value;
-                var representativeGid = productList.FirstOrDefault()?.GoogleGid;
-                var coOfr = CreateCoOfrClass(productList, null, kvp.Key, representativeGid);
-                coOfrs.Add(coOfr);
-            }
-
-            var productsWithNoUrl = productsWithoutOffer.Where(p => string.IsNullOrEmpty(p.GoogleUrl)).ToList();
-            if (productsWithNoUrl.Any())
-            {
-                var coOfr = CreateCoOfrClass(productsWithNoUrl, null, null, null);
-                coOfrs.Add(coOfr);
-            }
-
+            // Zapis do bazy danych
             var strategy = _context.Database.CreateExecutionStrategy();
-
             await strategy.ExecuteAsync(async () =>
             {
                 using var transaction = await _context.Database.BeginTransactionAsync();
-
                 try
                 {
                     await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrStoreDatas]");
                     await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrPriceHistories]");
                     await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrs]");
 
-                    try
-                    {
-                        await _context.Database.ExecuteSqlRawAsync("DBCC CHECKIDENT ('[CoOfrs]', RESEED, 0)");
-                        await _context.Database.ExecuteSqlRawAsync("DBCC CHECKIDENT ('[CoOfrStoreDatas]', RESEED, 0)");
-                    }
-                    catch
-                    {
-                    }
-
                     _context.CoOfrs.AddRange(coOfrs);
                     await _context.SaveChangesAsync();
-
                     await transaction.CommitAsync();
                 }
                 catch
@@ -277,77 +468,60 @@ namespace PriceSafari.Services.ScheduleService
             return (totalProducts, distinctStoreNames);
         }
 
-        private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl, string? googleGid)
+        private void AddToGoogleMap(Dictionary<string, (string? Gid, string? Cid, bool IsAdditional, List<ProductClass> Products)> map,
+            string url, string? gid, string? cid, bool isAdditional, ProductClass product)
         {
-            if (string.IsNullOrEmpty(offerUrl)) offerUrl = null;
-            if (string.IsNullOrEmpty(googleUrl)) googleUrl = null;
-            if (string.IsNullOrEmpty(googleGid)) googleGid = null;
+            if (!map.ContainsKey(url))
+            {
+                map[url] = (gid, cid, isAdditional, new List<ProductClass>());
+            }
+            map[url].Products.Add(product);
+        }
+
+        private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl, string? googleGid, string? googleCid, bool isAdditional)
+        {
+            // Wyciągamy ustawienia flag z pierwszego produktu w liście (wszystkie należą do tego samego sklepu w danej grupie)
+            // lub sprawdzamy czy jakikolwiek produkt w grupie ma te flagi włączone.
+            bool useGPID = productList.Any(p => p.Store?.UseGPID == true);
+            bool useWRGA = productList.Any(p => p.Store?.UseWRGA == true);
 
             var coOfr = new CoOfrClass
             {
                 OfferUrl = offerUrl,
                 GoogleOfferUrl = googleUrl,
                 GoogleGid = googleGid,
-                ProductIds = new List<int>(),
-                ProductIdsGoogle = new List<int>(),
-                StoreNames = new List<string>(),
-                StoreProfiles = new List<string>(),
-                StoreData = new List<CoOfrStoreData>(),
+                GoogleCid = googleCid,
+                IsAdditionalCatalog = isAdditional,
+
+                // PRZYPISANIE FLAG STERUJĄCYCH SCRAPEREM
+                UseGPID = useGPID,
+                UseWRGA = useWRGA,
+
+                ProductIds = productList.Select(p => p.ProductId).ToList(),
+                ProductIdsGoogle = googleUrl != null ? productList.Select(p => p.ProductId).ToList() : new List<int>(),
+                StoreNames = productList.Select(p => p.Store?.StoreName ?? "Unknown").Distinct().ToList(),
+                StoreProfiles = productList.Select(p => p.Store?.StoreProfile ?? "").Distinct().ToList(),
                 IsScraped = false,
                 GoogleIsScraped = false,
+                IsGoogle = googleUrl != null,
                 IsRejected = false,
-                GoogleIsRejected = false,
-             
-                UseGPID = false,
-                UseWRGA = false
+                GoogleIsRejected = false
             };
 
-            var uniqueStoreNames = new HashSet<string>();
-            var uniqueStoreProfiles = new HashSet<string>();
-
-         
-            bool foundUseGPID = false;
-            bool foundUseWRGA = false;
-
-            foreach (var product in productList)
+            foreach (var p in productList)
             {
-                coOfr.ProductIds.Add(product.ProductId);
-
-                if (!string.IsNullOrEmpty(googleUrl) && product.GoogleUrl == googleUrl)
+                // Obsługa danych rozszerzonych API
+                if (p.Store != null && p.Store.FetchExtendedData && p.ExternalId.HasValue)
                 {
-                    coOfr.ProductIdsGoogle.Add(product.ProductId);
-                }
-
-                if (product.Store != null)
-                {
-                    uniqueStoreNames.Add(product.Store.StoreName);
-                    uniqueStoreProfiles.Add(product.Store.StoreProfile);
-
-                    if (product.Store.UseGPID) foundUseGPID = true;
-
-             
-                    if (product.Store.UseWRGA) foundUseWRGA = true;
-
-
-                    if (product.Store.FetchExtendedData && product.ExternalId.HasValue)
+                    coOfr.StoreData.Add(new CoOfrStoreData
                     {
-                        var storeData = new CoOfrStoreData
-                        {
-                            StoreId = product.StoreId,
-                            ProductExternalId = product.ExternalId.Value.ToString(),
-                            IsApiProcessed = false,
-                            ExtendedDataApiPrice = null
-                        };
-                        coOfr.StoreData.Add(storeData);
-                    }
+                        StoreId = p.StoreId,
+                        ProductExternalId = p.ExternalId.Value.ToString(),
+                        IsApiProcessed = false,
+                        ExtendedDataApiPrice = null
+                    });
                 }
             }
-
-            coOfr.UseGPID = foundUseGPID;
-            coOfr.UseWRGA = foundUseWRGA;
-
-            coOfr.StoreNames = uniqueStoreNames.ToList();
-            coOfr.StoreProfiles = uniqueStoreProfiles.ToList();
 
             return coOfr;
         }
