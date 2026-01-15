@@ -1191,8 +1191,8 @@ public class GoogleScraper
             await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded } });
 
             // --- DODANO OPÓŹNIENIE TUTAJ ---
-            Console.WriteLine("[Scraper] Czekam 10 sekund na pełne załadowanie strony...");
-            await Task.Delay(10000); // 10 sekund pauzy
+            Console.WriteLine("[Scraper] Czekam 2 sekund na pełne załadowanie strony...");
+            await Task.Delay(2000); // 10 sekund pauzy
                                      // -------------------------------
 
             // 2. Sprawdzenie Captcha (po odczekaniu, bo czasem przekierowanie następuje po chwili)
