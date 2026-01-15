@@ -13,10 +13,8 @@
     bool canEdit = user?.AccesToEditPriceAutomation ?? false;
     string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen. Skontaktuj sie z nami biuro@pricesafari.pl";
 
-    // --- NOWA LOGIKA DLA STYLI (Tu naprawiamy błąd) ---
     bool isCompetitiveness = Model.StrategyMode == AutomationStrategyMode.Competitiveness;
 
-    // Definiujemy zmienne używane w nowym HTML
     string strategyClass = isCompetitiveness ? "strategy-comp" : "strategy-prof";
     string strategyIconClass = isCompetitiveness ? "fa-bolt" : "fa-dollar-sign";
     string strategyLabel = isCompetitiveness ? "Lider Rynku" : "Rentowność";
@@ -24,7 +22,6 @@
     string statusClass = Model.IsActive ? "status-active-color" : "status-inactive-color";
     string statusLabel = Model.IsActive ? "Aktywny" : "Wyłączony";
 
-    // Stare zmienne (dla reszty widoku)
     string borderClass = Model.SourceType == AutomationSourceType.PriceComparison ? "border-left-info" : "border-left-warning";
 
     bool isMarketplace = Model.SourceType == AutomationSourceType.Marketplace;
@@ -300,8 +297,6 @@
         color: #858796 !important;
     }
 
-
-    /* Nowe style dla nagłówka statusu/strategii */
     .header-info-box {
         display: inline-flex;
         padding: 4px 16px;
@@ -310,7 +305,7 @@
         border-radius: 4px;
         background: #e3e3e3;
         min-height: 34px;
-        gap: 12px; /* Odstęp między elementami a separatorem */
+        gap: 12px;
         margin-left: 15px;
     }
 
@@ -322,23 +317,20 @@
         gap: 6px;
     }
 
-    /* Kolory strategii */
     .strategy-comp {
-        color: rgba(113, 96, 232, 1); /* Fioletowy dla Lidera Rynku */
+        color: rgba(113, 96, 232, 1);
     }
 
     .strategy-prof {
-        color: #0d2c56; /* Ciemny granat dla Rentowności */
+        color: #0d2c56;
     }
 
-    /* Separator pionowy */
     .header-separator {
         color: #bbb;
         font-weight: 300;
         font-size: 16px;
     }
 
-    /* Status (Aktywna/Nieaktywna) */
     .status-indicator-text {
         font-weight: 600;
         font-size: 13px;
@@ -350,16 +342,12 @@
     }
 
     .status-active-color {
-        color: #1cc88a; /* Zieleń */
+        color: #1cc88a;
     }
 
     .status-inactive-color {
-        color: #e74a3b; /* Czerwień */
+        color: #e74a3b;
     }
-
-
-
-
 
     .Chart-Box-a {
         display: flex;
@@ -377,33 +365,28 @@
         min-width: 200px;
     }
 
-
     .kpi-container {
         display: flex;
         gap: 16px;
         width: 100%;
-   
         flex-wrap: wrap;
     }
 
-    /* Wygląd pojedynczej karty */
     .kpi-card {
         flex: 1;
         min-width: 280px;
         background: #fff;
         border-radius: 12px;
         padding: 24px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Stały, delikatny cień */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         border: 1px solid rgba(0,0,0,0.03);
         display: flex;
         flex-direction: column;
         justify-content: flex-start;
         position: relative;
         overflow: hidden;
-        /* Usunięto transition i transform dla hover */
     }
 
-    /* Pasek akcentujący na górze */
     .kpi-accent-bar {
         position: absolute;
         top: 0;
@@ -412,9 +395,6 @@
         height: 4px;
     }
 
-  
-
-    /* Tytuł karty */
     .kpi-title {
         font-size: 14px;
         font-weight: 700;
@@ -427,7 +407,6 @@
         align-items: center;
     }
 
-    /* Główna wartość */
     .kpi-value-big {
         font-size: 28px;
         font-weight: 700;
@@ -435,7 +414,6 @@
         line-height: 1.2;
     }
 
-    /* Mniejszy tekst pomocniczy */
     .kpi-subtext {
         font-size: 12px;
         color: #858796;
@@ -443,7 +421,6 @@
         font-weight: 500;
     }
 
-    /* Sekcja dynamiki (wiersz) */
     .dynamics-row {
         display: flex;
         align-items: center;
@@ -471,11 +448,10 @@
         margin-top: 2px;
     }
 
-    /* Mini pasek postępu */
     .mini-progress-bg {
         width: 100%;
         height: 6px;
-        background: #eaecf4;
+        background: #e3e3e3;
         border-radius: 3px;
         margin-top: 10px;
         overflow: hidden;
@@ -483,15 +459,13 @@
 
     .mini-progress-fill {
         height: 100%;
-        background: #1cc88a;
+        background: #33A795;
         border-radius: 3px;
     }
 
-
-    /* Styl dla ikony ustawień (koła zębatego) */
     .btn-icon-settings {
-        font-size: 24px; /* Rozmiar ikony */
-        color: #858796; /* Szary kolor (pasujący do reszty designu) */
+        font-size: 24px;
+        color: #858796;
         background: none;
         border: none;
         padding: 0;
@@ -501,27 +475,60 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 24px; /* Sztywna szerokość */
-        height: 24px; /* Sztywna wysokość */
+        width: 24px;
+        height: 24px;
+        text-decoration: none !important;
+        outline: none !important;
+        box-shadow: none !important;
     }
 
-        /* Efekt po najechaniu (hover) - ciemniejszy szary i lekki obrót */
         .btn-icon-settings:hover {
             color: #5a5c69;
-            transform: rotate(30deg); /* Opcjonalnie: lekki obrót dla bajeru */
+            transform: rotate(30deg);
+            text-decoration: none !important;
         }
 
-        /* Styl dla zablokowanego dostępu */
         .btn-icon-settings.disabled {
-            color: #d1d3e2; /* Bardzo jasny szary */
+            color: #d1d3e2;
             cursor: not-allowed;
         }
 
             .btn-icon-settings.disabled:hover {
-                color: #d1d3e2; /* Brak zmiany koloru po najechaniu */
-                transform: none; /* Brak obrotu */
+                color: #d1d3e2;
+                transform: none;
             }
- 
+
+    .period-selector-group {
+        background-color: #e3e3e3;
+        border-radius: 6px;
+        padding: 4px;
+        display: inline-flex;
+        gap: 2px;
+    }
+
+    .period-btn-custom {
+        border: none;
+        background: transparent;
+        color: #858796;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        outline: none !important;
+    }
+
+        .period-btn-custom:hover:not(.active) {
+            color: #5a5c69;
+            background-color: rgba(255,255,255, 0.5);
+        }
+
+        .period-btn-custom.active {
+            background-color: #ffffff;
+            color: #222222;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+        }
 </style>
 
 <div class="View">
@@ -538,7 +545,21 @@
              
             </div>
 
-            <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+
+               
+
+                <div class="header-info-box">
+                    <div class="strategy-text @strategyClass">
+                        <i class="fa-solid @strategyIconClass"></i> @strategyLabel
+                    </div>
+
+                    <span class="header-separator">|</span>
+
+                    <div class="status-indicator-text @statusClass">
+                        <i class="fa-solid fa-circle" style="font-size: 6px;"></i> @statusLabel
+                    </div>
+                </div>
                 @if (canEdit)
                 {
                     <a asp-controller="AutomationRules" asp-action="Edit" asp-route-id="@Model.RuleId"
@@ -555,20 +576,6 @@
                         <i class="fas fa-cog"></i>
                     </a>
                 }
-                <div class="header-info-box">
-
-                    <div class="strategy-text @strategyClass">
-                        <i class="fa-solid @strategyIconClass"></i> @strategyLabel
-                    </div>
-
-                    <span class="header-separator">|</span>
-
-                    <div class="status-indicator-text @statusClass">
-                        <i class="fa-solid fa-circle" style="font-size: 6px;"></i> @statusLabel
-                    </div>
-
-                </div>
-             
             </div>
 
         </div>
@@ -607,7 +614,7 @@
 
                 <div class="kpi-title">
                     Skuteczność Reguły
-                    <span class="text-success">@percentSuccess%</span>
+                    <span style="color:#33A795;">@percentSuccess%</span>
                 </div>
 
                 <div class="d-flex align-items-end gap-2">
@@ -673,14 +680,15 @@
     <div class="Vert">
         <div class="Chart-Box-a" style="width: 100%; min-height: 400px;">
 
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 15px;">
-                <h5 style="font-weight: 700; color: #5a5c69; margin: 0;">
-                    <i class="fas fa-chart-area mr-2"></i>Historia Wykonań Reguły
-                </h5>
-                <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-sm btn-outline-primary active history-btn" data-days="7">7 Analiz</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary history-btn" data-days="14">14 Analiz</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary history-btn" data-days="30">30 Analiz</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div class="kpi-title">
+                    Historia Wykonań Reguły
+                 
+                </div>
+                <div class="period-selector-group">
+                    <button type="button" class="period-btn-custom active history-btn" data-days="7">7 Analiz</button>
+                    <button type="button" class="period-btn-custom history-btn" data-days="14">14 Analiz</button>
+                    <button type="button" class="period-btn-custom history-btn" data-days="30">30 Analiz</button>
                 </div>
             </div>
 
@@ -1215,7 +1223,6 @@
         </div>
     </div>
 </div>
-
 @await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
 @section Scripts {
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap4.min.css">
@@ -1741,13 +1748,14 @@
             });
         }
 
-        function renderEffectivenessChart(data) {
+              function renderEffectivenessChart(data) {
             if (!chartEff) return;
 
             var option = {
-                title: { text: 'Skuteczność', left: 'center', textStyle: { fontSize: 13 } },
+                title: { text: 'Skuteczność Reguły', left: 'center', textStyle: { fontSize: 13 } },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                legend: { bottom: 0, data: ['Spełnione', 'Niespełnione/Blok', 'Razem'] },
+
+                legend: { bottom: 0, data: ['Spełnione', 'Niespełnione/Blok'] },
                 grid: { left: '3%', right: '4%', bottom: '10%', top: '35px', containLabel: true },
                 xAxis: { type: 'category', data: data.dates },
                 yAxis: { type: 'value' },
@@ -1757,8 +1765,9 @@
                         type: 'bar',
                         stack: 'total',
                         itemStyle: {
-                            color: 'rgba(25, 135, 84, 0.8)',  // Półprzezroczyste tło
-                            borderColor: '#198754',           // Pełna ramka
+
+                            color: 'rgba(0, 145, 123, 0.8)',
+                            borderColor: 'rgba(0, 145, 123, 1)',
                             borderWidth: 1,
                             borderRadius: 0
                         },
@@ -1769,25 +1778,14 @@
                         type: 'bar',
                         stack: 'total',
                         itemStyle: {
-                            color: 'rgba(108, 117, 125, 0.8)', // Półprzezroczyste tło
-                            borderColor: '#6C757D',            // Pełna ramka
+                            color: 'rgba(108, 117, 125, 0.8)',
+                            borderColor: '#6C757D',
                             borderWidth: 1,
                             borderRadius: 0
                         },
                         data: data.targetUnmet
-                    },
-                    {
-                        name: 'Razem',
-                        type: 'line',
-                        data: data.totalProducts,
-                        symbol: 'none',
-                        itemStyle: { color: '#000000' },
-                        lineStyle: {
-                            type: 'dashed',
-                            width: 3,
-                            color: '#000000'
-                        }
                     }
+
                 ]
             };
             chartEff.setOption(option);
@@ -1799,14 +1797,14 @@
             var option = {
                 title: { text: 'Dynamika Zmian', left: 'center', textStyle: { fontSize: 13 } },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                legend: { bottom: 0, data: ['Wzrosty', 'Utrzymane', 'Spadki', 'Razem'] },
+                legend: { bottom: 0, data: ['Podwyżki', 'Utrzymane', 'Obniżki', 'Razem'] },
                 grid: { left: '3%', right: '4%', bottom: '10%', top: '35px', containLabel: true },
                 xAxis: { type: 'category', data: data.dates },
                 yAxis: { type: 'value' },
                 series: [
-                    // 1. DÓŁ: Spadki (Zielony)
+
                     {
-                        name: 'Spadki',
+                        name: 'Obniżki',
                         type: 'bar',
                         stack: 'total',
                         itemStyle: {
@@ -1817,7 +1815,7 @@
                         },
                         data: data.decreased
                     },
-                    // 2. ŚRODEK: Utrzymane (Niebieski)
+
                     {
                         name: 'Utrzymane',
                         type: 'bar',
@@ -1830,9 +1828,9 @@
                         },
                         data: data.maintained
                     },
-                    // 3. GÓRA: Wzrosty (Czerwony)
+
                     {
-                        name: 'Wzrosty',
+                        name: 'Podwyżki',
                         type: 'bar',
                         stack: 'total',
                         itemStyle: {
@@ -1843,7 +1841,7 @@
                         },
                         data: data.increased
                     },
-                    // LINIA: Razem
+
                     {
                         name: 'Razem',
                         type: 'line',
