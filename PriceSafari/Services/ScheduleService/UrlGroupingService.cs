@@ -573,7 +573,6 @@
 
 
 
-
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
@@ -614,18 +613,29 @@ namespace PriceSafari.Services.ScheduleService
             var distinctStoreNames = products.Select(p => p.Store.StoreName).Distinct().ToList();
             int totalProducts = products.Count;
 
-            // Rozszerzona mapa: Kluczem jest unikalny identyfikator grupy (URL lub ID techniczne)
-            // Wartość: (Gid, Cid, Hid, IsAdditional, UseHidOffer, Products)
-            var googleTaskMap = new Dictionary<string, (string? Gid, string? Cid, string? Hid, bool IsAdditional, bool UseHidOffer, List<ProductClass> Products)>();
+            // Lista wynikowa na wszystkie zadania (Google + Ceneo)
+            var coOfrs = new List<CoOfrClass>();
 
+            // --- 1. ETAP: Generowanie zadań GOOGLE (BEZ GRUPOWANIA) ---
             foreach (var product in products)
             {
                 // A. Katalog GŁÓWNY
                 if (!string.IsNullOrEmpty(product.GoogleUrl))
                 {
                     string? cid = ExtractCid(product.GoogleUrl);
-                    // Dla głównego katalogu kluczem jest URL, nie używamy HID
-                    AddToGoogleMap(googleTaskMap, product.GoogleUrl, product.GoogleGid, cid, null, false, false, product);
+                    // Tworzymy osobne zadanie dla tego konkretnego produktu
+                    var coOfr = CreateCoOfrClass(
+                        new List<ProductClass> { product }, // Lista zawiera TYLKO ten jeden produkt
+                        null,
+                        product.GoogleUrl,
+                        product.GoogleGid,
+                        cid,
+                        null,
+                        false,
+                        false
+                    );
+                    coOfr.IsGoogle = true;
+                    coOfrs.Add(coOfr);
                 }
 
                 // B. Katalogi DODATKOWE (tylko jeśli opcja w sklepie jest włączona)
@@ -638,54 +648,59 @@ namespace PriceSafari.Services.ScheduleService
                         string? hid = extra.GoogleHid;
                         bool isHidMode = extra.IsExtendedOfferByHid;
 
-                        string key;
-                        string? finalUrl = null;
+                        string? googleUrl = null;
+                        bool useHidOffer = false;
+                        bool isValidTask = false;
 
                         if (!isHidMode && !string.IsNullOrEmpty(cid))
                         {
                             // SCENARIUSZ 1: Dodatkowe domapowanie przez CID
-                            finalUrl = $"https://www.google.com/shopping/product/{cid}";
-                            key = finalUrl;
-                            AddToGoogleMap(googleTaskMap, key, gid, cid, null, true, false, product);
+                            googleUrl = $"https://www.google.com/shopping/product/{cid}";
+                            isValidTask = true;
                         }
                         else if (!string.IsNullOrEmpty(hid))
                         {
                             // SCENARIUSZ 2: Dodatkowe domapowanie przez HID (UseGoogleHidOffer = true)
-                            // Nie generujemy GoogleOfferUrl, kluczem jest techniczny identyfikator HID
-                            key = "HID_TASK_" + hid;
-                            AddToGoogleMap(googleTaskMap, key, gid, null, hid, true, true, product);
+                            useHidOffer = true;
+                            // W trybie HID url pozostaje null
+                            isValidTask = true;
+                        }
+
+                        if (isValidTask)
+                        {
+                            // Tworzymy osobne zadanie dla tego konkretnego wpisu katalogowego
+                            var coOfr = CreateCoOfrClass(
+                                new List<ProductClass> { product }, // Lista zawiera TYLKO ten jeden produkt
+                                null,
+                                googleUrl,
+                                gid,
+                                cid,
+                                hid,
+                                true, // IsAdditional = true
+                                useHidOffer
+                            );
+                            coOfr.IsGoogle = true;
+                            coOfrs.Add(coOfr);
                         }
                     }
                 }
             }
 
-            var coOfrs = new List<CoOfrClass>();
-
-            // Tworzenie zadań Google
-            foreach (var entry in googleTaskMap)
-            {
-                var key = entry.Key;
-                var info = entry.Value;
-
-                // GoogleOfferUrl ustawiamy tylko jeśli nie jesteśmy w trybie HID
-                string? googleUrl = info.UseHidOffer ? null : key;
-
-                var coOfr = CreateCoOfrClass(info.Products, null, googleUrl, info.Gid, info.Cid, info.Hid, info.IsAdditional, info.UseHidOffer);
-                coOfr.IsGoogle = true;
-                coOfrs.Add(coOfr);
-            }
-
-            // Standardowe zadania Ceneo/Inne (OfferUrl)
-            var groupsByOfferUrl = products.Where(p => !string.IsNullOrEmpty(p.OfferUrl))
-                .GroupBy(p => p.OfferUrl ?? "")
+            // --- 2. ETAP: Generowanie zadań CENEO/INNE (Z GRUPOWANIEM PO URL) ---
+            // Tutaj zachowujemy starą logikę: grupujemy produkty mające ten sam OfferUrl,
+            // aby nie scrapować Ceneo wielokrotnie dla tego samego linku.
+            var groupsByOfferUrl = products
+                .Where(p => !string.IsNullOrEmpty(p.OfferUrl))
+                .GroupBy(p => p.OfferUrl!) // Grupujemy po URL
                 .ToList();
 
             foreach (var group in groupsByOfferUrl)
             {
+                // Tutaj przekazujemy całą grupę produktów (group.ToList())
                 coOfrs.Add(CreateCoOfrClass(group.ToList(), group.Key, null, null, null, null, false, false));
             }
 
-            // Zapis do bazy danych
+            // --- 3. ZAPIS DO BAZY DANYCH ---
             var strategy = _context.Database.CreateExecutionStrategy();
             await strategy.ExecuteAsync(async () =>
             {
@@ -696,8 +711,15 @@ namespace PriceSafari.Services.ScheduleService
                     await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrPriceHistories]");
                     await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrs]");
 
-                    _context.CoOfrs.AddRange(coOfrs);
-                    await _context.SaveChangesAsync();
+                    // Dzielimy na paczki przy zapisie, na wypadek dużej liczby rekordów
+                    const int batchSize = 1000;
+                    for (int i = 0; i < coOfrs.Count; i += batchSize)
+                    {
+                        var batch = coOfrs.Skip(i).Take(batchSize).ToList();
+                        _context.CoOfrs.AddRange(batch);
+                        await _context.SaveChangesAsync();
+                    }
+
                     await transaction.CommitAsync();
                 }
                 catch
@@ -708,16 +730,6 @@ namespace PriceSafari.Services.ScheduleService
             });
 
             return (totalProducts, distinctStoreNames);
-        }
-
-        private void AddToGoogleMap(Dictionary<string, (string? Gid, string? Cid, string? Hid, bool IsAdditional, bool UseHidOffer, List<ProductClass> Products)> map,
-            string key, string? gid, string? cid, string? hid, bool isAdditional, bool useHidOffer, ProductClass product)
-        {
-            if (!map.ContainsKey(key))
-            {
-                map[key] = (gid, cid, hid, isAdditional, useHidOffer, new List<ProductClass>());
-            }
-            map[key].Products.Add(product);
         }
 
         private CoOfrClass CreateCoOfrClass(List<ProductClass> productList, string? offerUrl, string? googleUrl, string? googleGid, string? googleCid, string? googleHid, bool isAdditional, bool useHidOffer)
@@ -738,10 +750,13 @@ namespace PriceSafari.Services.ScheduleService
                 UseGPID = useGPID,
                 UseWRGA = useWRGA,
 
+                // Listy ID będą zawierać tylko 1 element w przypadku Google
                 ProductIds = productList.Select(p => p.ProductId).ToList(),
                 ProductIdsGoogle = (googleUrl != null || useHidOffer) ? productList.Select(p => p.ProductId).ToList() : new List<int>(),
+
                 StoreNames = productList.Select(p => p.Store?.StoreName ?? "Unknown").Distinct().ToList(),
                 StoreProfiles = productList.Select(p => p.Store?.StoreProfile ?? "").Distinct().ToList(),
+
                 IsScraped = false,
                 GoogleIsScraped = false,
                 IsGoogle = (googleUrl != null || useHidOffer),

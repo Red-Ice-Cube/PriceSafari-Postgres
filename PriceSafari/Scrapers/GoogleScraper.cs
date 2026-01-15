@@ -1251,37 +1251,7 @@ public class GoogleScraper
         }
     }
 
-    //public async Task<ScraperResult<string>> GetTitleFromProductPageAsync(string cid)
-    //{
-    //    try
-    //    {
-    //        var url = $"https://www.google.com/shopping/product/{cid}";
-    //        await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.Load } });
-
-    //        if (_page.Url.Contains("/sorry/") || _page.Url.Contains("/captcha"))
-    //        {
-    //            IsCaptchaEncountered = true;
-    //            return ScraperResult<string>.Captcha(string.Empty);
-    //        }
-
-    //        var titleElement = await _page.WaitForSelectorAsync("span.BvQan.sh-t__title-pdp", new WaitForSelectorOptions { Timeout = 5000 });
-    //        if (titleElement != null)
-    //        {
-    //            var title = await titleElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
-    //            return ScraperResult<string>.Success(title);
-    //        }
-
-    //        return ScraperResult<string>.Fail("Nie znaleziono elementu z tytułem na stronie produktu.");
-    //    }
-    //    catch (WaitTaskTimeoutException)
-    //    {
-    //        return ScraperResult<string>.Fail("Timeout podczas oczekiwania na tytuł na stronie produktu.");
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        return ScraperResult<string>.Fail($"Błąd podczas pobierania tytułu: {ex.Message}");
-    //    }
-    //}
+  
 
     public async Task<ScraperResult<List<string>>> FindStoreUrlsFromApiAsync(string cid, string gid)
     {
