@@ -75,7 +75,7 @@ namespace PriceSafari.Services.AllegroServices
 
             var newBatch = new AllegroPriceBridgeBatch
             {
-                ExecutionDate = DateTime.UtcNow,
+                ExecutionDate = DateTime.Now,
                 StoreId = storeId,
                 AllegroScrapeHistoryId = allegroScrapeHistoryId,
                 UserId = userId,
@@ -285,13 +285,27 @@ namespace PriceSafari.Services.AllegroServices
                     return (true, string.Empty);
                 }
 
+                // --- ZMIANA 1: Błąd 401 (Unauthorized) na CZERWONO ---
                 if (response.StatusCode == HttpStatusCode.Unauthorized)
                 {
-                    return (false, "Błąd autoryzacji (401). Token może być nieważny.");
+                    string errorDetails = string.Empty;
+                    try
+                    {
+                        errorDetails = await response.Content.ReadAsStringAsync();
+                    }
+                    catch { errorDetails = "Brak treści błędu"; }
+
+                    // Logujemy na czerwono w konsoli
+                    _logger.LogError("!!! CRITICAL 401 !!! Błąd autoryzacji dla oferty {OfferId}. Allegro Body: {ErrorDetails}", offerId, errorDetails);
+
+                    return (false, $"Błąd autoryzacji (401). Response: {errorDetails}");
                 }
 
+                // --- ZMIANA 2: Inne błędy API (np. 400 Bad Request, 422 Unprocessable Entity) na CZERWONO ---
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Błąd API Allegro podczas zmiany ceny oferty {OfferId}. Status: {StatusCode}. Odpowiedź: {ErrorContent}", offerId, response.StatusCode, errorContent);
+
+                // Zmieniono z LogWarning na LogError, żeby było czerwono
+                _logger.LogError("!!! BŁĄD API ALLEGRO !!! Nie udało się zmienić ceny oferty {OfferId}. Status: {StatusCode}. Body: {ErrorContent}", offerId, response.StatusCode, errorContent);
 
                 try
                 {
@@ -308,7 +322,8 @@ namespace PriceSafari.Services.AllegroServices
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Krytyczny błąd podczas wysyłania zmiany ceny dla oferty {OfferId}", offerId);
+                // To już było LogError, zostawiamy
+                _logger.LogError(ex, "!!! WYJĄTEK KRYTYCZNY !!! Błąd podczas wysyłania zmiany ceny dla oferty {OfferId}", offerId);
                 return (false, $"Wyjątek aplikacji: {ex.Message}");
             }
         }
@@ -320,10 +335,16 @@ namespace PriceSafari.Services.AllegroServices
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
 
             var response = await _httpClient.SendAsync(request);
-
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                throw new AllegroAuthException($"Błąd autoryzacji (401) podczas pobierania oferty {offerId} (weryfikacja). Token jest prawdopodobnie nieważny.");
+                string errorDetails = string.Empty;
+                try
+                {
+                    errorDetails = await response.Content.ReadAsStringAsync();
+                }
+                catch { }
+
+                throw new AllegroAuthException($"Błąd autoryzacji (401) podczas weryfikacji oferty {offerId}. Response: {errorDetails}");
             }
 
             if (!response.IsSuccessStatusCode)

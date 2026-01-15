@@ -12,7 +12,7 @@ namespace PriceSafari.Models
         public int Id { get; set; }
 
         [Required]
-        public DateTime ExecutionDate { get; set; } = DateTime.UtcNow;
+        public DateTime ExecutionDate { get; set; } = DateTime.Now;
 
         [Required]
         public int StoreId { get; set; }

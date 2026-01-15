@@ -9,6 +9,7 @@ using PriceSafari.Models.ViewModels;
 using PriceSafari.Services.AllegroServices;
 using PriceSafari.ViewModels;
 using System.Security.Claims;
+using Microsoft.Extensions.Logging; // Upewnij się, że to jest
 
 namespace PriceSafari.Controllers.MemberControllers
 {
@@ -18,17 +19,19 @@ namespace PriceSafari.Controllers.MemberControllers
         private readonly PriceSafariContext _context;
         private readonly UserManager<PriceSafariUser> _userManager;
         private readonly AllegroPriceBridgeService _priceBridgeService;
+        private readonly ILogger<AllegroPriceHistoryController> _logger; // 1. DODANO LOGGER
 
         public AllegroPriceHistoryController(
             PriceSafariContext context,
             UserManager<PriceSafariUser> userManager,
-            AllegroPriceBridgeService priceBridgeService)
+            AllegroPriceBridgeService priceBridgeService,
+            ILogger<AllegroPriceHistoryController> logger) // 2. WSTRZYKNIĘCIE LOGGERA
         {
             _context = context;
             _userManager = userManager;
             _priceBridgeService = priceBridgeService;
+            _logger = logger;
         }
-
         private async Task<bool> UserHasAccessToStore(int storeId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -987,11 +990,76 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(viewModel);
         }
 
+        //[HttpPost]
+        //public async Task<IActionResult> ExecutePriceChange(int storeId, [FromBody] List<AllegroPriceBridgeItemRequest> items)
+        //{
+        //    if (!await UserHasAccessToStore(storeId)) return Forbid();
+        //    if (items == null || !items.Any()) return BadRequest("Brak zmian do przetworzenia.");
+
+        //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        //    var latestScrap = await _context.AllegroScrapeHistories
+        //        .Where(sh => sh.StoreId == storeId)
+        //        .OrderByDescending(sh => sh.Date)
+        //        .Select(sh => sh.Id)
+        //        .FirstOrDefaultAsync();
+
+        //    if (latestScrap == 0)
+        //    {
+        //        return BadRequest("Nie znaleziono historii analizy dla tego sklepu.");
+        //    }
+
+        //    var priceSettings = await _context.PriceValues.FirstOrDefaultAsync(pv => pv.StoreId == storeId);
+        //    bool includeCommissionInMargin = priceSettings?.AllegroIncludeCommisionInPriceChange ?? false;
+
+        //    var result = await _priceBridgeService.ExecutePriceChangesAsync(
+        //        storeId,
+        //        latestScrap,
+        //        userId,
+        //        includeCommissionInMargin,
+        //        items
+        //    );
+
+        //    return Json(result);
+        //}
+
         [HttpPost]
         public async Task<IActionResult> ExecutePriceChange(int storeId, [FromBody] List<AllegroPriceBridgeItemRequest> items)
         {
-            if (!await UserHasAccessToStore(storeId)) return Forbid();
-            if (items == null || !items.Any()) return BadRequest("Brak zmian do przetworzenia.");
+            // ------------------ LOGOWANIE START ------------------
+            _logger.LogError(">>> [EXECUTE START] Próba ręcznej zmiany cen dla sklepu ID: {StoreId}", storeId);
+
+            if (items == null)
+            {
+                _logger.LogError("!!! CRITICAL !!! Lista 'items' jest NULL. Frontend nie przesłał danych.");
+            }
+            else
+            {
+                _logger.LogError(">>> Otrzymano {Count} elementów do zmiany.", items.Count);
+                foreach (var item in items)
+                {
+                    _logger.LogError("   -> ITEM: ProductId={ProductId}, OfferId (Allegro)={OfferId}, NewPrice={Price}, Mode={Mode}",
+                        item.ProductId, item.OfferId, item.PriceAfter_Simulated, item.Mode);
+
+                    if (string.IsNullOrEmpty(item.OfferId))
+                    {
+                        _logger.LogError("   !!! UWAGA !!! OfferId jest PUSTE dla produktu {ProductId}. To spowoduje błąd w serwisie!", item.ProductId);
+                    }
+                }
+            }
+            // ------------------ LOGOWANIE END --------------------
+
+            if (!await UserHasAccessToStore(storeId))
+            {
+                _logger.LogError("!!! ACCESS DENIED !!! Użytkownik nie ma dostępu do sklepu {StoreId}", storeId);
+                return Forbid();
+            }
+
+            if (items == null || !items.Any())
+            {
+                _logger.LogError("!!! BAD REQUEST !!! Brak elementów do przetworzenia.");
+                return BadRequest("Brak zmian do przetworzenia.");
+            }
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -1003,11 +1071,14 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (latestScrap == 0)
             {
+                _logger.LogError("!!! ERROR !!! Nie znaleziono latestScrap (ID=0) dla sklepu {StoreId}.", storeId);
                 return BadRequest("Nie znaleziono historii analizy dla tego sklepu.");
             }
 
             var priceSettings = await _context.PriceValues.FirstOrDefaultAsync(pv => pv.StoreId == storeId);
             bool includeCommissionInMargin = priceSettings?.AllegroIncludeCommisionInPriceChange ?? false;
+
+            _logger.LogError(">>> Wywołuję serwis _priceBridgeService.ExecutePriceChangesAsync dla {Count} elementów...", items.Count);
 
             var result = await _priceBridgeService.ExecutePriceChangesAsync(
                 storeId,
@@ -1017,10 +1088,19 @@ namespace PriceSafari.Controllers.MemberControllers
                 items
             );
 
+            _logger.LogError(">>> [EXECUTE END] Wynik serwisu: Success={Success}, Failed={Failed}", result.SuccessfulCount, result.FailedCount);
+
+            // --- DODAJ TO ---
+            if (result.Errors.Any())
+            {
+                foreach (var error in result.Errors)
+                {
+                    _logger.LogError("!!! PRZYCZYNA BŁĘDU !!! OfferId: {OfferId}, Message: {Message}", error.OfferId, error.Message);
+                }
+            }
+
             return Json(result);
         }
-
-  
 
         public class PriceBridgeError
         {
