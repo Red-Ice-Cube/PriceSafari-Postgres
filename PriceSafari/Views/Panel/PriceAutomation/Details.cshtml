@@ -373,10 +373,154 @@
         gap: 24px;
         border-radius: 8px;
         background: #FFF;
-        box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
+        box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.05);
         min-width: 200px;
     }
 
+
+    .kpi-container {
+        display: flex;
+        gap: 16px;
+        width: 100%;
+   
+        flex-wrap: wrap;
+    }
+
+    /* Wygląd pojedynczej karty */
+    .kpi-card {
+        flex: 1;
+        min-width: 280px;
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Stały, delikatny cień */
+        border: 1px solid rgba(0,0,0,0.03);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        position: relative;
+        overflow: hidden;
+        /* Usunięto transition i transform dla hover */
+    }
+
+    /* Pasek akcentujący na górze */
+    .kpi-accent-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+    }
+
+  
+
+    /* Tytuł karty */
+    .kpi-title {
+        font-size: 14px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #858796;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* Główna wartość */
+    .kpi-value-big {
+        font-size: 28px;
+        font-weight: 700;
+        color: #5a5c69;
+        line-height: 1.2;
+    }
+
+    /* Mniejszy tekst pomocniczy */
+    .kpi-subtext {
+        font-size: 12px;
+        color: #858796;
+        margin-top: 6px;
+        font-weight: 500;
+    }
+
+    /* Sekcja dynamiki (wiersz) */
+    .dynamics-row {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-top: 5px;
+    }
+
+    .dynamics-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dynamics-val {
+        font-size: 16px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .dynamics-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        color: #a0a0a0;
+        margin-top: 2px;
+    }
+
+    /* Mini pasek postępu */
+    .mini-progress-bg {
+        width: 100%;
+        height: 6px;
+        background: #eaecf4;
+        border-radius: 3px;
+        margin-top: 10px;
+        overflow: hidden;
+    }
+
+    .mini-progress-fill {
+        height: 100%;
+        background: #1cc88a;
+        border-radius: 3px;
+    }
+
+
+    /* Styl dla ikony ustawień (koła zębatego) */
+    .btn-icon-settings {
+        font-size: 24px; /* Rozmiar ikony */
+        color: #858796; /* Szary kolor (pasujący do reszty designu) */
+        background: none;
+        border: none;
+        padding: 0;
+        line-height: 1;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px; /* Sztywna szerokość */
+        height: 24px; /* Sztywna wysokość */
+    }
+
+        /* Efekt po najechaniu (hover) - ciemniejszy szary i lekki obrót */
+        .btn-icon-settings:hover {
+            color: #5a5c69;
+            transform: rotate(30deg); /* Opcjonalnie: lekki obrót dla bajeru */
+        }
+
+        /* Styl dla zablokowanego dostępu */
+        .btn-icon-settings.disabled {
+            color: #d1d3e2; /* Bardzo jasny szary */
+            cursor: not-allowed;
+        }
+
+            .btn-icon-settings.disabled:hover {
+                color: #d1d3e2; /* Brak zmiany koloru po najechaniu */
+                transform: none; /* Brak obrotu */
+            }
  
 </style>
 
@@ -386,11 +530,31 @@
         <div class="Date" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
 
             <div style="display: flex; align-items: center;">
-                <div class="Order-Container-Title" style="margin-bottom: 0; display:flex; flex-direction:column; line-height:1.2; gap:0px;">
-                    <span style="font-size: 23px;">Automat cenowy <strong>@Model.RuleName</strong></span>
-                    <span style="font-size: 12px; color: #858796; font-weight:400;">@Model.StoreName</span>
+                <div class="Order-Container-Title" style="font-size: 23px;">
+                   Automat cenowy <strong>@Model.RuleName</strong>
+               
                 </div>
 
+             
+            </div>
+
+            <div>
+                @if (canEdit)
+                {
+                    <a asp-controller="AutomationRules" asp-action="Edit" asp-route-id="@Model.RuleId"
+                       class="btn-icon-settings"
+                       title="Konfiguruj Regułę">
+                        <i class="fas fa-cog"></i>
+                    </a>
+                }
+                else
+                {
+                    <a href="#" onclick="showNoAccessAlert(); return false;"
+                       class="btn-icon-settings disabled"
+                       title="Brak uprawnień do edycji">
+                        <i class="fas fa-cog"></i>
+                    </a>
+                }
                 <div class="header-info-box">
 
                     <div class="strategy-text @strategyClass">
@@ -404,29 +568,101 @@
                     </div>
 
                 </div>
-            </div>
-
-            <div>
-                @if (canEdit)
-                {
-                    <a asp-controller="AutomationRules" asp-action="Edit" asp-route-id="@Model.RuleId" class="btn btn-sm btn-primary shadow-sm">
-                        <i class="fas fa-cog fa-sm text-white-50"></i> Konfiguruj Regułę
-                    </a>
-                }
-                else
-                {
-                    <a href="#" onclick="showNoAccessAlert(); return false;" class="btn btn-sm btn-secondary shadow-sm btn-disabled-access">
-                        <i class="fas fa-cog fa-sm text-white-50"></i> Konfiguruj Regułę
-                    </a>
-                }
-
-                <a asp-controller="AutomationRules" asp-action="Index" asp-route-storeId="@Model.StoreId" asp-route-filterType="@Model.SourceType" class="btn btn-sm btn-secondary shadow-sm">
-                    <i class="fas fa-arrow-left fa-sm text-white-50"></i> Powrót
-                </a>
+             
             </div>
 
         </div>
     </div>
+
+
+
+
+    <div class="Vert">
+        <div class="kpi-container">
+
+        
+            
+
+                <div class="kpi-card">
+                  
+                    <div class="kpi-title">
+                        Przypisane Produkty
+                        <i class="fas fa-cube text-gray-400"></i>
+                    </div>
+                    <div class="kpi-value-big">@Model.TotalProducts</div>
+
+                    <div class="kpi-subtext" style="display:flex; align-items:center; gap:6px;">
+                        <i class="fas fa-clock" style="font-size: 12px; width: 12px; text-align: center;"></i>
+                        <span>Aktualizacja: @(Model.LastScrapDate.HasValue? Model.LastScrapDate.Value.ToString("dd.MM HH:mm") : "-")</span>
+                    </div>
+
+                    <div class="kpi-subtext" style="display:flex; align-items:center; gap:6px; margin-top:3px;">
+                        <i class="fas fa-store" style="font-size: 12px; width: 12px; text-align: center;"></i>
+                        <span>Sklep: @Model.StoreName</span>
+                    </div>
+                </div>
+
+            <div class="kpi-card">
+          
+
+                <div class="kpi-title">
+                    Skuteczność Reguły
+                    <span class="text-success">@percentSuccess%</span>
+                </div>
+
+                <div class="d-flex align-items-end gap-2">
+                    <div class="kpi-value-big text-gray-800">@successCount</div>
+                    <div class="kpi-subtext mb-1">ofert przeliczonych</div>
+                </div>
+
+                <div class="mini-progress-bg">
+                    <div class="mini-progress-fill" style="width: @percentSuccess%"></div>
+                </div>
+
+                <div class="kpi-subtext mt-2">
+                    <span class="text-danger font-weight-bold" title="Liczba zablokowanych"><i class="fas fa-ban mr-1"></i> @blockedCount</span> zablokowanych
+                </div>
+            </div>
+
+            <div class="kpi-card">
+             
+
+                <div class="kpi-title">
+                    Dynamika Zmian
+                    <i class="fas fa-chart-bar text-gray-400"></i>
+                </div>
+
+                <div class="dynamics-row">
+                    <div class="dynamics-item">
+                        <div class="dynamics-val text-danger">
+                            <i class="fas fa-arrow-up fa-xs"></i> @Model.CountIncreased
+                        </div>
+                        <div class="dynamics-label">Podwyżki</div>
+                    </div>
+
+                    <div class="dynamics-item" style="border-left: 1px solid #eee; padding-left: 15px;">
+                        <div class="dynamics-val text-success">
+                            <i class="fas fa-arrow-down fa-xs"></i> @Model.CountDecreased
+                        </div>
+                        <div class="dynamics-label">Obniżki</div>
+                    </div>
+
+                    <div class="dynamics-item" style="border-left: 1px solid #eee; padding-left: 15px;">
+                        <div class="dynamics-val text-primary">
+                            <i class="fas fa-circle fa-xs" style="font-size: 8px;"></i> @Model.CountMaintained
+                        </div>
+                        <div class="dynamics-label">Założenia utrzymane</div>
+                    </div>
+                </div>
+
+                <div class="kpi-subtext mt-2">
+                    Zoptymalizowano cenę w <strong>@(Model.CountIncreased + Model.CountDecreased)</strong> ofertach
+                </div>
+            </div>
+
+        </div>
+    </div>
+
 
 
 
@@ -435,97 +671,7 @@
 
 
     <div class="Vert">
-       
-        <div class="Chart-Box-a">
-            <div class="card @borderClass shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-uppercase mb-1">Przypisane Produkty</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.TotalProducts</div>
-                        </div>
-                        <div class="col-auto"><i class="fas fa-box fa-2x text-gray-300"></i></div>
-                    </div>
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Ostatnia Analiza</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                @(Model.LastScrapDate.HasValue? Model.LastScrapDate.Value.ToString("dd.MM.yyyy HH:mm") : "Brak danych")
-                            </div>
-                        </div>
-                        <div class="col-auto"><i class="fas fa-history fa-2x text-gray-300"></i></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-
-        <div class="Chart-Box-a">
-            <div class="card shadow h-100 py-2 border-left-success">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Skuteczność (Symulacja)</div>
-                            <div class="row no-gutters align-items-center">
-                                <div class="col-auto">
-                                    <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">@percentSuccess%</div>
-                                </div>
-                                <div class="col">
-                                    <div class="progress progress-sm mr-2">
-                                        <div class="progress-bar bg-success" role="progressbar" style="width: @percentSuccess%" aria-valuenow="@percentSuccess" aria-valuemin="0" aria-valuemax="100"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mt-2 small">
-                                <span class="text-success font-weight-bold"><i class="fas fa-check"></i> @successCount</span> przeliczone
-                                <span class="text-gray-400 mx-1">|</span>
-                                <span class="text-danger font-weight-bold"><i class="fas fa-ban"></i> @blockedCount</span> blokada
-                            </div>
-                        </div>
-                        <div class="col-auto"><i class="fas fa-chart-line fa-2x text-gray-300"></i></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="Chart-Box-a">
-            <div class="card shadow h-100 py-2 border-left-info">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Dynamika Zmian</div>
-                            <div class="d-flex flex-wrap mt-2">
-                                <div class="dynamics-stat text-danger mr-3" title="Podwyżki">
-                                    <i class="fas fa-arrow-up mr-1"></i> @Model.CountIncreased
-                                </div>
-                                <div class="dynamics-stat text-success mr-3" title="Obniżki">
-                                    <i class="fas fa-arrow-down mr-1"></i> @Model.CountDecreased
-                                </div>
-                                <div class="dynamics-stat text-primary" title="Cena utrzymana (optymalna)">
-                                    <i class="fas fa-equals mr-1"></i> @Model.CountMaintained
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-auto"><i class="fas fa-chart-bar fa-2x text-gray-300"></i></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-
-
-
-
-
-
-
-
-
-
-    <div class="Vert" style="margin-top: 20px;">
-        <div class="Chart-Box-a" style="width: 100%; min-height: 400px; padding: 15px;">
+        <div class="Chart-Box-a" style="width: 100%; min-height: 400px;">
 
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 15px;">
                 <h5 style="font-weight: 700; color: #5a5c69; margin: 0;">
