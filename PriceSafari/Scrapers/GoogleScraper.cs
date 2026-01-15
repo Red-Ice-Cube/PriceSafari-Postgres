@@ -1182,13 +1182,24 @@ public class GoogleScraper
             if (_browser == null || _page == null || _page.IsClosed) await InitializeBrowserAsync();
 
             var encodedTitle = HttpUtility.UrlEncode(title);
-            var url = $"https://www.google.com/search?gl=pl&tbm=shop&q={encodedTitle}";
 
+            // Zastosowałem parametry, o których rozmawialiśmy (gl=pl, hl=en, udm=3)
+            // Pamiętaj: hl=en wymusza angielski, hl=pl wymusza polski.
+            var url = $"https://www.google.com/search?q={encodedTitle}&gl=pl&hl=pl&udm=3";
+
+            // 1. Wejście na stronę
             await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded } });
 
+            // --- DODANO OPÓŹNIENIE TUTAJ ---
+            Console.WriteLine("[Scraper] Czekam 10 sekund na pełne załadowanie strony...");
+            await Task.Delay(10000); // 10 sekund pauzy
+                                     // -------------------------------
+
+            // 2. Sprawdzenie Captcha (po odczekaniu, bo czasem przekierowanie następuje po chwili)
             if (_page.Url.Contains("/sorry/") || _page.Url.Contains("/captcha"))
                 return ScraperResult<List<GoogleProductIdentifier>>.Captcha(identifiers);
 
+            // 3. Pobranie treści po odczekaniu
             string pageContent = await _page.GetContentAsync();
 
             // Regex celujący w tablice zaczynające się od 6-ciu cudzysłowów (nasze ID)
@@ -1251,7 +1262,6 @@ public class GoogleScraper
         }
     }
 
-  
 
     public async Task<ScraperResult<List<string>>> FindStoreUrlsFromApiAsync(string cid, string gid)
     {
@@ -1357,7 +1367,7 @@ public class GoogleScraper
     {
         string identifierParam = !string.IsNullOrEmpty(cid) ? $"catalogid:{cid}" : $"headlineOfferDocid:{hid}";
         var gpcidPart = !string.IsNullOrEmpty(gid) ? $"gpcid:{gid}," : "";
-        var url = $"https://www.google.com/async/oapv?udm=3&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async={gpcidPart}{identifierParam},pvo:3,fs:%2Fshopping%2Foffers,sori:0,mno:10,query:1,pvt:hg,_fmt:jspb";
+        var url = $"https://www.google.com/async/oapv?udm=3&gl=pl&hl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async={gpcidPart}{identifierParam},pvo:3,fs:%2Fshopping%2Foffers,sori:0,mno:10,query:1,pvt:hg,_fmt:jspb";
 
         Console.WriteLine($"\n--- [API REQUEST] ---------------------------------------");
         Console.WriteLine($"[Tryb]: {(!string.IsNullOrEmpty(cid) ? "CATALOG" : "OFFER")}");
@@ -1435,17 +1445,31 @@ public class GoogleScraper
 
             var details = new GoogleProductDetails(mainTitle ?? offerTitles.FirstOrDefault(), offerTitles.ToList());
 
-            if (isCodeFound)
+            // 3. WERYFIKACJA SUKCESU
+            // Sukces zwracamy, gdy:
+            // A) Kod został znaleziony (isCodeFound == true)
+            // B) LUB kod w ogóle nie był wymagany (targetCode jest null/pusty) - to jest Twój Tryb Pośredni
+            if (string.IsNullOrEmpty(targetCode) || isCodeFound)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"[SUKCES] Kod '{targetCode}' ZNALEZIONY w odpowiedzi!");
+                if (isCodeFound)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"[SUKCES] Kod '{targetCode}' ZNALEZIONY w odpowiedzi!");
+                }
+                else
+                {
+                    // Scenariusz Trybu Pośredniego (brak kodu do sprawdzenia, ale dane są OK)
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine($"[DANE POBRANE] Pobrano dane produktu (weryfikacja kodu pominięta/zewnętrzna).");
+                }
+
                 Console.WriteLine($"[PRODUKT]: {details.MainTitle}");
                 Console.ResetColor();
                 return ScraperResult<GoogleApiDetailsResult>.Success(new GoogleApiDetailsResult(details, url, responseString));
             }
             else
             {
-                // Odpowiedź była poprawna (mamy dane), ale kod nie pasuje
+                // Odpowiedź była poprawna (mamy dane), ale kod został podany i NIE pasuje
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine($"[DANE OK] Odpowiedź poprawna, ale kod '{targetCode}' NIE występuje w treści.");
                 Console.WriteLine($"[PRODUKT]: {details.MainTitle}");

@@ -1215,26 +1215,17 @@ public class GoogleScraperController : Controller
             lock (productState) { productState.UpdateStatus(ProductStatus.CaptchaHalt); }
             return;
         }
-
         string searchTermForGoogle;
+
+        // 1. Ustalanie bazy
         switch (termSource)
         {
             case SearchTermSource.ProductName:
                 searchTermForGoogle = productState.ProductNameInStoreForGoogle;
-
-                // Logika dodawania kodu producenta (istniejąca)
                 if (appendProducerCode && !string.IsNullOrWhiteSpace(productState.ProducerCode))
                 {
                     searchTermForGoogle = $"{searchTermForGoogle} {productState.ProducerCode}";
                 }
-
-                // === 2. NOWA LOGIKA DODAWANIA PREFIXU ===
-                if (!string.IsNullOrWhiteSpace(productNamePrefix))
-                {
-                    // Dodajemy prefix na początku nazwy
-                    searchTermForGoogle = $"{productNamePrefix} {searchTermForGoogle}";
-                }
-                // ========================================
                 break;
 
             case SearchTermSource.Ean:
@@ -1246,6 +1237,13 @@ public class GoogleScraperController : Controller
                 searchTermForGoogle = productState.ProducerCode;
                 break;
         }
+
+        // === ZMIANA: Dodawanie prefixu globalnie ===
+        if (!string.IsNullOrWhiteSpace(productNamePrefix) && !string.IsNullOrWhiteSpace(searchTermForGoogle))
+        {
+            searchTermForGoogle = $"{productNamePrefix} {searchTermForGoogle}";
+        }
+        // ===========================================
 
         if (string.IsNullOrWhiteSpace(searchTermForGoogle))
         {
@@ -1728,13 +1726,15 @@ public class GoogleScraperController : Controller
 
         string searchTermBase;
         #region Wyznaczanie searchTermBase
+
         switch (termSource)
         {
             case SearchTermSource.ProductUrl:
                 searchTermBase = productState.OriginalUrl;
+                // Fallback: jeśli URL pusty, użyj nazwy
                 if (string.IsNullOrWhiteSpace(searchTermBase))
                 {
-                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] OSTRZEŻENIE: Źródło terminu to URL, ale URL jest pusty dla ID: {productState.ProductId}. Używam nazwy produktu jako fallback.");
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [WARN] URL pusty. Fallback do nazwy.");
                     searchTermBase = productState.ProductNameInStoreForGoogle;
                 }
                 break;
@@ -1743,7 +1743,6 @@ public class GoogleScraperController : Controller
                 searchTermBase = productState.Ean;
                 if (string.IsNullOrWhiteSpace(searchTermBase))
                 {
-                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] OSTRZEŻENIE: Źródło terminu to EAN, ale EAN jest pusty dla ID: {productState.ProductId}. Używam nazwy produktu jako fallback.");
                     searchTermBase = productState.ProductNameInStoreForGoogle;
                 }
                 break;
@@ -1752,7 +1751,6 @@ public class GoogleScraperController : Controller
                 searchTermBase = productState.ProducerCode;
                 if (string.IsNullOrWhiteSpace(searchTermBase))
                 {
-                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] OSTRZEŻENIE: Źródło terminu to Kod Producenta, ale jest pusty dla ID: {productState.ProductId}. Używam nazwy produktu jako fallback.");
                     searchTermBase = productState.ProductNameInStoreForGoogle;
                 }
                 break;
@@ -1761,23 +1759,27 @@ public class GoogleScraperController : Controller
             default:
                 searchTermBase = productState.ProductNameInStoreForGoogle;
 
-                // ================== NOWA LOGIKA ==================
+                // Logika "Dołącz kod" dotyczy tylko wyszukiwania po nazwie
                 if (appendProducerCode && !string.IsNullOrWhiteSpace(productState.ProducerCode))
                 {
                     searchTermBase = $"{searchTermBase} {productState.ProducerCode}";
                 }
-                // ===============================================
-
-                if (!string.IsNullOrWhiteSpace(namePrefix))
-                {
-                    searchTermBase = $"{namePrefix} {searchTermBase}";
-                }
                 break;
         }
 
+        // === ZMIANA: Aplikowanie prefixu POZA switch'em ===
+        // Dodajemy prefix, jeśli został podany, jeśli mamy bazę wyszukiwania i jeśli NIE szukamy po URL
+        if (termSource != SearchTermSource.ProductUrl &&
+            !string.IsNullOrWhiteSpace(namePrefix) &&
+            !string.IsNullOrWhiteSpace(searchTermBase))
+        {
+            searchTermBase = $"{namePrefix} {searchTermBase}";
+        }
+        // ==================================================
+
         if (string.IsNullOrWhiteSpace(searchTermBase))
         {
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] BŁĄD: Nie można wygenerować terminu wyszukiwania dla produktu ID: {productState.ProductId} (źródło: {termSource}, nazwa/URL puste).");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] BŁĄD: Brak terminu wyszukiwania dla ID: {productState.ProductId}.");
             lock (productState) { productState.UpdateStatus(ProductStatus.Error); }
             return;
         }

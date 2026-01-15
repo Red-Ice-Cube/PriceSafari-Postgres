@@ -62,12 +62,12 @@
             </select>
         </div>
         <div class="col-md-3" id="productNameOptionsContainer">
-            <div class="mb-2">
-                <label for="productNamePrefix" class="form-label">Prefix dla nazwy produktu (opcjonalnie):</label>
+            <div class="mb-2" id="prefixContainer">
+                <label for="productNamePrefix" class="form-label">Prefix (np. nazwa sklepu):</label>
                 <input type="text" class="form-control" id="productNamePrefix" placeholder="np. sklep">
             </div>
 
-            <div class="form-check">
+            <div class="form-check" id="appendCodeContainer">
                 <input class="form-check-input" type="checkbox" id="appendProducerCode">
                 <label class="form-check-label" for="appendProducerCode">
                     Dołącz kod producenta do nazwy
@@ -142,11 +142,22 @@
                 updateTable(cachedProducts);
             });
 
-            $('#searchTermSource').change(function () {
-                if ($(this).val() === 'ProductName') {
-                    $('#productNameOptionsContainer').show();
+          $('#searchTermSource').change(function () {
+                var source = $(this).val();
+
+                // 1. Prefix pokazujemy dla Nazwy, EAN i Kodu Producenta (ukrywamy dla URL)
+                if (source === 'ProductUrl') {
+                    $('#prefixContainer').hide();
                 } else {
-                    $('#productNameOptionsContainer').hide();
+                    $('#prefixContainer').show();
+                }
+
+                // 2. "Dołącz kod producenta" ma sens TYLKO gdy szukamy po Nazwie
+                if (source === 'ProductName') {
+                    $('#appendCodeContainer').show();
+                } else {
+                    $('#appendCodeContainer').hide();
+                    $('#appendProducerCode').prop('checked', false); // Opcjonalnie odznaczamy
                 }
             }).trigger('change');
 

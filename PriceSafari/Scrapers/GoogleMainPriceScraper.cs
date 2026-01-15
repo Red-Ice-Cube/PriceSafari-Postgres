@@ -1925,7 +1925,7 @@ namespace PriceSafari.Services
                 finalPriceHistory.Add(new CoOfrPriceHistoryClass
                 {
                     CoOfrClassId = coOfr.Id, // Przypisanie ID zadania
-                    GoogleCid = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl), // CID do historii
+                    GoogleCid = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl), 
                     GoogleStoreName = item.offer.Seller,
                     GooglePrice = ParsePrice(item.offer.Price),
                     GooglePriceWithDelivery = ParsePrice(item.offer.Price) + ParseDeliveryPrice(item.offer.Delivery),
