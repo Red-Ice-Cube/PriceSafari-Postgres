@@ -1670,6 +1670,761 @@
 
 
 
+//using PriceSafari.Models;
+//using System;
+//using System.Collections.Generic;
+//using System.Globalization;
+//using System.Linq;
+//using System.Net;
+//using System.Net.Http;
+//using System.Text.Json;
+//using System.Text.RegularExpressions;
+//using System.Threading.Tasks;
+
+//namespace PriceSafari.Services
+//{
+//    // Rekord pomocniczy
+//    public record TempOffer(
+//        string Seller,
+//        string Price,
+//        string Url,
+//        string? Delivery,
+//        bool IsInStock,
+//        string? Badge,
+//        int OriginalIndex,
+//        string Method = "OLD",
+//        string? RatingScore = null,
+//        string? RatingCount = null
+//    );
+
+//    public class GoogleMainPriceScraper
+//    {
+//        // USUNIĘTO: private const bool USE_SMART_Q_MODE = true; <- Już niepotrzebne jako stała
+
+//        // LIMITER: Próg odchylenia ceny dla WRGA (0.8 = 80%)
+//        private const decimal WRGA_PRICE_DEVIATION_LIMIT = 0.8m;
+
+//        private static readonly HttpClient _httpClient;
+
+//        static GoogleMainPriceScraper()
+//        {
+//            _httpClient = new HttpClient();
+//            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+//            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7");
+//        }
+
+//        public async Task<List<CoOfrPriceHistoryClass>> ScrapePricesAsync(CoOfrClass coOfr)
+//        {
+//            var finalPriceHistory = new List<CoOfrPriceHistoryClass>();
+//            string urlTemplate;
+
+//            // --- NOWA LOGIKA BUDOWANIA URL (Obsługa HID / CID) ---
+//            // Najpierw sprawdzamy czy zadanie wymusza tryb HID
+//            if (coOfr.UseGoogleHidOffer && !string.IsNullOrEmpty(coOfr.GoogleHid))
+//            {
+//                Console.WriteLine($"[INFO] Używam metody HID dla GID: {coOfr.GoogleGid} | HID: {coOfr.GoogleHid} (UseGoogleHidOffer = true)");
+//                // W trybie HID zawsze wymagane jest gpcid oraz headlineOfferDocid zamiast catalogid
+//                urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},headlineOfferDocid:{coOfr.GoogleHid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+//            }
+//            else
+//            {
+//                // Tryb standardowy (Katalogowy) - dotychczasowa logika
+//                string? catalogId = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl);
+
+//                if (string.IsNullOrEmpty(catalogId))
+//                {
+//                    Console.WriteLine($"[BŁĄD] Brak CID dla zadania ID: {coOfr.Id}");
+//                    return finalPriceHistory;
+//                }
+
+//                if (!string.IsNullOrEmpty(coOfr.GoogleGid) && coOfr.UseGPID)
+//                {
+//                    Console.WriteLine($"[INFO] Używam metody z GPCID dla CID: {catalogId} (UseGPID = true)");
+//                    urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+//                }
+//                else
+//                {
+//                    Console.WriteLine($"[INFO] Metoda standardowa (bez gpcid) dla CID: {catalogId}.");
+//                    urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+//                }
+//            }
+//            // --- KONIEC ZMIAN W BUDOWANIU URL ---
+
+
+//            // --- RESZTA LOGIKI BEZ ZMIAN (1:1) ---
+//            var allFoundOffers = new List<TempOffer>();
+//            string? firstPageRawResponse = null;
+
+//            int startIndex = 0;
+//            const int pageSize = 10;
+//            int lastFetchCount;
+//            const int maxRetries = 3;
+
+//            // --- 1. GŁÓWNA PĘTLA POBIERANIA (OAPV - PEWNE DANE) ---
+//            do
+//            {
+//                string currentUrl = string.Format(urlTemplate, startIndex);
+//                List<TempOffer> newOffers = new List<TempOffer>();
+//                string rawResponse = "";
+
+//                for (int attempt = 1; attempt <= maxRetries; attempt++)
+//                {
+//                    try
+//                    {
+//                        rawResponse = await _httpClient.GetStringAsync(currentUrl);
+//                        newOffers = GoogleShoppingApiParser.ParseOapv(rawResponse);
+
+//                        // Logowanie i retry logic
+//                        if (newOffers.Count == 0)
+//                        {
+//                            Console.ForegroundColor = ConsoleColor.Red;
+//                            Console.WriteLine($"[PRÓBA {attempt}/{maxRetries}] Znaleziono 0 produktow. URL: {currentUrl}");
+
+//                            string preview = rawResponse.Length > 500 ? rawResponse.Substring(0, 500) : rawResponse;
+//                            preview = preview.Replace("\n", " ").Replace("\r", "");
+//                            Console.WriteLine($"[DEBUG TREŚCI]: {preview}...");
+
+//                            Console.ResetColor();
+//                        }
+
+//                        if (newOffers.Count > 0)
+//                        {
+//                            break;
+//                        }
+
+//                        if (attempt < maxRetries)
+//                        {
+//                            Console.ForegroundColor = ConsoleColor.Yellow;
+//                            Console.WriteLine($"Ponawiam probe za 2 sekundy... (Próba {attempt} z {maxRetries})");
+//                            Console.ResetColor();
+
+//                            await Task.Delay(2000);
+//                        }
+//                    }
+//                    catch (HttpRequestException ex)
+//                    {
+//                        if (attempt == maxRetries)
+//                        {
+//                            Console.WriteLine($"[BŁĄD KRYTYCZNY] Nie udało się pobrać ofert po {maxRetries} próbach. Błąd: {ex.Message}");
+//                        }
+//                        else
+//                        {
+//                            Console.ForegroundColor = ConsoleColor.Yellow;
+//                            Console.WriteLine($"Błąd HTTP. Ponawiam probe za 4 sekundy... (Próba {attempt} z {maxRetries})");
+//                            Console.ResetColor();
+//                            await Task.Delay(4000);
+//                        }
+//                    }
+//                }
+
+//                if (startIndex == 0 && !string.IsNullOrEmpty(rawResponse))
+//                    firstPageRawResponse = rawResponse;
+
+//                lastFetchCount = newOffers.Count;
+
+//                foreach (var offer in newOffers)
+//                {
+//                    var offerWithIndex = offer with { OriginalIndex = allFoundOffers.Count + 1 };
+//                    if (!allFoundOffers.Any(o => o.Url == offerWithIndex.Url))
+//                    {
+//                        allFoundOffers.Add(offerWithIndex);
+//                    }
+//                }
+
+//                startIndex += pageSize;
+
+//                if (lastFetchCount == pageSize) await Task.Delay(new Random().Next(500, 800));
+
+//            } while (lastFetchCount == pageSize);
+
+//            // --- 2. TRYB SMART Q (WRGA) Z LIMITEREM CENOWYM ---
+//            if (coOfr.UseWRGA && !string.IsNullOrEmpty(firstPageRawResponse))
+//            {
+//                // Ustalenie catalogId do logów WRGA
+//                string? catalogIdForLog = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl);
+//                Console.WriteLine($"[INFO] Uruchamiam tryb WRGA (Smart Q) dla produktu: {catalogIdForLog}");
+
+//                // Obliczamy średnią cenę z OAPV jako punkt odniesienia (Baseline)
+//                decimal baselinePrice = 0;
+//                if (allFoundOffers.Any())
+//                {
+//                    var prices = allFoundOffers.Select(o => ParsePrice(o.Price)).Where(p => p > 0).ToList();
+//                    if (prices.Any())
+//                    {
+//                        // Mediana jest odporna na błędy parsowania (outliery)
+//                        var sortedPrices = prices.OrderBy(p => p).ToList();
+//                        baselinePrice = sortedPrices[sortedPrices.Count / 2];
+//                        Console.WriteLine($"[DEBUG] Baseline (Mediana) dla zadania {coOfr.Id}: {baselinePrice:F2} zł");
+//                    }
+//                }
+
+//                string? productTitle = GoogleShoppingApiParser.ExtractProductTitle(firstPageRawResponse);
+
+//                if (!string.IsNullOrEmpty(productTitle))
+//                {
+//                    string encodedQ = Uri.EscapeDataString(productTitle);
+//                    string wrgaUrl = $"https://www.google.com/async/wrga?q={encodedQ}&async=_fmt:prog,gl:4";
+
+//                    try
+//                    {
+//                        string wrgaResponse = await _httpClient.GetStringAsync(wrgaUrl);
+//                        var wrgaOffers = GoogleShoppingApiParser.ParseWrga(wrgaResponse);
+
+//                        foreach (var off in wrgaOffers)
+//                        {
+//                            if (baselinePrice > 0)
+//                            {
+//                                decimal wrgaPrice = ParsePrice(off.Price);
+//                                decimal diff = wrgaPrice - baselinePrice;
+//                                decimal percentageDiff = diff / baselinePrice;
+
+//                                if (percentageDiff < -0.8m || percentageDiff > 2.0m)
+//                                {
+//                                    Console.ForegroundColor = ConsoleColor.DarkGray;
+//                                    Console.WriteLine($"[LIMITER] Odrzucono ofertę WRGA ({off.Seller}). Cena: {wrgaPrice} vs Średnia OAPV: {baselinePrice:F2} (Różnica: {percentageDiff:P0})");
+//                                    Console.ResetColor();
+//                                    continue;
+//                                }
+//                            }
+
+//                            if (!allFoundOffers.Any(existing => AreUrlsEqual(existing.Url, off.Url)))
+//                            {
+//                                var organicOffer = off with { OriginalIndex = allFoundOffers.Count + 1 };
+//                                allFoundOffers.Add(organicOffer);
+//                            }
+//                        }
+//                    }
+//                    catch (Exception ex)
+//                    {
+//                        Console.WriteLine($"[WARNING] Błąd w trybie Smart Q: {ex.Message}");
+//                    }
+//                }
+//            }
+
+//            var groupedBySeller = allFoundOffers.GroupBy(o => o.Seller);
+//            var finalOffersToProcess = new List<(TempOffer offer, int count)>();
+
+//            foreach (var group in groupedBySeller)
+//            {
+//                int storeOfferCount = group.Count();
+//                var cheapestOffer = group.OrderBy(o => ParsePrice(o.Price)).First();
+//                finalOffersToProcess.Add((cheapestOffer, storeOfferCount));
+//            }
+
+//            foreach (var item in finalOffersToProcess.OrderBy(i => ParsePrice(i.offer.Price)))
+//            {
+//                string? isBiddingValue = null;
+
+//                if (!string.IsNullOrEmpty(item.offer.Badge))
+//                {
+//                    string badgeLower = item.offer.Badge.ToLower();
+//                    if (badgeLower.Contains("cena")) isBiddingValue = "bpg";
+//                    else if (badgeLower.Contains("popularn") || badgeLower.Contains("wybór")) isBiddingValue = "hpg";
+//                }
+
+//                finalPriceHistory.Add(new CoOfrPriceHistoryClass
+//                {
+//                    CoOfrClassId = coOfr.Id, // Przypisanie ID zadania
+//                    GoogleCid = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl), 
+//                    GoogleStoreName = item.offer.Seller,
+//                    GooglePrice = ParsePrice(item.offer.Price),
+//                    GooglePriceWithDelivery = ParsePrice(item.offer.Price) + ParseDeliveryPrice(item.offer.Delivery),
+//                    GooglePosition = item.offer.OriginalIndex.ToString(),
+//                    IsBidding = isBiddingValue,
+//                    GoogleInStock = item.offer.IsInStock,
+//                    GoogleOfferPerStoreCount = item.count
+//                });
+//            }
+
+//            return finalPriceHistory;
+//        }
+//        #region Helper Methods
+//        private bool AreUrlsEqual(string url1, string url2)
+//        {
+//            if (string.IsNullOrEmpty(url1) || string.IsNullOrEmpty(url2)) return false;
+
+//            string u1 = url1.Contains("?") ? url1.Split('?')[0] : url1;
+//            string u2 = url2.Contains("?") ? url2.Split('?')[0] : url2;
+
+//            string norm1 = u1.ToLower().Replace("https://", "").Replace("http://", "").Replace("www.", "").TrimEnd('/');
+//            string norm2 = u2.ToLower().Replace("https://", "").Replace("http://", "").Replace("www.", "").TrimEnd('/');
+
+//            return norm1 == norm2;
+//        }
+
+//        private string? ExtractProductId(string url)
+//        {
+//            if (string.IsNullOrEmpty(url)) return null;
+//            var match = Regex.Match(url, @"product/(\d+)");
+//            return match.Success ? match.Groups[1].Value : null;
+//        }
+
+//        private decimal ParsePrice(string priceText)
+//        {
+//            if (string.IsNullOrWhiteSpace(priceText)) return 0;
+//            var cleanedText = Regex.Replace(priceText, @"[^\d,.]", "").Replace(",", ".");
+//            if (decimal.TryParse(cleanedText, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal result))
+//            {
+//                return result;
+//            }
+//            return 0;
+//        }
+
+//        private decimal ParseDeliveryPrice(string? deliveryText)
+//        {
+//            if (string.IsNullOrWhiteSpace(deliveryText) || deliveryText.ToLower().Contains("bezpłatna") || deliveryText.ToLower().Contains("darmowa") || deliveryText.ToLower().Contains("bezpłatnie"))
+//            {
+//                return 0;
+//            }
+//            return ParsePrice(deliveryText);
+//        }
+//        #endregion
+//    }
+
+//    public static class GoogleShoppingApiParser
+//    {
+//        // === PARSER WRGA (HTML) ===
+//        public static List<TempOffer> ParseWrga(string rawResponse)
+//        {
+//            var offers = new List<TempOffer>();
+//            if (string.IsNullOrWhiteSpace(rawResponse)) return offers;
+
+//            try
+//            {
+//                string cleaned = rawResponse.StartsWith(")]}'") ? rawResponse.Substring(5) : rawResponse;
+//                string decodedContent = Regex.Unescape(cleaned);
+//                decodedContent = WebUtility.HtmlDecode(decodedContent);
+
+//                var blockRegex = new Regex(
+//                    @"<div[^>]*class=""[^""]*tF2Cxc[^""]*""[^>]*>([\s\S]*?)(?=<div[^>]*class=""[^""]*tF2Cxc|$)",
+//                    RegexOptions.IgnoreCase);
+
+//                var blockMatches = blockRegex.Matches(decodedContent);
+//                int offerIndex = 0;
+
+//                foreach (Match blockMatch in blockMatches)
+//                {
+//                    offerIndex++;
+//                    string block = blockMatch.Groups[1].Value;
+
+//                    var urlMatch = Regex.Match(block, @"href=""(https?://[^""]+)""");
+//                    if (!urlMatch.Success) continue;
+
+//                    string url = urlMatch.Groups[1].Value;
+//                    if (IsGoogleLink(url)) continue;
+
+//                    string seller = GetDomainName(url);
+//                    decimal priceVal = 0;
+//                    decimal deliveryVal = 0;
+//                    string badge = "ORGANIC";
+
+//                    priceVal = ExtractRichSnippetPrice(block);
+
+//                    if (priceVal > 0)
+//                    {
+//                        deliveryVal = ExtractDeliveryFromRichSnippet(block);
+//                        badge = "RICH_SNIPPET";
+//                    }
+//                    else
+//                    {
+//                        string cleanText = StripHtml(block);
+//                        var analysisResult = AnalyzePricesInBlock(cleanText);
+//                        priceVal = analysisResult.Price;
+//                        deliveryVal = analysisResult.Delivery;
+//                        badge = "TEXT_ANALYSIS";
+//                    }
+
+//                    if (priceVal > 0)
+//                    {
+//                        string finalPrice = priceVal.ToString("F2");
+//                        string deliveryStr = deliveryVal > 0 ? deliveryVal.ToString("F2") : "0";
+
+//                        offers.Add(new TempOffer(
+//                            seller,
+//                            finalPrice,
+//                            url,
+//                            deliveryStr,
+//                            true,
+//                            badge,
+//                            offerIndex,
+//                            "WRGA"
+//                        ));
+//                    }
+//                }
+//            }
+//            catch { }
+//            return offers;
+//        }
+
+//        // === PARSER OAPV (JSON) ===
+//        public static List<TempOffer> ParseOapv(string rawResponse)
+//        {
+//            if (string.IsNullOrWhiteSpace(rawResponse)) return new List<TempOffer>();
+
+//            try
+//            {
+//                string cleanedJson = rawResponse.StartsWith(")]}'") ? rawResponse.Substring(5) : rawResponse;
+//                using JsonDocument doc = JsonDocument.Parse(cleanedJson);
+//                JsonElement root = doc.RootElement.Clone();
+
+//                var allOffers = new List<TempOffer>();
+//                FindAndParseAllOffers(root, root, allOffers);
+//                return allOffers;
+//            }
+//            catch (JsonException)
+//            {
+//                return new List<TempOffer>();
+//            }
+//        }
+
+//        private static void FindAndParseAllOffers(JsonElement root, JsonElement node, List<TempOffer> allOffers)
+//        {
+//            if (node.ValueKind == JsonValueKind.Array)
+//            {
+//                if (IsPotentialSingleOffer(node))
+//                {
+//                    foreach (JsonElement potentialOffer in node.EnumerateArray())
+//                    {
+//                        TempOffer? offer = ParseSingleOffer(root, potentialOffer);
+//                        if (offer != null && !allOffers.Any(o => o.Url == offer.Url))
+//                        {
+//                            allOffers.Add(offer);
+//                        }
+//                    }
+//                }
+
+//                foreach (var element in node.EnumerateArray())
+//                {
+//                    FindAndParseAllOffers(root, element, allOffers);
+//                }
+//            }
+//            else if (node.ValueKind == JsonValueKind.Object)
+//            {
+//                foreach (var property in node.EnumerateObject())
+//                {
+//                    FindAndParseAllOffers(root, property.Value, allOffers);
+//                }
+//            }
+//        }
+
+//        private static bool IsPotentialSingleOffer(JsonElement node)
+//        {
+//            if (node.ValueKind == JsonValueKind.Array && node.GetArrayLength() > 0)
+//            {
+//                var flatStrings = Flatten(node, 3).Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToList();
+//                if (flatStrings.Any(s => s.StartsWith("https://") && !s.Contains("google"))) return true;
+//            }
+//            return false;
+//        }
+
+//        private static TempOffer? ParseSingleOffer(JsonElement root, JsonElement offerContainer)
+//        {
+//            JsonElement offerData = (offerContainer.ValueKind == JsonValueKind.Array && offerContainer.GetArrayLength() > 0 && offerContainer[0].ValueKind == JsonValueKind.Array) ? offerContainer[0] : offerContainer;
+//            if (offerData.ValueKind != JsonValueKind.Array) return null;
+
+//            try
+//            {
+//                // Pobieramy wszystkie węzły (potrzebujemy dostępu do Number i String)
+//                var allNodes = Flatten(offerData, 20).ToList();
+//                var flatStrings = allNodes.Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToList();
+
+//                // Filtry stanu
+//                var usedKeywords = new[] { "pre-owned", "used", "używany", "outlet", "renewed", "refurbished", "odnowiony", "powystawowy" };
+//                if (flatStrings.Any(text => usedKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase)))) return null;
+
+//                // Filtry dostępności
+//                bool isInStock = true;
+//                var outOfStockKeywords = new[] { "out of stock", "niedostępny", "brak w magazynie", "asortyment niedostępny" };
+//                if (flatStrings.Any(text => outOfStockKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase)))) isInStock = false;
+
+//                string? url = flatStrings.FirstOrDefault(s => s.StartsWith("http") && !s.Contains("google.com") && !s.Contains("gstatic.com"));
+
+//                // --- LOGIKA CENY (PRODUKCYJNA) ---
+//                string? price = null;
+
+//                // KROK A: Szukamy Micros (Number)
+//                foreach (var node in allNodes)
+//                {
+//                    if (node.ValueKind == JsonValueKind.Number)
+//                    {
+//                        long val = node.GetInt64();
+//                        // Walidujemy Micros: zazwyczaj kończą się na 0000 i są w sensownym zakresie
+//                        if (val >= 1000000 && val < 1000000000000 && val % 10000 == 0)
+//                        {
+//                            price = (val / 1000000m).ToString("F2", CultureInfo.InvariantCulture);
+//                            break;
+//                        }
+//                    }
+//                }
+
+//                // KROK B: Fallback do stringów (Regex)
+//                var oapvRegex = new Regex(@"\d[\d\s,.]*\s*(?:PLN|zł|EUR|USD)", RegexOptions.IgnoreCase);
+//                if (string.IsNullOrEmpty(price))
+//                {
+//                    price = flatStrings.FirstOrDefault(s => oapvRegex.IsMatch(s) && !s.Trim().StartsWith("+"));
+//                }
+
+//                // --- KONIEC LOGIKI CENY ---
+//                string? seller = null;
+
+//                // KROK A: Próbujemy wyciągnąć nazwę z domeny URL (Najbezpieczniejsza opcja dla Twoich potrzeb)
+//                if (!string.IsNullOrEmpty(url))
+//                {
+//                    seller = GetDomainName(url);
+//                }
+
+//                // KROK B: (Opcjonalny Fallback) Jeśli domena zawiedzie, szukamy w JSON, 
+//                // ale wykluczamy waluty i inne "śmieci"
+//                if (string.IsNullOrEmpty(seller) || seller == "Nieznany")
+//                {
+//                    var offerElements = offerData.EnumerateArray().ToList();
+//                    var blacklist = new[] { "PLN", "zł", "EUR", "USD", "netto", "brutto" };
+
+//                    for (int i = 0; i < offerElements.Count - 1; i++)
+//                    {
+//                        if (offerElements[i].ValueKind == JsonValueKind.Number && offerElements[i + 1].ValueKind == JsonValueKind.String)
+//                        {
+//                            string potential = offerElements[i + 1].GetString()!;
+
+//                            bool isBlacklisted = blacklist.Any(b => string.Equals(potential, b, StringComparison.OrdinalIgnoreCase));
+
+//                            if (!potential.StartsWith("http") && !isBlacklisted && !oapvRegex.IsMatch(potential) && potential.Length > 2)
+//                            {
+//                                seller = potential;
+//                                break;
+//                            }
+//                        }
+//                    }
+//                }
+//                if (seller == null && url != null) seller = GetDomainName(url);
+
+//                string? delivery = null;
+//                if (flatStrings.Any(s => s.Contains("Bezpłatna", StringComparison.OrdinalIgnoreCase) || s.Contains("Darmowa", StringComparison.OrdinalIgnoreCase)))
+//                    delivery = "Bezpłatna";
+//                else
+//                {
+//                    string? rawDeliveryText = flatStrings.FirstOrDefault(s => s.Trim().StartsWith("+") && oapvRegex.IsMatch(s));
+//                    if (rawDeliveryText != null) { Match m = oapvRegex.Match(rawDeliveryText); if (m.Success) delivery = m.Value.Trim(); }
+//                    else
+//                    {
+//                        string? alt = flatStrings.FirstOrDefault(s => s.Contains("dostawa", StringComparison.OrdinalIgnoreCase) && oapvRegex.IsMatch(s));
+//                        if (alt != null) { Match m = oapvRegex.Match(alt); if (m.Success) delivery = m.Value.Trim(); }
+//                    }
+//                }
+
+//                string? badge = ExtractBadgeStrict(offerData);
+//                if (string.IsNullOrEmpty(badge))
+//                {
+//                    string[] possibleBadges = { "Najlepsza cena", "Najpopularniejsze", "Wybór", "Niska cena" };
+//                    badge = flatStrings.FirstOrDefault(s => possibleBadges.Any(pb => string.Equals(s, pb, StringComparison.OrdinalIgnoreCase)));
+//                }
+
+//                var ratingData = ExtractStoreRating(offerData);
+
+//                if (!string.IsNullOrWhiteSpace(seller) && price != null && url != null)
+//                {
+//                    return new TempOffer(seller, price, url, delivery, isInStock, badge, 0, "OAPV", ratingData.Score, ratingData.Count);
+//                }
+//            }
+//            catch { }
+//            return null;
+//        }
+
+//        public static string? ExtractProductTitle(string rawResponse)
+//        {
+//            try
+//            {
+//                string cleaned = rawResponse.StartsWith(")]}'") ? rawResponse.Substring(5) : rawResponse;
+//                using JsonDocument doc = JsonDocument.Parse(cleaned);
+//                if (doc.RootElement.TryGetProperty("ProductDetailsResult", out JsonElement pd) && pd.GetArrayLength() > 0) return pd[0].GetString();
+//            }
+//            catch { }
+//            return null;
+//        }
+
+//        private static string GetDomainName(string url)
+//        {
+//            try
+//            {
+//                var host = new Uri(url).Host.ToLower().Replace("www.", "");
+//                return char.ToUpper(host[0]) + host.Substring(1);
+//            }
+//            catch { return "Nieznany"; }
+//        }
+
+//        private static bool IsGoogleLink(string url)
+//        {
+//            return url.Contains(".google.") || url.Contains("gstatic.") ||
+//                  url.Contains("/search?") || url.Contains("youtube.") ||
+//                  url.Contains("googleusercontent") || url.Contains("translate.google");
+//        }
+
+//        private static string? ExtractBadgeStrict(JsonElement offerData)
+//        {
+//            try
+//            {
+//                foreach (var element in offerData.EnumerateArray())
+//                {
+//                    if (element.ValueKind == JsonValueKind.Array && element.GetArrayLength() > 0)
+//                    {
+//                        var inner = element[0];
+//                        if (inner.ValueKind == JsonValueKind.Array && inner.GetArrayLength() > 0)
+//                        {
+//                            var potentialBadgeNode = inner[0];
+//                            if (potentialBadgeNode.ValueKind == JsonValueKind.Array && potentialBadgeNode.GetArrayLength() >= 1)
+//                            {
+//                                if (potentialBadgeNode[0].ValueKind == JsonValueKind.String)
+//                                {
+//                                    string text = potentialBadgeNode[0].GetString()!;
+//                                    if (new[] { "Najlepsza cena", "Najpopularniejsze", "Wybór", "Niska cena" }.Any(x => string.Equals(text, x, StringComparison.OrdinalIgnoreCase))) return text;
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//            catch { }
+//            return null;
+//        }
+
+//        private static (string? Score, string? Count) ExtractStoreRating(JsonElement offerData)
+//        {
+//            try
+//            {
+//                var stack = new Stack<JsonElement>(); stack.Push(offerData);
+//                while (stack.Count > 0)
+//                {
+//                    var current = stack.Pop();
+//                    if (current.ValueKind == JsonValueKind.Array)
+//                    {
+//                        if (current.GetArrayLength() >= 2 && current[0].ValueKind == JsonValueKind.String && current[1].ValueKind == JsonValueKind.String)
+//                        {
+//                            string s1 = current[0].GetString()!;
+//                            if (s1.Contains("/5") && s1.Length < 10) return (s1, current[1].GetString()!);
+//                        }
+//                        foreach (var element in current.EnumerateArray()) if (element.ValueKind == JsonValueKind.Array) stack.Push(element);
+//                    }
+//                }
+//            }
+//            catch { }
+//            return (null, null);
+//        }
+
+//        private static IEnumerable<JsonElement> Flatten(JsonElement node, int maxDepth = 20, int currentDepth = 0)
+//        {
+//            if (currentDepth > maxDepth) yield break;
+//            var stack = new Stack<JsonElement>(); stack.Push(node);
+//            while (stack.Count > 0)
+//            {
+//                var current = stack.Pop();
+//                if (current.ValueKind == JsonValueKind.Array) foreach (var element in current.EnumerateArray().Reverse()) stack.Push(element);
+//                else if (current.ValueKind == JsonValueKind.Object) foreach (var property in current.EnumerateObject()) stack.Push(property.Value);
+//                else yield return current;
+//            }
+//        }
+
+//        private static decimal ExtractRichSnippetPrice(string htmlBlock)
+//        {
+//            var richPriceRegex = new Regex(
+//                @"<span[^>]*class=""[^""]*\bLI0TWe\b[^""]*""[^>]*>\s*([\d,\.\s]+(?:zł|PLN|EUR|USD)?)\s*</span>",
+//                RegexOptions.IgnoreCase);
+//            var match = richPriceRegex.Match(htmlBlock);
+//            if (match.Success) return ParsePriceDecimal(match.Groups[1].Value);
+//            return 0;
+//        }
+
+//        private static decimal ExtractDeliveryFromRichSnippet(string htmlBlock)
+//        {
+//            var deliveryRegex = new Regex(
+//                @"(\d+[,\.]\d{2})\s*(?:PLN|zł)?\s*(?:delivery|dostawa|wysyłka)",
+//                RegexOptions.IgnoreCase);
+//            var match = deliveryRegex.Match(htmlBlock);
+//            if (match.Success) return ParsePriceDecimal(match.Groups[1].Value);
+//            return 0;
+//        }
+
+//        private static (decimal Price, decimal Delivery) AnalyzePricesInBlock(string text)
+//        {
+//            var priceRegex = new Regex(
+//                @"(?:cena|price|za)?\s*[:;-]?\s*(?<!\d)(\d{1,3}(?:[\s\.]\d{3})*[,\.]\d{2})(?!\d)\s*(?:zł|PLN|EUR|USD)?",
+//                RegexOptions.IgnoreCase);
+
+//            var matches = priceRegex.Matches(text);
+//            decimal bestPrice = 0;
+//            decimal bestDelivery = 0;
+
+//            var candidates = new List<(decimal val, int index, int score)>();
+
+//            foreach (Match m in matches)
+//            {
+//                string numStr = m.Groups[1].Value;
+//                if (!decimal.TryParse(numStr.Replace(" ", "").Replace(".", ","), NumberStyles.Any, new CultureInfo("pl-PL"), out decimal val)) continue;
+
+//                bool hasCurrency = m.Value.Contains("zł") || m.Value.Contains("PLN");
+//                bool hasPriceKeyword = m.Value.ToLower().Contains("cena") || m.Value.ToLower().Contains("za");
+
+//                if (val < 1.0m && !hasCurrency && !hasPriceKeyword) continue;
+
+//                int contextStart = Math.Max(0, m.Index - 30);
+//                int contextLen = Math.Min(text.Length - contextStart, (m.Index + m.Length - contextStart) + 20);
+//                string fullMatchContext = text.Substring(contextStart, contextLen).ToLower();
+
+//                if (Regex.IsMatch(fullMatchContext, @"(dostawa|wysyłka|delivery|\+)"))
+//                {
+//                    if (bestDelivery == 0) bestDelivery = val;
+//                    continue;
+//                }
+
+//                int score = 0;
+//                if (hasPriceKeyword) score += 50;
+//                if (hasCurrency) score += 10;
+//                if (fullMatchContext.Contains("brutto")) score += 5;
+//                if (fullMatchContext.Contains("netto")) score += 2;
+//                if (val > 1900 && val < 2100 && val % 1 == 0 && !hasCurrency) continue;
+
+//                candidates.Add((val, m.Index, score));
+//            }
+
+//            var winner = candidates.OrderByDescending(x => x.score).ThenBy(x => x.index).FirstOrDefault();
+//            if (winner.val > 0) bestPrice = winner.val;
+
+//            return (bestPrice, bestDelivery);
+//        }
+
+//        private static string StripHtml(string html)
+//        {
+//            if (string.IsNullOrEmpty(html)) return "";
+//            string s = html.Replace("<br>", " ").Replace("<br/>", " ").Replace("</div>", " ").Replace("</span>", " ").Replace("</b>", " ").Replace("</em>", " ").Replace("</a>", " ");
+//            s = Regex.Replace(s, "<.*?>", " ");
+//            s = WebUtility.HtmlDecode(s);
+//            s = Regex.Replace(s, @"\s+", " ").Trim();
+//            return s;
+//        }
+
+//        private static decimal ParsePriceDecimal(string priceStr)
+//        {
+//            if (string.IsNullOrEmpty(priceStr)) return 0;
+//            string clean = Regex.Replace(priceStr, @"[^\d,.]", "");
+
+//            if (clean.Contains(",") && clean.Contains("."))
+//            {
+//                if (clean.LastIndexOf(',') > clean.LastIndexOf('.')) clean = clean.Replace(".", "").Replace(",", ".");
+//                else clean = clean.Replace(",", "");
+//            }
+//            else if (clean.Contains(",")) clean = clean.Replace(",", ".");
+
+//            if (decimal.TryParse(clean, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal res)) return res;
+//            return 0;
+//        }
+//    }
+//}
+
+
+
+
+
+
+
 using PriceSafari.Models;
 using System;
 using System.Collections.Generic;
@@ -1683,7 +2438,7 @@ using System.Threading.Tasks;
 
 namespace PriceSafari.Services
 {
-    // Rekord pomocniczy
+    // Rekord pomocniczy (bez zmian w strukturze projektu, tylko lokalnie)
     public record TempOffer(
         string Seller,
         string Price,
@@ -1694,16 +2449,14 @@ namespace PriceSafari.Services
         int OriginalIndex,
         string Method = "OLD",
         string? RatingScore = null,
-        string? RatingCount = null
+        string? RatingCount = null,
+        string Condition = "NOWY",
+        string Currency = "PLN"
     );
 
     public class GoogleMainPriceScraper
     {
-        // USUNIĘTO: private const bool USE_SMART_Q_MODE = true; <- Już niepotrzebne jako stała
-
-        // LIMITER: Próg odchylenia ceny dla WRGA (0.8 = 80%)
         private const decimal WRGA_PRICE_DEVIATION_LIMIT = 0.8m;
-
         private static readonly HttpClient _httpClient;
 
         static GoogleMainPriceScraper()
@@ -1716,19 +2469,22 @@ namespace PriceSafari.Services
         public async Task<List<CoOfrPriceHistoryClass>> ScrapePricesAsync(CoOfrClass coOfr)
         {
             var finalPriceHistory = new List<CoOfrPriceHistoryClass>();
+
+            // Lista pomocnicza do logowania (zawiera wszystkie znalezione, nawet te odrzucone)
+            // Używamy TempOffer, bo ma pola Condition/Currency, których nie ma w CoOfrPriceHistoryClass
+            var allDebugOffers = new List<TempOffer>();
+
+            Console.WriteLine($"\n[INFO] Start scrapowania dla ID: {coOfr.Id}...");
+
             string urlTemplate;
 
-            // --- NOWA LOGIKA BUDOWANIA URL (Obsługa HID / CID) ---
-            // Najpierw sprawdzamy czy zadanie wymusza tryb HID
+            // --- LOGIKA BUDOWANIA URL (DODANO &hl=pl zgodnie z ustaleniami) ---
             if (coOfr.UseGoogleHidOffer && !string.IsNullOrEmpty(coOfr.GoogleHid))
             {
-                Console.WriteLine($"[INFO] Używam metody HID dla GID: {coOfr.GoogleGid} | HID: {coOfr.GoogleHid} (UseGoogleHidOffer = true)");
-                // W trybie HID zawsze wymagane jest gpcid oraz headlineOfferDocid zamiast catalogid
-                urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},headlineOfferDocid:{coOfr.GoogleHid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+                urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&hl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},headlineOfferDocid:{coOfr.GoogleHid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
             }
             else
             {
-                // Tryb standardowy (Katalogowy) - dotychczasowa logika
                 string? catalogId = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl);
 
                 if (string.IsNullOrEmpty(catalogId))
@@ -1739,19 +2495,14 @@ namespace PriceSafari.Services
 
                 if (!string.IsNullOrEmpty(coOfr.GoogleGid) && coOfr.UseGPID)
                 {
-                    Console.WriteLine($"[INFO] Używam metody z GPCID dla CID: {catalogId} (UseGPID = true)");
-                    urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+                    urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&hl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
                 }
                 else
                 {
-                    Console.WriteLine($"[INFO] Metoda standardowa (bez gpcid) dla CID: {catalogId}.");
-                    urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+                    urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&hl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
                 }
             }
-            // --- KONIEC ZMIAN W BUDOWANIU URL ---
 
-
-            // --- RESZTA LOGIKI BEZ ZMIAN (1:1) ---
             var allFoundOffers = new List<TempOffer>();
             string? firstPageRawResponse = null;
 
@@ -1760,7 +2511,7 @@ namespace PriceSafari.Services
             int lastFetchCount;
             const int maxRetries = 3;
 
-            // --- 1. GŁÓWNA PĘTLA POBIERANIA (OAPV - PEWNE DANE) ---
+            // --- 1. GŁÓWNA PĘTLA POBIERANIA (OAPV) ---
             do
             {
                 string currentUrl = string.Format(urlTemplate, startIndex);
@@ -1771,49 +2522,35 @@ namespace PriceSafari.Services
                 {
                     try
                     {
+                        // LOGOWANIE HTTP (JAK W TEŚCIE)
+                        Console.ForegroundColor = ConsoleColor.Magenta;
+                        Console.WriteLine($"\n[DEBUG HTTP] Wysłanie żądania OAPV (Start: {startIndex}):");
+                        Console.WriteLine($"   URL: {currentUrl}");
+                        Console.ResetColor();
+
                         rawResponse = await _httpClient.GetStringAsync(currentUrl);
+
+                        // LOGOWANIE ODPOWIEDZI (JAK W TEŚCIE)
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        int previewLength = Math.Min(500, rawResponse.Length);
+                        Console.WriteLine($"   [RESPONSE] Długość: {rawResponse.Length} znaków.");
+                        Console.WriteLine($"   [PREVIEW]: {rawResponse.Substring(0, previewLength)}...");
+                        Console.ResetColor();
+
                         newOffers = GoogleShoppingApiParser.ParseOapv(rawResponse);
 
-                        // Logowanie i retry logic
-                        if (newOffers.Count == 0)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine($"[PRÓBA {attempt}/{maxRetries}] Znaleziono 0 produktow. URL: {currentUrl}");
-
-                            string preview = rawResponse.Length > 500 ? rawResponse.Substring(0, 500) : rawResponse;
-                            preview = preview.Replace("\n", " ").Replace("\r", "");
-                            Console.WriteLine($"[DEBUG TREŚCI]: {preview}...");
-
-                            Console.ResetColor();
-                        }
-
-                        if (newOffers.Count > 0)
-                        {
-                            break;
-                        }
-
+                        if (newOffers.Count > 0) break;
                         if (attempt < maxRetries)
                         {
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine($"Ponawiam probe za 2 sekundy... (Próba {attempt} z {maxRetries})");
-                            Console.ResetColor();
-
+                            Console.WriteLine("   [RETRY] Ponawiam próbę...");
                             await Task.Delay(2000);
                         }
                     }
                     catch (HttpRequestException ex)
                     {
-                        if (attempt == maxRetries)
-                        {
-                            Console.WriteLine($"[BŁĄD KRYTYCZNY] Nie udało się pobrać ofert po {maxRetries} próbach. Błąd: {ex.Message}");
-                        }
-                        else
-                        {
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine($"Błąd HTTP. Ponawiam probe za 4 sekundy... (Próba {attempt} z {maxRetries})");
-                            Console.ResetColor();
-                            await Task.Delay(4000);
-                        }
+                        Console.WriteLine($"   [ERROR] Błąd HTTP: {ex.Message}");
+                        if (attempt == maxRetries) Console.WriteLine($"[BŁĄD KRYTYCZNY] {ex.Message}");
+                        else await Task.Delay(4000);
                     }
                 }
 
@@ -1821,6 +2558,7 @@ namespace PriceSafari.Services
                     firstPageRawResponse = rawResponse;
 
                 lastFetchCount = newOffers.Count;
+                Console.WriteLine($"   [INFO] Znaleziono ofert na stronie: {lastFetchCount}");
 
                 foreach (var offer in newOffers)
                 {
@@ -1832,29 +2570,27 @@ namespace PriceSafari.Services
                 }
 
                 startIndex += pageSize;
-
                 if (lastFetchCount == pageSize) await Task.Delay(new Random().Next(500, 800));
 
             } while (lastFetchCount == pageSize);
 
-            // --- 2. TRYB SMART Q (WRGA) Z LIMITEREM CENOWYM ---
+            // --- 2. TRYB SMART Q (WRGA) ---
             if (coOfr.UseWRGA && !string.IsNullOrEmpty(firstPageRawResponse))
             {
-                // Ustalenie catalogId do logów WRGA
-                string? catalogIdForLog = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl);
-                Console.WriteLine($"[INFO] Uruchamiam tryb WRGA (Smart Q) dla produktu: {catalogIdForLog}");
-
-                // Obliczamy średnią cenę z OAPV jako punkt odniesienia (Baseline)
                 decimal baselinePrice = 0;
                 if (allFoundOffers.Any())
                 {
-                    var prices = allFoundOffers.Select(o => ParsePrice(o.Price)).Where(p => p > 0).ToList();
+                    var prices = allFoundOffers
+                        .Where(o => o.Currency == "PLN")
+                        .Select(o => ParsePrice(o.Price))
+                        .Where(p => p > 0)
+                        .ToList();
+
                     if (prices.Any())
                     {
-                        // Mediana jest odporna na błędy parsowania (outliery)
                         var sortedPrices = prices.OrderBy(p => p).ToList();
                         baselinePrice = sortedPrices[sortedPrices.Count / 2];
-                        Console.WriteLine($"[DEBUG] Baseline (Mediana) dla zadania {coOfr.Id}: {baselinePrice:F2} zł");
+                        Console.WriteLine($"\n[INFO] Mediana cen z OAPV (Baseline): {baselinePrice:F2} zł");
                     }
                 }
 
@@ -1867,12 +2603,25 @@ namespace PriceSafari.Services
 
                     try
                     {
+                        Console.ForegroundColor = ConsoleColor.Magenta;
+                        Console.WriteLine($"\n[DEBUG HTTP] Wysłanie żądania WRGA (Smart Q):");
+                        Console.WriteLine($"   URL: {wrgaUrl}");
+                        Console.ResetColor();
+
                         string wrgaResponse = await _httpClient.GetStringAsync(wrgaUrl);
+
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        int previewLength = Math.Min(500, wrgaResponse.Length);
+                        Console.WriteLine($"   [RESPONSE] Długość: {wrgaResponse.Length} znaków.");
+                        Console.WriteLine($"   [PREVIEW]: {wrgaResponse.Substring(0, previewLength)}...");
+                        Console.ResetColor();
+
                         var wrgaOffers = GoogleShoppingApiParser.ParseWrga(wrgaResponse);
+                        Console.WriteLine($"   [INFO] Znaleziono ofert WRGA: {wrgaOffers.Count}");
 
                         foreach (var off in wrgaOffers)
                         {
-                            if (baselinePrice > 0)
+                            if (baselinePrice > 0 && off.Currency == "PLN")
                             {
                                 decimal wrgaPrice = ParsePrice(off.Price);
                                 decimal diff = wrgaPrice - baselinePrice;
@@ -1880,8 +2629,9 @@ namespace PriceSafari.Services
 
                                 if (percentageDiff < -0.8m || percentageDiff > 2.0m)
                                 {
-                                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                                    Console.WriteLine($"[LIMITER] Odrzucono ofertę WRGA ({off.Seller}). Cena: {wrgaPrice} vs Średnia OAPV: {baselinePrice:F2} (Różnica: {percentageDiff:P0})");
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.WriteLine($"\n[LIMITER - ODZRUT PROD] Odrzucono ofertę WRGA: {off.Seller}");
+                                    Console.WriteLine($"   Powód: Cena {wrgaPrice:F2} odbiega o {percentageDiff:P0} od średniej {baselinePrice:F2}");
                                     Console.ResetColor();
                                     continue;
                                 }
@@ -1896,59 +2646,165 @@ namespace PriceSafari.Services
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[WARNING] Błąd w trybie Smart Q: {ex.Message}");
+                        Console.WriteLine($"   [ERROR] Błąd WRGA: {ex.Message}");
                     }
                 }
             }
 
+            // --- 3. PRZETWARZANIE WYNIKÓW (FILTRACJA DO BAZY + PRZYGOTOWANIE LOGÓW) ---
             var groupedBySeller = allFoundOffers.GroupBy(o => o.Seller);
-            var finalOffersToProcess = new List<(TempOffer offer, int count)>();
+
+            // Listy lokalne do logowania (żeby nie zmieniać modelu CoOfrPriceHistoryClass)
+            var debugMainList = new List<dynamic>();
+            var debugAdditionalList = new List<dynamic>();
 
             foreach (var group in groupedBySeller)
             {
-                int storeOfferCount = group.Count();
-                var cheapestOffer = group.OrderBy(o => ParsePrice(o.Price)).First();
-                finalOffersToProcess.Add((cheapestOffer, storeOfferCount));
+                // Najlepsza oferta "czysta" (do zapisu)
+                var bestValidOffer = group
+                    .Where(o => o.Condition == "NOWY" && o.Currency == "PLN")
+                    .OrderBy(o => ParsePrice(o.Price))
+                    .FirstOrDefault();
+
+                // WSZYSTKIE oferty (do logów, jak w teście)
+                var sortedStoreOffers = group.OrderBy(o => ParsePrice(o.Price)).ToList();
+
+                foreach (var offer in sortedStoreOffers)
+                {
+                    bool isBest = (bestValidOffer != null && offer == bestValidOffer);
+
+                    // Jeśli to najlepsza oferta, dodajemy do listy zwrotnej (do bazy)
+                    if (isBest)
+                    {
+                        string? isBiddingValue = null;
+                        if (!string.IsNullOrEmpty(offer.Badge))
+                        {
+                            string badgeLower = offer.Badge.ToLower();
+                            if (badgeLower.Contains("cena")) isBiddingValue = "bpg";
+                            else if (badgeLower.Contains("popularn") || badgeLower.Contains("wybór")) isBiddingValue = "hpg";
+                        }
+
+                        finalPriceHistory.Add(new CoOfrPriceHistoryClass
+                        {
+                            CoOfrClassId = coOfr.Id,
+                            GoogleCid = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl),
+                            GoogleStoreName = offer.Seller,
+                            GooglePrice = ParsePrice(offer.Price),
+                            GooglePriceWithDelivery = ParsePrice(offer.Price) + ParseDeliveryPrice(offer.Delivery),
+                            GooglePosition = offer.OriginalIndex.ToString(),
+                            IsBidding = isBiddingValue,
+                            GoogleInStock = offer.IsInStock,
+                            GoogleOfferPerStoreCount = group.Count()
+                        });
+                    }
+
+                    // --- PRZYGOTOWANIE DANYCH DO TABELKI DEBUGOWEJ (Anonimowy obiekt) ---
+                    var debugItem = new
+                    {
+                        Pos = isBest ? offer.OriginalIndex.ToString() : "-",
+                        GPos = offer.OriginalIndex,
+                        Stock = offer.IsInStock ? "OK" : "BRAK",
+                        Cond = offer.Condition,
+                        Curr = offer.Currency,
+                        Info = offer.Badge ?? "-",
+                        Method = offer.Method,
+                        Seller = offer.Seller,
+                        Price = ParsePrice(offer.Price),
+                        Del = ParseDeliveryPrice(offer.Delivery),
+                        Total = ParsePrice(offer.Price) + ParseDeliveryPrice(offer.Delivery),
+                        Url = offer.Url,
+                        IsMain = isBest
+                    };
+
+                    if (isBest) debugMainList.Add(debugItem);
+                    else debugAdditionalList.Add(debugItem);
+                }
             }
 
-            foreach (var item in finalOffersToProcess.OrderBy(i => ParsePrice(i.offer.Price)))
+            // Sortowanie finalne (dla bazy)
+            finalPriceHistory = finalPriceHistory.OrderBy(x => x.GooglePrice).ToList();
+
+            // --- DRUKOWANIE TABEL DEBUGOWYCH (BEZ ZMIAN W MODELACH) ---
+
+            // Sortowanie list debugowych
+            debugMainList = debugMainList.OrderBy(x => x.Price).ToList();
+            // Nadpisanie pozycji w głównej liście dla logów (1, 2, 3...)
+            for (int i = 0; i < debugMainList.Count; i++)
             {
-                string? isBiddingValue = null;
+                // Tworzymy nowy anonimowy obiekt ze zaktualizowanym Pos (bo anonimowe są read-only)
+                var old = debugMainList[i];
+                debugMainList[i] = new { old.Pos, old.GPos, old.Stock, old.Cond, old.Curr, old.Info, old.Method, old.Seller, old.Price, old.Del, old.Total, old.Url, old.IsMain, ListPos = (i + 1).ToString() };
+            }
 
-                if (!string.IsNullOrEmpty(item.offer.Badge))
-                {
-                    string badgeLower = item.offer.Badge.ToLower();
-                    if (badgeLower.Contains("cena")) isBiddingValue = "bpg";
-                    else if (badgeLower.Contains("popularn") || badgeLower.Contains("wybór")) isBiddingValue = "hpg";
-                }
+            debugAdditionalList = debugAdditionalList.OrderBy(x => x.Seller).ThenBy(x => x.Price).ToList();
 
-                finalPriceHistory.Add(new CoOfrPriceHistoryClass
-                {
-                    CoOfrClassId = coOfr.Id, // Przypisanie ID zadania
-                    GoogleCid = coOfr.GoogleCid ?? ExtractProductId(coOfr.GoogleOfferUrl), 
-                    GoogleStoreName = item.offer.Seller,
-                    GooglePrice = ParsePrice(item.offer.Price),
-                    GooglePriceWithDelivery = ParsePrice(item.offer.Price) + ParseDeliveryPrice(item.offer.Delivery),
-                    GooglePosition = item.offer.OriginalIndex.ToString(),
-                    IsBidding = isBiddingValue,
-                    GoogleInStock = item.offer.IsInStock,
-                    GoogleOfferPerStoreCount = item.count
-                });
+            Console.WriteLine("\n===============================================================================================================================================================================");
+            Console.WriteLine($" TABELA GŁÓWNA: Najlepsze oferty (NOWE, PLN) (Liczba: {debugMainList.Count})");
+            Console.WriteLine("===============================================================================================================================================================================");
+            Console.WriteLine($"{"Poz.",-4} | {"G-Pos",-5} | {"Mag.",-4} | {"Stan",-6} | {"Waluta",-6} | {"Info",-15} | {"Metoda",-6} | {"Sprzedawca",-20} | {"Cena",-10} | {"Dostawa",-9} | {"Razem",-10} | URL");
+            Console.WriteLine("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+
+            foreach (var item in debugMainList) PrintDebugRow(item, item.ListPos);
+
+            Console.WriteLine("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+
+            if (debugAdditionalList.Any())
+            {
+                Console.WriteLine("\n");
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("===============================================================================================================================================================================");
+                Console.WriteLine($" TABELA DODATKOWA: Używane, Obce waluty lub Gorsze oferty (Liczba: {debugAdditionalList.Count})");
+                Console.WriteLine("===============================================================================================================================================================================");
+                Console.ResetColor();
+                Console.WriteLine($"{"---",-4} | {"G-Pos",-5} | {"Mag.",-4} | {"Stan",-6} | {"Waluta",-6} | {"Info",-15} | {"Metoda",-6} | {"Sprzedawca",-20} | {"Cena",-10} | {"Dostawa",-9} | {"Razem",-10} | URL");
+                Console.WriteLine("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+                foreach (var item in debugAdditionalList) PrintDebugRow(item, "-");
+                Console.WriteLine("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+            }
+            else
+            {
+                Console.WriteLine("\n[INFO] Brak dodatkowych ofert.");
             }
 
             return finalPriceHistory;
         }
-        #region Helper Methods
+
+        #region Helper Methods (Logowanie i Parsowanie)
+
+        // Metoda pomocnicza do drukowania wiersza (przyjmuje dynamic)
+        private void PrintDebugRow(dynamic item, string posLabel)
+        {
+            string infoCode = item.Info;
+            if (infoCode.Length > 15) infoCode = infoCode.Substring(0, 12) + "...";
+            string seller = item.Seller;
+            if (seller.Length > 20) seller = seller.Substring(0, 17) + "...";
+
+            Console.Write($"{posLabel,-4} | {item.GPos,-5} | {item.Stock,-4} | ");
+
+            string cond = item.Cond;
+            if (cond.Contains("UŻYW") || cond.Contains("OUTLET")) Console.ForegroundColor = ConsoleColor.Red;
+            else Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write($"{cond,-6}");
+            Console.ResetColor();
+
+            Console.Write(" | ");
+
+            string curr = item.Curr;
+            if (curr != "PLN") Console.ForegroundColor = ConsoleColor.Magenta;
+            else Console.ForegroundColor = ConsoleColor.Gray;
+            Console.Write($"{curr,-6}");
+            Console.ResetColor();
+
+            Console.WriteLine($" | {infoCode,-15} | {item.Method,-6} | {seller,-20} | {item.Price,-10} | {item.Del,-9} | {item.Total,-10} | {item.Url}");
+        }
+
         private bool AreUrlsEqual(string url1, string url2)
         {
             if (string.IsNullOrEmpty(url1) || string.IsNullOrEmpty(url2)) return false;
-
             string u1 = url1.Contains("?") ? url1.Split('?')[0] : url1;
             string u2 = url2.Contains("?") ? url2.Split('?')[0] : url2;
-
             string norm1 = u1.ToLower().Replace("https://", "").Replace("http://", "").Replace("www.", "").TrimEnd('/');
             string norm2 = u2.ToLower().Replace("https://", "").Replace("http://", "").Replace("www.", "").TrimEnd('/');
-
             return norm1 == norm2;
         }
 
@@ -1963,19 +2819,13 @@ namespace PriceSafari.Services
         {
             if (string.IsNullOrWhiteSpace(priceText)) return 0;
             var cleanedText = Regex.Replace(priceText, @"[^\d,.]", "").Replace(",", ".");
-            if (decimal.TryParse(cleanedText, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal result))
-            {
-                return result;
-            }
+            if (decimal.TryParse(cleanedText, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal result)) return result;
             return 0;
         }
 
         private decimal ParseDeliveryPrice(string? deliveryText)
         {
-            if (string.IsNullOrWhiteSpace(deliveryText) || deliveryText.ToLower().Contains("bezpłatna") || deliveryText.ToLower().Contains("darmowa") || deliveryText.ToLower().Contains("bezpłatnie"))
-            {
-                return 0;
-            }
+            if (string.IsNullOrWhiteSpace(deliveryText) || deliveryText.ToLower().Contains("bezpłatna") || deliveryText.ToLower().Contains("darmowa") || deliveryText.ToLower().Contains("bezpłatnie")) return 0;
             return ParsePrice(deliveryText);
         }
         #endregion
@@ -1983,7 +2833,6 @@ namespace PriceSafari.Services
 
     public static class GoogleShoppingApiParser
     {
-        // === PARSER WRGA (HTML) ===
         public static List<TempOffer> ParseWrga(string rawResponse)
         {
             var offers = new List<TempOffer>();
@@ -2018,6 +2867,15 @@ namespace PriceSafari.Services
                     decimal deliveryVal = 0;
                     string badge = "ORGANIC";
 
+                    string condition = "NOWY";
+                    string blockLower = block.ToLower();
+                    var usedKeywords = new[] { "pre-owned", "used", "używany", "outlet", "renewed", "refurbished", "odnowiony", "powystawowy" };
+                    if (usedKeywords.Any(k => blockLower.Contains(k))) condition = "UŻYWANY";
+
+                    string currency = "PLN";
+                    if ((blockLower.Contains("eur") || blockLower.Contains("€")) && !blockLower.Contains("pln") && !blockLower.Contains("zł")) currency = "EUR";
+                    else if ((blockLower.Contains("usd") || blockLower.Contains("$")) && !blockLower.Contains("pln") && !blockLower.Contains("zł")) currency = "USD";
+
                     priceVal = ExtractRichSnippetPrice(block);
 
                     if (priceVal > 0)
@@ -2036,18 +2894,16 @@ namespace PriceSafari.Services
 
                     if (priceVal > 0)
                     {
-                        string finalPrice = priceVal.ToString("F2");
-                        string deliveryStr = deliveryVal > 0 ? deliveryVal.ToString("F2") : "0";
-
                         offers.Add(new TempOffer(
                             seller,
-                            finalPrice,
+                            priceVal.ToString("F2"),
                             url,
-                            deliveryStr,
+                            deliveryVal > 0 ? deliveryVal.ToString("F2") : "0",
                             true,
                             badge,
                             offerIndex,
-                            "WRGA"
+                            "WRGA",
+                            null, null, condition, currency
                         ));
                     }
                 }
@@ -2056,25 +2912,19 @@ namespace PriceSafari.Services
             return offers;
         }
 
-        // === PARSER OAPV (JSON) ===
         public static List<TempOffer> ParseOapv(string rawResponse)
         {
             if (string.IsNullOrWhiteSpace(rawResponse)) return new List<TempOffer>();
-
             try
             {
                 string cleanedJson = rawResponse.StartsWith(")]}'") ? rawResponse.Substring(5) : rawResponse;
                 using JsonDocument doc = JsonDocument.Parse(cleanedJson);
                 JsonElement root = doc.RootElement.Clone();
-
                 var allOffers = new List<TempOffer>();
                 FindAndParseAllOffers(root, root, allOffers);
                 return allOffers;
             }
-            catch (JsonException)
-            {
-                return new List<TempOffer>();
-            }
+            catch (JsonException) { return new List<TempOffer>(); }
         }
 
         private static void FindAndParseAllOffers(JsonElement root, JsonElement node, List<TempOffer> allOffers)
@@ -2086,24 +2936,14 @@ namespace PriceSafari.Services
                     foreach (JsonElement potentialOffer in node.EnumerateArray())
                     {
                         TempOffer? offer = ParseSingleOffer(root, potentialOffer);
-                        if (offer != null && !allOffers.Any(o => o.Url == offer.Url))
-                        {
-                            allOffers.Add(offer);
-                        }
+                        if (offer != null && !allOffers.Any(o => o.Url == offer.Url)) allOffers.Add(offer);
                     }
                 }
-
-                foreach (var element in node.EnumerateArray())
-                {
-                    FindAndParseAllOffers(root, element, allOffers);
-                }
+                foreach (var element in node.EnumerateArray()) FindAndParseAllOffers(root, element, allOffers);
             }
             else if (node.ValueKind == JsonValueKind.Object)
             {
-                foreach (var property in node.EnumerateObject())
-                {
-                    FindAndParseAllOffers(root, property.Value, allOffers);
-                }
+                foreach (var property in node.EnumerateObject()) FindAndParseAllOffers(root, property.Value, allOffers);
             }
         }
 
@@ -2124,91 +2964,130 @@ namespace PriceSafari.Services
 
             try
             {
-                // Pobieramy wszystkie węzły (potrzebujemy dostępu do Number i String)
-                var allNodes = Flatten(offerData, 20).ToList();
+                // ZMIANA: Zwiększono głębokość do 50
+                var allNodes = Flatten(offerData, 50).ToList();
                 var flatStrings = allNodes.Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToList();
 
-                // Filtry stanu
-                var usedKeywords = new[] { "pre-owned", "used", "używany", "outlet", "renewed", "refurbished", "odnowiony", "powystawowy" };
-                if (flatStrings.Any(text => usedKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase)))) return null;
+                // 1. URL i Sprzedawca
+                string? url = flatStrings.FirstOrDefault(s => s.StartsWith("http") && !s.Contains("google.com") && !s.Contains("gstatic.com"));
 
-                // Filtry dostępności
+                // 1. Detekcja Stanu (Tylko po tekstach z JSON, bez sprawdzania URL - zgodnie z kodem testowym)
+                string condition = "NOWY";
+            
+                var usedKeywords = new[] { "pre-owned", "used", "używany", "outlet", "renewed", "refurbished", "odnowiony", "powystawowy" };
+
+                if (flatStrings.Any(text => usedKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase))))
+                {
+                    condition = "UŻYWANY";
+                }
+
+                // Reszta logiki parsowania...
                 bool isInStock = true;
                 var outOfStockKeywords = new[] { "out of stock", "niedostępny", "brak w magazynie", "asortyment niedostępny" };
                 if (flatStrings.Any(text => outOfStockKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase)))) isInStock = false;
 
-                string? url = flatStrings.FirstOrDefault(s => s.StartsWith("http") && !s.Contains("google.com") && !s.Contains("gstatic.com"));
-
-                // --- LOGIKA CENY (PRODUKCYJNA) ---
-                string? price = null;
-
-                // KROK A: Szukamy Micros (Number)
-                foreach (var node in allNodes)
+                string? seller = null;
+                if (!string.IsNullOrEmpty(url)) seller = GetDomainName(url);
+                if (string.IsNullOrEmpty(seller) || seller == "Nieznany")
                 {
-                    if (node.ValueKind == JsonValueKind.Number)
+                    var blacklist = new[] { "PLN", "zł", "EUR", "USD", "netto", "brutto" };
+                    foreach (var s in flatStrings)
                     {
-                        long val = node.GetInt64();
-                        // Walidujemy Micros: zazwyczaj kończą się na 0000 i są w sensownym zakresie
-                        if (val >= 1000000 && val < 1000000000000 && val % 10000 == 0)
+                        if (!s.StartsWith("http") && s.Length > 2 && !blacklist.Any(b => s.Contains(b, StringComparison.OrdinalIgnoreCase)) && !Regex.IsMatch(s, @"\d"))
                         {
-                            price = (val / 1000000m).ToString("F2", CultureInfo.InvariantCulture);
-                            break;
+                            seller = s; break;
+                        }
+                    }
+                }
+                if (seller == null && url != null) seller = GetDomainName(url);
+
+                List<(decimal Amount, string Currency)> structuralPrices = new();
+                for (int i = 1; i < allNodes.Count; i++)
+                {
+                    var current = allNodes[i];
+                    var prev = allNodes[i - 1];
+                    if (current.ValueKind == JsonValueKind.String && prev.ValueKind == JsonValueKind.Number)
+                    {
+                        string currCode = current.GetString()!.ToUpper();
+                        if (currCode == "PLN" || currCode == "EUR" || currCode == "USD" || currCode == "GBP")
+                        {
+                            long micros = prev.GetInt64();
+                            if (micros >= 1000000) structuralPrices.Add((micros / 1000000m, currCode));
                         }
                     }
                 }
 
-                // KROK B: Fallback do stringów (Regex)
-                var oapvRegex = new Regex(@"\d[\d\s,.]*\s*(?:PLN|zł|EUR|USD)", RegexOptions.IgnoreCase);
-                if (string.IsNullOrEmpty(price))
+                bool hasTextualForeignEvidence = false;
+                string foreignTextCurrency = "";
+                var foreignRegex = new Regex(@"[\(\s](€|EUR|\$|USD)\s*(\d+[.,]?\d*)", RegexOptions.IgnoreCase);
+                foreach (var s in flatStrings)
                 {
-                    price = flatStrings.FirstOrDefault(s => oapvRegex.IsMatch(s) && !s.Trim().StartsWith("+"));
-                }
-
-                // --- KONIEC LOGIKI CENY ---
-                string? seller = null;
-
-                // KROK A: Próbujemy wyciągnąć nazwę z domeny URL (Najbezpieczniejsza opcja dla Twoich potrzeb)
-                if (!string.IsNullOrEmpty(url))
-                {
-                    seller = GetDomainName(url);
-                }
-
-                // KROK B: (Opcjonalny Fallback) Jeśli domena zawiedzie, szukamy w JSON, 
-                // ale wykluczamy waluty i inne "śmieci"
-                if (string.IsNullOrEmpty(seller) || seller == "Nieznany")
-                {
-                    var offerElements = offerData.EnumerateArray().ToList();
-                    var blacklist = new[] { "PLN", "zł", "EUR", "USD", "netto", "brutto" };
-
-                    for (int i = 0; i < offerElements.Count - 1; i++)
+                    Match m = foreignRegex.Match(s);
+                    if (m.Success)
                     {
-                        if (offerElements[i].ValueKind == JsonValueKind.Number && offerElements[i + 1].ValueKind == JsonValueKind.String)
+                        hasTextualForeignEvidence = true;
+                        string symbol = m.Groups[1].Value.ToUpper();
+                        foreignTextCurrency = (symbol.Contains("EUR") || symbol.Contains("€")) ? "EUR" : "USD";
+                        break;
+                    }
+                }
+
+                string? finalPrice = null;
+                string finalCurrency = "PLN";
+                var plnNode = structuralPrices.FirstOrDefault(x => x.Currency == "PLN");
+
+                if (plnNode != default)
+                {
+                    finalPrice = plnNode.Amount.ToString("F2", CultureInfo.InvariantCulture);
+                    if (hasTextualForeignEvidence) finalCurrency = foreignTextCurrency;
+                    else finalCurrency = "PLN";
+                }
+                else if (structuralPrices.Any(x => x.Currency != "PLN"))
+                {
+                    var foreign = structuralPrices.First(x => x.Currency != "PLN");
+                    finalPrice = foreign.Amount.ToString("F2", CultureInfo.InvariantCulture);
+                    finalCurrency = foreign.Currency;
+                }
+                else
+                {
+                    var plnRegex = new Regex(@"(\d[\d\s,.]*)\s*(?:PLN|zł)|(?:PLN|zł)\s*(\d[\d\s,.]*)", RegexOptions.IgnoreCase);
+                    foreach (var s in flatStrings)
+                    {
+                        if (plnRegex.IsMatch(s) && !s.Trim().StartsWith("+"))
                         {
-                            string potential = offerElements[i + 1].GetString()!;
-
-                            bool isBlacklisted = blacklist.Any(b => string.Equals(potential, b, StringComparison.OrdinalIgnoreCase));
-
-                            if (!potential.StartsWith("http") && !isBlacklisted && !oapvRegex.IsMatch(potential) && potential.Length > 2)
+                            decimal tempPrice = ParsePriceDecimal(s);
+                            if (tempPrice > 1.00m)
                             {
-                                seller = potential;
+                                finalPrice = tempPrice.ToString("F2", CultureInfo.InvariantCulture);
+                                finalCurrency = "PLN";
                                 break;
                             }
                         }
                     }
                 }
-                if (seller == null && url != null) seller = GetDomainName(url);
+
+                // LOGOWANIE DECYZJI (JAK W TEŚCIE)
+                if (seller != null && (seller.Contains("Allegro") || seller.Contains("Ebay") || seller.Contains("eBay")))
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkYellow;
+                    Console.Write($"[DEBUG {seller}] Struktura: ");
+                    foreach (var p in structuralPrices) Console.Write($"{p.Amount} {p.Currency} | ");
+                    Console.Write($"TekstForeign: {hasTextualForeignEvidence} ");
+                    Console.WriteLine($"-> DECYZJA: {finalCurrency}");
+                    Console.ResetColor();
+                }
 
                 string? delivery = null;
                 if (flatStrings.Any(s => s.Contains("Bezpłatna", StringComparison.OrdinalIgnoreCase) || s.Contains("Darmowa", StringComparison.OrdinalIgnoreCase)))
                     delivery = "Bezpłatna";
                 else
                 {
-                    string? rawDeliveryText = flatStrings.FirstOrDefault(s => s.Trim().StartsWith("+") && oapvRegex.IsMatch(s));
-                    if (rawDeliveryText != null) { Match m = oapvRegex.Match(rawDeliveryText); if (m.Success) delivery = m.Value.Trim(); }
-                    else
+                    var delRegex = new Regex(@"(\d+[.,]\d{2})\s*(?:PLN|zł)");
+                    string? rawDeliveryText = flatStrings.FirstOrDefault(s => s.Trim().StartsWith("+") && delRegex.IsMatch(s));
+                    if (rawDeliveryText != null)
                     {
-                        string? alt = flatStrings.FirstOrDefault(s => s.Contains("dostawa", StringComparison.OrdinalIgnoreCase) && oapvRegex.IsMatch(s));
-                        if (alt != null) { Match m = oapvRegex.Match(alt); if (m.Success) delivery = m.Value.Trim(); }
+                        Match m = delRegex.Match(rawDeliveryText);
+                        if (m.Success) delivery = ParsePriceDecimal(m.Value).ToString("F2");
                     }
                 }
 
@@ -2219,11 +3098,9 @@ namespace PriceSafari.Services
                     badge = flatStrings.FirstOrDefault(s => possibleBadges.Any(pb => string.Equals(s, pb, StringComparison.OrdinalIgnoreCase)));
                 }
 
-                var ratingData = ExtractStoreRating(offerData);
-
-                if (!string.IsNullOrWhiteSpace(seller) && price != null && url != null)
+                if (!string.IsNullOrWhiteSpace(seller) && finalPrice != null && url != null)
                 {
-                    return new TempOffer(seller, price, url, delivery, isInStock, badge, 0, "OAPV", ratingData.Score, ratingData.Count);
+                    return new TempOffer(seller, finalPrice, url, delivery, isInStock, badge, 0, "OAPV", null, null, condition, finalCurrency);
                 }
             }
             catch { }
@@ -2255,8 +3132,8 @@ namespace PriceSafari.Services
         private static bool IsGoogleLink(string url)
         {
             return url.Contains(".google.") || url.Contains("gstatic.") ||
-                  url.Contains("/search?") || url.Contains("youtube.") ||
-                  url.Contains("googleusercontent") || url.Contains("translate.google");
+                   url.Contains("/search?") || url.Contains("youtube.") ||
+                   url.Contains("googleusercontent") || url.Contains("translate.google");
         }
 
         private static string? ExtractBadgeStrict(JsonElement offerData)
@@ -2287,47 +3164,29 @@ namespace PriceSafari.Services
             return null;
         }
 
-        private static (string? Score, string? Count) ExtractStoreRating(JsonElement offerData)
-        {
-            try
-            {
-                var stack = new Stack<JsonElement>(); stack.Push(offerData);
-                while (stack.Count > 0)
-                {
-                    var current = stack.Pop();
-                    if (current.ValueKind == JsonValueKind.Array)
-                    {
-                        if (current.GetArrayLength() >= 2 && current[0].ValueKind == JsonValueKind.String && current[1].ValueKind == JsonValueKind.String)
-                        {
-                            string s1 = current[0].GetString()!;
-                            if (s1.Contains("/5") && s1.Length < 10) return (s1, current[1].GetString()!);
-                        }
-                        foreach (var element in current.EnumerateArray()) if (element.ValueKind == JsonValueKind.Array) stack.Push(element);
-                    }
-                }
-            }
-            catch { }
-            return (null, null);
-        }
-
         private static IEnumerable<JsonElement> Flatten(JsonElement node, int maxDepth = 20, int currentDepth = 0)
         {
             if (currentDepth > maxDepth) yield break;
-            var stack = new Stack<JsonElement>(); stack.Push(node);
-            while (stack.Count > 0)
+            yield return node;
+            if (node.ValueKind == JsonValueKind.Array)
             {
-                var current = stack.Pop();
-                if (current.ValueKind == JsonValueKind.Array) foreach (var element in current.EnumerateArray().Reverse()) stack.Push(element);
-                else if (current.ValueKind == JsonValueKind.Object) foreach (var property in current.EnumerateObject()) stack.Push(property.Value);
-                else yield return current;
+                foreach (var element in node.EnumerateArray())
+                {
+                    foreach (var child in Flatten(element, maxDepth, currentDepth + 1)) yield return child;
+                }
+            }
+            else if (node.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in node.EnumerateObject())
+                {
+                    foreach (var child in Flatten(property.Value, maxDepth, currentDepth + 1)) yield return child;
+                }
             }
         }
 
         private static decimal ExtractRichSnippetPrice(string htmlBlock)
         {
-            var richPriceRegex = new Regex(
-                @"<span[^>]*class=""[^""]*\bLI0TWe\b[^""]*""[^>]*>\s*([\d,\.\s]+(?:zł|PLN|EUR|USD)?)\s*</span>",
-                RegexOptions.IgnoreCase);
+            var richPriceRegex = new Regex(@"<span[^>]*class=""[^""]*\bLI0TWe\b[^""]*""[^>]*>\s*([\d,\.\s]+(?:zł|PLN|EUR|USD)?)\s*</span>", RegexOptions.IgnoreCase);
             var match = richPriceRegex.Match(htmlBlock);
             if (match.Success) return ParsePriceDecimal(match.Groups[1].Value);
             return 0;
@@ -2335,9 +3194,7 @@ namespace PriceSafari.Services
 
         private static decimal ExtractDeliveryFromRichSnippet(string htmlBlock)
         {
-            var deliveryRegex = new Regex(
-                @"(\d+[,\.]\d{2})\s*(?:PLN|zł)?\s*(?:delivery|dostawa|wysyłka)",
-                RegexOptions.IgnoreCase);
+            var deliveryRegex = new Regex(@"(\d+[,\.]\d{2})\s*(?:PLN|zł)?\s*(?:delivery|dostawa|wysyłka)", RegexOptions.IgnoreCase);
             var match = deliveryRegex.Match(htmlBlock);
             if (match.Success) return ParsePriceDecimal(match.Groups[1].Value);
             return 0;
@@ -2345,56 +3202,36 @@ namespace PriceSafari.Services
 
         private static (decimal Price, decimal Delivery) AnalyzePricesInBlock(string text)
         {
-            var priceRegex = new Regex(
-                @"(?:cena|price|za)?\s*[:;-]?\s*(?<!\d)(\d{1,3}(?:[\s\.]\d{3})*[,\.]\d{2})(?!\d)\s*(?:zł|PLN|EUR|USD)?",
-                RegexOptions.IgnoreCase);
-
+            var priceRegex = new Regex(@"(?:cena|price|za)?\s*[:;-]?\s*(?<!\d)(\d{1,3}(?:[\s\.]\d{3})*[,\.]\d{2})(?!\d)\s*(?:zł|PLN|EUR|USD)?", RegexOptions.IgnoreCase);
             var matches = priceRegex.Matches(text);
             decimal bestPrice = 0;
             decimal bestDelivery = 0;
 
-            var candidates = new List<(decimal val, int index, int score)>();
-
             foreach (Match m in matches)
             {
-                string numStr = m.Groups[1].Value;
-                if (!decimal.TryParse(numStr.Replace(" ", "").Replace(".", ","), NumberStyles.Any, new CultureInfo("pl-PL"), out decimal val)) continue;
-
-                bool hasCurrency = m.Value.Contains("zł") || m.Value.Contains("PLN");
-                bool hasPriceKeyword = m.Value.ToLower().Contains("cena") || m.Value.ToLower().Contains("za");
-
-                if (val < 1.0m && !hasCurrency && !hasPriceKeyword) continue;
+                if (!decimal.TryParse(m.Groups[1].Value.Replace(" ", "").Replace(".", ","), NumberStyles.Any, new CultureInfo("pl-PL"), out decimal val)) continue;
+                if (val < 1.0m) continue;
 
                 int contextStart = Math.Max(0, m.Index - 30);
                 int contextLen = Math.Min(text.Length - contextStart, (m.Index + m.Length - contextStart) + 20);
-                string fullMatchContext = text.Substring(contextStart, contextLen).ToLower();
+                string snippetForLog = text.Substring(contextStart, contextLen).ToLower();
 
-                if (Regex.IsMatch(fullMatchContext, @"(dostawa|wysyłka|delivery|\+)"))
+                if (Regex.IsMatch(snippetForLog, @"(dostawa|wysyłka|delivery|\+)"))
                 {
                     if (bestDelivery == 0) bestDelivery = val;
-                    continue;
                 }
-
-                int score = 0;
-                if (hasPriceKeyword) score += 50;
-                if (hasCurrency) score += 10;
-                if (fullMatchContext.Contains("brutto")) score += 5;
-                if (fullMatchContext.Contains("netto")) score += 2;
-                if (val > 1900 && val < 2100 && val % 1 == 0 && !hasCurrency) continue;
-
-                candidates.Add((val, m.Index, score));
+                else if (bestPrice == 0)
+                {
+                    bestPrice = val;
+                }
             }
-
-            var winner = candidates.OrderByDescending(x => x.score).ThenBy(x => x.index).FirstOrDefault();
-            if (winner.val > 0) bestPrice = winner.val;
-
             return (bestPrice, bestDelivery);
         }
 
         private static string StripHtml(string html)
         {
             if (string.IsNullOrEmpty(html)) return "";
-            string s = html.Replace("<br>", " ").Replace("<br/>", " ").Replace("</div>", " ").Replace("</span>", " ").Replace("</b>", " ").Replace("</em>", " ").Replace("</a>", " ");
+            string s = html.Replace("<br>", " ").Replace("</div>", " ").Replace("</span>", " ").Replace("</b>", " ");
             s = Regex.Replace(s, "<.*?>", " ");
             s = WebUtility.HtmlDecode(s);
             s = Regex.Replace(s, @"\s+", " ").Trim();
@@ -2405,14 +3242,12 @@ namespace PriceSafari.Services
         {
             if (string.IsNullOrEmpty(priceStr)) return 0;
             string clean = Regex.Replace(priceStr, @"[^\d,.]", "");
-
             if (clean.Contains(",") && clean.Contains("."))
             {
                 if (clean.LastIndexOf(',') > clean.LastIndexOf('.')) clean = clean.Replace(".", "").Replace(",", ".");
                 else clean = clean.Replace(",", "");
             }
             else if (clean.Contains(",")) clean = clean.Replace(",", ".");
-
             if (decimal.TryParse(clean, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal res)) return res;
             return 0;
         }
