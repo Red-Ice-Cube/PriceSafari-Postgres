@@ -369,7 +369,7 @@
                 </div>
                 <div class="col-md-6">
                     <h5>
-                        Token API
+                        Status Integracji Allegro
                         @if (Model.IsAllegroTokenActive)
                         {
                             <span class="badge badge-success ml-2">AKTYWNY</span>
@@ -380,23 +380,63 @@
                         }
                     </h5>
                     <hr />
+
                     <div class="form-group">
-                        <label asp-for="AllegroApiToken">Obecny Token</label>
-                        <div class="input-group">
-                            <input asp-for="AllegroApiToken" value="@Model.AllegroApiToken" class="form-control" id="allegroTokenInput" type="password" autocomplete="off" placeholder="Brak tokenu" />
-                            <div class="input-group-append">
-                                <button class="btn btn-outline-secondary" type="button" id="toggleTokenVisibility" title="Pokaż/Ukryj">
-                                    👁️
-                                </button>
-                                <button class="btn btn-outline-danger" type="button" id="clearTokenBtn" title="Wyczyść token">
-                                    🗑️ Usuń
-                                </button>
-                            </div>
+                        <label asp-for="AllegroRefreshToken" class="font-weight-bold text-primary">
+                            Refresh Token (Klucz Główny)
+                        </label>
+
+                        <div class="alert alert-light border p-2 mb-2">
+                            <small class="text-muted">
+                                <i class="fas fa-key"></i> Wklej tutaj długi token wygenerowany przez Device Flow.
+                                System automatycznie wyczyści go ze spacji i enterów.
+                            </small>
                         </div>
-                        <span asp-validation-for="AllegroApiToken" class="text-danger"></span>
-                        <small class="form-text text-muted">
-                            Aby usunąć token, kliknij przycisk kosza i zapisz zmiany.
-                        </small>
+
+                        <textarea asp-for="AllegroRefreshToken"
+                                  class="form-control"
+                                  rows="4"
+                                  placeholder="eyJhbGciOiJSUzI1NiIs..."
+                                  style="font-family: monospace; font-size: 0.85rem;"></textarea>
+                        <span asp-validation-for="AllegroRefreshToken" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="text-secondary">Obecna Sesja (Access Token)</label>
+
+                        @if (!string.IsNullOrEmpty(Model.AllegroApiToken))
+                        {
+                            <div class="input-group">
+                                <input type="text"
+                                       class="form-control bg-light text-muted"
+                                       value="@(Model.AllegroApiToken.Substring(0, Math.Min(20, Model.AllegroApiToken.Length)) + "...")"
+                                       readonly
+                                       title="Token jest zarządzany automatycznie przez system" />
+
+                                <div class="input-group-append">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-robot"></i> Auto
+                                    </span>
+                                </div>
+                            </div>
+
+                            @if (Model.AllegroTokenExpiresAt.HasValue)
+                            {
+                                <div class="mt-2">
+                                    <small class="font-weight-bold @(Model.AllegroTokenExpiresAt < DateTime.Now ? "text-danger" : "text-success")">
+                                        <i class="fas fa-clock"></i>
+                                        Wygasa: @Model.AllegroTokenExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                                        (@(Model.AllegroTokenExpiresAt < DateTime.Now ? "Wygasł" : "Aktywny"))
+                                    </small>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning py-1 px-2">
+                                <small>Brak aktywnej sesji. System wygeneruje ją przy pierwszym użyciu Refresh Tokena.</small>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
@@ -446,15 +486,6 @@
             $('#clearTokenBtn').on('click', function () {
                 if (confirm('Czy na pewno chcesz wyczyścić pole tokenu? Musisz zapisać zmiany, aby zatwierdzić usunięcie.')) {
                     $('#allegroTokenInput').val('').trigger('change');
-                }
-            });
-
-            $('#toggleTokenVisibility').on('click', function () {
-                var input = $('#allegroTokenInput');
-                if (input.attr('type') === 'password') {
-                    input.attr('type', 'text');
-                } else {
-                    input.attr('type', 'password');
                 }
             });
 

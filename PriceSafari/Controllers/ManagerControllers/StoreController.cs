@@ -185,11 +185,26 @@ namespace PriceSafari.Controllers.ManagerControllers
                 existingStore.PaymentData = null;
             }
 
-            if (existingStore.AllegroApiToken != store.AllegroApiToken)
+            if (existingStore.AllegroRefreshToken != store.AllegroRefreshToken)
             {
-                existingStore.AllegroApiToken = store.AllegroApiToken;
-                if (string.IsNullOrEmpty(store.AllegroApiToken))
+                // Jeśli użytkownik wkleił nowy Refresh Token, czyścimy go ze spacji i enterów
+                if (!string.IsNullOrEmpty(store.AllegroRefreshToken))
                 {
+                    existingStore.AllegroRefreshToken = store.AllegroRefreshToken
+                        .Replace(" ", "")
+                        .Replace("\r", "")
+                        .Replace("\n", "")
+                        .Trim();
+
+                    // Resetujemy status, system sam sprawdzi token przy następnym użyciu
+                    existingStore.IsAllegroTokenActive = true;
+
+                    // Opcjonalnie: czyścimy stary Access Token, żeby wymusić odświeżenie
+                    existingStore.AllegroApiToken = null;
+                }
+                else
+                {
+                    existingStore.AllegroRefreshToken = null;
                     existingStore.IsAllegroTokenActive = false;
                 }
             }
