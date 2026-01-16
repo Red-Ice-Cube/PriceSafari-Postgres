@@ -1051,8 +1051,6 @@
 
 
 
-
-
 using PuppeteerSharp;
 using System;
 using System.Collections.Generic;
@@ -1115,19 +1113,21 @@ public class GoogleScraper
 
         _browser = await Puppeteer.LaunchAsync(new LaunchOptions
         {
-            Headless = false, // Ustaw na true, jeśli nie chcesz widzieć okna
+            Headless = false,
+
             Args = new[]
             {
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-gpu",
-            "--disable-blink-features=AutomationControlled", // Kluczowe dla ukrycia bota
+            "--disable-blink-features=AutomationControlled",
+
             "--disable-software-rasterizer",
             "--disable-extensions",
             "--disable-dev-shm-usage",
             "--disable-features=IsolateOrigins,site-per-process",
             "--disable-infobars"
-            // USUNIĘTO: "--blink-settings=imagesEnabled=false" aby obrazki działały
+
         }
         });
 
@@ -1142,10 +1142,8 @@ public class GoogleScraper
             throw new Exception("Failed to create a new page.");
         }
 
-        // Włączamy JavaScript (domyślnie jest włączony, ale dla pewności ustawiamy)
         await _page.SetJavaScriptEnabledAsync(true);
 
-        // Skrypt maskujący (ukrywanie 'webdriver' i fałszowanie pluginów)
         await _page.EvaluateFunctionOnNewDocumentAsync(@"() => {
         Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
         Object.defineProperty(navigator, 'plugins', {
@@ -1158,7 +1156,6 @@ public class GoogleScraper
         });
     }");
 
-        // Ustawienie losowego Viewportu (rozdzielczości) - standardowy laptop
         var commonResolutions = new List<(int width, int height)>
     {
         (1366, 768),
@@ -1169,7 +1166,6 @@ public class GoogleScraper
         var randomResolution = commonResolutions[random.Next(commonResolutions.Count)];
         await _page.SetViewportAsync(new ViewPortOptions { Width = randomResolution.width, Height = randomResolution.height });
 
-        // USUNIĘTO: Skrypt wycinający CSS i Style, ponieważ chciałeś ładowanie obrazków i pełny rendering.
     }
 
     public async Task<ScraperResult<List<GoogleProductIdentifier>>> SearchInitialProductIdentifiersAsync(string title, int maxItemsToExtract = 20)
@@ -1183,26 +1179,18 @@ public class GoogleScraper
 
             var encodedTitle = HttpUtility.UrlEncode(title);
 
-            // Zastosowałem parametry, o których rozmawialiśmy (gl=pl, hl=en, udm=3)
-            // Pamiętaj: hl=en wymusza angielski, hl=pl wymusza polski.
             var url = $"https://www.google.com/search?q={encodedTitle}&gl=pl&hl=pl&udm=3";
 
-            // 1. Wejście na stronę
             await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded } });
 
-            // --- DODANO OPÓŹNIENIE TUTAJ ---
             Console.WriteLine("[Scraper] Czekam 2 sekund na pełne załadowanie strony...");
-            await Task.Delay(2000); // 10 sekund pauzy
-                                     // -------------------------------
+            await Task.Delay(20000);
 
-            // 2. Sprawdzenie Captcha (po odczekaniu, bo czasem przekierowanie następuje po chwili)
             if (_page.Url.Contains("/sorry/") || _page.Url.Contains("/captcha"))
                 return ScraperResult<List<GoogleProductIdentifier>>.Captcha(identifiers);
 
-            // 3. Pobranie treści po odczekaniu
             string pageContent = await _page.GetContentAsync();
 
-            // Regex celujący w tablice zaczynające się od 6-ciu cudzysłowów (nasze ID)
             var regex = new System.Text.RegularExpressions.Regex(
                 @"\""[\w-]+\""\s*:\s*\[\s*\""([^\""]*)\""\s*,\s*\""([^\""]*)\""\s*,\s*\""([^\""]*)\""\s*,\s*\""([^\""]*)\""\s*,\s*\""([^\""]*)\""\s*,\s*\""([^\""]*)\""",
                 System.Text.RegularExpressions.RegexOptions.Compiled
@@ -1213,33 +1201,35 @@ public class GoogleScraper
             {
                 if (identifiers.Count >= maxItemsToExtract) break;
 
-                // Surowe dane z grup
-                string idx1 = match.Groups[2].Value; // Potencjalny CID
-                string idx2 = match.Groups[3].Value; // Potencjalny GID/HID (Typ B)
-                string idx3 = match.Groups[4].Value; // Potencjalny HID (Typ A) lub HID (Typ B)
-                string idx5 = match.Groups[6].Value; // Potencjalny GID (Typ A)
+                string idx1 = match.Groups[2].Value;
+
+                string idx2 = match.Groups[3].Value;
+
+                string idx3 = match.Groups[4].Value;
+
+                string idx5 = match.Groups[6].Value;
 
                 string cid = "";
                 string gid = "";
                 string hid = "";
 
-                // LOGIKA MAPOWANIA:
                 if (!string.IsNullOrEmpty(idx1))
                 {
-                    // TYP A: Produkt katalogowy (Twoje linki 1 i 4)
+
                     cid = idx1;
                     hid = idx3;
                     gid = idx5;
                 }
                 else if (!string.IsNullOrEmpty(idx2))
                 {
-                    // TYP B: Bezpośrednia oferta (Twoje linki 2 i 3)
-                    cid = ""; // Brak katalogu
+
+                    cid = "";
+
                     hid = idx3;
-                    gid = idx2; // W Typie B GID i HID są często tym samym ID
+                    gid = idx2;
+
                 }
 
-                // Walidacja czy to co złapaliśmy to faktycznie ID (tylko cyfry, min. 10 znaków)
                 bool isValid = (cid + gid + hid).Any(char.IsDigit) && (hid.Length > 10 || gid.Length > 10);
 
                 if (isValid)
@@ -1261,17 +1251,15 @@ public class GoogleScraper
             return ScraperResult<List<GoogleProductIdentifier>>.Fail(ex.Message, identifiers);
         }
     }
-
-
     public async Task<ScraperResult<List<string>>> FindStoreUrlsFromApiAsync(string cid, string gid)
     {
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Rozpoczynam zbieranie URL-i z API dla CID: {cid}, GID: {gid}");
         var allStoreUrls = new List<string>();
 
-        string urlTemplate = $"https://www.google.com/async/oapv?udm=3&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{cid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+        string urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&hl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{cid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
 
         int startIndex = 0;
-        const int pageSize = 10;
+        const int pageSize = 10; // Oczekujemy paczek po 10
         int lastFetchCount;
         const int maxRetries = 3;
 
@@ -1282,6 +1270,12 @@ public class GoogleScraper
                 string currentUrl = string.Format(urlTemplate, startIndex);
                 List<string> newUrls = new List<string>();
 
+                // [LOG]
+                Console.ForegroundColor = ConsoleColor.Magenta;
+                Console.WriteLine($"\n[DEBUG-HTTP] >>> Konstrukcja zapytania (Start: {startIndex}):");
+                Console.WriteLine($"[DEBUG-HTTP] URL: {currentUrl}");
+                Console.ResetColor();
+
                 for (int attempt = 1; attempt <= maxRetries; attempt++)
                 {
                     try
@@ -1289,6 +1283,17 @@ public class GoogleScraper
                         string rawResponse = await _httpClient.GetStringAsync(currentUrl);
                         newUrls = GoogleApiUrlParser.Parse(rawResponse);
 
+                        // [LOG]
+                        Console.ForegroundColor = ConsoleColor.Magenta;
+                        Console.WriteLine($"[DEBUG-HTTP] <<< Odpowiedź odebrana. Znaleziono {newUrls.Count} surowych URLi.");
+                        foreach (var rawUrl in newUrls)
+                        {
+                            Console.WriteLine($"   -> [RAW]: {rawUrl}");
+                        }
+                        Console.WriteLine("[DEBUG-HTTP] -----------------------------------------------------------");
+                        Console.ResetColor();
+
+                        // Jeśli cokolwiek znaleziono lub odpowiedź jest bardzo krótka (błąd), wychodzimy z pętli retry
                         if (newUrls.Any() || rawResponse.Length < 100)
                         {
                             break;
@@ -1319,9 +1324,14 @@ public class GoogleScraper
                 Console.WriteLine($"– Zebrano {newUrls.Count} linków z API na stronie start={startIndex}.");
 
                 startIndex += pageSize;
-                if (lastFetchCount == pageSize) await Task.Delay(TimeSpan.FromMilliseconds(_random.Next(500, 800)));
 
-            } while (lastFetchCount == pageSize);
+                // Małe opóźnienie, żeby nie zajechać serwera Google
+                if (lastFetchCount >= pageSize) await Task.Delay(TimeSpan.FromMilliseconds(_random.Next(500, 800)));
+
+                // --- TU JEST KLUCZOWA ZMIANA ---
+                // Warunek: Kontynuuj TYLKO JEŚLI pobrano tyle ile wynosi pageSize (10) LUB WIĘCEJ.
+                // Jeśli pobierze 8 (lastFetchCount < pageSize), warunek będzie fałszywy i pętla się zakończy.
+            } while (lastFetchCount >= pageSize);
 
             return ScraperResult<List<string>>.Success(allStoreUrls.Distinct().ToList());
         }
@@ -1378,7 +1388,6 @@ public class GoogleScraper
         {
             var responseString = await _httpClient.GetStringAsync(url);
 
-            // Logowanie 200 znaków dla diagnostyki
             string debugSnippet = responseString.Length > 200 ? responseString.Substring(0, 200) : responseString;
             Console.WriteLine($"[RAW]: {debugSnippet.Replace("\n", " ").Replace("\r", " ")}");
 
@@ -1399,7 +1408,6 @@ public class GoogleScraper
                         mainTitle = dr[0].GetString();
                     }
 
-                    // Jeśli tablica jest pusta lub pierwszy element to pusty string - to jest "pusta odpowiedź"
                     if (dr.GetArrayLength() == 0 || string.IsNullOrWhiteSpace(mainTitle))
                     {
                         isGhostResponse = true;
@@ -1410,7 +1418,6 @@ public class GoogleScraper
                     isGhostResponse = true;
                 }
 
-                // Pomocnicze szukanie innych tytułów (zawsze warto sprawdzić)
                 void FindTitlesRecursive(JsonElement el)
                 {
                     if (el.ValueKind == JsonValueKind.Array) foreach (var i in el.EnumerateArray()) FindTitlesRecursive(i);
@@ -1424,9 +1431,6 @@ public class GoogleScraper
                 FindTitlesRecursive(doc.RootElement);
             }
 
-            // --- LOGIKA DECYZYJNA ---
-
-            // 1. CZY TO TOTALNIE PUSTA ODPOWIEDŹ (BŁĄD API)?
             if (isGhostResponse && offerTitles.Count == 0)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
@@ -1435,7 +1439,6 @@ public class GoogleScraper
                 return ScraperResult<GoogleApiDetailsResult>.Fail("API Fail: Empty Response");
             }
 
-            // 2. CZY KOD ZNAJDUJE SIĘ W CAŁEJ ODPOWIEDZI (RAW SEARCH)?
             bool isCodeFound = false;
             if (!string.IsNullOrEmpty(targetCode))
             {
@@ -1445,10 +1448,6 @@ public class GoogleScraper
 
             var details = new GoogleProductDetails(mainTitle ?? offerTitles.FirstOrDefault(), offerTitles.ToList());
 
-            // 3. WERYFIKACJA SUKCESU
-            // Sukces zwracamy, gdy:
-            // A) Kod został znaleziony (isCodeFound == true)
-            // B) LUB kod w ogóle nie był wymagany (targetCode jest null/pusty) - to jest Twój Tryb Pośredni
             if (string.IsNullOrEmpty(targetCode) || isCodeFound)
             {
                 if (isCodeFound)
@@ -1458,7 +1457,7 @@ public class GoogleScraper
                 }
                 else
                 {
-                    // Scenariusz Trybu Pośredniego (brak kodu do sprawdzenia, ale dane są OK)
+
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine($"[DANE POBRANE] Pobrano dane produktu (weryfikacja kodu pominięta/zewnętrzna).");
                 }
@@ -1469,7 +1468,7 @@ public class GoogleScraper
             }
             else
             {
-                // Odpowiedź była poprawna (mamy dane), ale kod został podany i NIE pasuje
+
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine($"[DANE OK] Odpowiedź poprawna, ale kod '{targetCode}' NIE występuje w treści.");
                 Console.WriteLine($"[PRODUKT]: {details.MainTitle}");
@@ -1485,7 +1484,6 @@ public class GoogleScraper
             return ScraperResult<GoogleApiDetailsResult>.Fail(ex.Message);
         }
     }
-
 
     public string CleanUrlParameters(string url)
     {

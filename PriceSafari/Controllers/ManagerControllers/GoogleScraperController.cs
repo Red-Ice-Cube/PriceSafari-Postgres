@@ -105,19 +105,12 @@ public class GoogleScraperController : Controller
                 }
             }
         }
-
         public int? ProcessingByTaskId { get; set; }
         public bool IsDirty { get; set; }
 
-        // --- NOWE POLA DLA OBSŁUGI RELACJI 1:N ---
-
-        // Lista tymczasowa na nowe znalezione katalogi (przechowuje je przed zapisem do bazy)
         public ConcurrentBag<ProductGoogleCatalog> NewCatalogsFound { get; set; } = new ConcurrentBag<ProductGoogleCatalog>();
 
-        // Zbiór znanych GID-ów (Główny + Dodatkowe), aby unikać duplikatów w locie
         public HashSet<string> KnownCids { get; set; } = new HashSet<string>();
-
-        // ------------------------------------------
 
         public ProductProcessingState(ProductClass product, Func<string, string> cleanUrlFunc)
         {
@@ -128,7 +121,6 @@ public class GoogleScraperController : Controller
             Ean = product.Ean;
             ProducerCode = product.ProducerCode;
 
-            // Standardowe przypisanie statusu
             if (product.FoundOnGoogle == true)
             {
                 _status = ProductStatus.Found;
@@ -146,40 +138,32 @@ public class GoogleScraperController : Controller
 
             IsDirty = false;
 
-            // --- LOGIKA INICJALIZACJI ZNANYCH IDENTYFIKATORÓW (KnownCids) ---
-            // KnownCids służy jako HashSet, aby scraper nie analizował ponownie tego, co już mamy.
-
-            // 1. Produkt Główny: Wyciągamy CID z URL (metoda stara/normalna)
             string? mainCid = ExtractCidFromUrl(product.GoogleUrl);
             if (!string.IsNullOrEmpty(mainCid))
             {
                 KnownCids.Add(mainCid);
             }
 
-            // Jeśli produkt główny ma zapisany GID, też go blokujemy
             if (!string.IsNullOrEmpty(product.GoogleGid))
             {
                 KnownCids.Add(product.GoogleGid);
             }
 
-            // 2. Katalogi Dodatkowe: Pobieramy dane z nowej struktury (bez wyciągania z URL)
             if (product.GoogleCatalogs != null)
             {
                 foreach (var catalog in product.GoogleCatalogs)
                 {
-                    // Dodajemy CID (jeśli to był wpis typu Katalog)
+
                     if (!string.IsNullOrEmpty(catalog.GoogleCid))
                     {
                         KnownCids.Add(catalog.GoogleCid);
                     }
 
-                    // Dodajemy HID (jeśli to był wpis typu Oferta)
                     if (!string.IsNullOrEmpty(catalog.GoogleHid))
                     {
                         KnownCids.Add(catalog.GoogleHid);
                     }
 
-                    // Opcjonalnie GID
                     if (!string.IsNullOrEmpty(catalog.GoogleGid))
                     {
                         KnownCids.Add(catalog.GoogleGid);
@@ -224,7 +208,7 @@ public class GoogleScraperController : Controller
                         GoogleCid = cleanCid,
                         GoogleGid = cleanGid,
                         GoogleHid = cleanHid,
-                        // Logika: Jeśli brak CID, to znaczy że lecimy po HID (Extended Offer)
+
                         IsExtendedOfferByHid = (cleanCid == null),
                         FoundDate = DateTime.UtcNow
                     });
@@ -245,7 +229,8 @@ public class GoogleScraperController : Controller
     [HttpPost]
     public async Task<IActionResult> StartScrapingForProducts(
     int storeId,
-    List<int> productIds, // DODAJ TEN PARAMETR
+    List<int> productIds,
+
     int numberOfConcurrentScrapers = 5,
     int maxCidsToProcessPerProduct = 3,
     SearchTermSource searchTermSource = SearchTermSource.ProductName,
@@ -265,7 +250,6 @@ public class GoogleScraperController : Controller
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb Pośredni (z weryfikacją nazwy). Uruchamiam scraper...");
 
-            // === POPRAWKA: Przekazujemy productNamePrefix dalej ===
             return await StartScrapingForProducts_IntermediateMatchAsync(
                 storeId,
                 productIds,
@@ -275,7 +259,8 @@ public class GoogleScraperController : Controller
                 allowManualCaptchaSolving,
                 appendProducerCode,
                 compareOnlyCurrentProductCode,
-                productNamePrefix // <--- DODANO TUTAJ
+                productNamePrefix
+
             );
         }
         else if (useFirstMatchLogic)
@@ -736,14 +721,15 @@ public class GoogleScraperController : Controller
                     {
                         try
                         {
-                            // TUTAJ BRAKUJE PRZEKAZANIA PARAMETRU
+
                             await ProcessSingleProduct_FirstMatchAsync(
                                 productState,
                                 scraper,
                                 searchTermSource,
                                 productNamePrefix,
                                 _currentGlobalScrapingOperationCts,
-                                appendProducerCode // <-- DODAJ TEN PARAMETR
+                                appendProducerCode
+
                             );
                         }
                         finally
@@ -800,12 +786,10 @@ public class GoogleScraperController : Controller
             default:
                 searchTermBase = productState.ProductNameInStoreForGoogle;
 
-                // ================== BRAKUJĄCA LOGIKA ==================
                 if (appendProducerCode && !string.IsNullOrWhiteSpace(productState.ProducerCode))
                 {
                     searchTermBase = $"{searchTermBase} {productState.ProducerCode}";
                 }
-                // ======================================================
 
                 if (!string.IsNullOrWhiteSpace(namePrefix))
                 {
@@ -873,7 +857,8 @@ public class GoogleScraperController : Controller
       bool allowManualCaptchaSolving,
       bool appendProducerCode = false,
       bool compareOnlyCurrentProductCode = false,
-      string productNamePrefix = null) // <--- 1. DODANO PARAMETR TUTAJ
+      string productNamePrefix = null)
+
     {
         if (_isScrapingActive)
         {
@@ -894,9 +879,7 @@ public class GoogleScraperController : Controller
 
         try
         {
-            // ---------------------------------------------------------------------------------------------------------------------------------------------------
-            // TRYB RĘCZNEGO ROZWIĄZYWANIA CAPTCHA
-            // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
             if (allowManualCaptchaSolving)
             {
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Uruchamiam scrapowanie w TRYBIE RĘCZNYM. Operacja nie będzie automatycznie restartowana.");
@@ -975,7 +958,8 @@ public class GoogleScraperController : Controller
                     allowManualCaptchaSolving,
                     appendProducerCode,
                     compareOnlyCurrentProductCode,
-                    productNamePrefix // <--- 2. DODANO DO WYWOŁANIA
+                    productNamePrefix
+
                 );
                                     }
                                     finally
@@ -1014,9 +998,6 @@ public class GoogleScraperController : Controller
                 }
             }
 
-            // ---------------------------------------------------------------------------------------------------------------------------------------------------
-            // TRYB AUTOMATYCZNY (Z RESTARTEM PO CAPTCHA)
-            // ---------------------------------------------------------------------------------------------------------------------------------------------------
             else
             {
                 int restartAttempt = 0;
@@ -1110,7 +1091,7 @@ public class GoogleScraperController : Controller
                                         {
                                             try
                                             {
-                                                // POPRAWIONE WYWOŁANIE - DODANO compareOnlyCurrentProductCode
+
                                                 await ProcessSingleProduct_IntermediateMatchAsync(
                                                     productStateToProcess, assignedScraper, searchTermSource,
                                                     _currentCaptchaGlobalCts, maxCidsToProcess, allowManualCaptchaSolving, appendProducerCode,
@@ -1206,7 +1187,8 @@ public class GoogleScraperController : Controller
     bool allowManualCaptchaSolving,
     bool appendProducerCode,
     bool compareOnlyCurrentProductCode,
-    string productNamePrefix) // <--- 1. DODANO PARAMETR
+    string productNamePrefix)
+
     {
     RestartProductProcessing:
 
@@ -1217,7 +1199,6 @@ public class GoogleScraperController : Controller
         }
         string searchTermForGoogle;
 
-        // 1. Ustalanie bazy
         switch (termSource)
         {
             case SearchTermSource.ProductName:
@@ -1238,12 +1219,10 @@ public class GoogleScraperController : Controller
                 break;
         }
 
-        // === ZMIANA: Dodawanie prefixu globalnie ===
         if (!string.IsNullOrWhiteSpace(productNamePrefix) && !string.IsNullOrWhiteSpace(searchTermForGoogle))
         {
             searchTermForGoogle = $"{productNamePrefix} {searchTermForGoogle}";
         }
-        // ===========================================
 
         if (string.IsNullOrWhiteSpace(searchTermForGoogle))
         {
@@ -1251,34 +1230,31 @@ public class GoogleScraperController : Controller
             return;
         }
 
-        // =========================================================================
-        //                   LOGIKA POBIERANIA KODÓW DO DOPASOWANIA
-        // =========================================================================
         Dictionary<string, ProductProcessingState> eligibleProductsMap;
         lock (_lockMasterListInit)
         {
             if (compareOnlyCurrentProductCode)
             {
-                // Tryb Ograniczony: Bierzemy pod uwagę TYLKO kod aktualnego produktu.
+
                 string cleanedCurrentCode = productState.ProducerCode?.Replace(" ", "").Trim();
 
                 if (!string.IsNullOrEmpty(cleanedCurrentCode) &&
                     (productState.Status == ProductStatus.Pending || productState.Status == ProductStatus.Processing))
                 {
                     eligibleProductsMap = new Dictionary<string, ProductProcessingState>(StringComparer.OrdinalIgnoreCase)
-                {
-                    { cleanedCurrentCode, productState }
-                };
+             {
+                 { cleanedCurrentCode, productState }
+             };
                 }
                 else
                 {
-                    // Aktualny produkt nie spełnia kryteriów (brak kodu lub nie jest Pending/Processing)
+
                     eligibleProductsMap = new Dictionary<string, ProductProcessingState>(StringComparer.OrdinalIgnoreCase);
                 }
             }
             else
             {
-                // Tryb Pełnej Puli (domyślny): Bierzemy pod uwagę kody wszystkich oczekujących produktów.
+
                 eligibleProductsMap = _masterProductStateList.Values
                     .Where(p => (p.Status == ProductStatus.Pending || p.Status == ProductStatus.Processing)
                                 && !string.IsNullOrEmpty(p.ProducerCode))
@@ -1286,6 +1262,7 @@ public class GoogleScraperController : Controller
                     .ToDictionary(g => g.Key, g => g.First());
             }
         }
+
 
         if (!eligibleProductsMap.Any())
         {
@@ -1305,7 +1282,6 @@ public class GoogleScraperController : Controller
             return;
         }
 
-        // ================== ZAKTUALIZOWANY, BARDZIEJ SZCZEGÓŁOWY LOG #1 ==================
         lock (_consoleLock)
         {
             string mode = compareOnlyCurrentProductCode ? "OGRANICZONY (tylko własny kod)" : "PEŁNA PULA (wiele kodów)";
@@ -1313,7 +1289,6 @@ public class GoogleScraperController : Controller
             Console.WriteLine($"  > Wyszukiwana fraza: '{searchTermForGoogle}'");
             Console.WriteLine($"  > Liczba kodów producenta do sprawdzenia: {eligibleProductsMap.Count}");
 
-            // Wypisz kody do sprawdzenia (dla wglądu)
             if (!compareOnlyCurrentProductCode)
             {
                 Console.WriteLine("  > Przykładowe kody do sprawdzenia:");
@@ -1324,7 +1299,6 @@ public class GoogleScraperController : Controller
                 if (eligibleProductsMap.Count > 5) Console.WriteLine("    - ...");
             }
         }
-        // =================================================================================
 
         var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermForGoogle, maxItemsToExtract: maxItemsToExtract);
 
@@ -1356,7 +1330,7 @@ public class GoogleScraperController : Controller
 
         foreach (var identifier in identifierResult.Data)
         {
-            // Jeśli mapa jest pusta (wszystkie produkty zostały już dopasowane lub w trybie ograniczonym dopasowaliśmy ten jeden), przerywamy pętlę
+
             if (cts.IsCancellationRequested || !eligibleProductsMap.Any()) break;
 
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Pośredni] Sprawdzam identyfikator CID: {identifier.Cid}, GID: {identifier.Gid}");
@@ -1387,7 +1361,6 @@ public class GoogleScraperController : Controller
                 }
                 allTitlesToCheck.AddRange(detailsResult.Data.Details.OfferTitles);
 
-                // ================== NOWY, BARDZIEJ SZCZEGÓŁOWY LOG #2 (BEZ ZMIAN) ==================
                 lock (_consoleLock)
                 {
                     Console.WriteLine($"  > Analizuję odpowiedź z URL: {detailsResult.Data.RequestUrl}");
@@ -1400,11 +1373,10 @@ public class GoogleScraperController : Controller
                     }
                     Console.ResetColor();
                 }
-                // =======================================================================================
 
                 foreach (var title in allTitlesToCheck.Distinct())
                 {
-                    // Sprawdzamy, czy wciąż są kody do sprawdzenia
+
                     if (!eligibleProductsMap.Any()) break;
 
                     string cleanedTitle = title.Replace(" ", "").Trim();
@@ -1436,9 +1408,6 @@ public class GoogleScraperController : Controller
                                     }
                                 }
 
-                                // USUŃ dopasowany kod z mapy, niezależnie od tego, czy był to tryb ograniczony, czy pełna pula.
-                                // W trybie ograniczonym (compareOnlyCurrentProductCode) mapa ma tylko jeden element, więc się opróżni.
-                                // W trybie pełnej puli optymalizujemy, aby nie sprawdzać tego kodu ponownie.
                                 eligibleProductsMap.Remove(cleanedCode);
 
                                 if (matchedState.ProductId == productState.ProductId)
@@ -1454,7 +1423,7 @@ public class GoogleScraperController : Controller
 
         lock (productState)
         {
-            // Sprawdzamy, czy produkt inicjujący został dopasowany. Jeśli nie i wciąż jest w stanie Processing, oznaczamy jako NotFound.
+
             if (!initiatingProductMatched && productState.Status == ProductStatus.Processing)
             {
                 productState.UpdateStatus(ProductStatus.NotFound);
@@ -1462,10 +1431,6 @@ public class GoogleScraperController : Controller
             }
         }
     }
-
-
-
-
 
     [HttpPost("stop")]
     public IActionResult StopScraping()
@@ -1509,19 +1474,19 @@ public class GoogleScraperController : Controller
 
     private void InitializeMasterProductListIfNeeded(
      int storeId,
-     List<int> productIds, // Dodany parametr
+     List<int> productIds,
+
      bool isRestartAfterCaptcha,
      bool requireUrl = true)
     {
         lock (_lockMasterListInit)
         {
-            // Jeśli przekazano listę ID, ZAWSZE reinicjalizujemy listę, aby przetworzyć tylko wybrane.
+
             bool needsReinitialization = (productIds != null && productIds.Any())
                 || isRestartAfterCaptcha
                 || !_masterProductStateList.Any()
                 || _masterProductStateList.Values.All(p => p.Status != ProductStatus.Pending && p.Status != ProductStatus.Processing);
 
-            // Dodatkowa logika sprawdzająca, czy obecna lista jest dla właściwego sklepu
             if (!needsReinitialization)
             {
                 var firstProduct = _masterProductStateList.Values.FirstOrDefault();
@@ -1550,14 +1515,14 @@ public class GoogleScraperController : Controller
                     if (productIds != null && productIds.Any())
                     {
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Inicjalizacja: Wybrano {productIds.Count} konkretnych produktów do przetworzenia.");
-                        // Pobieramy tylko te produkty, które użytkownik zaznaczył
+
                         query = context.Set<ProductClass>().AsNoTracking()
                                     .Where(p => p.StoreId == storeId && productIds.Contains(p.ProductId));
                     }
                     else
                     {
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Inicjalizacja: Brak wybranych produktów, przetwarzam wszystkie kwalifikujące się.");
-                        // Działamy jak dawniej - bierzemy wszystkie produkty ze sklepu
+
                         query = context.Set<ProductClass>().AsNoTracking()
                                     .Where(p => p.StoreId == storeId && p.OnGoogle);
 
@@ -1574,7 +1539,6 @@ public class GoogleScraperController : Controller
                     {
                         var state = new ProductProcessingState(dbProduct, tempScraperForCleaning.CleanUrlParameters);
 
-                        // Jeśli produkt został wybrany ręcznie, wymuszamy jego ponowne sprawdzenie, resetując status
                         if (productIds != null && productIds.Any())
                         {
                             state.Status = ProductStatus.Pending;
@@ -1731,7 +1695,7 @@ public class GoogleScraperController : Controller
         {
             case SearchTermSource.ProductUrl:
                 searchTermBase = productState.OriginalUrl;
-                // Fallback: jeśli URL pusty, użyj nazwy
+
                 if (string.IsNullOrWhiteSpace(searchTermBase))
                 {
                     Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [WARN] URL pusty. Fallback do nazwy.");
@@ -1759,7 +1723,6 @@ public class GoogleScraperController : Controller
             default:
                 searchTermBase = productState.ProductNameInStoreForGoogle;
 
-                // Logika "Dołącz kod" dotyczy tylko wyszukiwania po nazwie
                 if (appendProducerCode && !string.IsNullOrWhiteSpace(productState.ProducerCode))
                 {
                     searchTermBase = $"{searchTermBase} {productState.ProducerCode}";
@@ -1767,15 +1730,12 @@ public class GoogleScraperController : Controller
                 break;
         }
 
-        // === ZMIANA: Aplikowanie prefixu POZA switch'em ===
-        // Dodajemy prefix, jeśli został podany, jeśli mamy bazę wyszukiwania i jeśli NIE szukamy po URL
         if (termSource != SearchTermSource.ProductUrl &&
             !string.IsNullOrWhiteSpace(namePrefix) &&
             !string.IsNullOrWhiteSpace(searchTermBase))
         {
             searchTermBase = $"{namePrefix} {searchTermBase}";
         }
-        // ==================================================
 
         if (string.IsNullOrWhiteSpace(searchTermBase))
         {
@@ -1885,15 +1845,31 @@ public class GoogleScraperController : Controller
 
                     if (offersResult.IsSuccess && offersResult.Data.Any())
                     {
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}, CID {identifier.Cid}: Znaleziono {offersResult.Data.Count} ofert.");
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ID {productState.ProductId}, CID {identifier.Cid}: Znaleziono łącznie {offersResult.Data.Count} unikalnych ofert.");
+
+                        // --- [LOGOWANIE ANALIZY PULI URL] ---
+                        Console.ForegroundColor = ConsoleColor.Magenta;
+                        Console.WriteLine($"[DEBUG-ANALIZA] Rozpoczynam dopasowywanie {offersResult.Data.Count} URLi do puli oczekujących produktów...");
+                        // ------------------------------------
+
                         foreach (var cleanedOfferUrl in offersResult.Data)
                         {
+                            // Logujemy co sprawdzamy
+                            // Console.WriteLine($"[DEBUG-ANALIZA] Sprawdzam URL: {cleanedOfferUrl}"); 
+
                             if (localEligibleProductsMap.TryGetValue(cleanedOfferUrl, out var matchedState))
                             {
+                                // --- [LOGOWANIE TRAFIENIA] ---
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.WriteLine($"[DEBUG-ANALIZA] !!! TRAFIENIE !!! URL pasuje do produktu ID: {matchedState.ProductId}");
+                                Console.ResetColor();
+                                // -----------------------------
+
                                 lock (matchedState)
                                 {
                                     string googleProductPageUrl = $"https://www.google.com/shopping/product/{identifier.Cid}";
                                     matchedState.UpdateStatus(ProductStatus.Found, googleProductPageUrl, identifier.Cid, identifier.Gid);
+
                                     lock (_consoleLock)
                                     {
                                         Console.Write($"[{DateTime.Now:HH:mm:ss}] [{Thread.CurrentThread.ManagedThreadId}] ✓ ");
@@ -1909,7 +1885,16 @@ public class GoogleScraperController : Controller
                                     }
                                 }
                             }
+                            else
+                            {
+                                // Opcjonalnie: Logowanie braku trafienia (może generować dużo spamu)
+                                // Console.WriteLine($"[DEBUG-ANALIZA] Brak dopasowania dla: {cleanedOfferUrl}");
+                            }
                         }
+
+                        Console.ForegroundColor = ConsoleColor.Magenta;
+                        Console.WriteLine($"[DEBUG-ANALIZA] Zakończono analizę dla tego zestawu ofert.");
+                        Console.ResetColor();
                     }
                     else
                     {
@@ -2065,7 +2050,6 @@ public class GoogleScraperController : Controller
                 string generatedUrl = null;
                 string productIdCid = ExtractProductIdFromUrl(p.GoogleUrl);
 
-                // Logika dla linku głównego
                 if (!string.IsNullOrEmpty(productIdCid))
                 {
                     string productNameForUrl = System.Net.WebUtility.UrlEncode(p.ProductNameInStoreForGoogle);
@@ -2082,15 +2066,15 @@ public class GoogleScraperController : Controller
                     p.Ean,
                     p.ProducerCode,
                     p.GoogleGid,
-                    // Pobieramy HID z bazy jeśli istnieje (zakładając że masz to pole w ProductClass)
-                    // GoogleHid = p.GoogleHid, 
+
                     GeneratedGoogleUrl = generatedUrl,
-                    // KLUCZOWA POPRAWKA: Przekazujemy IsExtendedOfferByHid
+
                     GoogleCatalogs = p.GoogleCatalogs?.Select(gc => new {
                         gc.GoogleCid,
                         gc.GoogleGid,
                         gc.GoogleHid,
-                        gc.IsExtendedOfferByHid // <-- DODANO TEGO BOOLA
+                        gc.IsExtendedOfferByHid
+
                     }).ToList()
                 };
             }).ToList();
@@ -2115,10 +2099,9 @@ public class GoogleScraperController : Controller
 
             if (!string.IsNullOrEmpty(lastSegment))
             {
-                // ================== POPRAWKA ==================
-                // Zmieniamy long.TryParse na ulong.TryParse, aby obsłużyć większe identyfikatory
+
                 if (ulong.TryParse(lastSegment, out _))
-                // ============================================
+
                 {
                     return lastSegment;
                 }
@@ -2243,19 +2226,13 @@ public class GoogleScraperController : Controller
 
 
 
-
-
-
-
-
     private static string ExtractCidFromUrl(string url)
     {
         if (string.IsNullOrEmpty(url)) return null;
-        // Szukamy ciągu cyfr po "/product/"
+
         var match = System.Text.RegularExpressions.Regex.Match(url, @"/product/(\d+)");
         return match.Success ? match.Groups[1].Value : null;
     }
-
 
     [HttpPost]
     public async Task<IActionResult> StartScrapingForAdditionalCatalogs(
@@ -2274,7 +2251,6 @@ public class GoogleScraperController : Controller
 
         string finalMessage = $"Proces Multi-Catalog dla sklepu {storeId} zainicjowany.";
 
-        // Zatrzymujemy globalny timer, aby nie kradł danych (tak jak u Ciebie)
         lock (_lockTimer)
         {
             if (_batchSaveTimer != null)
@@ -2288,8 +2264,6 @@ public class GoogleScraperController : Controller
         _currentGlobalScrapingOperationCts = new CancellationTokenSource();
         _currentCaptchaGlobalCts = new CancellationTokenSource();
 
-        // 1. Dodajemy lokalną listę przetworzonych ID, aby nie przetwarzać ich ponownie
-        // skoro nie możemy ich usuwać z głównej listy przed zapisem.
         var processedIds = new ConcurrentDictionary<int, byte>();
 
         try
@@ -2314,13 +2288,13 @@ public class GoogleScraperController : Controller
 
             while (!_currentGlobalScrapingOperationCts.IsCancellationRequested)
             {
-                // Próba zapisu w każdym obiegu pętli - teraz zadziała, bo obiekty nadal będą w liście
+
                 await BatchUpdateMultiCatalogAsync(false, CancellationToken.None);
 
                 List<int> pendingProductIds;
                 lock (_lockMasterListInit)
                 {
-                    // 2. Zmieniamy warunek: Wybieramy te, które nie są przetwarzane ORAZ nie zostały jeszcze zakończone
+
                     pendingProductIds = _masterProductStateList
                         .Where(kvp => kvp.Value.ProcessingByTaskId == null && !processedIds.ContainsKey(kvp.Key))
                         .Select(kvp => kvp.Key).ToList();
@@ -2336,7 +2310,8 @@ public class GoogleScraperController : Controller
                     }
                     else
                     {
-                        break; // Koniec - brak zadań i brak aktywnych workerów
+                        break;
+
                     }
                 }
 
@@ -2348,7 +2323,7 @@ public class GoogleScraperController : Controller
 
                 lock (_lockMasterListInit)
                 {
-                    // Ponowne sprawdzenie wewnątrz locka
+
                     var currentPending = _masterProductStateList
                         .Where(kvp => kvp.Value.ProcessingByTaskId == null && !processedIds.ContainsKey(kvp.Key))
                         .Select(kvp => kvp.Key).ToList();
@@ -2384,12 +2359,9 @@ public class GoogleScraperController : Controller
                         }
                         finally
                         {
-                            // 3. KLUCZOWA ZMIANA:
-                            // NIE USUWAMY z _masterProductStateList (TryRemove wyrzucone).
-                            // Zamiast tego oznaczamy ID jako przetworzone lokalnie:
+
                             processedIds.TryAdd(productStateToProcess.ProductId, 1);
 
-                            // Czyścimy flagę taska, aby logika nie zwariowała (chociaż processedIds i tak go zablokuje)
                             lock (productStateToProcess) { productStateToProcess.ProcessingByTaskId = null; }
 
                             availableScrapersPool.Add(assignedScraper);
@@ -2414,7 +2386,6 @@ public class GoogleScraperController : Controller
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Multi-Catalog] Wykonywanie zapisu końcowego...");
 
-            // KLUCZOWA ZMIANA: Musisz wywołać metodę od MultiCatalog, nie od statusów!
             await BatchUpdateMultiCatalogAsync(true, CancellationToken.None);
 
             lock (_lockTimer) { _batchSaveTimer?.Dispose(); _batchSaveTimer = null; }
@@ -2422,7 +2393,6 @@ public class GoogleScraperController : Controller
             _currentGlobalScrapingOperationCts?.Dispose();
             _currentCaptchaGlobalCts?.Dispose();
 
-            // Opcjonalnie: wyczyść listę dopiero PO zapisie
             _masterProductStateList.Clear();
         }
 
@@ -2453,7 +2423,6 @@ public class GoogleScraperController : Controller
                 {
                     var state = new ProductProcessingState(p, tempScraper.CleanUrlParameters);
 
-                    // DODAJEMY ISTNIEJĄCE IDENTYFIKATORY DO "ZNANYCH"
                     if (!string.IsNullOrEmpty(p.GoogleGid)) state.KnownCids.Add(p.GoogleGid);
 
                     foreach (var existing in p.GoogleCatalogs)
@@ -2481,15 +2450,12 @@ public class GoogleScraperController : Controller
 
         if (cts.IsCancellationRequested && !allowManualCaptchaSolving) return;
 
-        // 1. Przygotowanie danych (Tylko odczyt ze stanu)
         string targetProducerCode = productState.ProducerCode?.Replace(" ", "").Trim();
 
-        // Logika budowania zapytania
         string searchTerm = productState.ProductNameInStoreForGoogle;
         if (!string.IsNullOrWhiteSpace(namePrefix)) searchTerm = $"{namePrefix} {searchTerm}";
         if (!string.IsNullOrWhiteSpace(productState.ProducerCode)) searchTerm = $"{searchTerm} {productState.ProducerCode}";
 
-        // LOGOWANIE SZCZEGÓŁOWE - START
         lock (_consoleLock)
         {
             Console.ForegroundColor = ConsoleColor.Cyan;
@@ -2506,10 +2472,8 @@ public class GoogleScraperController : Controller
             return;
         }
 
-        // 2. Pobieranie listy wyników (CID, GID oraz HID)
         var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTerm, maxItemsToExtract: maxCidsToProcess);
 
-        // --- OBSŁUGA CAPTCHA (Identyfikatory) ---
         if (identifierResult.CaptchaEncountered)
         {
             if (allowManualCaptchaSolving)
@@ -2544,7 +2508,6 @@ public class GoogleScraperController : Controller
         {
             if (cts.IsCancellationRequested && !allowManualCaptchaSolving) break;
 
-            // SPRAWDZANIE UNIKALNOŚCI: CID (jeśli jest) lub HID (jako fallback)
             string effectiveId = !string.IsNullOrEmpty(identifier.Cid) ? identifier.Cid : identifier.Hid;
 
             bool isKnown = false;
@@ -2560,7 +2523,6 @@ public class GoogleScraperController : Controller
                 continue;
             }
 
-            // 3. Pobieranie szczegółów z API (Przekazujemy HID i targetCode)
             var detailsResult = await scraper.GetProductDetailsFromApiAsync(
                 identifier.Cid,
                 identifier.Gid,
@@ -2568,7 +2530,6 @@ public class GoogleScraperController : Controller
                 targetCode: targetProducerCode
             );
 
-            // --- OBSŁUGA CAPTCHA (Detale API) ---
             if (detailsResult.CaptchaEncountered)
             {
                 if (allowManualCaptchaSolving)
@@ -2589,25 +2550,21 @@ public class GoogleScraperController : Controller
                 }
             }
 
-            // --- LOGIKA WERYFIKACJI WYNIKU ---
             if (!detailsResult.IsSuccess)
             {
-                // To jest prawdziwy błąd techniczny (pusta odpowiedź, zablokowane IP)
+
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"      [BŁĄD API] Nie udało się pobrać danych dla {effectiveId}.");
                 Console.ResetColor();
                 continue;
             }
 
-            // Jeśli IsSuccess == true, oznacza to, że Google zwróciło dane produktu.
-            // Teraz sprawdzamy, czy w surowej odpowiedzi (RawResponse) lub tytułach jest nasz kod.
             var details = detailsResult.Data.Details;
             string rawData = detailsResult.Data.RawResponse;
 
             bool matchFound = rawData.Contains(targetProducerCode, StringComparison.OrdinalIgnoreCase) ||
                               rawData.Replace(" ", "").Contains(targetProducerCode.Replace(" ", ""), StringComparison.OrdinalIgnoreCase);
 
-            // LOGOWANIE ANALIZY DANYCH
             lock (_consoleLock)
             {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
@@ -2618,7 +2575,7 @@ public class GoogleScraperController : Controller
 
             if (matchFound)
             {
-                // SUKCES: Kod producenta jest w odpowiedzi API
+
                 string googleUrl;
                 if (!string.IsNullOrEmpty(identifier.Cid))
                 {
@@ -2643,7 +2600,7 @@ public class GoogleScraperController : Controller
             }
             else
             {
-                // NIE MA KODU, ALE TO NIE BŁĄD API: Po prostu inny produkt
+
                 lock (_consoleLock)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
@@ -2689,7 +2646,7 @@ public class GoogleScraperController : Controller
 
                 foreach (var cat in catalogsToSave)
                 {
-                    // Sprawdzamy duplikat (Id produktu + którykolwiek z identyfikatorów)
+
                     bool exists = await context.Set<ProductGoogleCatalog>().AnyAsync(x =>
                         x.ProductId == cat.ProductId &&
                         ((cat.GoogleCid != null && x.GoogleCid == cat.GoogleCid) ||
