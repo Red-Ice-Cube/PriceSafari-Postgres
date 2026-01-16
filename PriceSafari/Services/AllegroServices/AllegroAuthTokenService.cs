@@ -74,6 +74,18 @@ namespace PriceSafari.Services.AllegroServices
             var clientSecret = Environment.GetEnvironmentVariable("ALLEGRO_CLIENT_SECRET");
             // ------------------------------------------------------------
 
+
+            // --- DODAJ TE LOGI DIAGNOSTYCZNE ---
+            if (string.IsNullOrEmpty(clientId)) _logger.LogError("!!! DIAGNOSTYKA: CLIENT_ID jest NULL lub PUSTY !!!");
+            else _logger.LogInformation($"!!! DIAGNOSTYKA: CLIENT_ID załadowany, długość: {clientId.Length}");
+
+            if (string.IsNullOrEmpty(clientSecret)) _logger.LogError("!!! DIAGNOSTYKA: CLIENT_SECRET jest NULL lub PUSTY !!!");
+            else _logger.LogInformation($"!!! DIAGNOSTYKA: CLIENT_SECRET załadowany, długość: {clientSecret.Length}");
+
+            if (string.IsNullOrEmpty(store.AllegroRefreshToken)) _logger.LogError("!!! DIAGNOSTYKA: REFRESH TOKEN w bazie jest NULL !!!");
+            // ------------------------------------
+
+
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
             {
                 _logger.LogError("Brak kluczy ALLEGRO_CLIENT_ID lub ALLEGRO_CLIENT_SECRET w zmiennych środowiskowych (.env).");

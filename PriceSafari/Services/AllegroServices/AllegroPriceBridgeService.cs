@@ -16,38 +16,40 @@ using System.Threading.Tasks;
 
 namespace PriceSafari.Services.AllegroServices
 {
-
     using static PriceSafari.Controllers.MemberControllers.AllegroPriceHistoryController;
 
     public class AllegroPriceBridgeService
     {
         private readonly PriceSafariContext _context;
         private readonly ILogger<AllegroPriceBridgeService> _logger;
+        private readonly AllegroAuthTokenService _authTokenService; // <--- 1. DODANO SERWIS
         private static readonly HttpClient _httpClient = new();
 
-        public AllegroPriceBridgeService(PriceSafariContext context, ILogger<AllegroPriceBridgeService> logger)
+        public AllegroPriceBridgeService(
+            PriceSafariContext context,
+            ILogger<AllegroPriceBridgeService> logger,
+            AllegroAuthTokenService authTokenService) // <--- 2. WSTRZYKNIĘCIE W KONSTRUKTORZE
         {
             _context = context;
             _logger = logger;
+            _authTokenService = authTokenService;
         }
 
         public async Task<PriceBridgeResult> ExecutePriceChangesAsync(
-    int storeId,
-    int allegroScrapeHistoryId,
-    string userId,
-    bool includeCommissionInMargin,
-    List<AllegroPriceBridgeItemRequest> itemsToBridge,
-    bool isAutomation = false,
+            int storeId,
+            int allegroScrapeHistoryId,
+            string userId,
+            bool includeCommissionInMargin,
+            List<AllegroPriceBridgeItemRequest> itemsToBridge,
+            bool isAutomation = false,
 
-    int? automationRuleId = null,
-    int? targetMetCount = null,
-    int? targetUnmetCount = null,
-    int? priceIncreasedCount = null,
-    int? priceDecreasedCount = null,
-    int? priceMaintainedCount = null,
-    // --- DODAJ TEN PARAMETR NA KOŃCU ---
-    int? totalProductsInRule = null)
-        // -----------------------------------
+            int? automationRuleId = null,
+            int? targetMetCount = null,
+            int? targetUnmetCount = null,
+            int? priceIncreasedCount = null,
+            int? priceDecreasedCount = null,
+            int? priceMaintainedCount = null,
+            int? totalProductsInRule = null)
         {
             var result = new PriceBridgeResult();
             var store = await _context.Stores.FindAsync(storeId);
@@ -64,14 +66,21 @@ namespace PriceSafari.Services.AllegroServices
                 result.Errors.Add(new PriceBridgeError { OfferId = "Wszystkie", Message = "Wgrywanie cen po API jest wyłączone dla tego sklepu." });
                 return result;
             }
-            if (!store.IsAllegroTokenActive || string.IsNullOrEmpty(store.AllegroApiToken))
+
+            // --- 3. ZMIANA LOGIKI POBIERANIA TOKENA ---
+            // Zamiast sprawdzać store.AllegroApiToken, pytamy serwis o WAŻNY token.
+            // Serwis sam sprawdzi datę i w razie potrzeby odświeży go w Allegro.
+
+            string? accessToken = await _authTokenService.GetValidAccessTokenAsync(storeId);
+
+            if (string.IsNullOrEmpty(accessToken))
             {
                 result.FailedCount = itemsToBridge.Count;
-                result.Errors.Add(new PriceBridgeError { OfferId = "Wszystkie", Message = "Brak aktywnego tokenu API Allegro dla tego sklepu." });
+                result.Errors.Add(new PriceBridgeError { OfferId = "Wszystkie", Message = "Nie udało się uzyskać tokena autoryzacyjnego (wygasła sesja)." });
+                _logger.LogWarning($"Przerwano proces zmiany cen dla sklepu {storeId} - brak ważnego tokena.");
                 return result;
             }
-
-            string accessToken = store.AllegroApiToken;
+            // ------------------------------------------
 
             var newBatch = new AllegroPriceBridgeBatch
             {
@@ -85,10 +94,7 @@ namespace PriceSafari.Services.AllegroServices
                 IsAutomation = isAutomation,
                 AutomationRuleId = automationRuleId,
 
-                // --- ZMIEŃ TĘ LINIJKĘ ---
-                // Jeśli przekazano totalProductsInRule, użyj go. Jeśli nie (np. ręczne wywołanie), użyj itemsToBridge.Count
                 TotalProductsCount = totalProductsInRule.HasValue ? totalProductsInRule.Value : itemsToBridge.Count,
-                // ------------------------
 
                 TargetMetCount = targetMetCount,
                 TargetUnmetCount = targetUnmetCount,
@@ -136,6 +142,7 @@ namespace PriceSafari.Services.AllegroServices
 
                 string newPriceString = item.PriceAfter_Simulated.ToString(CultureInfo.InvariantCulture);
 
+                // Tutaj używamy już pewnego 'accessToken' pobranego z serwisu
                 var (success, errorMessage) = await SetNewOfferPriceAsync(accessToken, item.OfferId, newPriceString);
 
                 bridgeItem.Success = success;
@@ -151,16 +158,17 @@ namespace PriceSafari.Services.AllegroServices
                     result.FailedCount++;
                     result.Errors.Add(new PriceBridgeError { OfferId = item.OfferId, Message = errorMessage });
 
+                    // Dodatkowe zabezpieczenie: jeśli mimo wszystko dostaniemy 401 w trakcie pętli
                     if (errorMessage.Contains("401") || errorMessage.Contains("Unauthorized"))
                     {
-                        _logger.LogWarning("Token API dla sklepu {StoreId} wygasł. Przerywam.", storeId);
-                        store.IsAllegroTokenActive = false;
+                        _logger.LogWarning("Token API dla sklepu {StoreId} wygasł w trakcie przetwarzania batcha. Przerywam.", storeId);
+                        store.IsAllegroTokenActive = false; // Oznaczamy w bazie, że token padł
 
                         int remainingChanges = itemsToBridge.Count - result.SuccessfulCount - result.FailedCount;
                         if (remainingChanges > 0)
                         {
                             result.FailedCount += remainingChanges;
-                            result.Errors.Add(new PriceBridgeError { OfferId = "Pozostałe", Message = "Token API wygasł. Przerwano." });
+                            result.Errors.Add(new PriceBridgeError { OfferId = "Pozostałe", Message = "Token API wygasł w trakcie operacji. Przerwano." });
                         }
 
                         _context.AllegroPriceBridgeItems.Add(bridgeItem);
@@ -171,6 +179,7 @@ namespace PriceSafari.Services.AllegroServices
                 _context.AllegroPriceBridgeItems.Add(bridgeItem);
             }
 
+            // Zapisujemy zmiany statusu tokena (jeśli padł w trakcie)
             if (!store.IsAllegroTokenActive)
             {
                 await _context.SaveChangesAsync();
@@ -285,7 +294,6 @@ namespace PriceSafari.Services.AllegroServices
                     return (true, string.Empty);
                 }
 
-                // --- ZMIANA 1: Błąd 401 (Unauthorized) na CZERWONO ---
                 if (response.StatusCode == HttpStatusCode.Unauthorized)
                 {
                     string errorDetails = string.Empty;
@@ -295,16 +303,12 @@ namespace PriceSafari.Services.AllegroServices
                     }
                     catch { errorDetails = "Brak treści błędu"; }
 
-                    // Logujemy na czerwono w konsoli
                     _logger.LogError("!!! CRITICAL 401 !!! Błąd autoryzacji dla oferty {OfferId}. Allegro Body: {ErrorDetails}", offerId, errorDetails);
 
                     return (false, $"Błąd autoryzacji (401). Response: {errorDetails}");
                 }
 
-                // --- ZMIANA 2: Inne błędy API (np. 400 Bad Request, 422 Unprocessable Entity) na CZERWONO ---
                 var errorContent = await response.Content.ReadAsStringAsync();
-
-                // Zmieniono z LogWarning na LogError, żeby było czerwono
                 _logger.LogError("!!! BŁĄD API ALLEGRO !!! Nie udało się zmienić ceny oferty {OfferId}. Status: {StatusCode}. Body: {ErrorContent}", offerId, response.StatusCode, errorContent);
 
                 try
@@ -322,7 +326,6 @@ namespace PriceSafari.Services.AllegroServices
             }
             catch (Exception ex)
             {
-                // To już było LogError, zostawiamy
                 _logger.LogError(ex, "!!! WYJĄTEK KRYTYCZNY !!! Błąd podczas wysyłania zmiany ceny dla oferty {OfferId}", offerId);
                 return (false, $"Wyjątek aplikacji: {ex.Message}");
             }
