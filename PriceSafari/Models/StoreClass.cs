@@ -70,11 +70,32 @@ namespace PriceSafari.Models
         [Display(Name = "Pobieraj dane z API Allegro")]
         public bool FetchExtendedAllegroData { get; set; } = false;
 
-        [Display(Name = "Token API Allegro")]
+
+
+
+
+
+        [Display(Name = "Refresh Token (Długoterminowy klucz klienta)")]
+        public string? AllegroRefreshToken { get; set; }
+
+        [Display(Name = "Access Token (Sesja 12h)")]
         public string? AllegroApiToken { get; set; }
 
-        [Display(Name = "Token Allegro jest aktywny")]
+        [Display(Name = "Kiedy wygasa Access Token")]
+        public DateTime? AllegroTokenExpiresAt { get; set; }
+
+        [Display(Name = "Czy integracja jest aktywna")]
         public bool IsAllegroTokenActive { get; set; } = false;
+
+
+
+
+
+
+
+
+
+
 
         public bool IsAllegroPriceBridgeActive { get; set; } = false;
 
