@@ -396,24 +396,55 @@ namespace PriceSafari.Controllers.MemberControllers
 
         private void CalculateSuggestedPrice(AutomationRule rule, AutomationProductRowViewModel row)
         {
-
+            // --- SEKCJA MARKETPLACE (ALLEGRO) ---
             if (rule.SourceType == AutomationSourceType.Marketplace)
             {
+                // 1. DETEKCJA BŁĘDU API / BRAKU DANYCH
+                // Jeśli CommissionAmount jest null, to znaczy, że nie pobrano extendedInfo z API Allegro.
+                bool missingApiData = !row.CommissionAmount.HasValue;
+
+                if (missingApiData)
+                {
+                    // SCENARIUSZ A: Użytkownik chce doliczać prowizję, ale jej nie mamy.
+                    // Musimy zablokować, bo wyliczylibyśmy cenę ze stratą (bez pokrycia prowizji).
+                    if (rule.MarketplaceIncludeCommission)
+                    {
+                        ApplyBlock(row, "Brak Prowizji)");
+                        return;
+                    }
+
+                    // SCENARIUSZ B: Użytkownik chce blokować zmiany cen w kampaniach.
+                    // Skoro nie mamy danych z API, nie wiemy czy produkt jest w kampanii, czy nie.
+                    // Zgodnie z zasadą Fail-Safe: blokujemy, aby przypadkiem nie zmienić ceny w kampanii.
+                    if (!rule.MarketplaceChangePriceForBadgeInCampaign)
+                    {
+                        ApplyBlock(row, "Ocena Kampanii");
+                        return;
+                    }
+                }
+
+                // 2. STANDARDOWE SPRAWDZENIA FLAG (Gdy mamy dane)
+                // Działają tylko jeśli mamy dane (missingApiData == false) LUB jeśli użytkownik pozwala na zmiany mimo ryzyka (powyższe warunki nie zaszły).
+
+                // Jeśli mamy dane o kampanii (row.IsInAnyCampaign jest true tylko gdy API zadziałało i zwróciło true)
                 if (row.IsInAnyCampaign && !rule.MarketplaceChangePriceForBadgeInCampaign)
                 {
                     ApplyBlock(row, "Aktywna Kampania");
                     return;
                 }
+
                 if (row.IsSuperPrice && !rule.MarketplaceChangePriceForBadgeSuperPrice)
                 {
                     ApplyBlock(row, "Super Cena");
                     return;
                 }
+
                 if (row.IsTopOffer && !rule.MarketplaceChangePriceForBadgeTopOffer)
                 {
                     ApplyBlock(row, "Top Oferta");
                     return;
                 }
+
                 if (row.IsBestPriceGuarantee && !rule.MarketplaceChangePriceForBadgeBestPriceGuarantee)
                 {
                     ApplyBlock(row, "Gwarancja Ceny");
