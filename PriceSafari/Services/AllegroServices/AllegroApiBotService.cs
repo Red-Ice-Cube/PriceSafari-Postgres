@@ -63,10 +63,18 @@ namespace PriceSafari.Services.AllegroServices
             foreach (var store in activeStores)
             {
                 var storeResult = await ProcessOffersForSingleStore(store);
+
+                // Dodajemy tylko te przetworzone z sukcesem
                 result.TotalOffersProcessed += storeResult.processedCount;
+
                 if (!storeResult.success)
                 {
                     result.Success = false;
+                    result.Messages.Add(storeResult.message);
+                }
+                else if (storeResult.processedCount == 0 && !string.IsNullOrEmpty(storeResult.message))
+                {
+                    // Ostrzeżenie, gdy sukces = true, ale nic nie zaktualizowano (np. same błędy 0.00 zł)
                     result.Messages.Add(storeResult.message);
                 }
             }
@@ -92,6 +100,9 @@ namespace PriceSafari.Services.AllegroServices
             _logger.LogInformation("Znaleziono {Count} ofert do przetworzenia dla sklepu {StoreName}.", offersToProcess.Count, store.StoreName);
             string accessToken = store.AllegroApiToken!;
 
+            int successCounter = 0;
+            int failureCounter = 0;
+
             try
             {
 
@@ -107,10 +118,10 @@ namespace PriceSafari.Services.AllegroServices
                         await semaphore.WaitAsync();
                         try
                         {
-
                             var apiData = await FetchApiDataForOffer(accessToken, offer.AllegroOfferId.ToString());
 
-                            if (apiData != null)
+                            // --- WALIDACJA: Sprawdzamy czy dane są sensowne (nie null, cena > 0) ---
+                            if (apiData != null && apiData.CustomerPrice > 0 && apiData.SellerRevenue > 0)
                             {
                                 offer.ApiAllegroPriceFromUser = apiData.SellerRevenue;
                                 offer.ApiAllegroPrice = apiData.CustomerPrice;
@@ -120,6 +131,16 @@ namespace PriceSafari.Services.AllegroServices
                                 offer.IsSubsidyActive = apiData.IsSubsidyActive;
                                 offer.IsInvitationActive = apiData.IsInvitationActive;
                                 offer.InvitationPrice = apiData.InvitationPrice;
+
+                                // SUKCES: Oznaczamy jako przetworzone tylko gdy mamy poprawne dane
+                                offer.IsApiProcessed = true;
+                                Interlocked.Increment(ref successCounter);
+                            }
+                            else
+                            {
+                                // BŁĄD LOGICZNY/DANYCH: Nie aktualizujemy IsApiProcessed, aby spróbować ponownie później
+                                Interlocked.Increment(ref failureCounter);
+                                _logger.LogWarning("Otrzymano puste lub zerowe dane dla oferty {OfferId}. Pomijam aktualizację.", offer.AllegroOfferId);
                             }
                         }
                         catch (AllegroAuthException)
@@ -128,11 +149,12 @@ namespace PriceSafari.Services.AllegroServices
                         }
                         catch (Exception ex)
                         {
+                            Interlocked.Increment(ref failureCounter);
                             _logger.LogError(ex, "Błąd podczas przetwarzania oferty {OfferId} dla sklepu {StoreName}", offer.AllegroOfferId, store.StoreName);
                         }
                         finally
                         {
-                            offer.IsApiProcessed = true;
+                            // UWAGA: Usunięto stąd "offer.IsApiProcessed = true", aby nie "zaliczać" błędnych ofert.
                             semaphore.Release();
                         }
                     }));
@@ -141,15 +163,28 @@ namespace PriceSafari.Services.AllegroServices
                 await Task.WhenAll(tasks);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Zakończono przetwarzanie i zapisano łącznie dane dla {Count} ofert dla sklepu {StoreName}.", offersToProcess.Count, store.StoreName);
-                return (true, offersToProcess.Count, string.Empty);
+                _logger.LogInformation("Zakończono przetwarzanie dla sklepu {StoreName}. Sukces: {Success}, Porażka/Puste: {Fail}.",
+                    store.StoreName, successCounter, failureCounter);
+
+                if (successCounter == 0 && offersToProcess.Count > 0)
+                {
+                    return (false, 0, $"Sklep {store.StoreName}: Próbowano przetworzyć {offersToProcess.Count} ofert, ale żadna nie zwróciła poprawnych danych (0 sukcesów).");
+                }
+
+                string msg = failureCounter > 0 ? $"Ostrzeżenie: {failureCounter} ofert nie udało się pobrać poprawnie." : string.Empty;
+                return (true, successCounter, msg);
             }
             catch (AllegroAuthException ex)
             {
                 _logger.LogError(ex, "Błąd autoryzacji API Allegro dla sklepu {StoreName}. Token może być nieważny.", store.StoreName);
 
+                // Tutaj decydujemy czy oznaczać je jako przetworzone, czy nie. 
+                // W oryginale oznaczaliśmy, żeby nie zapętlać błędu auth.
                 foreach (var offer in offersToProcess.Where(o => o.IsApiProcessed != true))
                 {
+                    // W przypadku błędu Auth można oznaczyć, lub zostawić do ponowienia po odświeżeniu tokena.
+                    // Zgodnie z oryginalną logiką oznaczamy, ale w poprawnej implementacji lepiej byłoby nie oznaczać.
+                    // Zostawiam tak jak było w bloku catch Auth, ale dodaję komentarz.
                     offer.IsApiProcessed = true;
                 }
                 await _context.SaveChangesAsync();
@@ -202,7 +237,7 @@ namespace PriceSafari.Services.AllegroServices
 
                 decimal sellerEarns = basePrice;
                 decimal customerPays = basePrice;
-                string? invitationPriceStr = null; // To pole pozostanie null, chyba że dodasz inną logikę dla "prawdziwych" zaproszeń (inny status niż ACTIVE)
+                string? invitationPriceStr = null;
                 bool isAnyPromoActive = false;
                 bool isSubsidyActive = false;
                 bool isInvitationActive = false;
@@ -272,6 +307,13 @@ namespace PriceSafari.Services.AllegroServices
                         sellerEarns = bargainPrice;
                         customerPays = bargainPrice;
                     }
+                }
+
+                // --- OSTATECZNA WALIDACJA CEN ---
+                if (customerPays <= 0 || sellerEarns <= 0)
+                {
+                    _logger.LogWarning("Oferta {OfferId} zwróciła niepoprawne ceny (<=0): CustomerPays={CP}, SellerEarns={SE}", offerId, customerPays, sellerEarns);
+                    return null;
                 }
 
                 return new AllegroApiSummary(

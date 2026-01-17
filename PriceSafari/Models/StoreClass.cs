@@ -9,6 +9,7 @@ namespace PriceSafari.Models
     {
         [Key]
         public int StoreId { get; set; }
+
         public string StoreName { get; set; }
         public string? StoreProfile { get; set; }
         public string? StoreApiUrl { get; set; }
@@ -41,6 +42,7 @@ namespace PriceSafari.Models
         [Display(Name = "Data rozpoczęcia subskrypcji")]
         [DataType(DataType.Date)]
         public DateTime? SubscriptionStartDate { get; set; }
+
         [Display(Name = "Użytkownik chce zrezygnować")]
         public bool UserWantsExit { get; set; } = false;
 
@@ -50,16 +52,17 @@ namespace PriceSafari.Models
         public string? StoreNameCeneo { get; set; }
 
         public bool UseGoogleXMLFeedPrice { get; set; } = false;
-        // to dodalem 
-        public bool UseCeneoXMLFeedPrice { get; set; } = false;
 
-        
+        public bool UseCeneoXMLFeedPrice { get; set; } = false;
 
         [Display(Name = "Pobieraj dane z API Sklepu")]
         public bool FetchExtendedData { get; set; } = false;
 
         [Display(Name = "System Sklepowy (Silnik)")]
         public StoreSystemType StoreSystemType { get; set; } = StoreSystemType.Custom;
+
+        [Display(Name = "Czy zmiana cen przez API w sklepie jest aktywna")]
+        public bool IsStorePriceBridgeActive { get; set; } = false;
 
         public string? StoreNameAllegro { get; set; }
 
@@ -69,11 +72,6 @@ namespace PriceSafari.Models
 
         [Display(Name = "Pobieraj dane z API Allegro")]
         public bool FetchExtendedAllegroData { get; set; } = false;
-
-
-
-
-
 
         [Display(Name = "Refresh Token (Długoterminowy klucz klienta)")]
         public string? AllegroRefreshToken { get; set; }
@@ -86,16 +84,6 @@ namespace PriceSafari.Models
 
         [Display(Name = "Czy integracja jest aktywna")]
         public bool IsAllegroTokenActive { get; set; } = false;
-
-
-
-
-
-
-
-
-
-
 
         public bool IsAllegroPriceBridgeActive { get; set; } = false;
 
@@ -115,7 +103,6 @@ namespace PriceSafari.Models
 
         [Display(Name = "Miesiąc ważności karty")]
         public string? CardExpMonth { get; set; }
-
 
         public bool UseGPID { get; set; } = false;
         public bool UseWRGA { get; set; } = false;
