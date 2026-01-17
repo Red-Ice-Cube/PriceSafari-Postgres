@@ -494,7 +494,7 @@
         let bestPriceCount = 0;
         let campaignCount = 0;
         let subsidyCount = 0;
-        let invitationCount = 0;
+    
 
         prices.forEach(price => {
             if (price.myIsTopOffer) topOfferCount++;
@@ -503,7 +503,7 @@
             if (price.anyPromoActive) campaignCount++;
 
             if (price.isSubsidyActive) subsidyCount++;
-            if (price.isInvitationActive) invitationCount++;
+          
         });
 
         const topOfferLabel = document.getElementById('labelMyTopOffer');
@@ -511,7 +511,7 @@
         const bestPriceLabel = document.getElementById('labelMyBestPrice');
         const campaignLabel = document.getElementById('labelMyCampaign');
         const subsidyLabel = document.getElementById('labelMySubsidy');
-        const invitationLabel = document.getElementById('labelMyInvitation');
+    
 
         if (topOfferLabel) topOfferLabel.textContent = `Top oferta (${topOfferCount})`;
         if (superPriceLabel) superPriceLabel.textContent = `Super cena (${superPriceCount})`;
@@ -519,7 +519,7 @@
         if (campaignLabel) campaignLabel.textContent = `W jakiejkolwiek kampanii (${campaignCount})`;
 
         if (subsidyLabel) subsidyLabel.textContent = `Kampania z dopłatami (${subsidyCount})`;
-        if (invitationLabel) invitationLabel.textContent = `Zaproszenie do kampanii (${invitationCount})`;
+    
     }
 
     function updateStatusCounts(prices) {
@@ -1110,19 +1110,6 @@
             }
         }
 
-        if (item.isInvitationActive === true && item.invitationPrice != null) {
-            const formattedInvitationPrice = formatPricePL(item.invitationPrice, true); 
-
-            const invitationBox = document.createElement('div');
-
-            invitationBox.className = 'Invitation-stack'; 
-            invitationBox.style.textAlign = 'left';
-            invitationBox.style.marginTop = '3px';
-
-            invitationBox.innerHTML = `<span class="invitation-stack-badge">Zaproszenie do kampanii</span><p>${formattedInvitationPrice}</p>`;
-
-            contentWrapper.appendChild(invitationBox);
-        }
 
         const actionLine = document.createElement('div');
         actionLine.className = 'price-action-line';
