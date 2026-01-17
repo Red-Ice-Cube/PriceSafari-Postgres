@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging; // Usunięto IConfiguration, bo bierzemy z Env
+using Microsoft.Extensions.Logging;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using System;
@@ -15,18 +15,15 @@ namespace PriceSafari.Services.AllegroServices
     public class AllegroAuthTokenService
     {
         private readonly PriceSafariContext _context;
-        // private readonly IConfiguration _configuration; // To pole nie jest już potrzebne
         private readonly HttpClient _httpClient;
         private readonly ILogger<AllegroAuthTokenService> _logger;
 
         public AllegroAuthTokenService(
             PriceSafariContext context,
-            // IConfiguration configuration, // Usuwamy z konstruktora
             HttpClient httpClient,
             ILogger<AllegroAuthTokenService> logger)
         {
             _context = context;
-            // _configuration = configuration;
             _httpClient = httpClient;
             _logger = logger;
         }
@@ -34,19 +31,11 @@ namespace PriceSafari.Services.AllegroServices
         public async Task<string?> GetValidAccessTokenAsync(int storeId)
         {
             var store = await _context.Stores.FindAsync(storeId);
-            if (store == null)
-            {
-                _logger.LogError($"Nie znaleziono sklepu o ID {storeId}");
-                return null;
-            }
+            if (store == null) return null;
 
-            if (!store.IsAllegroTokenActive)
-            {
-                _logger.LogWarning($"Integracja Allegro dla sklepu {store.StoreName} jest nieaktywna.");
-                return null;
-            }
+            if (!store.IsAllegroTokenActive) return null;
 
-            // 1. Sprawdź ważność obecnego tokena (z buforem bezpieczeństwa 5 minut)
+            // Zwykłe sprawdzenie daty
             if (!string.IsNullOrEmpty(store.AllegroApiToken) &&
                 store.AllegroTokenExpiresAt.HasValue &&
                 store.AllegroTokenExpiresAt.Value > DateTime.Now.AddMinutes(5))
@@ -54,8 +43,17 @@ namespace PriceSafari.Services.AllegroServices
                 return store.AllegroApiToken;
             }
 
-            // 2. Token wygasł lub zaraz wygaśnie - próbujemy go odświeżyć
-            _logger.LogInformation($"Token Access dla sklepu '{store.StoreName}' wygasł (lub brak). Próba odświeżenia...");
+            _logger.LogInformation($"Token dla sklepu '{store.StoreName}' wygasł wg daty. Odświeżam...");
+            return await RefreshTokenForStoreAsync(store);
+        }
+
+        // --- NOWA METODA: Wymuszenie odświeżenia (nawet jak data jest OK) ---
+        public async Task<string?> ForceRefreshTokenAsync(int storeId)
+        {
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null) return null;
+
+            _logger.LogWarning($"WYMUSZANIE odświeżenia tokena dla sklepu '{store.StoreName}' (otrzymano 401 mimo ważnej daty).");
             return await RefreshTokenForStoreAsync(store);
         }
 
@@ -63,37 +61,22 @@ namespace PriceSafari.Services.AllegroServices
         {
             if (string.IsNullOrEmpty(store.AllegroRefreshToken))
             {
-                _logger.LogError($"BŁĄD KRYTYCZNY: Sklep '{store.StoreName}' nie posiada Refresh Tokena. Wymagana ponowna autoryzacja ręczna.");
+                _logger.LogError($"Sklep '{store.StoreName}' nie posiada Refresh Tokena.");
                 store.IsAllegroTokenActive = false;
                 await _context.SaveChangesAsync();
                 return null;
             }
 
-            // --- ZMIANA: Pobieranie z Zmiennych Środowiskowych (.env) ---
             var clientId = Environment.GetEnvironmentVariable("ALLEGRO_CLIENT_ID");
             var clientSecret = Environment.GetEnvironmentVariable("ALLEGRO_CLIENT_SECRET");
-            // ------------------------------------------------------------
-
-
-            // --- DODAJ TE LOGI DIAGNOSTYCZNE ---
-            if (string.IsNullOrEmpty(clientId)) _logger.LogError("!!! DIAGNOSTYKA: CLIENT_ID jest NULL lub PUSTY !!!");
-            else _logger.LogInformation($"!!! DIAGNOSTYKA: CLIENT_ID załadowany, długość: {clientId.Length}");
-
-            if (string.IsNullOrEmpty(clientSecret)) _logger.LogError("!!! DIAGNOSTYKA: CLIENT_SECRET jest NULL lub PUSTY !!!");
-            else _logger.LogInformation($"!!! DIAGNOSTYKA: CLIENT_SECRET załadowany, długość: {clientSecret.Length}");
-
-            if (string.IsNullOrEmpty(store.AllegroRefreshToken)) _logger.LogError("!!! DIAGNOSTYKA: REFRESH TOKEN w bazie jest NULL !!!");
-            // ------------------------------------
-
 
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
             {
-                _logger.LogError("Brak kluczy ALLEGRO_CLIENT_ID lub ALLEGRO_CLIENT_SECRET w zmiennych środowiskowych (.env).");
+                _logger.LogError("Brak kluczy ALLEGRO w zmiennych środowiskowych.");
                 return null;
             }
 
             var requestUrl = "https://allegro.pl/auth/oauth/token";
-
             var authHeaderValue = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
 
             using var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
@@ -113,12 +96,11 @@ namespace PriceSafari.Services.AllegroServices
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError($"Nie udało się odświeżyć tokena dla '{store.StoreName}'. Status: {response.StatusCode}. Odpowiedź: {errorContent}");
+                    _logger.LogError($"Błąd odświeżania tokena: {response.StatusCode}. {errorContent}");
 
                     if (response.StatusCode == System.Net.HttpStatusCode.BadRequest ||
                         response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                     {
-                        _logger.LogWarning($"Refresh Token dla '{store.StoreName}' jest nieważny. Wyłączam integrację.");
                         store.IsAllegroTokenActive = false;
                         await _context.SaveChangesAsync();
                     }
@@ -131,24 +113,20 @@ namespace PriceSafari.Services.AllegroServices
                 if (tokenData != null)
                 {
                     store.AllegroApiToken = tokenData.access_token;
-
                     if (!string.IsNullOrEmpty(tokenData.refresh_token))
                     {
                         store.AllegroRefreshToken = tokenData.refresh_token;
                     }
-
                     store.AllegroTokenExpiresAt = DateTime.Now.AddSeconds(tokenData.expires_in);
                     store.IsAllegroTokenActive = true;
 
                     await _context.SaveChangesAsync();
-
-                    _logger.LogInformation($"Pomyślnie odświeżono token dla sklepu '{store.StoreName}'. Ważny do: {store.AllegroTokenExpiresAt}");
                     return tokenData.access_token;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Wyjątek podczas odświeżania tokena dla sklepu '{store.StoreName}'");
+                _logger.LogError(ex, "Wyjątek podczas odświeżania tokena.");
             }
 
             return null;
@@ -157,12 +135,8 @@ namespace PriceSafari.Services.AllegroServices
         private class AllegroTokenResponse
         {
             public string access_token { get; set; }
-            public string token_type { get; set; }
             public string refresh_token { get; set; }
             public int expires_in { get; set; }
-            public string scope { get; set; }
-            public bool allegro_api { get; set; }
-            public string jti { get; set; }
         }
     }
 }

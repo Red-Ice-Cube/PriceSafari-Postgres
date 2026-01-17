@@ -11,7 +11,6 @@ using System.Text.Json.Nodes;
 
 namespace PriceSafari.Services.AllegroServices
 {
-    // 1. ZMIANA: Usunięto IsInvitationActive i InvitationPrice z rekordu
     public record AllegroApiSummary(
         decimal? CustomerPrice,
         decimal? SellerRevenue,
@@ -53,20 +52,15 @@ namespace PriceSafari.Services.AllegroServices
 
             if (!activeStores.Any())
             {
-                _logger.LogInformation("Nie znaleziono aktywnych sklepów z włączoną opcją pobierania danych z API Allegro.");
                 result.Messages.Add("Brak aktywnych sklepów do przetworzenia.");
                 return result;
             }
-
-            _logger.LogInformation("Znaleziono {Count} sklepów do przetworzenia: {StoreNames}",
-                activeStores.Count, string.Join(", ", activeStores.Select(s => s.StoreName)));
 
             result.StoresProcessedCount = activeStores.Count;
 
             foreach (var store in activeStores)
             {
                 var storeResult = await ProcessOffersForSingleStore(store);
-
                 result.TotalOffersProcessed += storeResult.processedCount;
 
                 if (!storeResult.success)
@@ -92,21 +86,42 @@ namespace PriceSafari.Services.AllegroServices
                 .Where(o => o.StoreId == store.StoreId && o.IsScraped && o.IsApiProcessed != true)
                 .ToListAsync();
 
-            if (!offersToProcess.Any())
-            {
-                _logger.LogInformation("Brak nowych ofert do przetworzenia dla sklepu {StoreName}.", store.StoreName);
-                return (true, 0, string.Empty);
-            }
+            if (!offersToProcess.Any()) return (true, 0, string.Empty);
 
-            _logger.LogInformation("Znaleziono {Count} ofert do przetworzenia dla sklepu {StoreName}.", offersToProcess.Count, store.StoreName);
-
+            // 1. Pobieramy token (może być "stary", jeśli data w bazie jest z przyszłości)
             string? accessToken = await _authTokenService.GetValidAccessTokenAsync(store.StoreId);
 
             if (string.IsNullOrEmpty(accessToken))
             {
-                _logger.LogWarning("Nie udało się uzyskać ważnego tokena dla sklepu {StoreName}. Pomijam przetwarzanie.", store.StoreName);
-                return (false, 0, $"Nie udało się odświeżyć tokena API dla sklepu '{store.StoreName}'. Sprawdź logi.");
+                return (false, 0, $"Nie udało się pobrać tokena dla sklepu '{store.StoreName}'.");
             }
+
+            // --- SEKCJA NAPRAWCZA: WERYFIKACJA I WYMUSZONE ODŚWIEŻENIE ---
+            try
+            {
+                // Bierzemy pierwszą ofertę na próbę, żeby sprawdzić czy token działa
+                var testOffer = offersToProcess.First();
+                // Próba pobrania danych. Jeśli token jest zły, rzuci AllegroAuthException (401)
+                await GetOfferData(accessToken, testOffer.AllegroOfferId.ToString());
+            }
+            catch (AllegroAuthException)
+            {
+                _logger.LogWarning("Wykryto nieważny token (401) mimo poprawnej daty w bazie. Próba wymuszonego odświeżenia...");
+
+                // Wymuszamy odświeżenie w serwisie
+                accessToken = await _authTokenService.ForceRefreshTokenAsync(store.StoreId);
+
+                if (string.IsNullOrEmpty(accessToken))
+                {
+                    return (false, 0, "Token wygasł i nie udało się go odświeżyć (Refresh Token może być nieważny).");
+                }
+                _logger.LogInformation("Token został pomyślnie odświeżony. Kontynuuję przetwarzanie.");
+            }
+            catch (Exception)
+            {
+                // Inne błędy na tym etapie ignorujemy, pętla główna sobie z nimi poradzi
+            }
+            // -------------------------------------------------------------
 
             int successCounter = 0;
             int failureCounter = 0;
@@ -116,7 +131,7 @@ namespace PriceSafari.Services.AllegroServices
                 var semaphore = new SemaphoreSlim(5);
                 var tasks = new List<Task>();
 
-                _logger.LogInformation("Rozpoczynam zrównoleglone przetwarzanie {Count} ofert (limit {SemaphoreCount}) dla sklepu {StoreName}...", offersToProcess.Count, 5, store.StoreName);
+                _logger.LogInformation("Rozpoczynam przetwarzanie {Count} ofert dla sklepu {StoreName}...", offersToProcess.Count, store.StoreName);
 
                 foreach (var offer in offersToProcess)
                 {
@@ -125,7 +140,7 @@ namespace PriceSafari.Services.AllegroServices
                         await semaphore.WaitAsync();
                         try
                         {
-                            var apiData = await FetchApiDataForOffer(accessToken, offer.AllegroOfferId.ToString());
+                            var apiData = await FetchApiDataForOffer(accessToken!, offer.AllegroOfferId.ToString());
 
                             if (apiData != null && apiData.CustomerPrice > 0 && apiData.SellerRevenue > 0)
                             {
@@ -136,27 +151,24 @@ namespace PriceSafari.Services.AllegroServices
                                 offer.AnyPromoActive = apiData.IsAnyPromoActive;
                                 offer.IsSubsidyActive = apiData.IsSubsidyActive;
 
-                                // 2. ZMIANA: Usunięto przypisanie InvitationPrice i IsInvitationActive
-                                // offer.IsInvitationActive = apiData.IsInvitationActive;
-                                // offer.InvitationPrice = apiData.InvitationPrice;
-
                                 offer.IsApiProcessed = true;
                                 Interlocked.Increment(ref successCounter);
                             }
                             else
                             {
                                 Interlocked.Increment(ref failureCounter);
-                                _logger.LogWarning("Otrzymano puste lub zerowe dane dla oferty {OfferId}. Pomijam aktualizację.", offer.AllegroOfferId);
+                                _logger.LogWarning("Otrzymano puste dane dla oferty {OfferId}.", offer.AllegroOfferId);
                             }
                         }
                         catch (AllegroAuthException)
                         {
+                            // Jeśli tutaj wpadnie 401, to znaczy że token padł w trakcie pętli (mało prawdopodobne po weryfikacji wyżej)
                             throw;
                         }
                         catch (Exception ex)
                         {
                             Interlocked.Increment(ref failureCounter);
-                            _logger.LogError(ex, "Błąd podczas przetwarzania oferty {OfferId} dla sklepu {StoreName}", offer.AllegroOfferId, store.StoreName);
+                            _logger.LogError(ex, "Błąd oferty {OfferId}", offer.AllegroOfferId);
                         }
                         finally
                         {
@@ -168,34 +180,19 @@ namespace PriceSafari.Services.AllegroServices
                 await Task.WhenAll(tasks);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Zakończono przetwarzanie dla sklepu {StoreName}. Sukces: {Success}, Porażka/Puste: {Fail}.",
-                    store.StoreName, successCounter, failureCounter);
+                string msg = failureCounter > 0 ? $"Ostrzeżenie: {failureCounter} błędów." : string.Empty;
+                if (successCounter == 0 && offersToProcess.Count > 0) return (false, 0, "Brak sukcesów.");
 
-                if (successCounter == 0 && offersToProcess.Count > 0)
-                {
-                    return (false, 0, $"Sklep {store.StoreName}: Próbowano przetworzyć {offersToProcess.Count} ofert, ale żadna nie zwróciła poprawnych danych (0 sukcesów).");
-                }
-
-                string msg = failureCounter > 0 ? $"Ostrzeżenie: {failureCounter} ofert nie udało się pobrać poprawnie." : string.Empty;
                 return (true, successCounter, msg);
             }
-            catch (AllegroAuthException ex)
+            catch (AllegroAuthException)
             {
-                _logger.LogError(ex, "Błąd autoryzacji API Allegro dla sklepu {StoreName} w trakcie przetwarzania.", store.StoreName);
-
-                var dbStore = await _context.Stores.FindAsync(store.StoreId);
-                if (dbStore != null)
-                {
-                    dbStore.IsAllegroTokenActive = false;
-                    await _context.SaveChangesAsync();
-                }
-
-                return (false, 0, $"Token API dla sklepu '{store.StoreName}' stracił ważność w trakcie operacji.");
+                // To wyłapie sytuację, jeśli token padnie w trakcie (bardzo rzadkie)
+                return (false, 0, "Token utracił ważność w trakcie operacji.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Wystąpił nieoczekiwany błąd podczas przetwarzania ofert dla sklepu {StoreName}", store.StoreName);
-                return (false, 0, $"Nieoczekiwany błąd dla sklepu '{store.StoreName}': {ex.Message}");
+                return (false, 0, $"Błąd krytyczny: {ex.Message}");
             }
         }
 
@@ -239,10 +236,9 @@ namespace PriceSafari.Services.AllegroServices
 
                 decimal sellerEarns = basePrice;
                 decimal customerPays = basePrice;
-
-                // 3. ZMIANA: Usunięto zmienne invitationPriceStr i isInvitationActive
                 bool isAnyPromoActive = false;
                 bool isSubsidyActive = false;
+                // 5. ZMIANA: Usunięto zmienne Invitation
 
                 var activeAlleDiscount = alleDiscountCampaigns.FirstOrDefault();
 
@@ -306,7 +302,6 @@ namespace PriceSafari.Services.AllegroServices
                     return null;
                 }
 
-                // 4. ZMIANA: Konstruktor AllegroApiSummary nie przyjmuje już argumentów Invitation
                 return new AllegroApiSummary(
                     customerPays,
                     sellerEarns,

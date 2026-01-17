@@ -1025,24 +1025,29 @@ namespace PriceSafari.Controllers.MemberControllers
         [HttpPost]
         public async Task<IActionResult> ExecutePriceChange(int storeId, [FromBody] List<AllegroPriceBridgeItemRequest> items)
         {
-            // ------------------ LOGOWANIE START ------------------
-            _logger.LogError(">>> [EXECUTE START] Próba ręcznej zmiany cen dla sklepu ID: {StoreId}", storeId);
+            // Informacja o starcie - OK
+            _logger.LogInformation($">>> [EXECUTE START] Próba ręcznej zmiany cen...");
 
             if (items == null)
             {
+                // To jest błąd krytyczny - logujemy jako Error
                 _logger.LogError("!!! CRITICAL !!! Lista 'items' jest NULL. Frontend nie przesłał danych.");
             }
             else
             {
-                _logger.LogError(">>> Otrzymano {Count} elementów do zmiany.", items.Count);
+                // To jest poprawna sytuacja - zmieniono LogError na LogInformation
+                _logger.LogInformation(">>> Otrzymano {Count} elementów do zmiany.", items.Count);
+
                 foreach (var item in items)
                 {
-                    _logger.LogError("   -> ITEM: ProductId={ProductId}, OfferId (Allegro)={OfferId}, NewPrice={Price}, Mode={Mode}",
+                    // Szczegóły przetwarzania - zmieniono LogError na LogInformation
+                    _logger.LogInformation("   -> ITEM: ProductId={ProductId}, OfferId (Allegro)={OfferId}, NewPrice={Price}, Mode={Mode}",
                         item.ProductId, item.OfferId, item.PriceAfter_Simulated, item.Mode);
 
                     if (string.IsNullOrEmpty(item.OfferId))
                     {
-                        _logger.LogError("   !!! UWAGA !!! OfferId jest PUSTE dla produktu {ProductId}. To spowoduje błąd w serwisie!", item.ProductId);
+                        // To jest sytuacja ostrzegawcza/błędna dla konkretnego elementu - LogWarning
+                        _logger.LogWarning("   !!! UWAGA !!! OfferId jest PUSTE dla produktu {ProductId}. To spowoduje błąd w serwisie!", item.ProductId);
                     }
                 }
             }
@@ -1050,13 +1055,15 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (!await UserHasAccessToStore(storeId))
             {
-                _logger.LogError("!!! ACCESS DENIED !!! Użytkownik nie ma dostępu do sklepu {StoreId}", storeId);
+                // Brak dostępu - Error/Warning
+                _logger.LogWarning("!!! ACCESS DENIED !!! Użytkownik nie ma dostępu do sklepu {StoreId}", storeId);
                 return Forbid();
             }
 
             if (items == null || !items.Any())
             {
-                _logger.LogError("!!! BAD REQUEST !!! Brak elementów do przetworzenia.");
+                // Błąd logiki/zapytania - Warning
+                _logger.LogWarning("!!! BAD REQUEST !!! Brak elementów do przetworzenia.");
                 return BadRequest("Brak zmian do przetworzenia.");
             }
 
@@ -1070,6 +1077,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (latestScrap == 0)
             {
+                // Błąd spójności danych - Error
                 _logger.LogError("!!! ERROR !!! Nie znaleziono latestScrap (ID=0) dla sklepu {StoreId}.", storeId);
                 return BadRequest("Nie znaleziono historii analizy dla tego sklepu.");
             }
@@ -1077,7 +1085,8 @@ namespace PriceSafari.Controllers.MemberControllers
             var priceSettings = await _context.PriceValues.FirstOrDefaultAsync(pv => pv.StoreId == storeId);
             bool includeCommissionInMargin = priceSettings?.AllegroIncludeCommisionInPriceChange ?? false;
 
-            _logger.LogError(">>> Wywołuję serwis _priceBridgeService.ExecutePriceChangesAsync dla {Count} elementów...", items.Count);
+            // Informacja o wywołaniu serwisu - zmieniono LogError na LogInformation
+            _logger.LogInformation(">>> Wywołuję serwis _priceBridgeService.ExecutePriceChangesAsync dla {Count} elementów...", items.Count);
 
             var result = await _priceBridgeService.ExecutePriceChangesAsync(
                 storeId,
@@ -1087,9 +1096,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 items
             );
 
-            _logger.LogError(">>> [EXECUTE END] Wynik serwisu: Success={Success}, Failed={Failed}", result.SuccessfulCount, result.FailedCount);
+            // Informacja o wyniku - zmieniono LogError na LogInformation
+            _logger.LogInformation(">>> [EXECUTE END] Wynik serwisu: Success={Success}, Failed={Failed}", result.SuccessfulCount, result.FailedCount);
 
-            // --- DODAJ TO ---
+            // Logowanie faktycznych błędów zwróconych przez serwis - LogError
             if (result.Errors.Any())
             {
                 foreach (var error in result.Errors)
