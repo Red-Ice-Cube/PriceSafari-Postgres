@@ -409,7 +409,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     // Musimy zablokować, bo wyliczylibyśmy cenę ze stratą (bez pokrycia prowizji).
                     if (rule.MarketplaceIncludeCommission)
                     {
-                        ApplyBlock(row, "Brak Prowizji)");
+                        ApplyBlock(row, "Brak Prowizji");
                         return;
                     }
 
