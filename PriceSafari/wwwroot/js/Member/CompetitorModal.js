@@ -8,6 +8,9 @@ function hideLoading() {
     document.getElementById("loadingOverlay").style.display = "none";
 }
 window.openCompetitorsModal = async function () {
+
+    window.presetHasChanged = false;
+
     const competitorModal = document.getElementById("competitorModal");
     if (!competitorModal) return;
 
@@ -128,11 +131,9 @@ async function refreshPresetDropdown() {
         presetSelect.value = "BASE";
     }
 }
-// ZASTĄP CAŁY PIERWSZY BLOK DOMContentLoaded TYM KODEM:
 
-// Używamy delegacji zdarzeń, aby działało to nawet po podmianie HTML modala przez loadModalHTML
 document.addEventListener("change", async function (event) {
-    // 1. Obsługa zmiany presetu (Dropdown)
+
     if (event.target && event.target.id === "presetSelect") {
         const val = event.target.value;
         if (val === "BASE") {
@@ -142,7 +143,6 @@ document.addEventListener("change", async function (event) {
         }
     }
 
-    // 2. Obsługa checkboxa "Użyj nieoznaczonych sklepów"
     if (event.target && event.target.id === "useUnmarkedStoresCheckbox") {
         const checkbox = event.target;
         if (!window.currentPreset || window.currentPreset.presetId === null) {
@@ -162,7 +162,6 @@ document.addEventListener("change", async function (event) {
         hideLoading();
     }
 
-    // 3. Obsługa checkboxów Google/Ceneo (jeśli są w modalu)
     if (event.target && (event.target.id === "googleCheckbox" || event.target.id === "ceneoCheckbox")) {
         const googleChk = document.getElementById("googleCheckbox");
         const ceneoChk = document.getElementById("ceneoCheckbox");
@@ -171,7 +170,7 @@ document.addEventListener("change", async function (event) {
             if (!window.currentPreset || window.currentPreset.presetId === null) {
                 const val = determineSourceVal(googleChk.checked, ceneoChk.checked);
                 showLoading();
-                await loadCompetitors(); // loadCompetitors w Twoim kodzie samo pobiera stan checkboxów
+                await loadCompetitors();
                 hideLoading();
                 return;
             }
@@ -186,24 +185,21 @@ document.addEventListener("change", async function (event) {
     }
 });
 
-// Obsługa wyszukiwania (Input event)
 document.addEventListener("input", function (event) {
     if (event.target && event.target.id === "competitorSearchInput") {
         filterCompetitors(event.target.value);
     }
 });
 
-
 async function deactivateAllPresets() {
     try {
-
         const resp = await fetch(`/api/Presets/deactivate-all/${storeId}`, {
             method: "POST",
             headers: { 'Content-Type': 'application/json' }
-
         });
 
         if (!resp.ok) {
+
             const errorText = await resp.text();
             console.error("Błąd deaktywacji:", errorText);
             alert("Błąd serwera podczas deaktywacji presetów.");
@@ -211,9 +207,14 @@ async function deactivateAllPresets() {
         }
 
         const data = await resp.json();
+
         if (!data.success) {
             alert("Błąd deaktywacji presetów: " + (data.message || ""));
+        } else {
+
+            window.presetHasChanged = true;
         }
+
     } catch (err) {
         console.error("deactivateAllPresets error", err);
     }
@@ -322,6 +323,7 @@ async function loadBaseView() {
                     activateBtn.disabled = false;
                     activateBtn.onclick = async function () {
                         await deactivateAllPresets();
+                        window.presetHasChanged = true;
                         await loadBaseView();
                         await refreshPresetDropdown();
                     };
@@ -336,7 +338,6 @@ async function loadBaseView() {
         hideLoading();
     }
 }
-
 
 async function loadSelectedPreset(presetId) {
     showLoading();
@@ -395,16 +396,10 @@ async function loadSelectedPreset(presetId) {
             activateBtn.className = "Button-Page-Small";
 
             if (window.presetContext === 'automationRule') {
-                // --- TRYB WYBORU DO REGULY ---
 
-                // Pobieramy aktualną wartość z inputa
                 const inputEl = document.getElementById('CompetitorPresetId');
                 const currentSelectedId = inputEl ? inputEl.value : "";
 
-                // === POPRAWKA TUTAJ ===
-                // Sprawdzamy, czy input MA WARTOŚĆ i czy ta wartość równa się ID presetu.
-                // Jeśli currentSelectedId to "" (pusty ciąg), to znaczy że wybrany jest BASE, 
-                // więc żaden konkretny preset nie może być "isSelected".
                 const isSelected = (currentSelectedId !== "" && currentSelectedId == window.currentPreset.presetId);
 
                 if (isSelected) {
@@ -425,7 +420,7 @@ async function loadSelectedPreset(presetId) {
                 }
 
             } else {
-                // --- STARA LOGIKA (Zarządzanie sklepem) ---
+
                 if (window.currentPreset.nowInUse) {
                     activateBtn.textContent = "Aktywny";
                     activateBtn.disabled = true;
@@ -502,7 +497,6 @@ async function loadSelectedPreset(presetId) {
             deleteBtn.style.cursor = "pointer";
             deleteBtn.style.display = "inline-block";
 
-            // Tutaj wklej tę samą logikę usuwania co poprawiliśmy wcześniej (z przywracaniem BASE)
             deleteBtn.onclick = async function () {
                 if (confirm("Czy na pewno chcesz usunąć ten preset?")) {
                     try {
@@ -520,8 +514,8 @@ async function loadSelectedPreset(presetId) {
                         const data = await resp.json();
                         if (data.success) {
                             alert("Preset został usunięty.");
+                            window.presetHasChanged = true;
 
-                            // Revert logic
                             if (window.presetContext === 'automationRule') {
                                 const hiddenInput = document.getElementById('CompetitorPresetId');
                                 if (hiddenInput && hiddenInput.value == deletedPresetId) {
@@ -795,10 +789,8 @@ function refreshRowColor(storeName, isGoogle) {
     }
 }
 
-// ZASTĄP BLOK DOTYCZĄCY addNewPresetBtn TYM KODEM:
-
 document.addEventListener("click", async function (event) {
-    // Sprawdź czy kliknięto przycisk "Dodaj nowy preset"
+
     if (event.target && event.target.id === "addNewPresetBtn") {
         let presetName = prompt("Podaj nazwę nowego presetu (max 50 znaków):", "");
         if (!presetName) return;
@@ -910,6 +902,7 @@ async function saveOrUpdatePreset() {
             return;
         }
         window.currentPreset.presetId = data.presetId;
+        window.presetHasChanged = true;
     } catch (err) {
         console.error("saveOrUpdatePreset error", err);
         alert("Błąd zapisu (SaveOrUpdatePreset). Sprawdź konsolę.");
@@ -956,32 +949,6 @@ function highlightTextCaseInsensitive(fullText, searchTerm) {
     return fullText.replace(regex, '<span style="font-weight:bold; color:purple;">$1</span>');
 }
 
-document.addEventListener('click', function (event) {
-    const modal = document.getElementById('competitorModal');
-
-    if (modal && modal.classList.contains('show')) {
-        const dialog = modal.querySelector('.modal-simulation');
-
-        if (dialog && !dialog.contains(event.target)) {
-            modal.style.display = 'none';
-            modal.classList.remove('show');
-
-            if (typeof priceHistoryPageContext !== 'undefined') {
-                if (priceHistoryPageContext === 'index' && typeof loadPrices === 'function') {
-
-                    loadPrices();
-                } else if (priceHistoryPageContext === 'details') {
-
-                    window.location.reload();
-                }
-            } else {
-
-            }
-
-        }
-    }
-});
-
 document.addEventListener('keydown', function (event) {
     if (event.key === "Escape") {
         const modal = document.getElementById('competitorModal');
@@ -1005,6 +972,7 @@ document.addEventListener('keydown', function (event) {
         }
     }
 });
+
 document.addEventListener("click", function (event) {
 
     const closeBtn = event.target.closest("[data-dismiss='modal']");
@@ -1024,21 +992,36 @@ document.addEventListener("click", function (event) {
             }
             document.body.classList.remove('modal-open');
 
-            if (typeof priceHistoryPageContext !== 'undefined') {
-                if (priceHistoryPageContext === 'index' && typeof loadPrices === 'function') {
-                    loadPrices();
-                } else if (priceHistoryPageContext === 'details') {
-                    window.location.reload();
+            hideLoading();
+
+            if (modal.id === "competitorModal") {
+                if (window.presetHasChanged === true) {
+                    console.log("Zmiany w presetach wykryte - odświeżam widok.");
+
+                    if (typeof priceHistoryPageContext !== 'undefined') {
+                        if (priceHistoryPageContext === 'index' && typeof loadPrices === 'function') {
+                            loadPrices();
+
+                        } else if (priceHistoryPageContext === 'details') {
+                            window.location.reload();
+
+                        }
+                    }
+                } else {
+                    console.log("Brak zmian w presetach - nie odświeżam.");
+                }
+            }
+
+            else {
+                if (typeof priceHistoryPageContext !== 'undefined') {
+                    if (priceHistoryPageContext === 'index' && typeof loadPrices === 'function') {
+                        loadPrices();
+                    } else if (priceHistoryPageContext === 'details') {
+                        window.location.reload();
+                    }
                 }
             }
         }
-    }
-
-    if (event.target.classList.contains('modal-sim') || event.target.classList.contains('modal')) {
-        const modal = event.target;
-        modal.style.display = 'none';
-        modal.classList.remove('show');
-        document.body.classList.remove('modal-open');
     }
 });
 
