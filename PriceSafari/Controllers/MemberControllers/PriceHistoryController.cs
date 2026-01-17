@@ -11,7 +11,9 @@ using NPOI.XSSF.UserModel;
 using PriceSafari.Data;
 using PriceSafari.Hubs;
 using PriceSafari.Models;
+using PriceSafari.Models.DTOs;
 using PriceSafari.Models.ViewModels;
+using PriceSafari.Services.ScheduleService;
 using PriceSafari.ViewModels;
 using Schema.NET;
 using System.Security.Claims;
@@ -27,19 +29,22 @@ namespace PriceSafari.Controllers.MemberControllers
         private readonly ILogger<PriceHistoryController> _logger;
         private readonly UserManager<PriceSafariUser> _userManager;
         private readonly IHubContext<ScrapingHub> _hubContext;
+        private readonly StorePriceBridgeService _priceBridgeService;
 
         public PriceHistoryController(
             PriceSafariContext context,
             IHttpClientFactory httpClientFactory,
             ILogger<PriceHistoryController> logger,
             UserManager<PriceSafariUser> userManager,
-            IHubContext<ScrapingHub> hubContext)
+            IHubContext<ScrapingHub> hubContext,
+            StorePriceBridgeService priceBridgeService)
         {
             _context = context;
             _httpClientFactory = httpClientFactory;
             _logger = logger;
             _userManager = userManager;
             _hubContext = hubContext;
+            _priceBridgeService = priceBridgeService;
         }
 
         private async Task<bool> UserHasAccessToStore(int storeId)
@@ -1060,6 +1065,41 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> LogExportAsChange(int storeId, string exportType, [FromBody] List<PriceBridgeItemRequest> items)
+        {
+            // 1. Walidacja Uprawnień (Autoryzacja zostaje w kontrolerze)
+            if (!await UserHasAccessToStore(storeId))
+            {
+                return Forbid();
+            }
+
+            // 2. Pobranie danych kontekstowych (UserId)
+            var userId = _userManager.GetUserId(User);
+
+            try
+            {
+                // 3. Wywołanie logiki biznesowej z serwisu
+                var count = await _priceBridgeService.LogExportAsChangeAsync(storeId, exportType, userId, items);
+
+                // 4. Zwrócenie wyniku HTTP
+                return Json(new { success = true, count = count });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Błąd podczas zapisywania eksportu cen.");
+                return StatusCode(500, "Wystąpił błąd wewnętrzny serwera.");
+            }
+        }
+
+            [HttpPost]
         public async Task<IActionResult> SimulatePriceChange([FromBody] List<SimulationItem> simulationItems)
         {
 
@@ -1763,83 +1803,7 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
 
-        [HttpPost]
-        public async Task<IActionResult> LogExportAsChange(int storeId, string exportType, [FromBody] List<PriceBridgeItemRequest> items)
-        {
-            if (!await UserHasAccessToStore(storeId)) return Forbid();
-            if (items == null || !items.Any()) return BadRequest("Brak danych do zapisu.");
 
-            var userId = _userManager.GetUserId(User);
-
-            PriceExportMethod method;
-            if (!Enum.TryParse(exportType, true, out method))
-            {
-                method = PriceExportMethod.Csv;
-            }
-
-            var latestScrapId = await _context.ScrapHistories
-                .Where(sh => sh.StoreId == storeId)
-                .OrderByDescending(sh => sh.Date)
-                .Select(sh => sh.Id)
-                .FirstOrDefaultAsync();
-
-            if (latestScrapId == 0) return BadRequest("Brak historii scrapowania.");
-
-            var batch = new PriceBridgeBatch
-            {
-                StoreId = storeId,
-                ScrapHistoryId = latestScrapId,
-                UserId = userId,
-                ExecutionDate = DateTime.Now,
-                SuccessfulCount = items.Count,
-                ExportMethod = method,
-                BridgeItems = new List<PriceBridgeItem>()
-            };
-
-            foreach (var item in items)
-            {
-                batch.BridgeItems.Add(new PriceBridgeItem
-                {
-                    ProductId = item.ProductId,
-                    PriceBefore = item.CurrentPrice,
-                    PriceAfter = item.NewPrice,
-                    MarginPrice = item.MarginPrice,
-
-                    RankingGoogleBefore = item.CurrentGoogleRanking,
-                    RankingCeneoBefore = item.CurrentCeneoRanking,
-
-                    RankingGoogleAfterSimulated = item.NewGoogleRanking,
-                    RankingCeneoAfterSimulated = item.NewCeneoRanking,
-
-                    // --- MAPPING NEW FIELDS ---
-                    Mode = item.Mode,
-                    PriceIndexTarget = item.PriceIndexTarget,
-                    StepPriceApplied = item.StepPriceApplied,
-
-                    Success = true
-                });
-            }
-
-            _context.PriceBridgeBatches.Add(batch);
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, count = items.Count });
-        }
-
-        public class PriceBridgeItemRequest
-        {
-            public int ProductId { get; set; }
-            public decimal CurrentPrice { get; set; }
-            public decimal NewPrice { get; set; }
-            public decimal? MarginPrice { get; set; }
-            public string? CurrentGoogleRanking { get; set; }
-            public string? CurrentCeneoRanking { get; set; }
-            public string? NewGoogleRanking { get; set; }
-            public string? NewCeneoRanking { get; set; }
-            public string? Mode { get; set; }             // "profit" or "competitiveness"
-            public decimal? PriceIndexTarget { get; set; } // e.g., 100.00
-            public decimal? StepPriceApplied { get; set; }
-        }
 
 
         [HttpGet]
