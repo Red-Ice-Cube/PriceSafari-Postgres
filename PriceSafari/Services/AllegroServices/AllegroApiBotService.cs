@@ -129,8 +129,7 @@ namespace PriceSafari.Services.AllegroServices
                                 offer.AllegroEan = apiData.Ean;
                                 offer.AnyPromoActive = apiData.IsAnyPromoActive;
                                 offer.IsSubsidyActive = apiData.IsSubsidyActive;
-                                offer.IsInvitationActive = apiData.IsInvitationActive;
-                                offer.InvitationPrice = apiData.InvitationPrice;
+                        
 
                                 // SUKCES: Oznaczamy jako przetworzone tylko gdy mamy poprawne dane
                                 offer.IsApiProcessed = true;
