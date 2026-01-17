@@ -123,6 +123,31 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ClearApiData()
+        {
+            // Pobieramy wszystkie oferty, które mają jakiekolwiek dane z API
+            var offers = await _context.AllegroOffersToScrape
+                .Where(o => o.IsApiProcessed == true || o.ApiAllegroPrice != null)
+                .ToListAsync();
+
+            foreach (var offer in offers)
+            {
+                offer.IsApiProcessed = null;
+                offer.ApiAllegroPrice = null;
+                offer.ApiAllegroPriceFromUser = null;
+                offer.ApiAllegroCommission = null;
+                offer.AnyPromoActive = null;
+                offer.IsSubsidyActive = null;
+                offer.AllegroEan = null;
+    
+            }
+
+            await _context.SaveChangesAsync();
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> PrepareUrls()
         {
             // 1. Pobieramy ID wszystkich sklepów, które są "aktywne" (mają Allegro i opłacony abonament)

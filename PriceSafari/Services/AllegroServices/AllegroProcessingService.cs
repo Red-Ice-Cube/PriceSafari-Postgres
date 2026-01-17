@@ -519,8 +519,7 @@ namespace PriceSafari.Services.AllegroServices
                             ApiAllegroCommission = sourceOfferToScrape.ApiAllegroCommission,
                             AnyPromoActive = finalAnyPromoActive, // Używamy zweryfikowanej flagi
                             IsSubsidyActive = finalIsSubsidyActive, // Używamy zweryfikowanej flagi
-                            IsInvitationActive = sourceOfferToScrape.IsInvitationActive,
-                            InvitationPrice = sourceOfferToScrape.InvitationPrice
+                   
                         });
                     }
                 }
