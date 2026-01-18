@@ -1,17 +1,20 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
 
-    function formatPricePL(value, includeUnit = true) {
+    const clearChangesButton = document.getElementById("clearChangesButton");
+    const executeStoreButton = document.getElementById("executeStorePriceChangeBtn"); // NOWY PRZYCISK
 
+    // Globalna flaga: czy wykonano wgranie (żeby pokazać kolumnę potwierdzenia)
+    let simulationsExecuted = false;
+
+    function formatPricePL(value, includeUnit = true) {
         if (value === null || value === undefined || isNaN(parseFloat(value))) {
             return "-";
         }
         const numberValue = parseFloat(value);
-
         const formatted = numberValue.toLocaleString('pl-PL', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
-
         return includeUnit ? formatted + ' PLN' : formatted;
     }
 
@@ -28,27 +31,23 @@
         return `
         <div style="display: inline-block; margin: 8px 8px 0 0; text-align: center; vertical-align: middle;">
             <div style="position: relative; display: inline-block; width: 80px; height: 80px;">
-
                 <div style="
                     width: 80px;
                     height: 80px;
                     border-radius: 50%;
                     border: 1px solid #e3e3e3;
-                    background: conic-gradient(${color} 0% ${percentage}%, #f0f0f0 ${percentage}% 100%);
+                    background: conic-gradient(${color} 0% ${percentage}%, #f0f0f0 ${percentage}% 100%); 
                 "></div>
-
                 <div style="
                     position: absolute;
                     top: 10px;
-                    left: 10px;
-                    width: 60px;
-                    height: 60px;
+                    left: 10px; 
+                    width: 60px; 
+                    height: 60px; 
                     background: #fff;
                     border: 1px solid #e3e3e3;
                     border-radius: 50%;
-
                 "></div>
-
                 <div style="
                     position: absolute;
                     top: 50%;
@@ -59,14 +58,13 @@
                     <img src="${iconPath}" alt="icon" style="width:16px; height:16px; vertical-align: middle; margin-bottom: 2px;" />
                     <div style="
                         font-size: 16px;
-                        font-weight: 400;
+                        font-weight: 400; 
                         color: #222222;
                     ">
                         ${roundedScore}
                     </div>
                 </div>
             </div>
-
         </div>
         `;
     }
@@ -75,40 +73,30 @@
     var selectedPriceChanges = [];
     var sessionScrapId = null;
     const storedDataJSON = localStorage.getItem(localStorageKey);
+
     if (storedDataJSON) {
         try {
             const storedData = JSON.parse(storedDataJSON);
-
             if (storedData && storedData.scrapId && Array.isArray(storedData.changes)) {
-
                 if (storedData.changes.length > 0) {
                     const sample = storedData.changes[0];
-
                     if (typeof sample.mode === 'undefined') {
-                        console.info("Wykryto starszy format danych w LS. Wykonuję migrację do formatu z polami 'mode'.");
-
                         storedData.changes.forEach(change => {
-
                             change.mode = 'competitiveness';
-
                             change.priceIndexTarget = null;
-
                             if (typeof change.stepPriceApplied === 'undefined') {
                                 change.stepPriceApplied = null;
                             }
                         });
                     }
                 }
-
                 selectedPriceChanges = storedData.changes;
                 sessionScrapId = storedData.scrapId;
-
             } else {
-                console.warn("Nieznany lub uszkodzony format danych w LS. Usuwanie.");
                 localStorage.removeItem(localStorageKey);
             }
         } catch (err) {
-            console.error("Błąd parsowania storedChanges z Local Storage:", err);
+            console.error("Błąd parsowania storedChanges:", err);
             localStorage.removeItem(localStorageKey);
         }
     }
@@ -124,14 +112,32 @@
     let historyLoaded = false;
     let eanMapGlobal = {};
     let externalIdMapGlobal = {};
-
     let originalRowsData = [];
 
     function getCurrentDateString() {
         const d = new Date();
-
         return d.toISOString().split('T')[0];
     }
+
+    // --- FUNKCJA AKTUALIZUJĄCA STAN PRZYCISKU WGRYWANIA DO SKLEPU ---
+    function updateStoreButtonState() {
+        if (!executeStoreButton) return;
+
+        // isStoreBridgeActive musi być zdefiniowane w widoku (ViewBag)
+        if (typeof isStoreBridgeActive !== 'undefined' && isStoreBridgeActive === true) {
+            executeStoreButton.disabled = false;
+            executeStoreButton.style.opacity = '1';
+            executeStoreButton.style.cursor = 'pointer';
+            executeStoreButton.title = "Wyślij zmiany bezpośrednio do sklepu przez API";
+        } else {
+            executeStoreButton.disabled = true;
+            executeStoreButton.style.opacity = '0.5';
+            executeStoreButton.style.cursor = 'not-allowed';
+            executeStoreButton.title = "Integracja API ze sklepem jest wyłączona w ustawieniach sklepu.";
+        }
+    }
+    // Inicjalizacja stanu przycisku
+    updateStoreButtonState();
 
     function updatePriceChangeSummary(forceClear = false) {
         if (forceClear) {
@@ -163,11 +169,8 @@
         var simulateButton = document.getElementById("simulateButton");
         if (simulateButton) {
             simulateButton.disabled = false;
-
             simulateButton.style.opacity = '1';
-
             simulateButton.style.cursor = 'pointer';
-
         }
     }
 
@@ -182,6 +185,9 @@
     function clearPriceChanges() {
         selectedPriceChanges = [];
         sessionScrapId = null;
+
+        simulationsExecuted = false; // Reset flagi po wyczyszczeniu
+
         savePriceChanges();
         updatePriceChangeSummary();
         const tableContainer = document.getElementById("simulationModalBody");
@@ -199,12 +205,10 @@
         }
     }
 
-    const clearChangesButton = document.getElementById("clearChangesButton");
-    if (clearChangesButton) {
-        clearChangesButton.addEventListener("click", function () {
-
+    const clearChangesButtonLogic = document.getElementById("clearChangesButton");
+    if (clearChangesButtonLogic) {
+        clearChangesButtonLogic.addEventListener("click", function () {
             clearPriceChanges();
-
         });
     }
 
@@ -214,8 +218,8 @@
         sessionScrapId = null;
         updatePriceChangeSummary();
     });
-    document.addEventListener('priceBoxChange', function (event) {
 
+    document.addEventListener('priceBoxChange', function (event) {
         const {
             productId,
             productName,
@@ -226,9 +230,9 @@
             stepUnitApplied,
             marginPrice,
             mode,
-
-            priceIndexTarget
-
+            priceIndexTarget,
+            // Dla kompatybilności wstecznej
+            indexTarget
         } = event.detail;
 
         if (selectedPriceChanges.length === 0) {
@@ -237,6 +241,7 @@
             console.warn(`ScrapId w sesji (${sessionScrapId}) różni się od scrapId eventu (${scrapId}). Czyszczenie starych zmian.`);
             selectedPriceChanges = [];
             sessionScrapId = scrapId;
+            simulationsExecuted = false;
         }
 
         var existingIndex = selectedPriceChanges.findIndex(function (item) {
@@ -254,7 +259,9 @@
             stepUnitApplied: (mode === 'profit') ? null : stepUnitApplied,
 
             mode: mode || 'competitiveness',
-            priceIndexTarget: (mode === 'profit' && event.detail.priceIndexTarget) ? parseFloat(event.detail.priceIndexTarget) : (event.detail.indexTarget ? parseFloat(event.detail.indexTarget) : null)
+            priceIndexTarget: (mode === 'profit')
+                ? (priceIndexTarget ? parseFloat(priceIndexTarget) : (indexTarget ? parseFloat(indexTarget) : null))
+                : null
         };
 
         if (existingIndex > -1) {
@@ -295,6 +302,7 @@
                 tableContainer.innerHTML = '<p style="text-align: center; padding: 20px; font-size: 16px;">Brak produktów do symulacji.</p>';
             }
             sessionScrapId = null;
+            simulationsExecuted = false;
         }
     });
 
@@ -308,16 +316,12 @@
     }
 
     function parseRankingString(rankStr) {
-
         if (!rankStr || rankStr === "-") {
             return { rank: null, isRange: false, rangeSize: 1 };
         }
 
         const slashIndex = rankStr.indexOf("/");
-        let relevantPart = (slashIndex !== -1)
-            ? rankStr.substring(0, slashIndex).trim()
-            : rankStr.trim();
-
+        let relevantPart = (slashIndex !== -1) ? rankStr.substring(0, slashIndex).trim() : rankStr.trim();
         let isRange = false;
         let rangeSize = 1;
         let rankVal = null;
@@ -329,7 +333,6 @@
                 const startVal = parseFloat(parts[0]);
                 const endVal = parseFloat(parts[1]);
                 if (!isNaN(startVal) && !isNaN(endVal)) {
-
                     rankVal = startVal;
                     rangeSize = (endVal - startVal) + 1;
                 }
@@ -340,25 +343,14 @@
                 rankVal = val;
             }
         }
-
-        return {
-            rank: rankVal,
-            isRange: isRange,
-            rangeSize: rangeSize
-        };
+        return { rank: rankVal, isRange: isRange, rangeSize: rangeSize };
     }
 
     function computeOpportunityScore(item, simResult) {
-
         if (!simResult) {
             return {
-                cost: 0,
-                costFrac: 0,
-                googleGained: 0,
-                ceneoGained: 0,
-                googleFinalScore: null,
-                ceneoFinalScore: null,
-                basePriceChangeType: 'unknown'
+                cost: 0, costFrac: 0, googleGained: 0, ceneoGained: 0,
+                googleFinalScore: null, ceneoFinalScore: null, basePriceChangeType: 'unknown'
             };
         }
 
@@ -390,16 +382,13 @@
         }
 
         function channelScore(oldRankData, newRankData, totalOffers) {
-
             if (oldRankData.rank === null || newRankData.rank === null || totalOffers < 1) return null;
 
             let effectiveOldRank = oldRankData.rank;
             let isOldRankRangeImprovement = false;
 
             if (oldRankData.isRange && oldRankData.rangeSize > 1) {
-
                 effectiveOldRank = oldRankData.rank + oldRankData.rangeSize - 1;
-
                 if (newRankData.rank < oldRankData.rank) {
                     isOldRankRangeImprovement = true;
                 }
@@ -429,12 +418,9 @@
             let offset = 0.0001;
 
             let raw = (jumpFrac + placeBonus) / (costFracAdjusted + offset);
-
             let channelLogScale = 35;
             let val = Math.log10(raw + 1) * channelLogScale;
-
             val = Math.max(0, Math.min(100, val));
-
             return val;
         }
 
@@ -460,31 +446,33 @@
         }
 
         return {
-            cost,
-            costFrac,
-
+            cost, costFrac,
             googleGained: calculatedGoogleGained > 0 ? calculatedGoogleGained : 0,
             ceneoGained: calculatedCeneoGained > 0 ? calculatedCeneoGained : 0,
-            googleFinalScore,
-            ceneoFinalScore,
+            googleFinalScore, ceneoFinalScore,
             basePriceChangeType
         };
     }
 
-    function buildPriceBlock(basePrice, effectivePrice, shippingCost, usePriceWithDeliveryFlag, marginPercent, marginValue, googleRank, googleOffers, ceneoRank, ceneoOffers) {
+    function buildPriceBlock(basePrice, effectivePrice, shippingCost, usePriceWithDeliveryFlag, marginPercent, marginValue, googleRank, googleOffers, ceneoRank, ceneoOffers, isConfirmed = false) {
 
         const formattedBasePrice = formatPricePL(basePrice);
         const formattedEffectivePrice = formatPricePL(effectivePrice);
-        const formattedShippingCost = formatPricePL(shippingCost);
+        //const formattedShippingCost = formatPricePL(shippingCost);
+
+        const confirmedStyle = 'background: #dff0d8; border: 1px solid #c1e2b3;';
+        const normalStyle = 'background: #f5f5f5; border: 1px solid #e3e3e3;';
+        const currentStyle = isConfirmed ? confirmedStyle : normalStyle;
+        const headerText = isConfirmed ? 'Cena wgrana' : 'Cena oferty';
 
         let block = '<div class="price-info-box">';
 
         block += `
-              <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
-                  Cena oferty | ${formattedBasePrice}
+              <div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px;">
+                  ${headerText} | ${formattedBasePrice}
               </div>`;
 
-        if (usePriceWithDeliveryFlag && effectivePrice !== null && shippingCost !== null && basePrice !== null) {
+        if (usePriceWithDeliveryFlag && effectivePrice !== null && shippingCost !== null && basePrice !== null && !isConfirmed) {
             block += `
                           <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
                                 Cena z wysyłką | ${formattedEffectivePrice}
@@ -496,7 +484,7 @@
                           </div>`;
         }
 
-        if (googleRank && googleRank !== "-") {
+        if (googleRank && googleRank !== "-" && !isConfirmed) {
             const googleOffersText = googleOffers > 0 ? googleOffers : '-';
             block += `
               <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
@@ -505,7 +493,7 @@
               </div>`;
         }
 
-        if (ceneoRank && ceneoRank !== "-") {
+        if (ceneoRank && ceneoRank !== "-" && !isConfirmed) {
             const ceneoOffersText = ceneoOffers > 0 ? ceneoOffers : '-';
             block += `
                   <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
@@ -515,30 +503,58 @@
         }
 
         if (marginPercent != null && marginValue != null) {
-
             const formattedMarginValue = formatPricePL(marginValue);
             const formattedMarginPercent = parseFloat(marginPercent).toFixed(2);
             const sign = parseFloat(marginValue) >= 0 ? "+" : "";
-            const cls = parseFloat(marginValue) >= 0
-                ? "priceBox-diff-margin"
-                : "priceBox-diff-margin-minus";
+            const cls = parseFloat(marginValue) >= 0 ? "priceBox-diff-margin" : "priceBox-diff-margin-minus";
             block += `
                       <div class="price-info-item"> <div class="price-box-diff-margin ${cls}" <p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p>
                           </div>
                       </div>`;
+        } else if (isConfirmed) {
+            // Jeśli to potwierdzony blok, ale nie mamy narzutu (bo np. brak ceny zakupu), nic nie dodajemy
         }
 
         block += '</div>';
         return block;
     }
 
+    // --- NOWA FUNKCJA DO RENDEROWANIA STRUKTURY TABELI ---
+    function renderSimulationTableStructure(hasImage) {
+        let tableHtml = '<table class="table-orders" id="simulationTable" style="width: 100%;">';
+        tableHtml += '<thead><tr>';
+
+        if (hasImage) {
+            tableHtml += '<th style="width: 10%;">Produkt</th>';
+            tableHtml += '<th style="width: 25%;"></th>';
+        } else {
+            tableHtml += '<th style="width: 35%;">Produkt</th>';
+        }
+
+        tableHtml += '<th style="width: 20%;">Obecne</th>';
+        tableHtml += '<th style="width: 10%;">Zmiana</th>';
+        tableHtml += '<th style="width: 20%;">Po zmianie</th>';
+
+        // WARUNKOWA KOLUMNA POTWIERDZENIA
+        if (simulationsExecuted) {
+            tableHtml += '<th style="width: 20%;">Potwierdzenie API</th>';
+        }
+
+        tableHtml += '<th style="width: 10%;">Opłacalność</th>';
+        tableHtml += '<th style="width: 5%;">Usuń</th>';
+        tableHtml += '</tr></thead><tbody id="simulationTbody"></tbody></table>';
+
+        const tableContainer = document.getElementById("simulationModalBody");
+        if (tableContainer) {
+            tableContainer.innerHTML = tableHtml;
+        }
+    }
+
     function openSimulationModal() {
         if (selectedPriceChanges.length === 0) {
-
             const tableContainer = document.getElementById("simulationModalBody");
             if (tableContainer) {
                 tableContainer.innerHTML = '<p style="text-align: center; padding: 20px; font-size: 16px;">Brak produktów do symulacji.</p>';
-
                 const simulationModal = document.getElementById("simulationModal");
                 if (simulationModal) {
                     simulationModal.style.display = 'block';
@@ -549,6 +565,7 @@
         }
 
         showLoading();
+        simulationsExecuted = false; // Reset przy otwarciu
 
         var simulationData = selectedPriceChanges.map(function (item) {
             return {
@@ -571,7 +588,6 @@
                 return response.json();
             })
             .then(productDetails => {
-
                 var hasImage = productDetails.some(prod => prod.imageUrl && prod.imageUrl.trim() !== "");
 
                 return fetch('/PriceHistory/SimulatePriceChange', {
@@ -581,7 +597,6 @@
                 })
                     .then(response => {
                         if (!response.ok) {
-
                             return response.text().then(text => {
                                 throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
                             });
@@ -589,21 +604,17 @@
                         return response.json();
                     })
                     .then(data => {
-
                         return { productDetails, data, hasImage };
                     });
             })
             .then(({ productDetails, data, hasImage }) => {
-
                 usePriceWithDeliverySetting = data.usePriceWithDelivery === true;
                 if (data.ourStoreName) {
                     currentOurStoreName = data.ourStoreName;
                 }
                 if (data.latestScrapId) {
                     globalLatestScrapId = data.latestScrapId;
-
                     fetchAndRenderHistory();
-
                 }
 
                 var simulationResults = data.simulationResults || [];
@@ -616,31 +627,18 @@
                     externalIdMapGlobal[pidStr] = sim.externalId ? String(sim.externalId) : "";
                 });
 
-                let tableHtml = '<table class="table-orders" id="simulationTable"><thead><tr>';
-                if (hasImage) {
-                    tableHtml += '<th>Produkt</th>';
-                }
-                tableHtml += '<th></th>';
-                tableHtml += '<th>Obecne</th>';
-                tableHtml += '<th>Zmiana</th>';
-                tableHtml += '<th>Po zmianie</th>';
-                tableHtml += '<th>Opłacalność</th>';
-                tableHtml += '<th>Usuń</th>';
-                tableHtml += '</tr></thead><tbody id="simulationTbody"></tbody></table>';
-
-                const tableContainer = document.getElementById("simulationModalBody");
-                if (tableContainer) {
-                    tableContainer.innerHTML = tableHtml;
-                }
+                // UŻYCIE NOWEJ FUNKCJI STRUKTURY
+                renderSimulationTableStructure(hasImage);
 
                 originalRowsData = selectedPriceChanges.map(function (item, index) {
                     const productIdStr = String(item.productId);
-
                     const prodDetail = productDetails.find(x => String(x.productId) === productIdStr);
                     const simResult = simulationResults.find(x => String(x.productId) === productIdStr);
+
                     const marginPrice = (item.marginPrice !== undefined && item.marginPrice !== null)
                         ? parseFloat(item.marginPrice)
                         : (simResult ? simResult.marginPrice : null);
+
                     const name = prodDetail ? prodDetail.productName : item.productName || 'Brak nazwy';
                     const imageUrl = prodDetail ? prodDetail.imageUrl : "";
                     const ean = eanMapGlobal[productIdStr] || (prodDetail ? String(prodDetail.ean || '') : '');
@@ -692,59 +690,26 @@
 
                     let effectDetails = "";
                     if (opp.basePriceChangeType === 'decrease') {
-
                         const isPriceStepAdjustment = (opp.googleGained <= 0 && opp.ceneoGained <= 0) && (opp.googleFinalScore == null && opp.ceneoFinalScore == null);
-
                         if (isPriceStepAdjustment && Math.abs(diff) < 0.05) {
-                            effectDetails += `<div>
-                                            <span style="color: green; font-weight: 400; font-size: 16px;">▼</span>
-                                            <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka krk. ceno.</span>
-                                            </div>`;
+                            effectDetails += `<div><span style="color: green; font-weight: 400; font-size: 16px;">▼</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka krk. ceno.</span></div>`;
                         } else {
-                            if (opp.googleFinalScore != null) {
-                                effectDetails += createDonutChart(opp.googleFinalScore, "/images/GoogleShopping.png");
-                            }
-                            if (opp.ceneoFinalScore != null) {
-                                effectDetails += createDonutChart(opp.ceneoFinalScore, "/images/Ceneo.png");
-                            }
-
+                            if (opp.googleFinalScore != null) effectDetails += createDonutChart(opp.googleFinalScore, "/images/GoogleShopping.png");
+                            if (opp.ceneoFinalScore != null) effectDetails += createDonutChart(opp.ceneoFinalScore, "/images/Ceneo.png");
                             if (opp.googleFinalScore == null && opp.ceneoFinalScore == null && !isPriceStepAdjustment) {
-                                effectDetails += `<div>
-                                                    <span style="color: green; font-weight: 400; font-size: 16px;">▼</span>
-                                                    <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka</span>
-                                                    </div>`;
+                                effectDetails += `<div><span style="color: green; font-weight: 400; font-size: 16px;">▼</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Obniżka</span></div>`;
                             }
                         }
                     } else if (opp.basePriceChangeType === 'increase') {
-                        effectDetails += `<div>
-                                            <span style="color: red; font-weight: 400; font-size: 16px;">▲</span>
-                                            <span style="color: #222222; font-weight: 400; font-size: 16px;"> Podwyżka ceny</span>
-                                            </div>`;
+                        effectDetails += `<div><span style="color: red; font-weight: 400; font-size: 16px;">▲</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Podwyżka ceny</span></div>`;
                     } else {
-                        effectDetails += `<div>
-                                            <span style="color: gray; font-weight: 400; font-size: 16px;">●</span>
-                                            <span style="color: #222222; font-weight: 400; font-size: 16px;"> Bez zmian</span>
-                                            </div>`;
+                        effectDetails += `<div><span style="color: gray; font-weight: 400; font-size: 16px;">●</span> <span style="color: #222222; font-weight: 400; font-size: 16px;"> Bez zmian</span></div>`;
                     }
 
                     return {
-                        index,
-                        hasImage,
-                        imageUrl,
-                        productName: name,
-                        ean,
-                        externalId,
-                        producerCode,
-                        producer,
-                        diff,
-                        diffPercent,
-                        arrow,
-                        currentBlock,
-                        newBlock,
-                        finalScore: bestScore,
-                        effectDetails,
-                        productId: productIdStr,
-                        scrapId: globalLatestScrapId,
+                        index, hasImage, imageUrl, productName: name, ean, externalId, producerCode, producer,
+                        diff, diffPercent, arrow, currentBlock, newBlock, finalScore: bestScore,
+                        effectDetails, productId: productIdStr, scrapId: globalLatestScrapId,
 
                         baseCurrentPrice: simResult ? simResult.baseCurrentPrice : null,
                         baseNewPrice: simResult ? simResult.baseNewPrice : null,
@@ -774,15 +739,16 @@
                     simulationModal.classList.add('show');
                 }
 
+                // Uaktualnij stan przycisku w modalu
+                updateStoreButtonState();
+
             })
             .catch(function (err) {
                 console.error("Błąd pobierania danych produktu / symulacji:", err);
                 hideLoading();
-
                 const tableContainer = document.getElementById("simulationModalBody");
                 if (tableContainer) {
                     tableContainer.innerHTML = `<p style="text-align: center; padding: 20px; font-size: 16px; color: red;">Wystąpił błąd podczas ładowania symulacji: ${err.message}. Spróbuj ponownie.</p>`;
-
                     const simulationModal = document.getElementById("simulationModal");
                     if (simulationModal) {
                         simulationModal.style.display = 'block';
@@ -791,7 +757,6 @@
                 }
             })
             .finally(function () {
-
                 hideLoading();
             });
     }
@@ -825,29 +790,23 @@
             const formattedDiffPercent = Math.abs(row.diffPercent).toFixed(2);
 
             const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
-
             let strategyBadgeHtml = "";
 
             if (sourceItem) {
                 if (sourceItem.mode === 'profit') {
-
                     const targetVal = sourceItem.priceIndexTarget != null ? sourceItem.priceIndexTarget : 100;
-
                     strategyBadgeHtml = `
                         <span class="strategy-badge profit">
                             Indeks ${targetVal}%
                         </span>`;
                 } else {
-
                     let stepText = "Konkurencja";
                     if (sourceItem.stepPriceApplied !== null && sourceItem.stepPriceApplied !== undefined) {
                         const stepVal = parseFloat(sourceItem.stepPriceApplied);
                         const unit = sourceItem.stepUnitApplied || (document.getElementById('usePriceDifference')?.checked ? 'PLN' : '%');
-
                         if (stepVal === 0) stepText = "Wyrównanie";
                         else stepText = `Krok ${stepVal > 0 ? '+' : ''}${stepVal} ${unit}`;
                     }
-
                     strategyBadgeHtml = `
                         <span class="strategy-badge competitiveness">
                             ${stepText}
@@ -890,6 +849,8 @@
 
                         <td class="align-middle">${row.newBlock}</td>
 
+                        ${simulationsExecuted ? `<td class="align-middle" id="confirm_${row.productId}" style="min-width: 200px;"></td>` : ''}
+
                         <td class="align-middle" style="white-space: normal; text-align: center;">
                             ${row.effectDetails}
                         </td>
@@ -908,13 +869,14 @@
         tbody.innerHTML = html;
 
         tbody.querySelectorAll('.remove-change-btn').forEach(btn => {
-            btn.addEventListener('mouseenter', function () { this.style.opacity = '1'; });
-            btn.addEventListener('mouseleave', function () { this.style.opacity = '0.6'; });
+            btn.addEventListener('mouseenter', function () { if (!this.disabled) this.style.opacity = '1'; });
+            btn.addEventListener('mouseleave', function () { if (!this.disabled) this.style.opacity = '0.6'; });
 
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
-                const prodId = this.getAttribute('data-product-id');
+                if (this.disabled) return;
 
+                const prodId = this.getAttribute('data-product-id');
                 const removeEvent = new CustomEvent('priceBoxChangeRemove', {
                     detail: { productId: prodId }
                 });
@@ -923,14 +885,167 @@
         });
     }
 
+    // --- KLIKNIĘCIE PRZYCISKU "WGRAJ DO SKLEPU" ---
+    if (executeStoreButton) {
+        executeStoreButton.addEventListener("click", function () {
 
+            // 1. Filtrujemy dane (tylko te z ExternalId)
+            const itemsToBridge = originalRowsData
+                .filter(row => {
+                    const isActive = selectedPriceChanges.some(c => String(c.productId) === String(row.productId));
+                    return isActive && row.externalId && row.externalId !== "" && row.externalId !== "null";
+                })
+                .map(row => {
+                    const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
+
+                    return {
+                        ProductId: parseInt(row.productId, 10),
+                        // Zamieniamy przecinek na kropkę dla API (format invariant)
+                        CurrentPrice: parseFloat(row.baseCurrentPrice),
+                        NewPrice: parseFloat(row.baseNewPrice),
+                        MarginPrice: row.marginPrice ? parseFloat(row.marginPrice) : null,
+
+                        CurrentGoogleRanking: row.currentGoogleRanking,
+                        CurrentCeneoRanking: row.currentCeneoRanking,
+                        NewGoogleRanking: row.newGoogleRanking,
+                        NewCeneoRanking: row.newCeneoRanking,
+
+                        Mode: sourceItem ? sourceItem.mode : 'competitiveness',
+                        PriceIndexTarget: (sourceItem && sourceItem.priceIndexTarget) ? parseFloat(sourceItem.priceIndexTarget) : null,
+                        StepPriceApplied: (sourceItem && sourceItem.stepPriceApplied !== null) ? parseFloat(sourceItem.stepPriceApplied) : null
+                    };
+                });
+
+            // 2. Walidacja
+            const totalChanges = selectedPriceChanges.length;
+            const validChanges = itemsToBridge.length;
+            const skipped = totalChanges - validChanges;
+
+            if (validChanges === 0) {
+                alert("Brak produktów z przypisanym ID sklepowym (External ID). Nie można zaktualizować cen przez API.");
+                return;
+            }
+
+            if (!confirm(`Zostanie wgranych ${validChanges} zmian cen do Twojego sklepu (API).\n${skipped > 0 ? `Pominięto ${skipped} ofert bez ID.\n` : ''}Operacja nieodwracalna. Kontynuować?`)) {
+                return;
+            }
+
+            // 3. UI
+            showLoading();
+            const originalText = executeStoreButton.innerHTML;
+            executeStoreButton.disabled = true;
+            executeStoreButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Wgrywanie...';
+
+            // 4. Request API
+            fetch(`/PriceHistory/ExecuteStorePriceChange?storeId=${storeId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(itemsToBridge)
+            })
+                .then(response => {
+                    if (!response.ok) return response.text().then(text => { throw new Error(text) });
+                    return response.json();
+                })
+                .then(result => {
+                    hideLoading();
+                    executeStoreButton.disabled = false;
+                    executeStoreButton.innerHTML = originalText;
+
+                    // 5. Powiadomienie
+                    let msg = `<p style="font-weight:bold;">Aktualizacja API zakończona</p>`;
+                    msg += `<p style="color:green">Sukces: ${result.successfulCount}</p>`;
+                    if (result.failedCount > 0) msg += `<p style="color:red">Błędy: ${result.failedCount}</p>`;
+
+                    if (typeof showGlobalUpdate === 'function') {
+                        showGlobalUpdate(msg);
+                    } else {
+                        alert(`Sukces: ${result.successfulCount}, Błędy: ${result.failedCount}`);
+                    }
+
+                    // 6. Aktualizacja tabeli (BOOMERANG)
+                    if (result.successfulChangesDetails && result.successfulChangesDetails.length > 0) {
+                        simulationsExecuted = true; // Włącz kolumnę potwierdzenia
+
+                        const hasImage = originalRowsData.length > 0 && originalRowsData[0].hasImage;
+                        renderSimulationTableStructure(hasImage);
+                        renderRows(originalRowsData);
+
+                        // Wstawiamy potwierdzone ceny
+                        result.successfulChangesDetails.forEach(detail => {
+                            const rowData = originalRowsData.find(r => r.externalId && r.externalId.toString() === detail.externalId);
+
+                            if (rowData) {
+                                const cell = document.getElementById(`confirm_${rowData.productId}`);
+                                if (cell) {
+                                    // Wykorzystujemy buildPriceBlock, ustawiając isConfirmed=true (zielony)
+                                    // Jako cenę podajemy odczytaną z API, marżę przeliczamy
+                                    cell.innerHTML = buildPriceBlock(
+                                        detail.fetchedNewPrice, // basePrice
+                                        null, // effectivePrice (nieważne dla potwierdzenia)
+                                        null, // shippingCost
+                                        false, // usePriceWithDeliveryFlag
+                                        null, null, // marginPercent/Value obliczy się wewnątrz jeśli podamy marginPrice
+                                        null, null, null, null, // rankingi
+                                        true // isConfirmed
+                                    );
+                                    // Uwaga: buildPriceBlock w obecnej formie dla isConfirmed=true 
+                                    // może nie renderować marży jeśli nie przekażemy jej bezpośrednio 
+                                    // lub nie zmodyfikujemy funkcji.
+                                    // W tym wariancie używamy prostszego wywołania lub poprawiamy buildPriceBlock 
+                                    // by przyjmował marginPrice (który jest dostępny w rowData.marginPrice)
+
+                                    // Fix wywołania buildPriceBlock dla potwierdzenia (by pokazać nową marżę):
+                                    const marginPriceVal = rowData.marginPrice ? parseFloat(rowData.marginPrice) : null;
+                                    let marginVal = null;
+                                    let marginPct = null;
+
+                                    if (marginPriceVal && detail.fetchedNewPrice) {
+                                        marginVal = detail.fetchedNewPrice - marginPriceVal;
+                                        marginPct = (marginVal / marginPriceVal) * 100;
+                                    }
+
+                                    cell.innerHTML = buildPriceBlock(
+                                        detail.fetchedNewPrice,
+                                        detail.fetchedNewPrice, // effective dummy
+                                        0, // shipping dummy
+                                        false, // useDelivery dummy
+                                        marginPct,
+                                        marginVal,
+                                        null, null, null, null,
+                                        true
+                                    );
+                                }
+
+                                // Blokada usuwania
+                                const rowEl = document.querySelector(`tr[data-product-id="${rowData.productId}"]`);
+                                if (rowEl) {
+                                    const btn = rowEl.querySelector('.remove-change-btn');
+                                    if (btn) {
+                                        btn.disabled = true;
+                                        btn.style.opacity = 0.2;
+                                        btn.style.cursor = "default";
+                                    }
+                                }
+                            }
+                        });
+                    }
+
+                    // Odświeżenie widoku głównego (ceny w kafelkach)
+                    if (typeof window.loadPrices === 'function') window.loadPrices();
+                })
+                .catch(err => {
+                    hideLoading();
+                    executeStoreButton.disabled = false;
+                    executeStoreButton.innerHTML = originalText;
+                    alert("Błąd: " + err.message);
+                });
+        });
+    }
 
     function sortRowsByScoreDesc(rows) {
         return rows.sort((a, b) => {
-
             const scoreA = a.finalScore !== null ? a.finalScore : -1;
             const scoreB = b.finalScore !== null ? b.finalScore : -1;
-
             return scoreB - scoreA;
         });
     }
@@ -959,9 +1074,7 @@
         }
 
         const itemsToLog = originalRowsData.map(row => {
-
             const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
-
             return {
                 ProductId: parseInt(row.productId),
                 CurrentPrice: parseFloat(row.baseCurrentPrice),
@@ -971,7 +1084,6 @@
                 CurrentCeneoRanking: formatFullRanking(row.currentCeneoRanking, row.totalCeneoOffers),
                 NewGoogleRanking: formatFullRanking(row.newGoogleRanking, row.totalGoogleOffers),
                 NewCeneoRanking: formatFullRanking(row.newCeneoRanking, row.totalCeneoOffers),
-
                 Mode: sourceItem ? sourceItem.mode : 'competitiveness',
                 PriceIndexTarget: (sourceItem && sourceItem.priceIndexTarget) ? parseFloat(sourceItem.priceIndexTarget) : null,
                 StepPriceApplied: (sourceItem && sourceItem.stepPriceApplied !== null) ? parseFloat(sourceItem.stepPriceApplied) : null
@@ -988,7 +1100,6 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-
                     if (exportType === 'csv') {
                         exportToCsv(document.getElementById("extendedExportCheckbox")?.checked);
                     } else if (exportType === 'excel') {
@@ -1003,6 +1114,7 @@
                     selectedPriceChanges = [];
                     originalRowsData = [];
                     sessionScrapId = null;
+                    simulationsExecuted = false; // Reset
                     updatePriceChangeSummary();
 
                     const tableContainer = document.getElementById("simulationModalBody");
@@ -1014,24 +1126,18 @@
                     if (typeof window.refreshPriceBoxStates === 'function') {
                         window.refreshPriceBoxStates();
                     }
-
                     if (typeof window.loadPrices === 'function') {
-                        console.log("Eksport udany -> Odświeżam ceny w tle (loadPrices)");
                         window.loadPrices();
-                    } else {
-                        console.warn("Nie znaleziono funkcji window.loadPrices - widok nie odświeży się automatycznie.");
                     }
 
                     const historyTabBtn = document.getElementById('showPriceChangeHistory');
                     if (historyTabBtn) {
                         historyTabBtn.click();
                     } else {
-
                         document.getElementById('simulationModalBody').style.display = 'none';
                         document.getElementById('historyModalBody').style.display = 'block';
                         fetchAndRenderHistory();
                     }
-
                 } else {
                     alert("Błąd zapisu zmian do bazy danych.");
                 }
@@ -1044,11 +1150,11 @@
                 hideLoading();
             });
     }
+
     function showExportDisclaimer(type) {
         pendingExportType = type;
         const disclaimerModal = document.getElementById("exportDisclaimerModal");
         if (disclaimerModal) {
-
             disclaimerModal.style.display = 'block';
             disclaimerModal.classList.add('show');
             disclaimerModal.setAttribute('aria-hidden', 'false');
@@ -1068,11 +1174,9 @@
     const disclaimerConfirmButton = document.getElementById("disclaimerConfirmButton");
     if (disclaimerConfirmButton) {
         disclaimerConfirmButton.addEventListener("click", function () {
-
             if (pendingExportType) {
                 logChangesToDbAndRefresh(pendingExportType);
             }
-
         });
     }
 
@@ -1097,42 +1201,42 @@
             });
     }
 
+    function buildHistoryPriceBlock(price, googleRank, ceneoRank, marginPrice, isConfirmed = false) {
+        const formattedPrice = formatPricePL(price);
+        const confirmedStyle = 'background: #dff0d8; border: 1px solid #c1e2b3;';
+        const normalStyle = 'background: #f5f5f5; border: 1px solid #e3e3e3;';
+        const currentStyle = isConfirmed ? confirmedStyle : normalStyle;
+        const headerText = isConfirmed ? 'Cena wgrana' : 'Cena oferty';
+
+        let block = '<div class="price-info-box">';
+        block += `<div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px; margin-bottom: 5px;">${headerText} | ${formattedPrice}</div>`;
+
+        if (googleRank && googleRank !== "-" && googleRank !== "null") {
+            block += `<div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px; margin-bottom: 5px;">Poz. Google | <img src="/images/GoogleShopping.png" alt="Google" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${googleRank}</div>`;
+        }
+        if (ceneoRank && ceneoRank !== "-" && ceneoRank !== "null") {
+            block += `<div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px; margin-bottom: 5px;">Poz. Ceneo | <img src="/images/Ceneo.png" alt="Ceneo" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${ceneoRank}</div>`;
+        }
+        if (marginPrice !== null && marginPrice !== undefined && price !== null && marginPrice > 0) {
+            const priceVal = parseFloat(price);
+            const costVal = parseFloat(marginPrice);
+            if (!isNaN(priceVal) && !isNaN(costVal)) {
+                const marginValue = priceVal - costVal;
+                const marginPercent = (marginValue / costVal) * 100;
+                const formattedMarginValue = formatPricePL(marginValue);
+                const formattedMarginPercent = marginPercent.toFixed(2);
+                const sign = marginValue >= 0 ? "+" : "";
+                const cls = marginValue >= 0 ? "priceBox-diff-margin" : "priceBox-diff-margin-minus";
+                block += `<div class="price-info-item"><div class="price-box-diff-margin ${cls}"><p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p></div></div>`;
+            }
+        }
+        block += '</div>';
+        return block;
+    }
+
     function renderHistoryView(batches) {
         const historyContainer = document.getElementById("historyModalBody");
         if (!historyContainer) return;
-
-        function buildHistoryPriceBlock(price, googleRank, ceneoRank, marginPrice, isConfirmed = false) {
-            const formattedPrice = formatPricePL(price);
-            const confirmedStyle = 'background: #dff0d8; border: 1px solid #c1e2b3;';
-            const normalStyle = 'background: #f5f5f5; border: 1px solid #e3e3e3;';
-            const currentStyle = isConfirmed ? confirmedStyle : normalStyle;
-            const headerText = isConfirmed ? 'Cena wgrana' : 'Cena oferty';
-
-            let block = '<div class="price-info-box">';
-            block += `<div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px; margin-bottom: 5px;">${headerText} | ${formattedPrice}</div>`;
-
-            if (googleRank && googleRank !== "-" && googleRank !== "null") {
-                block += `<div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px; margin-bottom: 5px;">Poz. Google | <img src="/images/GoogleShopping.png" alt="Google" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${googleRank}</div>`;
-            }
-            if (ceneoRank && ceneoRank !== "-" && ceneoRank !== "null") {
-                block += `<div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px; margin-bottom: 5px;">Poz. Ceneo | <img src="/images/Ceneo.png" alt="Ceneo" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" /> ${ceneoRank}</div>`;
-            }
-            if (marginPrice !== null && marginPrice !== undefined && price !== null && marginPrice > 0) {
-                const priceVal = parseFloat(price);
-                const costVal = parseFloat(marginPrice);
-                if (!isNaN(priceVal) && !isNaN(costVal)) {
-                    const marginValue = priceVal - costVal;
-                    const marginPercent = (marginValue / costVal) * 100;
-                    const formattedMarginValue = formatPricePL(marginValue);
-                    const formattedMarginPercent = marginPercent.toFixed(2);
-                    const sign = marginValue >= 0 ? "+" : "";
-                    const cls = marginValue >= 0 ? "priceBox-diff-margin" : "priceBox-diff-margin-minus";
-                    block += `<div class="price-info-item"><div class="price-box-diff-margin ${cls}"><p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p></div></div>`;
-                }
-            }
-            block += '</div>';
-            return block;
-        }
 
         let totalItems = 0;
         if (!batches || batches.length === 0) {
@@ -1175,36 +1279,6 @@
                 const statusBlock = '<span style="color: #28a745; font-weight: bold;"><i class="fas fa-check-circle"></i> Wgrano</span>';
                 let eanInfo = item.ean ? `<div class="price-info-item small-text">EAN: ${item.ean}</div>` : `<div class="price-info-item small-text" style="color:#888;">EAN: Brak</div>`;
 
-                let strategyBadgeHtml = "";
-
-                if (item.mode) {
-                    if (item.mode === 'profit') {
-
-                        const targetVal = item.priceIndexTarget != null ? item.priceIndexTarget : 100;
-                        strategyBadgeHtml = `
-                            <span class="strategy-badge profit">
-                                Indeks ${targetVal}%
-                            </span>`;
-                    } else {
-
-                        let stepText = "Konkurencja";
-
-                        if (item.stepPriceApplied !== null && item.stepPriceApplied !== undefined) {
-                            const stepVal = parseFloat(item.stepPriceApplied);
-
-                            const unit = "PLN";
-
-                            if (stepVal === 0) stepText = "Wyrównanie";
-                            else stepText = `Krok ${stepVal > 0 ? '+' : ''}${stepVal} ${unit}`;
-                        }
-
-                        strategyBadgeHtml = `
-                            <span class="strategy-badge competitiveness">
-                                ${stepText}
-                            </span>`;
-                    }
-                }
-
                 let diffBlock = '-';
                 if (item.priceAfter_Verified != null && item.priceBefore != null) {
                     const diff = item.priceAfter_Verified - item.priceBefore;
@@ -1213,9 +1287,12 @@
                     if (diff > 0.005) arrow = '<span style="color: red;">▲</span>';
                     else if (diff < -0.005) arrow = '<span style="color: green;">▼</span>';
 
+                    let stepText = item.mode === 'profit' ? `Indeks ${item.priceIndexTarget}%` : `Konkurencja`;
+
                     diffBlock = `
                         <div class="simulation-change-box" style="margin: 0 auto;">
-                            ${strategyBadgeHtml} <div class="simulation-diff-row">
+                            <span class="strategy-badge ${item.mode}">${stepText}</span> 
+                            <div class="simulation-diff-row">
                                 ${arrow} ${formatPricePL(Math.abs(diff), false)} PLN
                             </div>
                             <div class="simulation-diff-percent">
@@ -1227,14 +1304,9 @@
                 html += `
                 <tr>
                     <td class="align-middle">
-                         <a href="/PriceHistory/Details?scrapId=${globalLatestScrapId || 0}&productId=${item.productId || 0}"
-                            target="_blank"
-                            class="simulationProductTitle"
-                            style="text-decoration: none; color: inherit;">
-                            <div class="price-info-item product-name-cell">
-                                ${item.productName}
-                            </div>
-                        </a>
+                        <div class="price-info-item product-name-cell">
+                             ${item.productName}
+                        </div>
                         ${eanInfo}
                     </td>
                     <td class="align-middle">${blockBefore}</td>
@@ -1250,112 +1322,26 @@
         document.getElementById('historyTabCounter').textContent = totalItems;
     }
 
-    document.getElementById('showPriceChangeCart').addEventListener('click', function () {
-        document.getElementById('simulationModalBody').style.display = 'block';
-        document.getElementById('historyModalBody').style.display = 'none';
-        this.classList.add('button-active'); this.classList.remove('button-inactive');
-        document.getElementById('showPriceChangeHistory').classList.add('button-inactive');
-        document.getElementById('showPriceChangeHistory').classList.remove('button-active');
-    });
+    const showCartTab = document.getElementById('showPriceChangeCart');
+    const showHistoryTab = document.getElementById('showPriceChangeHistory');
+    const simulationModalBody = document.getElementById('simulationModalBody');
+    const historyModalBody = document.getElementById('historyModalBody');
 
-    document.getElementById('showPriceChangeHistory').addEventListener('click', function () {
-        document.getElementById('simulationModalBody').style.display = 'none';
-        document.getElementById('historyModalBody').style.display = 'block';
-        this.classList.add('button-active'); this.classList.remove('button-inactive');
-        document.getElementById('showPriceChangeCart').classList.add('button-inactive');
-        document.getElementById('showPriceChangeCart').classList.remove('button-active');
-        fetchAndRenderHistory();
-    });
+    if (showCartTab && showHistoryTab && simulationModalBody && historyModalBody) {
+        showCartTab.addEventListener('click', function () {
+            simulationModalBody.style.display = 'block';
+            historyModalBody.style.display = 'none';
+            this.classList.add('button-active'); this.classList.remove('button-inactive');
+            showHistoryTab.classList.add('button-inactive'); showHistoryTab.classList.remove('button-active');
+        });
 
-    function exportToCsv(isExtended = false) {
-        let csvContent = "";
-        let fileName = "";
-        const dateStr = getCurrentDateString();
-
-        if (isExtended) {
-
-            const baseHeaders = ["ID", "EAN", "KOD", "Producent", "Nazwa produktu", "Obecna poz. Google", "Oferty Google", "Obecna poz. Ceneo", "Oferty Ceneo", "Obecna cena oferty"];
-            const shippingHeaders = ["Obecny koszt wysyłki", "Obecna cena z wysyłką"];
-            const marginHeadersCurrent = ["Obecny narzut (%)", "Obecny narzut (PLN)"];
-            const newPriceHeader = ["Nowa cena oferty"];
-            const newShippingHeaders = ["Nowy koszt wysyłki", "Nowa cena z wysyłką"];
-            const marginHeadersNew = ["Nowy narzut (%)", "Nowy narzut (PLN)"];
-            const newRankingHeaders = ["Nowa poz. Google", "Nowa liczba ofert Google", "Nowa poz. Ceneo", "Nowa liczba ofert Ceneo"];
-
-            let headers = [...baseHeaders];
-            if (usePriceWithDeliverySetting) headers.push(...shippingHeaders);
-            headers.push(...marginHeadersCurrent, ...newPriceHeader);
-            if (usePriceWithDeliverySetting) headers.push(...newShippingHeaders);
-            headers.push(...marginHeadersNew, ...newRankingHeaders);
-
-            csvContent = "\uFEFF" + headers.map(h => `"${h}"`).join(";") + "\n";
-
-            originalRowsData.forEach(row => {
-
-                const formatCsvPrice = (val) => (typeof val === 'number') ? formatPricePL(val, false) : '';
-                const formatCsvPercent = (val) => (typeof val === 'number') ? val.toFixed(2).replace('.', ',') : '';
-                const formatCsvRank = (val) => (val !== null && val !== undefined) ? String(val) : '';
-
-                let values = [
-                    `="${String(row.externalId || '')}"`,
-                    `="${String(row.ean || '')}"`,
-                    `="${String(row.producerCode || '')}"`,
-                    `"${String(row.producer || '')}"`,
-                    `"${row.productName.replace(/"/g, '""')}"`,
-                    `"${formatCsvRank(row.currentGoogleRanking)}"`,
-                    `"${formatCsvRank(row.totalGoogleOffers)}"`,
-                    `"${formatCsvRank(row.currentCeneoRanking)}"`,
-                    `"${formatCsvRank(row.totalCeneoOffers)}"`,
-                    `"${formatCsvPrice(row.baseCurrentPrice)}"`
-                ];
-
-                if (usePriceWithDeliverySetting) {
-                    values.push(`"${formatCsvPrice(row.ourStoreShippingCost)}"`, `"${formatCsvPrice(row.effectiveCurrentPrice)}"`);
-                }
-
-                values.push(`"${formatCsvPercent(row.currentMargin)}"`, `"${formatCsvPrice(row.currentMarginValue)}"`, `"${formatCsvPrice(row.baseNewPrice)}"`);
-
-                if (usePriceWithDeliverySetting) {
-                    values.push(`"${formatCsvPrice(row.ourStoreShippingCost)}"`, `"${formatCsvPrice(row.effectiveNewPrice)}"`);
-                }
-
-                values.push(
-                    `"${formatCsvPercent(row.newMargin)}"`,
-                    `"${formatCsvPrice(row.newMarginValue)}"`,
-                    `"${formatCsvRank(row.newGoogleRanking)}"`,
-                    `"${formatCsvRank(row.totalGoogleOffers)}"`,
-                    `"${formatCsvRank(row.newCeneoRanking)}"`,
-                    `"${formatCsvRank(row.totalCeneoOffers)}"`
-                );
-
-                csvContent += values.join(";") + "\n";
-            });
-            fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-rozszerzony.csv`;
-
-        } else {
-            csvContent = "\uFEFF" + "ID;EAN;KOD;CENA\n";
-            originalRowsData.forEach(row => {
-
-                const priceString = formatPricePL(row.baseNewPrice, false);
-                const eanText = row.ean ? `="${String(row.ean)}"` : "";
-                const producerCodeText = row.producerCode ? `="${String(row.producerCode)}"` : "";
-                const extIdText = row.externalId ? `="${String(row.externalId)}"` : "";
-                csvContent += `${extIdText};${eanText};${producerCodeText};"${priceString}"\n`;
-            });
-            fileName = `PriceSafari-${dateStr}-${currentOurStoreName}-bazowa.csv`;
-        }
-
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = fileName;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => {
-            URL.revokeObjectURL(link.href);
-        }, 1000);
+        showHistoryTab.addEventListener('click', function () {
+            simulationModalBody.style.display = 'none';
+            historyModalBody.style.display = 'block';
+            this.classList.add('button-active'); this.classList.remove('button-inactive');
+            showCartTab.classList.add('button-inactive'); showCartTab.classList.remove('button-active');
+            fetchAndRenderHistory();
+        });
     }
 
     async function exportToExcelXLSX(isExtended = false) {

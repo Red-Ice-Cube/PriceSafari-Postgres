@@ -1572,6 +1572,52 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool Source { get; set; }
         }
 
+
+
+        [HttpPost]
+        public async Task<IActionResult> ExecuteStorePriceChange(int storeId, [FromBody] List<PriceBridgeItemRequest> items)
+        {
+            // 1. Walidacja danych wejściowych
+            if (items == null || !items.Any()) return BadRequest("Brak danych.");
+
+            // Walidacja uprawnień
+            if (!await UserHasAccessToStore(storeId)) return Forbid();
+
+            var store = await _context.Stores.AsNoTracking().FirstOrDefaultAsync(s => s.StoreId == storeId);
+            if (store == null) return NotFound("Sklep nie istnieje.");
+
+            // 2. Walidacja ustawień sklepu
+            if (!store.IsStorePriceBridgeActive)
+            {
+                return BadRequest("Zmiana cen przez API jest wyłączona w ustawieniach sklepu.");
+            }
+
+            // 3. Pobranie danych kontekstowych
+            var latestScrap = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => sh.Id)
+                .FirstOrDefaultAsync();
+
+            int scrapHistoryId = latestScrap != 0 ? latestScrap : 0;
+            var userId = _userManager.GetUserId(User);
+
+            try
+            {
+                // 4. Wywołanie serwisu
+                var result = await _priceBridgeService.ExecuteStorePriceChangesAsync(storeId, scrapHistoryId, userId, items);
+
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Błąd w ExecuteStorePriceChange.");
+                return StatusCode(500, "Wystąpił błąd podczas komunikacji ze sklepem.");
+            }
+        }
+
+
+
         [HttpGet]
         public async Task<IActionResult> ExportToExcel(int? storeId)
         {
