@@ -5,6 +5,7 @@
     ViewData["Title"] = "Historia Cen";
     var latestScrap = ViewBag.LatestScrap as PriceSafari.Models.ScrapHistoryClass;
     var storeId = ViewBag.StoreId;
+
     var storeLogo = ViewBag.StoreLogo;
     var scrapId = ViewBag.ScrapId;
     var flags = ViewBag.Flags as List<FlagViewModel>;
@@ -746,6 +747,7 @@
 
     <script>
         const storeId = @ViewBag.StoreId;
+        const isStoreBridgeActive = @Json.Serialize(ViewBag.IsStorePriceBridgeActive ?? false);
         const presetTypeContext = 0; 
         const priceHistoryPageContext = 'index';
         const flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<FlagViewModel>()));

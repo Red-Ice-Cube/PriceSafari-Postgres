@@ -74,6 +74,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Content("Nie ma takiego sklepu");
             }
 
+            // 1. Pobieramy najnowszy scrap (bez zmian)
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -84,35 +85,46 @@ namespace PriceSafari.Controllers.MemberControllers
                 return View(new List<FlagsClass>());
             }
 
-            var storeName = await _context.Stores
-                .Where(sn => sn.StoreId == storeId)
-                .Select(sn => sn.StoreName)
+            // 2. OPTYMALIZACJA: Pobieramy dane sklepu (Nazwę, Logo i Boola) w JEDNYM zapytaniu
+            // Zamiast robić 3 oddzielne zapytania do tabeli Stores, robimy jedno.
+            var storeDetails = await _context.Stores
+                .Where(s => s.StoreId == storeId)
+                .Select(s => new
+                {
+                    s.StoreName,
+                    s.StoreLogoUrl,
+                    s.IsStorePriceBridgeActive // <--- Zakładam, że tak nazywa się kolumna w bazie
+                })
                 .FirstOrDefaultAsync();
 
-            var storeLogo = await _context.Stores
-                .Where(sn => sn.StoreId == storeId)
-                .Select(sn => sn.StoreLogoUrl)
-                .FirstOrDefaultAsync();
-
+            // 3. Liczymy produkty (bez zmian)
             var scrapedproducts = await _context.Products
                 .Where(p => p.StoreId == storeId && p.IsScrapable)
                 .CountAsync();
 
+            // 4. Pobieramy flagi (bez zmian)
             var flags = await _context.Flags
-               .Where(f => f.StoreId == storeId.Value && f.IsMarketplace == false)
-               .Select(f => new FlagViewModel
-               {
-                   FlagId = f.FlagId,
-                   FlagName = f.FlagName,
-                   FlagColor = f.FlagColor,
-                   IsMarketplace = f.IsMarketplace
-               })
-               .ToListAsync();
+                .Where(f => f.StoreId == storeId.Value && f.IsMarketplace == false)
+                .Select(f => new FlagViewModel
+                {
+                    FlagId = f.FlagId,
+                    FlagName = f.FlagName,
+                    FlagColor = f.FlagColor,
+                    IsMarketplace = f.IsMarketplace
+                })
+                .ToListAsync();
 
+            // 5. Przypisanie do ViewBag
             ViewBag.LatestScrap = latestScrap;
             ViewBag.StoreId = storeId;
-            ViewBag.StoreName = storeName;
-            ViewBag.StoreLogo = storeLogo;
+
+            // Tutaj bierzemy wartość z pobranego obiektu storeDetails. 
+            // Jeśli storeDetails byłby null (mało prawdopodobne, bo sprawdzaliśmy dostęp), dajemy false.
+            ViewBag.IsStorePriceBridgeActive = storeDetails?.IsStorePriceBridgeActive ?? false;
+
+            ViewBag.StoreName = storeDetails?.StoreName;
+            ViewBag.StoreLogo = storeDetails?.StoreLogoUrl;
+
             ViewBag.ScrapId = latestScrap.Id;
             ViewBag.Flags = flags;
             ViewBag.ScrapedProducts = scrapedproducts;

@@ -33,7 +33,9 @@ namespace PriceSafari.Models
         public virtual PriceSafariUser User { get; set; }
 
         public DateTime ExecutionDate { get; set; } = DateTime.Now;
-        public int SuccessfulCount { get; set; }
+        public int SuccessfulCount { get; set; } = 0;
+
+        public int FailedCount { get; set; } = 0;
 
 
         public int? TotalProductsCount { get; set; }
