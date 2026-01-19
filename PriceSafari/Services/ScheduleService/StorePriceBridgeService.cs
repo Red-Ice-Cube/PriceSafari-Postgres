@@ -823,71 +823,70 @@ namespace PriceSafari.Services.ScheduleService
             return result;
         }
 
-        // =================================================================================
-        // 4. METODY POMOCNICZE HTTP (XML)
-        // =================================================================================
-
-        private async Task<(bool success, string error)> UpdatePrestaShopProductXmlAsync(HttpClient client, string baseUrl, string productId, decimal newPrice)
+        // Podmień całą metodę UpdatePrestaShopProductXmlAsync na tę wersję:
+        private async Task<(bool success, string error)> UpdatePrestaShopProductXmlAsync(HttpClient client, string baseUrl, string productId, decimal newPriceBrutto)
         {
             try
             {
-                // ZMIANA: Usunięto sztywne dodawanie "/api" z URL
-                // Zakładamy, że baseUrl (z bazy) ma już w sobie "/api"
+                // ==============================================================================
+                // KROK 1: Przeliczenie BRUTTO -> NETTO (Kluczowe!)
+                // ==============================================================================
+                // PrestaShop w API (pole <price>) oczekuje ceny NETTO.
+                // Jeśli wyślesz tu 123 zł, Presta doda VAT i na sklepie będzie 151.29 zł.
+                // Dzielimy przez 1.23 (zakładając VAT 23%).
+
+                decimal taxRate = 1.23m;
+                decimal priceNet = Math.Round(newPriceBrutto / taxRate, 6); // 6 miejsc po przecinku dla precyzji
+                string priceNetString = priceNet.ToString(CultureInfo.InvariantCulture);
+
                 string apiUrl = $"{baseUrl.TrimEnd('/')}/products/{productId}";
 
-                // 1. GET
-                var getResponse = await client.GetAsync(apiUrl);
+                // ==============================================================================
+                // KROK 2: (Opcjonalny) GET - "Spojrzenie na cenę przed zmianą"
+                // ==============================================================================
+                // Chciałeś to zachować dla pewności. Sprawdzamy, czy produkt w ogóle odpowiada.
+                // Przy PATCH nie jest to wymagane technicznie, ale daje pewność, że ID jest poprawne.
+
+                var getResponse = await client.GetAsync(apiUrl + "?display=[id]"); // Pobieramy tylko ID, żeby było szybko
                 if (!getResponse.IsSuccessStatusCode)
                 {
-                    string body = "";
-                    try { body = await getResponse.Content.ReadAsStringAsync(); } catch { }
-                    return (false, $"GET Error {getResponse.StatusCode}: {body}");
+                    return (false, $"GET Check Failed {getResponse.StatusCode}: Produkt nie odpowiada, przerywam zmianę ceny.");
                 }
 
-                var content = await getResponse.Content.ReadAsStringAsync();
+                // ==============================================================================
+                // KROK 3: Budowa MINIMALNEGO XML dla PATCH
+                // ==============================================================================
+                // Dzięki PATCH wysyłamy TYLKO to, co zmieniamy. 
+                // Nie musimy martwić się o usuwanie 'quantity', 'manufacturer' itp.
 
-                // 2. PARSE & MODIFY
-                XDocument doc;
-                try
+                string minXml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<prestashop xmlns:xlink=""http://www.w3.org/1999/xlink"">
+    <product>
+        <id>{productId}</id>
+        <price>{priceNetString}</price>
+    </product>
+</prestashop>";
+
+                // ==============================================================================
+                // KROK 4: Wysłanie PATCH
+                // ==============================================================================
+
+                // Tworzymy request PATCH ręcznie, bo HttpClient w starszych .NET nie ma metody PatchAsync
+                var request = new HttpRequestMessage(new HttpMethod("PATCH"), apiUrl)
                 {
-                    doc = XDocument.Parse(content);
-                }
-                catch (Exception ex)
-                {
-                    return (false, $"Błąd parsowania XML z GET: {ex.Message}");
-                }
+                    Content = new StringContent(minXml, Encoding.UTF8, "application/xml")
+                };
 
-                var productNode = doc.Descendants("product").FirstOrDefault();
-                if (productNode == null) return (false, "XML Error: Brak węzła <product> w odpowiedzi GET.");
+                var response = await client.SendAsync(request);
 
-                var priceElement = productNode.Element("price");
-                if (priceElement != null)
-                {
-                    // PrestaShop wymaga kropki jako separatora (Invariant)
-                    priceElement.Value = newPrice.ToString(CultureInfo.InvariantCulture);
-                }
-                else
-                {
-                    return (false, "XML Error: Brak pola <price> w produkcie.");
-                }
-
-                // Usuń węzły read-only, które mogą powodować błędy 400 przy zapisie
-                productNode.Element("manufacturer_name")?.Remove();
-                productNode.Element("quantity")?.Remove();
-
-                // 3. PUT
-                var putContent = new StringContent(doc.ToString(), Encoding.UTF8, "application/xml");
-                var putResponse = await client.PutAsync(apiUrl, putContent);
-
-                if (putResponse.IsSuccessStatusCode)
+                if (response.IsSuccessStatusCode)
                 {
                     return (true, string.Empty);
                 }
                 else
                 {
-                    var errorBody = await putResponse.Content.ReadAsStringAsync();
-                    _logger.LogWarning($"[PrestaShop] Błąd PUT dla ID {productId}. Status: {putResponse.StatusCode}, Body: {errorBody}");
-                    return (false, $"PUT Error: {putResponse.StatusCode}. Detale: {errorBody}");
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    return (false, $"PATCH Error: {response.StatusCode}. Detale: {errorBody}");
                 }
             }
             catch (Exception ex)
@@ -898,7 +897,7 @@ namespace PriceSafari.Services.ScheduleService
 
         private async Task<decimal?> GetPrestaShopPriceAsync(HttpClient client, string baseUrl, string productId)
         {
-            // ZMIANA: Usunięto sztywne dodawanie "/api" z URL
+            // Budujemy URL
             string apiUrl = $"{baseUrl.TrimEnd('/')}/products/{productId}?display=[price]";
 
             try
@@ -912,12 +911,22 @@ namespace PriceSafari.Services.ScheduleService
 
                 var content = await response.Content.ReadAsStringAsync();
 
+                // Parsujemy XML
                 XDocument doc = XDocument.Parse(content);
                 var priceElement = doc.Descendants("price").FirstOrDefault();
 
-                if (priceElement != null && decimal.TryParse(priceElement.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal price))
+                if (priceElement != null && decimal.TryParse(priceElement.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal priceNetto))
                 {
-                    return price;
+                    // ==========================================================================
+                    // POPRAWKA: Konwersja NETTO -> BRUTTO do weryfikacji
+                    // ==========================================================================
+                    // Presta zwraca np. 4875.60 (Netto). 
+                    // My chcemy zalogować 6000.00 (Brutto).
+                    // Mnożymy przez 1.23.
+
+                    decimal priceBrutto = Math.Round(priceNetto * 1.23m, 2);
+
+                    return priceBrutto;
                 }
 
                 _logger.LogWarning($"[PrestaShop] Nie udało się sparsować ceny z XML weryfikacyjnego dla ID {productId}.");
