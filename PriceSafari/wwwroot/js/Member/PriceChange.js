@@ -465,8 +465,6 @@
 
         const formattedBasePrice = formatPricePL(basePrice);
         const formattedEffectivePrice = formatPricePL(effectivePrice);
-        //const formattedShippingCost = formatPricePL(shippingCost);
-
         const confirmedStyle = 'background: #dff0d8; border: 1px solid #c1e2b3;';
         const normalStyle = 'background: #f5f5f5; border: 1px solid #e3e3e3;';
         const currentStyle = isConfirmed ? confirmedStyle : normalStyle;
@@ -484,28 +482,33 @@
                           <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
                                 Cena z wysyłką | ${formattedEffectivePrice}
                           </div>`;
-
             block += `
                           <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
                                 Składowe | ${formatPricePL(basePrice, false)} PLN + ${formatPricePL(shippingCost, false)} PLN
                           </div>`;
         }
 
-        if (googleRank && googleRank !== "-" && !isConfirmed) {
-            const googleOffersText = googleOffers > 0 ? googleOffers : '-';
+        // WARUNEK USUNIĘTY: && !isConfirmed. Teraz rankingi pokazują się zawsze, jeśli są dostępne.
+        if (googleRank && googleRank !== "-" && googleRank !== "null") {
+            const googleOffersText = (googleOffers && googleOffers != 0) ? googleOffers : '-';
+            // Zabezpieczenie przed dublowaniem
+            const displayRank = String(googleRank).includes('/') ? googleRank : `${googleRank} / ${googleOffersText}`;
+
             block += `
-              <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
+              <div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px;">
                   Poz. cenowa | <img src="/images/GoogleShopping.png" alt="Google Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" />
-                  ${googleRank} / ${googleOffersText}
+                  ${displayRank}
               </div>`;
         }
 
-        if (ceneoRank && ceneoRank !== "-" && !isConfirmed) {
-            const ceneoOffersText = ceneoOffers > 0 ? ceneoOffers : '-';
+        if (ceneoRank && ceneoRank !== "-" && ceneoRank !== "null") {
+            const ceneoOffersText = (ceneoOffers && ceneoOffers != 0) ? ceneoOffers : '-';
+            const displayRank = String(ceneoRank).includes('/') ? ceneoRank : `${ceneoRank} / ${ceneoOffersText}`;
+
             block += `
-                  <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
+                  <div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px;">
                       Poz. cenowa | <img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" />
-                      ${ceneoRank} / ${ceneoOffersText}
+                      ${displayRank}
                   </div>`;
         }
 
@@ -519,13 +522,12 @@
                           </div>
                       </div>`;
         } else if (isConfirmed) {
-            // Jeśli to potwierdzony blok, ale nie mamy narzutu (bo np. brak ceny zakupu), nic nie dodajemy
+            // Placeholder (opcjonalny)
         }
 
         block += '</div>';
         return block;
     }
-
     // --- NOWA FUNKCJA DO RENDEROWANIA STRUKTURY TABELI ---
     function renderSimulationTableStructure(hasImage) {
         let tableHtml = '<table class="table-orders" id="simulationTable" style="width: 100%;">';
@@ -892,163 +894,27 @@
         });
     }
 
+    // --- KLIKNIĘCIE PRZYCISKU "WGRAJ DO SKLEPU" (Otwiera Disclaimer) ---
     if (executeStoreButton) {
         executeStoreButton.addEventListener("click", function () {
-
-            // 1. Filtrujemy dane (tylko te z ExternalId)
-            const itemsToBridge = originalRowsData
-                .filter(row => {
-                    const isActive = selectedPriceChanges.some(c => String(c.productId) === String(row.productId));
-                    return isActive && row.externalId && row.externalId !== "" && row.externalId !== "null";
-                })
-                .map(row => {
-                    const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
-
-                    return {
-                        ProductId: parseInt(row.productId, 10),
-                        // Zamieniamy przecinek na kropkę dla API (format invariant)
-                        CurrentPrice: parseFloat(row.baseCurrentPrice),
-                        NewPrice: parseFloat(row.baseNewPrice),
-                        MarginPrice: row.marginPrice ? parseFloat(row.marginPrice) : null,
-
-                        // --- TUTAJ JEST ZMIANA: Używamy formatFullRanking ---
-                        CurrentGoogleRanking: formatFullRanking(row.currentGoogleRanking, row.totalGoogleOffers),
-                        CurrentCeneoRanking: formatFullRanking(row.currentCeneoRanking, row.totalCeneoOffers),
-
-                        // Symulowane (New) pozycje też powinny mieć kontekst liczby ofert
-                        NewGoogleRanking: formatFullRanking(row.newGoogleRanking, row.totalGoogleOffers),
-                        NewCeneoRanking: formatFullRanking(row.newCeneoRanking, row.totalCeneoOffers),
-                        // ---------------------------------------------------
-
-                        Mode: sourceItem ? sourceItem.mode : 'competitiveness',
-                        PriceIndexTarget: (sourceItem && sourceItem.priceIndexTarget) ? parseFloat(sourceItem.priceIndexTarget) : null,
-                        StepPriceApplied: (sourceItem && sourceItem.stepPriceApplied !== null) ? parseFloat(sourceItem.stepPriceApplied) : null
-                    };
-                });
-
-            // 2. Walidacja
-            const totalChanges = selectedPriceChanges.length;
-            const validChanges = itemsToBridge.length;
-            const skipped = totalChanges - validChanges;
-
-            if (validChanges === 0) {
-                alert("Brak produktów z przypisanym ID sklepowym (External ID). Nie można zaktualizować cen przez API.");
+            // 1. Walidacja wstępna - czy są jakiekolwiek zmiany
+            if (selectedPriceChanges.length === 0) {
+                alert("Brak zmian do wgrania.");
                 return;
             }
 
-            if (!confirm(`Zostanie wgranych ${validChanges} zmian cen do Twojego sklepu (API).\n${skipped > 0 ? `Pominięto ${skipped} ofert bez ID.\n` : ''}Operacja nieodwracalna. Kontynuować?`)) {
+            // 2. Sprawdzamy, czy produkty mają ID (ExternalId)
+            const validItems = originalRowsData.filter(row =>
+                row.externalId && row.externalId !== "" && row.externalId !== "null"
+            );
+
+            if (validItems.length === 0) {
+                alert("Żaden z wybranych produktów nie jest połączony ze sklepem (brak ID). Nie można wgrać cen.");
                 return;
             }
 
-            // 3. UI
-            showLoading();
-            const originalText = executeStoreButton.innerHTML;
-            executeStoreButton.disabled = true;
-            executeStoreButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Wgrywanie...';
-
-            // 4. Request API
-            fetch(`/PriceHistory/ExecuteStorePriceChange?storeId=${storeId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(itemsToBridge)
-            })
-                .then(response => {
-                    if (!response.ok) return response.text().then(text => { throw new Error(text) });
-                    return response.json();
-                })
-                .then(result => {
-                    hideLoading();
-                    executeStoreButton.disabled = false;
-                    executeStoreButton.innerHTML = originalText;
-
-                    // 5. Powiadomienie
-                    let msg = `<p style="font-weight:bold;">Aktualizacja API zakończona</p>`;
-                    msg += `<p style="color:green">Sukces: ${result.successfulCount}</p>`;
-                    if (result.failedCount > 0) msg += `<p style="color:red">Błędy: ${result.failedCount}</p>`;
-
-                    if (typeof showGlobalUpdate === 'function') {
-                        showGlobalUpdate(msg);
-                    } else {
-                        alert(`Sukces: ${result.successfulCount}, Błędy: ${result.failedCount}`);
-                    }
-
-                    // 6. Aktualizacja tabeli (BOOMERANG)
-                    if (result.successfulChangesDetails && result.successfulChangesDetails.length > 0) {
-                        simulationsExecuted = true; // Włącz kolumnę potwierdzenia
-
-                        const hasImage = originalRowsData.length > 0 && originalRowsData[0].hasImage;
-                        renderSimulationTableStructure(hasImage);
-                        renderRows(originalRowsData);
-
-                        // Wstawiamy potwierdzone ceny
-                        result.successfulChangesDetails.forEach(detail => {
-                            const rowData = originalRowsData.find(r => r.externalId && r.externalId.toString() === detail.externalId);
-
-                            if (rowData) {
-                                const cell = document.getElementById(`confirm_${rowData.productId}`);
-                                if (cell) {
-                                    // Wykorzystujemy buildPriceBlock, ustawiając isConfirmed=true (zielony)
-                                    // Jako cenę podajemy odczytaną z API, marżę przeliczamy
-                                    cell.innerHTML = buildPriceBlock(
-                                        detail.fetchedNewPrice, // basePrice
-                                        null, // effectivePrice (nieważne dla potwierdzenia)
-                                        null, // shippingCost
-                                        false, // usePriceWithDeliveryFlag
-                                        null, null, // marginPercent/Value obliczy się wewnątrz jeśli podamy marginPrice
-                                        null, null, null, null, // rankingi
-                                        true // isConfirmed
-                                    );
-                                    // Uwaga: buildPriceBlock w obecnej formie dla isConfirmed=true 
-                                    // może nie renderować marży jeśli nie przekażemy jej bezpośrednio 
-                                    // lub nie zmodyfikujemy funkcji.
-                                    // W tym wariancie używamy prostszego wywołania lub poprawiamy buildPriceBlock 
-                                    // by przyjmował marginPrice (który jest dostępny w rowData.marginPrice)
-
-                                    // Fix wywołania buildPriceBlock dla potwierdzenia (by pokazać nową marżę):
-                                    const marginPriceVal = rowData.marginPrice ? parseFloat(rowData.marginPrice) : null;
-                                    let marginVal = null;
-                                    let marginPct = null;
-
-                                    if (marginPriceVal && detail.fetchedNewPrice) {
-                                        marginVal = detail.fetchedNewPrice - marginPriceVal;
-                                        marginPct = (marginVal / marginPriceVal) * 100;
-                                    }
-
-                                    cell.innerHTML = buildPriceBlock(
-                                        detail.fetchedNewPrice,
-                                        detail.fetchedNewPrice, // effective dummy
-                                        0, // shipping dummy
-                                        false, // useDelivery dummy
-                                        marginPct,
-                                        marginVal,
-                                        null, null, null, null,
-                                        true
-                                    );
-                                }
-
-                                // Blokada usuwania
-                                const rowEl = document.querySelector(`tr[data-product-id="${rowData.productId}"]`);
-                                if (rowEl) {
-                                    const btn = rowEl.querySelector('.remove-change-btn');
-                                    if (btn) {
-                                        btn.disabled = true;
-                                        btn.style.opacity = 0.2;
-                                        btn.style.cursor = "default";
-                                    }
-                                }
-                            }
-                        });
-                    }
-
-                    // Odświeżenie widoku głównego (ceny w kafelkach)
-                    if (typeof window.loadPrices === 'function') window.loadPrices();
-                })
-                .catch(err => {
-                    hideLoading();
-                    executeStoreButton.disabled = false;
-                    executeStoreButton.innerHTML = originalText;
-                    alert("Błąd: " + err.message);
-                });
+            // 3. Zamiast native confirm, otwieramy Disclaimer Modal z typem 'api'
+            showExportDisclaimer('api');
         });
     }
 
@@ -1157,6 +1023,167 @@
             });
     }
 
+    // --- GŁÓWNA FUNKCJA WGRYWANIA PO API ---
+    function performApiUpdateAndClear() {
+        // Zamykamy okienko disclaimer
+        closeExportDisclaimer();
+
+        // 1. Filtrujemy dane (tylko te z ExternalId)
+        const itemsToBridge = originalRowsData
+            .filter(row => {
+                // Sprawdzamy czy produkt jest w koszyku zmian
+                const isActive = selectedPriceChanges.some(c => String(c.productId) === String(row.productId));
+                return isActive && row.externalId && row.externalId !== "" && row.externalId !== "null";
+            })
+            .map(row => {
+                const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
+
+                return {
+                    ProductId: parseInt(row.productId, 10),
+                    CurrentPrice: parseFloat(row.baseCurrentPrice),
+                    NewPrice: parseFloat(row.baseNewPrice),
+                    MarginPrice: row.marginPrice ? parseFloat(row.marginPrice) : null,
+
+                    // Rankingi (sformatowane przez formatFullRanking w poprzednim kroku)
+                    CurrentGoogleRanking: formatFullRanking(row.currentGoogleRanking, row.totalGoogleOffers),
+                    CurrentCeneoRanking: formatFullRanking(row.currentCeneoRanking, row.totalCeneoOffers),
+                    NewGoogleRanking: formatFullRanking(row.newGoogleRanking, row.totalGoogleOffers),
+                    NewCeneoRanking: formatFullRanking(row.newCeneoRanking, row.totalCeneoOffers),
+
+                    Mode: sourceItem ? sourceItem.mode : 'competitiveness',
+                    PriceIndexTarget: (sourceItem && sourceItem.priceIndexTarget) ? parseFloat(sourceItem.priceIndexTarget) : null,
+                    StepPriceApplied: (sourceItem && sourceItem.stepPriceApplied !== null) ? parseFloat(sourceItem.stepPriceApplied) : null
+                };
+            });
+
+        // 2. UI - Blokada przycisku
+        showLoading();
+        const originalText = executeStoreButton.innerHTML;
+        executeStoreButton.disabled = true;
+        executeStoreButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Wgrywanie...';
+
+        // 3. Request API
+        fetch(`/PriceHistory/ExecuteStorePriceChange?storeId=${storeId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(itemsToBridge)
+        })
+            .then(response => {
+                if (!response.ok) return response.text().then(text => { throw new Error(text) });
+                return response.json();
+            })
+            .then(result => {
+                hideLoading();
+                executeStoreButton.disabled = false;
+                executeStoreButton.innerHTML = originalText;
+
+                // 4. Powiadomienie
+                let msg = `<p style="font-weight:bold;">Aktualizacja API zakończona</p>`;
+                msg += `<p style="color:green">Sukces: ${result.successfulCount}</p>`;
+                if (result.failedCount > 0) msg += `<p style="color:red">Błędy: ${result.failedCount}</p>`;
+
+                if (typeof showGlobalUpdate === 'function') {
+                    showGlobalUpdate(msg);
+                } else {
+                    alert(`Sukces: ${result.successfulCount}, Błędy: ${result.failedCount}`);
+                }
+
+                // 5. Aktualizacja tabeli (BOOMERANG - Zielone kafelki)
+                if (result.successfulChangesDetails && result.successfulChangesDetails.length > 0) {
+                    simulationsExecuted = true; // Włącz kolumnę potwierdzenia
+
+                    // Przeładowujemy strukturę tabeli (żeby dodać kolumnę "Potwierdzenie API")
+                    const hasImage = originalRowsData.length > 0 && originalRowsData[0].hasImage;
+                    renderSimulationTableStructure(hasImage);
+
+                    // Renderujemy wiersze ponownie (nadal mamy dane w originalRowsData)
+                    renderRows(originalRowsData);
+
+                    // Wstawiamy potwierdzone ceny do nowej kolumny
+                    result.successfulChangesDetails.forEach(detail => {
+                        const rowData = originalRowsData.find(r => r.externalId && r.externalId.toString() === detail.externalId);
+
+                        if (rowData) {
+                            const cell = document.getElementById(`confirm_${rowData.productId}`);
+                            if (cell) {
+                                // Obliczenia marży dla potwierdzenia
+                                const marginPriceVal = rowData.marginPrice ? parseFloat(rowData.marginPrice) : null;
+                                let marginVal = null;
+                                let marginPct = null;
+
+                                if (marginPriceVal && detail.fetchedNewPrice) {
+                                    marginVal = detail.fetchedNewPrice - marginPriceVal;
+                                    marginPct = (marginVal / marginPriceVal) * 100;
+                                }
+
+                                // Używamy buildPriceBlock z danymi z rowData (Rankingi) i z detail (Cena)
+                                cell.innerHTML = buildPriceBlock(
+                                    detail.fetchedNewPrice,
+                                    detail.fetchedNewPrice,
+                                    0,
+                                    false,
+                                    marginPct,
+                                    marginVal,
+                                    rowData.newGoogleRanking,   // Ranking Google
+                                    rowData.totalGoogleOffers,  // Oferty Google
+                                    rowData.newCeneoRanking,    // Ranking Ceneo
+                                    rowData.totalCeneoOffers,   // Oferty Ceneo
+                                    true // isConfirmed = true (Zielone tło)
+                                );
+
+                                // Blokada przycisku usuwania dla wierszy, które zostały wgrane
+                                const rowEl = document.querySelector(`tr[data-product-id="${rowData.productId}"]`);
+                                if (rowEl) {
+                                    const btn = rowEl.querySelector('.remove-change-btn');
+                                    if (btn) {
+                                        btn.disabled = true;
+                                        btn.style.opacity = 0.2;
+                                        btn.style.cursor = "default";
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // 6. CZYSZCZENIE "KOSZYKA" ZMIAN (Po udanym wgraniu)
+                // Czyścimy localStorage i tablicę selectedPriceChanges, żeby licznik spadł do 0
+                // ALE NIE CZYŚCIMY originalRowsData, żeby tabela wizualnie została na ekranie!
+
+                localStorage.removeItem(localStorageKey);
+                selectedPriceChanges = [];
+                sessionScrapId = null;
+
+                // Aktualizujemy tylko licznik w nagłówku (summary), nie resetujemy tabeli
+                updatePriceChangeSummary();
+
+                // Opcjonalnie: Zmień przycisk "Wgraj" na "Zamknij / Wyczyść widok"
+                executeStoreButton.innerHTML = '<i class="fas fa-check"></i> Zamknij';
+                executeStoreButton.onclick = function () {
+                    clearPriceChanges(); // To wyczyści tabelę dopiero po kliknięciu
+                    $('#simulationModal').modal('hide'); // Zamknij modal (jeśli używasz jQuery bootstrap)
+                    // lub
+                    document.getElementById("simulationModal").style.display = 'none';
+
+                    // Przywróć przycisk do stanu pierwotnego
+                    executeStoreButton.innerHTML = 'Wgraj do sklepu';
+                    // Przywróć event listener (przeładowanie strony lub skomplikowana logika, 
+                    // prościej: po zamknięciu modala i tak czyścimy widok przez clearPriceChanges w on-close modala)
+                };
+
+                // Odświeżenie widoku głównego (kafelków w tle)
+                if (typeof window.loadPrices === 'function') window.loadPrices();
+                if (typeof window.refreshPriceBoxStates === 'function') window.refreshPriceBoxStates();
+
+            })
+            .catch(err => {
+                hideLoading();
+                executeStoreButton.disabled = false;
+                executeStoreButton.innerHTML = originalText;
+                alert("Błąd: " + err.message);
+            });
+    }
+
     function showExportDisclaimer(type) {
         pendingExportType = type;
         const disclaimerModal = document.getElementById("exportDisclaimerModal");
@@ -1177,10 +1204,15 @@
         }
     }
 
+    // --- KLIKNIĘCIE "POTWIERDZAM" W OKIENKU DISCLAIMER ---
     const disclaimerConfirmButton = document.getElementById("disclaimerConfirmButton");
     if (disclaimerConfirmButton) {
         disclaimerConfirmButton.addEventListener("click", function () {
-            if (pendingExportType) {
+            if (pendingExportType === 'api') {
+                // Jeśli wybrano API -> Wykonaj logikę wgrania do sklepu
+                performApiUpdateAndClear();
+            } else if (pendingExportType) {
+                // Jeśli wybrano CSV/Excel -> Wykonaj logikę plikową
                 logChangesToDbAndRefresh(pendingExportType);
             }
         });
