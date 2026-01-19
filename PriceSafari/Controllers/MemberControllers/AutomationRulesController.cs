@@ -27,8 +27,7 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // KROK 1: Pobierz listę sklepów dostępnych dla użytkownika (tylko podstawowe dane)
-            // Nie dołączamy tu AutomationRules, żeby nie obciążać zapytania
+            // 1. Pobierz sklepy (bez zmian)
             var userStores = await _context.UserStores
                 .Where(us => us.UserId == userId)
                 .Select(us => new
@@ -43,25 +42,23 @@ namespace PriceSafari.Controllers.MemberControllers
                 .AsNoTracking()
                 .ToListAsync();
 
-            // Wyciągnij listę ID sklepów, żeby użyć jej w zapytaniu o reguły
             var storeIds = userStores.Select(s => s.StoreId).ToList();
 
-            // KROK 2: Pobierz liczniki reguł BEZPOŚREDNIO z tabeli reguł (tak jak robi to Index)
-            // Grupujemy po StoreId i SourceType, aby policzyć ile jest reguł danego typu w danym sklepie
-            var rulesCounts = await _context.AutomationRules
+            // 2. Pobierz liczniki z uwzględnieniem IsActive
+            var rulesStats = await _context.AutomationRules
                 .Where(r => storeIds.Contains(r.StoreId))
-                .GroupBy(r => new { r.StoreId, r.SourceType })
+                .GroupBy(r => new { r.StoreId, r.SourceType, r.IsActive }) // Grupujemy też po statusie
                 .Select(g => new
                 {
                     StoreId = g.Key.StoreId,
                     SourceType = g.Key.SourceType,
+                    IsActive = g.Key.IsActive,
                     Count = g.Count()
                 })
                 .AsNoTracking()
                 .ToListAsync();
 
-            // KROK 3: Połącz dane w pamięci (Client-side)
-            // Mapujemy surowe dane do ViewModelu
+            // 3. Mapowanie
             var model = userStores.Select(store => new AutomationStoreListViewModel
             {
                 StoreId = store.StoreId,
@@ -71,19 +68,36 @@ namespace PriceSafari.Controllers.MemberControllers
                 OnGoogle = store.OnGoogle,
                 OnAllegro = store.OnAllegro,
 
-                // Szukamy w pobranych licznikach odpowiedniej wartości dla tego sklepu
-                ComparisonRulesCount = rulesCounts
-                    .Where(r => r.StoreId == store.StoreId && r.SourceType == AutomationSourceType.PriceComparison)
+                // Porównywarki
+                ComparisonRulesActiveCount = rulesStats
+                    .Where(r => r.StoreId == store.StoreId
+                             && r.SourceType == AutomationSourceType.PriceComparison
+                             && r.IsActive)
                     .Sum(r => r.Count),
 
-                MarketplaceRulesCount = rulesCounts
-                    .Where(r => r.StoreId == store.StoreId && r.SourceType == AutomationSourceType.Marketplace)
+                ComparisonRulesInactiveCount = rulesStats
+                    .Where(r => r.StoreId == store.StoreId
+                             && r.SourceType == AutomationSourceType.PriceComparison
+                             && !r.IsActive)
+                    .Sum(r => r.Count),
+
+                // Marketplace
+                MarketplaceRulesActiveCount = rulesStats
+                    .Where(r => r.StoreId == store.StoreId
+                             && r.SourceType == AutomationSourceType.Marketplace
+                             && r.IsActive)
+                    .Sum(r => r.Count),
+
+                MarketplaceRulesInactiveCount = rulesStats
+                    .Where(r => r.StoreId == store.StoreId
+                             && r.SourceType == AutomationSourceType.Marketplace
+                             && !r.IsActive)
                     .Sum(r => r.Count)
+
             }).ToList();
 
             return View("~/Views/Panel/AutomationRules/Dashboard.cshtml", model);
         }
-
 
         [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public async Task<IActionResult> Index(int? storeId, AutomationSourceType? filterType)
@@ -100,9 +114,10 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (storeName == null) return NotFound("Sklep nie istnieje.");
 
-            IQueryable<AutomationRule> query = _context.AutomationRules
+            // Budujemy zapytanie
+            var query = _context.AutomationRules
                 .Where(r => r.StoreId == storeId)
-                .Include(r => r.CompetitorPreset);
+                .AsQueryable();
 
             if (filterType.HasValue)
             {
@@ -110,7 +125,24 @@ namespace PriceSafari.Controllers.MemberControllers
                 ViewBag.CurrentFilter = filterType.Value;
             }
 
+            // Projekcja do ViewModelu
+            // Zakładam, że w AutomationRule masz kolekcję Assignments (AutomationProductAssignments)
+            // Jeśli nie masz nawigacji zwrotnej, trzeba będzie zrobić GroupJoin, ale zazwyczaj relacja 1:N istnieje.
             var rules = await query
+                .Select(r => new AutomationRuleListViewModel
+                {
+                    Id = r.Id,
+                    Name = r.Name,
+                    ColorHex = r.ColorHex,
+                    IsActive = r.IsActive,
+                    SourceType = r.SourceType,
+                    StrategyMode = r.StrategyMode,
+                    CompetitorPresetName = r.CompetitorPreset != null ? r.CompetitorPreset.PresetName : "Domyślny",
+
+                    // Liczenie produktów (zakładając relację w modelu: public virtual ICollection<AutomationProductAssignment> Assignments { get; set; })
+                    // Jeśli nazwa kolekcji jest inna, podmień 'Assignments'
+                    AssignedProductsCount = _context.AutomationProductAssignments.Count(a => a.AutomationRuleId == r.Id)
+                })
                 .OrderByDescending(r => r.Id)
                 .ToListAsync();
 
@@ -118,6 +150,23 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.StoreName = storeName;
 
             return View("~/Views/Panel/AutomationRules/Index.cshtml", rules);
+        }
+
+
+        public class AutomationRuleListViewModel
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+            public string ColorHex { get; set; }
+            public bool IsActive { get; set; }
+            public AutomationSourceType SourceType { get; set; }
+            public AutomationStrategyMode StrategyMode { get; set; }
+
+            // Nowe pole: liczba produktów przypisanych do tej reguły
+            public int AssignedProductsCount { get; set; }
+
+            // Nazwa presetu konkurencji (opcjonalnie, dla kontekstu "Lider Rynku" itp.)
+            public string CompetitorPresetName { get; set; }
         }
 
         [HttpGet]

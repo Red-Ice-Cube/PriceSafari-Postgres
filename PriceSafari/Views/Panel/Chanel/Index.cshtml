@@ -52,13 +52,13 @@
                                         <div>
                                             @if (store.LastScrapeDate.HasValue)
                                             {
-                                                @* ZMIANA: Na górze jest teraz czas "temu" *@
+                                             
                                                 <p style="margin: 0; font-weight: 500;"
                                                    class="time-since-scrape"
                                                    data-scrape-date="@store.LastScrapeDate?.ToString("o")">
                                                     Obliczanie...
                                                 </p>
-                                                @* ZMIANA: Na dole jest pełna data *@
+                                     
                                                 <p style="margin: 0; font-size: 0.8em; color: #777;">@store.LastScrapeDate?.ToString("g")</p>
                                             }
                                             else
@@ -80,13 +80,13 @@
                                         <div>
                                             @if (store.AllegroLastScrapeDate.HasValue)
                                             {
-                                                @* ZMIANA: Na górze jest teraz czas "temu" *@
+                                             
                                                 <p style="margin: 0; font-weight: 500;"
                                                    class="time-since-scrape"
                                                    data-scrape-date="@store.AllegroLastScrapeDate?.ToString("o")">
                                                     Obliczanie...
                                                 </p>
-                                                @* ZMIANA: Na dole jest pełna data *@
+                                            
                                                 <p style="margin: 0; font-size: 0.8em; color: #777;">@store.AllegroLastScrapeDate?.ToString("g")</p>
                                             }
                                             else

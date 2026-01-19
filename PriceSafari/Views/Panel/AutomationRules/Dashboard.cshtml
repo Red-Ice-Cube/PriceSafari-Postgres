@@ -1,4 +1,5 @@
 ﻿@using PriceSafari.Models
+@using PriceSafari.Enums
 @model List<PriceSafari.Models.ViewModels.AutomationStoreListViewModel>
 
 @{
@@ -7,50 +8,76 @@
 }
 
 <style>
+    /* Style lokalne z wzorca (Button-select) */
     .button-disabled {
         pointer-events: none;
-        opacity: 0.4;
-        filter: grayscale(100%);
+        opacity: 0.5;
     }
 
     .icon-disabled {
         filter: grayscale(100%);
-        opacity: 0.5;
+        opacity: 0.4;
     }
 
-    .scenario-count {
-        font-size: 13px;
-        color: #4e73df;
+    /* --- STYLE DLA KOMPAKTOWEGO STATUSU --- */
+
+    /* Główny tytuł z liczbą reguł */
+    .rules-header {
         font-weight: 600;
-        margin-top: 4px;
+        font-size: 14px;
+        color: #5a5c69;
+        margin-bottom: 3px;
+        line-height: 1.2;
     }
 
-    .scenario-count-empty {
-        font-size: 13px;
-        color: #858796;
-        margin-top: 4px;
-    }
-
-    .channel-box {
+    /* Kontener na jedną linię statusu (aktywne | nieaktywne) */
+    .status-inline-container {
         display: flex;
         align-items: center;
-        gap: 15px;
-        padding: 10px;
-        border-radius: 8px;
-        transition: background-color 0.2s;
+        font-size: 12px;
+        color: #858796;
+        white-space: nowrap; /* Zapobiega łamaniu linii */
     }
 
-        .channel-box:hover {
-            background-color: #f8f9fc;
-        }
+    .status-item {
+        display: flex;
+        align-items: center;
+    }
+
+    .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+
+    .dot-green {
+        background-color: #1cc88a;
+    }
+
+    .dot-red {
+        background-color: #e74a3b;
+    }
+
+    /* Separator pionowy "|" */
+    .status-separator {
+        margin: 0 8px;
+        color: #d1d3e2;
+    }
+
+    /* Styl dla "Brak reguł" (szary) */
+    .status-empty {
+        font-size: 13px;
+        color: #858796;
+    }
 </style>
 
 <div class="Vert">
     <div class="Vert-full">
         <div class="Order-Container-Title">
-          Automatyzacja Cen
+            Automatyzacja Cen
         </div>
-
 
         @if (Model != null && Model.Any())
         {
@@ -58,15 +85,21 @@
                 <table class="table-orders">
                     <thead>
                         <tr>
-                            <th style="width: 80px;">Logo</th>
-                            <th>Nazwa Sklepu</th>
-                            <th>Porównywarki Cen (Google/Ceneo)</th>
-                            <th>Marketplace (Allegro)</th>
+                            <th style="width: 80px;">Sklep</th>
+                            <th></th>
+                            <th>Porównywarki Cenowe</th>
+                            <th>Marketplace</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var store in Model)
                         {
+                            // Obliczenia sumaryczne dla Porównywarek
+                            var totalComp = store.ComparisonRulesActiveCount + store.ComparisonRulesInactiveCount;
+
+                            // Obliczenia sumaryczne dla Marketplace
+                            var totalMarket = store.MarketplaceRulesActiveCount + store.MarketplaceRulesInactiveCount;
+
                             <tr class="store-row">
                                 <td>
                                     @if (!string.IsNullOrEmpty(store.LogoUrl))
@@ -75,73 +108,129 @@
                                     }
                                 </td>
 
-                                <td style="font-weight: 500; font-size: 1.1em;">
+                                <td >
                                     @store.StoreName
                                 </td>
 
                                 <td>
-                                    <a href="@Url.Action("Index", "AutomationRules", new { storeId = store.StoreId, filterType = AutomationSourceType.PriceComparison })"
-                                       class="channel-box @(!(store.OnCeneo || store.OnGoogle) ? "button-disabled" : "")"
-                                       style="text-decoration: none; color: inherit;">
+                                    <div style="display: flex; align-items: center; gap: 15px;">
 
-                                        <div style="display:flex; gap:8px;">
-                                            <img src="/images/Ceneo.png" alt="Ceneo" style="width: 24px; height: 24px;" class="@(store.OnCeneo ? "" : "icon-disabled")" />
-                                            <img src="/images/GoogleShopping.png" alt="Google" style="width: 24px; height: 24px;" class="@(store.OnGoogle ? "" : "icon-disabled")" />
-                                        </div>
+                                        <a href="@Url.Action("Index", "AutomationRules", new { storeId = store.StoreId, filterType = AutomationSourceType.PriceComparison })"
+                                           class="Button-select @(!(store.OnCeneo || store.OnGoogle) ? "button-disabled" : "")"
+                                           title="Reguły porównywarek">
+
+                                            <img src="/images/Ceneo.png" alt="Ceneo" class="@(store.OnCeneo ? "" : "icon-disabled")" />
+                                            <img src="/images/GoogleShopping.png" alt="Google Shopping" class="@(store.OnGoogle ? "" : "icon-disabled")" />
+                                        </a>
 
                                         <div>
                                             @if (store.OnCeneo || store.OnGoogle)
                                             {
-                                                <div style="font-weight: 600;">Porównywarki</div>
-                                                @if (store.ComparisonRulesCount > 0)
+                                                <div class="rules-header">
+                                                    @totalComp Automatów cenowych
+                                                </div>
+
+                                                @if (totalComp > 0)
                                                 {
-                                                    <div class="scenario-count">
-                                                        <i class="fas fa-robot"></i> @store.ComparisonRulesCount reguł(y)
+                                                    <div class="status-inline-container">
+                                                        @if (store.ComparisonRulesActiveCount > 0)
+                                                        {
+                                                            <span class="status-item" style="color: #1cc88a; font-weight:500;">
+                                                                <span class="status-dot dot-green"></span>
+                                                                @store.ComparisonRulesActiveCount aktywne
+                                                            </span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="status-item">0 aktywnych</span>
+                                                        }
+
+                                                        <span class="status-separator">|</span>
+
+                                                        @if (store.ComparisonRulesInactiveCount > 0)
+                                                        {
+                                                            <span class="status-item" style="color: #e74a3b;">
+                                                                <span class="status-dot dot-red"></span>
+                                                                @store.ComparisonRulesInactiveCount wyłączone
+                                                            </span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="status-item">0 wyłączonych</span>
+                                                        }
                                                     </div>
                                                 }
                                                 else
                                                 {
-                                                    <div class="scenario-count-empty">Brak reguł</div>
+                                                    <div class="status-empty">Brak reguł</div>
                                                 }
                                             }
                                             else
                                             {
-                                                <div style="color: #ccc;">Niedostępne</div>
+                                                <div class="status-empty">Brak reguł</div>
                                             }
                                         </div>
-                                    </a>
+                                    </div>
                                 </td>
 
                                 <td>
-                                    <a href="@Url.Action("Index", "AutomationRules", new { storeId = store.StoreId, filterType = AutomationSourceType.Marketplace })"
-                                       class="channel-box @(!store.OnAllegro ? "button-disabled" : "")"
-                                       style="text-decoration: none; color: inherit;">
+                                    <div style="display: flex; align-items: center; gap: 15px;">
 
-                                        <div>
-                                            <img src="/images/AllegroIcon.png" alt="Allegro" style="width: 24px; height: 24px;" class="@(store.OnAllegro ? "" : "icon-disabled")" />
-                                        </div>
+                                        <a href="@Url.Action("Index", "AutomationRules", new { storeId = store.StoreId, filterType = AutomationSourceType.Marketplace })"
+                                           class="Button-select @(!store.OnAllegro ? "button-disabled" : "")"
+                                           title="Reguły Allegro">
+
+                                            <img src="/images/AllegroIcon.png" alt="Allegro" class="@(store.OnAllegro ? "" : "icon-disabled")" />
+                                        </a>
 
                                         <div>
                                             @if (store.OnAllegro)
                                             {
-                                                <div style="font-weight: 600;">Allegro</div>
-                                                @if (store.MarketplaceRulesCount > 0)
+                                                <div class="rules-header">
+                                                    @totalMarket reguł automatów cenowych
+                                                </div>
+
+                                                @if (totalMarket > 0)
                                                 {
-                                                    <div class="scenario-count" style="color: #ff5a00;">
-                                                        <i class="fas fa-robot"></i> @store.MarketplaceRulesCount reguł(y)
+                                                    <div class="status-inline-container">
+                                                        @if (store.MarketplaceRulesActiveCount > 0)
+                                                        {
+                                                            <span class="status-item" style="color: #1cc88a; font-weight:500;">
+                                                                <span class="status-dot dot-green"></span>
+                                                                @store.MarketplaceRulesActiveCount aktywne
+                                                            </span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="status-item">0 aktywnych</span>
+                                                        }
+
+                                                        <span class="status-separator">|</span>
+
+                                                        @if (store.MarketplaceRulesInactiveCount > 0)
+                                                        {
+                                                            <span class="status-item" style="color: #e74a3b;">
+                                                                <span class="status-dot dot-red"></span>
+                                                                @store.MarketplaceRulesInactiveCount wyłączone
+                                                            </span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="status-item">0 wyłączonych</span>
+                                                        }
                                                     </div>
                                                 }
                                                 else
                                                 {
-                                                    <div class="scenario-count-empty">Brak reguł</div>
+                                                    <div class="status-empty">Brak reguł</div>
                                                 }
                                             }
                                             else
                                             {
-                                                <div style="color: #ccc;">Niedostępne</div>
+                                                <div class="status-empty">Brak reguł</div>
                                             }
                                         </div>
-                                    </a>
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -151,8 +240,8 @@
         }
         else
         {
-            <div style="padding: 20px; text-align: center;">
-                <p>Brak dostępnych sklepów do konfiguracji.</p>
+            <div style="padding: 40px; text-align: center; color: #858796;">
+                <p style="font-size: 1.2em;">Brak dostępnych sklepów do konfiguracji.</p>
             </div>
         }
     </div>

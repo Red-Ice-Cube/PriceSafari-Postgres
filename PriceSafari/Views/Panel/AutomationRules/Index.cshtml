@@ -1,7 +1,10 @@
 ﻿@using Microsoft.AspNetCore.Identity
 @using PriceSafari.Models
+@using PriceSafari.Enums
+@using PriceSafari.Models.ViewModels
+@using static PriceSafari.Controllers.MemberControllers.AutomationRulesController
 
-@model IEnumerable<PriceSafari.Models.AutomationRule>
+@model IEnumerable<AutomationRuleListViewModel>
 @inject UserManager<PriceSafariUser> UserManager
 
 @{
@@ -13,129 +16,253 @@
     var user = await UserManager.GetUserAsync(User);
     bool canEdit = user?.AccesToEditPriceAutomation ?? false;
 
-    string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen. Skontaktuj sie z nami biuro@pricesafari.pl";
+    string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen.";
 }
 
-<div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Reguły Automatyzacji: @storeName</h1>
+<style>
+    /* Karta reguły - cała jest przyciskiem */
+    .rule-card {
+        background-color: #fff;
+        border: 1px solid #e3e6f0;
+        border-radius: 8px;
+        padding: 12px 20px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.2s;
+        cursor: pointer; /* Kursor rączki na całej karcie */
+        position: relative;
+    }
 
-     
-        @if (canEdit)
-        {
-            <a asp-action="Create"
-               asp-route-storeId="@storeId"
-               asp-route-sourceType="@ViewBag.CurrentFilter"
-               class="btn btn-primary shadow-sm">
-                <i class="fas fa-plus fa-sm text-white-50"></i> Dodaj nową regułę
-            </a>
-        }
-        else
-        {
-            <a href="#" onclick="showNoAccessAlert(); return false;"
-               class="btn btn-secondary shadow-sm" style="opacity: 0.6; cursor: not-allowed;">
-                <i class="fas fa-plus fa-sm text-white-50"></i> Dodaj nową regułę
-            </a>
-        }
-    </div>
+    .rule-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: #d1d3e2;
+        transform: translateY(-1px);
+    }
 
-    <div class="card shadow mb-4">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>Kolor</th>
-                            <th>Nazwa Reguły</th>
-                            <th>Źródło danych</th>
-                            <th>Status</th>
-                            <th style="min-width: 250px;">Akcje</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (!Model.Any())
-                        {
-                            <tr>
-                                <td colspan="5" class="text-center">Brak zdefiniowanych reguł dla tego sklepu.</td>
-                            </tr>
-                        }
-                        @foreach (var item in Model)
-                        {
-                            <tr>
-                                <td class="text-center" style="width: 80px;">
-                                    <div style="width: 30px; height: 30px; background-color: @item.ColorHex; border-radius: 50%; margin: 0 auto; border: 1px solid #ccc;"></div>
-                                </td>
-                                <td style="vertical-align: middle; font-weight: 500;">
-                                    @item.Name
-                                </td>
-                                <td style="vertical-align: middle;">
-                                    @if (item.SourceType == PriceSafari.Models.AutomationSourceType.PriceComparison)
-                                    {
-                                        <span class="badge badge-info">Porównywarki (Google/Ceneo)</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge badge-warning" style="color:#fff; background-color: #ff5a00;">Allegro / Marketplace</span>
-                                    }
-                                </td>
-                                <td style="vertical-align: middle;">
-                                    @if (item.IsActive)
-                                    {
-                                        <span class="text-success"><i class="fas fa-check-circle"></i> Aktywna</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-secondary"><i class="fas fa-pause-circle"></i> Wyłączona</span>
-                                    }
-                                </td>
-                                <td style="vertical-align: middle;">
-                                  
-                                    <a asp-controller="PriceAutomation"
-                                       asp-action="Details"
-                                       asp-route-id="@item.Id"
-                                       class="btn btn-sm btn-success shadow-sm"
-                                       title="Zobacz produkty i symulację">
-                                        <i class="fas fa-eye"></i> Szczegóły
-                                    </a>
+    /* Wygląd paska koloru (zastępuje border-left) */
+    .rule-color-bar {
+        width: 6px;
+        height: 36px;
+        border-radius: 4px;
+        margin-right: 18px;
+        flex-shrink: 0;
+    }
 
-                                
-                                    @if (canEdit)
-                                    {
-                                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-info shadow-sm" style="margin-left: 5px;">
-                                            <i class="fas fa-edit"></i> Edytuj
-                                        </a>
-                                    }
-                                    else
-                                    {
-                                        <a href="#" onclick="showNoAccessAlert(); return false;"
-                                           class="btn btn-sm btn-secondary shadow-sm" style="margin-left: 5px; opacity: 0.6; cursor: not-allowed;">
-                                            <i class="fas fa-edit"></i> Edytuj
-                                        </a>
-                                    }
+    /* Sekcja informacji */
+    .rule-content-wrapper {
+        display: flex;
+        align-items: center;
+        flex-grow: 1;
+    }
 
-                                  
-                                    @if (canEdit)
-                                    {
-                                        <form asp-action="Delete" asp-route-id="@item.Id" method="post" style="display:inline-block; margin-left: 5px;" onsubmit="return confirm('Czy na pewno chcesz usunąć tę regułę?');">
-                                            <button type="submit" class="btn btn-sm btn-danger shadow-sm">
-                                                <i class="fas fa-trash"></i> Usuń
-                                            </button>
-                                        </form>
-                                    }
-                                    else
-                                    {
-                                   
-                                        <button type="button" onclick="showNoAccessAlert();"
-                                                class="btn btn-sm btn-secondary shadow-sm" style="margin-left: 5px; opacity: 0.6; cursor: not-allowed;">
-                                            <i class="fas fa-trash"></i> Usuń
-                                        </button>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+    .rule-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .rule-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #5a5c69;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .rule-meta {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+        color: #858796;
+        gap: 15px;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    /* Prawa sekcja */
+    .rule-actions-side {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    /* Styl dla Presetu (Strategii) */
+    .strategy-badge {
+        background-color: #f8f9fc;
+        border: 1px solid #e3e6f0;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        color: #5a5c69;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+    }
+
+    .strategy-label {
+        color: #b7b9cc;
+        font-weight: 500;
+        font-size: 11px;
+        text-transform: uppercase;
+    }
+
+    .strategy-value {
+        font-weight: 700;
+        color: #5a5c69;
+    }
+
+    /* Statusy */
+    .status-badge {
+        font-size: 12px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 90px;
+        justify-content: flex-end;
+    }
+
+    .status-active { color: #1cc88a; }
+    .status-inactive { color: #e74a3b; }
+
+    /* Separator */
+    .vertical-separator {
+        height: 20px;
+        width: 1px;
+        background-color: #e3e6f0;
+    }
+</style>
+
+<div class="Vert">
+    <div class="Vert-full">
+        <div class="d-sm-flex align-items-center justify-content-between mb-4">
+            <div class="Order-Container-Title" style="margin-bottom:0;">
+                Reguły Automatyzacji: <span style="font-weight:400; color:#858796;">@storeName</span>
             </div>
+
+            @if (canEdit)
+            {
+                <a asp-action="Create"
+                   asp-route-storeId="@storeId"
+                   asp-route-sourceType="@ViewBag.CurrentFilter"
+                   class="btn btn-primary shadow-sm">
+                    <i class="fas fa-plus fa-sm text-white-50"></i> Dodaj nową regułę
+                </a>
+            }
+            else
+            {
+                <a href="#" onclick="showNoAccessAlert(); return false;"
+                   class="btn btn-secondary shadow-sm" style="opacity: 0.6; cursor: not-allowed;">
+                    <i class="fas fa-plus fa-sm text-white-50"></i> Dodaj nową regułę
+                </a>
+            }
+        </div>
+
+        <div class="Vert-table" style="background: transparent; border: none; padding: 0;">
+            
+            @if (!Model.Any())
+            {
+                <div class="text-center py-5">
+                    <i class="fas fa-robot fa-3x text-gray-300 mb-3"></i>
+                    <p class="text-gray-500 mb-0">Brak zdefiniowanych reguł dla tego sklepu.</p>
+                    <p class="text-gray-500">Kliknij "Dodaj nową regułę", aby rozpocząć.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var item in Model)
+                {
+                    /* Cała karta jest linkiem dzięki onclick */
+                    <div class="rule-card" onclick="location.href='@Url.Action("Details", "PriceAutomation", new { id = item.Id })'">
+                        
+                        <div class="rule-content-wrapper">
+                            
+                            <div class="rule-color-bar" style="background-color: @item.ColorHex;"></div>
+
+                            <div class="rule-info">
+                                <div class="rule-title">
+                                    @item.Name
+                                </div>
+                                
+                                <div class="rule-meta">
+                                    <div class="meta-item">
+                                        <i class="fas fa-database"></i> 
+                                        <span style="font-weight:700; color:#5a5c69;">@item.AssignedProductsCount</span> 
+                                        <span>produktów</span>
+                                    </div>
+
+                                    <div class="meta-item pl-3" style="border-left: 1px solid #e3e6f0;">
+                                        @if (item.SourceType == AutomationSourceType.PriceComparison)
+                                        {
+                                            <i class="fas fa-globe"></i> <span>Porównywarki</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-shopping-cart"></i> <span>Marketplace</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rule-actions-side">
+                            
+                            <div class="d-none d-lg-flex strategy-badge">
+                                <span class="strategy-label">Preset</span>
+                                <span class="strategy-value">
+                                    <i class="fas fa-bolt" style="font-size:10px; margin-right:3px;"></i>
+                                    @item.CompetitorPresetName
+                                </span>
+                            </div>
+
+                            <div class="vertical-separator d-none d-md-block"></div>
+
+                            <div class="d-none d-md-block">
+                                @if (item.IsActive)
+                                {
+                                    <div class="status-badge status-active">
+                                        <i class="fas fa-circle" style="font-size:8px;"></i> Aktywna
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="status-badge status-inactive">
+                                        <i class="fas fa-circle" style="font-size:8px;"></i> Wyłączona
+                                    </div>
+                                }
+                            </div>
+
+                            @if (canEdit)
+                            {
+                                <form asp-action="Delete" asp-route-id="@item.Id" method="post" 
+                                      style="margin:0;" 
+                                      onclick="event.stopPropagation();" 
+                                      onsubmit="return confirm('Czy na pewno chcesz usunąć tę regułę?');">
+                                    
+                                    <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm" style="border:none;" title="Usuń regułę">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <button onclick="event.stopPropagation(); showNoAccessAlert()" 
+                                        class="btn btn-sm btn-outline-secondary shadow-sm" 
+                                        style="border:none; opacity:0.5;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            }
         </div>
     </div>
 </div>
@@ -143,7 +270,6 @@
 @section Scripts {
     <script>
         function showNoAccessAlert() {
-
             alert('@Html.Raw(noAccessMessage)');
         }
     </script>
