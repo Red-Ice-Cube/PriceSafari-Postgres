@@ -1,9 +1,8 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
 
     const clearChangesButton = document.getElementById("clearChangesButton");
-    const executeStoreButton = document.getElementById("executeStorePriceChangeBtn"); // NOWY PRZYCISK
+    const executeStoreButton = document.getElementById("executeStorePriceChangeBtn");
 
-    // Globalna flaga: czy wykonano wgranie (żeby pokazać kolumnę potwierdzenia)
     let simulationsExecuted = false;
 
     function formatPricePL(value, includeUnit = true) {
@@ -20,7 +19,7 @@
 
     function formatFullRanking(rank, totalOffers) {
         if (!rank || rank === "-" || rank === "null") return null;
-        // Jeśli brak ofert, zwracamy sam ranking, jeśli są - doklejamy je
+
         if (!totalOffers || totalOffers === 0 || totalOffers === "0") return String(rank);
         return `${rank} / ${totalOffers}`;
     }
@@ -126,11 +125,9 @@
         return d.toISOString().split('T')[0];
     }
 
-    // --- FUNKCJA AKTUALIZUJĄCA STAN PRZYCISKU WGRYWANIA DO SKLEPU ---
     function updateStoreButtonState() {
         if (!executeStoreButton) return;
 
-        // isStoreBridgeActive musi być zdefiniowane w widoku (ViewBag)
         if (typeof isStoreBridgeActive !== 'undefined' && isStoreBridgeActive === true) {
             executeStoreButton.disabled = false;
             executeStoreButton.style.opacity = '1';
@@ -143,7 +140,7 @@
             executeStoreButton.title = "Integracja API ze sklepem jest wyłączona w ustawieniach sklepu.";
         }
     }
-    // Inicjalizacja stanu przycisku
+
     updateStoreButtonState();
 
     function updatePriceChangeSummary(forceClear = false) {
@@ -193,7 +190,7 @@
         selectedPriceChanges = [];
         sessionScrapId = null;
 
-        simulationsExecuted = false; // Reset flagi po wyczyszczeniu
+        simulationsExecuted = false;
 
         savePriceChanges();
         updatePriceChangeSummary();
@@ -212,6 +209,8 @@
         }
     }
 
+
+
     const clearChangesButtonLogic = document.getElementById("clearChangesButton");
     if (clearChangesButtonLogic) {
         clearChangesButtonLogic.addEventListener("click", function () {
@@ -226,6 +225,7 @@
         updatePriceChangeSummary();
     });
 
+   
     document.addEventListener('priceBoxChange', function (event) {
         const {
             productId,
@@ -238,7 +238,7 @@
             marginPrice,
             mode,
             priceIndexTarget,
-            // Dla kompatybilności wstecznej
+
             indexTarget
         } = event.detail;
 
@@ -473,32 +473,31 @@
         let block = '<div class="price-info-box">';
 
         block += `
-              <div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px;">
-                  ${headerText} | ${formattedBasePrice}
-              </div>`;
+           <div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px;">
+               ${headerText} | ${formattedBasePrice}
+           </div>`;
 
         if (usePriceWithDeliveryFlag && effectivePrice !== null && shippingCost !== null && basePrice !== null && !isConfirmed) {
             block += `
-                          <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
-                                Cena z wysyłką | ${formattedEffectivePrice}
-                          </div>`;
+                       <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
+                             Cena z wysyłką | ${formattedEffectivePrice}
+                       </div>`;
             block += `
-                          <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
-                                Składowe | ${formatPricePL(basePrice, false)} PLN + ${formatPricePL(shippingCost, false)} PLN
-                          </div>`;
+                       <div class="price-info-item" style="padding: 4px 12px; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 5px;">
+                             Składowe | ${formatPricePL(basePrice, false)} PLN + ${formatPricePL(shippingCost, false)} PLN
+                       </div>`;
         }
 
-        // WARUNEK USUNIĘTY: && !isConfirmed. Teraz rankingi pokazują się zawsze, jeśli są dostępne.
         if (googleRank && googleRank !== "-" && googleRank !== "null") {
             const googleOffersText = (googleOffers && googleOffers != 0) ? googleOffers : '-';
-            // Zabezpieczenie przed dublowaniem
+
             const displayRank = String(googleRank).includes('/') ? googleRank : `${googleRank} / ${googleOffersText}`;
 
             block += `
-              <div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px;">
-                  Poz. cenowa | <img src="/images/GoogleShopping.png" alt="Google Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" />
-                  ${displayRank}
-              </div>`;
+           <div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px;">
+               Poz. cenowa | <img src="/images/GoogleShopping.png" alt="Google Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" />
+               ${displayRank}
+           </div>`;
         }
 
         if (ceneoRank && ceneoRank !== "-" && ceneoRank !== "null") {
@@ -506,10 +505,10 @@
             const displayRank = String(ceneoRank).includes('/') ? ceneoRank : `${ceneoRank} / ${ceneoOffersText}`;
 
             block += `
-                  <div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px;">
-                      Poz. cenowa | <img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" />
-                      ${displayRank}
-                  </div>`;
+               <div class="price-info-item" style="padding: 4px 12px; ${currentStyle} border-radius: 5px;">
+                   Poz. cenowa | <img src="/images/Ceneo.png" alt="Ceneo Icon" style="width:16px; height:16px; vertical-align: middle; margin-right: 3px;" />
+                   ${displayRank}
+               </div>`;
         }
 
         if (marginPercent != null && marginValue != null) {
@@ -518,17 +517,17 @@
             const sign = parseFloat(marginValue) >= 0 ? "+" : "";
             const cls = parseFloat(marginValue) >= 0 ? "priceBox-diff-margin" : "priceBox-diff-margin-minus";
             block += `
-                      <div class="price-info-item"> <div class="price-box-diff-margin ${cls}" <p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p>
-                          </div>
-                      </div>`;
+                   <div class="price-info-item"> <div class="price-box-diff-margin ${cls}" <p>Narzut: ${formattedMarginValue} (${sign}${formattedMarginPercent}%)</p>
+                       </div>
+                   </div>`;
         } else if (isConfirmed) {
-            // Placeholder (opcjonalny)
+
         }
 
         block += '</div>';
         return block;
     }
-    // --- NOWA FUNKCJA DO RENDEROWANIA STRUKTURY TABELI ---
+
     function renderSimulationTableStructure(hasImage) {
         let tableHtml = '<table class="table-orders" id="simulationTable" style="width: 100%;">';
         tableHtml += '<thead><tr>';
@@ -544,7 +543,6 @@
         tableHtml += '<th style="width: 10%;">Zmiana</th>';
         tableHtml += '<th style="width: 20%;">Po zmianie</th>';
 
-        // WARUNKOWA KOLUMNA POTWIERDZENIA
         if (simulationsExecuted) {
             tableHtml += '<th style="width: 20%;">Potwierdzenie API</th>';
         }
@@ -574,7 +572,7 @@
         }
 
         showLoading();
-        simulationsExecuted = false; // Reset przy otwarciu
+        simulationsExecuted = false;
 
         var simulationData = selectedPriceChanges.map(function (item) {
             return {
@@ -636,7 +634,6 @@
                     externalIdMapGlobal[pidStr] = sim.externalId ? String(sim.externalId) : "";
                 });
 
-                // UŻYCIE NOWEJ FUNKCJI STRUKTURY
                 renderSimulationTableStructure(hasImage);
 
                 originalRowsData = selectedPriceChanges.map(function (item, index) {
@@ -748,7 +745,6 @@
                     simulationModal.classList.add('show');
                 }
 
-                // Uaktualnij stan przycisku w modalu
                 updateStoreButtonState();
 
             })
@@ -769,7 +765,6 @@
                 hideLoading();
             });
     }
-
     function renderRows(rows) {
         const tbody = document.getElementById("simulationTbody");
         if (!tbody) return;
@@ -893,17 +888,14 @@
             });
         });
     }
-
-    // --- KLIKNIĘCIE PRZYCISKU "WGRAJ DO SKLEPU" (Otwiera Disclaimer) ---
     if (executeStoreButton) {
         executeStoreButton.addEventListener("click", function () {
-            // 1. Walidacja wstępna - czy są jakiekolwiek zmiany
+
             if (selectedPriceChanges.length === 0) {
                 alert("Brak zmian do wgrania.");
                 return;
             }
 
-            // 2. Sprawdzamy, czy produkty mają ID (ExternalId)
             const validItems = originalRowsData.filter(row =>
                 row.externalId && row.externalId !== "" && row.externalId !== "null"
             );
@@ -913,10 +905,11 @@
                 return;
             }
 
-            // 3. Zamiast native confirm, otwieramy Disclaimer Modal z typem 'api'
             showExportDisclaimer('api');
         });
     }
+
+
 
     function sortRowsByScoreDesc(rows) {
         return rows.sort((a, b) => {
@@ -942,8 +935,6 @@
             alert("Brak danych do zapisania/eksportu.");
             return;
         }
-
-    
 
         const itemsToLog = originalRowsData.map(row => {
             const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
@@ -986,7 +977,8 @@
                     selectedPriceChanges = [];
                     originalRowsData = [];
                     sessionScrapId = null;
-                    simulationsExecuted = false; // Reset
+                    simulationsExecuted = false;
+
                     updatePriceChangeSummary();
 
                     const tableContainer = document.getElementById("simulationModalBody");
@@ -1023,15 +1015,13 @@
             });
     }
 
-    // --- GŁÓWNA FUNKCJA WGRYWANIA PO API ---
     function performApiUpdateAndClear() {
-        // Zamykamy okienko disclaimer
+
         closeExportDisclaimer();
 
-        // 1. Filtrujemy dane (tylko te z ExternalId)
         const itemsToBridge = originalRowsData
             .filter(row => {
-                // Sprawdzamy czy produkt jest w koszyku zmian
+
                 const isActive = selectedPriceChanges.some(c => String(c.productId) === String(row.productId));
                 return isActive && row.externalId && row.externalId !== "" && row.externalId !== "null";
             })
@@ -1044,7 +1034,6 @@
                     NewPrice: parseFloat(row.baseNewPrice),
                     MarginPrice: row.marginPrice ? parseFloat(row.marginPrice) : null,
 
-                    // Rankingi
                     CurrentGoogleRanking: formatFullRanking(row.currentGoogleRanking, row.totalGoogleOffers),
                     CurrentCeneoRanking: formatFullRanking(row.currentCeneoRanking, row.totalCeneoOffers),
                     NewGoogleRanking: formatFullRanking(row.newGoogleRanking, row.totalGoogleOffers),
@@ -1056,13 +1045,11 @@
                 };
             });
 
-        // 2. UI - Blokada przycisku
         showLoading();
         const originalText = executeStoreButton.innerHTML;
         executeStoreButton.disabled = true;
         executeStoreButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Wgrywanie...';
 
-        // 3. Request API
         fetch(`/PriceHistory/ExecuteStorePriceChange?storeId=${storeId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1075,11 +1062,9 @@
             .then(result => {
                 hideLoading();
 
-                // Przywracamy przycisk do stanu pierwotnego (Wgraj do sklepu)
                 executeStoreButton.disabled = false;
                 executeStoreButton.innerHTML = originalText;
 
-                // 4. Powiadomienie
                 let msg = `<p style="font-weight:bold;">Aktualizacja API zakończona</p>`;
                 msg += `<p style="color:green">Sukces: ${result.successfulCount}</p>`;
                 if (result.failedCount > 0) msg += `<p style="color:red">Błędy: ${result.failedCount}</p>`;
@@ -1090,25 +1075,21 @@
                     alert(`Sukces: ${result.successfulCount}, Błędy: ${result.failedCount}`);
                 }
 
-                // 5. Aktualizacja tabeli (BOOMERANG - Zielone kafelki)
                 if (result.successfulChangesDetails && result.successfulChangesDetails.length > 0) {
-                    simulationsExecuted = true; // Włącz kolumnę potwierdzenia
+                    simulationsExecuted = true;
 
-                    // Przeładowujemy strukturę tabeli (żeby dodać kolumnę "Potwierdzenie API")
                     const hasImage = originalRowsData.length > 0 && originalRowsData[0].hasImage;
                     renderSimulationTableStructure(hasImage);
 
-                    // Renderujemy wiersze ponownie (nadal mamy dane w originalRowsData)
                     renderRows(originalRowsData);
 
-                    // Wstawiamy potwierdzone ceny do nowej kolumny
                     result.successfulChangesDetails.forEach(detail => {
                         const rowData = originalRowsData.find(r => r.externalId && r.externalId.toString() === detail.externalId);
 
                         if (rowData) {
                             const cell = document.getElementById(`confirm_${rowData.productId}`);
                             if (cell) {
-                                // Obliczenia marży dla potwierdzenia
+
                                 const marginPriceVal = rowData.marginPrice ? parseFloat(rowData.marginPrice) : null;
                                 let marginVal = null;
                                 let marginPct = null;
@@ -1118,7 +1099,6 @@
                                     marginPct = (marginVal / marginPriceVal) * 100;
                                 }
 
-                                // Używamy buildPriceBlock z danymi z rowData (Rankingi) i z detail (Cena)
                                 cell.innerHTML = buildPriceBlock(
                                     detail.fetchedNewPrice,
                                     detail.fetchedNewPrice,
@@ -1130,10 +1110,10 @@
                                     rowData.totalGoogleOffers,
                                     rowData.newCeneoRanking,
                                     rowData.totalCeneoOffers,
-                                    true // isConfirmed = true (Zielone tło)
+                                    true
+
                                 );
 
-                                // Blokada przycisku usuwania dla wierszy, które zostały wgrane
                                 const rowEl = document.querySelector(`tr[data-product-id="${rowData.productId}"]`);
                                 if (rowEl) {
                                     const btn = rowEl.querySelector('.remove-change-btn');
@@ -1148,18 +1128,12 @@
                     });
                 }
 
-                // 6. CZYSZCZENIE "KOSZYKA" ZMIAN (Po udanym wgraniu)
-                // Czyścimy localStorage i tablicę selectedPriceChanges, żeby licznik spadł do 0
-                // ALE NIE CZYŚCIMY originalRowsData, żeby tabela wizualnie została na ekranie!
-
                 localStorage.removeItem(localStorageKey);
                 selectedPriceChanges = [];
                 sessionScrapId = null;
 
-                // Aktualizujemy tylko licznik w nagłówku (summary), nie resetujemy tabeli
                 updatePriceChangeSummary();
 
-                // Odświeżenie widoku głównego (kafelków w tle)
                 if (typeof window.loadPrices === 'function') window.loadPrices();
                 if (typeof window.refreshPriceBoxStates === 'function') window.refreshPriceBoxStates();
 
@@ -1191,15 +1165,14 @@
         }
     }
 
-    // --- KLIKNIĘCIE "POTWIERDZAM" W OKIENKU DISCLAIMER ---
     const disclaimerConfirmButton = document.getElementById("disclaimerConfirmButton");
     if (disclaimerConfirmButton) {
         disclaimerConfirmButton.addEventListener("click", function () {
             if (pendingExportType === 'api') {
-                // Jeśli wybrano API -> Wykonaj logikę wgrania do sklepu
+
                 performApiUpdateAndClear();
             } else if (pendingExportType) {
-                // Jeśli wybrano CSV/Excel -> Wykonaj logikę plikową
+
                 logChangesToDbAndRefresh(pendingExportType);
             }
         });
@@ -1286,16 +1259,17 @@
                 <strong>Metoda:</strong> ${methodIcon} |
                 <strong style="color: #28a745;">Sukces: ${batch.successfulCount}</strong>
             </div>
-            <table class="table-orders" style="margin-bottom: 20px; width: 100%;">
-                <thead>
-                    <tr>
-                        <th>Produkt</th>
-                        <th>Przed zmianą</th>
-                        <th style="text-align:center;">Zmiana</th> <th>Zaktualizowana cena</th>
-                        <th style="text-align:center;">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
+         <table class="table-orders" style="margin-bottom: 20px; width: 100%;">
+    <thead>
+        <tr>
+            <th style="width: 35%;">Produkt</th>
+            <th style="width: 20%;">Przed zmianą</th>
+            <th style="text-align:center; width: 10%;">Zmiana</th>
+            <th style="width: 20%;">Zaktualizowana cena</th>
+            <th style="text-align:center; width: 15%;">Status</th>
+        </tr>
+    </thead>
+    <tbody>
             `;
 
             batch.items.forEach(item => {
@@ -1328,10 +1302,16 @@
 
                 html += `
                 <tr>
-                    <td class="align-middle">
-                        <div class="price-info-item product-name-cell">
-                             ${item.productName}
-                        </div>
+                   <td class="align-middle">
+                        <a href="/PriceHistory/Details?scrapId=${globalLatestScrapId}&productId=${item.productId}" 
+                           target="_blank" 
+                           rel="noopener noreferrer" 
+                           title="Zobacz szczegóły produktu" 
+                           style="text-decoration: none; color: inherit; display: block;">
+                            <div class="price-info-item product-name-cell" style="font-weight: 500; cursor: pointer;">
+                                 ${item.productName}
+                            </div>
+                        </a>
                         ${eanInfo}
                     </td>
                     <td class="align-middle">${blockBefore}</td>
@@ -1603,12 +1583,4 @@
     updatePriceChangeSummary();
 
 });
-
-
-
-
-
-
-
-
 
