@@ -642,14 +642,11 @@ namespace PriceSafari.Services.ScheduleService
             }
         }
 
-        // =================================================================================
-        // 3. LOGIKA BIZNESOWA DLA PRESTASHOP
-        // =================================================================================
         private async Task<StorePriceBridgeResult> ExecutePrestaShopSessionAsync(
-            StoreClass store,
-            int scrapHistoryId,
-            string userId,
-            List<PriceBridgeItemRequest> itemsToBridge)
+                StoreClass store,
+                int scrapHistoryId,
+                string userId,
+                List<PriceBridgeItemRequest> itemsToBridge)
         {
             _logger.LogInformation($"[PrestaShop] Rozpoczynam sesję zmiany cen dla {store.StoreName}.");
 
@@ -665,9 +662,7 @@ namespace PriceSafari.Services.ScheduleService
                 SuccessfulCount = 0,
                 FailedCount = 0,
                 ExportMethod = PriceExportMethod.Api,
-
                 IsAutomation = false, // Ręczny eksport
-
                 BridgeItems = new List<PriceBridgeItem>(),
 
                 // Statystyki
@@ -698,7 +693,7 @@ namespace PriceSafari.Services.ScheduleService
 
             var itemsToVerify = new List<PriceBridgeItem>();
 
-            // C. Pętla 1: Aktualizacja cen (UPDATE)
+            // C. Pętla 1: Aktualizacja cen (UPDATE/PATCH)
             _logger.LogInformation($"[PrestaShop] Rozpoczynam przetwarzanie {itemsToBridge.Count} produktów.");
 
             foreach (var itemRequest in itemsToBridge)
@@ -725,6 +720,7 @@ namespace PriceSafari.Services.ScheduleService
                     PriceAfter = itemRequest.NewPrice,
                     MarginPrice = itemRequest.MarginPrice,
 
+                    // ZMIANA TUTAJ: Przypisujemy bezpośrednio stringi z requestu (JS już je sformatował jako "Rank / Offers")
                     RankingGoogleBefore = itemRequest.CurrentGoogleRanking,
                     RankingCeneoBefore = itemRequest.CurrentCeneoRanking,
                     RankingGoogleAfterSimulated = itemRequest.NewGoogleRanking,
@@ -742,6 +738,7 @@ namespace PriceSafari.Services.ScheduleService
                 {
                     _logger.LogDebug($"[PrestaShop] Aktualizuję produkt ID {shopProductId} na cenę {itemRequest.NewPrice}...");
 
+                    // Wywołanie poprawionej metody PATCH (Brutto -> Netto)
                     (success, errorMsg) = await UpdatePrestaShopProductXmlAsync(client, store.StoreApiUrl, shopProductId, itemRequest.NewPrice);
 
                     if (!success)
@@ -792,6 +789,7 @@ namespace PriceSafari.Services.ScheduleService
 
                         _logger.LogDebug($"[PrestaShop] Weryfikacja ceny dla ID {shopProductId}...");
 
+                        // Wywołanie poprawionej metody weryfikacji (Netto -> Brutto)
                         decimal? verifiedPrice = await GetPrestaShopPriceAsync(client, store.StoreApiUrl, shopProductId);
 
                         if (verifiedPrice.HasValue)

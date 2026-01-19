@@ -18,6 +18,13 @@
         return includeUnit ? formatted + ' PLN' : formatted;
     }
 
+    function formatFullRanking(rank, totalOffers) {
+        if (!rank || rank === "-" || rank === "null") return null;
+        // Jeśli brak ofert, zwracamy sam ranking, jeśli są - doklejamy je
+        if (!totalOffers || totalOffers === 0 || totalOffers === "0") return String(rank);
+        return `${rank} / ${totalOffers}`;
+    }
+
     function getColorForScore(score) {
         const hue = (score / 100) * 120;
         return `hsl(${hue}, 70%, 45%)`;
@@ -885,7 +892,6 @@
         });
     }
 
-    // --- KLIKNIĘCIE PRZYCISKU "WGRAJ DO SKLEPU" ---
     if (executeStoreButton) {
         executeStoreButton.addEventListener("click", function () {
 
@@ -905,10 +911,14 @@
                         NewPrice: parseFloat(row.baseNewPrice),
                         MarginPrice: row.marginPrice ? parseFloat(row.marginPrice) : null,
 
-                        CurrentGoogleRanking: row.currentGoogleRanking,
-                        CurrentCeneoRanking: row.currentCeneoRanking,
-                        NewGoogleRanking: row.newGoogleRanking,
-                        NewCeneoRanking: row.newCeneoRanking,
+                        // --- TUTAJ JEST ZMIANA: Używamy formatFullRanking ---
+                        CurrentGoogleRanking: formatFullRanking(row.currentGoogleRanking, row.totalGoogleOffers),
+                        CurrentCeneoRanking: formatFullRanking(row.currentCeneoRanking, row.totalCeneoOffers),
+
+                        // Symulowane (New) pozycje też powinny mieć kontekst liczby ofert
+                        NewGoogleRanking: formatFullRanking(row.newGoogleRanking, row.totalGoogleOffers),
+                        NewCeneoRanking: formatFullRanking(row.newCeneoRanking, row.totalCeneoOffers),
+                        // ---------------------------------------------------
 
                         Mode: sourceItem ? sourceItem.mode : 'competitiveness',
                         PriceIndexTarget: (sourceItem && sourceItem.priceIndexTarget) ? parseFloat(sourceItem.priceIndexTarget) : null,
@@ -1067,11 +1077,7 @@
             return;
         }
 
-        function formatFullRanking(rank, totalOffers) {
-            if (!rank || rank === "-" || rank === "null") return null;
-            if (!totalOffers || totalOffers === 0 || totalOffers === "0") return String(rank);
-            return `${rank} / ${totalOffers}`;
-        }
+    
 
         const itemsToLog = originalRowsData.map(row => {
             const sourceItem = selectedPriceChanges.find(i => String(i.productId) === String(row.productId));
