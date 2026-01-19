@@ -75,23 +75,31 @@
         align-items: center;
         font-size: 12px;
         color: #858796;
-        gap: 15px;
+        /* Usunięto gap ogólny, sterujemy separatorem */
     }
 
     .meta-item {
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 8px; /* Odstęp między ikoną a tekstem wewnątrz grupy */
+    }
+
+    /* NOWY: Separator w meta danych (pionowa kreska z odstępem) */
+    .meta-separator {
+        height: 14px;
+        width: 1px;
+        background-color: #d1d3e2; /* Delikatny szary */
+        margin: 0 15px; /* Tu jest ten "mini odstęp", o który prosiłeś (po 15px z każdej strony) */
     }
 
     /* Sekcja akcji (Prawa) */
     .rule-actions-side {
         display: flex;
         align-items: center;
-        gap: 15px; /* Odstęp między elementami prawej strony */
+        gap: 15px;
     }
 
-    /* --- STYLE BADGE'Y (Preset i Strategia) --- */
+    /* Badge */
     .info-badge {
         background-color: #f8f9fc;
         border: 1px solid #e3e6f0;
@@ -106,7 +114,7 @@
     }
 
     .badge-label {
-        color: #b7b9cc; /* Jasny szary dla etykiet PRESET / STRATEGIA */
+        color: #b7b9cc;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -124,18 +132,13 @@
         color: #5a5c69;
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 6px;
         font-size: 12px;
     }
 
     /* Kolory Strategii */
-    .text-strategy-comp {
-        color: rgba(113, 96, 232, 1); /* Fioletowy dla Konkurencyjności */
-    }
-
-    .text-strategy-prof {
-        color: #0d2c56; /* Ciemny granat dla Rentowności */
-    }
+    .text-strategy-comp { color: rgba(113, 96, 232, 1); }
+    .text-strategy-prof { color: #0d2c56; }
 
     /* Statusy */
     .status-badge {
@@ -151,7 +154,6 @@
     .status-active { color: #1cc88a; }
     .status-inactive { color: #e74a3b; }
 
-    /* Separator pionowy duży */
     .vertical-separator {
         height: 20px;
         width: 1px;
@@ -163,7 +165,7 @@
     <div class="Vert-full">
         <div class="d-sm-flex align-items-center justify-content-between mb-4">
             <div class="Order-Container-Title" style="margin-bottom:0;">
-                Reguły Automatyzacji: <span style="font-weight:400; color:#858796;">@storeName</span>
+                Automaty cenowe @storeName
             </div>
 
             @if (canEdit)
@@ -171,15 +173,15 @@
                 <a asp-action="Create"
                    asp-route-storeId="@storeId"
                    asp-route-sourceType="@ViewBag.CurrentFilter"
-                   class="btn btn-primary shadow-sm">
-                    <i class="fas fa-plus fa-sm text-white-50"></i> Dodaj nową regułę
+                   class="Button-Action-Small">
+                 Dodaj nową regułę
                 </a>
             }
             else
             {
                 <a href="#" onclick="showNoAccessAlert(); return false;"
-                   class="btn btn-secondary shadow-sm" style="opacity: 0.6; cursor: not-allowed;">
-                    <i class="fas fa-plus fa-sm text-white-50"></i> Dodaj nową regułę
+                   class="Button-Action-Small" style="opacity: 0.6; cursor: not-allowed;">
+              Dodaj nową regułę
                 </a>
             }
         </div>
@@ -198,9 +200,7 @@
             {
                 @foreach (var item in Model)
                 {
-                    // Logika wyświetlania Strategii
                     bool isCompetitiveness = item.StrategyMode == AutomationStrategyMode.Competitiveness;
-                    
                     string strategyName = isCompetitiveness ? "Konkurencyjność" : "Rentowność";
                     string iconClass = isCompetitiveness ? "fa-bolt" : "fa-dollar-sign";
                     string colorClass = isCompetitiveness ? "text-strategy-comp" : "text-strategy-prof";
@@ -208,7 +208,6 @@
                     <div class="rule-card" onclick="location.href='@Url.Action("Details", "PriceAutomation", new { id = item.Id })'">
                         
                         <div class="rule-content-wrapper">
-                            
                             <div class="rule-color-bar" style="background-color: @item.ColorHex;"></div>
 
                             <div class="rule-info">
@@ -223,7 +222,9 @@
                                         <span>produktów</span>
                                     </div>
 
-                                    <div class="meta-item pl-3" style="border-left: 1px solid #e3e6f0;">
+                                    <div class="meta-separator"></div>
+
+                                    <div class="meta-item">
                                         @if (item.SourceType == AutomationSourceType.PriceComparison)
                                         {
                                             <i class="fas fa-globe"></i> <span>Porównywarki</span>
@@ -262,13 +263,13 @@
                                 @if (item.IsActive)
                                 {
                                     <div class="status-badge status-active">
-                                        <i class="fas fa-circle" style="font-size:8px;"></i> Aktywna
+                                        <i class="fas fa-circle" style="font-size:8px;"></i> Aktywny
                                     </div>
                                 }
                                 else
                                 {
                                     <div class="status-badge status-inactive">
-                                        <i class="fas fa-circle" style="font-size:8px;"></i> Wyłączona
+                                        <i class="fas fa-circle" style="font-size:8px;"></i> Wyłączony
                                     </div>
                                 }
                             </div>
