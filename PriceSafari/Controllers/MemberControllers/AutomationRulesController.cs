@@ -25,33 +25,60 @@ namespace PriceSafari.Controllers.MemberControllers
         [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public async Task<IActionResult> Dashboard()
         {
-            // 2. Pobierz ID zalogowanego użytkownika
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // 3. Zmień zapytanie: pobierz UserStores dla tego usera, dołącz StoreClass i Reguły
+            // KROK 1: Pobierz listę sklepów dostępnych dla użytkownika (tylko podstawowe dane)
+            // Nie dołączamy tu AutomationRules, żeby nie obciążać zapytania
             var userStores = await _context.UserStores
                 .Where(us => us.UserId == userId)
-                .Include(us => us.StoreClass)                 // Dołącz obiekt Sklepu
-                    .ThenInclude(s => s.AutomationRules)      // Dołącz reguły do Sklepu (potrzebne do zliczeń)
+                .Select(us => new
+                {
+                    us.StoreClass.StoreId,
+                    us.StoreClass.StoreName,
+                    us.StoreClass.StoreLogoUrl,
+                    us.StoreClass.OnCeneo,
+                    us.StoreClass.OnGoogle,
+                    us.StoreClass.OnAllegro
+                })
                 .AsNoTracking()
                 .ToListAsync();
 
-            // 4. Wyciągnij same obiekty sklepów z relacji UserStores
-            var stores = userStores.Select(us => us.StoreClass).ToList();
+            // Wyciągnij listę ID sklepów, żeby użyć jej w zapytaniu o reguły
+            var storeIds = userStores.Select(s => s.StoreId).ToList();
 
-            // 5. Reszta logiki mapowania pozostaje bez zmian
-            var model = stores.Select(s => new AutomationStoreListViewModel
+            // KROK 2: Pobierz liczniki reguł BEZPOŚREDNIO z tabeli reguł (tak jak robi to Index)
+            // Grupujemy po StoreId i SourceType, aby policzyć ile jest reguł danego typu w danym sklepie
+            var rulesCounts = await _context.AutomationRules
+                .Where(r => storeIds.Contains(r.StoreId))
+                .GroupBy(r => new { r.StoreId, r.SourceType })
+                .Select(g => new
+                {
+                    StoreId = g.Key.StoreId,
+                    SourceType = g.Key.SourceType,
+                    Count = g.Count()
+                })
+                .AsNoTracking()
+                .ToListAsync();
+
+            // KROK 3: Połącz dane w pamięci (Client-side)
+            // Mapujemy surowe dane do ViewModelu
+            var model = userStores.Select(store => new AutomationStoreListViewModel
             {
-                StoreId = s.StoreId,
-                StoreName = s.StoreName,
-                LogoUrl = s.StoreLogoUrl,
-                OnCeneo = s.OnCeneo,
-                OnGoogle = s.OnGoogle,
-                OnAllegro = s.OnAllegro,
+                StoreId = store.StoreId,
+                StoreName = store.StoreName,
+                LogoUrl = store.StoreLogoUrl,
+                OnCeneo = store.OnCeneo,
+                OnGoogle = store.OnGoogle,
+                OnAllegro = store.OnAllegro,
 
-                ComparisonRulesCount = s.AutomationRules.Count(r => r.SourceType == AutomationSourceType.PriceComparison),
+                // Szukamy w pobranych licznikach odpowiedniej wartości dla tego sklepu
+                ComparisonRulesCount = rulesCounts
+                    .Where(r => r.StoreId == store.StoreId && r.SourceType == AutomationSourceType.PriceComparison)
+                    .Sum(r => r.Count),
 
-                MarketplaceRulesCount = s.AutomationRules.Count(r => r.SourceType == AutomationSourceType.Marketplace)
+                MarketplaceRulesCount = rulesCounts
+                    .Where(r => r.StoreId == store.StoreId && r.SourceType == AutomationSourceType.Marketplace)
+                    .Sum(r => r.Count)
             }).ToList();
 
             return View("~/Views/Panel/AutomationRules/Dashboard.cshtml", model);

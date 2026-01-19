@@ -33,6 +33,13 @@
                 <input type="hidden" name="storeId" value="@storeId" />
                 <button type="submit" class="Button-Add-Small">Rozpocznij scrapowanie cen @productsToScrap produktów</button>
             </form>
+
+            <form id="mergeUrlsForm" asp-controller="Store" asp-action="MergeStoreUrls" method="post" style="margin-left: 10px;">
+                <input type="hidden" name="storeId" value="@storeId" />
+                <button type="submit" class="Button-Page-Small-o" style="background-color: #4a90e2; border-color: #4a90e2; color: white;">
+                    Scal URL (Analiza)
+                </button>
+            </form>
             <form id="clearRejectedForm" asp-controller="Store" asp-action="ClearRejectedProducts" method="post">
                 <input type="hidden" name="storeId" value="@storeId" />
                 <button type="submit" class="Button-Page-Small-o">Resetuj odrzucone @rejectedProductsCount produkty</button>

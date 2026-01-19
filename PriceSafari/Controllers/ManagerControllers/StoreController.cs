@@ -1,28 +1,32 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using HtmlAgilityPack;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.SignalR;
-using HtmlAgilityPack;
-using PriceSafari.Hubs;
-using PriceSafari.Models;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
-using Microsoft.AspNetCore.Authorization;
+using PriceSafari.Hubs;
+using PriceSafari.Models;
 using PriceSafari.Scrapers;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.Data.SqlClient;
+using PriceSafari.Services.ScheduleService;
 
 namespace PriceSafari.Controllers.ManagerControllers
 {
     [Authorize(Roles = "Admin")]
     public class StoreController : Controller
     {
-
         private readonly PriceSafariContext _context;
         private readonly IHubContext<ScrapingHub> _hubContext;
+        // 1. DODAJ POLE SERWISU
+        private readonly UrlGroupingService _urlGroupingService;
 
-        public StoreController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext)
+        // 2. ZAKTUALIZUJ KONSTRUKTOR
+        public StoreController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, UrlGroupingService urlGroupingService)
         {
             _context = context;
             _hubContext = hubContext;
+            _urlGroupingService = urlGroupingService; // Przypisanie serwisu
         }
 
         [HttpGet]
@@ -473,6 +477,27 @@ namespace PriceSafari.Controllers.ManagerControllers
             ViewBag.RejectedProductsCount = rejectedProducts.Count;
 
             return View("~/Views/ManagerPanel/Store/ProductList.cshtml", products);
+        }
+
+
+        // 3. DODAJ NOWĄ METODĘ DO SCALANIA URL
+        [HttpPost]
+        public async Task<IActionResult> MergeStoreUrls(int storeId)
+        {
+            try
+            {
+                // Wywołujemy Twoją metodę z serwisu, przekazując ID sklepu w liście
+                var result = await _urlGroupingService.GroupAndSaveUniqueUrls(new List<int> { storeId });
+
+                TempData["SuccessMessage"] = $"Sukces! Przeanalizowano {result.totalProducts} produktów. Znaleziono unikalne sklepy: {string.Join(", ", result.distinctStoreNames)}";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Błąd podczas scalania URL: {ex.Message}";
+            }
+
+            // Wracamy do widoku listy produktów
+            return RedirectToAction("ProductList", new { storeId });
         }
 
         [HttpPost]
