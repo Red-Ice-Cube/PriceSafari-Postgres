@@ -126,8 +126,6 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             // Projekcja do ViewModelu
-            // Zakładam, że w AutomationRule masz kolekcję Assignments (AutomationProductAssignments)
-            // Jeśli nie masz nawigacji zwrotnej, trzeba będzie zrobić GroupJoin, ale zazwyczaj relacja 1:N istnieje.
             var rules = await query
                 .Select(r => new AutomationRuleListViewModel
                 {
@@ -136,11 +134,14 @@ namespace PriceSafari.Controllers.MemberControllers
                     ColorHex = r.ColorHex,
                     IsActive = r.IsActive,
                     SourceType = r.SourceType,
+
+                    // Pobieramy tryb strategii, żeby zdecydować o ikonie (Piorun/Dolar)
                     StrategyMode = r.StrategyMode,
+
+                    // Pobieramy nazwę presetu (np. "Top 3 Allegro")
                     CompetitorPresetName = r.CompetitorPreset != null ? r.CompetitorPreset.PresetName : "Domyślny",
 
-                    // Liczenie produktów (zakładając relację w modelu: public virtual ICollection<AutomationProductAssignment> Assignments { get; set; })
-                    // Jeśli nazwa kolekcji jest inna, podmień 'Assignments'
+                    // Liczenie produktów
                     AssignedProductsCount = _context.AutomationProductAssignments.Count(a => a.AutomationRuleId == r.Id)
                 })
                 .OrderByDescending(r => r.Id)
@@ -151,7 +152,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return View("~/Views/Panel/AutomationRules/Index.cshtml", rules);
         }
-
 
         public class AutomationRuleListViewModel
         {
