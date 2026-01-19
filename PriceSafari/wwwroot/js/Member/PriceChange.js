@@ -1044,7 +1044,7 @@
                     NewPrice: parseFloat(row.baseNewPrice),
                     MarginPrice: row.marginPrice ? parseFloat(row.marginPrice) : null,
 
-                    // Rankingi (sformatowane przez formatFullRanking w poprzednim kroku)
+                    // Rankingi
                     CurrentGoogleRanking: formatFullRanking(row.currentGoogleRanking, row.totalGoogleOffers),
                     CurrentCeneoRanking: formatFullRanking(row.currentCeneoRanking, row.totalCeneoOffers),
                     NewGoogleRanking: formatFullRanking(row.newGoogleRanking, row.totalGoogleOffers),
@@ -1074,6 +1074,8 @@
             })
             .then(result => {
                 hideLoading();
+
+                // Przywracamy przycisk do stanu pierwotnego (Wgraj do sklepu)
                 executeStoreButton.disabled = false;
                 executeStoreButton.innerHTML = originalText;
 
@@ -1124,10 +1126,10 @@
                                     false,
                                     marginPct,
                                     marginVal,
-                                    rowData.newGoogleRanking,   // Ranking Google
-                                    rowData.totalGoogleOffers,  // Oferty Google
-                                    rowData.newCeneoRanking,    // Ranking Ceneo
-                                    rowData.totalCeneoOffers,   // Oferty Ceneo
+                                    rowData.newGoogleRanking,
+                                    rowData.totalGoogleOffers,
+                                    rowData.newCeneoRanking,
+                                    rowData.totalCeneoOffers,
                                     true // isConfirmed = true (Zielone tło)
                                 );
 
@@ -1157,20 +1159,6 @@
                 // Aktualizujemy tylko licznik w nagłówku (summary), nie resetujemy tabeli
                 updatePriceChangeSummary();
 
-                // Opcjonalnie: Zmień przycisk "Wgraj" na "Zamknij / Wyczyść widok"
-                executeStoreButton.innerHTML = '<i class="fas fa-check"></i> Zamknij';
-                executeStoreButton.onclick = function () {
-                    clearPriceChanges(); // To wyczyści tabelę dopiero po kliknięciu
-                    $('#simulationModal').modal('hide'); // Zamknij modal (jeśli używasz jQuery bootstrap)
-                    // lub
-                    document.getElementById("simulationModal").style.display = 'none';
-
-                    // Przywróć przycisk do stanu pierwotnego
-                    executeStoreButton.innerHTML = 'Wgraj do sklepu';
-                    // Przywróć event listener (przeładowanie strony lub skomplikowana logika, 
-                    // prościej: po zamknięciu modala i tak czyścimy widok przez clearPriceChanges w on-close modala)
-                };
-
                 // Odświeżenie widoku głównego (kafelków w tle)
                 if (typeof window.loadPrices === 'function') window.loadPrices();
                 if (typeof window.refreshPriceBoxStates === 'function') window.refreshPriceBoxStates();
@@ -1183,7 +1171,6 @@
                 alert("Błąd: " + err.message);
             });
     }
-
     function showExportDisclaimer(type) {
         pendingExportType = type;
         const disclaimerModal = document.getElementById("exportDisclaimerModal");

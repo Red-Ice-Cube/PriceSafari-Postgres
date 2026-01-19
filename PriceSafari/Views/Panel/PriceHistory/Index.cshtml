@@ -450,11 +450,25 @@
                 </button>
             </div>
             <div class="modal-body">
-                <p>
+                <p style="margin-bottom: 15px;">
                     Nie ponosimy odpowiedzialności za możliwe błędne powiązania między produktami z programu PriceSafari
-                    a dostarczonym feedem XML. Prosimy sprawdzić przed eksportem danych dokładność powiązań
-                    i wprowadzać zmiany na własną odpowiedzialność. Wyeksportowanie zmian nie wprowadza żadnych zmian odnośnie
-                    cen produktów w sklepie, dopóki użytkownik sam ich nie zaimportuje.
+                    a dostarczonym feedem XML. Prosimy sprawdzić dokładność powiązań przed operacją.
+                </p>
+
+                <div style="background-color: #f9f9f9; padding: 10px; border-left: 4px solid #007bff; font-size: 14px;">
+                    <strong>Skutki operacji:</strong>
+                    <ul style="margin: 5px 0 0 20px; padding: 0;">
+                        <li style="margin-bottom: 5px;">
+                            Dla <b>CSV / Excel</b>: Wygenerowany zostanie tylko plik raportu. Ceny w sklepie <u>nie ulegną zmianie</u>.
+                        </li>
+                        <li>
+                            Dla <b>API</b>: Zmiany cen zostaną <b>automatycznie wgrane do sklepu</b> i będą widoczne dla klientów.
+                        </li>
+                    </ul>
+                </div>
+
+                <p style="margin-top: 15px; font-size: 13px; color: #666;">
+                    Wprowadzasz zmiany na własną odpowiedzialność.
                 </p>
             </div>
             <div class="modal-footer" style="justify-content:space-between;">
@@ -464,7 +478,6 @@
         </div>
     </div>
 </div>
-
 <div class="modal fade" id="deliveryDisclaimerModal" tabindex="-1" role="dialog" aria-labelledby="deliveryDisclaimerModalLabel" aria-hidden="true" style="z-index: 8555;">
     <div class="modal-dialog" style="max-width:1000px;" role="document">
         <div class="modal-content" style="width:800px; margin: 5% auto;">
