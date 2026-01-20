@@ -176,6 +176,7 @@ namespace PriceSafari.Controllers.MemberControllers
             return BadRequest("Nieznany typ źródła.");
         }
 
+
         private async Task<(List<AutomationProductRowViewModel> Products, int ScrapId, DateTime? ScrapDate)> GetCalculatedMarketplaceData(AutomationRule rule)
         {
             var resultProducts = new List<AutomationProductRowViewModel>();
@@ -191,8 +192,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             int scrapId = latestScrap.Id;
 
-            // --- NOWY FRAGMENT: Pobieranie historii aktualizacji dla tego scrapu ---
-            // Pobieramy wpisy z mostka, które zakończyły się sukcesem i dotyczą tego konkretnego scrapowania
+            // Pobieranie historii aktualizacji dla tego scrapu
             var committedChanges = await _context.AllegroPriceBridgeItems
                 .Include(i => i.PriceBridgeBatch)
                 .Where(i => i.PriceBridgeBatch.StoreId == rule.StoreId
@@ -200,12 +200,9 @@ namespace PriceSafari.Controllers.MemberControllers
                          && i.Success)
                 .ToListAsync();
 
-            // Tworzymy słownik dla szybkiego wyszukiwania po ProductId
-            // Bierzemy najnowszą aktualizację (na wypadek gdyby było kilka prób)
             var committedLookup = committedChanges
                 .GroupBy(i => i.AllegroProductId)
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.PriceBridgeBatch.ExecutionDate).First());
-            // ---------------------------------------------------------------------
 
             // Pobieranie przypisań produktów
             var assignments = await _context.AutomationProductAssignments
@@ -229,16 +226,17 @@ namespace PriceSafari.Controllers.MemberControllers
             var competitorRules = GetCompetitorRulesForMarketplace(rule.CompetitorPreset);
             string myStoreNameAllegro = rule.Store.StoreNameAllegro;
 
+            // --- NOWE: Pobierz zakresy dostawy z presetu ---
+            int minDelivery = rule.CompetitorPreset?.MinDeliveryDays ?? 0;
+            int maxDelivery = rule.CompetitorPreset?.MaxDeliveryDays ?? 31;
+            // -----------------------------------------------
+
             foreach (var item in assignments)
             {
                 var p = item.AllegroProduct;
                 if (p == null) continue;
 
                 var histories = priceHistories.Where(h => h.AllegroProductId == p.AllegroProductId).ToList();
-
-                
-
-                // --- ZMIANA: Ścisłe dopasowanie oferty (BEZ FALLBACKU) ---
 
                 // 1. Parsowanie ID
                 long? targetOfferId = null;
@@ -251,19 +249,12 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 if (targetOfferId.HasValue)
                 {
-                    // SCENARIUSZ A: Mamy zdefiniowane ID oferty.
-                    // Szukamy ŚCIŚLE tego ID. Jeśli nie ma go w wynikach scrapowania -> myHistory pozostaje null.
-                    // Nie szukamy "zapasowo" po nazwie, aby nie pobrać ceny z innej oferty (np. outlet).
                     myHistory = histories.FirstOrDefault(h => h.IdAllegro == targetOfferId.Value);
                 }
                 else
                 {
-                    // SCENARIUSZ B: Nie mamy ID w bazie (stary produkt lub niepodpięty).
-                    // Tylko wtedy szukamy po nazwie sklepu.
                     myHistory = histories.FirstOrDefault(h => h.SellerName != null && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase));
                 }
-
-                // ---------------------------------------------------------
 
                 var extInfo = extendedInfos.FirstOrDefault(x => x.AllegroProductId == p.AllegroProductId);
 
@@ -272,8 +263,14 @@ namespace PriceSafari.Controllers.MemberControllers
                     .Where(h => h.Price > 0
                              // Wykluczamy ofertę, którą uznaliśmy za "naszą" (po ID)
                              && (targetOfferId == null || h.IdAllegro != targetOfferId)
-                             // ORAZ wykluczamy wszystkie inne oferty naszego sklepu (żeby outlet nie był konkurentem)
-                             && (h.SellerName == null || !h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase)))
+                             // ORAZ wykluczamy wszystkie inne oferty naszego sklepu
+                             && (h.SellerName == null || !h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+
+                             // --- NOWE: Filtr czasu dostawy ---
+                             && (h.DeliveryTime ?? 31) >= minDelivery
+                             && (h.DeliveryTime ?? 31) <= maxDelivery
+                           // ---------------------------------
+                           )
                     .ToList();
 
                 var filteredCompetitors = new List<AllegroPriceHistory>();
@@ -302,20 +299,19 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 if (myHistory != null && myHistory.Price > 0)
                 {
-                    // Pobieramy wszystkie inne oferty mojego sklepu dla tego produktu
                     var myOtherOffers = histories
                         .Where(h => h.SellerName != null
                                  && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase)
-                                 && h.IdAllegro != myHistory.IdAllegro // Pomijamy tę, którą właśnie analizujemy
+                                 && h.IdAllegro != myHistory.IdAllegro
                                  && h.Price > 0)
                         .ToList();
 
-                    // Sprawdzamy, czy którakolwiek z nich jest tańsza
                     if (myOtherOffers.Any(other => other.Price < myHistory.Price))
                     {
                         hasCheaperOwnOffer = true;
                     }
                 }
+
                 if (myHistory != null && myHistory.Price > 0)
                     currentRankAllegro = CalculateRanking(new List<decimal>(competitorPrices), myHistory.Price);
 
@@ -358,7 +354,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 if (committedLookup.TryGetValue(p.AllegroProductId, out var committedItem))
                 {
                     row.IsAlreadyUpdated = true;
-                    // Preferujemy cenę zweryfikowaną przez API po update, a jak nie ma to symulowaną
                     row.UpdatedPrice = committedItem.PriceAfter_Verified ?? committedItem.PriceAfter_Simulated;
                     row.UpdateDate = committedItem.PriceBridgeBatch.ExecutionDate;
                 }
@@ -368,6 +363,200 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return (resultProducts, scrapId, latestScrap.Date);
         }
+
+
+        //private async Task<(List<AutomationProductRowViewModel> Products, int ScrapId, DateTime? ScrapDate)> GetCalculatedMarketplaceData(AutomationRule rule)
+        //{
+        //    var resultProducts = new List<AutomationProductRowViewModel>();
+
+        //    // 1. Pobieramy ostatni Scrap History
+        //    var latestScrap = await _context.AllegroScrapeHistories
+        //        .Where(sh => sh.StoreId == rule.StoreId)
+        //        .OrderByDescending(sh => sh.Date)
+        //        .Select(sh => new { sh.Id, sh.Date })
+        //        .FirstOrDefaultAsync();
+
+        //    if (latestScrap == null) return (resultProducts, 0, null);
+
+        //    int scrapId = latestScrap.Id;
+
+        //    // --- NOWY FRAGMENT: Pobieranie historii aktualizacji dla tego scrapu ---
+        //    // Pobieramy wpisy z mostka, które zakończyły się sukcesem i dotyczą tego konkretnego scrapowania
+        //    var committedChanges = await _context.AllegroPriceBridgeItems
+        //        .Include(i => i.PriceBridgeBatch)
+        //        .Where(i => i.PriceBridgeBatch.StoreId == rule.StoreId
+        //                 && i.PriceBridgeBatch.AllegroScrapeHistoryId == scrapId
+        //                 && i.Success)
+        //        .ToListAsync();
+
+        //    // Tworzymy słownik dla szybkiego wyszukiwania po ProductId
+        //    // Bierzemy najnowszą aktualizację (na wypadek gdyby było kilka prób)
+        //    var committedLookup = committedChanges
+        //        .GroupBy(i => i.AllegroProductId)
+        //        .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.PriceBridgeBatch.ExecutionDate).First());
+        //    // ---------------------------------------------------------------------
+
+        //    // Pobieranie przypisań produktów
+        //    var assignments = await _context.AutomationProductAssignments
+        //        .Where(a => a.AutomationRuleId == rule.Id && a.AllegroProductId.HasValue)
+        //        .Include(a => a.AllegroProduct)
+        //        .ToListAsync();
+
+        //    if (!assignments.Any()) return (resultProducts, scrapId, latestScrap.Date);
+
+        //    var productIds = assignments.Select(a => a.AllegroProductId.Value).ToList();
+
+        //    // Pobieranie historii cen i dodatkowych info
+        //    var priceHistories = await _context.AllegroPriceHistories
+        //        .Where(ph => ph.AllegroScrapeHistoryId == scrapId && productIds.Contains(ph.AllegroProductId))
+        //        .ToListAsync();
+
+        //    var extendedInfos = await _context.AllegroPriceHistoryExtendedInfos
+        //        .Where(x => x.ScrapHistoryId == scrapId && productIds.Contains(x.AllegroProductId))
+        //        .ToListAsync();
+
+        //    var competitorRules = GetCompetitorRulesForMarketplace(rule.CompetitorPreset);
+        //    string myStoreNameAllegro = rule.Store.StoreNameAllegro;
+
+        //    foreach (var item in assignments)
+        //    {
+        //        var p = item.AllegroProduct;
+        //        if (p == null) continue;
+
+        //        var histories = priceHistories.Where(h => h.AllegroProductId == p.AllegroProductId).ToList();
+
+
+
+        //        // --- ZMIANA: Ścisłe dopasowanie oferty (BEZ FALLBACKU) ---
+
+        //        // 1. Parsowanie ID
+        //        long? targetOfferId = null;
+        //        if (long.TryParse(p.IdOnAllegro, out var parsedId))
+        //        {
+        //            targetOfferId = parsedId;
+        //        }
+
+        //        AllegroPriceHistory myHistory = null;
+
+        //        if (targetOfferId.HasValue)
+        //        {
+        //            // SCENARIUSZ A: Mamy zdefiniowane ID oferty.
+        //            // Szukamy ŚCIŚLE tego ID. Jeśli nie ma go w wynikach scrapowania -> myHistory pozostaje null.
+        //            // Nie szukamy "zapasowo" po nazwie, aby nie pobrać ceny z innej oferty (np. outlet).
+        //            myHistory = histories.FirstOrDefault(h => h.IdAllegro == targetOfferId.Value);
+        //        }
+        //        else
+        //        {
+        //            // SCENARIUSZ B: Nie mamy ID w bazie (stary produkt lub niepodpięty).
+        //            // Tylko wtedy szukamy po nazwie sklepu.
+        //            myHistory = histories.FirstOrDefault(h => h.SellerName != null && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase));
+        //        }
+
+        //        // ---------------------------------------------------------
+
+        //        var extInfo = extendedInfos.FirstOrDefault(x => x.AllegroProductId == p.AllegroProductId);
+
+        //        // Wykluczanie konkurencji (ważne, żeby inne nasze oferty nie były traktowane jako rywal)
+        //        var rawCompetitors = histories
+        //            .Where(h => h.Price > 0
+        //                     // Wykluczamy ofertę, którą uznaliśmy za "naszą" (po ID)
+        //                     && (targetOfferId == null || h.IdAllegro != targetOfferId)
+        //                     // ORAZ wykluczamy wszystkie inne oferty naszego sklepu (żeby outlet nie był konkurentem)
+        //                     && (h.SellerName == null || !h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase)))
+        //            .ToList();
+
+        //        var filteredCompetitors = new List<AllegroPriceHistory>();
+        //        if (rule.CompetitorPreset != null)
+        //        {
+        //            foreach (var comp in rawCompetitors)
+        //            {
+        //                if (IsCompetitorAllowedMarketplace(comp.SellerName, competitorRules, rule.CompetitorPreset.UseUnmarkedStores))
+        //                    filteredCompetitors.Add(comp);
+        //            }
+        //        }
+        //        else
+        //        {
+        //            filteredCompetitors = rawCompetitors;
+        //        }
+
+        //        var competitorPrices = filteredCompetitors.Select(c => c.Price).ToList();
+        //        filteredCompetitors = filteredCompetitors.OrderBy(h => h.Price).ToList();
+        //        var bestCompetitor = filteredCompetitors.FirstOrDefault();
+
+        //        decimal? marketAvg = null;
+        //        if (filteredCompetitors.Any()) marketAvg = CalculateMedian(competitorPrices);
+
+        //        string currentRankAllegro = "-";
+        //        bool hasCheaperOwnOffer = false;
+
+        //        if (myHistory != null && myHistory.Price > 0)
+        //        {
+        //            // Pobieramy wszystkie inne oferty mojego sklepu dla tego produktu
+        //            var myOtherOffers = histories
+        //                .Where(h => h.SellerName != null
+        //                         && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase)
+        //                         && h.IdAllegro != myHistory.IdAllegro // Pomijamy tę, którą właśnie analizujemy
+        //                         && h.Price > 0)
+        //                .ToList();
+
+        //            // Sprawdzamy, czy którakolwiek z nich jest tańsza
+        //            if (myOtherOffers.Any(other => other.Price < myHistory.Price))
+        //            {
+        //                hasCheaperOwnOffer = true;
+        //            }
+        //        }
+        //        if (myHistory != null && myHistory.Price > 0)
+        //            currentRankAllegro = CalculateRanking(new List<decimal>(competitorPrices), myHistory.Price);
+
+        //        var row = new AutomationProductRowViewModel
+        //        {
+        //            ProductId = p.AllegroProductId,
+        //            Name = p.AllegroProductName,
+        //            Identifier = p.IdOnAllegro,
+        //            CurrentPrice = myHistory?.Price,
+        //            PurchasePrice = p.AllegroMarginPrice,
+        //            BestCompetitorPrice = bestCompetitor?.Price,
+        //            CompetitorName = bestCompetitor?.SellerName,
+        //            MarketAveragePrice = marketAvg,
+        //            CurrentRankingAllegro = currentRankAllegro,
+        //            IsInStock = true,
+        //            CommissionAmount = extInfo?.ApiAllegroCommission,
+        //            ApiAllegroPriceFromUser = extInfo?.ApiAllegroPriceFromUser,
+        //            IsInAnyCampaign = extInfo?.AnyPromoActive ?? false,
+        //            IsSubsidyActive = extInfo?.IsSubsidyActive ?? false,
+        //            IsBestPriceGuarantee = myHistory?.IsBestPriceGuarantee ?? false,
+        //            IsSuperPrice = myHistory?.SuperPrice ?? false,
+        //            IsTopOffer = myHistory?.TopOffer ?? false,
+        //            CompetitorIsBestPriceGuarantee = bestCompetitor?.IsBestPriceGuarantee ?? false,
+        //            CompetitorIsSuperPrice = bestCompetitor?.SuperPrice ?? false,
+        //            CompetitorIsTopOffer = bestCompetitor?.TopOffer ?? false,
+        //            IsCommissionIncluded = rule.MarketplaceIncludeCommission,
+        //            HasCheaperOwnOffer = hasCheaperOwnOffer,
+        //        };
+
+        //        CalculateSuggestedPrice(rule, row);
+        //        CalculateCurrentMarkup(row);
+
+        //        string newRankAllegro = "-";
+        //        if (row.SuggestedPrice.HasValue)
+        //        {
+        //            newRankAllegro = CalculateRanking(new List<decimal>(competitorPrices), row.SuggestedPrice.Value);
+        //        }
+        //        row.NewRankingAllegro = newRankAllegro;
+
+        //        if (committedLookup.TryGetValue(p.AllegroProductId, out var committedItem))
+        //        {
+        //            row.IsAlreadyUpdated = true;
+        //            // Preferujemy cenę zweryfikowaną przez API po update, a jak nie ma to symulowaną
+        //            row.UpdatedPrice = committedItem.PriceAfter_Verified ?? committedItem.PriceAfter_Simulated;
+        //            row.UpdateDate = committedItem.PriceBridgeBatch.ExecutionDate;
+        //        }
+
+        //        resultProducts.Add(row);
+        //    }
+
+        //    return (resultProducts, scrapId, latestScrap.Date);
+        //}
 
         private async Task PrepareMarketplaceData(AutomationRule rule, AutomationDetailsViewModel model)
         {
