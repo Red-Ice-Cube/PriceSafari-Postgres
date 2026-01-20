@@ -14,9 +14,8 @@
         --border-color: #e3e6f0;
         --toggle-width: 140px;
         --toggle-height: 38px;
-        /* Kolory dla bool switch */
-        --success-color: #1cc88a; /* Zielony */
-        --danger-color: #e74a3b; /* Czerwony */
+        --success-color: #1cc88a;
+        --danger-color: #e74a3b;
     }
 
     .settings-card {
@@ -56,7 +55,6 @@
         margin-top: 0px;
     }
 
-    /* --- STYL PRZEŁĄCZNIKÓW (WSPÓLNY) --- */
     .unit-switch-wrapper, .bool-switch-wrapper {
         display: inline-flex;
         align-items: center;
@@ -101,7 +99,6 @@
         z-index: 1;
     }
 
-    /* Logika przesuwania suwaka */
     .unit-switch-wrapper.active-right .unit-slider,
     .bool-switch-wrapper.active-right .unit-slider {
         transform: translateX(100%) translateX(-6px);
@@ -112,7 +109,6 @@
         transform: translateX(0);
     }
 
-    /* --- STYL DLA PLN / % (Oryginalny) --- */
     .unit-switch-wrapper.active-left .opt-left {
         color: var(--primary-color);
     }
@@ -121,21 +117,18 @@
         color: var(--primary-color);
     }
 
-    /* --- STYL DLA TAK / NIE (Nowy) --- */
     .bool-switch-wrapper {
-        width: 130px; /* Stała szerokość dla ładnego wyglądu */
+        width: 130px;
         justify-content: space-between;
     }
 
         .bool-switch-wrapper.active-left .opt-left {
             color: var(--danger-color);
         }
-        /* NIE - Czerwony */
+
         .bool-switch-wrapper.active-right .opt-right {
             color: var(--success-color);
         }
-    /* TAK - Zielony */
-
 
     .preset-box {
         background: var(--secondary-bg);
@@ -178,7 +171,6 @@
             border-bottom: none;
         }
 
-
     .strategy-desc-box {
         background: #f8f9fc;
         border: 2px solid transparent;
@@ -186,8 +178,8 @@
         padding: 20px;
         height: 100%;
         transition: all 0.3s ease;
-        opacity: 0.6; /* Domyślnie przygaszone */
-        filter: grayscale(80%); /* Domyślnie szare */
+        opacity: 0.6;
+        filter: grayscale(80%);
         cursor: pointer;
         position: relative;
     }
@@ -200,13 +192,12 @@
             transform: translateY(-2px);
         }
 
-        /* Kolory ramek dla aktywnej strategii */
         .strategy-desc-box.strategy-comp.active-strategy {
-            border-color: rgba(113, 96, 232, 1); /* Turquoise / Info */
+            border-color: rgba(113, 96, 232, 1);
         }
 
         .strategy-desc-box.strategy-profit.active-strategy {
-            border-color: #0d2c56; /* Primary Blue */
+            border-color: #0d2c56;
         }
 
     .strategy-icon-header {
@@ -617,7 +608,6 @@
             }
         });
 
-        // Funkcja dla starego switcha (PLN / %)
         window.toggleUnit = function(wrapper) {
             const checkbox = wrapper.querySelector('input[type="checkbox"]');
             checkbox.checked = !checkbox.checked;
@@ -631,19 +621,17 @@
             }
         }
 
-        // NOWA funkcja dla switcha (TAK / NIE)
         window.toggleBool = function(wrapper) {
             const checkbox = wrapper.querySelector('input[type="checkbox"]');
-            // Zmieniamy stan checkboxa
+
             checkbox.checked = !checkbox.checked;
 
-            // Zmieniamy klasy wizualne
             if (checkbox.checked) {
-                // TRUE -> TAK -> ZIELONE
+
                 wrapper.classList.remove('active-left');
                 wrapper.classList.add('active-right');
             } else {
-                // FALSE -> NIE -> CZERWONE
+
                 wrapper.classList.remove('active-right');
                 wrapper.classList.add('active-left');
             }
@@ -664,56 +652,47 @@
 
             window.setStrategyMode = function(modeValue) {
 
-            // 1. Ustaw wartość w ukrytym polu formularza
             const input = document.getElementById('StrategyModeInput');
             if(input) input.value = modeValue;
 
-            // 2. Pobierz przyciski
             const btnComp = document.getElementById('btn-mode-comp');
             const btnProfit = document.getElementById('btn-mode-profit');
 
-            // 3. Przełącz klasę 'active' na przyciskach
             if (modeValue === 0) {
-                // Wybrano: Lider Rynku
+
                 if(btnComp) btnComp.classList.add('active');
                 if(btnProfit) btnProfit.classList.remove('active');
             } else {
-                // Wybrano: Rentowność
+
                 if(btnComp) btnComp.classList.remove('active');
                 if(btnProfit) btnProfit.classList.add('active');
             }
 
-            // 4. Logika pokazywania/ukrywania pól (z poprzedniego kroku)
             const compFields = document.getElementById('competitivenessFields');
             const profitFields = document.getElementById('profitFields');
 
-            // 5. Logika styli dla opisów (te duże boxy z opisem)
             const descBoxComp = document.getElementById('descBoxComp');
             const descBoxProfit = document.getElementById('descBoxProfit');
 
             if (modeValue === 0) {
-                // Pokaż pola Lidera, ukryj Rentowność
+
                 if(compFields) compFields.style.display = 'block';
                 if(profitFields) profitFields.style.display = 'none';
 
-                // Aktywuj wizualnie lewy opis, wygaś prawy
                 if(descBoxComp) descBoxComp.classList.add('active-strategy');
                 if(descBoxProfit) descBoxProfit.classList.remove('active-strategy');
             } else {
-                // Pokaż pola Rentowność, ukryj Lidera
+
                 if(compFields) compFields.style.display = 'none';
                 if(profitFields) profitFields.style.display = 'block';
 
-                // Aktywuj wizualnie prawy opis, wygaś lewy
                 if(descBoxComp) descBoxComp.classList.remove('active-strategy');
                 if(descBoxProfit) descBoxProfit.classList.add('active-strategy');
             }
         }
 
-        // Funkcja pomocnicza: pozwala kliknąć w cały duży box z opisem, aby wybrać strategię
         window.triggerStrategyClick = function(modeValue) {
-            // Znajdujemy odpowiedni label przycisku i przekazujemy go do głównej funkcji
-            // Symulujemy kliknięcie, żeby zachować spójność
+
             setStrategyMode(modeValue, null);
         }
 

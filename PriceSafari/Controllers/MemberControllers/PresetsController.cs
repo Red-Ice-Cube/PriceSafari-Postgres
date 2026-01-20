@@ -342,21 +342,57 @@ namespace PriceSafari.Controllers.MemberControllers
         [HttpPost("delete/{presetId}")]
         public async Task<IActionResult> DeletePreset([FromRoute] int presetId)
         {
-            var preset = await _context.CompetitorPresets
-                .Include(p => p.CompetitorItems)
-                .FirstOrDefaultAsync(p => p.PresetId == presetId);
+            try
+            {
+                // 1. Sprawdź czy preset istnieje i czy użytkownik ma dostęp
+                var preset = await _context.CompetitorPresets
+                    .Include(p => p.CompetitorItems)
+                    .FirstOrDefaultAsync(p => p.PresetId == presetId);
 
-            if (preset == null)
-                return NotFound("Preset nie istnieje.");
+                if (preset == null)
+                    return NotFound(new { success = false, message = "Preset nie istnieje." });
 
-            if (!await UserHasAccessToStore(preset.StoreId))
-                return BadRequest("Brak dostępu do sklepu.");
+                if (!await UserHasAccessToStore(preset.StoreId))
+                    return BadRequest(new { success = false, message = "Brak dostępu do sklepu." });
 
-            _context.CompetitorPresets.Remove(preset);
+                // ================= NOWA LOGIKA BLOKADY =================
 
-            await _context.SaveChangesAsync();
+                // 2. Sprawdź, czy jakakolwiek reguła automatyzacji używa tego presetu
+                var activeRules = await _context.AutomationRules
+                    .Where(r => r.CompetitorPresetId == presetId)
+                    .Select(r => r.Name) // Pobieramy tylko nazwy
+                    .ToListAsync();
 
-            return Ok(new { success = true });
+                if (activeRules.Any())
+                {
+                    // Tworzymy czytelny komunikat z nazwami reguł
+                    string rulesList = string.Join(", ", activeRules);
+                    string message = $"Nie można usunąć tego presetu, ponieważ jest on używany w Automacie Cenowym: {rulesList}. \n\nAby usunąć ten preset, wejdź w ustawienia wymienionych reguł i zmień ich preset na inny.";
+
+                    // Zwracamy success: false, co zostanie obsłużone przez JS jako alert
+                    return Ok(new { success = false, message = message });
+                }
+
+                // =======================================================
+
+                // 3. Jeśli brak powiązań z regułami, usuń elementy podrzędne (CompetitorPresetItems)
+                if (preset.CompetitorItems != null && preset.CompetitorItems.Any())
+                {
+                    _context.RemoveRange(preset.CompetitorItems);
+                }
+
+                // 4. Usuń główny preset
+                _context.CompetitorPresets.Remove(preset);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"DeletePreset Error: {ex}");
+                return Ok(new { success = false, message = "Wystąpił błąd serwera podczas usuwania." });
+            }
         }
     }
 }
