@@ -1050,12 +1050,6 @@
 
 
 
-
-
-
-
-
-
 window.currentPreset = null;
 
 function showLoading() {
@@ -1066,9 +1060,8 @@ function hideLoading() {
     document.getElementById("loadingOverlay").style.display = "none";
 }
 
-// --- FUNKCJE SUWAKA (DODANE) ---
 function updateDualSlider() {
-    // Pobieramy elementy lokalnie, aby uniknąć problemów z ReferenceError
+
     const sliderMin = document.getElementById("deliverySliderMin");
     const sliderMax = document.getElementById("deliverySliderMax");
     const sliderRangeFill = document.getElementById("sliderRangeFill");
@@ -1080,7 +1073,6 @@ function updateDualSlider() {
     let slide1 = parseInt(sliderMin.value);
     let slide2 = parseInt(sliderMax.value);
 
-    // Zabezpieczenie przed przekroczeniem
     if (slide1 > slide2) {
         let tmp = slide1;
         sliderMin.value = slide2;
@@ -1089,11 +1081,9 @@ function updateDualSlider() {
         slide2 = tmp;
     }
 
-    // Aktualizacja tekstów
     if (valMinDisplay) valMinDisplay.textContent = slide1 === 0 ? "Natychmiast" : slide1;
     if (valMaxDisplay) valMaxDisplay.textContent = slide2 >= 31 ? "31+" : slide2;
 
-    // Aktualizacja paska koloru (fill)
     const percent1 = (slide1 / sliderMin.max) * 100;
     const percent2 = (slide2 / sliderMax.max) * 100;
 
@@ -1101,7 +1091,6 @@ function updateDualSlider() {
         sliderRangeFill.style.left = percent1 + "%";
         sliderRangeFill.style.width = (percent2 - percent1) + "%";
 
-        // Logika wizualna disabled
         if (sliderMin.disabled) {
             sliderRangeFill.style.backgroundColor = "#ccc";
         } else {
@@ -1109,13 +1098,11 @@ function updateDualSlider() {
         }
     }
 
-    // Aktualizacja obiektu currentPreset (jeśli istnieje)
     if (window.currentPreset) {
         window.currentPreset.minDeliveryDays = slide1;
         window.currentPreset.maxDeliveryDays = slide2;
     }
 }
-// ---------------------------------
 
 window.openCompetitorsModal = async function () {
     window.presetHasChanged = false;
@@ -1141,14 +1128,13 @@ window.openCompetitorsModal = async function () {
         const presetSelect = document.getElementById("presetSelect");
         let preselectedId = null;
 
-        // Priorytet 1: Automation Rule (jeśli w tym kontekście)
         if (window.presetContext === 'automationRule') {
             const hiddenInput = document.getElementById('CompetitorPresetId');
             if (hiddenInput && hiddenInput.value && hiddenInput.value !== "0") {
                 preselectedId = hiddenInput.value;
             }
         }
-        // Priorytet 2: Ostatnio używany w sesji JS
+
         else {
             if (window.currentPreset && window.currentPreset.presetId) {
                 preselectedId = window.currentPreset.presetId;
@@ -1162,9 +1148,6 @@ window.openCompetitorsModal = async function () {
             presetSelect.value = preselectedId;
             await loadSelectedPreset(preselectedId);
         } else {
-            // Szukamy aktywnego (oznaczonego [aktywny] w tekście lub flagą w bazie)
-            // Uwaga: refreshPresetDropdown ustawia tekst "[aktywny]", więc szukamy po tekście lub pobieramy dane z API
-            // Najbezpieczniej: Sprawdźmy, czy jest opcja inna niż BASE z "[aktywny]"
 
             const activeOption = Array.from(presetSelect.options).find(opt =>
                 opt.value !== "BASE" && opt.textContent.includes("[aktywny]")
@@ -1231,12 +1214,10 @@ async function refreshPresetDropdown() {
         presetSelect.appendChild(opt);
     });
 
-    // Przywracamy zaznaczenie, jeśli mamy stan w JS
     if (window.currentPreset && window.currentPreset.presetId) {
         presetSelect.value = window.currentPreset.presetId;
     } else {
-        // Jeśli nie mamy stanu, nie wymuszamy BASE tutaj, 
-        // bo openCompetitorsModal zdecyduje co załadować.
+
     }
 }
 
@@ -1253,7 +1234,7 @@ document.addEventListener("change", async function (event) {
     if (event.target && event.target.id === "useUnmarkedStoresCheckbox") {
         const checkbox = event.target;
         if (!window.currentPreset || window.currentPreset.presetId === null) {
-            // Edycja BASE (tylko w pamięci JS dla widoku)
+
             if (window.currentPreset) {
                 window.currentPreset.useUnmarkedStores = checkbox.checked;
                 showLoading();
@@ -1378,19 +1359,18 @@ async function loadBaseView() {
             useUnmarkedStoresCheckbox.disabled = true;
         }
 
-        // --- OBSŁUGA SUWAKA ---
         const deliverySection = document.getElementById("deliveryFilterSection");
         const sliderMin = document.getElementById("deliverySliderMin");
         const sliderMax = document.getElementById("deliverySliderMax");
 
         if (deliverySection) {
-            if (presetTypeContext === 1) { // 1 = Marketplace (Allegro)
+            if (presetTypeContext === 1) {
+
                 deliverySection.style.display = "flex";
                 if (sliderMin && sliderMax) {
                     sliderMin.value = 0;
                     sliderMax.value = 31;
 
-                    // BLOKADA W WIDOKU BASE
                     sliderMin.disabled = true;
                     sliderMax.disabled = true;
                     deliverySection.classList.add("disabled-section");
@@ -1401,7 +1381,6 @@ async function loadBaseView() {
                 deliverySection.style.display = "none";
             }
         }
-        // ----------------------
 
         let activateBtn = document.getElementById("activatePresetBtn");
         if (!activateBtn) {
@@ -1461,6 +1440,7 @@ async function loadBaseView() {
     }
 }
 
+
 async function loadSelectedPreset(presetId) {
     showLoading();
     if (!presetId) {
@@ -1504,19 +1484,18 @@ async function loadSelectedPreset(presetId) {
             presetNameInput.disabled = false;
         }
 
-        // --- OBSŁUGA SUWAKA ---
         const deliverySection = document.getElementById("deliveryFilterSection");
         const sliderMin = document.getElementById("deliverySliderMin");
         const sliderMax = document.getElementById("deliverySliderMax");
 
         if (deliverySection) {
-            if (presetTypeContext === 1) { // 1 = Marketplace (Allegro)
+            if (presetTypeContext === 1) {
+
                 deliverySection.style.display = "flex";
                 if (sliderMin && sliderMax) {
                     sliderMin.value = window.currentPreset.minDeliveryDays;
                     sliderMax.value = window.currentPreset.maxDeliveryDays;
 
-                    // ODBLOKOWANIE I PODPIĘCIE EVENTÓW
                     sliderMin.disabled = false;
                     sliderMax.disabled = false;
                     deliverySection.classList.remove("disabled-section");
@@ -1532,7 +1511,6 @@ async function loadSelectedPreset(presetId) {
                 deliverySection.style.display = "none";
             }
         }
-        // ----------------------
 
         let activateBtn = document.getElementById("activatePresetBtn");
         if (!activateBtn) {
@@ -1829,9 +1807,8 @@ function createRow(item) {
     return tr;
 }
 
-
 function updateDualSlider() {
-    // Pobieramy elementy "na świeżo"
+
     const sliderMin = document.getElementById("deliverySliderMin");
     const sliderMax = document.getElementById("deliverySliderMax");
     const sliderRangeFill = document.getElementById("sliderRangeFill");
@@ -1843,7 +1820,6 @@ function updateDualSlider() {
     let slide1 = parseInt(sliderMin.value);
     let slide2 = parseInt(sliderMax.value);
 
-    // Zabezpieczenie przed przekroczeniem
     if (slide1 > slide2) {
         let tmp = slide1;
         sliderMin.value = slide2;
@@ -1852,11 +1828,9 @@ function updateDualSlider() {
         slide2 = tmp;
     }
 
-    // Aktualizacja tekstów
     if (valMinDisplay) valMinDisplay.textContent = slide1 === 0 ? "Natychmiast" : slide1;
     if (valMaxDisplay) valMaxDisplay.textContent = slide2 >= 31 ? "31+" : slide2;
 
-    // Aktualizacja paska koloru (fill)
     const percent1 = (slide1 / sliderMin.max) * 100;
     const percent2 = (slide2 / sliderMax.max) * 100;
 
@@ -1864,15 +1838,15 @@ function updateDualSlider() {
         sliderRangeFill.style.left = percent1 + "%";
         sliderRangeFill.style.width = (percent2 - percent1) + "%";
 
-        // Dodatkowa logika wizualna dla disabled
         if (sliderMin.disabled) {
-            sliderRangeFill.style.backgroundColor = "#ccc"; // Szary, gdy zablokowany
+            sliderRangeFill.style.backgroundColor = "#ccc";
+
         } else {
-            sliderRangeFill.style.backgroundColor = "#5a5c69"; // Twój kolor aktywny
+            sliderRangeFill.style.backgroundColor = "#5a5c69";
+
         }
     }
 
-    // Aktualizacja obiektu currentPreset (jeśli istnieje)
     if (window.currentPreset) {
         window.currentPreset.minDeliveryDays = slide1;
         window.currentPreset.maxDeliveryDays = slide2;
