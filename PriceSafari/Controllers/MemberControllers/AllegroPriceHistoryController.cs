@@ -257,14 +257,30 @@ namespace PriceSafari.Controllers.MemberControllers
                         : g.FirstOrDefault(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
 
                     List<AllegroPriceHistory> filteredCompetitors;
+
+                    // Definiujemy zakresy dostawy z presetu (lub domyślne 0-31 jeśli brak presetu)
+                    int minDelivery = activePreset?.MinDeliveryDays ?? 0;
+                    int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
+
                     if (activePreset != null && competitorRules != null)
                     {
                         filteredCompetitors = g.Where(p =>
                         {
+                            // 1. Zawsze ukrywamy naszą ofertę w "filteredCompetitors" (bo to lista konkurencji)
                             if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                             {
                                 return false;
                             }
+
+                            // 2. FILTROWANIE PO CZASIE DOSTAWY (NOWE)
+                            // Jeśli DeliveryTime jest null, traktujemy to bezpiecznie jako 31 (długa) lub wedle uznania
+                            int deliveryDays = p.DeliveryTime ?? 31;
+                            if (deliveryDays < minDelivery || deliveryDays > maxDelivery)
+                            {
+                                return false; // Odrzucamy ofertę spoza zakresu czasowego
+                            }
+
+                            // 3. Filtrowanie po nazwie sprzedawcy (STARE)
                             var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
                             if (competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
                             {
@@ -275,6 +291,9 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                     else
                     {
+                        // Jeśli nie ma aktywnego presetu (widok BASE), pokazujemy wszystko (bez filtra dostawy i sprzedawców)
+                        // LUB jeśli chcesz, by BASE też miał domyślny filtr (np. 0-31), możesz tu dodać warunek.
+                        // Ale zazwyczaj BASE = wszystko.
                         filteredCompetitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
                     }
 
@@ -741,6 +760,9 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return View("~/Views/Panel/AllegroPriceHistory/Details.cshtml");
         }
+
+
+
         [HttpGet]
         public async Task<IActionResult> GetProductPriceDetails(int storeId, int productId)
         {
@@ -777,20 +799,36 @@ namespace PriceSafari.Controllers.MemberControllers
                                 aph.AllegroProductId == productId &&
                                 aph.Price > 0)
                 .ToListAsync();
-
             List<AllegroPriceHistory> filteredOffers;
-            if (activePreset != null && competitorRules != null)
+
+            // Pobieramy zakresy dni z presetu (lub domyślne 0-31)
+            int minDelivery = activePreset?.MinDeliveryDays ?? 0;
+            int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
+
+            // Zmieniono warunek: wystarczy, że activePreset != null (competitorRules może być puste)
+            if (activePreset != null)
             {
                 var ourStoreNameLower = store.StoreNameAllegro.ToLower().Trim();
+
                 filteredOffers = allOffersForProduct.Where(p =>
                 {
+                    // 1. Zawsze pokazujemy naszą ofertę (niezależnie od filtrów)
                     if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                     {
                         return true;
                     }
+
+                    // 2. Filtrowanie po Czasie Dostawy (NOWOŚĆ)
+                    int deliveryDays = p.DeliveryTime ?? 31; // Null -> 31 (długa)
+                    if (deliveryDays < minDelivery || deliveryDays > maxDelivery)
+                    {
+                        return false; // Odrzuć ofertę spoza zakresu
+                    }
+
+                    // 3. Filtrowanie po Sprzedawcach (Stara logika)
                     var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
 
-                    if (competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
+                    if (competitorRules != null && competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
                     {
                         return useCompetitor;
                     }
@@ -800,6 +838,7 @@ namespace PriceSafari.Controllers.MemberControllers
             }
             else
             {
+                // Brak presetu -> pokazujemy wszystko
                 filteredOffers = allOffersForProduct;
             }
 
@@ -933,20 +972,35 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(aph => aph.Price > 0)
                 .ToListAsync();
 
+            // Pobieramy zakresy z presetu (lub domyślne)
+            int minDelivery = activePreset?.MinDeliveryDays ?? 0;
+            int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
+
             var timelineData = lastScraps.Select(scrap => {
                 var allDailyOffers = priceHistories
                     .Where(ph => ph.AllegroScrapeHistoryId == scrap.Id);
 
                 List<AllegroPriceHistory> filteredDailyOffers;
-                if (activePreset != null && competitorRules != null)
+
+                // Zmieniono warunek: wystarczy, że activePreset != null
+                if (activePreset != null)
                 {
                     filteredDailyOffers = allDailyOffers.Where(p =>
                     {
+                        // 1. Nasza oferta zawsze widoczna
                         if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                             return true;
 
+                        // 2. Filtr Czasu Dostawy (NOWOŚĆ)
+                        int deliveryDays = p.DeliveryTime ?? 31;
+                        if (deliveryDays < minDelivery || deliveryDays > maxDelivery)
+                        {
+                            return false;
+                        }
+
+                        // 3. Filtr Sprzedawców
                         var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
-                        if (competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
+                        if (competitorRules != null && competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
                             return useCompetitor;
 
                         return activePreset.UseUnmarkedStores;
@@ -989,38 +1043,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(viewModel);
         }
 
-        //[HttpPost]
-        //public async Task<IActionResult> ExecutePriceChange(int storeId, [FromBody] List<AllegroPriceBridgeItemRequest> items)
-        //{
-        //    if (!await UserHasAccessToStore(storeId)) return Forbid();
-        //    if (items == null || !items.Any()) return BadRequest("Brak zmian do przetworzenia.");
-
-        //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        //    var latestScrap = await _context.AllegroScrapeHistories
-        //        .Where(sh => sh.StoreId == storeId)
-        //        .OrderByDescending(sh => sh.Date)
-        //        .Select(sh => sh.Id)
-        //        .FirstOrDefaultAsync();
-
-        //    if (latestScrap == 0)
-        //    {
-        //        return BadRequest("Nie znaleziono historii analizy dla tego sklepu.");
-        //    }
-
-        //    var priceSettings = await _context.PriceValues.FirstOrDefaultAsync(pv => pv.StoreId == storeId);
-        //    bool includeCommissionInMargin = priceSettings?.AllegroIncludeCommisionInPriceChange ?? false;
-
-        //    var result = await _priceBridgeService.ExecutePriceChangesAsync(
-        //        storeId,
-        //        latestScrap,
-        //        userId,
-        //        includeCommissionInMargin,
-        //        items
-        //    );
-
-        //    return Json(result);
-        //}
 
         [HttpPost]
         public async Task<IActionResult> ExecutePriceChange(int storeId, [FromBody] List<AllegroPriceBridgeItemRequest> items)

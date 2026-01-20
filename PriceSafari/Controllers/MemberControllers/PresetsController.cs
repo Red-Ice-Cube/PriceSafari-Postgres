@@ -86,6 +86,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 sourceGoogle = preset.SourceGoogle,
                 sourceCeneo = preset.SourceCeneo,
                 useUnmarkedStores = preset.UseUnmarkedStores,
+                minDeliveryDays = preset.MinDeliveryDays,
+                maxDeliveryDays = preset.MaxDeliveryDays,
                 competitorItems = preset.CompetitorItems
                     .Select(ci => new
                     {
@@ -292,6 +294,9 @@ namespace PriceSafari.Controllers.MemberControllers
             preset.SourceGoogle = model.SourceGoogle;
             preset.SourceCeneo = model.SourceCeneo;
             preset.UseUnmarkedStores = model.UseUnmarkedStores;
+            preset.MinDeliveryDays = Math.Max(0, model.MinDeliveryDays);
+            preset.MaxDeliveryDays = Math.Min(31, Math.Max(preset.MinDeliveryDays, model.MaxDeliveryDays));
+         
 
             preset.CompetitorItems.Clear();
             if (model.Competitors != null)

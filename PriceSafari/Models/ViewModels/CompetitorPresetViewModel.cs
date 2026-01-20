@@ -16,6 +16,9 @@ namespace PriceSafari.Models.ViewModels
         public bool SourceCeneo { get; set; }
         public bool UseUnmarkedStores { get; set; }
 
+        public int MinDeliveryDays { get; set; }
+        public int MaxDeliveryDays { get; set; }
+
         public List<CompetitorItemDto> Competitors { get; set; }
     }
 
