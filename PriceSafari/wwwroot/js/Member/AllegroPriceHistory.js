@@ -371,27 +371,32 @@
     }
 
     function renderDeliveryInfo(deliveryTime) {
+       
         if (deliveryTime === null || deliveryTime === undefined) {
-            return '';
+            return '<div class="Delivery3">Brak danych</div>';
         }
-        let text = '',
-            className = '';
-        switch (deliveryTime) {
-            case 1:
-                text = 'Dostawa jutro';
-                className = 'Delivery1';
-                break;
-            case 2:
-                text = 'Dostawa pojutrze';
-                className = 'Delivery2';
-                break;
-            case 3:
-                text = 'Długa dostawa';
-                className = 'Delivery3';
-                break;
-            default:
-                return '';
+
+        let text = '';
+        let className = '';
+
+        if (deliveryTime === 0) {
+            text = 'Wysyłka natychmiast';
+            className = 'Delivery1'; 
         }
+        else if (deliveryTime === 1) {
+            text = 'Dostawa jutro';
+            className = 'Delivery1'; 
+        }
+        else if (deliveryTime === 2) {
+            text = 'Dostawa pojutrze';
+            className = 'Delivery2'; 
+        }
+        else {
+     
+            text = `Dostawa za ${deliveryTime} dni`;
+            className = 'Delivery3';
+        }
+
         return `<div class="${className}">${text}</div>`;
     }
 
