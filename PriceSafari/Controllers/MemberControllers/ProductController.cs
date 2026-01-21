@@ -585,6 +585,7 @@ namespace PriceSafari.Controllers
                         if (product.MarginPrice != null)
                         {
                             product.MarginPrice = null;
+                            product.MarginPriceUpdatedDate = null; // <--- DODAJ TO (czyścimy datę)
                             clearedCount++;
                         }
                     }

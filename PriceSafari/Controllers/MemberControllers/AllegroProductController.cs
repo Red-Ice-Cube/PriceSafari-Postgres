@@ -376,6 +376,7 @@ namespace PriceSafari.Controllers
                         if (product.AllegroMarginPrice != null)
                         {
                             product.AllegroMarginPrice = null;
+                            product.AllegroMarginPriceUpdatedDate = null; // <--- DODAJ TO (czyścimy datę)
                             clearedCount++;
                         }
                     }
