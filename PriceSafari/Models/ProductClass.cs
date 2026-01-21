@@ -79,7 +79,7 @@ namespace PriceSafari.Models
         public string? ExportedNameCeneo { get; set; }
         public decimal? MarginPrice { get; set; }
 
-
+        public DateTime? MarginPriceUpdatedDate { get; set; }
 
         [Column(TypeName = "decimal(18, 2)")]
         public decimal? GoogleXMLPrice { get; set; }
@@ -98,13 +98,10 @@ namespace PriceSafari.Models
         public string? ProducerCode { get; set; }
 
 
-        // Relacje
+     
         public ICollection<PriceHistoryClass> PriceHistories { get; set; } = new List<PriceHistoryClass>();
         public ICollection<ProductFlag> ProductFlags { get; set; } = new List<ProductFlag>();
 
-
-
-        // domapowane katalogi google 
 
         public ICollection<ProductGoogleCatalog> GoogleCatalogs { get; set; } = new List<ProductGoogleCatalog>();
     }

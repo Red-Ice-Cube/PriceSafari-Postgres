@@ -27,6 +27,7 @@ namespace PriceSafari.Models
         public DateTime AddedDate { get; set; } = DateTime.UtcNow;
 
         public decimal? AllegroMarginPrice { get; set; }
+        public DateTime? AllegroMarginPriceUpdatedDate { get; set; }
 
         public string? AllegroEan { get; set; }
 
@@ -35,11 +36,6 @@ namespace PriceSafari.Models
 
         public ICollection<ProductFlag> ProductFlags { get; set; } = new List<ProductFlag>();
 
-        // <summary>
-
-        // Wywołaj tę metodę, aby przeliczyć i zapisać IdOnAllegro na podstawie obecnego URL-a.
-
-        // </summary>
 
         public void CalculateIdFromUrl()
         {

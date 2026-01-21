@@ -347,9 +347,15 @@ namespace PriceSafari.Controllers
                 {
                     if (marginData.TryGetValue(prod.Ean, out var m))
                     {
-                        _logger.LogInformation("Aktualizuję produkt EAN={Ean} Cena zakupu={Margin}", prod.Ean, m);
-                        prod.MarginPrice = m;
-                        updatedCount++;
+                        // Jeśli cena jest inna niż obecna -> aktualizujemy cenę i datę
+                        if (prod.MarginPrice != m)
+                        {
+                            _logger.LogInformation("Aktualizuję produkt EAN={Ean}. Stara cena: {Old}, Nowa: {New}", prod.Ean, prod.MarginPrice, m);
+
+                            prod.MarginPrice = m;
+                            prod.MarginPriceUpdatedDate = DateTime.UtcNow; // Data aktualizacji
+                            updatedCount++;
+                        }
                     }
                 }
 
@@ -638,12 +644,22 @@ namespace PriceSafari.Controllers
 
             try
             {
+                // --- ZMIANA TUTAJ: Sprawdzamy czy cena się zmieniła ---
+                if (product.MarginPrice != model.NewPrice)
+                {
+                    product.MarginPrice = model.NewPrice;
+                    product.MarginPriceUpdatedDate = DateTime.UtcNow; // Ustawiamy datę zmiany
 
-                product.MarginPrice = model.NewPrice;
-                await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Zaktualizowano cenę zakupu dla produktu ID={ProductId} na {NewPrice} przez użytkownika ID={UserId}",
-                                        model.ProductId, model.NewPrice.HasValue ? model.NewPrice.Value.ToString() : "NULL", userId);
+                    _logger.LogInformation("Zaktualizowano cenę zakupu dla produktu ID={ProductId} na {NewPrice} przez użytkownika ID={UserId}",
+                                     model.ProductId, model.NewPrice.HasValue ? model.NewPrice.Value.ToString() : "NULL", userId);
+                }
+                else
+                {
+                    _logger.LogInformation("Cena zakupu dla produktu ID={ProductId} jest taka sama. Nie zmieniono daty.", model.ProductId);
+                }
+                // -----------------------------------------------------
 
                 return Json(new { success = true, message = "Cena zakupu została zaktualizowana." });
             }

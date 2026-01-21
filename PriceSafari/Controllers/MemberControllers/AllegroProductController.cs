@@ -210,11 +210,18 @@ namespace PriceSafari.Controllers
 
             try
             {
-                product.AllegroMarginPrice = model.NewPrice;
-                await _context.SaveChangesAsync();
+                // --- ZMIANA DLA ALLEGRO ---
+                if (product.AllegroMarginPrice != model.NewPrice)
+                {
+                    product.AllegroMarginPrice = model.NewPrice;
+                    product.AllegroMarginPriceUpdatedDate = DateTime.UtcNow; // Data aktualizacji
 
-                _logger.LogInformation("Zaktualizowano cenę zakupu Allegro dla produktu ID={ProductId} na {NewPrice} przez użytkownika ID={UserId}",
-                            model.AllegroProductId, model.NewPrice.HasValue ? model.NewPrice.Value.ToString() : "NULL", userId);
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogInformation("Zaktualizowano cenę zakupu Allegro dla produktu ID={ProductId} na {NewPrice} przez użytkownika ID={UserId}",
+                                model.AllegroProductId, model.NewPrice.HasValue ? model.NewPrice.Value.ToString() : "NULL", userId);
+                }
+                // --------------------------
 
                 return Json(new { success = true, message = "Cena zakupu została zaktualizowana." });
             }
@@ -303,13 +310,17 @@ namespace PriceSafari.Controllers
                 int updatedCount = 0;
                 foreach (var prod in products)
                 {
-
                     if (marginData.TryGetValue(prod.AllegroEan, out var marginValue))
                     {
+                        // Jeśli cena się różni -> aktualizuj cenę i datę
+                        if (prod.AllegroMarginPrice != marginValue)
+                        {
+                            _logger.LogInformation("Aktualizuję produkt Allegro EAN={Ean}. Stara={Old}, Nowa={New}", prod.AllegroEan, prod.AllegroMarginPrice, marginValue);
 
-                        _logger.LogInformation("Aktualizuję produkt Allegro EAN={Ean} Cena zakupu={Margin}", prod.AllegroEan, marginValue);
-                        prod.AllegroMarginPrice = marginValue;
-                        updatedCount++;
+                            prod.AllegroMarginPrice = marginValue;
+                            prod.AllegroMarginPriceUpdatedDate = DateTime.UtcNow; // Data aktualizacji
+                            updatedCount++;
+                        }
                     }
                 }
 
