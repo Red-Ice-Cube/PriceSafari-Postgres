@@ -643,7 +643,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if ((rule.EnforceMinimalMarkup || rule.EnforceMaxMarkup) && (!row.PurchasePrice.HasValue || row.PurchasePrice <= 0))
             {
-                ApplyBlock(row, "Brak ceny zakupu");
+                ApplyBlock(row, "Brak Ceny Zakupu");
                 return;
             }
 
@@ -653,7 +653,7 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 row.SuggestedPrice = null;
                 row.Status = AutomationCalculationStatus.Blocked;
-                row.BlockReason = "Brak ceny obecnej";
+                row.BlockReason = "Brak Ceny Obecnej";
                 return;
             }
 
@@ -696,7 +696,7 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 row.SuggestedPrice = null;
                 row.Status = AutomationCalculationStatus.Blocked;
-                row.BlockReason = "Brak danych do wyliczenia";
+                row.BlockReason = "Brak Danych";
                 return;
             }
 
