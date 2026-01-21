@@ -519,8 +519,8 @@
             <div class="row-option">
                 <div class="option-desc">
                     <div class="option-title">Uwzględniaj Cenę Zakupu</div>
-                    <div class="option-subtitle">Zezwalaj na zmianę ceny, tylko dla produktów posiadających podaną cenę zakupu.</div>
-                    <div class="option-subtitle">Zalecamy wybrać opcję "TAK", oraz upewnić się, że ceny zakupu są poprawne.</div>
+                    <div class="option-subtitle">Zezwalaj na zmianę ceny tylko dla produktów posiadających podaną cenę zakupu.</div>
+                    <div class="option-subtitle">Zalecamy wybrać opcję "TAK" oraz upewnić się, że ceny zakupu są poprawne.</div>
                 </div>
                 <div class="switch-container switch-status @(Model.UsePurchasePrice ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
                     <input type="checkbox" asp-for="UsePurchasePrice" />
@@ -540,9 +540,18 @@
                             <i class="fas fa-arrow-down mr-2"></i> MIN Narzut (Podłoga)
                         </span>
 
-                        <div class="custom-control custom-switch custom-switch-lg">
-                            <input type="checkbox" class="custom-control-input" asp-for="EnforceMinimalMarkup" onchange="toggleInputs(this, 'minMarkupContainer')">
-                            <label class="custom-control-label" asp-for="EnforceMinimalMarkup" style="font-size:13px; font-weight:600; padding-top:2px;">Włącz</label>
+                        <div class="switch-container switch-status @(Model.EnforceMinimalMarkup ? "state-right" : "state-left")"
+                             onclick="toggleSwitch(this); toggleInputs(this.querySelector('input'), 'minMarkupContainer')"
+                             style="height: 38px; min-width: 100px; padding: 3px;">
+
+                            <input type="checkbox" asp-for="EnforceMinimalMarkup" />
+
+                            <div class="switch-slider-bg" style="top:3px; left:3px; width:calc(50% - 3px); height:calc(100% - 6px);"></div>
+
+                            <div class="switch-labels">
+                                <span class="switch-label-text label-left" style="font-size: 11px; font-weight: 700;">WYŁ</span>
+                                <span class="switch-label-text label-right" style="font-size: 11px; font-weight: 700;">WŁ</span>
+                            </div>
                         </div>
                     </div>
 
@@ -571,9 +580,19 @@
                         <span style="font-size: 14px; font-weight: 500; color: #1cc88a; text-transform: uppercase;">
                             <i class="fas fa-arrow-up mr-2"></i> MAX Narzut (Sufit)
                         </span>
-                        <div class="custom-control custom-switch custom-switch-lg">
-                            <input type="checkbox" class="custom-control-input" asp-for="EnforceMaxMarkup" onchange="toggleInputs(this, 'maxMarkupContainer')">
-                            <label class="custom-control-label" asp-for="EnforceMaxMarkup" style="font-size:13px; font-weight:600; padding-top:2px;">Włącz</label>
+
+                        <div class="switch-container switch-status @(Model.EnforceMaxMarkup ? "state-right" : "state-left")"
+                             onclick="toggleSwitch(this); toggleInputs(this.querySelector('input'), 'maxMarkupContainer')"
+                             style="height: 38px; min-width: 100px; padding: 3px;">
+
+                            <input type="checkbox" asp-for="EnforceMaxMarkup" />
+
+                            <div class="switch-slider-bg" style="top:3px; left:3px; width:calc(50% - 3px); height:calc(100% - 6px);"></div>
+
+                            <div class="switch-labels">
+                                <span class="switch-label-text label-left" style="font-size: 11px; font-weight: 700;">WYŁ</span>
+                                <span class="switch-label-text label-right" style="font-size: 11px; font-weight: 700;">WŁ</span>
+                            </div>
                         </div>
                     </div>
 

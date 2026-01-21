@@ -20,7 +20,7 @@
 }
 
 <style>
-    /* Karta reguły */
+
     .rule-card {
         background-color: #fff;
         border: 1px solid #e3e6f0;
@@ -40,7 +40,6 @@
         border-color: #b7b9cc;
     }
 
-    /* Pasek koloru po lewej */
     .rule-color-bar {
         width: 6px;
         height: 36px;
@@ -49,7 +48,6 @@
         flex-shrink: 0;
     }
 
-    /* Sekcja informacji (Lewa) */
     .rule-content-wrapper {
         display: flex;
         align-items: center;
@@ -75,31 +73,28 @@
         align-items: center;
         font-size: 12px;
         color: #858796;
-        /* Usunięto gap ogólny, sterujemy separatorem */
+
     }
 
     .meta-item {
         display: flex;
         align-items: center;
-        gap: 8px; /* Odstęp między ikoną a tekstem wewnątrz grupy */
+        gap: 8px; 
     }
 
-    /* NOWY: Separator w meta danych (pionowa kreska z odstępem) */
     .meta-separator {
         height: 14px;
         width: 1px;
-        background-color: #d1d3e2; /* Delikatny szary */
-        margin: 0 15px; /* Tu jest ten "mini odstęp", o który prosiłeś (po 15px z każdej strony) */
+        background-color: #d1d3e2; 
+        margin: 0 15px; 
     }
 
-    /* Sekcja akcji (Prawa) */
     .rule-actions-side {
         display: flex;
         align-items: center;
         gap: 15px;
     }
 
-    /* Badge */
     .info-badge {
         background-color: #f8f9fc;
         border: 1px solid #e3e6f0;
@@ -136,11 +131,9 @@
         font-size: 12px;
     }
 
-    /* Kolory Strategii */
     .text-strategy-comp { color: rgba(113, 96, 232, 1); }
     .text-strategy-prof { color: #0d2c56; }
 
-    /* Statusy */
     .status-badge {
         font-size: 12px;
         font-weight: 600;
@@ -187,7 +180,7 @@
         </div>
 
         <div class="Vert-table" style="background: transparent; border: none; padding: 0;">
-            
+
             @if (!Model.Any())
             {
                 <div class="text-center py-5">
@@ -198,105 +191,85 @@
             }
             else
             {
-                @foreach (var item in Model)
+              @foreach (var item in Model)
+{
+    bool isCompetitiveness = item.StrategyMode == AutomationStrategyMode.Competitiveness;
+    string strategyName = isCompetitiveness ? "Konkurencyjność" : "Rentowność";
+    string iconClass = isCompetitiveness ? "fa-bolt" : "fa-dollar-sign";
+    string colorClass = isCompetitiveness ? "text-strategy-comp" : "text-strategy-prof";
+
+    <div class="rule-card" onclick="location.href='@Url.Action("Details", "PriceAutomation", new { id = item.Id })'">
+
+        <div class="rule-content-wrapper">
+            <div class="rule-color-bar" style="background-color: @item.ColorHex;"></div>
+
+            <div class="rule-info">
+                <div class="rule-title">
+                    @item.Name
+                </div>
+
+                <div class="rule-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-database"></i> 
+                        <span style="font-weight:700; color:#5a5c69;">@item.AssignedProductsCount</span> 
+                        <span>produktów</span>
+                    </div>
+
+                    <div class="meta-separator"></div>
+
+                    <div class="meta-item">
+                        @if (item.SourceType == AutomationSourceType.PriceComparison)
+                        {
+                            <i class="fas fa-globe"></i> <span>Porównywarki</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-shopping-cart"></i> <span>Marketplace</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rule-actions-side">
+
+            <div class="d-none d-xl-flex info-badge">
+                <span class="badge-label">Preset</span>
+                <span class="badge-separator"></span>
+                <span class="badge-value">
+                    @item.CompetitorPresetName
+                </span>
+            </div>
+
+            <div class="d-none d-lg-flex info-badge">
+                <span class="badge-label">Strategia</span>
+                <span class="badge-separator"></span>
+                <span class="badge-value @colorClass">
+                    <i class="fas @iconClass"></i>
+                    @strategyName
+                </span>
+            </div>
+
+            <div class="vertical-separator d-none d-md-block"></div>
+
+            <div class="d-none d-md-block">
+                @if (item.IsActive)
                 {
-                    bool isCompetitiveness = item.StrategyMode == AutomationStrategyMode.Competitiveness;
-                    string strategyName = isCompetitiveness ? "Konkurencyjność" : "Rentowność";
-                    string iconClass = isCompetitiveness ? "fa-bolt" : "fa-dollar-sign";
-                    string colorClass = isCompetitiveness ? "text-strategy-comp" : "text-strategy-prof";
-                    
-                    <div class="rule-card" onclick="location.href='@Url.Action("Details", "PriceAutomation", new { id = item.Id })'">
-                        
-                        <div class="rule-content-wrapper">
-                            <div class="rule-color-bar" style="background-color: @item.ColorHex;"></div>
-
-                            <div class="rule-info">
-                                <div class="rule-title">
-                                    @item.Name
-                                </div>
-                                
-                                <div class="rule-meta">
-                                    <div class="meta-item">
-                                        <i class="fas fa-database"></i> 
-                                        <span style="font-weight:700; color:#5a5c69;">@item.AssignedProductsCount</span> 
-                                        <span>produktów</span>
-                                    </div>
-
-                                    <div class="meta-separator"></div>
-
-                                    <div class="meta-item">
-                                        @if (item.SourceType == AutomationSourceType.PriceComparison)
-                                        {
-                                            <i class="fas fa-globe"></i> <span>Porównywarki</span>
-                                        }
-                                        else
-                                        {
-                                            <i class="fas fa-shopping-cart"></i> <span>Marketplace</span>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="rule-actions-side">
-                            
-                            <div class="d-none d-xl-flex info-badge">
-                                <span class="badge-label">Preset</span>
-                                <span class="badge-separator"></span>
-                                <span class="badge-value">
-                                    @item.CompetitorPresetName
-                                </span>
-                            </div>
-
-                            <div class="d-none d-lg-flex info-badge">
-                                <span class="badge-label">Strategia</span>
-                                <span class="badge-separator"></span>
-                                <span class="badge-value @colorClass">
-                                    <i class="fas @iconClass"></i>
-                                    @strategyName
-                                </span>
-                            </div>
-
-                            <div class="vertical-separator d-none d-md-block"></div>
-
-                            <div class="d-none d-md-block">
-                                @if (item.IsActive)
-                                {
-                                    <div class="status-badge status-active">
-                                        <i class="fas fa-circle" style="font-size:8px;"></i> Aktywny
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div class="status-badge status-inactive">
-                                        <i class="fas fa-circle" style="font-size:8px;"></i> Wyłączony
-                                    </div>
-                                }
-                            </div>
-
-                            @if (canEdit)
-                            {
-                                <form asp-action="Delete" asp-route-id="@item.Id" method="post" 
-                                      style="margin:0;" 
-                                      onclick="event.stopPropagation();" 
-                                      onsubmit="return confirm('Czy na pewno chcesz usunąć tę regułę?');">
-                                    
-                                    <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm" style="border:none;" title="Usuń regułę">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                            }
-                            else
-                            {
-                                <button onclick="event.stopPropagation(); showNoAccessAlert()" 
-                                        class="btn btn-sm btn-outline-secondary shadow-sm" 
-                                        style="border:none; opacity:0.5;">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            }
-                        </div>
+                    <div class="status-badge status-active">
+                        <i class="fas fa-circle" style="font-size:8px;"></i> Aktywny
                     </div>
                 }
+                else
+                {
+                    <div class="status-badge status-inactive">
+                        <i class="fas fa-circle" style="font-size:8px;"></i> Wyłączony
+                    </div>
+                }
+            </div>
+
+            </div>
+    </div>
+}
             }
         </div>
     </div>
