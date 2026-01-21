@@ -9,11 +9,10 @@
 
 <style>
 
-
     .Chart-Box-a {
         display: flex;
         flex-direction: column;
-        padding: 30px; /* Większy padding */
+        padding: 30px;
         border-radius: 12px;
         background: #FFF;
         box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.03);
@@ -22,9 +21,9 @@
     }
 
     .box-title {
-        font-size: 18px; /* Zwiększona czcionka */
-        font-weight: 700;
-        color: #4e5d78;
+        font-size: 19px;
+        font-weight: 500;
+        color: #2e3035;
         margin-bottom: 25px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -35,10 +34,9 @@
         padding-bottom: 15px;
     }
 
-    /* --- FORMULARZE --- */
     .form-group label {
-        font-size: 13px; /* Zwiększona */
-        font-weight: 700;
+        font-size: 13px;
+        font-weight: 500;
         color: #858796;
         margin-bottom: 8px;
         display: block;
@@ -49,9 +47,9 @@
     .form-control-custom {
         display: block;
         width: 100%;
-        height: 45px; /* Wyższe inputy */
+        height: 45px;
         padding: 10px 15px;
-        font-size: 15px; /* Większy tekst w inpucie */
+        font-size: 15px;
         font-weight: 500;
         color: #333;
         background-color: #fff;
@@ -60,23 +58,19 @@
         transition: all 0.2s;
     }
 
-    .form-control-custom:focus {
-        border-color: #1cc88a;
-        outline: 0;
-        box-shadow: 0 0 0 3px rgba(28, 200, 138, 0.1);
-    }
+        .form-control-custom:focus {
+            border-color: #1cc88a;
+            outline: 0;
+            box-shadow: 0 0 0 3px rgba(28, 200, 138, 0.1);
+        }
 
     .input-narrow {
         max-width: 160px;
         text-align: right;
         display: inline-block;
-
-        font-weight: 700;
+        font-weight: 500;
     }
 
-    /* --- NOWE STYLE PRZEŁĄCZNIKÓW (SEGMENTED CONTROL) --- */
-    
-    /* Kontener przełącznika */
     .switch-container {
         position: relative;
         display: inline-flex;
@@ -85,18 +79,16 @@
         padding: 4px;
         cursor: pointer;
         user-select: none;
-        height: 45px; /* Dopasowane do wysokości inputów */
+        height: 45px;
         min-width: 140px;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
         transition: all 0.3s ease;
     }
 
-    /* Ukryty checkbox */
-    .switch-container input[type="checkbox"] {
-        display: none;
-    }
+        .switch-container input[type="checkbox"] {
+            display: none;
+        }
 
-    /* Biały "kafelek" tła, który się przesuwa */
     .switch-slider-bg {
         position: absolute;
         top: 4px;
@@ -110,7 +102,6 @@
         z-index: 1;
     }
 
-    /* Warstwa z tekstami */
     .switch-labels {
         position: relative;
         width: 100%;
@@ -121,60 +112,66 @@
         z-index: 2;
     }
 
-    /* Pojedyncza etykieta tekstu */
     .switch-label-text {
         flex: 1;
         text-align: center;
-        font-size: 13px; /* Wyraźna czcionka */
-        font-weight: 700;
+        font-size: 13px;
+        font-weight: 500;
         transition: color 0.25s;
         line-height: 1;
     }
 
-    /* --- WARIANT 1: NEUTRALNY (PLN / %) --- */
-    .switch-neutral .switch-label-text { color: #858796; } /* Domyślny szary */
-    
-    /* Aktywny stan dla neutralnego (po prostu ciemniejszy, bez kolorów) */
-    .switch-neutral.state-left .label-left { color: #2e3035; } 
-    .switch-neutral.state-right .label-right { color: #2e3035; }
-    
-    /* Przesuwanie tła */
+    .switch-neutral .switch-label-text {
+        color: #858796;
+    }
+
+    .switch-neutral.state-left .label-left {
+        color: #2e3035;
+    }
+
+    .switch-neutral.state-right .label-right {
+        color: #2e3035;
+    }
+
     .switch-container.state-right .switch-slider-bg {
         transform: translateX(100%);
     }
 
-    /* --- WARIANT 2: STATUSOWY (TAK / NIE) --- */
-    .switch-status .switch-label-text { color: #b7b9cc; } /* Nieaktywny jasny szary */
-
-    /* NIE (Lewa strona aktywna) - Czerwony tekst */
-    .switch-status.state-left .label-left { 
-        color: #e74a3b; 
-    }
-    
-    /* TAK (Prawa strona aktywna) - Zielony tekst */
-    .switch-status.state-right .label-right { 
-        color: #1cc88a; 
+    .switch-status .switch-label-text {
+        color: #b7b9cc;
     }
 
-    /* Opcjonalnie: Delikatna poświata tła dla statusowych */
-    .switch-status.state-right .switch-slider-bg { border: 1px solid #1cc88a; }
-    .switch-status.state-left .switch-slider-bg { border: 1px solid #e74a3b; }
+    .switch-status.state-left .label-left {
+        color: #e74a3b;
+    }
 
+    .switch-status.state-right .label-right {
+        color: #1cc88a;
+    }
 
-    /* --- POZOSTAŁE ELEMENTY UI --- */
+    .switch-status.state-right .switch-slider-bg {
+        border: 1px solid #1cc88a;
+    }
+
+    .switch-status.state-left .switch-slider-bg {
+        border: 1px solid #e74a3b;
+    }
+
     .row-option {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 18px 0; /* Większy odstęp */
+        padding: 18px 0;
         border-bottom: 1px solid #f1f3f9;
     }
-    
-    .row-option:last-child { border-bottom: none; }
+
+        .row-option:last-child {
+            border-bottom: none;
+        }
 
     .option-title {
-        font-size: 15px; /* Większe */
-        font-weight: 700;
+        font-size: 15px;
+        font-weight: 500;
         color: #333;
         display: flex;
         align-items: center;
@@ -182,14 +179,11 @@
     }
 
     .option-subtitle {
-        font-size: 13px; /* Większe */
+        font-size: 13px;
         color: #858796;
         margin-top: 4px;
     }
 
-    
-
-    /* Footer Action Bar */
     .action-bar {
         display: flex;
         justify-content: space-between;
@@ -202,15 +196,20 @@
 
     .big-toggle-label {
         font-size: 15px;
-        font-weight: 800;
+        font-weight: 500;
         text-transform: uppercase;
         margin-left: 20px;
         letter-spacing: 0.5px;
     }
-    .toggle-active-text { color: #1cc88a; }
-    .toggle-inactive-text { color: #e74a3b; }
 
-    /* Styl strategii (bez zmian logiki) */
+    .toggle-active-text {
+        color: #1cc88a;
+    }
+
+    .toggle-inactive-text {
+        color: #e74a3b;
+    }
+
     .strategy-desc-box {
         background: #fff;
         border: 2px solid #eaecf4;
@@ -221,180 +220,338 @@
         transition: all 0.2s;
         height: 100%;
     }
-    .strategy-desc-box.active-strategy { opacity: 1; box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
-    .strategy-comp.active-strategy { border-color: rgba(113, 96, 232, 1); }
-    .strategy-profit.active-strategy { border-color: #0d2c56; }
-    .strategy-icon-header { font-size: 18px; font-weight: 700; margin-bottom: 12px; display:flex; align-items:center; gap:10px; }
-    .desc-text { font-size: 14px; line-height: 1.5; color: #555; }
 
-    /* Przycisk zmiany presetu */
+        .strategy-desc-box.active-strategy {
+            opacity: 1;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+        }
+
+    .strategy-comp.active-strategy {
+        border-color: rgba(113, 96, 232, 1);
+    }
+
+    .strategy-profit.active-strategy {
+        border-color: #0d2c56;
+    }
+
+    .strategy-icon-header {
+        font-size: 18px;
+        font-weight: 500;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #2e3035;
+    }
+
+    .desc-text {
+        font-size: 14px;
+        line-height: 1.5;
+        color: #555;
+    }
+
     .preset-display {
         background: #fcfcfd;
         border: 1px dashed #d1d3e2;
         border-radius: 8px;
         padding: 20px;
+        margin-top:18px;
         display: flex;
         justify-content: space-between;
         align-items: center;
         transition: all 0.2s;
     }
-    .preset-display:hover { border-color: #000; background: #fff; }
+
+        .preset-display:hover {
+            border-color: #000;
+            background: #fff;
+        }
 
 </style>
 
+<form asp-action="@(isEdit ? "Edit" : "Create")" method="post" id="automationRuleForm" class="View">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="StoreId" />
+    <input type="hidden" asp-for="CompetitorPresetId" id="CompetitorPresetId" />
+    <input type="hidden" asp-for="StrategyMode" id="StrategyModeInput" />
 
-    <form asp-action="@(isEdit ? "Edit" : "Create")" method="post" id="automationRuleForm" class="View">
-        <input type="hidden" asp-for="Id" />
-        <input type="hidden" asp-for="StoreId" />
-        <input type="hidden" asp-for="CompetitorPresetId" id="CompetitorPresetId" />
-        <input type="hidden" asp-for="StrategyMode" id="StrategyModeInput" />
-
-        <div class="Vert">
-            <div class="Date" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div class="Order-Container-Title">
-                    @(isEdit ? "Edycja Reguły Automatyzacji" : "Nowa Reguła Automatyzacji")
-                </div>
+    <div class="Vert">
+        <div class="Date" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div class="Order-Container-Title">
+                @(isEdit ? "Edycja Automatu Cenowego" : "Nowy Automat Cenowy")
+            </div>
             <div>
-                <a asp-action="Index" asp-route-storeId="@Model.StoreId" asp-route-filterType="@Model.SourceType" class="btn btn-light btn-lg text-secondary font-weight-bold mr-3" style="border:1px solid #d1d3e2; padding: 10px 25px;">Anuluj</a>
-                <button type="submit" class="btn btn-success btn-lg font-weight-bold shadow-sm" style="padding: 10px 35px;">
-                    <i class="fas fa-save mr-2"></i> Zapisz Zmiany
+                <a asp-action="Index" asp-route-storeId="@Model.StoreId" asp-route-filterType="@Model.SourceType" class="Button-Page-Small">Anuluj</a>
+                <button type="submit" class="Button-Page-Small-bl">
+                    <i class="fas fa-save mr-2" style="margin-right:4px;"></i> Zapisz Zmiany
                 </button>
             </div>
-            </div>
         </div>
+    </div>
 
-        <div class="Vert">
-            <div class="Chart-Box-a">
-                <div class="box-title">
-                   Dane Podstawowe
+    <div class="Vert">
+        <div class="Chart-Box-a">
+            <div class="box-title">
+                Dane Podstawowe
+            </div>
+
+            <div style="display: flex; gap: 30px; align-items:flex-end; flex-wrap: wrap;">
+
+                <div style="flex: 0 0 90px; min-width: 80px;">
+                    <div class="form-group">
+                        <label>KOLOR TAGU</label>
+                        <div id="ColorContainer"
+                             style="position: relative;
+                        border: 1px solid #d1d3e2;
+                        border-radius: 6px;
+                        height: 45px;
+                        background-color: @(string.IsNullOrEmpty(Model.ColorHex) ? "#ffffff" : Model.ColorHex);
+                        cursor: pointer;
+                        overflow: hidden;
+                        box-shadow: inset 0 0 5px rgba(0,0,0,0.1);">
+
+                            <input asp-for="ColorHex"
+                                   type="color"
+                                   id="ColorHexInput"
+                                   style="position: absolute;
+                               top: 50%;
+                               left: 50%;
+                               transform: translate(-50%, -50%);
+                               width: 200%;
+                               height: 200%;
+                               padding: 0;
+                               margin: 0;
+                               opacity: 0;
+                               cursor: pointer;" />
+                        </div>
+                    </div>
                 </div>
-                
-                <div style="display: flex; gap: 30px; align-items:flex-end; flex-wrap: wrap;">
-                    <div style="flex: 2; min-width: 300px;">
-                        <div class="form-group">
-                            <label>NAZWA REGUŁY</label>
-                            <input asp-for="Name" class="form-control-custom" placeholder="Np. Agresywna walka o Top 3..." />
-                            <span asp-validation-for="Name" class="text-danger" style="font-size:12px;"></span>
-                        </div>
-                    </div>
-                    
-                    <div style="flex: 1; min-width: 150px;">
-                        <div class="form-group">
-                            <label>KOLOR OZNACZENIA</label>
-                            <div style="display: flex; align-items: center; gap: 15px; border: 1px solid #d1d3e2; border-radius: 6px; padding: 5px 10px; background: #fff;">
-                                <input asp-for="ColorHex" type="color" style="width: 35px; height: 35px; border:none; background:none; cursor:pointer;" id="ColorHexInput" />
-                                <input type="text" class="form-control" value="@Model.ColorHex" readonly id="ColorHexText" style="border:none; font-weight:700; color:#555; text-transform: uppercase; font-size: 14px; background: transparent; height: auto; padding: 0;">
-                            </div>
-                        </div>
-                    </div>
 
-                    <div style="flex: 1; min-width: 200px;">
-                         <div class="form-group">
-                            <label>ŹRÓDŁO DANYCH</label>
-                            <div style="background: #f1f3f9; padding: 12px 15px; border-radius: 6px; font-size: 14px; font-weight: 700; color: #5a5c69; border: 1px solid #eaecf4; display: flex; align-items: center; gap: 8px;">
-                                @if(Model.SourceType == AutomationSourceType.Marketplace) {
-                                     <span>Marketplace Allegro</span>
-                                } else {
-                                    <span>Sklep Internetowy</span>
-                                }
-                            </div>
-                            <input type="hidden" asp-for="SourceType" />
-                        </div>
+                <div style="flex: 2; min-width: 300px;">
+                    <div class="form-group">
+                        <label>NAZWA AUTOMATU</label>
+                        <input asp-for="Name" class="form-control-custom" placeholder="Np. Agresywna walka o Top 1..." />
+                        <span asp-validation-for="Name" class="text-danger" style="font-size:12px;"></span>
                     </div>
+                </div>
 
-                    <div style="display: flex; align-items: center;">
-                        <div class="switch-container switch-status @(Model.IsActive ? "state-right" : "state-left")" onclick="toggleSwitch(this)" style="min-width: 160px; height: 50px;">
+                <div style="flex: 1; min-width: 150px;">
+                    <div class="form-group">
+                        <label>ŹRÓDŁO DANYCH</label>
+                        <div style="background: #f1f3f9; padding: 10px 15px; border-radius: 6px; font-size: 14px; font-weight: 500; color: #5a5c69; border: 1px solid #eaecf4; display: flex; align-items: center; gap: 8px;">
+                            @if (Model.SourceType == AutomationSourceType.Marketplace)
+                            {
+                                <span>Marketplace Allegro</span>
+                            }
+                            else
+                            {
+                                <span>Sklep Internetowy</span>
+                            }
+                        </div>
+                        <input type="hidden" asp-for="SourceType" />
+                    </div>
+                </div>
+
+                <div style="flex: 1; min-width: 240px;">
+                    <div class="form-group">
+                        <label id="mainStatusLabel" class="@(Model.IsActive ? "toggle-active-text" : "toggle-inactive-text")" style="transition: color 0.3s;">
+                            @(Model.IsActive ? "AUTOMAT CENOWY AKTYWNY" : "AUTOMAT CENOWY WYŁĄCZONY")
+                        </label>
+
+                        <div class="switch-container switch-status @(Model.IsActive ? "state-right" : "state-left")"
+                             onclick="toggleSwitch(this)"
+                             style="width: 100%; height: 45px;">
                             <input type="checkbox" asp-for="IsActive" id="IsActiveSwitch" />
                             <div class="switch-slider-bg"></div>
+
                             <div class="switch-labels">
-                                <span class="switch-label-text label-left" style="font-size: 16px;">WYŁĄCZONA</span>
-                                <span class="switch-label-text label-right" style="font-size: 16px;">AKTYWNA</span>
+                                <span class="switch-label-text label-left" style="font-size: 14px;">WYŁĄCZONY</span>
+                                <span class="switch-label-text label-right" style="font-size: 14px;">AKTYWNY</span>
                             </div>
                         </div>
-                        <span class="big-toggle-label @(Model.IsActive ? "toggle-active-text" : "toggle-inactive-text")" id="mainStatusLabel">
-                            @(Model.IsActive ? "REGUŁA JEST WŁĄCZONA" : "REGUŁA JEST WYŁĄCZONA")
-                        </span>
+                    </div>
+                </div>
+
+                @if (isEdit)
+                {
+                    <div style="flex: 0 0 auto; min-width: 100px;">
+                        <div class="form-group">
+                            <label style="color: #e74a3b;">USUŃ AUTOMAT</label>
+                            <button type="button"
+                                    onclick="confirmDelete()"
+                                    class="btn btn-outline-danger"
+                                    style="height: 45px; width: 100%; font-weight: 600; border: 1px solid #e74a3b; color: #e74a3b; display: flex; align-items: center; justify-content: center; gap: 8px; background: #fff; border-radius: 6px; transition: all 0.2s;">
+                                <i class="fas fa-trash"></i> USUŃ
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="Vert">
+        <div class="Chart-Box-a">
+            <div class="box-title">
+                Strategia Cenowa
+            </div>
+
+            <div class="d-flex justify-content-center mb-5">
+                <div class="mode-switch-container" style="background: #eaecf4; padding: 5px; border-radius: 8px;">
+                    <button type="button"
+                            id="btn-mode-comp"
+                            class="mode-switch-btn @(Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "active" : "")"
+                            style="padding: 10px 25px; border-radius: 6px; border:none; font-weight:600; font-size:14px;"
+                            onclick="setStrategyMode(0)">
+                        <i class="fa-solid fa-bolt" style="margin-right: 8px;"></i> Lider Rynku
+                    </button>
+
+                    <button type="button"
+                            id="btn-mode-profit"
+                            class="mode-switch-btn @(Model.StrategyMode == AutomationStrategyMode.Profit ? "active" : "")"
+                            style="padding: 10px 25px; border-radius: 6px; border:none; font-weight:600; font-size:14px;"
+                            onclick="setStrategyMode(1)">
+                        <i class="fa-solid fa-dollar-sign" style="margin-right: 8px;"></i> Rentowność
+                    </button>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6 mb-4 mb-md-0">
+                    <div id="descBoxComp" class="strategy-desc-box strategy-comp @(Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "active-strategy" : "")" onclick="triggerStrategyClick(0)">
+                        <div class="strategy-icon-header">
+                            <i class="fa-solid fa-bolt"></i> Lider Rynku (Traffic Bringers)
+                        </div>
+                        <div class="desc-text">
+                            Strategia walki o pozycję dla produktów przyciągających ruch. Celem jest bycie tańszym od najtańszego konkurenta lub zrównanie się z nim.
+                        </div>
+                        <div class="strategy-mechanic" style="background: #f8f9fc; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                            <div style="display:flex; gap:12px;">
+                                <div style="width:4px; background:rgba(113, 96, 232, 1); border-radius:4px;"></div>
+                                <div>
+                                    <strong class="d-block text-dark mb-1">Mechanizm: Krok cenowy</strong>
+                                    <span style="font-size:13px; color:#666;">Cena wyliczana względem najniższej ceny konkurencji. Np. krok -0.01 PLN to przebicie o grosz.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div id="descBoxProfit" class="strategy-desc-box strategy-profit @(Model.StrategyMode == AutomationStrategyMode.Profit ? "active-strategy" : "")" onclick="triggerStrategyClick(1)">
+                        <div class="strategy-icon-header">
+                            <i class="fa-solid fa-dollar-sign"></i> Rentowność (Basket Builders)
+                        </div>
+                        <div class="desc-text">
+                            Strategia dla produktów budujących koszyk (cross-sell). Celem nie jest bycie najtańszym, lecz celowanie w <strong>Medianę Rynku</strong> (środek stawki).
+                        </div>
+                        <div class="strategy-mechanic" style="background: #f8f9fc; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                            <div style="display:flex; gap:12px;">
+                                <div style="width:4px; background:#0d2c56; border-radius:4px;"></div>
+                                <div>
+                                    <strong class="d-block text-dark mb-1">Mechanizm: Indeks Cenowy (%)</strong>
+                                    <span style="font-size:13px; color:#666;">Cena jako % od Mediany Rynku. Np. 100% to równanie do średniej.</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="Vert">
-            <div class="Chart-Box-a">
-                <div class="box-title">
-                    Strategia Cenowa
+            <div id="competitivenessFields" style="display: @(Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "block" : "none"); margin-top: 30px; padding-top: 30px; border-top: 1px dashed #d1d3e2;">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <label style="margin-bottom: 15px; color:rgba(113, 96, 232, 1);">KROK CENOWY (np. -0.01)</label>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <input asp-for="PriceStep" type="number" step="0.01" class="form-control-custom input-narrow" style="font-size: 20px;" />
+
+                        <div class="switch-container switch-neutral @(Model.IsPriceStepPercent ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
+                            <input type="checkbox" asp-for="IsPriceStepPercent" />
+                            <div class="switch-slider-bg"></div>
+                            <div class="switch-labels">
+                                <span class="switch-label-text label-left">PLN</span>
+                                <span class="switch-label-text label-right">%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <small style="color: #858796; margin-top: 10px; font-size: 13px;">Ujemna wartość oznacza przebicie ceny rywala.</small>
                 </div>
+            </div>
 
-                <div class="d-flex justify-content-center mb-5">
-                     <div class="mode-switch-container" style="background: #eaecf4; padding: 5px; border-radius: 8px;">
-                         <button type="button"
-                                 id="btn-mode-comp"
-                                 class="mode-switch-btn @(Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "active" : "")"
-                                 style="padding: 10px 25px; border-radius: 6px; border:none; font-weight:600; font-size:14px;"
-                                 onclick="setStrategyMode(0)">
-                             <i class="fa-solid fa-bolt" style="margin-right: 8px;"></i> Lider Rynku
-                         </button>
-                
-                         <button type="button"
-                                 id="btn-mode-profit"
-                                 class="mode-switch-btn @(Model.StrategyMode == AutomationStrategyMode.Profit ? "active" : "")"
-                                 style="padding: 10px 25px; border-radius: 6px; border:none; font-weight:600; font-size:14px;"
-                                 onclick="setStrategyMode(1)">
-                             <i class="fa-solid fa-dollar-sign" style="margin-right: 8px;"></i> Rentowność
-                         </button>
-                     </div>
-                 </div>
-                
-                 <div class="row mb-4">
-                     <div class="col-md-6 mb-4 mb-md-0">
-                         <div id="descBoxComp" class="strategy-desc-box strategy-comp @(Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "active-strategy" : "")" onclick="triggerStrategyClick(0)">
-                             <div class="strategy-icon-header">
-                                 <i class="fa-solid fa-bolt"></i> Lider Rynku (Traffic Bringers)
-                             </div>
-                             <div class="desc-text">
-                                 Strategia walki o pozycję dla produktów przyciągających ruch. Celem jest bycie tańszym od najtańszego konkurenta lub zrównanie się z nim.
-                             </div>
-                             <div class="strategy-mechanic" style="background: #f8f9fc; padding: 15px; border-radius: 8px; margin-top: 20px;">
-                                 <div style="display:flex; gap:12px;">
-                                     <div style="width:4px; background:rgba(113, 96, 232, 1); border-radius:4px;"></div>
-                                     <div>
-                                         <strong class="d-block text-dark mb-1">Mechanizm: Krok cenowy</strong>
-                                         <span style="font-size:13px; color:#666;">Cena wyliczana względem najniższej ceny konkurencji. Np. krok -0.01 PLN to przebicie o grosz.</span>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                     </div>
-                
-                     <div class="col-md-6">
-                         <div id="descBoxProfit" class="strategy-desc-box strategy-profit @(Model.StrategyMode == AutomationStrategyMode.Profit ? "active-strategy" : "")" onclick="triggerStrategyClick(1)">
-                             <div class="strategy-icon-header">
-                                 <i class="fa-solid fa-dollar-sign"></i> Rentowność (Basket Builders)
-                             </div>
-                             <div class="desc-text">
-                                 Strategia dla produktów budujących koszyk (cross-sell). Celem nie jest bycie najtańszym, lecz celowanie w <strong>Medianę Rynku</strong> (środek stawki).
-                             </div>
-                             <div class="strategy-mechanic" style="background: #f8f9fc; padding: 15px; border-radius: 8px; margin-top: 20px;">
-                                 <div style="display:flex; gap:12px;">
-                                     <div style="width:4px; background:#0d2c56; border-radius:4px;"></div>
-                                     <div>
-                                         <strong class="d-block text-dark mb-1">Mechanizm: Indeks Cenowy (%)</strong>
-                                         <span style="font-size:13px; color:#666;">Cena jako % od Mediany Rynku. Np. 100% to równanie do średniej.</span>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                     </div>
-                 </div>
+            <div id="profitFields" style="display: @(Model.StrategyMode == AutomationStrategyMode.Profit ? "block" : "none"); margin-top: 30px; padding-top: 30px; border-top: 1px dashed #d1d3e2;">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <label style="margin-bottom: 15px; color: #0d2c56;">DOCELOWY INDEKS CENOWY (%)</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input asp-for="PriceIndexTargetPercent" type="number" step="0.01" class="form-control-custom input-narrow" style="font-size: 20px;" />
+                        <span style="font-weight: 500; color: #333; font-size: 20px;">%</span>
+                    </div>
+                    <small style="color: #858796; margin-top: 10px; font-size: 13px;">100% to równanie do mediany rynku.</small>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                 <div id="competitivenessFields" style="display: @(Model.StrategyMode == AutomationStrategyMode.Competitiveness ? "block" : "none"); margin-top: 30px; padding-top: 30px; border-top: 1px dashed #d1d3e2;">
-                    <div style="display: flex; flex-direction: column; align-items: center;">
-                        <label style="margin-bottom: 15px; color:rgba(113, 96, 232, 1);">KROK CENOWY (np. -0.01)</label>
+    <div class="Vert">
+        <div class="Chart-Box-a">
+            <div class="box-title">
+                Konkurencja
+            </div>
+
+            <div class="preset-display" id="openPresetSelectorBtn" style="cursor: pointer;">
+                <div>
+                    <div style="font-size: 12px; font-weight: 500; color: #b7b9cc; text-transform: uppercase; letter-spacing: 0.8px;">Aktywny preset</div>
+                    <div style="font-size: 18px; font-weight: 500; color: #333; margin-top: 5px;" id="selectedPresetName">
+                        @(Model.CompetitorPreset != null ? Model.CompetitorPreset.PresetName : "Domyślny (Wszystkie sklepy)")
+                    </div>
+                </div>
+                <button type="button" class="btn btn-light" style="border:1px solid #d1d3e2; font-weight:600; font-size:13px; padding: 8px 16px;">
+                    Zmień <i class="fas fa-chevron-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="Vert">
+        <div class="Chart-Box-a">
+            <div class="box-title">
+                Limity Cenowe
+            </div>
+
+            <div class="row-option">
+                <div class="option-desc">
+                    <div class="option-title">Uwzględniaj Cenę Zakupu</div>
+                    <div class="option-subtitle">Zezwalaj na zmianę ceny, tylko dla produktów posiadających podaną cenę zakupu.</div>
+                    <div class="option-subtitle">Zalecamy wybrać opcję "TAK", oraz upewnić się, że ceny zakupu są poprawne.</div>
+                </div>
+                <div class="switch-container switch-status @(Model.UsePurchasePrice ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
+                    <input type="checkbox" asp-for="UsePurchasePrice" />
+                    <div class="switch-slider-bg"></div>
+                    <div class="switch-labels">
+                        <span class="switch-label-text label-left">NIE</span>
+                        <span class="switch-label-text label-right">TAK</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 50px; padding-top: 30px; padding-bottom: 30px; border-top: 1px solid #f8f9fc; flex-wrap: wrap;">
+
+                <div style="flex: 1; min-width: 350px;">
+                    <div class="d-flex align-items-center justify-content-between mb-4">
+                        <span style="font-size: 14px; font-weight: 500; color: #e74a3b; text-transform: uppercase;">
+                            <i class="fas fa-arrow-down mr-2"></i> MIN Narzut (Podłoga)
+                        </span>
+
+                        <div class="custom-control custom-switch custom-switch-lg">
+                            <input type="checkbox" class="custom-control-input" asp-for="EnforceMinimalMarkup" onchange="toggleInputs(this, 'minMarkupContainer')">
+                            <label class="custom-control-label" asp-for="EnforceMinimalMarkup" style="font-size:13px; font-weight:600; padding-top:2px;">Włącz</label>
+                        </div>
+                    </div>
+
+                    <div id="minMarkupContainer" style="opacity: @(Model.EnforceMinimalMarkup ? "1" : "0.5"); pointer-events: @(Model.EnforceMinimalMarkup ? "auto" : "none"); transition: opacity 0.3s;">
                         <div style="display: flex; align-items: center; gap: 15px;">
-                            <input asp-for="PriceStep" type="number" step="0.01" class="form-control-custom input-narrow" style="font-size: 20px;" />
-                            
-                            <div class="switch-container switch-neutral @(Model.IsPriceStepPercent ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
-                                <input type="checkbox" asp-for="IsPriceStepPercent" />
+                            <input asp-for="MinimalMarkupValue" type="number" step="0.01" class="form-control-custom input-narrow" placeholder="Wartość" />
+
+                            <div class="switch-container switch-neutral @(Model.IsMinimalMarkupPercent ? "state-right" : "state-left")" onclick="toggleSwitch(this)" style="min-width: 100px;">
+                                <input type="checkbox" asp-for="IsMinimalMarkupPercent" />
                                 <div class="switch-slider-bg"></div>
                                 <div class="switch-labels">
                                     <span class="switch-label-text label-left">PLN</span>
@@ -402,130 +559,44 @@
                                 </div>
                             </div>
                         </div>
-                        <small style="color: #858796; margin-top: 10px; font-size: 13px;">Ujemna wartość oznacza przebicie ceny rywala.</small>
-                    </div>
-                 </div>
-
-                 <div id="profitFields" style="display: @(Model.StrategyMode == AutomationStrategyMode.Profit ? "block" : "none"); margin-top: 30px; padding-top: 30px; border-top: 1px dashed #d1d3e2;">
-                    <div style="display: flex; flex-direction: column; align-items: center;">
-                        <label style="margin-bottom: 15px; color: #0d2c56;">DOCELOWY INDEX CENOWY (%)</label>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <input asp-for="PriceIndexTargetPercent" type="number" step="0.01" class="form-control-custom input-narrow" style="font-size: 20px;" />
-                            <span style="font-weight: 800; color: #333; font-size: 20px;">%</span>
-                        </div>
-                        <small style="color: #858796; margin-top: 10px; font-size: 13px;">100% to równanie do mediany rynku.</small>
-                    </div>
-                 </div>
-            </div>
-        </div>
-
-        <div class="Vert">
-            <div class="Chart-Box-a">
-                <div class="box-title">
-                    Konkurencja
-                </div>
-                
-                <div class="preset-display" id="openPresetSelectorBtn" style="cursor: pointer;">
-                    <div>
-                        <div style="font-size: 12px; font-weight: 800; color: #b7b9cc; text-transform: uppercase; letter-spacing: 0.8px;">Aktywny preset</div>
-                        <div style="font-size: 18px; font-weight: 700; color: #333; margin-top: 5px;" id="selectedPresetName">
-                            @(Model.CompetitorPreset != null ? Model.CompetitorPreset.PresetName : "Domyślny (Wszystkie sklepy)")
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-light" style="border:1px solid #d1d3e2; font-weight:600; font-size:13px; padding: 8px 16px;">
-                        Zmień <i class="fas fa-chevron-right ml-1"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="Vert">
-            <div class="Chart-Box-a">
-                <div class="box-title">
-                     Limity Cenowe
-                </div>
-
-                <div class="row-option">
-                    <div class="option-desc">
-                        <div class="option-title">Uwzględniaj Cene Zakupu</div>
-                        <div class="option-subtitle">Zezwalaj na zmianę ceny, tylko dla produktów, posiadających podaną cene zakupu.</div>
-                    <div class="option-subtitle">Zalecamy wybrać opcję "TAK", oraz upewnić się, że ceny zakupu są poprawne.</div>
-                    </div>
-                    <div class="switch-container switch-status @(Model.UsePurchasePrice ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
-                        <input type="checkbox" asp-for="UsePurchasePrice" />
-                        <div class="switch-slider-bg"></div>
-                        <div class="switch-labels">
-                            <span class="switch-label-text label-left">NIE</span>
-                            <span class="switch-label-text label-right">TAK</span>
-                        </div>
-                    </div>
-                </div>
-
-            <div style="display: flex; gap: 50px; padding-top: 30px; padding-bottompadding-top: 30px;: 30px; border-top: 1px solid #f8f9fc; flex-wrap: wrap;">
-                    
-                    <div style="flex: 1; min-width: 350px;">
-                         <div class="d-flex align-items-center justify-content-between mb-4">
-                            <span style="font-size: 14px; font-weight: 800; color: #e74a3b; text-transform: uppercase;">
-                                <i class="fas fa-arrow-down mr-2"></i> MIN Narzut (Podłoga)
-                            </span>
-                            
-                            <div class="custom-control custom-switch custom-switch-lg">
-                                <input type="checkbox" class="custom-control-input" asp-for="EnforceMinimalMarkup" onchange="toggleInputs(this, 'minMarkupContainer')">
-                                <label class="custom-control-label" asp-for="EnforceMinimalMarkup" style="font-size:13px; font-weight:600; padding-top:2px;">Włącz</label>
-                            </div>
-                        </div>
-
-                        <div id="minMarkupContainer" style="opacity: @(Model.EnforceMinimalMarkup ? "1" : "0.5"); pointer-events: @(Model.EnforceMinimalMarkup ? "auto" : "none"); transition: opacity 0.3s;">
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <input asp-for="MinimalMarkupValue" type="number" step="0.01" class="form-control-custom input-narrow" placeholder="Wartość" />
-                                
-                                <div class="switch-container switch-neutral @(Model.IsMinimalMarkupPercent ? "state-right" : "state-left")" onclick="toggleSwitch(this)" style="min-width: 100px;">
-                                    <input type="checkbox" asp-for="IsMinimalMarkupPercent" />
-                                    <div class="switch-slider-bg"></div>
-                                    <div class="switch-labels">
-                                        <span class="switch-label-text label-left">PLN</span>
-                                        <span class="switch-label-text label-right">%</span>
-                                    </div>
-                                </div>
-                            </div>
                         <div style="font-size: 13px; color: #858796; margin-top: 15px; margin-bottom: 15px;">
                             Cena nigdy nie spadnie poniżej tego pułapu narzutu, nawet jeśli strategia sugeruje niższą cenę.
                         </div>
-                             
+
+                    </div>
+                </div>
+
+                <div style="flex: 1; min-width: 350px; border-left: 1px solid #f8f9fc; padding-left: 40px;">
+                    <div class="d-flex align-items-center justify-content-between mb-4">
+                        <span style="font-size: 14px; font-weight: 500; color: #1cc88a; text-transform: uppercase;">
+                            <i class="fas fa-arrow-up mr-2"></i> MAX Narzut (Sufit)
+                        </span>
+                        <div class="custom-control custom-switch custom-switch-lg">
+                            <input type="checkbox" class="custom-control-input" asp-for="EnforceMaxMarkup" onchange="toggleInputs(this, 'maxMarkupContainer')">
+                            <label class="custom-control-label" asp-for="EnforceMaxMarkup" style="font-size:13px; font-weight:600; padding-top:2px;">Włącz</label>
                         </div>
                     </div>
 
-                    <div style="flex: 1; min-width: 350px; border-left: 1px solid #f8f9fc; padding-left: 40px;">
-                         <div class="d-flex align-items-center justify-content-between mb-4">
-                            <span style="font-size: 14px; font-weight: 800; color: #1cc88a; text-transform: uppercase;">
-                                <i class="fas fa-arrow-up mr-2"></i> MAX Narzut (Sufit)
-                            </span>
-                            <div class="custom-control custom-switch custom-switch-lg">
-                                <input type="checkbox" class="custom-control-input" asp-for="EnforceMaxMarkup" onchange="toggleInputs(this, 'maxMarkupContainer')">
-                                <label class="custom-control-label" asp-for="EnforceMaxMarkup" style="font-size:13px; font-weight:600; padding-top:2px;">Włącz</label>
-                            </div>
-                        </div>
+                    <div id="maxMarkupContainer" style="opacity: @(Model.EnforceMaxMarkup ? "1" : "0.5"); pointer-events: @(Model.EnforceMaxMarkup ? "auto" : "none"); transition: opacity 0.3s;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <input asp-for="MaxMarkupValue" type="number" step="0.01" class="form-control-custom input-narrow" placeholder="Wartość" />
 
-                        <div id="maxMarkupContainer" style="opacity: @(Model.EnforceMaxMarkup ? "1" : "0.5"); pointer-events: @(Model.EnforceMaxMarkup ? "auto" : "none"); transition: opacity 0.3s;">
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <input asp-for="MaxMarkupValue" type="number" step="0.01" class="form-control-custom input-narrow" placeholder="Wartość" />
-                                
-                                <div class="switch-container switch-neutral @(Model.IsMaxMarkupPercent ? "state-right" : "state-left")" onclick="toggleSwitch(this)" style="min-width: 100px;">
-                                    <input type="checkbox" asp-for="IsMaxMarkupPercent" />
-                                    <div class="switch-slider-bg"></div>
-                                    <div class="switch-labels">
-                                        <span class="switch-label-text label-left">PLN</span>
-                                        <span class="switch-label-text label-right">%</span>
-                                    </div>
+                            <div class="switch-container switch-neutral @(Model.IsMaxMarkupPercent ? "state-right" : "state-left")" onclick="toggleSwitch(this)" style="min-width: 100px;">
+                                <input type="checkbox" asp-for="IsMaxMarkupPercent" />
+                                <div class="switch-slider-bg"></div>
+                                <div class="switch-labels">
+                                    <span class="switch-label-text label-left">PLN</span>
+                                    <span class="switch-label-text label-right">%</span>
                                 </div>
                             </div>
-                            <div style="font-size: 13px; color: #858796; margin-top: 15px;">
-                                Cena nigdy nie przekroczy tego pułapu narzutu, nawet jeśli strategia sugeruje wyższą cenę.
-                            </div>
+                        </div>
+                        <div style="font-size: 13px; color: #858796; margin-top: 15px;">
+                            Cena nigdy nie przekroczy tego pułapu narzutu, nawet jeśli strategia sugeruje wyższą cenę.
                         </div>
                     </div>
-
                 </div>
+
+            </div>
 
             <div style="background: #fff; border: 2px dashed #f1f3f9; border-radius: 8px; padding: 15px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -546,146 +617,149 @@
                     </div>
                 </div>
             </div>
-            </div>
         </div>
+    </div>
 
-        <div class="Vert">
-            <div class="Chart-Box-a">
-                @if (Model.SourceType == AutomationSourceType.Marketplace)
-                {
-                    <div class="box-title">
-                     Dodatkowe opcję 
-                    </div>
+    <div class="Vert">
+        <div class="Chart-Box-a">
+            @if (Model.SourceType == AutomationSourceType.Marketplace)
+            {
+                <div class="box-title">
+                    Dodatkowe opcje
+                </div>
 
-                    <div class="row-option">
-                         <div class="option-desc">
-                            <div class="option-title">Prowizja Allegro</div>
-                            <div class="option-subtitle">Czy uwzględnić koszt prowizji do zysku (narzutu)?</div>
-                            <div class="option-subtitle">Zalecamy wybrać opcję "TAK".</div>
-                        </div>
-                        <div class="switch-container switch-status @(Model.MarketplaceIncludeCommission ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
-                            <input type="checkbox" asp-for="MarketplaceIncludeCommission" />
-                            <div class="switch-slider-bg"></div>
-                            <div class="switch-labels">
-                                <span class="switch-label-text label-left">NIE</span>
-                                <span class="switch-label-text label-right">TAK</span>
-                            </div>
+                <div class="row-option">
+                    <div class="option-desc">
+                        <div class="option-title">Prowizja Allegro</div>
+                        <div class="option-subtitle">Czy uwzględnić koszt prowizji do zysku (narzutu)?</div>
+                        <div class="option-subtitle">Zalecamy wybrać opcję "TAK".</div>
+                    </div>
+                    <div class="switch-container switch-status @(Model.MarketplaceIncludeCommission ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
+                        <input type="checkbox" asp-for="MarketplaceIncludeCommission" />
+                        <div class="switch-slider-bg"></div>
+                        <div class="switch-labels">
+                            <span class="switch-label-text label-left">NIE</span>
+                            <span class="switch-label-text label-right">TAK</span>
                         </div>
                     </div>
+                </div>
 
-                    <div style="margin-top: 30px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #f8f9fc;">
-                        <span style="font-size: 12px; font-weight: 800; color: #b7b9cc; text-transform: uppercase; letter-spacing: 0.8px;">
-                            Wyjątki dla ofert wyróżnionych
-                        </span>
-                    </div>
+                <div style="margin-top: 30px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #f8f9fc;">
+                    <span style="font-size: 12px; font-weight: 500; color: #b7b9cc; text-transform: uppercase; letter-spacing: 0.8px;">
+                        Wyjątki dla ofert wyróżnionych
+                    </span>
+                </div>
 
-                    <div class="row-option">
-                        <div class="option-desc">
-                            <div class="option-title">
-                                     <span>Super Cena</span>
-                                <span class="SuperPrice">SUPERCENA</span>
-                            </div>
-                            <div class="option-subtitle">Zezwalaj na zmianę ceny ofert oznaczonych przez Allegro odznaką SUPERCENA</div>
-                            <div class="option-subtitle">Zalecamy wybrać opcję "TAK".</div>
+                <div class="row-option">
+                    <div class="option-desc">
+                        <div class="option-title">
+                            <span>Super Cena</span>
+                            <span class="SuperPrice">SUPERCENA</span>
                         </div>
-                        <div class="switch-container switch-status @(Model.MarketplaceChangePriceForBadgeSuperPrice ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
-                            <input type="checkbox" asp-for="MarketplaceChangePriceForBadgeSuperPrice" />
-                            <div class="switch-slider-bg"></div>
-                            <div class="switch-labels">
-                                <span class="switch-label-text label-left">NIE</span>
-                                <span class="switch-label-text label-right">TAK</span>
-                            </div>
+                        <div class="option-subtitle">Zezwalaj na zmianę ceny ofert oznaczonych przez Allegro odznaką SUPERCENA</div>
+                        <div class="option-subtitle">Zalecamy wybrać opcję "TAK".</div>
+                    </div>
+                    <div class="switch-container switch-status @(Model.MarketplaceChangePriceForBadgeSuperPrice ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
+                        <input type="checkbox" asp-for="MarketplaceChangePriceForBadgeSuperPrice" />
+                        <div class="switch-slider-bg"></div>
+                        <div class="switch-labels">
+                            <span class="switch-label-text label-left">NIE</span>
+                            <span class="switch-label-text label-right">TAK</span>
                         </div>
                     </div>
+                </div>
 
-                    <div class="row-option">
-                        <div class="option-desc">
-                            <div class="option-title">
-                                 <span>Top Oferta</span>
-                                <span class="TopOffer">Top Oferta</span>
-                            </div>
-                            <div class="option-subtitle">Zezwalaj na zmianę ceny ofert wyróżnionych jako "Top Oferta".</div>
-                            <div class="option-subtitle">Zalecamy wybrać opcję "TAK".</div>
+                <div class="row-option">
+                    <div class="option-desc">
+                        <div class="option-title">
+                            <span>Top Oferta</span>
+                            <span class="TopOffer">Top Oferta</span>
                         </div>
-                        <div class="switch-container switch-status @(Model.MarketplaceChangePriceForBadgeTopOffer ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
-                            <input type="checkbox" asp-for="MarketplaceChangePriceForBadgeTopOffer" />
-                            <div class="switch-slider-bg"></div>
-                            <div class="switch-labels">
-                                <span class="switch-label-text label-left">NIE</span>
-                                <span class="switch-label-text label-right">TAK</span>
-                            </div>
+                        <div class="option-subtitle">Zezwalaj na zmianę ceny ofert wyróżnionych jako "Top Oferta".</div>
+                        <div class="option-subtitle">Zalecamy wybrać opcję "TAK".</div>
+                    </div>
+                    <div class="switch-container switch-status @(Model.MarketplaceChangePriceForBadgeTopOffer ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
+                        <input type="checkbox" asp-for="MarketplaceChangePriceForBadgeTopOffer" />
+                        <div class="switch-slider-bg"></div>
+                        <div class="switch-labels">
+                            <span class="switch-label-text label-left">NIE</span>
+                            <span class="switch-label-text label-right">TAK</span>
                         </div>
                     </div>
+                </div>
 
-                     <div class="row-option">
-                        <div class="option-desc">
-                            <div class="option-title">
-                                  <span>Gwarancja Najniższej Ceny</span>
-                                <img src="/images/TopPrice.png" alt="Gwarancja" style="width: 20px; vertical-align: middle; margin-right: 5px;">
-                              
-                            </div>
-                            <div class="option-subtitle">Zezwalaj na zmianę ceny ofert objętych programem Gwarancji Ceny.</div>
-                            <div class="option-subtitle">Zalecamy wybrać opcję "TAK".</div>
-                        </div>
-                        <div class="switch-container switch-status @(Model.MarketplaceChangePriceForBadgeBestPriceGuarantee ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
-                            <input type="checkbox" asp-for="MarketplaceChangePriceForBadgeBestPriceGuarantee" />
-                            <div class="switch-slider-bg"></div>
-                            <div class="switch-labels">
-                                <span class="switch-label-text label-left">NIE</span>
-                                <span class="switch-label-text label-right">TAK</span>
-                            </div>
-                        </div>
-                    </div>
+                <div class="row-option">
+                    <div class="option-desc">
+                        <div class="option-title">
+                            <span>Gwarancja Najniższej Ceny</span>
+                            <img src="/images/TopPrice.png" alt="Gwarancja" style="width: 20px; vertical-align: middle; margin-right: 5px;">
 
-                    <div class="row-option">
-                        <div class="option-desc">
-                            <div class="option-title">
-                                 <span>Udział w Kampanii & Dopłaty Allegro</span>
-                                <span class="subsidy-stack-badge">Udział w Kampanii</span>
-                            </div>
-                            <div class="option-subtitle">Zezwalaj na zmianę ceny ofert w kampanii oraz ofert z dopłatami Allegro (np. Alleobniżka).</div>
-                            <div class="option-subtitle">Zalecamy wybrać opcję "NIE".</div>
-                            <div class="option-subtitle">Zmiana ceny oferty w kampanii, może nie wpłynąć na wyświetlaną cene od frontu Allegro.</div>
-                            <div class="option-subtitle">Gdy pozostawisz tą opcję na "NIE", a oferta zakończy udział w kampanii, automatycznie odblokuje to możliwość zmiany jej ceny.</div>
                         </div>
-                        <div class="switch-container switch-status @(Model.MarketplaceChangePriceForBadgeInCampaign ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
-                            <input type="checkbox" asp-for="MarketplaceChangePriceForBadgeInCampaign" />
-                            <div class="switch-slider-bg"></div>
-                            <div class="switch-labels">
-                                <span class="switch-label-text label-left">NIE</span>
-                                <span class="switch-label-text label-right">TAK</span>
-                            </div>
+                        <div class="option-subtitle">Zezwalaj na zmianę ceny ofert objętych programem Gwarancji Ceny.</div>
+                        <div class="option-subtitle">Zalecamy wybrać opcję "TAK".</div>
+                    </div>
+                    <div class="switch-container switch-status @(Model.MarketplaceChangePriceForBadgeBestPriceGuarantee ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
+                        <input type="checkbox" asp-for="MarketplaceChangePriceForBadgeBestPriceGuarantee" />
+                        <div class="switch-slider-bg"></div>
+                        <div class="switch-labels">
+                            <span class="switch-label-text label-left">NIE</span>
+                            <span class="switch-label-text label-right">TAK</span>
                         </div>
                     </div>
-                }
-                else
-                {
-                    <div class="box-title">
-                        <i class="fas fa-truck text-info"></i> Opcje Porównywarek
-                    </div>
-                    <div class="row-option">
-                         <div class="option-desc">
-                            <div class="option-title">Koszt Dostawy</div>
-                            <div class="option-subtitle">Uwzględniaj koszty wysyłki przy porównywaniu ofert konkurencji (Cena Produktu + Dostawa).</div>
+                </div>
+
+                <div class="row-option">
+                    <div class="option-desc">
+                        <div class="option-title">
+                            <span>Udział w Kampanii & Dopłaty Allegro</span>
+                            <span class="subsidy-stack-badge">Udział w Kampanii</span>
                         </div>
-                        <div class="switch-container switch-status @(Model.UsePriceWithDelivery ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
-                            <input type="checkbox" asp-for="UsePriceWithDelivery" />
-                            <div class="switch-slider-bg"></div>
-                            <div class="switch-labels">
-                                <span class="switch-label-text label-left">NIE</span>
-                                <span class="switch-label-text label-right">TAK</span>
-                            </div>
+                        <div class="option-subtitle">Zezwalaj na zmianę ceny ofert w kampanii oraz ofert z dopłatami Allegro (np. Alleobniżka).</div>
+                        <div class="option-subtitle">Zalecamy wybrać opcję "NIE".</div>
+                        <div class="option-subtitle">Zmiana ceny oferty w kampanii może nie wpłynąć na wyświetlaną cenę na stronie Allegro.</div>
+                        <div class="option-subtitle">Gdy pozostawisz tę opcję na "NIE", a oferta zakończy udział w kampanii, automatycznie odblokuje to możliwość zmiany jej ceny.</div>
+                    </div>
+                    <div class="switch-container switch-status @(Model.MarketplaceChangePriceForBadgeInCampaign ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
+                        <input type="checkbox" asp-for="MarketplaceChangePriceForBadgeInCampaign" />
+                        <div class="switch-slider-bg"></div>
+                        <div class="switch-labels">
+                            <span class="switch-label-text label-left">NIE</span>
+                            <span class="switch-label-text label-right">TAK</span>
                         </div>
                     </div>
-                }
-            </div>
+                </div>
+            }
+            else
+            {
+                <div class="box-title">
+                    Dodatkowe opcje
+                </div>
+                <div class="row-option">
+                    <div class="option-desc">
+                        <div class="option-title">Koszt Dostawy</div>
+                        <div class="option-subtitle">Uwzględniaj koszty wysyłki przy porównywaniu ofert konkurencji (Cena Produktu + Dostawa).</div>
+                        <div class="option-subtitle">Zalecamy wybrać opcję "NIE". Jeżeli jednak jest to kluczowe dla specyfiki Twoich produktów, wybierz "TAK".</div>
+                    </div>
+                    <div class="switch-container switch-status @(Model.UsePriceWithDelivery ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
+                        <input type="checkbox" asp-for="UsePriceWithDelivery" />
+                        <div class="switch-slider-bg"></div>
+                        <div class="switch-labels">
+                            <span class="switch-label-text label-left">NIE</span>
+                            <span class="switch-label-text label-right">TAK</span>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
+    </div>
 
-       
+</form>
+@if (isEdit)
+{
+    <form id="deleteRuleForm" asp-action="Delete" asp-route-id="@Model.Id" method="post" style="display:none;">
     </form>
-    
-    <div asp-validation-summary="All" class="alert alert-danger mt-3" style="display:none;"></div>
-
+}
+<div asp-validation-summary="All" class="alert alert-danger mt-3" style="display:none;"></div>
 
 <div id="dynamicModalContainer">
     @if (Model.SourceType == AutomationSourceType.Marketplace)
@@ -699,7 +773,9 @@
 </div>
 
 @section Scripts {
-    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
 
     <script>
         var storeId = @Model.StoreId;
@@ -711,7 +787,9 @@
     <script src="~/js/member/CompetitorModal.js"></script>
 
     <script>
+
         document.addEventListener("DOMContentLoaded", function() {
+
             var btnOpen = document.getElementById('openPresetSelectorBtn');
             if (btnOpen) {
                 btnOpen.addEventListener('click', function() {
@@ -721,20 +799,26 @@
                     }
                 });
             }
+
             var colorInput = document.getElementById('ColorHexInput');
-            if(colorInput){
+            var colorContainer = document.getElementById('ColorContainer');
+
+            if(colorInput && colorContainer){
+
                 colorInput.addEventListener('input', function() {
-                    document.getElementById('ColorHexText').value = this.value;
+                    colorContainer.style.backgroundColor = this.value;
+                });
+
+                colorInput.addEventListener('change', function() {
+                    colorContainer.style.backgroundColor = this.value;
                 });
             }
         });
 
-        // Nowa logika przełączników (Segmented Control)
         window.toggleSwitch = function(container) {
             const checkbox = container.querySelector('input[type="checkbox"]');
             checkbox.checked = !checkbox.checked;
 
-            // Zmiana klasy wizualnej
             if (checkbox.checked) {
                 container.classList.remove('state-left');
                 container.classList.add('state-right');
@@ -743,16 +827,15 @@
                 container.classList.add('state-left');
             }
 
-            // Specjalna obsługa dla głównego statusu
             if (checkbox.id === 'IsActiveSwitch') {
                 const label = document.getElementById('mainStatusLabel');
                 if (label) {
                     if (checkbox.checked) {
-                        label.innerText = "REGUŁA JEST WŁĄCZONA";
+                        label.innerText = "AUTOMAT CENOWY AKTYWNY";
                         label.classList.remove('toggle-inactive-text');
                         label.classList.add('toggle-active-text');
                     } else {
-                        label.innerText = "REGUŁA JEST WYŁĄCZONA";
+                        label.innerText = "AUTOMAT CENOWY WYŁĄCZONY";
                         label.classList.remove('toggle-active-text');
                         label.classList.add('toggle-inactive-text');
                     }
@@ -826,5 +909,11 @@
             }
             document.body.classList.remove('modal-open');
         };
+
+        function confirmDelete() {
+            if (confirm('Czy na pewno chcesz usunąć ten automat cenowy? Tej operacji nie można cofnąć.')) {
+                document.getElementById('deleteRuleForm').submit();
+            }
+        }
     </script>
 }
