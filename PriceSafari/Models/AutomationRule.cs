@@ -95,36 +95,40 @@ namespace PriceSafari.Models
         /// Czy blokować obniżkę ceny poniżej minimalnego zysku/narzutu.
         /// Jeśli true, system nie ustawi ceny niższej niż (CenaZakupu + MinimalMargin).
         /// </summary>
-        public bool EnforceMinimalMargin { get; set; } = true;
+        public bool EnforceMinimalMarkup { get; set; } = true;
 
         /// <summary>
         /// Wartość minimalnego narzutu/marży. Może być ujemna.
         /// </summary>
         [Column(TypeName = "decimal(18,2)")]
-        public decimal MinimalMarginValue { get; set; } = 0.00m;
+        public decimal MinimalMarkupValue { get; set; } = 0.00m;
 
         /// <summary>
         /// Czy MinimalMarginValue jest wyrażone w procentach (true) czy w walucie (false).
         /// </summary>
-        public bool IsMinimalMarginPercent { get; set; } = true;
+        public bool IsMinimalMarkupPercent { get; set; } = true;
 
 
         /// <summary>
         /// Czy blokować podwyzke ceny powyzej maxymalnego zysku/narzutu.
         /// Jeśli true, system nie ustawi ceny wyzej niż (CenaZakupu + MaxMargin).
         /// </summary>
-        public bool EnforceMaxMargin { get; set; } = false;
+        public bool EnforceMaxMarkup { get; set; } = false;
 
         /// <summary>
         /// Wartość maxymalnego narzutu. Może być tylko dodatnia.
         /// </summary>
         [Column(TypeName = "decimal(18,2)")]
-        public decimal MaxMarginValue { get; set; } = 100.00m;
+        public decimal MaxMarkupValue { get; set; } = 100.00m;
 
         /// <summary>
         /// Czy MaxMarginValue jest wyrażone w procentach (true) czy w walucie (false).
         /// </summary>
-        public bool IsMaxMarginPercent { get; set; } = true;
+        public bool IsMaxMarkupPercent { get; set; } = true;
+
+
+        [Display(Name = "Pomiń zmianę, jeśli limit narzutu uniemożliwia osiągnięcie celu")]
+        public bool SkipIfMarkupLimited { get; set; } = false;
 
         // =================================================================================
         // SEKCJA 3: SPECYFICZNE DLA PRICE COMPARISON (Google/Ceneo)

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PriceSafari.Data;
 
@@ -11,9 +12,11 @@ using PriceSafari.Data;
 namespace PriceSafari.Migrations
 {
     [DbContext(typeof(PriceSafariContext))]
-    partial class PriceSafariContextModelSnapshot : ModelSnapshot
+    [Migration("20260121094543_newwaluforautomationskip")]
+    partial class newwaluforautomationskip
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -849,19 +852,19 @@ namespace PriceSafari.Migrations
                     b.Property<int?>("CompetitorPresetId")
                         .HasColumnType("int");
 
-                    b.Property<bool>("EnforceMaxMarkup")
+                    b.Property<bool>("EnforceMaxMargin")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("EnforceMinimalMarkup")
+                    b.Property<bool>("EnforceMinimalMargin")
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsMaxMarkupPercent")
+                    b.Property<bool>("IsMaxMarginPercent")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsMinimalMarkupPercent")
+                    b.Property<bool>("IsMinimalMarginPercent")
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsPriceStepPercent")
@@ -882,10 +885,10 @@ namespace PriceSafari.Migrations
                     b.Property<bool>("MarketplaceIncludeCommission")
                         .HasColumnType("bit");
 
-                    b.Property<decimal>("MaxMarkupValue")
+                    b.Property<decimal>("MaxMarginValue")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("MinimalMarkupValue")
+                    b.Property<decimal>("MinimalMarginValue")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Name")
@@ -899,7 +902,7 @@ namespace PriceSafari.Migrations
                     b.Property<decimal>("PriceStep")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<bool>("SkipIfMarkupLimited")
+                    b.Property<bool>("SkipIfMarginLimited")
                         .HasColumnType("bit");
 
                     b.Property<int>("SourceType")

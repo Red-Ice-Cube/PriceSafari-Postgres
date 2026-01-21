@@ -418,40 +418,55 @@
                         <div class="col-md-6 border-right">
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <div class="custom-control custom-switch">
-                                    <input type="checkbox" class="custom-control-input" asp-for="EnforceMinimalMargin" onchange="toggleInputs(this, 'minMarginContainer')">
-                                    <label class="custom-control-label font-weight-bold" asp-for="EnforceMinimalMargin">Minimalna Marża (Podłoga)</label>
+                                    <input type="checkbox" class="custom-control-input" asp-for="EnforceMinimalMarkup" onchange="toggleInputs(this, 'minMarkupContainer')">
+                                    <label class="custom-control-label font-weight-bold" asp-for="EnforceMinimalMarkup">Minimalna Marża (Podłoga)</label>
                                 </div>
                             </div>
 
-                            <div id="minMarginContainer" class="pl-3 mt-3" style="opacity: @(Model.EnforceMinimalMargin ? "1" : "0.5"); pointer-events: @(Model.EnforceMinimalMargin ? "auto" : "none")">
+                            <div id="minMarkupContainer" class="pl-3 mt-3" style="opacity: @(Model.EnforceMinimalMarkup ? "1" : "0.5"); pointer-events: @(Model.EnforceMinimalMarkup ? "auto" : "none")">
                                 <div class="d-flex align-items-center">
-                                    <input asp-for="MinimalMarginValue" type="number" step="0.01" class="form-control input-narrow" />
+                                    <input asp-for="MinimalMarkupValue" type="number" step="0.01" class="form-control input-narrow" />
 
-                                    <div class="unit-switch-wrapper @(Model.IsMinimalMarginPercent ? "active-right" : "active-left")" onclick="toggleUnit(this)">
-                                        <input type="checkbox" asp-for="IsMinimalMarginPercent" />
+                                    <div class="unit-switch-wrapper @(Model.IsMinimalMarkupPercent ? "active-right" : "active-left")" onclick="toggleUnit(this)">
+                                        <input type="checkbox" asp-for="IsMinimalMarkupPercent" />
                                         <div class="unit-slider"></div>
                                         <span class="unit-option opt-left">PLN</span>
                                         <span class="unit-option opt-right">%</span>
                                     </div>
                                 </div>
                                 <small class="text-muted mt-2 d-block">System nie obniży ceny poniżej tego progu.</small>
+                                <div class="switch-row mt-3 pt-2 border-top" style="border-color: #eaecf4 !important;">
+                                    <div>
+                                        <label class="switch-label mb-0" asp-for="SkipIfMarkupLimited" style="font-size: 0.9rem;">Wymagaj pełnego spełnienia celu</label>
+                                        <small class="d-block text-muted" style="font-size: 0.75rem; line-height: 1.2;">
+                                            Jeśli <span class="text-danger font-weight-bold">NIE</span>, automat obniży cenę do granicy marży (Twoja cena będzie wyższa niż konkurencji).<br />
+                                            Jeśli <span class="text-success font-weight-bold">TAK</span>, automat nic nie zrobi, czekając na lepszą okazję (blokada).
+                                        </small>
+                                    </div>
+                                    <div class="bool-switch-wrapper @(Model.SkipIfMarkupLimited ? "active-right" : "active-left")" onclick="toggleBool(this)">
+                                        <input type="checkbox" asp-for="SkipIfMarkupLimited" />
+                                        <div class="unit-slider"></div>
+                                        <span class="unit-option opt-left">NIE</span>
+                                        <span class="unit-option opt-right">TAK</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         <div class="col-md-6 pl-md-4">
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <div class="custom-control custom-switch">
-                                    <input type="checkbox" class="custom-control-input" asp-for="EnforceMaxMargin" onchange="toggleInputs(this, 'maxMarginContainer')">
-                                    <label class="custom-control-label font-weight-bold" asp-for="EnforceMaxMargin">Maksymalna Marża (Sufit)</label>
+                                    <input type="checkbox" class="custom-control-input" asp-for="EnforceMaxMarkup" onchange="toggleInputs(this, 'maxMarkupContainer')">
+                                    <label class="custom-control-label font-weight-bold" asp-for="EnforceMaxMarkup">Maksymalna Marża (Sufit)</label>
                                 </div>
                             </div>
 
-                            <div id="maxMarginContainer" class="pl-3 mt-3" style="opacity: @(Model.EnforceMaxMargin ? "1" : "0.5"); pointer-events: @(Model.EnforceMaxMargin ? "auto" : "none")">
+                            <div id="maxMarkupContainer" class="pl-3 mt-3" style="opacity: @(Model.EnforceMaxMarkup ? "1" : "0.5"); pointer-events: @(Model.EnforceMaxMarkup ? "auto" : "none")">
                                 <div class="d-flex align-items-center">
-                                    <input asp-for="MaxMarginValue" type="number" step="0.01" class="form-control input-narrow" />
+                                    <input asp-for="MaxMarkupValue" type="number" step="0.01" class="form-control input-narrow" />
 
-                                    <div class="unit-switch-wrapper @(Model.IsMaxMarginPercent ? "active-right" : "active-left")" onclick="toggleUnit(this)">
-                                        <input type="checkbox" asp-for="IsMaxMarginPercent" />
+                                    <div class="unit-switch-wrapper @(Model.IsMaxMarkupPercent ? "active-right" : "active-left")" onclick="toggleUnit(this)">
+                                        <input type="checkbox" asp-for="IsMaxMarkupPercent" />
                                         <div class="unit-slider"></div>
                                         <span class="unit-option opt-left">PLN</span>
                                         <span class="unit-option opt-right">%</span>

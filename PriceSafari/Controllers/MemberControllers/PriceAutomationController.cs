@@ -641,7 +641,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
-            if ((rule.EnforceMinimalMargin || rule.EnforceMaxMargin) && (!row.PurchasePrice.HasValue || row.PurchasePrice <= 0))
+            if ((rule.EnforceMinimalMarkup || rule.EnforceMaxMarkup) && (!row.PurchasePrice.HasValue || row.PurchasePrice <= 0))
             {
                 ApplyBlock(row, "Brak ceny zakupu");
                 return;
@@ -708,34 +708,44 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 extraCost = row.CommissionAmount.Value;
             }
-
             bool wasLimited = false;
 
-            if (rule.EnforceMinimalMargin && row.PurchasePrice.HasValue)
+            if (rule.EnforceMinimalMarkup && row.PurchasePrice.HasValue)
             {
                 decimal minLimit;
-                if (rule.IsMinimalMarginPercent)
-                    minLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MinimalMarginValue / 100)) + extraCost;
+                if (rule.IsMinimalMarkupPercent)
+                    minLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MinimalMarkupValue / 100)) + extraCost;
                 else
-                    minLimit = row.PurchasePrice.Value + rule.MinimalMarginValue + extraCost;
+                    minLimit = row.PurchasePrice.Value + rule.MinimalMarkupValue + extraCost;
 
                 row.MinPriceLimit = minLimit;
 
                 if (suggested < minLimit)
                 {
+                    // --- NOWA LOGIKA ---
+                    if (rule.SkipIfMarkupLimited)
+                    {
+                        // Jeśli użytkownik chce "wszystko albo nic":
+                        // Skoro limit marży nie pozwala osiągnąć celu (np. przebić konkurenta),
+                        // to BLOKUJEMY zmianę całkowicie.
+                        ApplyBlock(row, "Blokada Narzutu");
+                        return; // Wychodzimy z funkcji, status będzie Blocked
+                    }
+                    // -------------------
+
                     suggested = minLimit;
                     row.IsMarginWarning = true;
                     wasLimited = true;
                 }
             }
 
-            if (rule.EnforceMaxMargin && row.PurchasePrice.HasValue)
+            if (rule.EnforceMaxMarkup && row.PurchasePrice.HasValue)
             {
                 decimal maxLimit;
-                if (rule.IsMaxMarginPercent)
-                    maxLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MaxMarginValue / 100)) + extraCost;
+                if (rule.IsMaxMarkupPercent)
+                    maxLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MaxMarkupValue / 100)) + extraCost;
                 else
-                    maxLimit = row.PurchasePrice.Value + rule.MaxMarginValue + extraCost;
+                    maxLimit = row.PurchasePrice.Value + rule.MaxMarkupValue + extraCost;
 
                 row.MaxPriceLimit = maxLimit;
 
