@@ -325,6 +325,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     CompetitorIsTopOffer = bestCompetitor?.TopOffer ?? false,
                     IsCommissionIncluded = rule.MarketplaceIncludeCommission,
                     HasCheaperOwnOffer = hasCheaperOwnOffer,
+                    PurchasePriceUpdatedDate = p.AllegroMarginPriceUpdatedDate,
                 };
 
                 CalculateSuggestedPrice(rule, row);
@@ -807,7 +808,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     CurrentRankingGoogle = currentRankGoogle,
                     CurrentRankingCeneo = currentRankCeneo,
-
+                    PurchasePriceUpdatedDate = p.MarginPriceUpdatedDate,
                     CurrentRankingAllegro = null
                 };
 

@@ -110,6 +110,8 @@ namespace PriceSafari.Models.ViewModels
 
         public decimal? ApiAllegroPriceFromUser { get; set; }
 
+        public DateTime? PurchasePriceUpdatedDate { get; set; }
+
         // --- NOWE POLA STATUSU ---
 
         // Główny status wiersza (zastępuje stare flagi)

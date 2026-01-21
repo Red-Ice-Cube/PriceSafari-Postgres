@@ -173,7 +173,7 @@
 
     .purchase-wrapper {
         position: relative;
-        min-width: 185px;
+        min-width: 190px;
     }
 
     .price-actions-display {
@@ -305,7 +305,7 @@
         border-radius: 4px;
         border: 2px dashed #f1f3f9;
         min-height: 34px;
-        gap: 12px;wi
+        gap: 12px;
         margin-left: 15px;
     }
 
@@ -770,7 +770,7 @@
                                 <th style="width: 50px;"></th>
                             }
                             <th style="width: 250px;">Produkt</th>
-                            <th style="width: 200px; min-width: 190px;">Limity Cenowe</th>
+                            <th style="width: 200px; min-width: 195px;">Limity Cenowe</th>
                             <th style="min-width: 225px;">Dane z rynku - Twoja oferta</th>
                             @if (Model.StrategyMode == AutomationStrategyMode.Competitiveness)
                             {
@@ -873,7 +873,18 @@
                                                         <span class="limit-badge badge-purchase">Zakup</span>
                                                         <div class="d-flex align-items-center">
                                                             <span class="price-actions-display">
-                                                               
+
+                                                             
+                                                                @if (item.PurchasePriceUpdatedDate.HasValue)
+                                                                {
+                                                                    <i class="fas fa-clock mr-1"
+                                                                       style="font-size: 10px; color: #858796; cursor: help; margin-right:4px;"
+                                                                       data-toggle="tooltip"
+                                                                       title="Cena zakupu została zaktualizowana: @item.PurchasePriceUpdatedDate.Value.ToString("dd.MM.yyyy HH:mm")">
+                                                                    </i>
+                                                                }
+                                                            
+
                                                                 @if (canEdit)
                                                                 {
                                                                     <i class="fas fa-pencil-alt edit-btn edit-trigger" title="Edytuj cenę zakupu"></i>
