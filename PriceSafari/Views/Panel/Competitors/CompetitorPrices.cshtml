@@ -338,16 +338,63 @@
             margin-left: 0;
         }
 
- 
-    /* Zielony (taniej) */
+  
+  
 </style>
 
 <div class="Vert">
     <div class="Page-Box">
         <div class="Page-Box-Container">
-            <div class="Page-Box-Category" style="padding:0px; min-width:210px; max-width:220px;">
+            <div class="Page-Box-Category" style="padding:0px; min-width:240px; max-width:250px;">
                 <div class="Category-Container-Title">Historia cen</div>
-                <div class="filterBox" style="padding-left:12px; padding-right:12px;">
+                <div class="filterBox">
+                    <div class="stats-summary-container">
+                        <div class="stat-card our-store">
+                            <div class="stat-header">
+                                <span class="store-label">Twój sklep</span>
+                                <span class="store-name">@storeName</span>
+                            </div>
+                            <div class="stat-body">
+                                <div class="stat-metric increase">
+                                    <span class="icon">↑</span>
+                                    <div class="metric-info">
+                                        <span class="value" id="count-our-up">0</span>
+                                        <span class="label">Podwyżek</span>
+                                    </div>
+                                </div>
+                                <div class="stat-metric decrease">
+                                    <span class="icon">↓</span>
+                                    <div class="metric-info">
+                                        <span class="value" id="count-our-down">0</span>
+                                        <span class="label">Obniżek</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card competitor-store">
+                            <div class="stat-header">
+                                <span class="store-label">Konkurent</span>
+                                <span class="store-name">@competitorStoreName</span>
+                            </div>
+                            <div class="stat-body">
+                                <div class="stat-metric increase">
+                                    <span class="icon">↑</span>
+                                    <div class="metric-info">
+                                        <span class="value" id="count-comp-up">0</span>
+                                        <span class="label">Podwyżek</span>
+                                    </div>
+                                </div>
+                                <div class="stat-metric decrease">
+                                    <span class="icon">↓</span>
+                                    <div class="metric-info">
+                                        <span class="value" id="count-comp-down">0</span>
+                                        <span class="label">Obniżek</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="Category-Container-Select">Zmiany</div>
                     <div class="store-section">
                         <div class="filter-category">
@@ -389,6 +436,8 @@
                         <input type="text" id="productSearch" placeholder="Wyszukaj produkt">
                     </div>
                 </div>
+
+             
                 <div class="Vert-table">
                     <div class="scrollable-table-container">
                         <table class="table-orders">

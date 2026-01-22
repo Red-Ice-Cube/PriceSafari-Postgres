@@ -5719,3 +5719,110 @@ label[for="extendedExportCheckbox"]:not(:checked):hover {
         color: #fff;
         text-decoration: none;
     }
+
+
+
+
+
+
+
+
+.stats-summary-container {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-direction:column;
+    flex-wrap: wrap;
+}
+
+.stat-card {
+    background: #fff;
+    border-radius: 6px;
+
+    padding: 15px;
+    min-width: 210px;
+    max-width: 230px;
+    flex: 1;
+    max-width: 500px;
+    border: 1px solid #ddd;
+}
+
+
+.stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+}
+
+.store-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #888;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.store-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+.stat-body {
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+}
+
+.stat-metric {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+    .stat-metric .icon {
+        font-size: 18px;
+        font-weight: bold;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+    .stat-metric.increase .icon {
+        background-color: #e8f5e9; /* Jasny zielony */
+        color: #2e7d32; /* Ciemny zielony */
+    }
+
+    .stat-metric.decrease .icon {
+        background-color: #ffebee; /* Jasny czerwony */
+        color: #c62828; /* Ciemny czerwony */
+
+    }
+
+.metric-info {
+    display: flex;
+    flex-direction: column;
+}
+
+    .metric-info .value {
+        font-size: 17px;
+        font-weight: 500;
+        color: #333;
+        line-height: 1.1;
+    }
+
+    .metric-info .label {
+        font-size: 11px;
+        color: #777;
+    }

@@ -56,6 +56,7 @@ function loadScrapHistoryOptions(currentStoreId, currentCompetitorStoreName) {
             container.innerHTML = '';
             let firstCheckbox = null;
 
+            // Sortowanie: najnowsze na górze
             scrapHistoryIds.sort((a, b) => new Date(b.date) - new Date(a.date));
 
             scrapHistoryIds.forEach((scrap, index) => {
@@ -240,6 +241,13 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
     const filterDecrease = document.getElementById('filterDecrease')?.checked || false;
     const filterChange = document.getElementById('filterChange')?.checked || false;
 
+    // --- ZMIENNE DO STATYSTYK (DASHBOARD) ---
+    let stats = {
+        our: { up: 0, down: 0 },
+        comp: { up: 0, down: 0 }
+    };
+    // ----------------------------------------
+
     let productCount = 0;
 
     for (const productId of Object.keys(productsToDisplay)) {
@@ -249,28 +257,49 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
         let rowHasAnyPriceIncrease = false;
         let rowHasAnyPriceDecrease = false;
 
+        // --- Tymczasowe liczniki dla bieżącego wiersza ---
+        let rowStats = {
+            our: { up: 0, down: 0 },
+            comp: { up: 0, down: 0 }
+        };
+
         sortedScrapIds.forEach((scrapId, index) => {
             if (index > 0) {
                 const prevScrapId = sortedScrapIds[index - 1];
 
+                // NASZ SKLEP - analiza
                 const ourCurr = product.ourData[scrapId];
                 const ourPrev = product.ourData[prevScrapId];
                 if (typeof ourCurr === 'number' && typeof ourPrev === 'number') {
-                    if (ourCurr > ourPrev) rowHasAnyPriceIncrease = true;
-                    if (ourCurr < ourPrev) rowHasAnyPriceDecrease = true;
+                    if (ourCurr > ourPrev) {
+                        rowHasAnyPriceIncrease = true;
+                        rowStats.our.up++; // +1 podwyżka
+                    }
+                    if (ourCurr < ourPrev) {
+                        rowHasAnyPriceDecrease = true;
+                        rowStats.our.down++; // +1 obniżka
+                    }
                     if (ourCurr !== ourPrev) rowHasAnyPriceChange = true;
                 }
 
+                // KONKURENT - analiza
                 const compCurr = product.data[scrapId];
                 const compPrev = product.data[prevScrapId];
                 if (typeof compCurr === 'number' && typeof compPrev === 'number') {
-                    if (compCurr > compPrev) rowHasAnyPriceIncrease = true;
-                    if (compCurr < compPrev) rowHasAnyPriceDecrease = true;
+                    if (compCurr > compPrev) {
+                        rowHasAnyPriceIncrease = true;
+                        rowStats.comp.up++; // +1 podwyżka
+                    }
+                    if (compCurr < compPrev) {
+                        rowHasAnyPriceDecrease = true;
+                        rowStats.comp.down++; // +1 obniżka
+                    }
                     if (compCurr !== compPrev) rowHasAnyPriceChange = true;
                 }
             }
         });
 
+        // Filtracja wierszy
         let showThisRow = true;
         const anyChangeFilterActive = filterIncrease || filterDecrease || filterChange;
 
@@ -283,9 +312,16 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
 
         if (!showThisRow) continue;
 
+        // --- Jeśli wiersz jest widoczny, dodajemy jego statystyki do sumy globalnej ---
+        stats.our.up += rowStats.our.up;
+        stats.our.down += rowStats.our.down;
+        stats.comp.up += rowStats.comp.up;
+        stats.comp.down += rowStats.comp.down;
+        // -----------------------------------------------------------------------------
+
         const row = document.createElement('tr');
 
-        // --- KOLUMNA PRODUKTU (LOGIKA ZDJĘĆ) ---
+        // --- KOLUMNA PRODUKTU (LOGIKA ZDJĘĆ + FIX ALLEGRO) ---
         const productInfoTd = document.createElement('td');
         const productInfoDiv = document.createElement('div');
         productInfoDiv.className = 'product-info-cell';
@@ -342,8 +378,7 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
                         const isIncrease = diff > 0;
                         const changeClass = isIncrease ? 'priceBox-diff-up' : 'priceBox-diff-down';
                         const arrow = isIncrease ? '&uarr;' : '&darr;';
-                        // Formatowanie różnicy: formatMoneyPL + " PLN"
-                        // Formatowanie procentów: zamiana kropki na przecinek
+
                         const formattedDiff = formatMoneyPL(Math.abs(diff));
                         const formattedPerc = Math.abs(percDiff).toFixed(1).replace('.', ',');
 
@@ -395,9 +430,22 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
             td.innerHTML = cellContent;
 
             td.style.cursor = 'pointer';
+
+            // --- POPRAWIONA OBSŁUGA KLIKNIĘCIA (LINKI - Routing) ---
             td.addEventListener('click', (event) => {
                 if (event.target.tagName === 'A') return;
-                const url = `/PriceHistory/Details?productId=${productId}&scrapId=${scrapId}`;
+
+                let url;
+                // Jeśli sklep to Allegro, przekieruj do kontrolera Allegro
+                if (isAllegro) {
+                    // Kontroler: AllegroPriceHistory, Akcja: Details(int storeId, int productId)
+                    url = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${productId}`;
+                } else {
+                    // Standardowy sklep - stary link
+                    // Kontroler: PriceHistory, Akcja: Details(int productId, int scrapId)
+                    url = `/PriceHistory/Details?productId=${productId}&scrapId=${scrapId}`;
+                }
+
                 window.open(url, '_blank');
             });
 
@@ -410,4 +458,21 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
 
     const scrapableCountElement = document.getElementById('scrapable-count');
     if (scrapableCountElement) scrapableCountElement.textContent = productCount;
+
+    // --- AKTUALIZACJA LICZNIKÓW W UI (DASHBOARD) ---
+    updateStatElement('count-our-up', stats.our.up);
+    updateStatElement('count-our-down', stats.our.down);
+    updateStatElement('count-comp-up', stats.comp.up);
+    updateStatElement('count-comp-down', stats.comp.down);
+}
+
+// Funkcja pomocnicza do aktualizacji liczb w dashboardzie
+function updateStatElement(id, value) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.textContent = value;
+        // Opcjonalnie: zmiana koloru jeśli wartość > 0 (dla lepszej widoczności)
+        if (value > 0) el.style.color = "#000";
+        else el.style.color = "#aaa";
+    }
 }
