@@ -1253,6 +1253,15 @@ public class GoogleScraper
     }
     public async Task<ScraperResult<List<string>>> FindStoreUrlsFromApiAsync(string cid, string gid)
     {
+        // --- [POPRAWKA START] ---
+        // Jeśli nie ma CID, nie ma sensu pytać API o "catalogid", bo zwróci 0 wyników.
+        if (string.IsNullOrWhiteSpace(cid))
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [SKIP] Brak CID (jest pusty). Pomijam pobieranie ofert dla GID: {gid}.");
+            return ScraperResult<List<string>>.Success(new List<string>());
+        }
+        // --- [POPRAWKA KONIEC] ---
+
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Rozpoczynam zbieranie URL-i z API dla CID: {cid}, GID: {gid}");
         var allStoreUrls = new List<string>();
 
