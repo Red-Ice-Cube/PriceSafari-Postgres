@@ -2095,7 +2095,6 @@
             myPrice: myPrice
         };
     }
-
     function createAutomationColumn(item) {
         if (!item.automationRuleName) return null;
 
@@ -2103,43 +2102,52 @@
         const ruleColor = item.automationRuleColor || '#3d85c6';
         const isActive = item.isAutomationActive;
 
-        // Logika statusu (Kropka)
-        const statusColor = isActive ? '#1cc88a' : '#e74a3b'; // Zielony : Czerwony
-        const statusTitle = isActive ? 'Aktywny' : 'Wyłączony';
+        const statusColor = isActive ? '#1cc88a' : '#e74a3b';
+        const statusText = isActive ? 'Aktywna' : 'Wyłączona';
 
-        // Link do edycji automatu
-        // Używam ścieżki o którą prosiłeś. Upewnij się, że masz taki Controller/Action.
-        // Często w .NET jest to AutomationRules/Edit/ID lub AutomationRules/Details/ID
-        const detailsUrl = `/AutomationRules/Edit/${ruleId}`;
+        // 1. POPRAWKA URL: Ustawienie poprawnej ścieżki do kontrolera automatów
+        // Upewnij się, że masz taki kontroler i akcję (PriceAutomation/Details lub AutomationRules/Edit)
+        const detailsUrl = `/PriceAutomation/Details/${ruleId}`;
 
         const column = document.createElement('div');
         column.className = 'price-box-column automation-column';
-        // Ustawiamy stałą, nieco węższą szerokość dla tego bloku
-        column.style.cssText = 'min-width: 160px; width: 160px; padding: 0; display: flex; flex-direction: row; overflow: hidden; border-left: 1px solid #f0f0f0;';
 
         column.innerHTML = `
-        <div style="width: 5px; min-height: 100%; background-color: ${ruleColor}; margin-right: 10px;"></div>
-
-        <div class="price-box-column-text" style="padding: 10px 10px 10px 0; align-items: flex-start; width: 100%; justify-content: center;">
-            
-            <div style="font-weight: 600; font-size: 15px; color: #333; line-height: 1.2; margin-bottom: 2px;">
-                ${item.automationRuleName}
+        <div class="automation-top-row">
+            <div class="automation-column-bar" style="background-color: ${ruleColor};"></div>
+            <div class="automation-text-content">
+                <div class="automation-rule-name">
+                    ${item.automationRuleName}
+                </div>
+                <div class="automation-label">
+                    Automat cenowy
+                </div>
+                <div class="automation-status" style="color: ${statusColor};">
+                    <i class="fa-solid fa-circle"></i> ${statusText}
+                </div>
             </div>
+        </div>
 
-            <div style="font-size: 11px; color: #858796; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
-                <span>Automat cenowy</span>
-                <i class="fa-solid fa-circle" style="font-size: 6px; color: ${statusColor};" title="${statusTitle}"></i>
-            </div>
-
+        <div class="automation-btn-wrapper">
             <a href="${detailsUrl}" target="_blank" class="btn-automation-details" title="Przejdź do konfiguracji">
                 <i class="fa-solid fa-sliders"></i> Konfiguruj
             </a>
-
         </div>
     `;
 
+        // 2. KLUCZOWA POPRAWKA: Zatrzymanie propagacji (bąbelkowania)
+        // Znajdujemy przycisk wewnątrz utworzonej kolumny i blokujemy przekazywanie kliknięcia wyżej
+        const linkBtn = column.querySelector('.btn-automation-details');
+        if (linkBtn) {
+            linkBtn.addEventListener('click', function (e) {
+                e.stopPropagation(); // To sprawia, że box rodzica "nie wie", że kliknięto w środku
+            });
+        }
+
         return column;
     }
+
+
     function renderPrices(data) {
         const storedChangesJSON = localStorage.getItem('selectedPriceChanges_' + storeId);
         if (storedChangesJSON) {
