@@ -363,14 +363,22 @@ namespace PriceSafari.Controllers.MemberControllers
                     if (includeCeneo)
                         row.NewRankingCeneo = CalculateRanking(new List<decimal>(ceneoPrices), row.SuggestedPrice.Value);
                 }
-
                 if (committedLookup.TryGetValue(p.ProductId, out var committedItem))
                 {
                     row.IsAlreadyUpdated = true;
-
                     row.UpdatedPrice = committedItem.PriceAfter;
-
                     row.UpdateDate = committedItem.Batch.ExecutionDate;
+
+                    // --- DODAJ TEN FRAGMENT (to naprawia problem) ---
+                    if (row.SuggestedPrice.HasValue && row.UpdatedPrice.HasValue)
+                    {
+                        // Sprawdzamy czy nowa wyliczona cena różni się od tej już wgranej
+                        if (Math.Round(row.SuggestedPrice.Value, 2) != Math.Round(row.UpdatedPrice.Value, 2))
+                        {
+                            row.IsSuggestedDifferentFromUpdated = true;
+                        }
+                    }
+                    // ------------------------------------------------
                 }
 
                 resultProducts.Add(row);

@@ -1139,9 +1139,22 @@
                                             }
                                             else
                                             {
+                                            <div style="display: flex; align-items: center; gap: 6px;">
                                                 <span class="price-main-style @(item.IsMarginWarning ? "text-warning" : "text-success")">
                                                     @(item.SuggestedPrice.HasValue? item.SuggestedPrice.Value.ToString("F2") : "-") PLN
                                                 </span>
+
+                                                @if (item.IsSuggestedDifferentFromUpdated)
+                                                {
+                                                    <span class="text-warning"
+                                                          style="cursor: help; font-size: 14px;"
+                                                          data-toggle="tooltip"
+                                                          data-html="true"
+                                                          title="Uwaga! Aktualnie wyliczona cena różni się od ceny już wgranej. Zmieniły się warunki (np. krok cenowy, preset danych) lub ustawienia reguły tego automatu cenowego.">
+                                                        <i class="fas fa-exclamation-triangle"></i>
+                                                    </span>
+                                                }
+                                            </div>
                                             }
 
                                             @switch (item.Status)
