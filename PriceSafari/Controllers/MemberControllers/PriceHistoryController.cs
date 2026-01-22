@@ -325,6 +325,22 @@ namespace PriceSafari.Controllers.MemberControllers
                     ci => ci.UseCompetitor
                 );
             }
+
+
+            var automationLookup = await _context.AutomationProductAssignments
+                .Include(a => a.AutomationRule)
+                .Where(a => a.AutomationRule.StoreId == storeId.Value
+                         && a.ProductId != null // Tylko produkty sklepowe (nie Allegro)
+                         && a.AutomationRule.SourceType == AutomationSourceType.PriceComparison)
+                .Select(a => new
+                {
+                    ProductId = a.ProductId.Value,
+                    RuleName = a.AutomationRule.Name,
+                    RuleColor = a.AutomationRule.ColorHex,
+                    IsActive = a.AutomationRule.IsActive,
+                    RuleId = a.AutomationRule.Id
+                })
+        .ToDictionaryAsync(a => a.ProductId);
             var allPrices = rawPrices
                    .GroupBy(p => p.ProductId)
                    .Select(g =>
@@ -341,7 +357,7 @@ namespace PriceSafari.Controllers.MemberControllers
                        var allCompetitorEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower() != storeNameLower).ToList();
                        var presetFilteredCompetitorPrices = new List<PriceRowDto>();
                        var committedItem = committedLookup.GetValueOrDefault(g.Key);
-
+                       var autoRule = automationLookup.GetValueOrDefault(g.Key);
                        if (competitorItemsDict != null)
                        {
                            foreach (var row in allCompetitorEntries)
@@ -607,7 +623,11 @@ namespace PriceSafari.Controllers.MemberControllers
                            // NOWE POLA DLA PROFIT MODE
                            MarketAveragePrice = marketAveragePrice, // Mediana
                            MarketPriceIndex = marketPriceIndex,     // Odchylenie % od mediany
-                           MarketBucket = marketBucket              // Kubełek do wykresu
+                           MarketBucket = marketBucket,
+                           AutomationRuleName = autoRule?.RuleName,
+                           AutomationRuleColor = autoRule?.RuleColor,
+                           IsAutomationActive = autoRule?.IsActive,
+                           AutomationRuleId = autoRule?.RuleId,
                        };
                    })
                    .Where(p => p != null)
