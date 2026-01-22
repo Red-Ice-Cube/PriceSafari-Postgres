@@ -1,14 +1,27 @@
-﻿@model IEnumerable<StoreClass>
+﻿@model List<PriceSafari.Models.ViewModels.ChanelViewModel>
 
 @{
-    ViewBag.Title = "Wybierz Sklep";
-}
-
-
-
-@{
+    ViewBag.Title = "Wybierz Sklep - Konkurencja";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
+
+<style>
+    /* Style wyciągnięte z Twojego przykładu */
+    .button-disabled {
+        pointer-events: none;
+        opacity: 0.5;
+    }
+
+    .icon-disabled {
+        filter: grayscale(100%);
+    }
+
+    /* Drobna poprawka, aby przyciski ładnie wyglądały bez tekstu obok */
+    .Button-select {
+        justify-content: center;
+        padding: 10px;
+    }
+</style>
 
 <div class="Vert">
     <div class="Vert-full">
@@ -23,18 +36,41 @@
                         <tr>
                             <th>Sklep</th>
                             <th></th>
-                          
+                            <th>Porównywarki Cenowe</th>
+                            <th>Marketplace</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var store in Model)
                         {
-                            <tr class="store-row" style="cursor:pointer;" data-url="@Url.Action("Competitors", "Competitors", new { storeId = store.StoreId })">
+                            <tr class="store-row">
                                 <td>
-                                    <img src="@store.StoreLogoUrl" class="img-container" alt="@store.StoreName" />
+                                    <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
                                 </td>
                                 <td>@store.StoreName</td>
-                                
+
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <a href="@Url.Action("Competitors", "Competitors", new { storeId = store.StoreId })"
+                                           class="Button-select @(!(store.OnCeneo || store.OnGoogle) ? "button-disabled" : "")"
+                                           title="Konkurencja w porównywarkach">
+
+                                            <img src="/images/Ceneo.png" alt="Ceneo" class="@(store.OnCeneo ? "" : "icon-disabled")" />
+                                            <img src="/images/GoogleShopping.png" alt="Google Shopping" class="@(store.OnGoogle ? "" : "icon-disabled")" />
+                                        </a>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <a href="@Url.Action("AllegroCompetitors", "Competitors", new { storeId = store.StoreId })"
+                                           class="Button-select @(!store.OnAllegro ? "button-disabled" : "")"
+                                           title="Konkurencja na Marketplace">
+
+                                            <img src="/images/AllegroIcon.png" alt="Allegro" class="@(store.OnAllegro ? "" : "icon-disabled")" />
+                                        </a>
+                                    </div>
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -43,20 +79,7 @@
         }
         else
         {
-            <p>Konto nadal jest konfigurowane.</p>
+            <p>Brak sklepów do wyświetlenia lub konto jest konfigurowane.</p>
         }
     </div>
 </div>
-
-@section Scripts {
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var rows = document.querySelectorAll('.store-row');
-            rows.forEach(function (row) {
-                row.addEventListener('click', function (e) {
-                    window.location.href = row.getAttribute('data-url');
-                });
-            });
-        });
-    </script>
-}

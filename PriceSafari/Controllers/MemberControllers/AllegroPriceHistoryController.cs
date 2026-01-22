@@ -9,7 +9,7 @@ using PriceSafari.Models.ViewModels;
 using PriceSafari.Services.AllegroServices;
 using PriceSafari.ViewModels;
 using System.Security.Claims;
-using Microsoft.Extensions.Logging; // Upewnij się, że to jest
+using Microsoft.Extensions.Logging;
 
 namespace PriceSafari.Controllers.MemberControllers
 {
@@ -19,13 +19,14 @@ namespace PriceSafari.Controllers.MemberControllers
         private readonly PriceSafariContext _context;
         private readonly UserManager<PriceSafariUser> _userManager;
         private readonly AllegroPriceBridgeService _priceBridgeService;
-        private readonly ILogger<AllegroPriceHistoryController> _logger; // 1. DODANO LOGGER
+        private readonly ILogger<AllegroPriceHistoryController> _logger;
 
         public AllegroPriceHistoryController(
             PriceSafariContext context,
             UserManager<PriceSafariUser> userManager,
             AllegroPriceBridgeService priceBridgeService,
-            ILogger<AllegroPriceHistoryController> logger) // 2. WSTRZYKNIĘCIE LOGGERA
+            ILogger<AllegroPriceHistoryController> logger)
+
         {
             _context = context;
             _userManager = userManager;
@@ -78,37 +79,18 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/AllegroPriceHistory/Index.cshtml");
         }
 
+        ///aktualizacja id w bazie dla allegro
+        //aktualizacja id w bazie dla allegro
 
-        ////aktualizacja id w bazie dla allegro
+        // Pobierz wszystkie produkty, które mają URL, a nie mają ID
 
-        //[HttpGet]
-        //[Authorize(Roles = "Admin")]
-        //public async Task<IActionResult> FixIdsInDatabase()
-        //{
-        //    // Pobierz wszystkie produkty, które mają URL, a nie mają ID
-        //    var products = await _context.AllegroProducts
-        //        .Where(p => p.AllegroOfferUrl != null && p.IdOnAllegro == null)
-        //        .ToListAsync();
-
-        //    int count = 0;
-        //    foreach (var product in products)
-        //    {
-        //        // WYWOŁANIE LOGIKI Z KLASY - CZYSTY KOD!
-        //        product.CalculateIdFromUrl();
-
-        //        if (product.IdOnAllegro != null) count++;
-        //    }
-
-        //    await _context.SaveChangesAsync();
-        //    return Ok($"Zaktualizowano pole IdOnAllegro dla {count} produktów.");
-        //}
-
+        // WYWOŁANIE LOGIKI Z KLASY - CZYSTY KOD!
 
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetDuplicateProductsByIdOnAllegro()
         {
-            // 1. Znajdź wszystkie IdOnAllegro, które się powtarzają (Count > 1)
+
             var duplicateKeys = await _context.AllegroProducts
                 .AsNoTracking()
                 .Where(p => p.IdOnAllegro != null)
@@ -122,18 +104,15 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Ok("Brak produktów ze zduplikowanym IdOnAllegro.");
             }
 
-            // 2. Pobierz pełne obiekty produktów, które mają te ID
             var products = await _context.AllegroProducts
                 .AsNoTracking()
-                .Include(p => p.Store) // Dołączamy sklep, żeby wiedzieć gdzie leży produkt
+                .Include(p => p.Store)
+
                 .Where(p => duplicateKeys.Contains(p.IdOnAllegro))
                 .ToListAsync();
 
-            // 3. Wyciągamy listę ID naszych produktów, żeby poszukać ich cen
             var productIds = products.Select(p => p.AllegroProductId).Distinct().ToList();
 
-            // 4. Pobieramy najnowszą cenę dla każdego produktu.
-            // Uwaga: Pobieramy "płaską" listę cen z datami, a grupowanie zrobimy w pamięci (dla wydajności SQL)
             var pricesRaw = await _context.AllegroPriceHistories
                 .AsNoTracking()
                 .Include(ph => ph.AllegroScrapeHistory)
@@ -143,11 +122,11 @@ namespace PriceSafari.Controllers.MemberControllers
                     ph.AllegroProductId,
                     ph.Price,
                     Date = ph.AllegroScrapeHistory.Date,
-                    ph.SellerName // Opcjonalnie: żeby upewnić się czy to nasza oferta, czy konkurencji
+                    ph.SellerName
+
                 })
                 .ToListAsync();
 
-            // Grupujemy ceny po ID produktu i bierzemy tę z najświeższą datą
             var latestPricesDict = pricesRaw
                 .GroupBy(x => x.AllegroProductId)
                 .ToDictionary(
@@ -155,7 +134,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     g => g.OrderByDescending(x => x.Date).Select(x => x.Price).FirstOrDefault()
                 );
 
-            // 5. Budujemy wynik końcowy - pogrupowany ładnie po IdOnAllegro
             var result = products
                 .GroupBy(p => p.IdOnAllegro)
                 .Select(g => new
@@ -232,6 +210,23 @@ namespace PriceSafari.Controllers.MemberControllers
                 .GroupBy(pf => pf.AllegroProductId.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
+            var automationLookup = await _context.AutomationProductAssignments
+                .Include(a => a.AutomationRule)
+                .Where(a => a.AutomationRule.StoreId == storeId.Value
+                         && a.AllegroProductId != null
+
+                         && a.AutomationRule.SourceType == AutomationSourceType.Marketplace)
+
+                .Select(a => new
+                {
+                    AllegroProductId = a.AllegroProductId.Value,
+                    RuleName = a.AutomationRule.Name,
+                    RuleColor = a.AutomationRule.ColorHex,
+                    IsActive = a.AutomationRule.IsActive,
+                    RuleId = a.AutomationRule.Id
+                })
+                .ToDictionaryAsync(a => a.AllegroProductId);
+
             var allExtendedInfo = await _context.AllegroPriceHistoryExtendedInfos
                 .Where(e => e.ScrapHistoryId == latestScrap.Id)
                 .ToListAsync();
@@ -245,7 +240,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(g =>
                 {
                     var product = g.Key;
-                    // NOWY KOD - korzystamy z gotowego pola IdOnAllegro
+
                     long? targetOfferId = null;
                     if (long.TryParse(product.IdOnAllegro, out var parsedId))
                     {
@@ -258,7 +253,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     List<AllegroPriceHistory> filteredCompetitors;
 
-                    // Definiujemy zakresy dostawy z presetu (lub domyślne 0-31 jeśli brak presetu)
                     int minDelivery = activePreset?.MinDeliveryDays ?? 0;
                     int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
 
@@ -266,21 +260,19 @@ namespace PriceSafari.Controllers.MemberControllers
                     {
                         filteredCompetitors = g.Where(p =>
                         {
-                            // 1. Zawsze ukrywamy naszą ofertę w "filteredCompetitors" (bo to lista konkurencji)
+
                             if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                             {
                                 return false;
                             }
 
-                            // 2. FILTROWANIE PO CZASIE DOSTAWY (NOWE)
-                            // Jeśli DeliveryTime jest null, traktujemy to bezpiecznie jako 31 (długa) lub wedle uznania
                             int deliveryDays = p.DeliveryTime ?? 31;
                             if (deliveryDays < minDelivery || deliveryDays > maxDelivery)
                             {
-                                return false; // Odrzucamy ofertę spoza zakresu czasowego
+                                return false;
+
                             }
 
-                            // 3. Filtrowanie po nazwie sprzedawcy (STARE)
                             var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
                             if (competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
                             {
@@ -291,19 +283,18 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                     else
                     {
-                        // Jeśli nie ma aktywnego presetu (widok BASE), pokazujemy wszystko (bez filtra dostawy i sprzedawców)
-                        // LUB jeśli chcesz, by BASE też miał domyślny filtr (np. 0-31), możesz tu dodać warunek.
-                        // Ale zazwyczaj BASE = wszystko.
+
                         filteredCompetitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
                     }
 
                     var bestCompetitor = filteredCompetitors.OrderBy(p => p.Price).FirstOrDefault();
 
-                    decimal? marketAveragePrice = null; // Mediana
-                    decimal? marketPriceIndex = null;   // Odchylenie w %
-                    string marketBucket = "market-neutral"; // Domyślny kubełek
+                    decimal? marketAveragePrice = null;
 
-                    // Pobieramy ceny konkurencji do listy decimal (tylko > 0)
+                    decimal? marketPriceIndex = null;
+
+                    string marketBucket = "market-neutral";
+
                     var competitorPricesOnly = filteredCompetitors
                         .Where(x => x.Price > 0)
                         .Select(x => x.Price)
@@ -311,17 +302,15 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     if (competitorPricesOnly.Count > 0)
                     {
-                        // 1. Obliczamy Medianę
+
                         marketAveragePrice = CalculateMedian(competitorPricesOnly);
 
-                        // 2. Obliczamy Index i Bucket jeśli mamy swoją cenę i medianę
                         if (marketAveragePrice.HasValue && myOffer != null && myOffer.Price > 0 && marketAveragePrice.Value > 0)
                         {
-                            // Różnica w %: (Nasza - Rynek) / Rynek * 100
+
                             decimal diff = myOffer.Price - marketAveragePrice.Value;
                             marketPriceIndex = Math.Round((diff / marketAveragePrice.Value) * 100, 2);
 
-                            // Przypisanie do kubełka
                             if (marketPriceIndex < -15)
                                 marketBucket = "market-deep-discount";
                             else if (marketPriceIndex >= -15 && marketPriceIndex < -2)
@@ -378,6 +367,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     var extendedInfo = extendedInfoDictionary.GetValueOrDefault(product.AllegroProductId);
                     var committed = committedLookup.GetValueOrDefault(product.AllegroProductId);
+                    var autoRule = automationLookup.GetValueOrDefault(product.AllegroProductId);
                     return new
                     {
                         ProductId = product.AllegroProductId,
@@ -437,7 +427,11 @@ namespace PriceSafari.Controllers.MemberControllers
                         ApiAllegroCommission = extendedInfo?.ApiAllegroCommission,
                         AnyPromoActive = extendedInfo?.AnyPromoActive,
                         IsSubsidyActive = extendedInfo?.IsSubsidyActive,
-             
+                        AutomationRuleName = autoRule?.RuleName,
+                        AutomationRuleColor = autoRule?.RuleColor,
+                        IsAutomationActive = autoRule?.IsActive,
+                        AutomationRuleId = autoRule?.RuleId,
+
                         Committed = committed == null ? null : new
                         {
 
@@ -740,7 +734,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 allegroIncludeCommisionInPriceChange = includeCommission
             });
         }
-
         [HttpGet]
         public async Task<IActionResult> Details(int storeId, int productId)
         {
@@ -760,8 +753,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return View("~/Views/Panel/AllegroPriceHistory/Details.cshtml");
         }
-
-
 
         [HttpGet]
         public async Task<IActionResult> GetProductPriceDetails(int storeId, int productId)
@@ -801,31 +792,29 @@ namespace PriceSafari.Controllers.MemberControllers
                 .ToListAsync();
             List<AllegroPriceHistory> filteredOffers;
 
-            // Pobieramy zakresy dni z presetu (lub domyślne 0-31)
             int minDelivery = activePreset?.MinDeliveryDays ?? 0;
             int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
 
-            // Zmieniono warunek: wystarczy, że activePreset != null (competitorRules może być puste)
             if (activePreset != null)
             {
                 var ourStoreNameLower = store.StoreNameAllegro.ToLower().Trim();
 
                 filteredOffers = allOffersForProduct.Where(p =>
                 {
-                    // 1. Zawsze pokazujemy naszą ofertę (niezależnie od filtrów)
+
                     if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                     {
                         return true;
                     }
 
-                    // 2. Filtrowanie po Czasie Dostawy (NOWOŚĆ)
-                    int deliveryDays = p.DeliveryTime ?? 31; // Null -> 31 (długa)
+                    int deliveryDays = p.DeliveryTime ?? 31;
+
                     if (deliveryDays < minDelivery || deliveryDays > maxDelivery)
                     {
-                        return false; // Odrzuć ofertę spoza zakresu
+                        return false;
+
                     }
 
-                    // 3. Filtrowanie po Sprzedawcach (Stara logika)
                     var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
 
                     if (competitorRules != null && competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
@@ -838,7 +827,7 @@ namespace PriceSafari.Controllers.MemberControllers
             }
             else
             {
-                // Brak presetu -> pokazujemy wszystko
+
                 filteredOffers = allOffersForProduct;
             }
 
@@ -851,20 +840,19 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var allMyProducts = await _context.AllegroProducts
                   .Where(p => p.StoreId == storeId)
-                  .Select(p => new { p.AllegroProductId, p.IdOnAllegro }) // <--- Zmiana: pobieramy IdOnAllegro zamiast URL
+                  .Select(p => new { p.AllegroProductId, p.IdOnAllegro })
+
                   .ToListAsync();
 
-            // NOWA WERSJA BUDOWANIA MAPY
             var navigationMap = new Dictionary<long, int>();
 
-            // Tworzymy słownik pomocniczy z naszych produktów (IdOnAllegro -> ProductId)
             var myProductsLookup = new Dictionary<long, int>();
 
             foreach (var p in allMyProducts)
             {
                 if (long.TryParse(p.IdOnAllegro, out var parsedId))
                 {
-                    // Zabezpieczenie na wypadek duplikatów ID (teoretycznie niemożliwe na Allegro, ale bezpieczniej)
+
                     if (!myProductsLookup.ContainsKey(parsedId))
                     {
                         myProductsLookup[parsedId] = p.AllegroProductId;
@@ -872,7 +860,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
-            // Teraz błyskawicznie mapujemy oferty z listy
             foreach (var offerId in myOfferIdsInList)
             {
                 if (myProductsLookup.TryGetValue(offerId, out var productIdTarget))
@@ -898,7 +885,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 TargetProductId = navigationMap.ContainsKey(aph.IdAllegro) ? navigationMap[aph.IdAllegro] : (int?)null
             }).ToList();
 
-            // Zastąp fragment parsowania URL tym:
             long? mainOfferId = null;
             if (long.TryParse(product.IdOnAllegro, out var parsedMainId))
             {
@@ -972,7 +958,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(aph => aph.Price > 0)
                 .ToListAsync();
 
-            // Pobieramy zakresy z presetu (lub domyślne)
             int minDelivery = activePreset?.MinDeliveryDays ?? 0;
             int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
 
@@ -982,23 +967,20 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 List<AllegroPriceHistory> filteredDailyOffers;
 
-                // Zmieniono warunek: wystarczy, że activePreset != null
                 if (activePreset != null)
                 {
                     filteredDailyOffers = allDailyOffers.Where(p =>
                     {
-                        // 1. Nasza oferta zawsze widoczna
+
                         if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                             return true;
 
-                        // 2. Filtr Czasu Dostawy (NOWOŚĆ)
                         int deliveryDays = p.DeliveryTime ?? 31;
                         if (deliveryDays < minDelivery || deliveryDays > maxDelivery)
                         {
                             return false;
                         }
 
-                        // 3. Filtr Sprzedawców
                         var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
                         if (competitorRules != null && competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
                             return useCompetitor;
@@ -1043,48 +1025,46 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(viewModel);
         }
 
-
         [HttpPost]
         public async Task<IActionResult> ExecutePriceChange(int storeId, [FromBody] List<AllegroPriceBridgeItemRequest> items)
         {
-            // Informacja o starcie - OK
+
             _logger.LogInformation($">>> [EXECUTE START] Próba ręcznej zmiany cen...");
 
             if (items == null)
             {
-                // To jest błąd krytyczny - logujemy jako Error
+
                 _logger.LogError("!!! CRITICAL !!! Lista 'items' jest NULL. Frontend nie przesłał danych.");
             }
             else
             {
-                // To jest poprawna sytuacja - zmieniono LogError na LogInformation
+
                 _logger.LogInformation(">>> Otrzymano {Count} elementów do zmiany.", items.Count);
 
                 foreach (var item in items)
                 {
-                    // Szczegóły przetwarzania - zmieniono LogError na LogInformation
+
                     _logger.LogInformation("   -> ITEM: ProductId={ProductId}, OfferId (Allegro)={OfferId}, NewPrice={Price}, Mode={Mode}",
                         item.ProductId, item.OfferId, item.PriceAfter_Simulated, item.Mode);
 
                     if (string.IsNullOrEmpty(item.OfferId))
                     {
-                        // To jest sytuacja ostrzegawcza/błędna dla konkretnego elementu - LogWarning
+
                         _logger.LogWarning("   !!! UWAGA !!! OfferId jest PUSTE dla produktu {ProductId}. To spowoduje błąd w serwisie!", item.ProductId);
                     }
                 }
             }
-            // ------------------ LOGOWANIE END --------------------
 
             if (!await UserHasAccessToStore(storeId))
             {
-                // Brak dostępu - Error/Warning
+
                 _logger.LogWarning("!!! ACCESS DENIED !!! Użytkownik nie ma dostępu do sklepu {StoreId}", storeId);
                 return Forbid();
             }
 
             if (items == null || !items.Any())
             {
-                // Błąd logiki/zapytania - Warning
+
                 _logger.LogWarning("!!! BAD REQUEST !!! Brak elementów do przetworzenia.");
                 return BadRequest("Brak zmian do przetworzenia.");
             }
@@ -1099,7 +1079,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (latestScrap == 0)
             {
-                // Błąd spójności danych - Error
+
                 _logger.LogError("!!! ERROR !!! Nie znaleziono latestScrap (ID=0) dla sklepu {StoreId}.", storeId);
                 return BadRequest("Nie znaleziono historii analizy dla tego sklepu.");
             }
@@ -1107,7 +1087,6 @@ namespace PriceSafari.Controllers.MemberControllers
             var priceSettings = await _context.PriceValues.FirstOrDefaultAsync(pv => pv.StoreId == storeId);
             bool includeCommissionInMargin = priceSettings?.AllegroIncludeCommisionInPriceChange ?? false;
 
-            // Informacja o wywołaniu serwisu - zmieniono LogError na LogInformation
             _logger.LogInformation(">>> Wywołuję serwis _priceBridgeService.ExecutePriceChangesAsync dla {Count} elementów...", items.Count);
 
             var result = await _priceBridgeService.ExecutePriceChangesAsync(
@@ -1118,10 +1097,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 items
             );
 
-            // Informacja o wyniku - zmieniono LogError na LogInformation
             _logger.LogInformation(">>> [EXECUTE END] Wynik serwisu: Success={Success}, Failed={Failed}", result.SuccessfulCount, result.FailedCount);
 
-            // Logowanie faktycznych błędów zwróconych przez serwis - LogError
             if (result.Errors.Any())
             {
                 foreach (var error in result.Errors)

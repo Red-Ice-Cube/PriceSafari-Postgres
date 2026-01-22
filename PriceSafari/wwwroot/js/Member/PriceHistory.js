@@ -1049,7 +1049,6 @@
 
         dropdown.addEventListener('change', filterPricesAndUpdateUI);
     }
-
     function loadPrices() {
         showLoading();
 
@@ -1123,7 +1122,7 @@
                             if (price.myPrice && price.lowestPrice && parseFloat(price.myPrice) > parseFloat(price.lowestPrice) && !price.isUniqueBestPrice && !price.isSharedBestPrice) {
                                 valueToUseForColorCalculation = ((parseFloat(price.myPrice) - parseFloat(price.lowestPrice)) / parseFloat(price.myPrice)) * 100;
                             } else {
-                            
+
                                 if (price.isUniqueBestPrice && price.savings && price.myPrice) {
                                     valueToUseForColorCalculation = (parseFloat(price.savings) / parseFloat(price.myPrice)) * 100;
                                 } else {
@@ -1265,7 +1264,7 @@
     }
 
     function updateAutomationFilterUI(filteredPrices) {
-        // 1. Zliczanie wystąpień w OBECNYM (przefiltrowanym) widoku
+
         const currentCounts = {};
         let currentNoRuleCount = 0;
 
@@ -1278,7 +1277,6 @@
             }
         });
 
-        // 2. Budowanie definicji na podstawie WSZYSTKICH produktów
         const automationMeta = {};
         let globalNoRuleExists = false;
 
@@ -1300,7 +1298,6 @@
         if (!container) return;
         container.innerHTML = '';
 
-        // 3. Renderowanie listy automatów
         Object.keys(automationMeta)
             .sort((a, b) => automationMeta[a].name.localeCompare(automationMeta[b].name))
             .forEach(ruleIdStr => {
@@ -1313,7 +1310,6 @@
 
                 const colorRectStyle = `display:inline-block; width:4px; height:14px; background-color:${meta.color}; vertical-align:middle; margin-right:6px; border-radius:2px; margin-bottom: 2px;`;
 
-                // ZMIANA TUTAJ: Dodano klasy flagFilterInclude oraz flagFilterExclude do inputów
                 const html = `
             <div class="flag-filter-group">
                 <div class="form-check form-check-inline check-include" style="margin-right:0px;">
@@ -1322,7 +1318,7 @@
                 <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
                     <input class="form-check-input automationFilterExclude flagFilterExclude" type="checkbox" id="autoCheckExclude_${ruleId}" value="${ruleId}" ${excludeChecked} title="Ukryj produkty w tym automacie">
                 </div>
-                
+
                 <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center;">
                     <span style="${colorRectStyle}"></span>
                     ${meta.name} <span style="color:#888; margin-left:4px;">(${count})</span>
@@ -1332,13 +1328,11 @@
                 container.insertAdjacentHTML('beforeend', html);
             });
 
-        // 4. Renderowanie opcji "Brak automatu"
         if (globalNoRuleExists) {
             const noRuleIncludeChecked = selectedAutomationsInclude.has('noRule') ? 'checked' : '';
             const noRuleExcludeChecked = selectedAutomationsExclude.has('noRule') ? 'checked' : '';
             const noRuleCountDisplay = currentNoRuleCount;
 
-            // ZMIANA TUTAJ: Również dodano klasy flagFilter... do inputów
             const noRuleHtml = `
         <div class="flag-filter-group">
             <div class="form-check form-check-inline check-include" style="margin-right:0px;">
@@ -1356,7 +1350,6 @@
             container.insertAdjacentHTML('beforeend', noRuleHtml);
         }
 
-        // 5. Obsługa zdarzeń (Logicznia oparta o automationFilterInclude/Exclude)
         container.querySelectorAll('.automationFilterInclude, .automationFilterExclude').forEach(checkbox => {
             checkbox.addEventListener('change', function () {
                 const val = this.value;
@@ -1661,8 +1654,6 @@
         </div>
     </div>`;
     }
-
-  
     function activateChangeButton(button, actionLine, priceBox, stepPriceApplied, stepUnitApplied, mode, indexTarget) {
         if (!button) return;
 
@@ -1742,7 +1733,6 @@
             priceBox.classList.add('price-changed');
         }
     }
-
 
     function attachPriceChangeListener(actionLine, suggestedPrice, priceBox, productId, productName, currentPriceValue, item) {
 
@@ -1962,13 +1952,11 @@
 
                 button.classList.remove('active');
 
-       
                 const currentSquareClass = (currentViewMode === 'profit') ? 'color-square-profit' : 'color-square-turquoise';
 
                 const originalTextHTML = `<span class="${currentSquareClass}"></span> Dodaj zmianę ceny`;
                 button.innerHTML = originalTextHTML;
-                button.dataset.originalText = originalTextHTML; 
-         
+                button.dataset.originalText = originalTextHTML;
 
                 const removeIcon = button.querySelector('span > i.fa-trash');
                 if (removeIcon) {
@@ -2134,7 +2122,6 @@
         const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
         const marginPrice = item.marginPrice != null ? parseFloat(item.marginPrice) : null;
 
-
         let squareColorClass = 'color-square-turquoise';
         if (currentViewMode === 'profit') {
             squareColorClass = 'color-square-profit';
@@ -2244,8 +2231,6 @@
         const statusColor = isActive ? '#1cc88a' : '#e74a3b';
         const statusText = isActive ? 'Aktywny' : 'Wyłączony';
 
-        // 1. POPRAWKA URL: Ustawienie poprawnej ścieżki do kontrolera automatów
-        // Upewnij się, że masz taki kontroler i akcję (PriceAutomation/Details lub AutomationRules/Edit)
         const detailsUrl = `/PriceAutomation/Details/${ruleId}`;
 
         const column = document.createElement('div');
@@ -2274,12 +2259,11 @@
         </div>
     `;
 
-        // 2. KLUCZOWA POPRAWKA: Zatrzymanie propagacji (bąbelkowania)
-        // Znajdujemy przycisk wewnątrz utworzonej kolumny i blokujemy przekazywanie kliknięcia wyżej
         const linkBtn = column.querySelector('.btn-automation-details');
         if (linkBtn) {
             linkBtn.addEventListener('click', function (e) {
-                e.stopPropagation(); // To sprawia, że box rodzica "nie wie", że kliknięto w środku
+                e.stopPropagation();
+
             });
         }
 

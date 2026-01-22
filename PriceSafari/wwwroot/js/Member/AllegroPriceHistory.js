@@ -29,6 +29,8 @@
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
     let selectedMyBadges = new Set();
+    let selectedAutomationsInclude = new Set();
+    let selectedAutomationsExclude = new Set();
     let showCommittedOnly = false;
 
     const selectionStorageKey = `selectedAllegroProducts_${storeId}`;
@@ -401,10 +403,6 @@
     }
 
 
-
-
-
-
     function getColorClass(valueToUse, isUniqueBestPrice = false, isSharedBestPrice = false) {
         if (isSharedBestPrice) return "prGood";
         if (isUniqueBestPrice) {
@@ -438,6 +436,126 @@
         }
         return flagsContainer;
     }
+
+    function updateAutomationFilterUI(filteredPrices) {
+
+        const currentCounts = {};
+        let currentNoRuleCount = 0;
+
+        filteredPrices.forEach(price => {
+            if (!price.automationRuleId) {
+                currentNoRuleCount++;
+            } else {
+                const id = price.automationRuleId;
+                currentCounts[id] = (currentCounts[id] || 0) + 1;
+            }
+        });
+
+        const automationMeta = {};
+        let globalNoRuleExists = false;
+
+        allPrices.forEach(price => {
+            if (!price.automationRuleId) {
+                globalNoRuleExists = true;
+            } else {
+                const id = price.automationRuleId;
+                if (!automationMeta[id]) {
+                    automationMeta[id] = {
+                        name: price.automationRuleName,
+                        color: price.automationRuleColor || '#3d85c6'
+                    };
+                }
+            }
+        });
+
+        const container = document.getElementById('automationFilterContainer');
+
+        if (!container) return;
+        container.innerHTML = '';
+
+        Object.keys(automationMeta)
+            .sort((a, b) => automationMeta[a].name.localeCompare(automationMeta[b].name))
+            .forEach(ruleIdStr => {
+                const ruleId = parseInt(ruleIdStr);
+                const meta = automationMeta[ruleId];
+                const count = currentCounts[ruleId] || 0;
+
+                const includeChecked = selectedAutomationsInclude.has(ruleId.toString()) ? 'checked' : '';
+                const excludeChecked = selectedAutomationsExclude.has(ruleId.toString()) ? 'checked' : '';
+
+                const colorRectStyle = `display:inline-block; width:4px; height:14px; background-color:${meta.color}; vertical-align:middle; margin-right:6px; border-radius:2px; margin-bottom: 2px;`;
+
+                const html = `
+            <div class="flag-filter-group">
+                <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                    <input class="form-check-input automationFilterInclude flagFilterInclude" type="checkbox" id="autoCheckInclude_${ruleId}" value="${ruleId}" ${includeChecked} title="Pokaż tylko produkty w tym automacie">
+                </div>
+                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                    <input class="form-check-input automationFilterExclude flagFilterExclude" type="checkbox" id="autoCheckExclude_${ruleId}" value="${ruleId}" ${excludeChecked} title="Ukryj produkty w tym automacie">
+                </div>
+
+                <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center;">
+                    <span style="${colorRectStyle}"></span>
+                    ${meta.name} <span style="color:#888; margin-left:4px;">(${count})</span>
+                </span>
+            </div>`;
+
+                container.insertAdjacentHTML('beforeend', html);
+            });
+
+        if (globalNoRuleExists) {
+            const noRuleIncludeChecked = selectedAutomationsInclude.has('noRule') ? 'checked' : '';
+            const noRuleExcludeChecked = selectedAutomationsExclude.has('noRule') ? 'checked' : '';
+            const noRuleCountDisplay = currentNoRuleCount;
+
+            const noRuleHtml = `
+        <div class="flag-filter-group">
+            <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                <input class="form-check-input automationFilterInclude flagFilterInclude" type="checkbox" id="autoCheckInclude_noRule" value="noRule" ${noRuleIncludeChecked} title="Pokaż produkty bez automatu">
+            </div>
+            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                <input class="form-check-input automationFilterExclude flagFilterExclude" type="checkbox" id="autoCheckExclude_noRule" value="noRule" ${noRuleExcludeChecked} title="Ukryj produkty bez automatu">
+            </div>
+            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center;">
+                <span style="display:inline-block; width:4px; height:14px; background-color:#ccc; vertical-align:middle; margin-right:6px; border-radius:2px; margin-bottom: 2px;"></span>
+                Brak automatu <span style="color:#888; margin-left:4px;">(${noRuleCountDisplay})</span>
+            </span>
+        </div>`;
+
+            container.insertAdjacentHTML('beforeend', noRuleHtml);
+        }
+
+        container.querySelectorAll('.automationFilterInclude, .automationFilterExclude').forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const val = this.value;
+                const isInclude = this.classList.contains('automationFilterInclude');
+
+                if (isInclude) {
+                    if (this.checked) {
+                        const exclude = document.getElementById(`autoCheckExclude_${val}`);
+                        if (exclude) { exclude.checked = false; selectedAutomationsExclude.delete(val); }
+                        selectedAutomationsInclude.add(val);
+                    } else {
+                        selectedAutomationsInclude.delete(val);
+                    }
+                } else {
+                    if (this.checked) {
+                        const include = document.getElementById(`autoCheckInclude_${val}`);
+                        if (include) { include.checked = false; selectedAutomationsInclude.delete(val); }
+                        selectedAutomationsExclude.add(val);
+                    } else {
+                        selectedAutomationsExclude.delete(val);
+                    }
+                }
+
+                showLoading();
+
+                filterAndSortPrices();
+            });
+        });
+    }
+
+
 
     function updateFlagCounts(prices) {
         const flagCounts = {};
@@ -883,6 +1001,8 @@
         }
     }
 
+
+
     function calculateCurrentSuggestion(item) {
         const currentMyPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
         const currentLowestPrice = item.lowestPrice != null ? parseFloat(item.lowestPrice) : null;
@@ -1182,6 +1302,56 @@
                 </div>`;
         }
     }
+    function createAutomationColumn(item) {
+        if (!item.automationRuleName) return null;
+
+        const ruleId = item.automationRuleId;
+        const ruleColor = item.automationRuleColor || '#3d85c6';
+        const isActive = item.isAutomationActive;
+
+        const statusColor = isActive ? '#1cc88a' : '#e74a3b';
+        const statusText = isActive ? 'Aktywny' : 'Wyłączony';
+
+        const detailsUrl = `/PriceAutomation/Details/${ruleId}`;
+
+        const column = document.createElement('div');
+        column.className = 'price-box-column automation-column';
+
+        column.innerHTML = `
+        <div class="automation-top-row">
+            <div class="automation-column-bar" style="background-color: ${ruleColor};"></div>
+            <div class="automation-text-content">
+                <div class="automation-rule-name">
+                    ${item.automationRuleName}
+                </div>
+                <div class="automation-label">
+                    Automat cenowy
+                </div>
+                <div class="automation-status" style="color: ${statusColor};">
+                    <i class="fa-solid fa-circle"></i> ${statusText}
+                </div>
+            </div>
+        </div>
+
+        <div class="automation-btn-wrapper">
+            <a href="${detailsUrl}" target="_blank" class="btn-automation-details" title="Przejdź do konfiguracji">
+                <i class="fa-solid fa-sliders"></i> Konfiguruj
+            </a>
+        </div>
+    `;
+
+        const linkBtn = column.querySelector('.btn-automation-details');
+        if (linkBtn) {
+            linkBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+        }
+
+        return column;
+    }
+
+
+
 
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
@@ -1559,7 +1729,12 @@
              <i class="fas fa-check-circle"></i> Aktualizacja ceny wprowadzona
          </div>
      </div>`;
-
+                const automationCol = createAutomationColumn(item);
+                if (automationCol) {
+                    // Musimy pobrać element z DOM, bo box został dodany przez container.appendChild(box) wcześniej
+                    const priceBoxData = box.querySelector('.price-box-data');
+                    if (priceBoxData) priceBoxData.appendChild(automationCol);
+                }
                 return;
             }
             const existingChange = currentActiveChangesMap.get(String(item.productId));
@@ -1603,7 +1778,11 @@
             } else {
                 infoCol.innerHTML = '<div class="price-box-column">Brak danych do sugestii</div>';
             }
-
+            const automationColBot = createAutomationColumn(item);
+            if (automationColBot) {
+                const priceBoxData = box.querySelector('.price-box-data');
+                if (priceBoxData) priceBoxData.appendChild(automationColBot);
+            }
         });
 
         renderPaginationControls(data.length);
@@ -1626,7 +1805,6 @@
         }
         return Array.from(catalogGroups.values());
     }
-
     function updateSelectionUI() {
         const counter = document.getElementById('selectedProductsCounter');
         const modalCounter = document.getElementById('selectedProductsModalCounter');
@@ -1675,57 +1853,56 @@
         modalList.appendChild(table);
     }
 
-    document.getElementById('selectedProductsList').addEventListener('click', function(event) {
-       const removeButton = event.target.closest('.remove-selection-btn');
-       if (removeButton) {
-           const productId = removeButton.dataset.productId;
-           selectedProductIds.delete(productId);
-           saveSelectionToStorage(selectedProductIds);
-           const mainButton = document.querySelector(`.select-product-btn[data-product-id='${productId}']`);
-           if (mainButton) {
-               mainButton.textContent = 'Zaznacz';
-               mainButton.classList.remove('selected');
-           }
-           updateSelectionUI();
-       }
-   });
-
-    document.getElementById('showSelectedProductsBtn').addEventListener('click', function() {
-       updateSelectionUI();
-       $('#selectedProductsModal').modal('show');
-   });
-
-    document.getElementById('openBulkFlagModalBtn').addEventListener('click', function() {
-       if (selectedProductIds.size === 0) {
-           alert('Nie zaznaczono żadnych produktów.');
-           return;
-       }
-       $('#selectedProductsModal').modal('hide');
-       showLoading();
-
-       fetch('/ProductFlags/GetFlagCountsForProducts', {
-           method: 'POST',
-           headers: {
-               'Content-Type': 'application/json'
-           },
-           body: JSON.stringify({
-               allegroProductIds: Array.from(selectedProductIds, id => parseInt(id))
-           })
-       })
-           .then(response => response.json())
-           .then(counts => {
-               populateBulkFlagModal(counts);
-               hideLoading();
-               $('#flagModal').modal('show');
-           })
-           .catch(error => {
-               console.error('Błąd pobierania liczników flag:', error);
-               hideLoading();
-               alert('Nie udało się pobrać danych o flagach.');
-           });
+    document.getElementById('selectedProductsList').addEventListener('click', function (event) {
+        const removeButton = event.target.closest('.remove-selection-btn');
+        if (removeButton) {
+            const productId = removeButton.dataset.productId;
+            selectedProductIds.delete(productId);
+            saveSelectionToStorage(selectedProductIds);
+            const mainButton = document.querySelector(`.select-product-btn[data-product-id='${productId}']`);
+            if (mainButton) {
+                mainButton.textContent = 'Zaznacz';
+                mainButton.classList.remove('selected');
+            }
+            updateSelectionUI();
+        }
     });
 
-    // OBSŁUGA PRZYCISKU OTWIERANIA MODALA AUTOMATYZACJI (ALLEGRO)
+    document.getElementById('showSelectedProductsBtn').addEventListener('click', function () {
+        updateSelectionUI();
+        $('#selectedProductsModal').modal('show');
+    });
+
+    document.getElementById('openBulkFlagModalBtn').addEventListener('click', function () {
+        if (selectedProductIds.size === 0) {
+            alert('Nie zaznaczono żadnych produktów.');
+            return;
+        }
+        $('#selectedProductsModal').modal('hide');
+        showLoading();
+
+        fetch('/ProductFlags/GetFlagCountsForProducts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                allegroProductIds: Array.from(selectedProductIds, id => parseInt(id))
+            })
+        })
+            .then(response => response.json())
+            .then(counts => {
+                populateBulkFlagModal(counts);
+                hideLoading();
+                $('#flagModal').modal('show');
+            })
+            .catch(error => {
+                console.error('Błąd pobierania liczników flag:', error);
+                hideLoading();
+                alert('Nie udało się pobrać danych o flagach.');
+            });
+    });
+
     document.body.addEventListener('click', function (event) {
         const targetBtn = event.target.closest('#openBulkAutomationModalBtn');
 
@@ -1737,16 +1914,13 @@
                 return;
             }
 
-            // IsAllegro = true, SourceType = 1 (Marketplace/Allegro)
             const isAllegro = true;
             const sourceType = 1;
             const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
 
-            // Aktualizacja licznika w modalu (jeśli istnieje taki element w widoku Allegro)
             const countDisplay = document.getElementById('automationProductCountDisplay');
             if (countDisplay) countDisplay.textContent = selectedProductIds.size;
 
-            // Ukryj modal z listą wybranych, pokaż loading
             $('#selectedProductsModal').modal('hide');
             showLoading();
 
@@ -1783,10 +1957,6 @@
         }
     });
 
-    // ============================================================
-    // LOGIKA AUTOMATYZACJI (AUTOMATION RULES) DLA ALLEGRO
-    // ============================================================
-
     window.renderAutomationRulesInModal = function (rules, totalSelected) {
         console.log("Renderowanie reguł dla Allegro...", rules);
 
@@ -1801,7 +1971,6 @@
         const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
         const totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
 
-        // Sekcja statystyk (Header)
         const statsHeader = document.createElement('div');
         statsHeader.style.cssText = `
             background-color: #f8f9fa; border: 1px solid #e3e6f0; border-radius: 8px;
@@ -1827,7 +1996,6 @@
         `;
         container.appendChild(statsHeader);
 
-        // Opcja "Odepnij" (Brak automatyzacji)
         const unassignDiv = document.createElement('div');
         const hasAssignments = totalAssignedInSelection > 0;
 
@@ -1875,7 +2043,7 @@
         rules.forEach(rule => {
             const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b';
             const statusText = rule.isActive ? 'Aktywna' : 'Nieaktywna';
-            // Dla Allegro strategie mogą być inne, ale zakładamy te same ikony co w Comparison
+
             const strategyIcon = rule.strategyMode === 0 ? '<i class="fa-solid fa-bolt" style="color:#888;"></i>' : '<i class="fa-solid fa-dollar-sign" style="color:#888;"></i>';
             const strategyName = rule.strategyMode === 0 ? "Lider Rynku" : "Rentowność";
 
@@ -1949,14 +2117,13 @@
     function executeAutomationAction(url, extraData) {
         const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
 
-        // ZAMKNIJ MODAL WYBORU
         $('#automationSelectionModal').modal('hide');
         showLoading();
 
-        // Budowanie payloadu - TU JEST KLUCZOWA ZMIANA DLA ALLEGRO
         const payload = {
             ProductIds: productIdsArray,
-            IsAllegro: true, // <--- WYMUSZENIE KONTEKSTU ALLEGRO
+            IsAllegro: true,
+
             ...extraData
         };
 
@@ -1972,23 +2139,19 @@
             .then(data => {
                 showGlobalUpdate(`<p style="font-weight:bold;">Sukces!</p><p>${data.message}</p>`);
 
-                // Czyszczenie zaznaczenia i odświeżanie widoku
                 selectedProductIds.clear();
                 clearSelectionFromStorage();
                 updateSelectionUI();
 
-                // Odświeżenie przycisków na liście
                 if (typeof updateVisibleProductSelectionButtons === 'function') {
                     updateVisibleProductSelectionButtons();
                 }
 
-                // Opcjonalnie: Przeładowanie cen, aby odświeżyć stan (jeśli ma to wpływ na widok)
-                // loadPrices(); 
             })
             .catch(error => {
                 console.error('Błąd:', error);
                 showGlobalNotification(`<p style="font-weight:bold;">Błąd</p><p>${error.message}</p>`);
-                // W razie błędu przywróć modal
+
                 setTimeout(() => $('#automationSelectionModal').modal('show'), 500);
             })
             .finally(() => {
@@ -2005,12 +2168,12 @@
         modalBody.innerHTML = '';
 
         flags.forEach(flag => {
-       const currentCount = flagCounts[flag.flagId] || 0;
-       const flagItem = document.createElement('div');
-       flagItem.className = 'bulk-flag-item';
-       flagItem.dataset.flagId = flag.flagId;
+            const currentCount = flagCounts[flag.flagId] || 0;
+            const flagItem = document.createElement('div');
+            flagItem.className = 'bulk-flag-item';
+            flagItem.dataset.flagId = flag.flagId;
 
-       flagItem.innerHTML = `
+            flagItem.innerHTML = `
                 <div class="flag-label">
                     <span class="flag-name" style="border-color: ${flag.flagColor}; color: ${flag.flagColor}; background-color: ${hexToRgba(flag.flagColor, 0.3)};">${flag.flagName}</span>
                     <span class="flag-count">(${currentCount} / ${totalSelected})</span>
@@ -2025,71 +2188,68 @@
                         <span class="change-indicator remove-indicator">${currentCount} → 0</span>
                     </div>
                 </div>`;
-       modalBody.appendChild(flagItem);
-   });
+            modalBody.appendChild(flagItem);
+        });
 
         modalBody.querySelectorAll('.bulk-flag-action').forEach(checkbox => {
-       checkbox.addEventListener('change', function() {
-           const parentItem = this.closest('.bulk-flag-item');
-           if (this.checked) {
-               if (this.dataset.action === 'add') {
-                   parentItem.querySelector('[data-action="remove"]').checked = false;
-               } else {
-                   parentItem.querySelector('[data-action="add"]').checked = false;
-               }
-           }
-           parentItem.querySelector('.add-indicator').style.display = parentItem.querySelector('[data-action="add"]').checked ? 'inline' : 'none';
-           parentItem.querySelector('.remove-indicator').style.display = parentItem.querySelector('[data-action="remove"]').checked ? 'inline' : 'none';
-       });
-   });
+            checkbox.addEventListener('change', function () {
+                const parentItem = this.closest('.bulk-flag-item');
+                if (this.checked) {
+                    if (this.dataset.action === 'add') {
+                        parentItem.querySelector('[data-action="remove"]').checked = false;
+                    } else {
+                        parentItem.querySelector('[data-action="add"]').checked = false;
+                    }
+                }
+                parentItem.querySelector('.add-indicator').style.display = parentItem.querySelector('[data-action="add"]').checked ? 'inline' : 'none';
+                parentItem.querySelector('.remove-indicator').style.display = parentItem.querySelector('[data-action="remove"]').checked ? 'inline' : 'none';
+            });
+        });
     }
 
-    document.getElementById('saveFlagsButton').addEventListener('click', function() {
-       const flagsToAdd = [];
-       const flagsToRemove = [];
-       document.querySelectorAll('#flagModalBody .bulk-flag-item').forEach(item => {
-           const flagId = parseInt(item.dataset.flagId, 10);
-           if (item.querySelector('[data-action="add"]').checked) flagsToAdd.push(flagId);
-           if (item.querySelector('[data-action="remove"]').checked) flagsToRemove.push(flagId);
-       });
+    document.getElementById('saveFlagsButton').addEventListener('click', function () {
+        const flagsToAdd = [];
+        const flagsToRemove = [];
+        document.querySelectorAll('#flagModalBody .bulk-flag-item').forEach(item => {
+            const flagId = parseInt(item.dataset.flagId, 10);
+            if (item.querySelector('[data-action="add"]').checked) flagsToAdd.push(flagId);
+            if (item.querySelector('[data-action="remove"]').checked) flagsToRemove.push(flagId);
+        });
 
-       if (flagsToAdd.length === 0 && flagsToRemove.length === 0) {
-           return;
-       }
+        if (flagsToAdd.length === 0 && flagsToRemove.length === 0) {
+            return;
+        }
 
-       const data = {
-           allegroProductIds: Array.from(selectedProductIds).map(id => parseInt(id)),
-           flagsToAdd: flagsToAdd,
-           flagsToRemove: flagsToRemove
-       };
+        const data = {
+            allegroProductIds: Array.from(selectedProductIds).map(id => parseInt(id)),
+            flagsToAdd: flagsToAdd,
+            flagsToRemove: flagsToRemove
+        };
 
-       showLoading();
-       fetch('/ProductFlags/UpdateFlagsForMultipleProducts', {
-           method: 'POST',
-           headers: {
-               'Content-Type': 'application/json'
-           },
-           body: JSON.stringify(data)
-       })
-           .then(response => response.json())
-           .then(response => {
-               if (response.success) {
-                   $('#flagModal').modal('hide');
-                   showGlobalUpdate(`<p>Pomyślnie zaktualizowano flagi dla ${data.allegroProductIds.length} produktów.</p>`);
-                   selectedProductIds.clear();
-                   clearSelectionFromStorage();
-                   updateSelectionUI();
-                   loadPrices();
-               } else {
-                   alert('Błąd: ' + response.message);
-               }
-           })
-           .catch(error => console.error('Błąd masowej aktualizacji flag:', error))
-           .finally(() => hideLoading());
-   });
-
-
-
+        showLoading();
+        fetch('/ProductFlags/UpdateFlagsForMultipleProducts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(response => {
+                if (response.success) {
+                    $('#flagModal').modal('hide');
+                    showGlobalUpdate(`<p>Pomyślnie zaktualizowano flagi dla ${data.allegroProductIds.length} produktów.</p>`);
+                    selectedProductIds.clear();
+                    clearSelectionFromStorage();
+                    updateSelectionUI();
+                    loadPrices();
+                } else {
+                    alert('Błąd: ' + response.message);
+                }
+            })
+            .catch(error => console.error('Błąd masowej aktualizacji flag:', error))
+            .finally(() => hideLoading());
+    });
 
     function renderPaginationControls(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -2165,7 +2325,6 @@
                 if (label) {
                     const textOnly = label.textContent.split('(')[0].trim();
 
-        
                     label.textContent = `${textOnly} (${bucketCounts[bName] || 0})`;
                 }
             }
@@ -2282,6 +2441,20 @@
                 });
             }
 
+            if (selectedAutomationsExclude.size > 0) {
+                filtered = filtered.filter(item => {
+                    const ruleId = item.automationRuleId ? item.automationRuleId.toString() : 'noRule';
+                    return !selectedAutomationsExclude.has(ruleId);
+                });
+            }
+
+            if (selectedAutomationsInclude.size > 0) {
+                filtered = filtered.filter(item => {
+                    const ruleId = item.automationRuleId ? item.automationRuleId.toString() : 'noRule';
+                    return selectedAutomationsInclude.has(ruleId);
+                });
+            }
+
             if (selectedMyBadges.size > 0) {
                 filtered = filtered.filter(item => {
                     for (const badge of selectedMyBadges) {
@@ -2389,6 +2562,7 @@
             updateFlagCounts(filtered);
             updateBadgeCounts(filtered);
             updateStatusCounts(filtered);
+            updateAutomationFilterUI(filtered);
             hideLoading();
         }, 10);
     }
@@ -2427,11 +2601,6 @@
             });
         });
     }
-
-
-
-
-
 
     function validateSimulationData() {
         const storedDataJSON = localStorage.getItem(priceChangeLocalStorageKey);
@@ -2528,6 +2697,7 @@
             }
         });
     }
+
 
     window.refreshPriceBoxStates = refreshPriceBoxStates;
     function applyMassChange(changeType) {
@@ -3142,7 +3312,11 @@
                         marginClass: marginClass,
                         marketAveragePrice: p.marketAveragePrice,
                         marketPriceIndex: p.marketPriceIndex,
-                        marketBucket: p.marketBucket
+                        marketBucket: p.marketBucket,
+                        automationRuleName: p.automationRuleName,
+                        automationRuleColor: p.automationRuleColor,
+                        isAutomationActive: p.isAutomationActive,
+                        automationRuleId: p.automationRuleId
                     };
                 });
 
@@ -3159,6 +3333,7 @@
                 updateBadgeCounts(allPrices);
                 updateSelectionUI();
                 updateMarginSortButtonsVisibility();
+                updateAutomationFilterUI(allPrices);
                 refreshPriceBoxStates();
 
             })

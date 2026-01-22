@@ -2,6 +2,9 @@
 @{
     ViewBag.Title = "Konkurenci dla " + ViewBag.StoreName;
     var storeId = ViewBag.StoreId;
+
+    // Pobieramy nazwę akcji z kontrolera (domyślnie CompetitorPrices jeśli null)
+    var detailAction = ViewBag.DetailAction as string ?? "CompetitorPrices";
 }
 
 @{
@@ -9,24 +12,21 @@
 }
 
 <style>
-
     .competitorsBarBox {
-        display:flex;
-        width:534px;
+        display: flex;
+        width: 534px;
         background: #F4F4F4;
-        justify-content:center;
-        align-content:center;
-        height:48px;
+        justify-content: center;
+        align-content: center;
+        height: 48px;
         border-radius: 8px;
     }
 
-
     canvas[id^="chart-"] {
-        max-width: 500px; 
-        height: 48px; 
+        max-width: 500px;
+        height: 48px;
     }
 
-   
     #competitors-table tbody tr {
         cursor: pointer;
     }
@@ -61,13 +61,15 @@
                 <tbody>
                     @foreach (var competitor in Model)
                     {
-                        <tr data-url="@Url.Action("CompetitorPrices", "Competitors", new { storeId = storeId, competitorStoreName = competitor.StoreName })">
+                        /* TUTAJ ZMIANA: Używamy dynamicznej nazwy akcji z ViewBag */
+                        <tr data-url="@Url.Action(detailAction, "Competitors", new { storeId = storeId, competitorStoreName = competitor.StoreName })">
                             <td class="competitor-name">
                                 @competitor.StoreName
                                 @{
-                                  
                                     string googleIcon = "<img src=\"/images/GoogleShopping.png\" alt=\"Google Icon\" style=\"width:17px; height:17px; margin-left: 6px; vertical-align: middle;\">";
                                     string ceneoIcon = "<img src=\"/images/Ceneo.png\" alt=\"Ceneo Icon\" style=\"width:17px; height:17px; margin-left: 4px; vertical-align: middle;\">";
+                                    /* Dodajemy ikonę Allegro */
+                                    string allegroIcon = "<img src=\"/images/AllegroIcon.png\" alt=\"Allegro Icon\" style=\"width:17px; height:17px; margin-left: 4px; vertical-align: middle; filter: grayscale(100%); opacity: 0.7;\">";
 
                                     if (competitor.DataSourceDescription == "Google")
                                     {
@@ -80,20 +82,23 @@
                                     else if (competitor.DataSourceDescription == "Google & Ceneo")
                                     {
                                         @Html.Raw(googleIcon)
-                                
                                         @Html.Raw(ceneoIcon)
-                                     
+                                    }
+                                    /* Obsługa Allegro */
+                                    else if (competitor.DataSourceDescription == "Allegro")
+                                    {
+                                        @Html.Raw(allegroIcon)
                                     }
                                 }
                             </td>
                             <td>@competitor.CommonProductsCount</td>
                             <td>
                                 <div class="competitorsBarBox">
-                                <canvas id="chart-@competitor.StoreName"
-                                        data-same="@competitor.SamePriceCount"
-                                        data-higher="@competitor.HigherPriceCount"
-                                        data-lower="@competitor.LowerPriceCount"
-                                        data-total="@competitor.CommonProductsCount"></canvas>
+                                    <canvas id="chart-@competitor.StoreName"
+                                            data-same="@competitor.SamePriceCount"
+                                            data-higher="@competitor.HigherPriceCount"
+                                            data-lower="@competitor.LowerPriceCount"
+                                            data-total="@competitor.CommonProductsCount"></canvas>
                                 </div>
                             </td>
                         </tr>
