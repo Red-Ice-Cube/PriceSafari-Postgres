@@ -10,7 +10,7 @@ using PriceSafari.Models.DTOs;
 
 using PriceSafari.Models.ViewModels;
 using PriceSafari.Services.AllegroServices;
-
+using PriceSafari.Services.ScheduleService;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,10 +25,18 @@ namespace PriceSafari.Controllers.MemberControllers
         private readonly PriceSafariContext _context;
         private readonly AllegroPriceBridgeService _allegroBridgeService;
 
-        public PriceAutomationController(PriceSafariContext context, AllegroPriceBridgeService allegroBridgeService)
+        private readonly StorePriceBridgeService _storePriceBridgeService;
+
+        public PriceAutomationController(
+            PriceSafariContext context,
+            AllegroPriceBridgeService allegroBridgeService,
+            StorePriceBridgeService storePriceBridgeService)
+
         {
             _context = context;
             _allegroBridgeService = allegroBridgeService;
+            _storePriceBridgeService = storePriceBridgeService;
+
         }
 
         [HttpGet]
@@ -92,7 +100,51 @@ namespace PriceSafari.Controllers.MemberControllers
             if (rule.SourceType == AutomationSourceType.PriceComparison)
             {
 
-                return BadRequest("Automatyzacja PriceComparison nie jest jeszcze w pełni obsługiwana w trybie Backend-Only.");
+                var calcResult = await GetCalculatedComparisonData(rule);
+
+                if (calcResult.ScrapId == 0) return BadRequest("Brak danych historycznych (ScrapHistory).");
+
+                int totalProductsInRule = calcResult.Products.Count;
+
+                var itemsToBridge = new List<PriceBridgeItemRequest>();
+
+                foreach (var row in calcResult.Products)
+                {
+
+                    if (row.Status == AutomationCalculationStatus.Blocked || !row.SuggestedPrice.HasValue)
+                        continue;
+
+                    itemsToBridge.Add(new PriceBridgeItemRequest
+                    {
+                        ProductId = row.ProductId,
+
+                        CurrentPrice = row.CurrentPrice ?? 0,
+                        NewPrice = row.SuggestedPrice.Value,
+                        MarginPrice = row.PurchasePrice,
+
+                        CurrentGoogleRanking = row.CurrentRankingGoogle,
+                        CurrentCeneoRanking = row.CurrentRankingCeneo,
+                        NewGoogleRanking = row.NewRankingGoogle,
+                        NewCeneoRanking = row.NewRankingCeneo,
+
+                        Mode = rule.StrategyMode.ToString(),
+                        PriceIndexTarget = rule.StrategyMode == AutomationStrategyMode.Profit ? rule.PriceIndexTargetPercent : (decimal?)null,
+                        StepPriceApplied = rule.StrategyMode == AutomationStrategyMode.Competitiveness ? rule.PriceStep : (decimal?)null
+                    });
+                }
+
+                var result = await _storePriceBridgeService.ExecuteStorePriceChangesAsync(
+                    storeId: rule.StoreId,
+                    scrapHistoryId: calcResult.ScrapId,
+                    userId: userId,
+                    itemsToBridge: itemsToBridge,
+                    isAutomation: true,
+
+                    automationRuleId: rule.Id
+
+                );
+
+                return Ok(new { success = true, count = result.SuccessfulCount, details = result });
             }
             else if (rule.SourceType == AutomationSourceType.Marketplace)
             {
@@ -171,6 +223,150 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return BadRequest("Nieznany typ źródła.");
         }
+
+        private async Task<(List<AutomationProductRowViewModel> Products, int ScrapId, DateTime? ScrapDate)> GetCalculatedComparisonData(AutomationRule rule)
+        {
+            var resultProducts = new List<AutomationProductRowViewModel>();
+
+            var latestScrap = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == rule.StoreId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => new { sh.Id, sh.Date })
+                .FirstOrDefaultAsync();
+
+            if (latestScrap == null) return (resultProducts, 0, null);
+
+            int scrapId = latestScrap.Id;
+
+            var committedChanges = await _context.PriceBridgeItems
+                .Include(i => i.Batch)
+                .Where(i => i.Batch.StoreId == rule.StoreId
+                            && i.Batch.ScrapHistoryId == scrapId
+                            && i.Success)
+                .ToListAsync();
+
+            var committedLookup = committedChanges
+                .GroupBy(i => i.ProductId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(x => x.Batch.ExecutionDate).First()
+                );
+
+            var assignments = await _context.AutomationProductAssignments
+                .Where(a => a.AutomationRuleId == rule.Id && a.ProductId.HasValue)
+                .Include(a => a.Product)
+                .ToListAsync();
+
+            if (!assignments.Any()) return (resultProducts, scrapId, latestScrap.Date);
+
+            var productIds = assignments.Select(a => a.ProductId.Value).ToList();
+
+            var priceHistories = await _context.PriceHistories
+                .Where(ph => ph.ScrapHistoryId == scrapId && productIds.Contains(ph.ProductId))
+                .ToListAsync();
+
+            var competitorRules = GetCompetitorRulesForComparison(rule.CompetitorPreset);
+            string myStoreName = rule.Store.StoreName ?? "";
+
+            foreach (var item in assignments)
+            {
+                var p = item.Product;
+                if (p == null) continue;
+
+                var histories = priceHistories.Where(h => h.ProductId == p.ProductId).ToList();
+
+                var myHistory = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase))
+                                ?? histories.FirstOrDefault(h => h.StoreName == null);
+
+                var rawCompetitors = histories
+                    .Where(h => h.Price > 0 && h != myHistory && (h.StoreName == null || !h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+
+                var filteredCompetitors = new List<PriceHistoryClass>();
+
+                if (rule.CompetitorPreset != null)
+                {
+                    bool blockGoogle = !rule.CompetitorPreset.SourceGoogle;
+                    bool blockCeneo = !rule.CompetitorPreset.SourceCeneo;
+
+                    foreach (var comp in rawCompetitors)
+                    {
+                        bool isGoogle = comp.IsGoogle == true;
+                        if (isGoogle && blockGoogle) continue;
+                        if (!isGoogle && blockCeneo) continue;
+
+                        if (IsCompetitorAllowedComparison(comp.StoreName, isGoogle, competitorRules, rule.CompetitorPreset.UseUnmarkedStores))
+                        {
+                            filteredCompetitors.Add(comp);
+                        }
+                    }
+                }
+                else
+                {
+                    filteredCompetitors = rawCompetitors;
+                }
+
+                filteredCompetitors = filteredCompetitors.OrderBy(c => c.Price).ToList();
+                var bestCompetitor = filteredCompetitors.FirstOrDefault();
+
+                decimal? marketAvg = null;
+                if (filteredCompetitors.Any())
+                {
+                    marketAvg = CalculateMedian(filteredCompetitors.Select(c => c.Price).ToList());
+                }
+
+                var row = new AutomationProductRowViewModel
+                {
+                    ProductId = p.ProductId,
+                    Name = p.ProductName,
+                    ImageUrl = p.MainUrl,
+                    Identifier = p.Ean,
+                    CurrentPrice = myHistory?.Price,
+                    PurchasePrice = p.MarginPrice,
+                    BestCompetitorPrice = bestCompetitor?.Price,
+                    CompetitorName = bestCompetitor?.StoreName,
+                    MarketAveragePrice = marketAvg,
+                    IsInStock = true,
+                    IsCommissionIncluded = false,
+                    PurchasePriceUpdatedDate = p.MarginPriceUpdatedDate
+                };
+
+                var googlePrices = filteredCompetitors.Where(c => c.IsGoogle == true).Select(c => c.Price).ToList();
+                var ceneoPrices = filteredCompetitors.Where(c => c.IsGoogle != true).Select(c => c.Price).ToList();
+
+                var myGoogle = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle == true);
+                var myCeneo = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle != true);
+
+                if (myGoogle != null && myGoogle.Price > 0)
+                    row.CurrentRankingGoogle = CalculateRanking(new List<decimal>(googlePrices), myGoogle.Price);
+
+                if (myCeneo != null && myCeneo.Price > 0)
+                    row.CurrentRankingCeneo = CalculateRanking(new List<decimal>(ceneoPrices), myCeneo.Price);
+
+                CalculateSuggestedPrice(rule, row);
+                CalculateCurrentMarkup(row);
+
+                if (row.SuggestedPrice.HasValue)
+                {
+                    row.NewRankingGoogle = CalculateRanking(new List<decimal>(googlePrices), row.SuggestedPrice.Value);
+                    row.NewRankingCeneo = CalculateRanking(new List<decimal>(ceneoPrices), row.SuggestedPrice.Value);
+                }
+
+                if (committedLookup.TryGetValue(p.ProductId, out var committedItem))
+                {
+                    row.IsAlreadyUpdated = true;
+
+                    row.UpdatedPrice = committedItem.PriceAfter;
+
+                    row.UpdateDate = committedItem.Batch.ExecutionDate;
+                }
+
+                resultProducts.Add(row);
+            }
+
+            return (resultProducts, scrapId, latestScrap.Date);
+        }
+
 
         private async Task<(List<AutomationProductRowViewModel> Products, int ScrapId, DateTime? ScrapDate)> GetCalculatedMarketplaceData(AutomationRule rule)
         {
@@ -351,7 +547,6 @@ namespace PriceSafari.Controllers.MemberControllers
             return (resultProducts, scrapId, latestScrap.Date);
         }
 
-
         private async Task PrepareMarketplaceData(AutomationRule rule, AutomationDetailsViewModel model)
         {
 
@@ -379,8 +574,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
         private void CalculateSuggestedPrice(AutomationRule rule, AutomationProductRowViewModel row)
         {
-            // --- 1. OBLICZANIE LIMITÓW (MIN/MAX) NA SAMYM POCZĄTKU ---
-            // Robimy to tutaj, aby nawet zablokowany produkt miał wyliczone limity w raporcie/wysyłce.
 
             decimal extraCost = 0;
             if (rule.SourceType == AutomationSourceType.Marketplace &&
@@ -390,7 +583,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 extraCost = row.CommissionAmount.Value;
             }
 
-            // Wyliczamy MINIMUM
             if (rule.EnforceMinimalMarkup && row.PurchasePrice.HasValue && row.PurchasePrice > 0)
             {
                 decimal minLimit;
@@ -402,7 +594,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 row.MinPriceLimit = Math.Round(minLimit, 2);
             }
 
-            // Wyliczamy MAXIMUM
             if (rule.EnforceMaxMarkup && row.PurchasePrice.HasValue && row.PurchasePrice > 0)
             {
                 decimal maxLimit;
@@ -413,8 +604,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 row.MaxPriceLimit = Math.Round(maxLimit, 2);
             }
-
-            // --- 2. SPRAWDZANIE BLOKAD (KAMPANIE, ODZNAKI, BRAKI DANYCH) ---
 
             if (rule.SourceType == AutomationSourceType.Marketplace)
             {
@@ -460,7 +649,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
-            // Sprawdzenie wymagalności ceny zakupu do dalszych obliczeń
             if ((rule.EnforceMinimalMarkup || rule.EnforceMaxMarkup) && (!row.PurchasePrice.HasValue || row.PurchasePrice <= 0))
             {
                 ApplyBlock(row, "Brak Ceny Zakupu");
@@ -476,8 +664,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 row.BlockReason = "Brak Ceny Obecnej";
                 return;
             }
-
-            // --- 3. WŁAŚCIWA KALKULACJA CENY (STRATEGIA) ---
 
             decimal suggested = basePrice;
             bool calculationPossible = false;
@@ -522,9 +708,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return;
             }
 
-            // --- 4. WERYFIKACJA SUGEROWANEJ CENY WZGLĘDEM LIMITÓW ---
-            // Tutaj używamy już wcześniej wyliczonych MinPriceLimit i MaxPriceLimit
-
             decimal idealPrice = suggested;
             bool wasLimited = false;
 
@@ -553,7 +736,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
 
-            // Finalne przypisanie
             row.SuggestedPrice = Math.Round(suggested, 2);
             decimal finalSuggested = row.SuggestedPrice.Value;
             decimal finalBase = Math.Round(basePrice, 2);
@@ -704,6 +886,26 @@ namespace PriceSafari.Controllers.MemberControllers
             var productIds = assignments.Select(a => a.ProductId.Value).ToList();
             int scrapId = latestScrap?.Id ?? 0;
 
+            Dictionary<int, PriceBridgeItem> committedLookup = new Dictionary<int, PriceBridgeItem>();
+
+            if (scrapId > 0)
+            {
+                var committedChanges = await _context.PriceBridgeItems
+                    .Include(i => i.Batch)
+                    .Where(i => i.Batch.StoreId == rule.StoreId
+                                && i.Batch.ScrapHistoryId == scrapId
+                                && i.Success)
+
+                    .ToListAsync();
+
+                committedLookup = committedChanges
+                    .GroupBy(i => i.ProductId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.OrderByDescending(x => x.Batch.ExecutionDate).First()
+                    );
+            }
+
             var priceHistories = new List<PriceHistoryClass>();
             if (scrapId > 0)
             {
@@ -744,7 +946,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     foreach (var comp in rawCompetitors)
                     {
-                        bool isGoogle = comp.IsGoogle;
+                        bool isGoogle = comp.IsGoogle == true;
 
                         if (isGoogle && blockGoogle) continue;
                         if (!isGoogle && blockCeneo) continue;
@@ -760,13 +962,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     filteredCompetitors = rawCompetitors;
                 }
 
-                var googleCompetitorPrices = filteredCompetitors
-                    .Where(c => c.IsGoogle == true && c.Price > 0)
-                    .Select(c => c.Price).ToList();
-
-                var ceneoCompetitorPrices = filteredCompetitors
-                    .Where(c => (c.IsGoogle == false || c.IsGoogle == null) && c.Price > 0)
-                    .Select(c => c.Price).ToList();
+                var googlePrices = filteredCompetitors.Where(c => c.IsGoogle == true).Select(c => c.Price).ToList();
+                var ceneoPrices = filteredCompetitors.Where(c => c.IsGoogle != true).Select(c => c.Price).ToList();
 
                 var myGoogleRecord = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(rule.Store.StoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle == true);
                 var myCeneoRecord = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(rule.Store.StoreName, StringComparison.OrdinalIgnoreCase) && (h.IsGoogle == false || h.IsGoogle == null));
@@ -776,12 +973,12 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 if (myGoogleRecord != null && myGoogleRecord.Price > 0)
                 {
-                    currentRankGoogle = CalculateRanking(new List<decimal>(googleCompetitorPrices), myGoogleRecord.Price);
+                    currentRankGoogle = CalculateRanking(new List<decimal>(googlePrices), myGoogleRecord.Price);
                 }
 
                 if (myCeneoRecord != null && myCeneoRecord.Price > 0)
                 {
-                    currentRankCeneo = CalculateRanking(new List<decimal>(ceneoCompetitorPrices), myCeneoRecord.Price);
+                    currentRankCeneo = CalculateRanking(new List<decimal>(ceneoPrices), myCeneoRecord.Price);
                 }
 
                 filteredCompetitors = filteredCompetitors.OrderBy(h => h.Price).ToList();
@@ -790,6 +987,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 decimal? marketAvg = null;
                 if (filteredCompetitors.Any())
                 {
+
                     marketAvg = CalculateMedian(filteredCompetitors.Select(c => c.Price).ToList());
                 }
 
@@ -822,13 +1020,22 @@ namespace PriceSafari.Controllers.MemberControllers
                 {
                     decimal newPrice = row.SuggestedPrice.Value;
 
-                    newRankGoogle = CalculateRanking(new List<decimal>(googleCompetitorPrices), newPrice);
-                    newRankCeneo = CalculateRanking(new List<decimal>(ceneoCompetitorPrices), newPrice);
+                    newRankGoogle = CalculateRanking(new List<decimal>(googlePrices), newPrice);
+                    newRankCeneo = CalculateRanking(new List<decimal>(ceneoPrices), newPrice);
                 }
 
                 row.NewRankingGoogle = newRankGoogle;
                 row.NewRankingCeneo = newRankCeneo;
                 row.NewRankingAllegro = null;
+
+                if (committedLookup.TryGetValue(p.ProductId, out var committedItem))
+                {
+                    row.IsAlreadyUpdated = true;
+
+                    row.UpdatedPrice = committedItem.PriceAfter;
+
+                    row.UpdateDate = committedItem.Batch.ExecutionDate;
+                }
 
                 model.Products.Add(row);
             }

@@ -119,10 +119,13 @@ namespace PriceSafari.Services.ScheduleService
         }
 
         public async Task<StorePriceBridgeResult> ExecuteStorePriceChangesAsync(
-            int storeId,
-            int scrapHistoryId,
-            string userId,
-            List<PriceBridgeItemRequest> itemsToBridge)
+           int storeId,
+    int scrapHistoryId,
+    string userId,
+    List<PriceBridgeItemRequest> itemsToBridge,
+    // DODANO NOWE PARAMETRY:
+    bool isAutomation = false,
+    int? automationRuleId = null)
         {
             _logger.LogInformation($"[ExecuteStorePriceChangesAsync] Start procesu zmiany cen API. StoreId: {storeId}, Ilość ofert: {itemsToBridge?.Count}");
 
@@ -148,7 +151,7 @@ namespace PriceSafari.Services.ScheduleService
             switch (store.StoreSystemType)
             {
                 case StoreSystemType.PrestaShop:
-                    return await ExecutePrestaShopSessionAsync(store, scrapHistoryId, userId, itemsToBridge);
+                    return await ExecutePrestaShopSessionAsync(store, scrapHistoryId, userId, itemsToBridge, isAutomation, automationRuleId);
 
                 case StoreSystemType.WooCommerce:
                     _logger.LogWarning($"[ExecuteStorePriceChangesAsync] WooCommerce nie jest jeszcze zaimplementowane.");
@@ -168,10 +171,12 @@ namespace PriceSafari.Services.ScheduleService
         }
 
         private async Task<StorePriceBridgeResult> ExecutePrestaShopSessionAsync(
-                StoreClass store,
-                int scrapHistoryId,
-                string userId,
-                List<PriceBridgeItemRequest> itemsToBridge)
+             StoreClass store,
+        int scrapHistoryId,
+        string userId,
+        List<PriceBridgeItemRequest> itemsToBridge,
+        bool isAutomation,      // <---
+        int? automationRuleId)
         {
             _logger.LogInformation($"[PrestaShop] Rozpoczynam sesję zmiany cen dla {store.StoreName}.");
 
@@ -186,8 +191,8 @@ namespace PriceSafari.Services.ScheduleService
                 SuccessfulCount = 0,
                 FailedCount = 0,
                 ExportMethod = PriceExportMethod.Api,
-                IsAutomation = false,
-
+                IsAutomation = isAutomation,
+                AutomationRuleId = automationRuleId,
                 BridgeItems = new List<PriceBridgeItem>(),
 
                 TotalProductsCount = itemsToBridge.Count,
