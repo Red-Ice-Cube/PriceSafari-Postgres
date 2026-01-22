@@ -50,20 +50,17 @@ public class CompetitorsController : Controller
 
         var stores = await userStoresQuery.ToListAsync();
 
-        // Mapowanie na ChanelViewModel (ten model jest wymagany przez Twój nowy widok)
         var model = stores.Select(store => new ChanelViewModel
         {
             StoreId = store.StoreId,
             StoreName = store.StoreName,
             LogoUrl = store.StoreLogoUrl,
 
-            // Flagi sterujące widocznością przycisków
             OnCeneo = store.OnCeneo,
             OnGoogle = store.OnGoogle,
             OnAllegro = store.OnAllegro
         }).ToList();
 
-        // POPRAWKA: Przekazujemy 'model' (List<ChanelViewModel>), a nie 'stores'
         return View("~/Views/Panel/Competitors/Index.cshtml", model);
     }
 
@@ -242,38 +239,43 @@ public class CompetitorsController : Controller
             return View("~/Views/Panel/Competitors/Competitors.cshtml", new List<object>());
         }
 
-        // 1. Pobieramy dane surowe (tylko potrzebne kolumny)
         var allPrices = await _context.AllegroPriceHistories
+            .Include(ph => ph.AllegroProduct)
+
             .Where(ph => ph.AllegroScrapeHistoryId == latestScrap.Id)
-            .Select(ph => new { ph.AllegroProductId, ph.SellerName, ph.Price })
+            .Select(ph => new
+            {
+                ph.AllegroProductId,
+                ph.SellerName,
+                ph.Price,
+                IdOnAllegro = ph.AllegroProduct.IdOnAllegro
+
+            })
             .ToListAsync();
 
-        // 2. Przygotowujemy Twoje ceny.
-        // Jeśli masz produkt wystawiony kilka razy, bierzemy Twoją NAJNIŻSZĄ cenę do porównania.
         var myPrices = allPrices
             .Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
-            .GroupBy(p => p.AllegroProductId)
+            .Where(p => !string.IsNullOrEmpty(p.IdOnAllegro))
+
+            .GroupBy(p => p.IdOnAllegro)
             .ToDictionary(g => g.Key, g => g.Min(x => x.Price));
 
-        // 3. Analiza konkurencji
         var competitorsData = allPrices
             .Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
-            .GroupBy(p => p.SellerName) // Grupujemy po nazwie sklepu konkurenta
+            .GroupBy(p => p.SellerName)
             .Select(g =>
             {
                 var competitorName = g.Key;
 
-                // --- TUTAJ JEST KLUCZOWA POPRAWKA ---
-                // Zamiast iterować po wszystkich ofertach (offers = g.ToList()), 
-                // grupujemy oferty konkurenta po ID produktu.
-                // Dzięki temu, jeśli konkurent ma 5 aukcji tego samego produktu, policzymy go tylko RAZ.
                 var uniqueCompetitorProducts = g
-                    .GroupBy(o => o.AllegroProductId)
+                    .Where(o => !string.IsNullOrEmpty(o.IdOnAllegro))
+                    .GroupBy(o => o.IdOnAllegro)
                     .Select(pg => new
                     {
-                        ProductId = pg.Key,
-                        // Do porównania bierzemy najniższą cenę, jaką konkurent oferuje za ten produkt
+                        CatalogId = pg.Key,
+
                         Price = pg.Min(x => x.Price)
+
                     })
                     .ToList();
 
@@ -281,14 +283,15 @@ public class CompetitorsController : Controller
 
                 foreach (var competitorProduct in uniqueCompetitorProducts)
                 {
-                    // Sprawdzamy czy my też mamy ten unikalny produkt
-                    if (myPrices.TryGetValue(competitorProduct.ProductId, out decimal myPrice))
+
+                    if (myPrices.TryGetValue(competitorProduct.CatalogId, out decimal myPrice))
                     {
                         common++;
 
-                        // Porównanie cen (Twoja najlepsza vs Jego najlepsza)
-                        if (myPrice < competitorProduct.Price) iHaveLower++;      // Ja mam taniej (Zielone)
-                        else if (myPrice > competitorProduct.Price) iHaveHigher++; // Ja mam drożej (Czerwone)
+                        if (myPrice < competitorProduct.Price) iHaveLower++;
+
+                        else if (myPrice > competitorProduct.Price) iHaveHigher++;
+
                         else same++;
                     }
                 }
@@ -298,8 +301,8 @@ public class CompetitorsController : Controller
                     StoreName = competitorName,
                     CommonProductsCount = common,
                     SamePriceCount = same,
-                    HigherPriceCount = iHaveLower, // JS: "Masz niższą cenę"
-                    LowerPriceCount = iHaveHigher, // JS: "Masz wyższą cenę"
+                    HigherPriceCount = iHaveLower,
+                    LowerPriceCount = iHaveHigher,
                     DataSourceDescription = "Allegro"
                 };
             })
@@ -310,12 +313,10 @@ public class CompetitorsController : Controller
         ViewBag.StoreName = store.StoreName;
         ViewBag.StoreId = storeId;
 
-        // Ustawiamy akcję, do której ma prowadzić kliknięcie w wiersz
         ViewBag.DetailAction = "AllegroCompetitorPrices";
 
         return View("~/Views/Panel/Competitors/Competitors.cshtml", competitorsData);
     }
-
 
     private string GetDataSourceDescription(bool fromGoogle, bool fromCeneo)
     {
@@ -346,10 +347,7 @@ public class CompetitorsController : Controller
 
     public async Task<IActionResult> AllegroCompetitorPrices(int storeId, string competitorStoreName)
     {
-        if (!await UserHasAccessToStore(storeId))
-        {
-            return Content("Nie ma takiego sklepu");
-        }
+        if (!await UserHasAccessToStore(storeId)) return Content("Brak dostępu.");
 
         var store = await _context.Stores
             .Where(s => s.StoreId == storeId)
@@ -360,13 +358,97 @@ public class CompetitorsController : Controller
         ViewBag.StoreId = storeId;
         ViewBag.StoreName = store.StoreName;
 
-        // Zwracamy widok (który trzeba będzie stworzyć później, podobny do CompetitorPrices.cshtml)
-        // Na razie może używać tego samego widoku co standardowy, jeśli logika JS pobierająca dane obsłuży endpoint
-        // Ale dla porządku zróbmy osobny plik w przyszłości.
-        // Tutaj zakładam, że chcesz po prostu wejść w widok detali:
-        return View("~/Views/Panel/Competitors/AllegroCompetitorPrices.cshtml");
+        ViewBag.ScrapHistoryUrl = Url.Action("GetAllegroScrapHistoryIds", "Competitors");
+        ViewBag.PricesUrl = Url.Action("GetAllegroCompetitorPrices", "Competitors");
+
+        return View("~/Views/Panel/Competitors/CompetitorPrices.cshtml");
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetAllegroScrapHistoryIds(int storeId)
+    {
+        if (!await UserHasAccessToStore(storeId)) return Forbid();
+
+        var history = await _context.AllegroScrapeHistories
+            .Where(sh => sh.StoreId == storeId)
+            .OrderByDescending(sh => sh.Date)
+            .Select(sh => new { id = sh.Id, date = sh.Date })
+
+            .ToListAsync();
+
+        return Json(history);
+    }
+    [HttpPost]
+    public async Task<IActionResult> GetAllegroCompetitorPrices([FromBody] GetCompetitorPricesRequest request)
+    {
+        if (!await UserHasAccessToStore(request.StoreId)) return Forbid();
+
+        var store = await _context.Stores
+            .Where(s => s.StoreId == request.StoreId)
+            .Select(s => new { s.StoreNameAllegro })
+            .FirstOrDefaultAsync();
+
+        if (string.IsNullOrEmpty(store?.StoreNameAllegro)) return NotFound(new { message = "Brak konfiguracji Allegro." });
+
+        var allPrices = await _context.AllegroPriceHistories
+            .Include(ph => ph.AllegroProduct)
+            .Where(ph => ph.AllegroScrapeHistoryId == request.ScrapHistoryId)
+            .Select(ph => new
+            {
+                ph.AllegroProductId,
+                ph.SellerName,
+                ph.Price,
+
+                IdOnAllegro = ph.AllegroProduct.IdOnAllegro,
+                ProductName = ph.AllegroProduct.AllegroProductName,
+                OfferUrl = ph.AllegroProduct.AllegroOfferUrl
+            })
+            .ToListAsync();
+
+        var myPricesByCatalogId = allPrices
+            .Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+            .Where(p => !string.IsNullOrEmpty(p.IdOnAllegro))
+
+            .GroupBy(p => p.IdOnAllegro)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Min(x => x.Price)
+            );
+
+        var competitorOffers = allPrices
+            .Where(p => p.SellerName.Equals(request.CompetitorStoreName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var result = competitorOffers
+            .Where(p => !string.IsNullOrEmpty(p.IdOnAllegro))
+
+            .GroupBy(p => p.IdOnAllegro)
+            .Select(g =>
+            {
+                var catalogId = g.Key;
+                var competitorBestPrice = g.Min(x => x.Price);
+
+                var productInfo = g.First();
+
+                decimal? myPrice = myPricesByCatalogId.TryGetValue(catalogId, out var p) ? p : (decimal?)null;
+
+                return new
+                {
+
+                    productId = productInfo.AllegroProductId,
+                    productName = productInfo.ProductName,
+                    productMainUrl = productInfo.OfferUrl,
+                    price = competitorBestPrice,
+                    ourPrice = myPrice,
+                    scrapHistoryId = request.ScrapHistoryId
+                };
+            })
+            .Where(x => x.ourPrice.HasValue)
+
+            .ToList();
+
+        return Json(result);
+    }
 
     public async Task<IActionResult> GetScrapHistoryIds(int storeId)
     {

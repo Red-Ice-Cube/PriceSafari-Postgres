@@ -2,13 +2,17 @@
 let allProducts = {};
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (typeof storeId === 'undefined' || typeof competitorStoreName === 'undefined' || typeof storeName === 'undefined') {
-        console.error("Kluczowe zmienne globalne (storeId, competitorStoreName, storeName) nie są zdefiniowane.");
+
+    if (typeof storeId === 'undefined' || typeof competitorStoreName === 'undefined' || typeof storeName === 'undefined' || typeof apiConfig === 'undefined') {
+        console.error("Kluczowe zmienne globalne (storeId, competitorStoreName, storeName, apiConfig) nie są zdefiniowane.");
 
         const tableContainer = document.querySelector('.table-container');
-        if (tableContainer) tableContainer.innerHTML = '<p style="color:red; text-align:center;">Błąd konfiguracji: Brak niezbędnych danych sklepu.</p>';
+
+        const container = tableContainer || document.querySelector('.Vert-table');
+        if (container) container.innerHTML = '<p style="color:red; text-align:center;">Błąd konfiguracji: Brak niezbędnych danych API lub sklepu.</p>';
         return;
     }
+
     loadScrapHistoryOptions(storeId, competitorStoreName);
 
     const increaseCheckbox = document.getElementById('filterIncrease');
@@ -34,7 +38,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadScrapHistoryOptions(currentStoreId, currentCompetitorStoreName) {
-    fetch(`/Competitors/GetScrapHistoryIds?storeId=${currentStoreId}`)
+
+    const baseUrl = apiConfig.getHistoryUrl;
+    const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}storeId=${currentStoreId}`;
+
+    fetch(url)
         .then(response => {
             if (!response.ok) throw new Error(`Błąd HTTP! Status: ${response.status}`);
             return response.json();
@@ -94,12 +102,13 @@ function loadCompetitorPrices(scrapHistoryIds, currentStoreId, currentCompetitor
         loadedPrices[scrapHistoryId] = 'loading';
 
         const requestData = {
-            storeId: currentStoreId,
+            storeId: parseInt(currentStoreId),
+
             competitorStoreName: currentCompetitorStoreName,
             scrapHistoryId: parseInt(scrapHistoryId)
         };
 
-        fetch('/Competitors/GetCompetitorPrices', {
+        fetch(apiConfig.getPricesUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestData)
@@ -112,7 +121,6 @@ function loadCompetitorPrices(scrapHistoryIds, currentStoreId, currentCompetitor
                 return response.json();
             })
             .then(data => {
-
                 loadedPrices[scrapHistoryId] = data;
                 renderPrices();
             })
@@ -140,6 +148,7 @@ function renderPrices() {
                 newAllProducts[priceEntry.productId] = {
                     productName: priceEntry.productName,
                     mainUrl: priceEntry.productMainUrl,
+
                     data: {},
                     ourData: {}
                 };
@@ -153,15 +162,19 @@ function renderPrices() {
 
     const table = tableBody.closest('table');
     if (!table) return;
-    const thead = table.querySelector('thead');
+    let thead = table.querySelector('thead');
     if (!thead) {
         thead = table.insertBefore(document.createElement('thead'), table.firstChild);
     }
-    let theadRow = thead.querySelector('tr');
-    if (!theadRow) {
-        theadRow = thead.appendChild(document.createElement('tr'));
-    }
-    theadRow.innerHTML = `<th class="sticky-col">Produkt</th>`;
+
+    thead.innerHTML = '';
+    let theadRow = document.createElement('tr');
+    thead.appendChild(theadRow);
+
+    let thProduct = document.createElement('th');
+    thProduct.textContent = 'Produkt';
+    thProduct.className = 'sticky-col';
+    theadRow.appendChild(thProduct);
 
     const sortedUniqueScrapHistoryIds = successfullyLoadedScrapIds.sort((a, b) => {
         const checkboxA = document.querySelector(`.deliveryFilterCompetitor[value="${a}"]`);
@@ -203,6 +216,7 @@ function filterProducts(searchTerm) {
     });
     displayProducts(filteredProducts, sortedUniqueScrapHistoryIds);
 }
+
 function displayProducts(productsToDisplay, sortedScrapIds) {
     const tableBody = document.getElementById('priceTableBody');
     if (!tableBody) return;
@@ -224,25 +238,19 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
         const row = document.createElement('tr');
 
         const productInfoTd = document.createElement('td');
-
         const productInfoDiv = document.createElement('div');
         productInfoDiv.className = 'product-info-cell';
 
-
-        
         if (product.mainUrl) {
             const img = document.createElement('img');
             img.src = product.mainUrl;
             img.alt = product.productName || 'Obrazek produktu';
-
-  
             img.onerror = function () {
                 this.parentElement.classList.add('no-image');
-                this.remove(); 
+                this.remove();
             };
             productInfoDiv.appendChild(img);
         } else {
-           
             productInfoDiv.classList.add('no-image');
         }
 
@@ -278,6 +286,7 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
                         if (isIncrease) rowHasAnyPriceIncrease = true; else rowHasAnyPriceDecrease = true;
 
                         const changeClass = isIncrease ? 'priceBox-diff-down' : 'priceBox-diff-up';
+
                         const arrow = isIncrease ? '&uarr;' : '&darr;';
                         ourPriceHtml += `<div class="${changeClass}">${diff.toFixed(2)} PLN (${percDiff.toFixed(2)}%) ${arrow}</div>`;
                     }
@@ -316,10 +325,12 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
             cellContent += competitorPriceHtml;
 
             cellContent += '</div>';
+
             td.innerHTML = cellContent;
 
             td.addEventListener('click', (event) => {
                 if (event.target.tagName === 'A' || event.target.closest('a')) return;
+
                 const url = `/PriceHistory/Details?productId=${productId}&scrapId=${scrapId}`;
                 window.open(url, '_blank');
             });
@@ -332,15 +343,9 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
         if (!anyChangeFilterActive) {
             showThisRow = true;
         } else {
-            if (filterIncrease && rowHasAnyPriceIncrease) {
-                showThisRow = true;
-            }
-            if (filterDecrease && rowHasAnyPriceDecrease) {
-                showThisRow = true;
-            }
-            if (filterChange && rowHasAnyPriceChange) {
-                showThisRow = true;
-            }
+            if (filterIncrease && rowHasAnyPriceIncrease) showThisRow = true;
+            if (filterDecrease && rowHasAnyPriceDecrease) showThisRow = true;
+            if (filterChange && rowHasAnyPriceChange) showThisRow = true;
         }
 
         if (showThisRow) {

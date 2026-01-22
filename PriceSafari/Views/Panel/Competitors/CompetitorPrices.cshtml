@@ -4,13 +4,20 @@
     var competitorStoreName = ViewBag.CompetitorStoreName;
     var storeName = ViewBag.StoreName;
 
-    <script>
-        var storeId = '@storeId';
-        var competitorStoreName = '@competitorStoreName';
-        var storeName = '@storeName';
-    </script>
-
+    var scrapHistoryUrl = ViewBag.ScrapHistoryUrl ?? Url.Action("GetScrapHistoryIds", "Competitors");
+    var pricesUrl = ViewBag.PricesUrl ?? Url.Action("GetCompetitorPrices", "Competitors");
 }
+
+<script>
+    var storeId = '@storeId';
+    var competitorStoreName = '@Html.Raw(competitorStoreName)';
+    var storeName = '@Html.Raw(storeName)';
+
+    var apiConfig = {
+        getHistoryUrl: '@scrapHistoryUrl',
+        getPricesUrl: '@pricesUrl'
+    };
+</script>
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
