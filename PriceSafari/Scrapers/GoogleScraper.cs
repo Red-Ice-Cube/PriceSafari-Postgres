@@ -1158,7 +1158,7 @@ public class GoogleScraper
 
         var commonResolutions = new List<(int width, int height)>
     {
-        (1366, 768),
+     
         (1920, 1080)
     };
 
@@ -1168,10 +1168,10 @@ public class GoogleScraper
 
     }
 
-    public async Task<ScraperResult<List<GoogleProductIdentifier>>> SearchInitialProductIdentifiersAsync(string title, int maxItemsToExtract = 20)
+    public async Task<ScraperResult<List<GoogleProductIdentifier>>> SearchInitialProductIdentifiersAsync(string title, int maxItemsToExtract = 20, int udmValue = 3)
     {
         var identifiers = new List<GoogleProductIdentifier>();
-        Console.WriteLine($"[Scraper] Szukam: '{title}'...");
+        Console.WriteLine($"[Scraper] Szukam: '{title}' (UDM: {udmValue})...");
 
         try
         {
@@ -1179,12 +1179,12 @@ public class GoogleScraper
 
             var encodedTitle = HttpUtility.UrlEncode(title);
 
-            var url = $"https://www.google.com/search?q={encodedTitle}&gl=pl&hl=pl&udm=3";
+            var url = $"https://www.google.com/search?q={encodedTitle}&gl=pl&hl=pl&udm={udmValue}";
 
             await _page.GoToAsync(url, new NavigationOptions { Timeout = 60000, WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded } });
 
             Console.WriteLine("[Scraper] Czekam 2 sekund na pełne załadowanie strony...");
-            await Task.Delay(20000);
+            await Task.Delay(2000);
 
             if (_page.Url.Contains("/sorry/") || _page.Url.Contains("/captcha"))
                 return ScraperResult<List<GoogleProductIdentifier>>.Captcha(identifiers);

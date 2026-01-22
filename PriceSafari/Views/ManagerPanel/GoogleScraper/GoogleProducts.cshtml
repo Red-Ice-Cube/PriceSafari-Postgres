@@ -18,6 +18,14 @@
                 <strong>Włącz tryb ręcznego rozwiązywania CAPTCHA</strong> (Gdy bot trafi na CAPTCHA, poczeka 30s na ręczne rozwiązanie zamiast resetować sieć)
             </label>
         </div>
+        <div class="col-md-3">
+            <label for="searchModeUdm" class="form-label">Tryb widoku Google (UDM):</label>
+            <select class="form-select" id="searchModeUdm">
+                <option value="3" selected>Standardowy (udm=3)</option>
+                <option value="28">Alternatywny / Siatka (udm=28)</option>
+            </select>
+            <small class="text-muted">Zmień, jeśli scraper nie znajduje wyników.</small>
+        </div>
         <div class="form-check form-switch mt-2">
             <input class="form-check-input" type="checkbox" id="filterMultiCatalog">
             <label class="form-check-label" for="filterMultiCatalog">
@@ -216,19 +224,28 @@
                     selectedProductIds.push(parseInt($(this).val(), 10));
                 });
 
-                var scrapingData = {
-                    storeId: '@storeId',
-                    productIds: selectedProductIds,
-                    numberOfConcurrentScrapers: parseInt($('#numberOfConcurrentScrapers').val(), 10),
-                    maxCidsToProcess: parseInt($('#maxCidsToProcessPerProduct').val(), 10),
-                    searchTermSource: $('#searchTermSource').val(),
-                    useFirstMatchLogic: $('#useFirstMatchLogic').is(':checked'),
-                    ensureNameMatch: $('#ensureNameMatch').is(':checked'),
-                    compareOnlyCurrentProductCode: $('#compareOnlyCurrentProductCode').is(':checked'),
-                    allowManualCaptchaSolving: $('#allowManualCaptchaSolving').is(':checked'),
-                    appendProducerCode: $('#appendProducerCode').is(':checked'),
-                    productNamePrefix: $('#productNamePrefix').val()
-                };
+                var maxCidsValue = parseInt($('#maxCidsToProcessPerProduct').val(), 10);
+
+                      var scrapingData = {
+                        storeId: '@storeId',
+                        productIds: selectedProductIds,
+                        numberOfConcurrentScrapers: parseInt($('#numberOfConcurrentScrapers').val(), 10),
+
+                        // Parametry ilościowe (naprawione w poprzednim kroku):
+                        maxCidsToProcessPerProduct: parseInt($('#maxCidsToProcessPerProduct').val(), 10),
+                        maxCidsToProcess: parseInt($('#maxCidsToProcessPerProduct').val(), 10),
+
+                        // NOWY PARAMETR:
+                        searchModeUdm: parseInt($('#searchModeUdm').val(), 10),
+
+                        searchTermSource: $('#searchTermSource').val(),
+                        useFirstMatchLogic: $('#useFirstMatchLogic').is(':checked'),
+                        ensureNameMatch: $('#ensureNameMatch').is(':checked'),
+                        compareOnlyCurrentProductCode: $('#compareOnlyCurrentProductCode').is(':checked'),
+                        allowManualCaptchaSolving: $('#allowManualCaptchaSolving').is(':checked'),
+                        appendProducerCode: $('#appendProducerCode').is(':checked'),
+                        productNamePrefix: $('#productNamePrefix').val()
+                    };
 
                 $.ajax({
                     type: "POST",

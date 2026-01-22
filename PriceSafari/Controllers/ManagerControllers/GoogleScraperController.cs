@@ -228,18 +228,18 @@ public class GoogleScraperController : Controller
 
     [HttpPost]
     public async Task<IActionResult> StartScrapingForProducts(
-    int storeId,
-    List<int> productIds,
-
-    int numberOfConcurrentScrapers = 5,
-    int maxCidsToProcessPerProduct = 3,
-    SearchTermSource searchTermSource = SearchTermSource.ProductName,
-    string productNamePrefix = null,
-    bool useFirstMatchLogic = false,
-    bool ensureNameMatch = false,
-    bool allowManualCaptchaSolving = false,
-    bool appendProducerCode = false,
-    bool compareOnlyCurrentProductCode = false)
+      int storeId,
+      List<int> productIds,
+      int numberOfConcurrentScrapers = 5,
+      int maxCidsToProcessPerProduct = 3,
+      int searchModeUdm = 3, // To już masz dodane w sygnaturze, jest OK
+      SearchTermSource searchTermSource = SearchTermSource.ProductName,
+      string productNamePrefix = null,
+      bool useFirstMatchLogic = false,
+      bool ensureNameMatch = false,
+      bool allowManualCaptchaSolving = false,
+      bool appendProducerCode = false,
+      bool compareOnlyCurrentProductCode = false)
     {
         if (_isScrapingActive)
         {
@@ -259,21 +259,39 @@ public class GoogleScraperController : Controller
                 allowManualCaptchaSolving,
                 appendProducerCode,
                 compareOnlyCurrentProductCode,
-                productNamePrefix
-
+                productNamePrefix,
+                searchModeUdm // <--- 1. TUTAJ DODAJ (przekazanie do trybu pośredniego)
             );
         }
         else if (useFirstMatchLogic)
         {
-
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb 'Pierwszy Trafiony'. Uruchamiam uproszczony scraper...");
-            return await StartScrapingForProducts_FirstMatchAsync(storeId, productIds, numberOfConcurrentScrapers, searchTermSource, productNamePrefix, appendProducerCode);
+
+            return await StartScrapingForProducts_FirstMatchAsync(
+                storeId,
+                productIds,
+                numberOfConcurrentScrapers,
+                searchTermSource,
+                productNamePrefix,
+                appendProducerCode,
+                searchModeUdm // <--- 2. TUTAJ DODAJ (przekazanie do trybu szybkiego)
+            );
         }
         else
         {
-
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Wybrano tryb standardowy (dokładny). Uruchamiam pełny scraper...");
-            return await StartScrapingForProducts_StandardAsync(storeId, productIds, numberOfConcurrentScrapers, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving, appendProducerCode);
+
+            return await StartScrapingForProducts_StandardAsync(
+                storeId,
+                productIds,
+                numberOfConcurrentScrapers,
+                maxCidsToProcessPerProduct,
+                searchTermSource,
+                productNamePrefix,
+                allowManualCaptchaSolving,
+                appendProducerCode,
+                searchModeUdm // <--- 3. TUTAJ DODAJ (przekazanie do trybu standardowego)
+            );
         }
     }
 
@@ -285,7 +303,8 @@ public class GoogleScraperController : Controller
     SearchTermSource searchTermSource = SearchTermSource.ProductName,
     string productNamePrefix = null,
     bool allowManualCaptchaSolving = false,
-    bool appendProducerCode = false)
+    bool appendProducerCode = false,
+    int searchModeUdm = 3)
     {
         if (_isScrapingActive)
         {
@@ -400,7 +419,7 @@ public class GoogleScraperController : Controller
                             var task = Task.Run(async () => {
                                 try
                                 {
-                                    await ProcessSingleProductAsync(productStateToProcess, assignedScraper, storeId, _masterProductStateList, _currentCaptchaGlobalCts, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving, appendProducerCode);
+                                    await ProcessSingleProductAsync(productStateToProcess, assignedScraper, storeId, _masterProductStateList, _currentCaptchaGlobalCts, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving, appendProducerCode, searchModeUdm);
                                 }
                                 catch (Exception ex)
                                 {
@@ -557,7 +576,7 @@ public class GoogleScraperController : Controller
                                     {
                                         try
                                         {
-                                            await ProcessSingleProductAsync(productStateToProcess, assignedScraper, storeId, _masterProductStateList, _currentCaptchaGlobalCts, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving, appendProducerCode);
+                                            await ProcessSingleProductAsync(productStateToProcess, assignedScraper, storeId, _masterProductStateList, _currentCaptchaGlobalCts, maxCidsToProcessPerProduct, searchTermSource, productNamePrefix, allowManualCaptchaSolving, appendProducerCode, searchModeUdm);
                                         }
                                         catch (Exception ex)
                                         {
@@ -655,7 +674,7 @@ public class GoogleScraperController : Controller
         return Content(finalMessage);
     }
 
-    private async Task<IActionResult> StartScrapingForProducts_FirstMatchAsync(int storeId, List<int> productIds, int numberOfConcurrentScrapers, SearchTermSource searchTermSource, string productNamePrefix, bool appendProducerCode = false)
+    private async Task<IActionResult> StartScrapingForProducts_FirstMatchAsync(int storeId, List<int> productIds, int numberOfConcurrentScrapers, SearchTermSource searchTermSource, string productNamePrefix, bool appendProducerCode = false, int searchModeUdm = 3)
     {
         _isScrapingActive = true;
         _currentGlobalScrapingOperationCts = new CancellationTokenSource();
@@ -728,7 +747,8 @@ public class GoogleScraperController : Controller
                                 searchTermSource,
                                 productNamePrefix,
                                 _currentGlobalScrapingOperationCts,
-                                appendProducerCode
+                                appendProducerCode,
+                                searchModeUdm
 
                             );
                         }
@@ -772,7 +792,7 @@ public class GoogleScraperController : Controller
         return Content("Proces 'Pierwszy Trafiony' zakończony.");
     }
 
-    private async Task ProcessSingleProduct_FirstMatchAsync(ProductProcessingState productState, GoogleScraper scraper, SearchTermSource termSource, string namePrefix, CancellationTokenSource cts, bool appendProducerCode)
+    private async Task ProcessSingleProduct_FirstMatchAsync(ProductProcessingState productState, GoogleScraper scraper, SearchTermSource termSource, string namePrefix, CancellationTokenSource cts, bool appendProducerCode, int searchModeUdm = 3)
     {
         if (cts.IsCancellationRequested) return;
 
@@ -806,7 +826,7 @@ public class GoogleScraperController : Controller
 
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Tryb Szybki] Przetwarzam ID: {productState.ProductId}, Szukam: '{searchTermBase}'");
 
-        var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermBase, maxItemsToExtract: 1);
+        var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermBase, maxItemsToExtract: 1, udmValue: searchModeUdm);
 
         if (identifierResult.CaptchaEncountered)
         {
@@ -857,7 +877,8 @@ public class GoogleScraperController : Controller
       bool allowManualCaptchaSolving,
       bool appendProducerCode = false,
       bool compareOnlyCurrentProductCode = false,
-      string productNamePrefix = null)
+      string productNamePrefix = null,
+      int searchModeUdm = 3)
 
     {
         if (_isScrapingActive)
@@ -958,7 +979,8 @@ public class GoogleScraperController : Controller
                     allowManualCaptchaSolving,
                     appendProducerCode,
                     compareOnlyCurrentProductCode,
-                    productNamePrefix
+                    productNamePrefix,
+                    searchModeUdm
 
                 );
                                     }
@@ -1187,7 +1209,8 @@ public class GoogleScraperController : Controller
     bool allowManualCaptchaSolving,
     bool appendProducerCode,
     bool compareOnlyCurrentProductCode,
-    string productNamePrefix)
+    string productNamePrefix,
+    int searchModeUdm = 3)
 
     {
     RestartProductProcessing:
@@ -1300,7 +1323,7 @@ public class GoogleScraperController : Controller
             }
         }
 
-        var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermForGoogle, maxItemsToExtract: maxItemsToExtract);
+        var identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermForGoogle, maxItemsToExtract: maxItemsToExtract, udmValue: searchModeUdm);
 
         if (identifierResult.CaptchaEncountered)
         {
@@ -1680,7 +1703,8 @@ public class GoogleScraperController : Controller
     SearchTermSource termSource,
     string namePrefix,
     bool allowManualCaptchaSolving,
-    bool appendProducerCode)
+    bool appendProducerCode,
+    int udmValue = 3)
     {
         if (captchaCts.IsCancellationRequested && !allowManualCaptchaSolving)
         {
@@ -1762,7 +1786,7 @@ public class GoogleScraperController : Controller
                     return;
                 }
 
-                identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermBase, maxCidsToSearch);
+                identifierResult = await scraper.SearchInitialProductIdentifiersAsync(searchTermBase, maxCidsToSearch, udmValue);
 
                 if (identifierResult.CaptchaEncountered)
                 {
