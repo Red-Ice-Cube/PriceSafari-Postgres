@@ -8,7 +8,7 @@
 }
 
 <style>
-    /* Style lokalne z wzorca (Button-select) */
+
     .button-disabled {
         pointer-events: none;
         opacity: 0.5;
@@ -19,9 +19,6 @@
         opacity: 0.4;
     }
 
-    /* --- STYLE DLA KOMPAKTOWEGO STATUSU --- */
-
-    /* Główny tytuł z liczbą reguł */
     .rules-header {
         font-weight: 600;
         font-size: 14px;
@@ -30,13 +27,12 @@
         line-height: 1.2;
     }
 
-    /* Kontener na jedną linię statusu (aktywne | nieaktywne) */
     .status-inline-container {
         display: flex;
         align-items: center;
         font-size: 12px;
         color: #858796;
-        white-space: nowrap; /* Zapobiega łamaniu linii */
+        white-space: nowrap;
     }
 
     .status-item {
@@ -60,13 +56,11 @@
         background-color: #e74a3b;
     }
 
-    /* Separator pionowy "|" */
     .status-separator {
         margin: 0 8px;
         color: #d1d3e2;
     }
 
-    /* Styl dla "Brak reguł" (szary) */
     .status-empty {
         font-size: 13px;
         color: #858796;
@@ -94,21 +88,20 @@
                     <tbody>
                         @foreach (var store in Model)
                         {
-                            // Obliczenia sumaryczne dla Porównywarek
+
                             var totalComp = store.ComparisonRulesActiveCount + store.ComparisonRulesInactiveCount;
 
-                            // Obliczenia sumaryczne dla Marketplace
                             var totalMarket = store.MarketplaceRulesActiveCount + store.MarketplaceRulesInactiveCount;
 
                             <tr class="store-row">
                                 <td>
                                     @if (!string.IsNullOrEmpty(store.LogoUrl))
                                     {
-                                        <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName"/>
+                                        <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
                                     }
                                 </td>
 
-                                <td >
+                                <td>
                                     @store.StoreName
                                 </td>
 

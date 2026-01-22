@@ -5613,42 +5613,30 @@ label[for="extendedExportCheckbox"]:not(:checked):hover {
     color: #dc3545;
 }
 
-
-
-
-
-/* --- Kolumna Automatu Cenowego (Wersja: Pasek tylko przy tekście) --- */
-
-/* Główny kontener kolumny - Układ PIONOWY */
 .price-box-column.automation-column {
     min-width: 170px;
     width: 170px;
-    padding: 6px !important; /* Twój padding */
+    padding: 6px !important;
     display: flex;
-    flex-direction: column; /* Zmieniamy na kolumnę, żeby przycisk był pod spodem */
-    justify-content: space-between; /* Rozsuwa info i przycisk (góra/dół) */
+    flex-direction: column;
+    justify-content: space-between;
     align-items: stretch;
     border-left: 1px solid #f0f0f0;
-    gap: 8px; /* Odstęp między sekcją info a przyciskiem */
+    gap: 8px;
 }
 
-/* Nowy kontener górny: Trzyma Pasek + Teksty w jednym rzędzie */
 .automation-top-row {
     display: flex;
-    flex-direction: row; /* Pasek obok tekstu */
-    gap: 10px; /* Odstęp między paskiem a tekstem */
+    flex-direction: row;
+    gap: 10px;
 }
 
-/* Kolorowy pasek boczny */
 .automation-column-bar {
-    width: 4px; /* Nieco cieńszy dla elegancji */
+    width: 4px;
     flex-shrink: 0;
-    border-radius: 2px; /* Zaokrąglone rogi */
-    /* Wysokość dopasuje się automatycznie do wysokości tekstów */
-    /* Background-color jest nadawany dynamicznie przez JS */
+    border-radius: 2px;
 }
 
-/* Wewnętrzny kontener na same teksty */
 .automation-text-content {
     flex-grow: 1;
     display: flex;
@@ -5657,17 +5645,15 @@ label[for="extendedExportCheckbox"]:not(:checked):hover {
     align-items: flex-start;
 }
 
-/* Nazwa reguły */
 .automation-rule-name {
     font-weight: 600;
     font-size: 15px;
     color: #333;
     line-height: 1.2;
-    margin-bottom: 4px; /* Zmniejszony margines */
+    margin-bottom: 4px;
     word-break: break-word;
 }
 
-/* Etykieta "Automat cenowy" */
 .automation-label {
     font-size: 14px;
     color: rgb(33, 37, 41);
@@ -5675,27 +5661,22 @@ label[for="extendedExportCheckbox"]:not(:checked):hover {
     font-weight: 400;
 }
 
-/* Status (kropka + tekst) */
 .automation-status {
     font-size: 13px;
     font-weight: 500;
     display: flex;
     align-items: center;
     gap: 6px;
-    /* Color jest nadawany dynamicznie przez JS */
 }
 
     .automation-status i {
         font-size: 8px;
     }
 
-/* Wrapper na przycisk */
 .automation-btn-wrapper {
     width: 100%;
-    /* margin-top usunięty, bo załatwia to gap: 8px w głównym kontenerze */
 }
 
-/* Przycisk konfiguracji */
 .btn-automation-details {
     display: flex;
     align-items: center;
@@ -5705,10 +5686,9 @@ label[for="extendedExportCheckbox"]:not(:checked):hover {
     width: 100%;
     background-color: #E3E3E3;
     border-radius: 4px;
-    height:34px;
+    height: 34px;
     color: #000;
     font-size: 14px;
-    
     text-decoration: none;
     transition: all 0.2s;
     cursor: pointer;
@@ -5720,26 +5700,18 @@ label[for="extendedExportCheckbox"]:not(:checked):hover {
         text-decoration: none;
     }
 
-
-
-
-
-
-
-
 .stats-summary-container {
     display: flex;
     flex-direction: row;
     gap: 10px;
     margin-bottom: 10px;
-    flex-direction:column;
+    flex-direction: column;
     flex-wrap: wrap;
 }
 
 .stat-card {
     background: #fff;
     border-radius: 6px;
-
     padding: 15px;
     min-width: 210px;
     max-width: 230px;
@@ -5747,7 +5719,6 @@ label[for="extendedExportCheckbox"]:not(:checked):hover {
     max-width: 500px;
     border: 1px solid #ddd;
 }
-
 
 .stat-header {
     display: flex;
@@ -5800,14 +5771,13 @@ label[for="extendedExportCheckbox"]:not(:checked):hover {
     }
 
     .stat-metric.increase .icon {
-        background-color: #e8f5e9; /* Jasny zielony */
-        color: #2e7d32; /* Ciemny zielony */
+        background-color: #e8f5e9;
+        color: #2e7d32;
     }
 
     .stat-metric.decrease .icon {
-        background-color: #ffebee; /* Jasny czerwony */
-        color: #c62828; /* Ciemny czerwony */
-
+        background-color: #ffebee;
+        color: #c62828;
     }
 
 .metric-info {
