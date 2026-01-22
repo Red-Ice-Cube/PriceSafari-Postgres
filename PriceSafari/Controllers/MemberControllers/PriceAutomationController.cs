@@ -268,6 +268,10 @@ namespace PriceSafari.Controllers.MemberControllers
             var competitorRules = GetCompetitorRulesForComparison(rule.CompetitorPreset);
             string myStoreName = rule.Store.StoreName ?? "";
 
+
+            bool includeGoogle = rule.CompetitorPreset == null || rule.CompetitorPreset.SourceGoogle;
+            bool includeCeneo = rule.CompetitorPreset == null || rule.CompetitorPreset.SourceCeneo;
+
             foreach (var item in assignments)
             {
                 var p = item.Product;
@@ -337,19 +341,27 @@ namespace PriceSafari.Controllers.MemberControllers
                 var myGoogle = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle == true);
                 var myCeneo = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle != true);
 
-                if (myGoogle != null && myGoogle.Price > 0)
+                if (includeGoogle && myGoogle != null && myGoogle.Price > 0)
                     row.CurrentRankingGoogle = CalculateRanking(new List<decimal>(googlePrices), myGoogle.Price);
+                else
+                    row.CurrentRankingGoogle = null; // lub "-"
 
-                if (myCeneo != null && myCeneo.Price > 0)
+                if (includeCeneo && myCeneo != null && myCeneo.Price > 0)
                     row.CurrentRankingCeneo = CalculateRanking(new List<decimal>(ceneoPrices), myCeneo.Price);
+                else
+                    row.CurrentRankingCeneo = null; // lub "-"
 
                 CalculateSuggestedPrice(rule, row);
                 CalculateCurrentMarkup(row);
 
                 if (row.SuggestedPrice.HasValue)
                 {
-                    row.NewRankingGoogle = CalculateRanking(new List<decimal>(googlePrices), row.SuggestedPrice.Value);
-                    row.NewRankingCeneo = CalculateRanking(new List<decimal>(ceneoPrices), row.SuggestedPrice.Value);
+                    // --- FIX: Obliczamy nowy ranking TYLKO jeśli źródło jest włączone ---
+                    if (includeGoogle)
+                        row.NewRankingGoogle = CalculateRanking(new List<decimal>(googlePrices), row.SuggestedPrice.Value);
+
+                    if (includeCeneo)
+                        row.NewRankingCeneo = CalculateRanking(new List<decimal>(ceneoPrices), row.SuggestedPrice.Value);
                 }
 
                 if (committedLookup.TryGetValue(p.ProductId, out var committedItem))
@@ -866,12 +878,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
         private async Task PreparePriceComparisonData(AutomationRule rule, AutomationDetailsViewModel model)
         {
-
             var latestScrap = await _context.ScrapHistories
-               .Where(sh => sh.StoreId == rule.StoreId)
-               .OrderByDescending(sh => sh.Date)
-               .Select(sh => new { sh.Id, sh.Date })
-               .FirstOrDefaultAsync();
+                .Where(sh => sh.StoreId == rule.StoreId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => new { sh.Id, sh.Date })
+                .FirstOrDefaultAsync();
 
             model.LastScrapDate = latestScrap?.Date;
             model.LatestScrapId = latestScrap?.Id;
@@ -895,7 +906,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     .Where(i => i.Batch.StoreId == rule.StoreId
                                 && i.Batch.ScrapHistoryId == scrapId
                                 && i.Success)
-
                     .ToListAsync();
 
                 committedLookup = committedChanges
@@ -916,6 +926,10 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var competitorRules = GetCompetitorRulesForComparison(rule.CompetitorPreset);
             string myStoreNameLower = rule.Store.StoreName.ToLower().Trim();
+            string myStoreName = rule.Store.StoreName ?? "";
+
+            bool includeGoogle = rule.CompetitorPreset == null || rule.CompetitorPreset.SourceGoogle;
+            bool includeCeneo = rule.CompetitorPreset == null || rule.CompetitorPreset.SourceCeneo;
 
             foreach (var item in assignments)
             {
@@ -923,8 +937,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 if (p == null) continue;
 
                 var histories = priceHistories.Where(h => h.ProductId == p.ProductId).ToList();
-
-                string myStoreName = rule.Store.StoreName ?? "";
 
                 var myHistory = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase))
                                 ?? histories.FirstOrDefault(h => h.StoreName == null);
@@ -941,15 +953,13 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 if (rule.CompetitorPreset != null)
                 {
-                    bool blockGoogle = !rule.CompetitorPreset.SourceGoogle;
-                    bool blockCeneo = !rule.CompetitorPreset.SourceCeneo;
 
                     foreach (var comp in rawCompetitors)
                     {
                         bool isGoogle = comp.IsGoogle == true;
 
-                        if (isGoogle && blockGoogle) continue;
-                        if (!isGoogle && blockCeneo) continue;
+                        if (isGoogle && !includeGoogle) continue;
+                        if (!isGoogle && !includeCeneo) continue;
 
                         if (IsCompetitorAllowedComparison(comp.StoreName, isGoogle, competitorRules, rule.CompetitorPreset.UseUnmarkedStores))
                         {
@@ -968,15 +978,15 @@ namespace PriceSafari.Controllers.MemberControllers
                 var myGoogleRecord = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(rule.Store.StoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle == true);
                 var myCeneoRecord = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(rule.Store.StoreName, StringComparison.OrdinalIgnoreCase) && (h.IsGoogle == false || h.IsGoogle == null));
 
-                string currentRankGoogle = "-";
-                string currentRankCeneo = "-";
+                string currentRankGoogle = null;
+                string currentRankCeneo = null;
 
-                if (myGoogleRecord != null && myGoogleRecord.Price > 0)
+                if (includeGoogle && myGoogleRecord != null && myGoogleRecord.Price > 0)
                 {
                     currentRankGoogle = CalculateRanking(new List<decimal>(googlePrices), myGoogleRecord.Price);
                 }
 
-                if (myCeneoRecord != null && myCeneoRecord.Price > 0)
+                if (includeCeneo && myCeneoRecord != null && myCeneoRecord.Price > 0)
                 {
                     currentRankCeneo = CalculateRanking(new List<decimal>(ceneoPrices), myCeneoRecord.Price);
                 }
@@ -987,7 +997,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 decimal? marketAvg = null;
                 if (filteredCompetitors.Any())
                 {
-
                     marketAvg = CalculateMedian(filteredCompetitors.Select(c => c.Price).ToList());
                 }
 
@@ -1013,15 +1022,18 @@ namespace PriceSafari.Controllers.MemberControllers
                 CalculateSuggestedPrice(rule, row);
                 CalculateCurrentMarkup(row);
 
-                string newRankGoogle = "-";
-                string newRankCeneo = "-";
+                string newRankGoogle = null;
+                string newRankCeneo = null;
 
                 if (row.SuggestedPrice.HasValue)
                 {
                     decimal newPrice = row.SuggestedPrice.Value;
 
-                    newRankGoogle = CalculateRanking(new List<decimal>(googlePrices), newPrice);
-                    newRankCeneo = CalculateRanking(new List<decimal>(ceneoPrices), newPrice);
+                    if (includeGoogle)
+                        newRankGoogle = CalculateRanking(new List<decimal>(googlePrices), newPrice);
+
+                    if (includeCeneo)
+                        newRankCeneo = CalculateRanking(new List<decimal>(ceneoPrices), newPrice);
                 }
 
                 row.NewRankingGoogle = newRankGoogle;
@@ -1031,9 +1043,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 if (committedLookup.TryGetValue(p.ProductId, out var committedItem))
                 {
                     row.IsAlreadyUpdated = true;
-
                     row.UpdatedPrice = committedItem.PriceAfter;
-
                     row.UpdateDate = committedItem.Batch.ExecutionDate;
                 }
 
@@ -1043,10 +1053,10 @@ namespace PriceSafari.Controllers.MemberControllers
             model.TotalProducts = model.Products.Count;
         }
 
-        private async Task SavePriceComparisonBatch(AutomationExecutionRequest request, string? userId, AutomationRule rule)
-        {
+        //private async Task SavePriceComparisonBatch(AutomationExecutionRequest request, string? userId, AutomationRule rule)
+        //{
 
-        }
+        //}
 
         public class AutomationTriggerRequest
         {

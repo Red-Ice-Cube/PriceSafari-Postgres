@@ -1091,18 +1091,39 @@
                                         }
                                         else
                                         {
-                                            <div class="rank-row">
-                                                <img src="/images/GoogleShopping.png" alt="Google" class="rank-icon">
-                                                <span class="text-muted">@item.CurrentRankingGoogle</span>
-                                                <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
-                                                <span class="text-muted">@item.NewRankingGoogle</span>
-                                            </div>
-                                            <div class="rank-row">
-                                                <img src="/images/Ceneo.png" alt="Ceneo" class="rank-icon">
-                                                <span class="text-muted">@item.CurrentRankingCeneo</span>
-                                                <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
-                                                <span class="text-muted">@item.NewRankingCeneo</span>
-                                            </div>
+                                            @if (!string.IsNullOrEmpty(item.CurrentRankingGoogle) && item.CurrentRankingGoogle != "-")
+                                            {
+                                                <div class="rank-row">
+                                                    <img src="/images/GoogleShopping.png" alt="Google" class="rank-icon">
+                                                    <span class="text-muted">@item.CurrentRankingGoogle</span>
+                                                    @if (!string.IsNullOrEmpty(item.NewRankingGoogle))
+                                                    {
+                                                        <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
+                                                        <span class="text-muted">@item.NewRankingGoogle</span>
+                                                    }
+                                                </div>
+                                            }
+
+                                      
+                                            @if (!string.IsNullOrEmpty(item.CurrentRankingCeneo) && item.CurrentRankingCeneo != "-")
+                                            {
+                                                <div class="rank-row">
+                                                    <img src="/images/Ceneo.png" alt="Ceneo" class="rank-icon">
+                                                    <span class="text-muted">@item.CurrentRankingCeneo</span>
+                                                    @if (!string.IsNullOrEmpty(item.NewRankingCeneo))
+                                                    {
+                                                        <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
+                                                        <span class="text-muted">@item.NewRankingCeneo</span>
+                                                    }
+                                                </div>
+                                            }
+
+                                          
+                                            @if ((string.IsNullOrEmpty(item.CurrentRankingGoogle) || item.CurrentRankingGoogle == "-") &&
+                                                                                (string.IsNullOrEmpty(item.CurrentRankingCeneo) || item.CurrentRankingCeneo == "-"))
+                                            {
+                                                <span class="text-xs text-gray-400">-</span>
+                                            }
                                         }
                                     </div>
                                 </td>
