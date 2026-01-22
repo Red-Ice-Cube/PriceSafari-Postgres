@@ -105,6 +105,8 @@
 
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
+    let selectedAutomationsInclude = new Set();
+    let selectedAutomationsExclude = new Set();
     let selectedProductIds = loadSelectionFromStorage();
     let selectedPriceChanges = [];
     let isBulkFlaggingMode = false;
@@ -1208,6 +1210,7 @@
                 document.getElementById('missedProductsCount').textContent = missedProductsCount;
 
                 updateFlagCounts(allPrices);
+                updateAutomationFilterUI(allPrices);
                 const currentSearchTerm = document.getElementById('productSearch').value;
                 let filteredPrices = allPrices;
 
@@ -1261,6 +1264,127 @@
 
     }
 
+    function updateAutomationFilterUI(filteredPrices) {
+        // 1. Zliczanie wystąpień w OBECNYM (przefiltrowanym) widoku
+        const currentCounts = {};
+        let currentNoRuleCount = 0;
+
+        filteredPrices.forEach(price => {
+            if (!price.automationRuleId) {
+                currentNoRuleCount++;
+            } else {
+                const id = price.automationRuleId;
+                currentCounts[id] = (currentCounts[id] || 0) + 1;
+            }
+        });
+
+        // 2. Budowanie definicji na podstawie WSZYSTKICH produktów
+        const automationMeta = {};
+        let globalNoRuleExists = false;
+
+        allPrices.forEach(price => {
+            if (!price.automationRuleId) {
+                globalNoRuleExists = true;
+            } else {
+                const id = price.automationRuleId;
+                if (!automationMeta[id]) {
+                    automationMeta[id] = {
+                        name: price.automationRuleName,
+                        color: price.automationRuleColor || '#3d85c6'
+                    };
+                }
+            }
+        });
+
+        const container = document.getElementById('automationFilterContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        // 3. Renderowanie listy automatów
+        Object.keys(automationMeta)
+            .sort((a, b) => automationMeta[a].name.localeCompare(automationMeta[b].name))
+            .forEach(ruleIdStr => {
+                const ruleId = parseInt(ruleIdStr);
+                const meta = automationMeta[ruleId];
+                const count = currentCounts[ruleId] || 0;
+
+                const includeChecked = selectedAutomationsInclude.has(ruleId.toString()) ? 'checked' : '';
+                const excludeChecked = selectedAutomationsExclude.has(ruleId.toString()) ? 'checked' : '';
+
+                const colorRectStyle = `display:inline-block; width:4px; height:14px; background-color:${meta.color}; vertical-align:middle; margin-right:6px; border-radius:2px; margin-bottom: 2px;`;
+
+                // ZMIANA TUTAJ: Dodano klasy flagFilterInclude oraz flagFilterExclude do inputów
+                const html = `
+            <div class="flag-filter-group">
+                <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                    <input class="form-check-input automationFilterInclude flagFilterInclude" type="checkbox" id="autoCheckInclude_${ruleId}" value="${ruleId}" ${includeChecked} title="Pokaż tylko produkty w tym automacie">
+                </div>
+                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                    <input class="form-check-input automationFilterExclude flagFilterExclude" type="checkbox" id="autoCheckExclude_${ruleId}" value="${ruleId}" ${excludeChecked} title="Ukryj produkty w tym automacie">
+                </div>
+                
+                <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center;">
+                    <span style="${colorRectStyle}"></span>
+                    ${meta.name} <span style="color:#888; margin-left:4px;">(${count})</span>
+                </span>
+            </div>`;
+
+                container.insertAdjacentHTML('beforeend', html);
+            });
+
+        // 4. Renderowanie opcji "Brak automatu"
+        if (globalNoRuleExists) {
+            const noRuleIncludeChecked = selectedAutomationsInclude.has('noRule') ? 'checked' : '';
+            const noRuleExcludeChecked = selectedAutomationsExclude.has('noRule') ? 'checked' : '';
+            const noRuleCountDisplay = currentNoRuleCount;
+
+            // ZMIANA TUTAJ: Również dodano klasy flagFilter... do inputów
+            const noRuleHtml = `
+        <div class="flag-filter-group">
+            <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+                <input class="form-check-input automationFilterInclude flagFilterInclude" type="checkbox" id="autoCheckInclude_noRule" value="noRule" ${noRuleIncludeChecked} title="Pokaż produkty bez automatu">
+            </div>
+            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                <input class="form-check-input automationFilterExclude flagFilterExclude" type="checkbox" id="autoCheckExclude_noRule" value="noRule" ${noRuleExcludeChecked} title="Ukryj produkty bez automatu">
+            </div>
+            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center;">
+                <span style="display:inline-block; width:4px; height:14px; background-color:#ccc; vertical-align:middle; margin-right:6px; border-radius:2px; margin-bottom: 2px;"></span>
+                Brak automatu <span style="color:#888; margin-left:4px;">(${noRuleCountDisplay})</span>
+            </span>
+        </div>`;
+
+            container.insertAdjacentHTML('beforeend', noRuleHtml);
+        }
+
+        // 5. Obsługa zdarzeń (Logicznia oparta o automationFilterInclude/Exclude)
+        container.querySelectorAll('.automationFilterInclude, .automationFilterExclude').forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const val = this.value;
+                const isInclude = this.classList.contains('automationFilterInclude');
+
+                if (isInclude) {
+                    if (this.checked) {
+                        const exclude = document.getElementById(`autoCheckExclude_${val}`);
+                        if (exclude) { exclude.checked = false; selectedAutomationsExclude.delete(val); }
+                        selectedAutomationsInclude.add(val);
+                    } else {
+                        selectedAutomationsInclude.delete(val);
+                    }
+                } else {
+                    if (this.checked) {
+                        const include = document.getElementById(`autoCheckInclude_${val}`);
+                        if (include) { include.checked = false; selectedAutomationsInclude.delete(val); }
+                        selectedAutomationsExclude.add(val);
+                    } else {
+                        selectedAutomationsExclude.delete(val);
+                    }
+                }
+
+                showLoading();
+                filterPricesAndUpdateUI();
+            });
+        });
+    }
     function updateFlagCounts(prices) {
         const flagCounts = {};
         let noFlagCount = 0;
@@ -1456,6 +1580,21 @@
 
         if (selectedStockCompetitor.length) {
             filteredPrices = filteredPrices.filter(item => selectedStockCompetitor.includes(item.bestEntryInStock));
+        }
+
+        if (selectedAutomationsExclude.size > 0) {
+            filteredPrices = filteredPrices.filter(item => {
+                const ruleId = item.automationRuleId ? item.automationRuleId.toString() : 'noRule';
+                return !selectedAutomationsExclude.has(ruleId);
+            });
+        }
+
+        // 2. Logika INCLUDE (Lewa strona - pokaż tylko te z automatem)
+        if (selectedAutomationsInclude.size > 0) {
+            filteredPrices = filteredPrices.filter(item => {
+                const ruleId = item.automationRuleId ? item.automationRuleId.toString() : 'noRule';
+                return selectedAutomationsInclude.has(ruleId);
+            });
         }
 
         return filteredPrices;
@@ -2103,7 +2242,7 @@
         const isActive = item.isAutomationActive;
 
         const statusColor = isActive ? '#1cc88a' : '#e74a3b';
-        const statusText = isActive ? 'Aktywna' : 'Wyłączona';
+        const statusText = isActive ? 'Aktywny' : 'Wyłączony';
 
         // 1. POPRAWKA URL: Ustawienie poprawnej ścieżki do kontrolera automatów
         // Upewnij się, że masz taki kontroler i akcję (PriceAutomation/Details lub AutomationRules/Edit)
@@ -3575,7 +3714,7 @@
             debouncedRenderChart(filteredPrices);
             updateColorCounts(filteredPrices);
             updateFlagCounts(filteredPrices);
-
+            updateAutomationFilterUI(filteredPrices);
             hideLoading();
         }, 0);
     }
