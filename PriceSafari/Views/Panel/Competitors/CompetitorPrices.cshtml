@@ -10,8 +10,9 @@
 
 <script>
     var storeId = '@storeId';
-    var competitorStoreName = '@Html.Raw(competitorStoreName)';
-    var storeName = '@Html.Raw(storeName)';
+    // Json.Serialize dla bezpieczeństwa znaków specjalnych
+    var competitorStoreName = @Html.Raw(Json.Serialize(competitorStoreName));
+    var storeName = @Html.Raw(Json.Serialize(storeName));
 
     var apiConfig = {
         getHistoryUrl: '@scrapHistoryUrl',
@@ -24,6 +25,7 @@
 }
 
 <style>
+    /* --- Istniejące style (niezmienione) --- */
     .scrollable-table-container {
         overflow-x: auto;
     }
@@ -144,14 +146,7 @@
             z-index: 3;
         }
 
-        .table-orders thead th {
-            background-color: #222222;
-            color: white;
-            z-index: 3;
-        }
-
-    .table-orders th:first-child,
-    .table-orders td:first-child {
+    .table-orders th:first-child, .table-orders td:first-child {
         position: -webkit-sticky;
         position: sticky;
         left: 0;
@@ -184,8 +179,7 @@
         border-collapse: collapse;
     }
 
-        .table-orders th,
-        .table-orders td {
+        .table-orders th, .table-orders td {
             padding: 8px;
             white-space: nowrap;
         }
@@ -264,14 +258,96 @@
         vertical-align: middle;
         margin-left: 4px;
     }
+
+    /* --- NOWE STYLE (TYLKO DLA PASKA DATY I BRAKU ZDJĘCIA) --- */
+
+    /* Pasek historii - przewijanie i wygląd */
+    #scrapHistoryCheckboxes {
+        height:100%;
+        overflow-y: auto;
+        padding-right: 5px;
+        /* Estetyczny scrollbar */
+        scrollbar-width: thin;
+        scrollbar-color: #aaa #f0f0f0;
+    }
+
+        #scrapHistoryCheckboxes::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #scrapHistoryCheckboxes::-webkit-scrollbar-track {
+            background: #f0f0f0;
+        }
+
+        #scrapHistoryCheckboxes::-webkit-scrollbar-thumb {
+            background: #aaa;
+            border-radius: 3px;
+        }
+
+    /* Pojedynczy element historii (kafelek) */
+    .scraphistory-item {
+        display: flex;
+        align-items: flex-start; /* Wyrównanie do góry */
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+        .scraphistory-item:hover {
+            background-color: #f9f9f9;
+            border-color: #ccc;
+        }
+
+        .scraphistory-item input[type="checkbox"] {
+            margin-top: 4px; /* Wyrównanie checkboxa */
+            margin-right: 10px;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+    /* Kontener tekstowy wewnątrz kafelka */
+    .scraphistory-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .scraphistory-date {
+        font-weight: 600;
+        font-size: 14px;
+        color: #333;
+    }
+
+    .scraphistory-time {
+        font-size: 11px;
+        color: #777;
+        margin-top: 2px;
+    }
+
+    /* Poprawka dla braku zdjęcia - tekst wyrównany do lewej */
+    .product-info-cell.no-image {
+        padding-left: 5px;
+    }
+
+        .product-info-cell.no-image .product-name-text {
+            margin-left: 0;
+        }
+
+ 
+    /* Zielony (taniej) */
 </style>
 
 <div class="Vert">
     <div class="Page-Box">
         <div class="Page-Box-Container">
-            <div class="Page-Box-Category" style="padding:0px; min-width:190px; max-width:200px;">
+            <div class="Page-Box-Category" style="padding:0px; min-width:210px; max-width:220px;">
                 <div class="Category-Container-Title">Historia cen</div>
-                <div class="filterBox" style="padding-left:16px;">
+                <div class="filterBox" style="padding-left:12px; padding-right:12px;">
                     <div class="Category-Container-Select">Zmiany</div>
                     <div class="store-section">
                         <div class="filter-category">
@@ -317,9 +393,8 @@
                     <div class="scrollable-table-container">
                         <table class="table-orders">
                             <thead>
-                                <tr>
+                                <tr id="table-header-row">
                                     <th>Produkt</th>
-                                    <th>Kanał</th>
                                 </tr>
                             </thead>
                             <tbody id="priceTableBody">

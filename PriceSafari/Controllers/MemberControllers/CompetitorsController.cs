@@ -401,7 +401,7 @@ public class CompetitorsController : Controller
 
                 IdOnAllegro = ph.AllegroProduct.IdOnAllegro,
                 ProductName = ph.AllegroProduct.AllegroProductName,
-                OfferUrl = ph.AllegroProduct.AllegroOfferUrl
+               
             })
             .ToListAsync();
 
@@ -437,7 +437,7 @@ public class CompetitorsController : Controller
 
                     productId = productInfo.AllegroProductId,
                     productName = productInfo.ProductName,
-                    productMainUrl = productInfo.OfferUrl,
+             
                     price = competitorBestPrice,
                     ourPrice = myPrice,
                     scrapHistoryId = request.ScrapHistoryId

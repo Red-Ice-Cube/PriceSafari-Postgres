@@ -1,15 +1,23 @@
 ﻿const loadedPrices = {};
 let allProducts = {};
 
+// Pomocnicza funkcja do formatowania waluty po polsku
+// Zamienia 1649.00 na "1 649,00"
+function formatMoneyPL(amount) {
+    if (typeof amount !== 'number') return 'B/D';
+    return amount.toLocaleString('pl-PL', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        useGrouping: true // To dodaje spację jako separator tysięcy
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 
     if (typeof storeId === 'undefined' || typeof competitorStoreName === 'undefined' || typeof storeName === 'undefined' || typeof apiConfig === 'undefined') {
         console.error("Kluczowe zmienne globalne (storeId, competitorStoreName, storeName, apiConfig) nie są zdefiniowane.");
-
-        const tableContainer = document.querySelector('.table-container');
-
-        const container = tableContainer || document.querySelector('.Vert-table');
-        if (container) container.innerHTML = '<p style="color:red; text-align:center;">Błąd konfiguracji: Brak niezbędnych danych API lub sklepu.</p>';
+        const container = document.querySelector('.Vert-table') || document.querySelector('.table-container');
+        if (container) container.innerHTML = '<p style="color:red; text-align:center; padding: 20px;">Błąd konfiguracji: Brak niezbędnych danych API lub sklepu.</p>';
         return;
     }
 
@@ -19,15 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const decreaseCheckbox = document.getElementById('filterDecrease');
     const changeCheckbox = document.getElementById('filterChange');
 
-    if (increaseCheckbox) {
-        increaseCheckbox.addEventListener('change', () => renderPrices());
-    }
-    if (decreaseCheckbox) {
-        decreaseCheckbox.addEventListener('change', () => renderPrices());
-    }
-    if (changeCheckbox) {
-        changeCheckbox.addEventListener('change', () => renderPrices());
-    }
+    if (increaseCheckbox) increaseCheckbox.addEventListener('change', () => renderPrices());
+    if (decreaseCheckbox) decreaseCheckbox.addEventListener('change', () => renderPrices());
+    if (changeCheckbox) changeCheckbox.addEventListener('change', () => renderPrices());
 
     const productSearchInput = document.getElementById('productSearch');
     if (productSearchInput) {
@@ -38,9 +40,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadScrapHistoryOptions(currentStoreId, currentCompetitorStoreName) {
-
     const baseUrl = apiConfig.getHistoryUrl;
-    const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}storeId=${currentStoreId}`;
+
+    const url = baseUrl.includes('storeId') ? baseUrl : `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}storeId=${currentStoreId}`;
 
     fetch(url)
         .then(response => {
@@ -49,19 +51,17 @@ function loadScrapHistoryOptions(currentStoreId, currentCompetitorStoreName) {
         })
         .then(scrapHistoryIds => {
             const container = document.getElementById('scrapHistoryCheckboxes');
-            if (!container) {
-                console.error('Kontener #scrapHistoryCheckboxes nie znaleziony.');
-                return;
-            }
+            if (!container) return;
+
             container.innerHTML = '';
             let firstCheckbox = null;
 
             scrapHistoryIds.sort((a, b) => new Date(b.date) - new Date(a.date));
 
             scrapHistoryIds.forEach((scrap, index) => {
+
                 const label = document.createElement('label');
-                label.className = 'form-check-label';
-                label.style.display = 'block';
+                label.className = 'scraphistory-item';
 
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
@@ -78,11 +78,30 @@ function loadScrapHistoryOptions(currentStoreId, currentCompetitorStoreName) {
                     }
                 });
 
-                const date = new Date(scrap.date);
-                const formattedDate = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
+                const dateObj = new Date(scrap.date);
+                const dateStr = dateObj.toLocaleDateString('pl-PL', {
+                    day: '2-digit', month: '2-digit', year: 'numeric'
+                });
+                const timeStr = dateObj.toLocaleTimeString('pl-PL', {
+                    hour: '2-digit', minute: '2-digit'
+                });
+
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'scraphistory-info';
+
+                const dateSpan = document.createElement('span');
+                dateSpan.className = 'scraphistory-date';
+                dateSpan.textContent = dateStr;
+
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'scraphistory-time';
+                timeSpan.textContent = timeStr;
+
+                infoDiv.appendChild(dateSpan);
+                infoDiv.appendChild(timeSpan);
 
                 label.appendChild(checkbox);
-                label.appendChild(document.createTextNode(` ${formattedDate}`));
+                label.appendChild(infoDiv);
                 container.appendChild(label);
 
                 if (index === 0) firstCheckbox = checkbox;
@@ -99,11 +118,16 @@ function loadScrapHistoryOptions(currentStoreId, currentCompetitorStoreName) {
 function loadCompetitorPrices(scrapHistoryIds, currentStoreId, currentCompetitorStoreName) {
     scrapHistoryIds.forEach(scrapHistoryId => {
         if (loadedPrices[scrapHistoryId] === 'loading') return;
+
+        if (loadedPrices[scrapHistoryId] && loadedPrices[scrapHistoryId] !== 'loading') {
+            renderPrices();
+            return;
+        }
+
         loadedPrices[scrapHistoryId] = 'loading';
 
         const requestData = {
             storeId: parseInt(currentStoreId),
-
             competitorStoreName: currentCompetitorStoreName,
             scrapHistoryId: parseInt(scrapHistoryId)
         };
@@ -116,7 +140,7 @@ function loadCompetitorPrices(scrapHistoryIds, currentStoreId, currentCompetitor
             .then(response => {
                 if (!response.ok) {
                     delete loadedPrices[scrapHistoryId];
-                    return response.text().then(text => { throw new Error(`Błąd HTTP! Status: ${response.status}, Wiadomość: ${text}`) });
+                    return response.text().then(text => { throw new Error(`Status: ${response.status}`) });
                 }
                 return response.json();
             })
@@ -125,7 +149,7 @@ function loadCompetitorPrices(scrapHistoryIds, currentStoreId, currentCompetitor
                 renderPrices();
             })
             .catch(error => {
-                console.error(`Błąd ładowania cen konkurenta dla scrapId ${scrapHistoryId}:`, error);
+                console.error(`Błąd (ID: ${scrapHistoryId}):`, error);
                 if (loadedPrices[scrapHistoryId] === 'loading') delete loadedPrices[scrapHistoryId];
                 renderPrices();
             });
@@ -133,9 +157,6 @@ function loadCompetitorPrices(scrapHistoryIds, currentStoreId, currentCompetitor
 }
 
 function renderPrices() {
-    const tableBody = document.getElementById('priceTableBody');
-    if (!tableBody) return;
-    tableBody.innerHTML = '';
 
     const newAllProducts = {};
     const successfullyLoadedScrapIds = Object.keys(loadedPrices)
@@ -148,72 +169,65 @@ function renderPrices() {
                 newAllProducts[priceEntry.productId] = {
                     productName: priceEntry.productName,
                     mainUrl: priceEntry.productMainUrl,
-
                     data: {},
                     ourData: {}
                 };
             }
-
             newAllProducts[priceEntry.productId].data[scrapHistoryId] = priceEntry.price;
             newAllProducts[priceEntry.productId].ourData[scrapHistoryId] = priceEntry.ourPrice;
         });
     });
+
     allProducts = newAllProducts;
 
-    const table = tableBody.closest('table');
-    if (!table) return;
-    let thead = table.querySelector('thead');
-    if (!thead) {
-        thead = table.insertBefore(document.createElement('thead'), table.firstChild);
-    }
-
-    thead.innerHTML = '';
-    let theadRow = document.createElement('tr');
-    thead.appendChild(theadRow);
-
-    let thProduct = document.createElement('th');
-    thProduct.textContent = 'Produkt';
-    thProduct.className = 'sticky-col';
-    theadRow.appendChild(thProduct);
-
-    const sortedUniqueScrapHistoryIds = successfullyLoadedScrapIds.sort((a, b) => {
-        const checkboxA = document.querySelector(`.deliveryFilterCompetitor[value="${a}"]`);
-        const checkboxB = document.querySelector(`.deliveryFilterCompetitor[value="${b}"]`);
-        if (!checkboxA?.dataset?.date || !checkboxB?.dataset?.date) return 0;
-        return new Date(checkboxA.dataset.date) - new Date(checkboxB.dataset.date);
-    });
-
-    sortedUniqueScrapHistoryIds.forEach(id => {
-        const th = document.createElement('th');
-        const checkbox = document.querySelector(`.deliveryFilterCompetitor[value="${id}"]`);
-        if (checkbox?.dataset?.date) {
-            const date = new Date(checkbox.dataset.date);
-            th.textContent = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
-        } else {
-            th.textContent = `Dane (${id})`;
-        }
-        theadRow.appendChild(th);
-    });
-
-    displayProducts(allProducts, sortedUniqueScrapHistoryIds);
+    const searchInput = document.getElementById('productSearch');
+    const searchTerm = searchInput ? searchInput.value : "";
+    filterProducts(searchTerm);
 }
 
 function filterProducts(searchTerm) {
     const lowerSearchTerm = searchTerm.toLowerCase();
     const filteredProducts = {};
+
     for (const [productId, product] of Object.entries(allProducts)) {
-        if (product.productName && product.productName.toLowerCase().includes(lowerSearchTerm)) {
+        const pName = product.productName ? product.productName.toLowerCase() : "";
+        if (pName.includes(lowerSearchTerm)) {
             filteredProducts[productId] = product;
         }
     }
+
     const successfullyLoadedScrapIds = Object.keys(loadedPrices)
         .filter(id => loadedPrices[id] && loadedPrices[id] !== 'loading');
+
     const sortedUniqueScrapHistoryIds = successfullyLoadedScrapIds.sort((a, b) => {
         const checkboxA = document.querySelector(`.deliveryFilterCompetitor[value="${a}"]`);
         const checkboxB = document.querySelector(`.deliveryFilterCompetitor[value="${b}"]`);
         if (!checkboxA?.dataset?.date || !checkboxB?.dataset?.date) return 0;
         return new Date(checkboxA.dataset.date) - new Date(checkboxB.dataset.date);
     });
+
+    const theadRow = document.getElementById('table-header-row');
+    if (theadRow) {
+
+        while (theadRow.children.length > 1) {
+            theadRow.removeChild(theadRow.lastChild);
+        }
+
+        sortedUniqueScrapHistoryIds.forEach(id => {
+            const th = document.createElement('th');
+            const checkbox = document.querySelector(`.deliveryFilterCompetitor[value="${id}"]`);
+            if (checkbox?.dataset?.date) {
+                const date = new Date(checkbox.dataset.date);
+                const dateStr = date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const timeStr = date.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+                th.innerHTML = `${dateStr}<br><span style="font-size:11px; font-weight:normal;">${timeStr}</span>`;
+            } else {
+                th.textContent = `Dane (${id})`;
+            }
+            theadRow.appendChild(th);
+        });
+    }
+
     displayProducts(filteredProducts, sortedUniqueScrapHistoryIds);
 }
 
@@ -235,22 +249,64 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
         let rowHasAnyPriceIncrease = false;
         let rowHasAnyPriceDecrease = false;
 
+        sortedScrapIds.forEach((scrapId, index) => {
+            if (index > 0) {
+                const prevScrapId = sortedScrapIds[index - 1];
+
+                const ourCurr = product.ourData[scrapId];
+                const ourPrev = product.ourData[prevScrapId];
+                if (typeof ourCurr === 'number' && typeof ourPrev === 'number') {
+                    if (ourCurr > ourPrev) rowHasAnyPriceIncrease = true;
+                    if (ourCurr < ourPrev) rowHasAnyPriceDecrease = true;
+                    if (ourCurr !== ourPrev) rowHasAnyPriceChange = true;
+                }
+
+                const compCurr = product.data[scrapId];
+                const compPrev = product.data[prevScrapId];
+                if (typeof compCurr === 'number' && typeof compPrev === 'number') {
+                    if (compCurr > compPrev) rowHasAnyPriceIncrease = true;
+                    if (compCurr < compPrev) rowHasAnyPriceDecrease = true;
+                    if (compCurr !== compPrev) rowHasAnyPriceChange = true;
+                }
+            }
+        });
+
+        let showThisRow = true;
+        const anyChangeFilterActive = filterIncrease || filterDecrease || filterChange;
+
+        if (anyChangeFilterActive) {
+            showThisRow = false;
+            if (filterIncrease && rowHasAnyPriceIncrease) showThisRow = true;
+            if (filterDecrease && rowHasAnyPriceDecrease) showThisRow = true;
+            if (filterChange && rowHasAnyPriceChange) showThisRow = true;
+        }
+
+        if (!showThisRow) continue;
+
         const row = document.createElement('tr');
 
+        // --- KOLUMNA PRODUKTU (LOGIKA ZDJĘĆ) ---
         const productInfoTd = document.createElement('td');
         const productInfoDiv = document.createElement('div');
         productInfoDiv.className = 'product-info-cell';
 
-        if (product.mainUrl) {
+        // Sprawdzamy, czy sklep to Allegro (bez względu na wielkość liter)
+        const isAllegro = competitorStoreName && competitorStoreName.toLowerCase().includes('allegro');
+
+        // Wyświetlamy zdjęcie TYLKO jeśli to nie Allegro i mamy poprawny URL
+        if (!isAllegro && product.mainUrl && product.mainUrl.length > 5) {
             const img = document.createElement('img');
             img.src = product.mainUrl;
-            img.alt = product.productName || 'Obrazek produktu';
+            img.alt = product.productName;
+
             img.onerror = function () {
-                this.parentElement.classList.add('no-image');
-                this.remove();
+                this.style.display = 'none';
+                productInfoDiv.classList.add('no-image');
             };
+
             productInfoDiv.appendChild(img);
         } else {
+            // Jeśli Allegro lub brak URL -> od razu klasa no-image
             productInfoDiv.classList.add('no-image');
         }
 
@@ -262,46 +318,54 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
         productInfoTd.appendChild(productInfoDiv);
         row.appendChild(productInfoTd);
 
+        // --- KOLUMNY Z CENAMI ---
         sortedScrapIds.forEach((scrapId, index) => {
             const td = document.createElement('td');
-            td.classList.add('nowrap');
+
             let cellContent = '<div class="flex-row">';
 
+            // --- NASZA CENA ---
             const ourPriceValue = product.ourData[scrapId];
-            const competitorPriceValue = product.data[scrapId];
+            let ourPriceDisplay = (typeof ourPriceValue === 'number') ? formatMoneyPL(ourPriceValue) : "B/D";
 
-            let ourPriceDisplay = (typeof ourPriceValue === 'number') ? ourPriceValue.toFixed(2) : "B/D";
             let ourPriceHtml = `<div class="Price-box-content-o flex-column">
                                     <div class="priceBox-style-o ${ourPriceDisplay === "B/D" ? 'no-price' : ''}">`;
 
+            let ourDiffHtml = '';
             if (index > 0 && typeof ourPriceValue === 'number') {
                 const previousScrapId = sortedScrapIds[index - 1];
                 const previousOurPrice = product.ourData[previousScrapId];
                 if (typeof previousOurPrice === 'number') {
                     const diff = ourPriceValue - previousOurPrice;
                     if (diff !== 0) {
-                        rowHasAnyPriceChange = true;
-                        const percDiff = previousOurPrice === 0 ? (diff > 0 ? 100 : -100) : ((diff / previousOurPrice) * 100);
+                        const percDiff = previousOurPrice === 0 ? 100 : ((diff / previousOurPrice) * 100);
                         const isIncrease = diff > 0;
-                        if (isIncrease) rowHasAnyPriceIncrease = true; else rowHasAnyPriceDecrease = true;
-
-                        const changeClass = isIncrease ? 'priceBox-diff-down' : 'priceBox-diff-up';
-
+                        const changeClass = isIncrease ? 'priceBox-diff-up' : 'priceBox-diff-down';
                         const arrow = isIncrease ? '&uarr;' : '&darr;';
-                        ourPriceHtml += `<div class="${changeClass}">${diff.toFixed(2)} PLN (${percDiff.toFixed(2)}%) ${arrow}</div>`;
+                        // Formatowanie różnicy: formatMoneyPL + " PLN"
+                        // Formatowanie procentów: zamiana kropki na przecinek
+                        const formattedDiff = formatMoneyPL(Math.abs(diff));
+                        const formattedPerc = Math.abs(percDiff).toFixed(1).replace('.', ',');
+
+                        ourDiffHtml = `<div class="${changeClass}" style="margin-right:8px;">${formattedDiff} PLN (${formattedPerc}%) ${arrow}</div>`;
                     }
                 }
             }
 
-            ourPriceHtml += `<div class="PriceTagBox-o">${ourPriceDisplay !== "B/D" ? `${ourPriceDisplay} PLN` : ourPriceDisplay}</div></div>`;
-            ourPriceHtml += `<div class="Price-box-content-o-t">${typeof storeName !== 'undefined' ? storeName : 'Nasz Sklep'}</div></div>`;
+            ourPriceHtml += ourDiffHtml;
+            ourPriceHtml += `<div class="PriceTagBox-o">${ourPriceDisplay !== "B/D" ? `${ourPriceDisplay} PLN` : "Brak ceny"}</div></div>`;
+            ourPriceHtml += `<div class="Price-box-content-o-t">${storeName}</div></div>`;
+
             cellContent += ourPriceHtml;
 
-            let competitorPriceDisplay = (typeof competitorPriceValue === 'number') ? competitorPriceValue.toFixed(2) : "B/D";
+            // --- KONKURENCJA CENA ---
+            const competitorPriceValue = product.data[scrapId];
+            let competitorPriceDisplay = (typeof competitorPriceValue === 'number') ? formatMoneyPL(competitorPriceValue) : "B/D";
+
             let competitorPriceHtml = `<div class="Price-box-content-c flex-column">
                                             <div class="priceBox-style-c ${competitorPriceDisplay === "B/D" ? 'no-price' : ''}">`;
 
-            competitorPriceHtml += `<div class="PriceTagBox-c">${competitorPriceDisplay !== "B/D" ? `${competitorPriceDisplay} PLN` : competitorPriceDisplay}</div>`;
+            competitorPriceHtml += `<div class="PriceTagBox-c">${competitorPriceDisplay !== "B/D" ? `${competitorPriceDisplay} PLN` : "Brak ceny"}</div>`;
 
             if (index > 0 && typeof competitorPriceValue === 'number') {
                 const previousScrapId = sortedScrapIds[index - 1];
@@ -309,49 +373,39 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
                 if (typeof previousCompetitorPrice === 'number') {
                     const diff = competitorPriceValue - previousCompetitorPrice;
                     if (diff !== 0) {
-                        rowHasAnyPriceChange = true;
-                        const percDiff = previousCompetitorPrice === 0 ? (diff > 0 ? 100 : -100) : ((diff / previousCompetitorPrice) * 100);
+                        const percDiff = previousCompetitorPrice === 0 ? 100 : ((diff / previousCompetitorPrice) * 100);
                         const isIncrease = diff > 0;
-                        if (isIncrease) rowHasAnyPriceIncrease = true; else rowHasAnyPriceDecrease = true;
-
-                        const changeClass = isIncrease ? 'priceBox-diff-down' : 'priceBox-diff-up';
+                        const changeClass = isIncrease ? 'priceBox-diff-up' : 'priceBox-diff-down';
                         const arrow = isIncrease ? '&uarr;' : '&darr;';
-                        competitorPriceHtml += `<div class="${changeClass}">${diff.toFixed(2)} PLN (${percDiff.toFixed(2)}%) ${arrow}</div>`;
+
+                        const formattedDiff = formatMoneyPL(Math.abs(diff));
+                        const formattedPerc = Math.abs(percDiff).toFixed(1).replace('.', ',');
+
+                        competitorPriceHtml += `<div class="${changeClass}" style="margin-left:8px;">${formattedDiff} PLN (${formattedPerc}%) ${arrow}</div>`;
                     }
                 }
             }
-            competitorPriceHtml += `</div>`;
-            competitorPriceHtml += `<div class="Price-box-content-c-t">${typeof competitorStoreName !== 'undefined' ? competitorStoreName : 'Konkurent'}</div></div>`;
-            cellContent += competitorPriceHtml;
 
+            competitorPriceHtml += `</div>`;
+            competitorPriceHtml += `<div class="Price-box-content-c-t">${competitorStoreName}</div></div>`;
+
+            cellContent += competitorPriceHtml;
             cellContent += '</div>';
 
             td.innerHTML = cellContent;
 
+            td.style.cursor = 'pointer';
             td.addEventListener('click', (event) => {
-                if (event.target.tagName === 'A' || event.target.closest('a')) return;
-
+                if (event.target.tagName === 'A') return;
                 const url = `/PriceHistory/Details?productId=${productId}&scrapId=${scrapId}`;
                 window.open(url, '_blank');
             });
+
             row.appendChild(td);
         });
 
-        let showThisRow = false;
-        const anyChangeFilterActive = filterIncrease || filterDecrease || filterChange;
-
-        if (!anyChangeFilterActive) {
-            showThisRow = true;
-        } else {
-            if (filterIncrease && rowHasAnyPriceIncrease) showThisRow = true;
-            if (filterDecrease && rowHasAnyPriceDecrease) showThisRow = true;
-            if (filterChange && rowHasAnyPriceChange) showThisRow = true;
-        }
-
-        if (showThisRow) {
-            tableBody.appendChild(row);
-            productCount++;
-        }
+        tableBody.appendChild(row);
+        productCount++;
     }
 
     const scrapableCountElement = document.getElementById('scrapable-count');
