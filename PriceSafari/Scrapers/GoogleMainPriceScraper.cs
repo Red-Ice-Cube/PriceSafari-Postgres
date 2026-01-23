@@ -2422,9 +2422,6 @@
 
 
 
-
-
-
 using PriceSafari.Models;
 using System;
 using System.Collections.Generic;
@@ -2438,7 +2435,7 @@ using System.Threading.Tasks;
 
 namespace PriceSafari.Services
 {
-    // Rekord pomocniczy (bez zmian w strukturze projektu, tylko lokalnie)
+
     public record TempOffer(
         string Seller,
         string Price,
@@ -2470,18 +2467,15 @@ namespace PriceSafari.Services
         {
             var finalPriceHistory = new List<CoOfrPriceHistoryClass>();
 
-            // Lista pomocnicza do logowania (zawiera wszystkie znalezione, nawet te odrzucone)
-            // Używamy TempOffer, bo ma pola Condition/Currency, których nie ma w CoOfrPriceHistoryClass
             var allDebugOffers = new List<TempOffer>();
 
             Console.WriteLine($"\n[INFO] Start scrapowania dla ID: {coOfr.Id}...");
 
             string urlTemplate;
 
-            // --- LOGIKA BUDOWANIA URL (DODANO &hl=pl zgodnie z ustaleniami) ---
             if (coOfr.UseGoogleHidOffer && !string.IsNullOrEmpty(coOfr.GoogleHid))
             {
-                urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&hl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},headlineOfferDocid:{coOfr.GoogleHid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+                urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&hl=pl&yv=3&pvf=GgIQAQ&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},headlineOfferDocid:{coOfr.GoogleHid},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,pvf:GgIQAQ,_fmt:jspb";
             }
             else
             {
@@ -2495,11 +2489,11 @@ namespace PriceSafari.Services
 
                 if (!string.IsNullOrEmpty(coOfr.GoogleGid) && coOfr.UseGPID)
                 {
-                    urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&hl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+                    urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&hl=pl&yv=3&pvf=GgIQAQ&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=gpcid:{coOfr.GoogleGid},catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,pvf:GgIQAQ,_fmt:jspb";
                 }
                 else
                 {
-                    urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&hl=pl&yv=3&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,_fmt:jspb";
+                    urlTemplate = $"https://www.google.com/async/oapv?udm=3&gl=pl&hl=pl&yv=3&pvf=GgIQAQ&q=1&async_context=MORE_STORES&pvorigin=3&cs=1&async=catalogid:{catalogId},pvo:3,fs:%2Fshopping%2Foffers,sori:{{0}},mno:10,query:1,pvt:hg,pvf:GgIQAQ,_fmt:jspb";
                 }
             }
 
@@ -2511,7 +2505,6 @@ namespace PriceSafari.Services
             int lastFetchCount;
             const int maxRetries = 3;
 
-            // --- 1. GŁÓWNA PĘTLA POBIERANIA (OAPV) ---
             do
             {
                 string currentUrl = string.Format(urlTemplate, startIndex);
@@ -2522,7 +2515,7 @@ namespace PriceSafari.Services
                 {
                     try
                     {
-                        // LOGOWANIE HTTP (JAK W TEŚCIE)
+
                         Console.ForegroundColor = ConsoleColor.Magenta;
                         Console.WriteLine($"\n[DEBUG HTTP] Wysłanie żądania OAPV (Start: {startIndex}):");
                         Console.WriteLine($"   URL: {currentUrl}");
@@ -2530,7 +2523,6 @@ namespace PriceSafari.Services
 
                         rawResponse = await _httpClient.GetStringAsync(currentUrl);
 
-                        // LOGOWANIE ODPOWIEDZI (JAK W TEŚCIE)
                         Console.ForegroundColor = ConsoleColor.DarkGray;
                         int previewLength = Math.Min(500, rawResponse.Length);
                         Console.WriteLine($"   [RESPONSE] Długość: {rawResponse.Length} znaków.");
@@ -2574,7 +2566,6 @@ namespace PriceSafari.Services
 
             } while (lastFetchCount == pageSize);
 
-            // --- 2. TRYB SMART Q (WRGA) ---
             if (coOfr.UseWRGA && !string.IsNullOrEmpty(firstPageRawResponse))
             {
                 decimal baselinePrice = 0;
@@ -2651,29 +2642,25 @@ namespace PriceSafari.Services
                 }
             }
 
-            // --- 3. PRZETWARZANIE WYNIKÓW (FILTRACJA DO BAZY + PRZYGOTOWANIE LOGÓW) ---
             var groupedBySeller = allFoundOffers.GroupBy(o => o.Seller);
 
-            // Listy lokalne do logowania (żeby nie zmieniać modelu CoOfrPriceHistoryClass)
             var debugMainList = new List<dynamic>();
             var debugAdditionalList = new List<dynamic>();
 
             foreach (var group in groupedBySeller)
             {
-                // Najlepsza oferta "czysta" (do zapisu)
+
                 var bestValidOffer = group
                     .Where(o => o.Condition == "NOWY" && o.Currency == "PLN")
                     .OrderBy(o => ParsePrice(o.Price))
                     .FirstOrDefault();
 
-                // WSZYSTKIE oferty (do logów, jak w teście)
                 var sortedStoreOffers = group.OrderBy(o => ParsePrice(o.Price)).ToList();
 
                 foreach (var offer in sortedStoreOffers)
                 {
                     bool isBest = (bestValidOffer != null && offer == bestValidOffer);
 
-                    // Jeśli to najlepsza oferta, dodajemy do listy zwrotnej (do bazy)
                     if (isBest)
                     {
                         string? isBiddingValue = null;
@@ -2698,7 +2685,6 @@ namespace PriceSafari.Services
                         });
                     }
 
-                    // --- PRZYGOTOWANIE DANYCH DO TABELKI DEBUGOWEJ (Anonimowy obiekt) ---
                     var debugItem = new
                     {
                         Pos = isBest ? offer.OriginalIndex.ToString() : "-",
@@ -2721,17 +2707,13 @@ namespace PriceSafari.Services
                 }
             }
 
-            // Sortowanie finalne (dla bazy)
             finalPriceHistory = finalPriceHistory.OrderBy(x => x.GooglePrice).ToList();
 
-            // --- DRUKOWANIE TABEL DEBUGOWYCH (BEZ ZMIAN W MODELACH) ---
-
-            // Sortowanie list debugowych
             debugMainList = debugMainList.OrderBy(x => x.Price).ToList();
-            // Nadpisanie pozycji w głównej liście dla logów (1, 2, 3...)
+
             for (int i = 0; i < debugMainList.Count; i++)
             {
-                // Tworzymy nowy anonimowy obiekt ze zaktualizowanym Pos (bo anonimowe są read-only)
+
                 var old = debugMainList[i];
                 debugMainList[i] = new { old.Pos, old.GPos, old.Stock, old.Cond, old.Curr, old.Info, old.Method, old.Seller, old.Price, old.Del, old.Total, old.Url, old.IsMain, ListPos = (i + 1).ToString() };
             }
@@ -2771,7 +2753,6 @@ namespace PriceSafari.Services
 
         #region Helper Methods (Logowanie i Parsowanie)
 
-        // Metoda pomocnicza do drukowania wiersza (przyjmuje dynamic)
         private void PrintDebugRow(dynamic item, string posLabel)
         {
             string infoCode = item.Info;
@@ -2931,32 +2912,58 @@ namespace PriceSafari.Services
         {
             if (node.ValueKind == JsonValueKind.Array)
             {
-                if (IsPotentialSingleOffer(node))
+                // ✅ POPRAWKA: Sprawdza czy JAKIKOLWIEK element jest ofertą
+                if (node.EnumerateArray().Any(IsPotentialSingleOffer))
                 {
                     foreach (JsonElement potentialOffer in node.EnumerateArray())
                     {
                         TempOffer? offer = ParseSingleOffer(root, potentialOffer);
-                        if (offer != null && !allOffers.Any(o => o.Url == offer.Url)) allOffers.Add(offer);
+                        if (offer != null && !allOffers.Any(o => o.Url == offer.Url))
+                            allOffers.Add(offer);
                     }
                 }
-                foreach (var element in node.EnumerateArray()) FindAndParseAllOffers(root, element, allOffers);
+            }
+
+            // ✅ Rekurencja - osobny blok if
+            if (node.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var element in node.EnumerateArray())
+                    FindAndParseAllOffers(root, element, allOffers);
             }
             else if (node.ValueKind == JsonValueKind.Object)
             {
-                foreach (var property in node.EnumerateObject()) FindAndParseAllOffers(root, property.Value, allOffers);
+                foreach (var property in node.EnumerateObject())
+                    FindAndParseAllOffers(root, property.Value, allOffers);
             }
         }
-
         private static bool IsPotentialSingleOffer(JsonElement node)
         {
-            if (node.ValueKind == JsonValueKind.Array && node.GetArrayLength() > 0)
+
+            if (node.ValueKind != JsonValueKind.Array) return false;
+
+            int arrayChildren = 0;
+            int primitiveChildren = 0;
+
+            foreach (var child in node.EnumerateArray())
             {
-                var flatStrings = Flatten(node, 3).Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToList();
-                if (flatStrings.Any(s => s.StartsWith("https://") && !s.Contains("google"))) return true;
+                if (child.ValueKind == JsonValueKind.Array) arrayChildren++;
+                else if (child.ValueKind == JsonValueKind.String || child.ValueKind == JsonValueKind.Number || child.ValueKind == JsonValueKind.True || child.ValueKind == JsonValueKind.False) primitiveChildren++;
             }
+
+            if (arrayChildren > 1 && primitiveChildren == 0) return false;
+
+            JsonElement offerData = node;
+            if (node.ValueKind == JsonValueKind.Array && node.GetArrayLength() > 0 && node[0].ValueKind == JsonValueKind.Array)
+                offerData = node[0];
+
+            if (offerData.ValueKind != JsonValueKind.Array || offerData.GetArrayLength() < 4) return false;
+
+            var flatStrings = Flatten(offerData).Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToList();
+
+            if (flatStrings.Any(s => s.StartsWith("https://") && !s.Contains("google") && !s.Contains("gstatic"))) return true;
+
             return false;
         }
-
         private static TempOffer? ParseSingleOffer(JsonElement root, JsonElement offerContainer)
         {
             JsonElement offerData = (offerContainer.ValueKind == JsonValueKind.Array && offerContainer.GetArrayLength() > 0 && offerContainer[0].ValueKind == JsonValueKind.Array) ? offerContainer[0] : offerContainer;
@@ -2964,28 +2971,10 @@ namespace PriceSafari.Services
 
             try
             {
-                // ZMIANA: Zwiększono głębokość do 50
-                var allNodes = Flatten(offerData, 50).ToList();
+                var allNodes = Flatten(offerData).ToList();
                 var flatStrings = allNodes.Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToList();
 
-                // 1. URL i Sprzedawca
                 string? url = flatStrings.FirstOrDefault(s => s.StartsWith("http") && !s.Contains("google.com") && !s.Contains("gstatic.com"));
-
-                // 1. Detekcja Stanu (Tylko po tekstach z JSON, bez sprawdzania URL - zgodnie z kodem testowym)
-                string condition = "NOWY";
-            
-                var usedKeywords = new[] { "pre-owned", "used", "używany", "outlet", "renewed", "refurbished", "odnowiony", "powystawowy" };
-
-                if (flatStrings.Any(text => usedKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase))))
-                {
-                    condition = "UŻYWANY";
-                }
-
-                // Reszta logiki parsowania...
-                bool isInStock = true;
-                var outOfStockKeywords = new[] { "out of stock", "niedostępny", "brak w magazynie", "asortyment niedostępny" };
-                if (flatStrings.Any(text => outOfStockKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase)))) isInStock = false;
-
                 string? seller = null;
                 if (!string.IsNullOrEmpty(url)) seller = GetDomainName(url);
                 if (string.IsNullOrEmpty(seller) || seller == "Nieznany")
@@ -3000,6 +2989,47 @@ namespace PriceSafari.Services
                     }
                 }
                 if (seller == null && url != null) seller = GetDomainName(url);
+
+                string condition = "NOWY";
+                var usedKeywords = new[] { "pre-owned", "używany", "outlet", "renewed", "refurbished", "odnowiony", "powystawowy" };
+
+                foreach (var text in flatStrings)
+                {
+                    if (string.IsNullOrWhiteSpace(text) || text.Length < 3) continue;
+                    if (text.StartsWith("http", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    string lowerText = text.ToLower();
+
+                    if (lowerText.Contains("nie używany") || lowerText.Contains("nieużywany")) continue;
+
+                    if (lowerText.Contains("nowy") && !lowerText.Contains("jak nowy")) continue;
+
+                    foreach (var keyword in usedKeywords)
+                    {
+                        if (text.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (keyword == "używany" && (lowerText.Contains("fabrycznie nowy") || lowerText.Contains("produkt nowy")))
+                            {
+                                continue;
+                            }
+
+                            condition = "UŻYWANY";
+
+                            // DODAJ debug logging:
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine($"[DEBUG DETECTOR] Sklep: {seller} -> ZNALEZIONO: '{keyword}'");
+                            Console.WriteLine($"                KONTEKST: \"{text}\"");
+                            Console.ResetColor();
+
+                            goto ConditionFound;
+                        }
+                    }
+                }
+            ConditionFound:;
+
+                bool isInStock = true;
+                var outOfStockKeywords = new[] { "out of stock", "niedostępny", "brak w magazynie", "asortyment niedostępny" };
+                if (flatStrings.Any(text => outOfStockKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase)))) isInStock = false;
 
                 List<(decimal Amount, string Currency)> structuralPrices = new();
                 for (int i = 1; i < allNodes.Count; i++)
@@ -3066,7 +3096,6 @@ namespace PriceSafari.Services
                     }
                 }
 
-                // LOGOWANIE DECYZJI (JAK W TEŚCIE)
                 if (seller != null && (seller.Contains("Allegro") || seller.Contains("Ebay") || seller.Contains("eBay")))
                 {
                     Console.ForegroundColor = ConsoleColor.DarkYellow;
@@ -3077,17 +3106,104 @@ namespace PriceSafari.Services
                     Console.ResetColor();
                 }
 
+                // ============= DELIVERY EXTRACTION (POPRAWIONE) =============
                 string? delivery = null;
-                if (flatStrings.Any(s => s.Contains("Bezpłatna", StringComparison.OrdinalIgnoreCase) || s.Contains("Darmowa", StringComparison.OrdinalIgnoreCase)))
+
+                // 1. Sprawdź czy darmowa dostawa
+                if (flatStrings.Any(s =>
+                    s.Contains("Bezpłatna", StringComparison.OrdinalIgnoreCase) ||
+                    s.Contains("Darmowa", StringComparison.OrdinalIgnoreCase) ||
+                    s.Contains("Bezpłatnie", StringComparison.OrdinalIgnoreCase) ||
+                    s.Contains("Free delivery", StringComparison.OrdinalIgnoreCase)))
+                {
                     delivery = "Bezpłatna";
+                }
                 else
                 {
-                    var delRegex = new Regex(@"(\d+[.,]\d{2})\s*(?:PLN|zł)");
-                    string? rawDeliveryText = flatStrings.FirstOrDefault(s => s.Trim().StartsWith("+") && delRegex.IsMatch(s));
-                    if (rawDeliveryText != null)
+                    // 2. Szukaj formatu "+ XX,XX zł" (najczęstszy)
+                    var plusRegex = new Regex(@"^\+\s*(\d+[.,]\d{2})\s*(?:PLN|zł)", RegexOptions.IgnoreCase);
+                    foreach (var s in flatStrings)
                     {
-                        Match m = delRegex.Match(rawDeliveryText);
-                        if (m.Success) delivery = ParsePriceDecimal(m.Value).ToString("F2");
+                        var match = plusRegex.Match(s.Trim());
+                        if (match.Success)
+                        {
+                            delivery = ParsePriceDecimal(match.Groups[1].Value).ToString("F2");
+                            break;
+                        }
+                    }
+
+                    // 3. Jeśli nie znaleziono, szukaj "Dostawa XX zł" lub "za XX zł"
+                    if (delivery == null)
+                    {
+                        var deliveryTextRegex = new Regex(
+                            @"(?:dostawa|wysyłka|delivery|shipping)(?:[^0-9]{0,30})(\d+[.,]\d{2})\s*(?:PLN|zł)|" +  // "Dostawa ... 29,44 zł"
+                            @"za\s+(\d+[.,]\d{2})\s*(?:PLN|zł)",  // "za 29,44 zł"
+                            RegexOptions.IgnoreCase);
+
+                        foreach (var s in flatStrings)
+                        {
+                            // Pomiń jeśli to główna cena (nie zawiera słów delivery)
+                            if (!s.ToLower().Contains("dostaw") &&
+                                !s.ToLower().Contains("wysyłk") &&
+                                !s.ToLower().Contains("delivery") &&
+                                !s.ToLower().Contains(" za "))
+                                continue;
+
+                            var match = deliveryTextRegex.Match(s);
+                            if (match.Success)
+                            {
+                                // Wybierz grupę która się dopasowała
+                                string priceStr = !string.IsNullOrEmpty(match.Groups[1].Value)
+                                    ? match.Groups[1].Value
+                                    : match.Groups[2].Value;
+
+                                decimal delPrice = ParsePriceDecimal(priceStr);
+
+                                // Walidacja - dostawa zwykle < 500 zł
+                                if (delPrice > 0 && delPrice < 500)
+                                {
+                                    delivery = delPrice.ToString("F2");
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // To jest w kodzie TESTOWYM, a brakuje w PRODUKCYJNYM:
+                    if (delivery == null)
+                    {
+                        for (int i = 0; i < allNodes.Count - 1; i++)
+                        {
+                            var node = allNodes[i];
+                            if (node.ValueKind == JsonValueKind.Number)
+                            {
+                                try
+                                {
+                                    long val = node.GetInt64();
+                                    // 110720 to wewnętrzny kod Google dla informacji o dostawie
+                                    if (val == 110720 && i > 0)
+                                    {
+                                        // Sprawdź poprzedni element - powinien być stringiem z ceną dostawy
+                                        var prevNode = allNodes[i - 1];
+                                        if (prevNode.ValueKind == JsonValueKind.String)
+                                        {
+                                            string delText = prevNode.GetString()!;
+                                            var priceMatch = Regex.Match(delText, @"(\d+[.,]\d{2})");
+                                            if (priceMatch.Success)
+                                            {
+                                                decimal delPrice = ParsePriceDecimal(priceMatch.Groups[1].Value);
+                                                if (delPrice > 0 && delPrice < 500)
+                                                {
+                                                    delivery = delPrice.ToString("F2");
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                catch { }
+                            }
+                        }
                     }
                 }
 
@@ -3242,13 +3358,27 @@ namespace PriceSafari.Services
         {
             if (string.IsNullOrEmpty(priceStr)) return 0;
             string clean = Regex.Replace(priceStr, @"[^\d,.]", "");
+
             if (clean.Contains(",") && clean.Contains("."))
             {
-                if (clean.LastIndexOf(',') > clean.LastIndexOf('.')) clean = clean.Replace(".", "").Replace(",", ".");
-                else clean = clean.Replace(",", "");
+                if (clean.LastIndexOf(',') > clean.LastIndexOf('.'))
+                    clean = clean.Replace(".", "").Replace(",", ".");
+                else
+                    clean = clean.Replace(",", "");
             }
-            else if (clean.Contains(",")) clean = clean.Replace(",", ".");
-            if (decimal.TryParse(clean, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal res)) return res;
+            else if (clean.Contains(","))
+            {
+                clean = clean.Replace(",", ".");
+            }
+            // ✅ DODANE - obsługa wielu kropek (np. "1.234.56")
+            else if (clean.Count(c => c == '.') > 1)
+            {
+                int lastDot = clean.LastIndexOf('.');
+                clean = clean.Substring(0, lastDot).Replace(".", "") + clean.Substring(lastDot);
+            }
+
+            if (decimal.TryParse(clean, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal res))
+                return res;
             return 0;
         }
     }
