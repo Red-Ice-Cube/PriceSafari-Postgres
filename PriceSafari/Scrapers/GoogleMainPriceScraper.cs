@@ -2422,6 +2422,12 @@
 
 
 
+
+
+
+
+
+
 using PriceSafari.Models;
 using System;
 using System.Collections.Generic;
@@ -2912,7 +2918,7 @@ namespace PriceSafari.Services
         {
             if (node.ValueKind == JsonValueKind.Array)
             {
-                // ✅ POPRAWKA: Sprawdza czy JAKIKOLWIEK element jest ofertą
+
                 if (node.EnumerateArray().Any(IsPotentialSingleOffer))
                 {
                     foreach (JsonElement potentialOffer in node.EnumerateArray())
@@ -2924,7 +2930,6 @@ namespace PriceSafari.Services
                 }
             }
 
-            // ✅ Rekurencja - osobny blok if
             if (node.ValueKind == JsonValueKind.Array)
             {
                 foreach (var element in node.EnumerateArray())
@@ -3015,7 +3020,6 @@ namespace PriceSafari.Services
 
                             condition = "UŻYWANY";
 
-                            // DEBUG logging (zachowany z Twojego kodu produkcyjnego)
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.WriteLine($"[DEBUG DETECTOR] Sklep: {seller} -> ZNALEZIONO: '{keyword}'");
                             Console.WriteLine($"                KONTEKST: \"{text}\"");
@@ -3028,12 +3032,35 @@ namespace PriceSafari.Services
             ConditionFound:;
 
                 bool isInStock = true;
-                var outOfStockKeywords = new[] { "out of stock", "niedostępny", "brak w magazynie", "asortyment niedostępny" };
-                if (flatStrings.Any(text => outOfStockKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase)))) isInStock = false;
 
-                // =========================================================
-                // POPRAWKA 1: ULEPSZONA PĘTLA STRUKTURALNA (Look-back logic)
-                // =========================================================
+                bool hasPositiveStockText = flatStrings.Any(s =>
+                    s.Contains("W magazynie", StringComparison.OrdinalIgnoreCase) ||
+                    s.Contains("Dostępny", StringComparison.OrdinalIgnoreCase) ||
+                    s.Equals("In stock", StringComparison.OrdinalIgnoreCase));
+
+                if (hasPositiveStockText)
+                {
+                    isInStock = true;
+                }
+                else
+                {
+
+                    var outOfStockKeywords = new[] {
+                        "out of stock",
+                        "niedostępny",
+                        "brak w magazynie",
+                        "asortyment niedostępny",
+                        "wyprzedany",
+                        "chwilowy brak"
+                    };
+
+                    if (flatStrings.Any(text =>
+                        text.Length < 50 &&
+                        outOfStockKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase))))
+                    {
+                        isInStock = false;
+                    }
+                }
                 List<(decimal Amount, string Currency)> structuralPrices = new();
 
                 for (int i = 1; i < allNodes.Count; i++)
@@ -3048,14 +3075,13 @@ namespace PriceSafari.Services
                             long micros = 0;
                             bool foundPrice = false;
 
-                            // KROK 1: Sprawdź bezpośredniego poprzednika (i-1)
                             var prev = allNodes[i - 1];
                             if (prev.ValueKind == JsonValueKind.Number)
                             {
                                 micros = prev.GetInt64();
                                 foundPrice = true;
                             }
-                            // KROK 2: Jeśli poprzednik to nie liczba (np. null), sprawdź element wcześniej (i-2)
+
                             else if (i >= 2)
                             {
                                 var prevPrev = allNodes[i - 2];
@@ -3066,11 +3092,10 @@ namespace PriceSafari.Services
                                 }
                             }
 
-                            // Walidacja: odrzucamy małe liczby (np. flagi 0/1), szukamy cen w micros
                             if (foundPrice && micros >= 1000000)
                             {
                                 structuralPrices.Add((micros / 1000000m, currCode));
-                                // Jeśli trafiliśmy na PLN, to zazwyczaj jest to główna cena, więc przerywamy dla wydajności
+
                                 if (currCode == "PLN") break;
                             }
                         }
@@ -3092,9 +3117,6 @@ namespace PriceSafari.Services
                     }
                 }
 
-                // =========================================================
-                // POPRAWKA 2: USUNIĘCIE REGEX FALLBACK (Zwracamy null przy braku struktury)
-                // =========================================================
                 string? finalPrice = null;
                 string finalCurrency = "PLN";
 
@@ -3114,8 +3136,7 @@ namespace PriceSafari.Services
                 }
                 else
                 {
-                    // KILL SWITCH: Jeśli nie znaleziono ceny w strukturze micros, odrzucamy ofertę.
-                    // Zapobiega to wczytywaniu śmieciowych cen typu "3,92 zł" z opisów rat/akcesoriów.
+
                     return null;
                 }
 
@@ -3129,10 +3150,8 @@ namespace PriceSafari.Services
                     Console.ResetColor();
                 }
 
-                // ============= DELIVERY EXTRACTION =============
                 string? delivery = null;
 
-                // 1. Sprawdź czy darmowa dostawa
                 if (flatStrings.Any(s =>
                     s.Contains("Bezpłatna", StringComparison.OrdinalIgnoreCase) ||
                     s.Contains("Darmowa", StringComparison.OrdinalIgnoreCase) ||
@@ -3143,7 +3162,7 @@ namespace PriceSafari.Services
                 }
                 else
                 {
-                    // 2. Szukaj formatu "+ XX,XX zł" (najczęstszy)
+
                     var plusRegex = new Regex(@"^\+\s*(\d+[.,]\d{2})\s*(?:PLN|zł)", RegexOptions.IgnoreCase);
                     foreach (var s in flatStrings)
                     {
@@ -3155,7 +3174,6 @@ namespace PriceSafari.Services
                         }
                     }
 
-                    // 3. Jeśli nie znaleziono, szukaj "Dostawa XX zł" lub "za XX zł"
                     if (delivery == null)
                     {
                         var deliveryTextRegex = new Regex(
@@ -3189,7 +3207,6 @@ namespace PriceSafari.Services
                         }
                     }
 
-                    // 4. Fallback strukturalny (kod 110720)
                     if (delivery == null)
                     {
                         for (int i = 0; i < allNodes.Count - 1; i++)
@@ -3234,7 +3251,7 @@ namespace PriceSafari.Services
 
                 if (!string.IsNullOrWhiteSpace(seller) && finalPrice != null && url != null)
                 {
-                    // Zwracamy TempOffer z nullami dla ratingu (zgodnie z Twoim kodem produkcyjnym)
+
                     return new TempOffer(seller, finalPrice, url, delivery, isInStock, badge, 0, "OAPV", null, null, condition, finalCurrency);
                 }
             }
@@ -3389,7 +3406,7 @@ namespace PriceSafari.Services
             {
                 clean = clean.Replace(",", ".");
             }
-            // ✅ DODANE - obsługa wielu kropek (np. "1.234.56")
+
             else if (clean.Count(c => c == '.') > 1)
             {
                 int lastDot = clean.LastIndexOf('.');
