@@ -98,6 +98,11 @@
     .flag-false {
         background-color: #dc3545;
     }
+
+
+    .flag-auto-true {
+        background-color: #6f42c1; 
+    }
 </style>
 
 <table class="excel-table">
@@ -225,6 +230,14 @@
                                         Allegro Base Scal: <span class="flag-box @(task.AleBaseEnabled ? "flag-true" : "flag-false")">@(task.AleBaseEnabled ? "T" : "F")</span>
                                     </div>
                                  
+
+
+                                    <div class="flag" title="Automatyzacja Porównywarek">
+                                        BOT CENOWY C i G: <span class="flag-box @(task.PriceComparisonAutomationEnabled ? "flag-auto-true" : "flag-false")">@(task.PriceComparisonAutomationEnabled ? "T" : "F")</span>
+                                    </div>
+                                    <div class="flag" title="Automatyzacja Marketplace">
+                                        BOT CENOWY Allegro:<span class="flag-box @(task.MarketPlaceAutomationEnabled ? "flag-auto-true" : "flag-false")">@(task.MarketPlaceAutomationEnabled ? "T" : "F")</span>
+                                    </div>
                                 </div>
 
                                 <hr />

@@ -23,6 +23,9 @@ namespace PriceSafari.Models.ViewModels.SchedulePlanViewModels
 
         public bool AleBaseEnabled { get; set; }
 
+        public bool MarketPlaceAutomationEnabled { get; set; }
+        public bool PriceComparisonAutomationEnabled { get; set; }
+
         public List<StoreCheckboxItem> Stores { get; set; }
             = new List<StoreCheckboxItem>();
     }

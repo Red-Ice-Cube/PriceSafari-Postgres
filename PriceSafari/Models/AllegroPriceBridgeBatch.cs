@@ -27,7 +27,7 @@ namespace PriceSafari.Models
         [ForeignKey("AllegroScrapeHistoryId")]
         public virtual AllegroScrapeHistory AllegroScrapeHistory { get; set; }
 
-        public string UserId { get; set; }
+        public string? UserId { get; set; }
         [ForeignKey("UserId")]
         public virtual PriceSafariUser User { get; set; }
 

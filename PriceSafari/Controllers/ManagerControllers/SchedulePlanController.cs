@@ -181,6 +181,8 @@ namespace PriceSafari.Controllers
                 AleCrawEnabled = model.AleCrawEnabled,
                 AleApiBotEnabled = model.AleApiBotEnabled,
                 AleBaseEnabled = model.AleBaseEnabled,
+                MarketPlaceAutomationEnabled = model.MarketPlaceAutomationEnabled,
+                PriceComparisonAutomationEnabled = model.PriceComparisonAutomationEnabled,
 
                 DayDetailId = dayDetailId
             };
@@ -234,6 +236,8 @@ namespace PriceSafari.Controllers
                 AleCrawEnabled = task.AleCrawEnabled,
                 AleApiBotEnabled = task.AleApiBotEnabled,
                 AleBaseEnabled = task.AleBaseEnabled,
+                MarketPlaceAutomationEnabled = task.MarketPlaceAutomationEnabled,
+                PriceComparisonAutomationEnabled = task.PriceComparisonAutomationEnabled,
 
                 Stores = allStores.Select(s => new StoreCheckboxItem
                 {
@@ -329,6 +333,8 @@ namespace PriceSafari.Controllers
             task.AleCrawEnabled = model.AleCrawEnabled;
             task.AleApiBotEnabled = model.AleApiBotEnabled;
             task.AleBaseEnabled = model.AleBaseEnabled;
+            task.MarketPlaceAutomationEnabled = model.MarketPlaceAutomationEnabled;
+            task.PriceComparisonAutomationEnabled = model.PriceComparisonAutomationEnabled;
 
             foreach (var existingRel in task.TaskStores.ToList())
             {
