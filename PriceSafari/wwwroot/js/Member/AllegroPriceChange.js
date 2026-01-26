@@ -438,30 +438,49 @@
             const executionDate = new Date(batch.executionDate).toLocaleString('pl-PL');
 
             let methodIcon = '<i class="fas fa-file-alt"></i>';
+            
             if (batch.exportMethod === 'Csv') methodIcon = '<i class="fa-solid fa-file-csv" style="color:green;"></i> CSV';
             else if (batch.exportMethod === 'Excel') methodIcon = '<i class="fas fa-file-excel" style="color:green;"></i> Excel';
             else if (batch.exportMethod === 'Api') methodIcon = '<i class="fas fa-cloud-upload-alt" style="color:#0d6efd;"></i> API';
 
+          
+         
+            let userInfoHtml = `<strong>Wgrał:</strong> ${batch.userName}`;
+
+            if (batch.isAutomation && batch.automationRuleName) {
+                const ruleColor = batch.automationRuleColor || '#6f42c1';
+
+              
+                userInfoHtml = `
+                <div style="display: inline-flex; align-items: center; vertical-align:  margin-right: 6px;">
+                    <strong>Automat:</strong>
+                    <div style="width: 6px; height: 16px; background-color: ${ruleColor}; border-radius: 2px; margin-left: 6px; margin-right: 6px;" title="Kolor reguły"></div>
+                    <span style="color: #212529; font-weight: 500;">${batch.automationRuleName}</span>
+                </div>`;
+            }
+    
+           
+
             html += `
-              <div class="history-batch-header" style="margin-top: 0px; margin-bottom: 4px; padding: 5px 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 5px;">
-                <strong>Paczka z dnia:</strong> ${executionDate} | 
-                <strong>Wgrał:</strong> ${batch.userName} | 
-                <strong>Metoda:</strong> ${methodIcon} | 
-                <strong style="color: #28a745;">Sukces: ${batch.successfulCount}</strong> | 
-                <strong style="color: #dc3545;">Błędy: ${batch.failedCount}</strong>
-            </div>
-            <table class="table-orders" style="margin-bottom: 20px; width: 100%;">
-                <thead>
-                    <tr>
-                        <th style="width: 35%;">Produkt</th>
-                        <th style="width: 20%;">Przed zmianą</th>
-                        <th style="text-align:center; width: 10%;">Zmiana</th>
-                        <th style="width: 20%;">Zaktualizowana cena</th>
-                        <th style="text-align:center; width: 15%;">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-            `;
+          <div class="history-batch-header" style="margin-top: 0px; margin-bottom: 4px; padding: 5px 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 5px;">
+            <strong>Paczka z dnia:</strong> ${executionDate} | 
+            ${userInfoHtml} | 
+            <strong>Metoda:</strong> ${methodIcon} | 
+            <strong style="color: #28a745;">Sukces: ${batch.successfulCount}</strong> | 
+            <strong style="color: #dc3545;">Błędy: ${batch.failedCount}</strong>
+        </div>
+        <table class="table-orders" style="margin-bottom: 20px; width: 100%;">
+            <thead>
+                <tr>
+                    <th style="width: 35%;">Produkt</th>
+                    <th style="width: 20%;">Przed zmianą</th>
+                    <th style="text-align:center; width: 10%;">Zmiana</th>
+                    <th style="width: 20%;">Zaktualizowana cena</th>
+                    <th style="text-align:center; width: 15%;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
 
             batch.items.forEach(item => {
                 const blockBefore = buildPriceBlock(item.priceBefore, item.marginPrice, item.commissionBefore, item.rankingBefore, null, false, item.includeCommissionInMargin);

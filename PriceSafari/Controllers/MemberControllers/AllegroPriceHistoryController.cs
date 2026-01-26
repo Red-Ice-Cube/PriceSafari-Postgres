@@ -1190,9 +1190,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(s => s.StoreId == storeId)
                 .AnyAsync(s => s.UserStores.Any(us => us.UserId == userId));
 
-            if (!hasAccess)
+            if (!hasAccess && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
             {
-
                 return Forbid();
             }
 
@@ -1205,6 +1204,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 .AsNoTracking()
                 .Where(b => b.StoreId == storeId && b.AllegroScrapeHistoryId == allegroScrapeHistoryId)
                 .Include(b => b.User)
+                // --- NOWOŚĆ: Dołączamy regułę automatyzacji ---
+                .Include(b => b.AutomationRule)
                 .Include(b => b.BridgeItems)
                     .ThenInclude(i => i.AllegroProduct)
                 .OrderByDescending(b => b.ExecutionDate)
@@ -1213,9 +1214,20 @@ namespace PriceSafari.Controllers.MemberControllers
             var result = batches.Select(b => new
             {
                 executionDate = b.ExecutionDate,
-                userName = b.User?.UserName ?? "Nieznany",
+                // --- ZMIANA LOGIKI NAZWY UŻYTKOWNIKA ---
+                userName = b.User != null ? b.User.UserName : (b.IsAutomation ? "Automat Cenowy" : "System/Nieznany"),
+
+                // --- NOWE POLA DLA AUTOMATYZACJI ---
+                isAutomation = b.IsAutomation,
+                automationRuleName = b.AutomationRule?.Name,
+                automationRuleColor = b.AutomationRule?.ColorHex,
+
                 successfulCount = b.SuccessfulCount,
                 failedCount = b.FailedCount,
+
+                // --- ZMIANA TUTAJ: Zawsze zwracamy "Api" dla Allegro ---
+                exportMethod = "Api",
+
                 items = b.BridgeItems.Select(i => new
                 {
                     productId = i.AllegroProductId,
@@ -1246,6 +1258,5 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return Ok(result);
         }
-
     }
 }
