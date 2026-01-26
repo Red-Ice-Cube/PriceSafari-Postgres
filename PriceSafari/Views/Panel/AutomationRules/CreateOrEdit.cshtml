@@ -280,9 +280,9 @@
             <div class="Order-Container-Title">
                 @(isEdit ? "Edycja Automatu Cenowego" : "Nowy Automat Cenowy")
             </div>
-            <div>
+            <div style="display:flex; align-items:center; gap:8px;">
                 <a asp-action="Index" asp-route-storeId="@Model.StoreId" asp-route-filterType="@Model.SourceType" class="Button-Page-Small">Anuluj</a>
-                <button type="submit" class="Button-Page-Small-bl">
+                <button type="submit" class="Button-Page-Small-bl" style="height:34px;">
                     <i class="fas fa-save mr-2" style="margin-right:4px;"></i> Zapisz Zmiany
                 </button>
             </div>
@@ -336,9 +336,9 @@
                 </div>
 
                 <div style="flex: 1; min-width: 150px;">
-                    <div class="form-group">
+                    <div class="form-group" >
                         <label>ŹRÓDŁO DANYCH</label>
-                        <div style="background: #f1f3f9; padding: 10px 15px; border-radius: 6px; font-size: 14px; font-weight: 500; color: #5a5c69; border: 1px solid #eaecf4; display: flex; align-items: center; gap: 8px;">
+                        <div style="background: #f1f3f9; padding: 10px 15px; border-radius: 6px; height:45px; font-size: 14px; font-weight: 500; color: #5a5c69; border: 1px solid #eaecf4; display: flex; align-items: center; gap: 8px;">
                             @if (Model.SourceType == AutomationSourceType.Marketplace)
                             {
                                 <span>Marketplace Allegro</span>
