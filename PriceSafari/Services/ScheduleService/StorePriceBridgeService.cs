@@ -117,68 +117,89 @@ namespace PriceSafari.Services.ScheduleService
 
             return items.Count;
         }
-
         public async Task<StorePriceBridgeResult> ExecuteStorePriceChangesAsync(
-           int storeId,
-    int scrapHistoryId,
-    string userId,
-    List<PriceBridgeItemRequest> itemsToBridge,
-    // DODANO NOWE PARAMETRY:
-    bool isAutomation = false,
-    int? automationRuleId = null)
+                    int storeId,
+                    int scrapHistoryId,
+                    string userId,
+                    List<PriceBridgeItemRequest> itemsToBridge,
+                    bool isAutomation = false,
+                    int? automationRuleId = null,
+                    // Parametry statystyk:
+                    int totalProductsInRule = 0,
+                    int targetMetCount = 0,
+                    int targetUnmetCount = 0,
+                    // DODANE BRAKUJĄCE PARAMETRY:
+                    int priceIncreasedCount = 0,
+                    int priceDecreasedCount = 0,
+                    int priceMaintainedCount = 0
+                )
         {
-            _logger.LogInformation($"[ExecuteStorePriceChangesAsync] Start procesu zmiany cen API. StoreId: {storeId}, Ilość ofert: {itemsToBridge?.Count}");
+            _logger.LogInformation($"[ExecuteStorePriceChangesAsync] Start. StoreId: {storeId}, Items: {itemsToBridge?.Count}, TotalRule: {totalProductsInRule}");
 
             var result = new StorePriceBridgeResult();
 
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null)
             {
-                _logger.LogError($"[ExecuteStorePriceChangesAsync] Sklep o ID {storeId} nie istnieje.");
                 result.Errors.Add(new StorePriceBridgeError { ProductId = "ALL", Message = "Sklep nie istnieje." });
                 return result;
             }
 
             if (!store.IsStorePriceBridgeActive)
             {
-                _logger.LogWarning($"[ExecuteStorePriceChangesAsync] Sklep {store.StoreName} (ID: {storeId}) ma wyłączoną integrację API (IsStorePriceBridgeActive = false).");
-                result.Errors.Add(new StorePriceBridgeError { ProductId = "ALL", Message = "Integracja wyłączona w ustawieniach sklepu." });
+                result.Errors.Add(new StorePriceBridgeError { ProductId = "ALL", Message = "Integracja wyłączona." });
                 return result;
             }
-
-            _logger.LogInformation($"[ExecuteStorePriceChangesAsync] Wykryty system sklepu: {store.StoreSystemType}");
 
             switch (store.StoreSystemType)
             {
                 case StoreSystemType.PrestaShop:
-                    return await ExecutePrestaShopSessionAsync(store, scrapHistoryId, userId, itemsToBridge, isAutomation, automationRuleId);
+                    return await ExecutePrestaShopSessionAsync(
+                        store,
+                        scrapHistoryId,
+                        userId,
+                        itemsToBridge,
+                        isAutomation,
+                        automationRuleId,
+                        // Przekazujemy WSZYSTKIE statystyki dalej:
+                        totalProductsInRule,
+                        targetMetCount,
+                        targetUnmetCount,
+                        priceIncreasedCount,
+                        priceDecreasedCount,
+                        priceMaintainedCount
+                    );
 
                 case StoreSystemType.WooCommerce:
-                    _logger.LogWarning($"[ExecuteStorePriceChangesAsync] WooCommerce nie jest jeszcze zaimplementowane.");
                     result.Errors.Add(new StorePriceBridgeError { ProductId = "ALL", Message = "WooCommerce w trakcie wdrażania." });
                     return result;
 
                 case StoreSystemType.Shoper:
-                    _logger.LogWarning($"[ExecuteStorePriceChangesAsync] Shoper nie jest jeszcze zaimplementowany.");
                     result.Errors.Add(new StorePriceBridgeError { ProductId = "ALL", Message = "Shoper w trakcie wdrażania." });
                     return result;
 
                 default:
-                    _logger.LogError($"[ExecuteStorePriceChangesAsync] Nieobsługiwany typ sklepu: {store.StoreSystemType}");
-                    result.Errors.Add(new StorePriceBridgeError { ProductId = "ALL", Message = $"Nieobsługiwany typ sklepu: {store.StoreSystemType}" });
+                    result.Errors.Add(new StorePriceBridgeError { ProductId = "ALL", Message = $"Nieobsługiwany typ: {store.StoreSystemType}" });
                     return result;
             }
         }
 
         private async Task<StorePriceBridgeResult> ExecutePrestaShopSessionAsync(
              StoreClass store,
-        int scrapHistoryId,
-        string userId,
-        List<PriceBridgeItemRequest> itemsToBridge,
-        bool isAutomation,      // <---
-        int? automationRuleId)
+            int scrapHistoryId,
+            string userId,
+            List<PriceBridgeItemRequest> itemsToBridge,
+            bool isAutomation,
+            int? automationRuleId,
+            // Odbieramy parametry:
+            int totalProductsInRule,
+            int targetMetCount,
+            int targetUnmetCount,
+            int priceIncreasedCount,
+            int priceDecreasedCount,
+            int priceMaintainedCount)
         {
-            _logger.LogInformation($"[PrestaShop] Rozpoczynam sesję zmiany cen dla {store.StoreName}.");
+            _logger.LogInformation($"[PrestaShop] Rozpoczynam sesję dla {store.StoreName}.");
 
             var result = new StorePriceBridgeResult();
 
@@ -195,21 +216,39 @@ namespace PriceSafari.Services.ScheduleService
                 AutomationRuleId = automationRuleId,
                 BridgeItems = new List<PriceBridgeItem>(),
 
-                TotalProductsCount = itemsToBridge.Count,
-                PriceIncreasedCount = itemsToBridge.Count(x => x.NewPrice > x.CurrentPrice),
-                PriceDecreasedCount = itemsToBridge.Count(x => x.NewPrice < x.CurrentPrice),
-                PriceMaintainedCount = itemsToBridge.Count(x => x.NewPrice == x.CurrentPrice)
+                // --- LOGIKA PRZYPISANIA WARTOŚCI ---
+
+                // 1. Total: Jeśli przyszło z automatyzacji (totalProductsInRule > 0), bierzemy to. 
+                //    Jeśli to ręczne wywołanie (np. 0), bierzemy ilość itemsToBridge.
+                TotalProductsCount = totalProductsInRule > 0 ? totalProductsInRule : itemsToBridge.Count,
+
+                // 2. Met/Unmet: Przypisujemy bezpośrednio z parametrów
+                TargetMetCount = targetMetCount,
+                TargetUnmetCount = targetUnmetCount,
+
+                // 3. Zmiany cen:
+                // Jeśli to automatyzacja i dane zostały przekazane, używamy ich (bo zawierają pełny obraz reguły).
+                // Jeśli to ręczne wywołanie (parametry = 0), obliczamy na podstawie listy itemsToBridge.
+                PriceIncreasedCount = (isAutomation && totalProductsInRule > 0)
+                                      ? priceIncreasedCount
+                                      : itemsToBridge.Count(x => x.NewPrice > x.CurrentPrice),
+
+                PriceDecreasedCount = (isAutomation && totalProductsInRule > 0)
+                                      ? priceDecreasedCount
+                                      : itemsToBridge.Count(x => x.NewPrice < x.CurrentPrice),
+
+                PriceMaintainedCount = (isAutomation && totalProductsInRule > 0)
+                                       ? priceMaintainedCount
+                                       : itemsToBridge.Count(x => x.NewPrice == x.CurrentPrice)
             };
 
             _context.PriceBridgeBatches.Add(newBatch);
 
             if (string.IsNullOrEmpty(store.StoreApiUrl) || string.IsNullOrEmpty(store.StoreApiKey))
             {
-                _logger.LogError($"[PrestaShop] Brak konfiguracji API (URL lub Key) dla sklepu {store.StoreName}.");
-                result.Errors.Add(new StorePriceBridgeError { ProductId = "ALL", Message = "Brak konfiguracji API (URL/Klucz)." });
+                result.Errors.Add(new StorePriceBridgeError { ProductId = "ALL", Message = "Brak konfiguracji API." });
                 return result;
             }
-
             var client = _httpClientFactory.CreateClient();
 
             string maskedKey = store.StoreApiKey.Length > 4 ? store.StoreApiKey.Substring(0, 4) + "..." : "***";

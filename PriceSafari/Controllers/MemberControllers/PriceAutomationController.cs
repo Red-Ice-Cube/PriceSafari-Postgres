@@ -99,49 +99,70 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (rule.SourceType == AutomationSourceType.PriceComparison)
             {
-
                 var calcResult = await GetCalculatedComparisonData(rule);
 
                 if (calcResult.ScrapId == 0) return BadRequest("Brak danych historycznych (ScrapHistory).");
 
                 int totalProductsInRule = calcResult.Products.Count;
 
+                // --- 1. DODAJ TE OBLICZENIA (Kopiuj z sekcji Marketplace) ---
+                int metCount = calcResult.Products.Count(p =>
+                    p.Status == AutomationCalculationStatus.TargetMet ||
+                    p.Status == AutomationCalculationStatus.TargetMaintained ||
+                    p.Status == AutomationCalculationStatus.PriceLimited);
+
+                int unmetCount = calcResult.Products.Count(p =>
+                    p.Status == AutomationCalculationStatus.Blocked);
+
+                int increasedCount = calcResult.Products.Count(p =>
+                    p.Status != AutomationCalculationStatus.Blocked && p.PriceChange > 0);
+
+                int decreasedCount = calcResult.Products.Count(p =>
+                    p.Status != AutomationCalculationStatus.Blocked && p.PriceChange < 0);
+
+                int maintainedCount = calcResult.Products.Count(p =>
+                    p.Status == AutomationCalculationStatus.TargetMaintained);
+                // -------------------------------------------------------------
+
                 var itemsToBridge = new List<PriceBridgeItemRequest>();
 
                 foreach (var row in calcResult.Products)
                 {
-
                     if (row.Status == AutomationCalculationStatus.Blocked || !row.SuggestedPrice.HasValue)
                         continue;
 
                     itemsToBridge.Add(new PriceBridgeItemRequest
                     {
                         ProductId = row.ProductId,
-
                         CurrentPrice = row.CurrentPrice ?? 0,
                         NewPrice = row.SuggestedPrice.Value,
                         MarginPrice = row.PurchasePrice,
-
                         CurrentGoogleRanking = row.CurrentRankingGoogle,
                         CurrentCeneoRanking = row.CurrentRankingCeneo,
                         NewGoogleRanking = row.NewRankingGoogle,
                         NewCeneoRanking = row.NewRankingCeneo,
-
                         Mode = rule.StrategyMode.ToString(),
                         PriceIndexTarget = rule.StrategyMode == AutomationStrategyMode.Profit ? rule.PriceIndexTargetPercent : (decimal?)null,
                         StepPriceApplied = rule.StrategyMode == AutomationStrategyMode.Competitiveness ? rule.PriceStep : (decimal?)null
                     });
                 }
 
+                // --- 2. ZAKTUALIZUJ WYWOŁANIE SERWISU ---
                 var result = await _storePriceBridgeService.ExecuteStorePriceChangesAsync(
                     storeId: rule.StoreId,
                     scrapHistoryId: calcResult.ScrapId,
                     userId: userId,
                     itemsToBridge: itemsToBridge,
                     isAutomation: true,
+                    automationRuleId: rule.Id,
 
-                    automationRuleId: rule.Id
-
+                    // Przekazujemy obliczone statystyki:
+                    totalProductsInRule: totalProductsInRule,
+                    targetMetCount: metCount,
+                    targetUnmetCount: unmetCount,
+                    priceIncreasedCount: increasedCount,
+                    priceDecreasedCount: decreasedCount,
+                    priceMaintainedCount: maintainedCount
                 );
 
                 return Ok(new { success = true, count = result.SuccessfulCount, details = result });
