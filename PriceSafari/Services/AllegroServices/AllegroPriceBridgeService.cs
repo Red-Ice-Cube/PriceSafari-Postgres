@@ -1,22 +1,4 @@
-﻿// <--- 1. DODANO SERWIS
-
-// <--- 2. WSTRZYKNIĘCIE W KONSTRUKTORZE
-
-// --- 3. ZMIANA LOGIKI POBIERANIA TOKENA ---
-
-// Zamiast sprawdzać store.AllegroApiToken, pytamy serwis o WAŻNY token.
-
-// Serwis sam sprawdzi datę i w razie potrzeby odświeży go w Allegro.
-
-// ------------------------------------------
-
-// Tutaj używamy już pewnego 'accessToken' pobranego z serwisu
-
-// Dodatkowe zabezpieczenie: jeśli mimo wszystko dostaniemy 401 w trakcie pętli
-
-// Oznaczamy w bazie, że token padł
-
-// Zapisujemy zmiany statusu tokena (jeśli padł w trakcie)
+﻿
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

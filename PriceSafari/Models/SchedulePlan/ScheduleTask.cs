@@ -31,6 +31,9 @@ namespace PriceSafari.Models.SchedulePlan
         public bool AleCrawEnabled { get; set; }
         public bool AleApiBotEnabled { get; set; }
         public bool AleBaseEnabled { get; set; }
+
+        public bool MarketPlaceAutomationEnabled { get; set; }
+        public bool PriceComparisonAutomationEnabled { get; set; }
         public int DayDetailId { get; set; }
         public DayDetail DayDetail { get; set; }
 

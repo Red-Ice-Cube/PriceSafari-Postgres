@@ -216,19 +216,14 @@ namespace PriceSafari.Services.ScheduleService
                 AutomationRuleId = automationRuleId,
                 BridgeItems = new List<PriceBridgeItem>(),
 
-                // --- LOGIKA PRZYPISANIA WARTOŚCI ---
-
-                // 1. Total: Jeśli przyszło z automatyzacji (totalProductsInRule > 0), bierzemy to. 
-                //    Jeśli to ręczne wywołanie (np. 0), bierzemy ilość itemsToBridge.
+               
                 TotalProductsCount = totalProductsInRule > 0 ? totalProductsInRule : itemsToBridge.Count,
 
-                // 2. Met/Unmet: Przypisujemy bezpośrednio z parametrów
+              
                 TargetMetCount = targetMetCount,
                 TargetUnmetCount = targetUnmetCount,
 
-                // 3. Zmiany cen:
-                // Jeśli to automatyzacja i dane zostały przekazane, używamy ich (bo zawierają pełny obraz reguły).
-                // Jeśli to ręczne wywołanie (parametry = 0), obliczamy na podstawie listy itemsToBridge.
+           
                 PriceIncreasedCount = (isAutomation && totalProductsInRule > 0)
                                       ? priceIncreasedCount
                                       : itemsToBridge.Count(x => x.NewPrice > x.CurrentPrice),

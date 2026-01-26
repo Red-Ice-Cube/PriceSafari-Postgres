@@ -25,5 +25,8 @@
         public bool InvoiceGeneratorEnabled { get; set; }
         public bool PaymentProcessorEnabled { get; set; }
         public bool EmailSenderEnabled { get; set; }
+
+        public bool MarketPlaceAutomationEnabled { get; set; }
+        public bool PriceComparisonAutomationEnabled { get; set; }
     }
 }

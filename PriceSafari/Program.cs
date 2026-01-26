@@ -15,6 +15,7 @@ using PriceSafari.Services.ConnectionStatus;
 using PriceSafari.Services.ControlNetwork;
 using PriceSafari.Services.ControlXY;
 using PriceSafari.Services.EmailService;
+using PriceSafari.Services.PriceAutomationService;
 using PriceSafari.Services.ScheduleService;
 using PriceSafari.Services.ViewRenderService;
 using PriceSafari.SignalIR;
@@ -87,6 +88,7 @@ public class Program
         builder.Services.AddHttpClient<PriceSafari.Services.Imoje.IImojeService, PriceSafari.Services.Imoje.ImojeService>();
         builder.Services.AddHttpClient<AllegroAuthTokenService>();
         builder.Services.AddScoped<AllegroAuthTokenService>();
+        builder.Services.AddScoped<PriceAutomationService>();
 
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 
