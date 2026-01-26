@@ -1601,9 +1601,7 @@ public class ScheduledTaskService : BackgroundService
             {
                 try
                 {
-                    // Używamy "SYSTEM_SCHEDULER" jako userId, bo to automat
-                    // Wynik jest typu object, rzutujemy na dynamic by pobrać 'count'
-                    dynamic result = await automationService.ExecuteAutomationAsync(rule.Id, "SYSTEM_SCHEDULER");
+                    dynamic result = await automationService.ExecuteAutomationAsync(rule.Id, null);
 
                     int count = 0;
                     if (result != null)
@@ -1691,7 +1689,7 @@ public class ScheduledTaskService : BackgroundService
             {
                 try
                 {
-                    dynamic result = await automationService.ExecuteAutomationAsync(rule.Id, "SYSTEM_SCHEDULER");
+                    dynamic result = await automationService.ExecuteAutomationAsync(rule.Id, null);
 
                     int count = 0;
                     if (result != null)

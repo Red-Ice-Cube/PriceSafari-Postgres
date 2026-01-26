@@ -30,7 +30,7 @@ namespace PriceSafari.Services.PriceAutomationService
         }
 
         // --- GŁÓWNA METODA WYKONAWCZA (Odpowiednik ExecuteAutomation z kontrolera) ---
-        public async Task<object> ExecuteAutomationAsync(int ruleId, string userId)
+        public async Task<object> ExecuteAutomationAsync(int ruleId, string? userId)
         {
             var rule = await _context.AutomationRules
                 .Include(r => r.Store)
