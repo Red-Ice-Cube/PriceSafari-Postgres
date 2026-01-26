@@ -66,7 +66,7 @@
         padding: 8px;
         text-align: center;
         vertical-align: middle;
-        color: white; /* Dodane dla czytelności na ciemnym tle */
+        color: white;
     }
 
     td {
@@ -109,8 +109,10 @@
                         <th rowspan="2">Online</th>
                         <th colspan="5" style="background-color: royalblue;">Sklepy</th>
                         <th colspan="4" style="background-color: orange;">Allegro</th>
-                        <th colspan="3" style="background-color: darkgreen;">Dodatkowe Usługi</th>
+
                         <th colspan="2" style="background-color: blueviolet;">Automatyzacja</th>
+
+                        <th colspan="3" style="background-color: darkgreen;">Dodatkowe Usługi</th>
                     </tr>
                     <tr>
                         <th title="URL Scalanie">URL</th>
@@ -124,12 +126,12 @@
                         <th title="Allegro API Bot">Ale API</th>
                         <th title="Allegro Scalanie">Ale Scal</th>
 
+                        <th title="Automatyzacja Marketplace (Allegro)">Auto Market</th>
+                        <th title="Automatyzacja Porównywarek (Ceneo/Google)">Auto Comp</th>
+
                         <th>Faktury</th>
                         <th>Płatności</th>
                         <th>Maile</th>
-
-                        <th title="Automatyzacja Marketplace (Allegro)">Auto Market</th>
-                        <th title="Automatyzacja Porównywarek (Ceneo/Google)">Auto Comp</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -171,6 +173,13 @@
                                 @(item.AleBaseScalEnabled ? "tak" : "nie")
                             </td>
 
+                            <td class="@(item.MarketPlaceAutomationEnabled ? "bg-yes" : "bg-no")">
+                                @(item.MarketPlaceAutomationEnabled ? "tak" : "nie")
+                            </td>
+                            <td class="@(item.PriceComparisonAutomationEnabled ? "bg-yes" : "bg-no")">
+                                @(item.PriceComparisonAutomationEnabled ? "tak" : "nie")
+                            </td>
+
                             <td class="@(item.InvoiceGeneratorEnabled ? "bg-yes" : "bg-no")">
                                 @(item.InvoiceGeneratorEnabled ? "tak" : "nie")
                             </td>
@@ -179,13 +188,6 @@
                             </td>
                             <td class="@(item.EmailSenderEnabled ? "bg-yes" : "bg-no")">
                                 @(item.EmailSenderEnabled ? "tak" : "nie")
-                            </td>
-
-                            <td class="@(item.MarketPlaceAutomationEnabled ? "bg-yes" : "bg-no")">
-                                @(item.MarketPlaceAutomationEnabled ? "tak" : "nie")
-                            </td>
-                            <td class="@(item.PriceComparisonAutomationEnabled ? "bg-yes" : "bg-no")">
-                                @(item.PriceComparisonAutomationEnabled ? "tak" : "nie")
                             </td>
                         </tr>
                     }
