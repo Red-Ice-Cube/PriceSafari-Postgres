@@ -1247,30 +1247,46 @@
         batches.forEach(batch => {
             totalItems += batch.items.length;
             const executionDate = new Date(batch.executionDate).toLocaleString('pl-PL');
+
             let methodIcon = '<i class="fas fa-file-alt"></i>';
             if (batch.exportMethod === 'Csv') methodIcon = '<i class="fa-solid fa-file-csv" style="color:green;"></i> CSV';
             else if (batch.exportMethod === 'Excel') methodIcon = '<i class="fas fa-file-excel" style="color:green;"></i> Excel';
             else if (batch.exportMethod === 'Api') methodIcon = '<i class="fas fa-cloud-upload-alt" style="color:#0d6efd;"></i> API';
 
+
+            let userInfoHtml = `<strong>Wgrał:</strong> ${batch.userName}`;
+
+            if (batch.isAutomation && batch.automationRuleName) {
+                const ruleColor = batch.automationRuleColor || '#6f42c1';
+
+                userInfoHtml = `
+              <div style="display: inline-flex; align-items: center; vertical-align:  margin-right: 6px;">
+                  <strong>Automat:</strong>
+                  <div style="width: 6px; height: 16px; background-color: ${ruleColor}; border-radius: 2px; margin-left: 6px; margin-right: 6px;" title="Kolor reguły"></div>
+                  <span style="color: #212529; font-weight: 500;">${batch.automationRuleName}</span>
+              </div>`;
+            }
+
+
             html += `
-            <div class="history-batch-header" style="margin-top: 0px; margin-bottom: 4px; padding: 5px 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 5px;">
-                <strong>Paczka z dnia:</strong> ${executionDate} |
-                <strong>Wgrał:</strong> ${batch.userName} |
-                <strong>Metoda:</strong> ${methodIcon} |
-                <strong style="color: #28a745;">Sukces: ${batch.successfulCount}</strong>
-            </div>
-         <table class="table-orders" style="margin-bottom: 20px; width: 100%;">
-    <thead>
-        <tr>
-            <th style="width: 35%;">Produkt</th>
-            <th style="width: 20%;">Przed zmianą</th>
-            <th style="text-align:center; width: 10%;">Zmiana</th>
-            <th style="width: 20%;">Zaktualizowana cena</th>
-            <th style="text-align:center; width: 15%;">Status</th>
-        </tr>
-    </thead>
-    <tbody>
-            `;
+      <div class="history-batch-header" style="margin-top: 0px; margin-bottom: 4px; padding: 5px 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 5px;">
+          <strong>Paczka z dnia:</strong> ${executionDate} |
+          ${userInfoHtml} |
+          <strong>Metoda:</strong> ${methodIcon} |
+          <strong style="color: #28a745;">Sukces: ${batch.successfulCount}</strong>
+      </div>
+      <table class="table-orders" style="margin-bottom: 20px; width: 100%;">
+          <thead>
+              <tr>
+                  <th style="width: 35%;">Produkt</th>
+                  <th style="width: 20%;">Przed zmianą</th>
+                  <th style="text-align:center; width: 10%;">Zmiana</th>
+                  <th style="width: 20%;">Zaktualizowana cena</th>
+                  <th style="text-align:center; width: 15%;">Status</th>
+              </tr>
+          </thead>
+          <tbody>
+      `;
 
             batch.items.forEach(item => {
                 const blockBefore = buildHistoryPriceBlock(item.priceBefore, item.rankingGoogleBefore, item.rankingCeneoBefore, item.marginPrice, false);
@@ -1286,39 +1302,64 @@
                     if (diff > 0.005) arrow = '<span style="color: red;">▲</span>';
                     else if (diff < -0.005) arrow = '<span style="color: green;">▼</span>';
 
-                    let stepText = item.mode === 'profit' ? `Indeks ${item.priceIndexTarget}%` : `Konkurencja`;
+                    let strategyBadgeHtml = "";
+
+                    if (item.mode) {
+                        if (item.mode === 'profit') {
+                            const targetVal = item.priceIndexTarget != null ? item.priceIndexTarget : 100;
+                            strategyBadgeHtml = `
+                            <span class="strategy-badge profit" style="margin-bottom: 5px; display:inline-block;">
+                                Indeks ${targetVal}%
+                            </span>`;
+                        } else {
+                            let stepText = "Konkurencja";
+                            if (item.stepPriceApplied !== null && item.stepPriceApplied !== undefined) {
+                                const stepVal = parseFloat(item.stepPriceApplied);
+                                const unit = "PLN";
+                                if (stepVal === 0) {
+                                    stepText = "Wyrównanie";
+                                } else {
+                                    stepText = `Krok ${stepVal > 0 ? '+' : ''}${stepVal} ${unit}`;
+                                }
+                            }
+                            strategyBadgeHtml = `
+                            <span class="strategy-badge competitiveness" style="margin-bottom: 5px; display:inline-block;">
+                                ${stepText}
+                            </span>`;
+                        }
+                    }
 
                     diffBlock = `
-                        <div class="simulation-change-box" style="margin: 0 auto;">
-                            <span class="strategy-badge ${item.mode}">${stepText}</span> 
-                            <div class="simulation-diff-row">
-                                ${arrow} ${formatPricePL(Math.abs(diff), false)} PLN
-                            </div>
-                            <div class="simulation-diff-percent">
-                                (${Math.abs(diffPercent).toFixed(2)}%)
-                            </div>
-                        </div>`;
+                      <div class="simulation-change-box" style="margin: 0 auto; display:flex; flex-direction:column; align-items:center;">
+                          ${strategyBadgeHtml}
+                          <div class="simulation-diff-row">
+                              ${arrow} ${formatPricePL(Math.abs(diff), false)} PLN
+                          </div>
+                          <div class="simulation-diff-percent">
+                              (${Math.abs(diffPercent).toFixed(2)}%)
+                          </div>
+                      </div>`;
                 }
 
                 html += `
-                <tr>
-                   <td class="align-middle">
-                        <a href="/PriceHistory/Details?scrapId=${globalLatestScrapId}&productId=${item.productId}" 
-                           target="_blank" 
-                           rel="noopener noreferrer" 
-                           title="Zobacz szczegóły produktu" 
-                           style="text-decoration: none; color: inherit; display: block;">
-                            <div class="price-info-item product-name-cell" style="font-weight: 500; cursor: pointer;">
-                                 ${item.productName}
-                            </div>
-                        </a>
-                        ${eanInfo}
-                    </td>
-                    <td class="align-middle">${blockBefore}</td>
-                    <td class="align-middle text-center">${diffBlock}</td>
-                    <td class="align-middle">${blockUpdated}</td>
-                    <td class="align-middle text-center">${statusBlock}</td>
-                </tr>`;
+              <tr>
+                 <td class="align-middle">
+                      <a href="/PriceHistory/Details?scrapId=${globalLatestScrapId}&productId=${item.productId}" 
+                         target="_blank" 
+                         rel="noopener noreferrer" 
+                         title="Zobacz szczegóły produktu" 
+                         style="text-decoration: none; color: inherit; display: block;">
+                          <div class="price-info-item product-name-cell" style="font-weight: 500; cursor: pointer;">
+                              ${item.productName}
+                          </div>
+                      </a>
+                      ${eanInfo}
+                  </td>
+                  <td class="align-middle">${blockBefore}</td>
+                  <td class="align-middle text-center">${diffBlock}</td>
+                  <td class="align-middle">${blockUpdated}</td>
+                  <td class="align-middle text-center">${statusBlock}</td>
+              </tr>`;
             });
             html += `</tbody></table>`;
         });

@@ -1883,47 +1883,45 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
-
         [HttpGet]
         public async Task<IActionResult> GetScrapPriceChangeHistory(int storeId, int scrapHistoryId)
         {
-         
             if (!await UserHasAccessToStore(storeId)) return Forbid();
 
             if (scrapHistoryId == 0) return BadRequest("Invalid Scrap History ID.");
 
-        
             var batches = await _context.PriceBridgeBatches
                 .AsNoTracking()
                 .Where(b => b.StoreId == storeId && b.ScrapHistoryId == scrapHistoryId)
                 .Include(b => b.User)
+                // --- NOWOŚĆ: Dołączamy regułę automatyzacji ---
+                .Include(b => b.AutomationRule)
                 .Include(b => b.BridgeItems)
-                    .ThenInclude(i => i.Product) 
+                    .ThenInclude(i => i.Product)
                 .OrderByDescending(b => b.ExecutionDate)
                 .ToListAsync();
 
-       
             var result = batches.Select(b => new
             {
                 executionDate = b.ExecutionDate,
-                userName = b.User?.UserName ?? "Nieznany",
+                // --- ZMIANA LOGIKI NAZWY UŻYTKOWNIKA ---
+                userName = b.User?.UserName ?? (b.IsAutomation ? "Automat Cenowy" : "System/Nieznany"),
+
+                // --- NOWE POLA DLA AUTOMATYZACJI ---
+                isAutomation = b.IsAutomation,
+                automationRuleName = b.AutomationRule?.Name,
+                automationRuleColor = b.AutomationRule?.ColorHex,
+
                 successfulCount = b.SuccessfulCount,
-             
                 exportMethod = b.ExportMethod.ToString(),
                 items = b.BridgeItems.Select(i => new
                 {
                     productId = i.ProductId,
-                 
                     productName = i.Product?.ProductName ?? "Produkt usunięty lub nieznany",
                     ean = i.Product?.Ean,
-
-            
                     priceBefore = i.PriceBefore,
-                    priceAfter_Verified = i.PriceAfter, 
-
+                    priceAfter_Verified = i.PriceAfter,
                     marginPrice = i.MarginPrice,
-
-             
                     rankingGoogleBefore = i.RankingGoogleBefore,
                     rankingCeneoBefore = i.RankingCeneoBefore,
                     rankingGoogleAfter = i.RankingGoogleAfterSimulated,
