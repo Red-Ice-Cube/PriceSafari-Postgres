@@ -79,24 +79,30 @@
 
            
             @{
-                // Przenosimy pobieranie nazw, aby nie powtarzać kodu
+            
                 var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
                 var actionName = ViewContext.RouteData.Values["action"]?.ToString();
             }
 
             @if (isPreMember)
             {
-                // JEŚLI JEST PREMEMBER, POKAZUJEMY TYLKO JEDEN LINK
+             
                 <div class="@(controllerName == "SetUp" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "SetUp")'">
                     <img src="~/images/Settings-bone.svg" alt="Konfiguracja Icon" class="menu-icon" />Konfiguracja
                 </div>
             }
             else if (isMember)
             {
-                // JEŚLI JEST MEMBER (ALE NIE PREMEMBER), POKAZUJEMY JEGO MENU
+             
                 <div class="@(controllerName == "Chanel" || controllerName == "PriceHistory" || controllerName == "AllegroPriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Ceny
                 </div>
+                @if (user?.AccesToViewPriceAutomation == true)
+                {
+                    <div class="@(controllerName == "AutomationRules" || controllerName == "PriceAutomation" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
+                        <img src="~/images/Robot-bone.svg" alt="Panel Icon" class="menu-icon" />Automatyzacja
+                    </div>
+                }
                 <div class="@(controllerName == "Dashboard" || controllerName == "AllegroDashboard" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Dashboard")'">
                     <img src="~/images/Campaigns-bone.svg" alt="Panel Icon" class="menu-icon" />Analiza
                 </div>
@@ -107,12 +113,7 @@
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Konkurencja
                 </div>
 
-                @if (user?.AccesToViewPriceAutomation == true)
-                {
-                    <div class="@(controllerName == "AutomationRules" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
-                        <img src="~/images/OrderValue-bone.svg" alt="Panel Icon" class="menu-icon" />Automatyzacja
-                    </div>
-                }
+            
                 @if (user?.AccesToViewSafari == true)
                 {
                     <div class="@(controllerName == "Safari" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Chanel", "Safari")'">
@@ -229,7 +230,14 @@
             <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />
         </div>
 
-                <div class="@(controllerName == "Dashboard" || controllerName == "AllegroDashboard" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Dashboard")'">
+                @if (user?.AccesToViewPriceAutomation == true)
+                {
+                    <div class="@(controllerName == "AutomationRules" || controllerName == "PriceAutomation" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
+                        <img src="~/images/Robot-bone.svg" alt="Panel Icon" class="menu-icon" />
+                    </div>
+                }
+
+        <div class="@(controllerName == "Dashboard" || controllerName == "AllegroDashboard" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Dashboard")'">
             <img src="~/images/Campaigns-bone.svg" alt="Panel Icon" class="menu-icon" />
         </div>
 
@@ -241,12 +249,6 @@
             <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
         </div>
 
-                @if (user?.AccesToViewPriceAutomation == true)
-                {
-                    <div class="@(controllerName == "AutomationRules" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
-                        <img src="~/images/OrderValue-bone.svg" alt="Panel Icon" class="menu-icon" />
-                    </div>
-                }
         
         @if (user?.AccesToViewSafari == true)
         {
