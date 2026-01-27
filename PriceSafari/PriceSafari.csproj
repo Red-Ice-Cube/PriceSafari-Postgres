@@ -35,6 +35,8 @@
 		<PackageReference Include="PuppeteerExtraSharp" Version="2.0.0" />
 		<PackageReference Include="PuppeteerSharp" Version="20.2.2" />
 		<PackageReference Include="Schema.NET" Version="13.0.0" />
+		<PackageReference Include="Selenium.WebDriver" Version="4.40.0" />
+		<PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="144.0.7559.9600" />
 		<PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
 
 	</ItemGroup>
