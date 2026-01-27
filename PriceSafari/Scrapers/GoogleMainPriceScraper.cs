@@ -3577,15 +3577,31 @@ namespace PriceSafari.Services
 
 
 
+        //private void InitBrowserAndCookies()
+        //{
+        //    Console.ForegroundColor = ConsoleColor.Yellow;
+        //    Console.WriteLine($"\n[INIT] Bot {this.GetHashCode()}: Uruchamiam proces 'Cookie Warming' (Selenium)...");
+        //    Console.ResetColor();
+
+        //    var options = new ChromeOptions();
+        //    options.AddArgument("--disable-blink-features=AutomationControlled");
+        //    options.AddArgument("--start-maximized");
+        //    options.AddArgument($"user-agent={UserAgent}");
+        //    options.AddArgument("--log-level=3");
+
+
         private void InitBrowserAndCookies()
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"\n[INIT] Bot {this.GetHashCode()}: Uruchamiam proces 'Cookie Warming' (Selenium)...");
+            Console.WriteLine($"\n[INIT] Bot {this.GetHashCode()}: Uruchamiam proces 'Cookie Warming' (Selenium HEADLESS)...");
             Console.ResetColor();
 
             var options = new ChromeOptions();
+            // --- KONFIGURACJA HEADLESS ---
+            options.AddArgument("--headless=new"); // Nowy, lepszy tryb headless (mniej wykrywalny)
+            options.AddArgument("--window-size=1920,1080"); // WAŻNE: Wymuszamy dużą rozdzielczość, żeby elementy były widoczne
+            // -----------------------------
             options.AddArgument("--disable-blink-features=AutomationControlled");
-            options.AddArgument("--start-maximized");
             options.AddArgument($"user-agent={UserAgent}");
             options.AddArgument("--log-level=3");
 
