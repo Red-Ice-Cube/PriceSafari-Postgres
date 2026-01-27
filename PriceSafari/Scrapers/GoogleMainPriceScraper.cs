@@ -3487,6 +3487,96 @@ namespace PriceSafari.Services
         }
 
         // ZMIANA: Metoda niestatyczna (operuje na instancji _httpClient tego konkretnego obiektu)
+        //private void InitBrowserAndCookies()
+        //{
+        //    Console.ForegroundColor = ConsoleColor.Yellow;
+        //    Console.WriteLine($"\n[INIT] Bot {this.GetHashCode()}: Uruchamiam proces 'Cookie Warming' (Selenium)...");
+        //    Console.ResetColor();
+
+        //    var options = new ChromeOptions();
+        //    options.AddArgument("--disable-blink-features=AutomationControlled");
+        //    options.AddArgument("--start-maximized");
+        //    options.AddArgument($"user-agent={UserAgent}");
+        //    options.AddArgument("--log-level=3");
+
+        //    try
+        //    {
+        //        using (var driver = new ChromeDriver(options))
+        //        {
+        //            driver.Navigate().GoToUrl("https://www.google.com/search?q=odkurzacz+karcher&tbm=shop");
+        //            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
+
+        //            // 1. Zgody RODO
+        //            try
+        //            {
+        //                Console.WriteLine($"[AUTO Bot-{this.GetHashCode()}] Szukam przycisku zgody...");
+        //                var consentButton = wait.Until(d => d.FindElement(By.XPath("//div[contains(@class, 'QS5gu') and (contains(., 'Zaakceptuj') or contains(., 'Odrzuć'))]")));
+        //                Thread.Sleep(new Random().Next(200, 500));
+        //                consentButton.Click();
+        //                Console.WriteLine($"[AUTO Bot-{this.GetHashCode()}] Kliknięto zgodę RODO.");
+        //            }
+        //            catch
+        //            {
+        //                Console.WriteLine($"[INFO Bot-{this.GetHashCode()}] Brak popupu RODO lub już zaakceptowano.");
+        //            }
+
+        //            Thread.Sleep(500);
+
+        //            // 2. Kliknięcie w produkt
+        //            try
+        //            {
+        //                Console.WriteLine($"[AUTO Bot-{this.GetHashCode()}] Szukam produktu do kliknięcia...");
+        //                var productCard = wait.Until(d => d.FindElement(By.CssSelector("div.njFjte[role='button']")));
+
+        //                ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", productCard);
+        //                Thread.Sleep(400);
+
+        //                productCard.Click();
+        //                Console.WriteLine($"[AUTO Bot-{this.GetHashCode()}] Kliknięto w produkt (Standard Click).");
+
+        //                Thread.Sleep(2000);
+        //            }
+        //            catch (Exception)
+        //            {
+        //                Console.WriteLine($"[WARNING Bot-{this.GetHashCode()}] Problem z kliknięciem w produkt (może być pomijalny).");
+        //            }
+
+        //            // 3. Pobranie ciastek
+        //            Console.WriteLine($"[INFO Bot-{this.GetHashCode()}] Pobieram nowe ciasteczka...");
+        //            var cookies = driver.Manage().Cookies.AllCookies;
+        //            var cookieContainer = new CookieContainer();
+        //            foreach (var c in cookies)
+        //            {
+        //                try { cookieContainer.Add(new System.Net.Cookie(c.Name, c.Value, c.Path, c.Domain)); } catch { }
+        //            }
+
+        //            var handler = new HttpClientHandler
+        //            {
+        //                CookieContainer = cookieContainer,
+        //                UseCookies = true,
+        //                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
+        //            };
+
+        //            // Aktualizujemy klienta TYLKO dla tej instancji
+        //            _httpClient = new HttpClient(handler);
+        //            _httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent);
+        //            _httpClient.DefaultRequestHeaders.Add("Referer", "https://www.google.com/");
+        //            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7");
+        //            _httpClient.DefaultRequestHeaders.Add("sec-ch-ua", "\"Not A(Brand\";v=\"99\", \"Google Chrome\";v=\"121\", \"Chromium\";v=\"121\"");
+        //            _httpClient.DefaultRequestHeaders.Add("sec-ch-ua-mobile", "?0");
+        //            _httpClient.DefaultRequestHeaders.Add("sec-ch-ua-platform", "\"Windows\"");
+
+        //            Console.WriteLine($"[SUKCES Bot-{this.GetHashCode()}] Sesja odświeżona ({cookies.Count} ciastek).");
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine($"[SELENIUM CRITICAL Bot-{this.GetHashCode()}] {ex.Message}");
+        //    }
+        //}
+
+
+
         private void InitBrowserAndCookies()
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
@@ -3499,19 +3589,37 @@ namespace PriceSafari.Services
             options.AddArgument($"user-agent={UserAgent}");
             options.AddArgument("--log-level=3");
 
+            // --- LISTA LOSOWYCH FRAZ DO ROZGRZEWANIA ---
+            var searchQueries = new[]
+            {
+                "iphone 15 pro", "samsung galaxy s24", "laptop dell xps", "karta graficzna rtx 4060", // Elektronika
+                "buty nike air max", "adidas ultraboost", "kurtka the north face", "plecak vans",       // Moda
+                "ekspres do kawy delonghi", "odkurzacz dyson v15", "robot sprzątający roborock",        // Dom
+                "klocki lego star wars", "konsola ps5 slim", "pad xbox series x", "nintendo switch",    // Rozrywka
+                "wiertarka wkrętarka makita", "zestaw kluczy yato", "kosiarka spalinowa",               // Narzędzia
+                "rower górski kross", "namiot 4 osobowy", "buty trekkingowe salomon"                    // Sport
+            };
+
+            // Wybierz losową frazę i zamień spacje na plusy (format URL Google)
+            var randomQuery = searchQueries[new Random().Next(searchQueries.Length)].Replace(" ", "+");
+            // ---------------------------------------------
+
             try
             {
                 using (var driver = new ChromeDriver(options))
                 {
-                    driver.Navigate().GoToUrl("https://www.google.com/search?q=odkurzacz+karcher&tbm=shop");
+                    // Używamy wylosowanej frazy w URL
+                    string targetUrl = $"https://www.google.com/search?q={randomQuery}&tbm=shop";
+                    driver.Navigate().GoToUrl(targetUrl);
+
                     var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
 
-                    // 1. Zgody RODO
+                    // 1. Zgody RODO (SZYBKO)
                     try
                     {
                         Console.WriteLine($"[AUTO Bot-{this.GetHashCode()}] Szukam przycisku zgody...");
                         var consentButton = wait.Until(d => d.FindElement(By.XPath("//div[contains(@class, 'QS5gu') and (contains(., 'Zaakceptuj') or contains(., 'Odrzuć'))]")));
-                        Thread.Sleep(new Random().Next(200, 500));
+                        Thread.Sleep(new Random().Next(200, 500)); // Skrócone opóźnienie
                         consentButton.Click();
                         Console.WriteLine($"[AUTO Bot-{this.GetHashCode()}] Kliknięto zgodę RODO.");
                     }
@@ -3520,21 +3628,21 @@ namespace PriceSafari.Services
                         Console.WriteLine($"[INFO Bot-{this.GetHashCode()}] Brak popupu RODO lub już zaakceptowano.");
                     }
 
-                    Thread.Sleep(500);
+                    Thread.Sleep(500); // Skrócone opóźnienie
 
-                    // 2. Kliknięcie w produkt
+                    // 2. Kliknięcie w produkt (SZYBKO)
                     try
                     {
-                        Console.WriteLine($"[AUTO Bot-{this.GetHashCode()}] Szukam produktu do kliknięcia...");
+                        Console.WriteLine($"[AUTO Bot-{this.GetHashCode()}] Szukam produktu ({randomQuery.Replace("+", " ")})...");
                         var productCard = wait.Until(d => d.FindElement(By.CssSelector("div.njFjte[role='button']")));
 
                         ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", productCard);
-                        Thread.Sleep(400);
+                        Thread.Sleep(500); // Skrócone opóźnienie
 
                         productCard.Click();
-                        Console.WriteLine($"[AUTO Bot-{this.GetHashCode()}] Kliknięto w produkt (Standard Click).");
+                        Console.WriteLine($"[AUTO Bot-{this.GetHashCode()}] Kliknięto w produkt.");
 
-                        Thread.Sleep(2000);
+                        Thread.Sleep(2500); // Czas na zebranie ciastek (skrócony z 4000)
                     }
                     catch (Exception)
                     {
@@ -3557,7 +3665,6 @@ namespace PriceSafari.Services
                         AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
                     };
 
-                    // Aktualizujemy klienta TYLKO dla tej instancji
                     _httpClient = new HttpClient(handler);
                     _httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent);
                     _httpClient.DefaultRequestHeaders.Add("Referer", "https://www.google.com/");
@@ -3566,7 +3673,7 @@ namespace PriceSafari.Services
                     _httpClient.DefaultRequestHeaders.Add("sec-ch-ua-mobile", "?0");
                     _httpClient.DefaultRequestHeaders.Add("sec-ch-ua-platform", "\"Windows\"");
 
-                    Console.WriteLine($"[SUKCES Bot-{this.GetHashCode()}] Sesja odświeżona ({cookies.Count} ciastek).");
+                    Console.WriteLine($"[SUKCES Bot-{this.GetHashCode()}] Sesja odświeżona na frazie: '{randomQuery}'.");
                 }
             }
             catch (Exception ex)
