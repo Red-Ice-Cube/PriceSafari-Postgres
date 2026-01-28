@@ -567,11 +567,20 @@ namespace PriceSafari.Services.PriceAutomationService
                 }
                 row.NewRankingAllegro = newRankAllegro;
 
+                // Wewnątrz metody GetCalculatedMarketplaceData, w pętli foreach:
+
                 if (committedLookup.TryGetValue(p.AllegroProductId, out var committedItem))
                 {
                     row.IsAlreadyUpdated = true;
+
+                    // Istniejący kod:
                     row.UpdatedPrice = committedItem.PriceAfter_Verified ?? committedItem.PriceAfter_Simulated;
                     row.UpdateDate = committedItem.PriceBridgeBatch.ExecutionDate;
+
+                    // --- DODAJ TEN FRAGMENT ---
+                    // Pobieramy faktyczną prowizję po zmianie ceny (o ile istnieje w bazie)
+                    row.UpdatedCommissionAmount = committedItem.CommissionAfter_Verified;
+                    // --------------------------
 
                     if (row.SuggestedPrice.HasValue && row.UpdatedPrice.HasValue)
                     {

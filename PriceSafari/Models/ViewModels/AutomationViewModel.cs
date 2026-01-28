@@ -90,6 +90,7 @@ namespace PriceSafari.Models.ViewModels
 
         public decimal? CommissionAmount { get; set; }
         public bool IsCommissionIncluded { get; set; }
+        public decimal? UpdatedCommissionAmount { get; set; }
 
         public decimal? MarkupAmount { get; set; }
         public decimal? MarkupPercent { get; set; }

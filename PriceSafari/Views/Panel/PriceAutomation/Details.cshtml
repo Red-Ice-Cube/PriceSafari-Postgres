@@ -1214,29 +1214,73 @@
                                             }
                                         </div>
                                         <div class="small text-muted ">@Model.StoreName</div>
-                                        @if (item.CommissionAmount.HasValue)
+                                      
+                                        @{
+                                          
+                                            bool showUpdatedCommission = item.IsAlreadyUpdated && item.UpdatedCommissionAmount.HasValue;
+    
+                                            
+                                            decimal? commissionToDisplay = showUpdatedCommission ? item.UpdatedCommissionAmount : item.CommissionAmount;
+
+                                           
+                                            decimal? salesPriceForCalc = item.UpdatedPrice ?? item.SuggestedPrice;
+
+                                            decimal? finalMarkupAmount = item.MarkupAmount;
+                                            decimal? finalMarkupPercent = item.MarkupPercent;
+
+                                           
+                                            if (salesPriceForCalc.HasValue && item.PurchasePrice.HasValue && item.PurchasePrice.Value > 0)
+                                            {
+                                               
+                                                decimal commissionCost = (item.IsCommissionIncluded && commissionToDisplay.HasValue) ? commissionToDisplay.Value : 0;
+
+                                              
+                                                finalMarkupAmount = salesPriceForCalc.Value - item.PurchasePrice.Value - commissionCost;
+        
+                                              
+                                                finalMarkupPercent = (finalMarkupAmount.Value / item.PurchasePrice.Value) * 100;
+                                            }
+                                        }
+                                        @if (commissionToDisplay.HasValue)
                                         {
-                                            <div class="Commission-stack">
-                                                <span class="commission-stack-badge">Prowizja</span>
+                                            <div class="Commission-stack" title="@(showUpdatedCommission ? "To jest potwierdzona prowizja po aktualizacji ceny" : "Szacowana prowizja dla obecnej ceny")">
+                                                <span class="commission-stack-badge"
+                                                      style="@(showUpdatedCommission ? "background-color:#1cc88a; color:white;" : "")">
+                                                    @(showUpdatedCommission ? "Prowizja" : "Prowizja")
+                                                </span>
                                                 <p>
-                                                    @item.CommissionAmount.Value.ToString("F2") PLN
+                                                    @commissionToDisplay.Value.ToString("F2") PLN
+
                                                     @if (item.IsCommissionIncluded)
                                                     {
-                                                        <span style="font-weight: 400; color: #555;"> | uwzg.</span>
+                                                        @if (showUpdatedCommission)
+                                                        {
+                                                            <span style="font-weight: 400; color: #1cc88a;"> | akt. uwzg.</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span style="font-weight: 400; color: #555;"> | uwzg.</span>
+                                                        }
                                                     }
                                                     else
                                                     {
-
-                                                        <span style="font-weight: 400; color: #999;"> | nieuwzg.</span>
+                                                        @if (showUpdatedCommission)
+                                                        {
+                                                            <span style="font-weight: 400; color: #1cc88a;"> | akt. nieuwzg.</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span style="font-weight: 400; color: #555"> | nieuwzg.</span>
+                                                        }
                                                     }
                                                 </p>
                                             </div>
                                         }
-                                        @if (item.SuggestedPrice.HasValue && item.MarkupAmount.HasValue)
+                                        @if (finalMarkupAmount.HasValue && finalMarkupPercent.HasValue)
                                         {
-                                            <div class="price-box-diff-margin-ib @(item.MarkupAmount > 0 ? "price-box-diff-margin-ib-positive" : "price-box-diff-margin-ib-negative")" style="margin-top: 4px; width: 100%;">
-                                                <span class="price-badge @(item.MarkupAmount > 0 ? "price-badge-positive" : "price-badge-negative")">Narzut</span>
-                                                <p>@item.MarkupAmount.Value.ToString("F2") PLN (@item.MarkupPercent.Value.ToString("F2")%)</p>
+                                            <div class="price-box-diff-margin-ib @(finalMarkupAmount.Value > 0 ? "price-box-diff-margin-ib-positive" : "price-box-diff-margin-ib-negative")" style="margin-top: 4px; width: 100%;">
+                                                <span class="price-badge @(finalMarkupAmount.Value > 0 ? "price-badge-positive" : "price-badge-negative")">Narzut</span>
+                                                <p>@finalMarkupAmount.Value.ToString("F2") PLN (@finalMarkupPercent.Value.ToString("F2")%)</p>
                                             </div>
                                         }
                                     </div>
