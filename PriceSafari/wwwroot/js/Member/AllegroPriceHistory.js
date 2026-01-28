@@ -214,7 +214,10 @@
         sortLowerAmount: null,
         sortLowerPercentage: null,
         sortMarginAmount: null,
-        sortMarginPercentage: null
+        sortMarginPercentage: null,
+        sortTotalPopularity: null,
+        sortMyPopularity: null,
+        sortMarketShare: null
     };
 
     let isCatalogViewActive = false;
@@ -323,6 +326,9 @@
                 return 'Narzut PLN';
             case 'sortMarginPercentage':
                 return 'Narzut %';
+            case 'sortTotalPopularity': return 'Sprzedaż Katalogu';
+            case 'sortMyPopularity': return 'Moja Sprzedaż';
+            case 'sortMarketShare': return 'Udział %';
             default:
                 return '';
         }
@@ -2539,6 +2545,18 @@
                                 case 'sortMarginPercentage':
                                     valA = a.marginPercentage;
                                     valB = b.marginPercentage;
+                                    break;
+                                case 'sortTotalPopularity':
+                                    valA = a.totalPopularity;
+                                    valB = b.totalPopularity;
+                                    break;
+                                case 'sortMyPopularity':
+                                    valA = a.myTotalPopularity;
+                                    valB = b.myTotalPopularity;
+                                    break;
+                                case 'sortMarketShare':
+                                    valA = a.marketSharePercentage;
+                                    valB = b.marketSharePercentage;
                                     break;
                                 default:
                                     return 0;
