@@ -1529,6 +1529,7 @@ public class ScheduledTaskService : BackgroundService
         {
             var allegroApiBotService = context.GetService<AllegroApiBotService>();
 
+            // Wywołujemy serwis, który teraz zwraca bogatsze statystyki
             var result = await allegroApiBotService.ProcessOffersForActiveStoresAsync();
 
             var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
@@ -1536,16 +1537,37 @@ public class ScheduledTaskService : BackgroundService
             {
                 finishedLog.EndTime = DateTime.Now;
 
+                var sb = new StringBuilder();
+
                 if (result.Success)
                 {
-                    finishedLog.Comment += $" | Sukces. Przetworzono {result.TotalOffersProcessed} ofert w {result.StoresProcessedCount} sklepach.";
+                    sb.Append(" | Sukces.");
                 }
                 else
                 {
-
-                    string errorMessages = string.Join("; ", result.Messages);
-                    finishedLog.Comment += $" | Błąd. Przetworzono {result.TotalOffersProcessed} ofert. Szczegóły: {errorMessages}";
+                    sb.Append(" | Częściowe błędy.");
                 }
+
+                // TUTAJ FORMATUJEMY LOG WG TWOJEJ PROŚBY:
+                sb.Append($" Sprawdzono ID: {result.TotalOffersChecked}.");
+                sb.Append($" Pobrano prowizji/cen: {result.TotalOffersSuccess}.");
+
+                if (result.TotalOffersFailed > 0)
+                {
+                    sb.Append($" Pominięto/Błędy: {result.TotalOffersFailed}.");
+                }
+
+                sb.Append($" Przetworzono sklepów: {result.StoresProcessedCount}.");
+
+                if (result.Messages.Any())
+                {
+                    // Skracamy log jeśli jest bardzo długi, żeby nie przekroczyć limitu w bazie
+                    string details = string.Join("; ", result.Messages);
+                    if (details.Length > 500) details = details.Substring(0, 500) + "...";
+                    sb.Append($" Szczegóły: {details}");
+                }
+
+                finishedLog.Comment += sb.ToString();
 
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
@@ -1557,7 +1579,7 @@ public class ScheduledTaskService : BackgroundService
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
-                finishedLog.Comment += $" | Wystąpił krytyczny błąd: {ex.Message}";
+                finishedLog.Comment += $" | Wystąpił krytyczny błąd (ALE_API_BOT): {ex.Message}";
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }

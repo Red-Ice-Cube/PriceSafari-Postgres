@@ -6343,6 +6343,8 @@ namespace PriceSafari.Services
         private static CookieContainer? GenerateSingleSession(int botId)
         {
             var options = new ChromeOptions();
+
+            //urwany łeb
             options.AddArgument("--headless=new");
             options.AddArgument("--window-size=1920,1080");
             options.AddArgument("--disable-blink-features=AutomationControlled");
