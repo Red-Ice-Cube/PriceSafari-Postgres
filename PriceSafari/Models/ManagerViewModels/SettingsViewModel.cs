@@ -14,6 +14,9 @@
 
         public bool ControlXY { get; set; }
         public bool ExpandAndCompareGoogleOffers { get; set; } = true;
+
+        public bool HeadLessForGoogleGenerators { get; set; }
+        public int GoogleGeneratorsCount { get; set; }
     }
 
     public class EditVerificationRequiredViewModel
@@ -36,5 +39,8 @@
         public bool ControlXY { get; set; }
 
         public bool ExpandAndCompareGoogleOffers { get; set; } = true;
+
+        public bool HeadLessForGoogleGenerators { get; set; }
+        public int GoogleGeneratorsCount { get; set; }
     }
 }

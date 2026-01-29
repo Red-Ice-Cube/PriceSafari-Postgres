@@ -82,6 +82,21 @@
                     </select>
                 </div>
 
+                <div class="form-group">
+                    <label asp-for="GoogleGeneratorsCount" class="control-label">Liczba generatorów Google:</label>
+                    <input asp-for="GoogleGeneratorsCount" class="form-control" type="number" min="1" />
+                    <span asp-validation-for="GoogleGeneratorsCount" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="HeadLessForGoogleGenerators" class="control-label">Genartory Google bezglowicowe</label>
+                    <select asp-for="HeadLessForGoogleGenerators" class="form-control">
+                        <option value="true">Tak</option>
+                        <option value="false">Nie</option>
+                    </select>
+                </div>
+
+
                 <div asp-validation-summary="ModelOnly" role="alert"></div>
 
                 <div class="form-group">

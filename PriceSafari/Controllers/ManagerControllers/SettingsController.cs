@@ -40,7 +40,9 @@ namespace PriceSafari.Controllers.ManagerControllers
                 Style = settings.Styles,
                 GetCeneoName = settings.GetCeneoName,   
                 ControlXY = settings.ControlXY,
-                ExpandAndCompareGoogleOffers = settings.ExpandAndCompareGoogleOffers
+                ExpandAndCompareGoogleOffers = settings.ExpandAndCompareGoogleOffers,
+                GoogleGeneratorsCount = settings.GoogleGeneratorsCount,
+                HeadLessForGoogleGenerators = settings.HeadLessForGoogleGenerators
             };
 
             return View("~/Views/ManagerPanel/Settings/Index.cshtml", viewModel);
@@ -67,7 +69,9 @@ namespace PriceSafari.Controllers.ManagerControllers
                 Style = settings.Styles,
                 GetCeneoName = settings.GetCeneoName,
                 ControlXY = settings.ControlXY,
-                ExpandAndCompareGoogleOffers = settings.ExpandAndCompareGoogleOffers
+                ExpandAndCompareGoogleOffers = settings.ExpandAndCompareGoogleOffers,
+                GoogleGeneratorsCount = settings.GoogleGeneratorsCount,
+                HeadLessForGoogleGenerators = settings.HeadLessForGoogleGenerators
             };
 
             return View("~/Views/ManagerPanel/Settings/EditSpeedSettings.cshtml", viewModel);
@@ -95,6 +99,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                 settings.GetCeneoName = viewModel.GetCeneoName;
                 settings.ControlXY = viewModel.ControlXY;
                 settings.ExpandAndCompareGoogleOffers = viewModel.ExpandAndCompareGoogleOffers;
+                settings.GoogleGeneratorsCount = viewModel.GoogleGeneratorsCount;
+                settings.HeadLessForGoogleGenerators = viewModel.HeadLessForGoogleGenerators;
                 _context.Update(settings);
                 await _context.SaveChangesAsync();
 

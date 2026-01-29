@@ -278,15 +278,36 @@ namespace PriceSafari.Controllers.MemberControllers
         [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> Delete(int id)
         {
+            // 1. Pobieramy regułę
             var rule = await _context.AutomationRules.FindAsync(id);
+
             if (rule != null)
             {
+                // ====================================================================
+                // KROK DODATKOWY: Usuwanie historii powiązanej z regułą
+                // ====================================================================
+
+                // Znajdź wszystkie batche, które wskazują na usuwaną regułę
+                var ruleHistory = _context.AllegroPriceBridgeBatches
+                    .Where(batch => batch.AutomationRuleId == id);
+
+                // Usuń je z bazy (RemoveRange jest wydajniejsze dla wielu rekordów)
+                _context.AllegroPriceBridgeBatches.RemoveRange(ruleHistory);
+
+                // ====================================================================
+
+                // 2. Standardowe usuwanie reguły
                 int storeId = rule.StoreId;
                 var type = rule.SourceType;
+
                 _context.AutomationRules.Remove(rule);
+
+                // 3. Zapisz zmiany (to usunie i historię, i regułę w jednej transakcji)
                 await _context.SaveChangesAsync();
+
                 return RedirectToAction(nameof(Index), new { storeId = storeId, filterType = type });
             }
+
             return NotFound();
         }
 
