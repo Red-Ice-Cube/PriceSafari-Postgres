@@ -1187,17 +1187,29 @@ public class GoogleMainPriceScraperController : Controller
                 }
             }
         }
+        // --- ZMIANA: Dodajemy obsługę OperationCanceledException ---
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Zadanie zostało zatrzymane przez użytkownika (Task Cancelled).");
+            // Nie robimy nic więcej, to normalne zachowanie przy STOP
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Critical error in main scraping loop.");
+            // Sprawdzamy czy wewnętrzny wyjątek to nie anulowanie (czasem jest opakowany)
+            if (ex is TaskCanceledException || (ex.InnerException is TaskCanceledException))
+            {
+                _logger.LogInformation("Zadanie zostało zatrzymane (Task Cancelled wrapper).");
+            }
+            else
+            {
+                _logger.LogError(ex, "Critical error in main scraping loop.");
+            }
         }
         finally
         {
-            // === TUTAJ JEST KLUCZOWA POPRAWKA ===
-            // Zawsze zatrzymujemy batching i generatory na końcu pracy
             _logger.LogInformation("[CLEANUP] Stopping Batch Processor and Generators.");
             await ResultBatchProcessor.StopAndFlushAsync();
-            GlobalCookieWarehouse.StopAndClear(); // To wyłączy Chrome'y
+            GlobalCookieWarehouse.StopAndClear();
         }
 
         return persistentErrorDetected;
