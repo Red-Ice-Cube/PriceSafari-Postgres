@@ -687,10 +687,10 @@ namespace PriceSafari.Services.ScheduleService
             // 1. [BATCHING] Inicjalizacja procesora wyników
             ResultBatchProcessor.Initialize(_scopeFactory);
 
-            // 2. [WAREHOUSE] Start Generatorów
-            // Uruchamiamy 3 generatory w tle.
-            int generatorCount = 3;
-            GlobalCookieWarehouse.StartGenerators(generatorCount);
+            int generatorCount = settings.GoogleGeneratorsCount;
+            bool headlessMode = settings.HeadLessForGoogleGenerators;
+
+            GlobalCookieWarehouse.StartGenerators(generatorCount, headlessMode);
 
             var coOfrsToScrape = await dbContext.CoOfrs
                .Where(c => !string.IsNullOrEmpty(c.GoogleOfferUrl) && !c.GoogleIsScraped)

@@ -1038,9 +1038,12 @@ public class GoogleMainPriceScraperController : Controller
                 // [INIT] Start Batch Processor & Generators
                 ResultBatchProcessor.Initialize(_serviceScopeFactory);
 
-                // Tutaj ustawiamy liczbę generatorów
-                int generatorsCount = 3;
-                GlobalCookieWarehouse.StartGenerators(generatorsCount);
+                // --- ZMIANA: Pobieranie ustawień z modelu Settings ---
+                int generatorsCount = settings.GoogleGeneratorsCount;
+                bool headlessMode = settings.HeadLessForGoogleGenerators;
+
+                // Przekazujemy oba parametry
+                GlobalCookieWarehouse.StartGenerators(generatorsCount, headlessMode);
 
                 var coOfrsToScrape = await dbContext.CoOfrs
                     .Where(c => (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer) && !c.GoogleIsScraped)

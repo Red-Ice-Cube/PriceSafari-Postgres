@@ -6219,37 +6219,42 @@ using System.Threading.Tasks;
 
 namespace PriceSafari.Services
 {
-    // --- NOWOŚĆ: GLOBALNY MAGAZYN CIASTEK (ODDZIELONY OD SCRAPERA) ---
     public static class GlobalCookieWarehouse
     {
         // Konfiguracja magazynu
-        private const int MAX_COOKIES_IN_QUEUE = 200; // Maksymalna pojemność magazynu
+        private const int MAX_COOKIES_IN_QUEUE = 200;
         private const string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
 
-        // Kolejka blokująca - wątki HTTP będą tu czekać, jeśli jest pusta
         private static readonly BlockingCollection<CookieContainer> _cookieQueue = new(MAX_COOKIES_IN_QUEUE);
 
         private static CancellationTokenSource _generatorCts = new();
         private static bool _isStarted = false;
         private static readonly object _lock = new();
 
-        // Informacja dla logów/debugowania
+        // --- ZMIANA: Pole do przechowywania ustawienia headless ---
+        private static bool _useHeadlessMode = true;
+
         public static int AvailableCookies => _cookieQueue.Count;
 
         /// <summary>
         /// Uruchamia określoną liczbę generatorów Selenium w tle.
         /// </summary>
-        public static void StartGenerators(int generatorCount)
+        // --- ZMIANA: Dodano parametry count i headless ---
+        public static void StartGenerators(int generatorCount, bool headless)
         {
             lock (_lock)
             {
-                if (_isStarted) return; // Już działają
+                if (_isStarted) return;
 
+                // Zabezpieczenie, żeby nie odpalić 0 lub mniej generatorów
+                if (generatorCount < 1) generatorCount = 1;
+
+                _useHeadlessMode = headless; // Zapisujemy ustawienie
                 _generatorCts = new CancellationTokenSource();
                 _isStarted = true;
 
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"[WAREHOUSE] Uruchamiam {generatorCount} niezależnych generatorów ciastek...");
+                Console.WriteLine($"[WAREHOUSE] Uruchamiam {generatorCount} generatorów (Headless: {_useHeadlessMode})...");
                 Console.ResetColor();
 
                 for (int i = 0; i < generatorCount; i++)
@@ -6260,9 +6265,6 @@ namespace PriceSafari.Services
             }
         }
 
-        /// <summary>
-        /// Zatrzymuje generatory i czyści magazyn (np. przy StopScraping).
-        /// </summary>
         public static void StopAndClear()
         {
             lock (_lock)
@@ -6344,8 +6346,13 @@ namespace PriceSafari.Services
         {
             var options = new ChromeOptions();
 
-            //urwany łeb
-            options.AddArgument("--headless=new");
+            // --- ZMIANA: Dynamiczne ustawienie Headless ---
+            if (_useHeadlessMode)
+            {
+                options.AddArgument("--headless=new");
+            }
+            // Jeśli false, okno Chrome się otworzy
+
             options.AddArgument("--window-size=1920,1080");
             options.AddArgument("--disable-blink-features=AutomationControlled");
             options.AddArgument($"user-agent={UserAgent}");
