@@ -54,6 +54,8 @@ namespace PriceSafari.Models.ViewModels
         public int SuccessRate => TotalProducts > 0
             ? (int)Math.Round((double)(CountMet + CountMaintained + CountLimited) / TotalProducts * 100)
             : 0;
+
+
     }
 
     public class AutomationProductRowViewModel
@@ -140,6 +142,10 @@ namespace PriceSafari.Models.ViewModels
         public DateTime? UpdateDate { get; set; }
 
         public bool HasCheaperOwnOffer { get; set; }
+
+
+        public bool IsMissingPlatformWarning { get; set; }
+        public string MissingPlatformName { get; set; }
     }
 
     public class AutomationExecutionRequest

@@ -304,6 +304,11 @@ namespace PriceSafari.Services.PriceAutomationService
                 var myHistory = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase))
                                 ?? histories.FirstOrDefault(h => h.StoreName == null);
 
+                var myGoogle = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle == true);
+                var myCeneo = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle != true);
+                // ==============================================================================
+
+
                 var rawCompetitors = histories
                     .Where(h => h.Price > 0 && h != myHistory && (h.StoreName == null || !h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase)))
                     .ToList();
@@ -357,19 +362,66 @@ namespace PriceSafari.Services.PriceAutomationService
                     PurchasePriceUpdatedDate = p.MarginPriceUpdatedDate
                 };
 
+                // ==============================================================================
+                // 2. TUTAJ WSTAWIAMY NOWĄ LOGIKĘ BLOKAD/OSTRZEŻEŃ
+                //    (Teraz zadziała, bo myCeneo i myGoogle są zadeklarowane wyżej)
+                // ==============================================================================
+
+                bool bestRivalIsCeneo = bestCompetitor != null && bestCompetitor.IsGoogle != true;
+                bool bestRivalIsGoogle = bestCompetitor != null && bestCompetitor.IsGoogle == true;
+
+                // Przypadek: Rywal na CENEO, a nas tam nie ma
+                if (bestRivalIsCeneo && myCeneo == null)
+                {
+                    if (rule.RequireOwnOfferOnCeneo)
+                    {
+                        ApplyBlock(row, "Brak oferty (Ceneo)");
+                        resultProducts.Add(row);
+                        continue;
+                    }
+                    else
+                    {
+                        row.IsMissingPlatformWarning = true;
+                        row.MissingPlatformName = "Ceneo";
+                    }
+                }
+
+                // Przypadek: Rywal na GOOGLE, a nas tam nie ma
+                if (bestRivalIsGoogle && myGoogle == null)
+                {
+                    if (rule.RequireOwnOfferOnGoogle)
+                    {
+                        ApplyBlock(row, "Brak oferty (Google)");
+                        resultProducts.Add(row);
+                        continue;
+                    }
+                    else
+                    {
+                        row.IsMissingPlatformWarning = true;
+                        row.MissingPlatformName = "Google";
+                    }
+                }
+
                 var googlePrices = filteredCompetitors.Where(c => c.IsGoogle == true).Select(c => c.Price).ToList();
                 var ceneoPrices = filteredCompetitors.Where(c => c.IsGoogle != true).Select(c => c.Price).ToList();
 
-                var myGoogle = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle == true);
-                var myCeneo = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle != true);
+                // --- FIX: Fallback rankingu ---
+                // Jeśli nie mamy dedykowanej oferty z Google (myGoogle), ale mamy CurrentPrice (np. z XML),
+                // używamy CurrentPrice do wyliczenia teoretycznej pozycji.
 
-                if (includeGoogle && myGoogle != null && myGoogle.Price > 0)
-                    row.CurrentRankingGoogle = CalculateRanking(new List<decimal>(googlePrices), myGoogle.Price);
+                decimal? googlePriceCalc = (myGoogle != null && myGoogle.Price > 0) ? myGoogle.Price : row.CurrentPrice;
+
+                if (includeGoogle && googlePriceCalc.HasValue && googlePriceCalc.Value > 0)
+                    row.CurrentRankingGoogle = CalculateRanking(new List<decimal>(googlePrices), googlePriceCalc.Value);
                 else
                     row.CurrentRankingGoogle = null;
 
-                if (includeCeneo && myCeneo != null && myCeneo.Price > 0)
-                    row.CurrentRankingCeneo = CalculateRanking(new List<decimal>(ceneoPrices), myCeneo.Price);
+
+                // To samo dla Ceneo
+                decimal? ceneoPriceCalc = (myCeneo != null && myCeneo.Price > 0) ? myCeneo.Price : row.CurrentPrice;
+
+                if (includeCeneo && ceneoPriceCalc.HasValue && ceneoPriceCalc.Value > 0)
+                    row.CurrentRankingCeneo = CalculateRanking(new List<decimal>(ceneoPrices), ceneoPriceCalc.Value);
                 else
                     row.CurrentRankingCeneo = null;
 

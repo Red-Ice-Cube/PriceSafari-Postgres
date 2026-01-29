@@ -1172,7 +1172,16 @@
                                                 <span class="price-main-style @(item.IsMarginWarning ? "text-warning" : "text-success")">
                                                     @(item.SuggestedPrice.HasValue? item.SuggestedPrice.Value.ToString("F2") : "-") PLN
                                                 </span>
-
+                                                    @if (item.IsMissingPlatformWarning)
+                                                    {
+                                                        <span class="text-warning"
+                                                              style="cursor: help; font-size: 14px;"
+                                                              data-toggle="tooltip"
+                                                              data-html="true"
+                                                              title="Uwaga! Twoja oferta nie jest widoczna na platformie @item.MissingPlatformName, gdzie znajduje się Twój rywal. Cena została wyliczona na podstawie danych z innego źródła.">
+                                                            <i class="fas fa-exclamation-triangle"></i>
+                                                        </span>
+                                                    }
                                                 @if (item.IsSuggestedDifferentFromUpdated)
                                                 {
                                                     <span class="text-warning"

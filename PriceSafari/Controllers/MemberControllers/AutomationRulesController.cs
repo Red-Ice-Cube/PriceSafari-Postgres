@@ -209,7 +209,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 ColorHex = "#4e73df",
 
                 SourceType = sourceType ?? AutomationSourceType.PriceComparison,
-                StrategyMode = AutomationStrategyMode.Competitiveness
+                StrategyMode = AutomationStrategyMode.Competitiveness,
+                //RequireOwnOfferOnCeneo = true,
+                //RequireOwnOfferOnGoogle = true
 
             };
             return View("~/Views/Panel/AutomationRules/CreateOrEdit.cshtml", model);

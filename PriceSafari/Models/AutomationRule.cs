@@ -140,6 +140,21 @@ namespace PriceSafari.Models
         /// </summary>
         public bool UsePriceWithDelivery { get; set; } = false;
 
+
+        /// <summary>
+        /// Jeśli TRUE: Blokuje zmianę ceny, gdy Najlepszy Rywal jest z Ceneo, a Twój sklep nie ma oferty na Ceneo.
+        /// Jeśli FALSE: Pozwala na zmianę ceny (bazując na cenie z Google/XML), ale wyświetla ostrzeżenie.
+        /// </summary>
+        [Display(Name = "Wymagaj obecności Twojej oferty na Ceneo")]
+        public bool RequireOwnOfferOnCeneo { get; set; } = true;
+
+        /// <summary>
+        /// Jeśli TRUE: Blokuje zmianę ceny, gdy Najlepszy Rywal jest z Google, a Twój sklep nie ma oferty na Google.
+        /// Jeśli FALSE: Pozwala na zmianę ceny (bazując na cenie z Ceneo/XML), ale wyświetla ostrzeżenie.
+        /// </summary>
+        [Display(Name = "Wymagaj obecności Twojej oferty na Google")]
+        public bool RequireOwnOfferOnGoogle { get; set; } = true;
+
         // =================================================================================
         // SEKCJA 4: SPECYFICZNE DLA MARKETPLACE (Allegro)
         // =================================================================================

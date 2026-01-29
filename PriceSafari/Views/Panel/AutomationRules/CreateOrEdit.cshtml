@@ -753,6 +753,57 @@
                 <div class="box-title">
                     Dodatkowe opcje
                 </div>
+
+                <div class="row-option">
+                    <div class="option-desc">
+                        <div class="option-title">
+                            <span>Wymagaj oferty na Ceneo</span>
+                            <img src="/images/Ceneo.png" alt="Ceneo" style="width: 16px; height: 16px; vertical-align: middle; margin-left: 5px;">
+                          
+                        </div>
+                        <div class="option-subtitle">
+                            Czy blokować zmianę ceny, jeśli Twój sklep nie jest widoczny na liście ofert Ceneo (np. z powodu wyczerpanych środków)?
+                        </div>
+                        <div class="option-subtitle" style="color:#858796; font-size:12px; margin-top:2px;">
+                            <strong>TAK:</strong> Automat wstrzyma działanie dla tego produktu, aby nie zaniżać ceny, gdy oferta jest niewidoczna.<br />
+                            <strong>NIE:</strong> Automat wyliczy cenę, pobierając Twoją aktualną cenę z innego źródła (np. XML lub Google).
+                        </div>
+                    </div>
+                    <div class="switch-container switch-status @(Model.RequireOwnOfferOnCeneo ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
+                        <input type="checkbox" asp-for="RequireOwnOfferOnCeneo" />
+                        <div class="switch-slider-bg"></div>
+                        <div class="switch-labels">
+                            <span class="switch-label-text label-left">NIE</span>
+                            <span class="switch-label-text label-right">TAK</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row-option">
+                    <div class="option-desc">
+                        <div class="option-title">
+                            <span>Wymagaj oferty na Google</span>
+                            <img src="/images/GoogleShopping.png" alt="Google" style="width: 16px; height: 16px; vertical-align: middle; margin-left: 5px;">
+                           
+                        </div>
+                        <div class="option-subtitle">
+                            Czy blokować zmianę ceny, jeśli Twój produkt nie został wykryty w wynikach Google Shopping?
+                        </div>
+                        <div class="option-subtitle" style="color:#858796; font-size:12px; margin-top:2px;">
+                            <strong>TAK:</strong> Automat wstrzyma działanie, jeśli nie znajdzie Twojej oferty w Google (chroni przed zmianą ceny "w ciemno").<br />
+                            <strong>NIE:</strong> Automat wyliczy cenę, pobierając Twoją aktualną cenę z innego źródła (np. XML lub Ceneo).
+                        </div>
+                    </div>
+                    <div class="switch-container switch-status @(Model.RequireOwnOfferOnGoogle ? "state-right" : "state-left")" onclick="toggleSwitch(this)">
+                        <input type="checkbox" asp-for="RequireOwnOfferOnGoogle" />
+                        <div class="switch-slider-bg"></div>
+                        <div class="switch-labels">
+                            <span class="switch-label-text label-left">NIE</span>
+                            <span class="switch-label-text label-right">TAK</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="row-option">
                     <div class="option-desc">
                         <div class="option-title">Koszt Dostawy</div>
