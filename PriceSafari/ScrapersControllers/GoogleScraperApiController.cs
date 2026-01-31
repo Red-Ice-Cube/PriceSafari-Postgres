@@ -30,7 +30,7 @@ namespace PriceSafari.ScrapersControllers
         private static int _totalProcessedInSession = 0;
         private static int _totalRejectedInSession = 0;
 
-        private const int BATCH_SIZE = 50;
+        private const int BATCH_SIZE = 200;
         private const int SCRAPER_TIMEOUT_SECONDS = 60;
 
         public GoogleScraperApiController(
