@@ -77,6 +77,47 @@
                 <button type="submit" class="Button-Page-Small-bl">Rozpocznij scrapowanie Google</button>
             </form>
 
+
+            <div class="scraper-status-panel" style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <h4 style="color: #fff; margin: 0 0 10px 0;">🐍 Python Google Scrapers</h4>
+
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button id="startPythonScrapingBtn" class="Button-Page-Small-bl">
+                        ▶️ Start Python Scraping
+                    </button>
+                    <button id="stopPythonScrapingBtn" class="Button-Page-Small-r">
+                        ⏹️ Stop Python Scraping
+                    </button>
+                    <button id="refreshScraperStatusBtn" class="Button-Page-Small-b">
+                        🔄 Odśwież status
+                    </button>
+                </div>
+
+                <div id="pythonScraperStatus" style="margin-top: 15px; color: #ccc;">
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <div>
+                            <strong>Status:</strong>
+                            <span id="scrapingEnabledStatus" style="color: #ff6b6b;">Wyłączone</span>
+                        </div>
+                        <div>
+                            <strong>Aktywne scrapery:</strong>
+                            <span id="activeScrapersCount">0</span>
+                        </div>
+                        <div>
+                            <strong>Postęp:</strong>
+                            <span id="pythonProgress">0%</span>
+                        </div>
+                        <div>
+                            <strong>Pozostało:</strong>
+                            <span id="remainingTasks">-</span>
+                        </div>
+                    </div>
+
+                    <div id="scrapersList" style="margin-top: 10px; font-size: 12px;"></div>
+                </div>
+            </div>
+
+
             <button id="stopScrapingCeneoButton" class="Button-Page-Small-y">Przerwij scrapowanie Ceneo</button>
             <button id="stopScrapingGoogleButton" class="Button-Page-Small-y">Przerwij scrapowanie Google</button>
 
@@ -272,7 +313,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        $(document).ready(function () {
+
+            // ============================================================
+            // CHART.JS SETUP
+            // ============================================================
             var ctx = document.getElementById('speedChart').getContext('2d');
 
             var gradientFill1 = ctx.createLinearGradient(0, 0, 0, ctx.canvas.clientHeight);
@@ -302,35 +347,23 @@
                         x: {
                             type: 'linear',
                             position: 'bottom',
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.2)'
-                            },
-                            ticks: {
-                                color: 'rgba(255, 255, 255, 0.8)'
-                            }
+                            grid: { color: 'rgba(255, 255, 255, 0.2)' },
+                            ticks: { color: 'rgba(255, 255, 255, 0.8)' }
                         },
                         y: {
                             beginAtZero: true,
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.2)'
-                            },
-                            ticks: {
-                                color: 'rgba(255, 255, 255, 0.8)'
-                            }
+                            grid: { color: 'rgba(255, 255, 255, 0.2)' },
+                            ticks: { color: 'rgba(255, 255, 255, 0.8)' }
                         }
                     },
                     plugins: {
-                        legend: {
-                            display: false
-                        },
+                        legend: { display: false },
                         tooltip: {
                             mode: 'index',
                             intersect: false,
                             callbacks: {
                                 label: function (context) {
-                                    var label = context.dataset.label || '';
-                                    var value = context.parsed.y;
-                                    return label + ': ' + value;
+                                    return context.dataset.label + ': ' + context.parsed.y;
                                 }
                             }
                         }
@@ -338,34 +371,30 @@
                 }
             });
 
+            // ============================================================
+            // SIGNALR SETUP
+            // ============================================================
             var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
             var scrapingComplete = false;
 
             var offerUrlToRowId = {};
             var coOfrIdToRowId = {};
 
-            // Mapa wierszy po załadowaniu strony
             document.querySelectorAll('#scrapingTableBody tr').forEach(function (row) {
                 var rowId = row.id;
                 var offerUrl = row.cells[0].innerText.trim();
                 var coOfrId = rowId.replace('row-', '');
-
-                if (offerUrl) {
-                    offerUrlToRowId[offerUrl] = rowId;
-                }
-                if (coOfrId) {
-                    coOfrIdToRowId[coOfrId] = rowId;
-                }
+                if (offerUrl) offerUrlToRowId[offerUrl] = rowId;
+                if (coOfrId) coOfrIdToRowId[coOfrId] = rowId;
             });
 
             function updateRowClass(row) {
-                var ceneoScraped = row.cells[4].innerText === "Tak";   // Zescrapowane Ceneo
-                var ceneoRejected = row.cells[5].innerText === "Tak";  // Odrzucone Ceneo
-                var googleScraped = row.cells[7].innerText === "Tak";  // Zescrapowane Google
-                var googleRejected = row.cells[8].innerText === "Tak"; // Odrzucone Google
+                var ceneoScraped = row.cells[4].innerText === "Tak";
+                var ceneoRejected = row.cells[5].innerText === "Tak";
+                var googleScraped = row.cells[7].innerText === "Tak";
+                var googleRejected = row.cells[8].innerText === "Tak";
 
                 var rowClass = "";
-
                 if (ceneoRejected || googleRejected) {
                     rowClass = "rejected-row";
                 } else if (ceneoScraped && googleScraped) {
@@ -377,16 +406,12 @@
                 } else {
                     rowClass = "unscraped-row";
                 }
-
                 row.className = "product-row " + rowClass;
             }
 
             connection.on("ReceiveScrapingUpdate", function () {
                 var args = arguments;
-                // Zakładając, że z Ceneo przychodzą argumenty: offerUrl, isScraped, isRejected, pricesCount
-                // a z Google: coOfrId, isScraped, isRejected, pricesCount, source="Google"
                 if (args.length === 4) {
-                    // Ceneo update
                     var offerUrl = args[0];
                     var isScraped = args[1];
                     var isRejected = args[2];
@@ -396,18 +421,13 @@
                     var row = document.getElementById(rowId);
 
                     if (row) {
-                        // Zescrapowane Ceneo = col 4
                         row.cells[4].innerText = isScraped ? "Tak" : "Nie";
-                        // Odrzucone Ceneo = col 5
                         row.cells[5].innerText = isRejected ? "Tak" : "Nie";
-                        // Liczba Cen Ceneo = col 6
                         row.cells[6].innerText = pricesCount;
-
                         updateRowClass(row);
                         updateCounters();
                     }
                 } else if (args.length === 5) {
-                    // Google update
                     var coOfrId = args[0];
                     var isScraped = args[1];
                     var isRejected = args[2];
@@ -419,13 +439,9 @@
                         var row = document.getElementById(rowId);
 
                         if (row) {
-                            // Zescrapowane Google = col 7
                             row.cells[7].innerText = isScraped ? "Tak" : "Nie";
-                            // Odrzucone Google = col 8
                             row.cells[8].innerText = isRejected ? "Tak" : "Nie";
-                            // Liczba Cen Google = col 9
                             row.cells[9].innerText = pricesCount;
-
                             updateRowClass(row);
                             updateCounters();
                         }
@@ -455,129 +471,183 @@
                     speedChart.data.labels.push(currentTime);
                     speedChart.data.datasets[0].data.push(parseFloat(speed));
                 }
-
                 speedChart.update();
 
                 if (totalScraped === uniqueProducts) {
                     completionMessage.style.display = "block";
                     completionMessage.innerHTML = `Zebrano ceny dla ${totalScraped}/${uniqueProducts} produktów (${rejectedCount} odrzuconych).`;
                     completionMessage.style.color = "#0E7E87";
-
                     progressBarInner.style.backgroundColor = "#0E7E87";
-
                     progressText.style.display = "none";
-
                     scrapingComplete = true;
                 }
             });
 
+            connection.on("ReceiveControlXYCountdown", function(startValue) {
+                var countdownDiv = document.getElementById("controlXYCountdown");
+                var counterSpan = document.getElementById("controlXYCounter");
+                var warningDiv = document.getElementById("controlXYWarning");
 
-                  connection.on("ReceiveControlXYCountdown", function(startValue) {
-            // startValue = np. 10
-
-            var countdownDiv = document.getElementById("controlXYCountdown");
-            var counterSpan = document.getElementById("controlXYCounter");
-            var warningDiv   = document.getElementById("controlXYWarning");
-
-
-            countdownDiv.style.display = "block";
-
-
-            var timeLeft = startValue;
-            counterSpan.textContent = timeLeft;
-
-
-            var intervalId = setInterval(function() {
-                timeLeft--;
+                countdownDiv.style.display = "block";
+                var timeLeft = startValue;
                 counterSpan.textContent = timeLeft;
 
+                var intervalId = setInterval(function() {
+                    timeLeft--;
+                    counterSpan.textContent = timeLeft;
 
-                if (timeLeft <= 0) {
-                    clearInterval(intervalId);
-                    countdownDiv.style.display = "none";
-
-
-                    setTimeout(function() {
-                        warningDiv.style.display = "block";
-
+                    if (timeLeft <= 0) {
+                        clearInterval(intervalId);
+                        countdownDiv.style.display = "none";
                         setTimeout(function() {
-                            warningDiv.style.display = "none";
-                        }, 15000);
-
-                    }, 1000);
-
-                }
-            }, 1000);
-        });
-
-
-
-
-            connection.start().catch(function (err) {
-                return console.error(err.toString());
+                            warningDiv.style.display = "block";
+                            setTimeout(function() {
+                                warningDiv.style.display = "none";
+                            }, 15000);
+                        }, 1000);
+                    }
+                }, 1000);
             });
 
+            connection.start().catch(function (err) {
+                console.error(err.toString());
+            });
+
+            // ============================================================
+            // CENEO / GOOGLE C# SCRAPING FORMS
+            // ============================================================
             $('#captchaScrapingForm').on('submit', function (e) {
                 e.preventDefault();
                 var form = $(this);
-                var url = form.attr('action');
-
                 $.ajax({
-                    url: url,
+                    url: form.attr('action'),
                     method: 'POST',
-                    success: function () {
-                        console.log('Scraping started successfully');
-                    },
-                    error: function () {
-                        console.error('Error starting scraping');
-                    }
+                    success: function () { console.log('Ceneo scraping started'); },
+                    error: function () { console.error('Error starting Ceneo scraping'); }
                 });
             });
 
             $('#googleScrapingForm').on('submit', function (e) {
                 e.preventDefault();
                 var form = $(this);
-                var url = form.attr('action');
+                $.ajax({
+                    url: form.attr('action'),
+                    method: 'POST',
+                    success: function () { console.log('Google C# scraping started'); },
+                    error: function () { console.error('Error starting Google C# scraping'); }
+                });
+            });
+
+            $('#stopScrapingCeneoButton').on('click', function () {
+                $.ajax({
+                    url: '/PriceScraping/StopScraping',
+                    method: 'POST',
+                    success: function () { console.log('Ceneo scraping stopped'); },
+                    error: function () { console.error('Error stopping Ceneo scraping'); }
+                });
+            });
+
+            $('#stopScrapingGoogleButton').on('click', function () {
+                $.ajax({
+                    url: '/GoogleMainPriceScraper/StopScrapingGoogle',
+                    method: 'POST',
+                    success: function () { console.log('Google C# scraping stopped'); },
+                    error: function () { console.error('Error stopping Google C# scraping'); }
+                });
+            });
+
+            // ============================================================
+            // PYTHON SCRAPER CONTROL (NOWY SYSTEM)
+            // ============================================================
+            function updatePythonScraperStatus() {
+                $.get('/api/google-scrape/status', function(data) {
+                    console.log('[Python Status]', data);
+
+                    // Status włączenia
+                    if (data.isEnabled) {
+                        $('#scrapingEnabledStatus').text('Włączone').css('color', '#51cf66');
+                    } else {
+                        $('#scrapingEnabledStatus').text('Wyłączone').css('color', '#ff6b6b');
+                    }
+
+                    // Liczniki
+                    $('#activeScrapersCount').text(data.activeScrapersCount);
+                    $('#pythonProgress').text(data.progressPercent + '%');
+                    $('#remainingTasks').text(data.remainingTasks);
+
+                    // Lista scraperów
+                    var scrapersHtml = '';
+                    if (data.activeScrapers && data.activeScrapers.length > 0) {
+                        scrapersHtml = '<div style="margin-top: 5px;">';
+                        data.activeScrapers.forEach(function(s) {
+                            var statusIcon = s.isWorking ? '🟢' : '🟡';
+                            var ago = s.secondsAgo + 's ago';
+                            scrapersHtml += '<span style="margin-right: 15px;">' +
+                                statusIcon + ' ' + s.scraperName +
+                                ' (📊 ' + s.tasksProcessed + ' | ⏱️ ' + ago + ')</span>';
+                        });
+                        scrapersHtml += '</div>';
+                    }
+                    $('#scrapersList').html(scrapersHtml);
+
+                }).fail(function(xhr, status, error) {
+                    console.error('Failed to get scraper status:', status, error);
+                });
+            }
+
+            // START PYTHON SCRAPING
+            $('#startPythonScrapingBtn').on('click', function() {
+                console.log('[Python] Kliknięto START');
 
                 $.ajax({
-                    url: url,
+                    url: '/api/google-scrape/start',
                     method: 'POST',
-                    success: function () {
-                        console.log('Google scraping started successfully');
+                    success: function(data) {
+                        console.log('[Python] Start response:', data);
+                        alert('Python scraping started: ' + data.message);
+                        updatePythonScraperStatus();
                     },
-                    error: function () {
-                        console.error('Error starting Google scraping');
+                    error: function(xhr, status, error) {
+                        console.error('[Python] Start error:', status, error);
+                        alert('Błąd startu: ' + error);
                     }
                 });
             });
 
-        $('#stopScrapingCeneoButton').on('click', function () {
-            $.ajax({
-                url: '/PriceScraping/StopScraping',
-                method: 'POST',
-                success: function () {
-                    console.log('Scraping Ceneo stopped successfully');
-                },
-                error: function () {
-                    console.error('Error stopping scraping Ceneo');
-                }
+            // STOP PYTHON SCRAPING
+            $('#stopPythonScrapingBtn').on('click', function() {
+                console.log('[Python] Kliknięto STOP');
+
+                $.ajax({
+                    url: '/api/google-scrape/stop',
+                    method: 'POST',
+                    success: function(data) {
+                        console.log('[Python] Stop response:', data);
+                        alert('Python scraping stopped: ' + data.message);
+                        updatePythonScraperStatus();
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('[Python] Stop error:', status, error);
+                        alert('Błąd stopu: ' + error);
+                    }
+                });
             });
-        });
 
-        $('#stopScrapingGoogleButton').on('click', function () {
-            $.ajax({
-                url: '/GoogleMainPriceScraper/StopScrapingGoogle',
-                method: 'POST',
-                success: function () {
-                    console.log('Scraping Google stopped successfully');
-                },
-                error: function () {
-                    console.error('Error stopping scraping Google');
-                }
+            // REFRESH STATUS
+            $('#refreshScraperStatusBtn').on('click', function() {
+                console.log('[Python] Odświeżam status');
+                updatePythonScraperStatus();
             });
-        });
 
+            // Auto-refresh co 5s
+            setInterval(updatePythonScraperStatus, 5000);
 
+            // Initial load
+            updatePythonScraperStatus();
+
+            // ============================================================
+            // COUNTERS UPDATE
+            // ============================================================
             function updateCounters() {
                 var rows = document.querySelectorAll("#scrapingTableBody tr");
                 var totalUrls = rows.length;
@@ -593,28 +663,13 @@
                     var productIdsCe = row.cells[2].innerText;
                     totalProductIds += productIdsCe === "Brak danych" ? 0 : productIdsCe.split(', ').length;
 
-                    // Liczba Cen Ceneo w kolumnie 6
                     totalPricesCountCeneo += parseInt(row.cells[6].innerText) || 0;
-                    // Liczba Cen Google w kolumnie 9
                     totalPricesCountGoogle += parseInt(row.cells[9].innerText) || 0;
 
-                    // Zescrapowane Ceneo = col 4
-                    if (row.cells[4].innerText === "Tak") {
-                        scrapedUrlsCountCeneo++;
-                    }
-                    // Zescrapowane Google = col 7
-                    if (row.cells[7].innerText === "Tak") {
-                        scrapedUrlsCountGoogle++;
-                    }
-
-                    // Odrzucone Ceneo = col 5
-                    if (row.cells[5].innerText === "Tak") {
-                        totalRejectedCountCeneo++;
-                    }
-                    // Odrzucone Google = col 8
-                    if (row.cells[8].innerText === "Tak") {
-                        totalRejectedCountGoogle++;
-                    }
+                    if (row.cells[4].innerText === "Tak") scrapedUrlsCountCeneo++;
+                    if (row.cells[7].innerText === "Tak") scrapedUrlsCountGoogle++;
+                    if (row.cells[5].innerText === "Tak") totalRejectedCountCeneo++;
+                    if (row.cells[8].innerText === "Tak") totalRejectedCountGoogle++;
                 });
 
                 document.getElementById("totalUrlCount").textContent = totalUrls;
@@ -627,8 +682,10 @@
                 document.getElementById("scrapedUrlCountGoogle").textContent = scrapedUrlsCountGoogle;
             }
 
-            // Initial counters update on page load
+            // Initial counters update
             updateCounters();
+
+            console.log('[INIT] Wszystkie event handlery podpięte!');
         });
     </script>
 }
