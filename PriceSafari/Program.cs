@@ -15,6 +15,7 @@ using PriceSafari.Services.ConnectionStatus;
 using PriceSafari.Services.ControlNetwork;
 using PriceSafari.Services.ControlXY;
 using PriceSafari.Services.EmailService;
+using PriceSafari.Services.GoogleScraping;
 using PriceSafari.Services.PriceAutomationService;
 using PriceSafari.Services.ScheduleService;
 using PriceSafari.Services.ViewRenderService;
@@ -75,6 +76,7 @@ public class Program
         builder.Services.AddScoped<StorePriceBridgeService>();
         builder.Services.AddHttpClient<CeneoScraper>();
         builder.Services.AddScoped<CeneoScraper>();
+        builder.Services.AddSingleton<GoogleScrapingStateService>();
         builder.Services.AddScoped<GoogleScraperService>();
         builder.Services.AddScoped<CeneoScraperService>();
         builder.Services.AddHostedService<ScraperHealthCheckService>();
