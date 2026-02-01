@@ -38,8 +38,8 @@ namespace PriceSafari.Controllers.ManagerControllers
             {
                 ScrapableStores = scrapableStores,
                 ScrapedProducts = scrapedProducts,
-                ActiveTasks = AllegroTaskManager.ActiveTasks,
-                ActiveScrapers = AllegroTaskManager.ActiveScrapers
+                ActiveTasks = AllegroGatherManager.ActiveTasks,
+                ActiveScrapers = AllegroGatherManager.ActiveScrapers
             };
 
             return View("~/Views/ManagerPanel/Allegro/Index.cshtml", viewModel);
@@ -53,7 +53,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (store != null && !string.IsNullOrEmpty(store.StoreNameAllegro))
             {
                 var newTask = new ScrapingTaskState { Status = ScrapingStatus.Pending };
-                if (AllegroTaskManager.ActiveTasks.TryAdd(store.StoreNameAllegro, newTask))
+                if (AllegroGatherManager.ActiveTasks.TryAdd(store.StoreNameAllegro, newTask))
                 {
                     TempData["SuccessMessage"] = $"Zlecono zadanie dla sklepu: {store.StoreName}";
 
@@ -74,7 +74,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             var store = await _context.Stores.FindAsync(storeId);
             if (store != null && !string.IsNullOrEmpty(store.StoreNameAllegro))
             {
-                if (AllegroTaskManager.ActiveTasks.TryGetValue(store.StoreNameAllegro, out var taskState))
+                if (AllegroGatherManager.ActiveTasks.TryGetValue(store.StoreNameAllegro, out var taskState))
                 {
                     taskState.Status = ScrapingStatus.Cancelled;
                     taskState.LastProgressMessage = "Anulowane przez użytkownika.";

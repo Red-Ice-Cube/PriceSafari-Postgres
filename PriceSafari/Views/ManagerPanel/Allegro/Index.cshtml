@@ -149,7 +149,7 @@
                                     }
                                 </td>
                                 <td id="task-action-container-@store.StoreNameAllegro">
-                                    @if (AllegroTaskManager.ActiveTasks.ContainsKey(store.StoreNameAllegro))
+                                    @if (AllegroGatherManager.ActiveTasks.ContainsKey(store.StoreNameAllegro))
                                     {
                                         <form asp-action="CancelScraping" method="post" class="d-inline">
                                             @Html.AntiForgeryToken()

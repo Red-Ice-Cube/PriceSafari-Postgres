@@ -30,7 +30,7 @@ namespace PriceSafari.Services.ConnectionStatus
         {
             var now = DateTime.UtcNow;
 
-            var gathererScrapers = AllegroTaskManager.ActiveScrapers.Values
+            var gathererScrapers = AllegroGatherManager.ActiveScrapers.Values
                 .Where(s => s.Status != ScraperLiveStatus.Offline).ToList();
 
             foreach (var scraper in gathererScrapers)
@@ -48,7 +48,7 @@ namespace PriceSafari.Services.ConnectionStatus
 
                     if ((oldStatus == ScraperLiveStatus.Busy || oldStatus == ScraperLiveStatus.ResettingNetwork) && !string.IsNullOrEmpty(scraper.CurrentTaskUsername))
                     {
-                        if (AllegroTaskManager.ActiveTasks.TryGetValue(scraper.CurrentTaskUsername, out var abandonedTask))
+                        if (AllegroGatherManager.ActiveTasks.TryGetValue(scraper.CurrentTaskUsername, out var abandonedTask))
                         {
                             abandonedTask.Status = ScrapingStatus.Pending;
                             abandonedTask.AssignedScraperName = null;

@@ -1028,12 +1028,25 @@
                                             <p>@item.CurrentMarkupAmount.Value.ToString("F2") PLN (@item.CurrentMarkupPercent.Value.ToString("F2")%)</p>
                                         </div>
                                     }
-                                    @if (item.IsSubsidyActive && item.ApiAllegroPriceFromUser.HasValue)
+                                    @* --- ZMIANA TUTAJ: Logika kampanii (Dopłaty LUB Zwykła Kampania) --- *@
+                                    @if (item.ApiAllegroPriceFromUser.HasValue)
                                     {
-                                        <div class="subsidy-stack" style="margin-top: 4px;">
-                                            <span class="subsidy-stack-badge">Kampania z dopł. | Twoja cena</span>
-                                            <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
-                                        </div>
+                                        @* Priorytet 1: Kampania z dopłatami (Subsidy) *@
+                                        if (item.IsSubsidyActive)
+                                        {
+                                            <div class="subsidy-stack" style="margin-top: 4px;">
+                                                <span class="subsidy-stack-badge">Dopłaty | Twoja cena</span>
+                                                <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
+                                            </div>
+                                        }
+                                        @* Priorytet 2: Zwykła kampania (AnyPromo), jeśli nie ma dopłaty *@
+                                        else if (item.IsInAnyCampaign)
+                                        {
+                                            <div class="Campaign-stack" style="margin-top: 4px;">
+                                                <span class="campaign-stack-badge">Kampania | Twoja cena</span>
+                                                <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
+                                            </div>
+                                        }
                                     }
                                 </td>
 

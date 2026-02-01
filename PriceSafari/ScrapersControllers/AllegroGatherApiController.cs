@@ -40,7 +40,7 @@ namespace PriceSafari.ScrapersControllers
 
             await SendLog($"Scraper '{scraperName}' zgłosił się po zadanie.", "DEBUG");
 
-            var scraper = AllegroTaskManager.ActiveScrapers.AddOrUpdate(
+            var scraper = AllegroGatherManager.ActiveScrapers.AddOrUpdate(
                 scraperName,
                 new ScraperClient { Name = scraperName, Status = ScraperLiveStatus.Idle, LastCheckIn = DateTime.UtcNow },
                 (key, existingClient) =>
@@ -52,14 +52,14 @@ namespace PriceSafari.ScrapersControllers
                 });
             await _hubContext.Clients.All.SendAsync("UpdateScraperStatus", scraper);
 
-            var cancelledTask = AllegroTaskManager.ActiveTasks.FirstOrDefault(t => t.Value.Status == ScrapingStatus.Cancelled);
+            var cancelledTask = AllegroGatherManager.ActiveTasks.FirstOrDefault(t => t.Value.Status == ScrapingStatus.Cancelled);
             if (cancelledTask.Key != null)
             {
                 await SendLog($"Zlecono scraperowi '{scraperName}' potwierdzenie anulacji zadania '{cancelledTask.Key}'.", "WARN");
                 return Ok(new { cancelledUsername = cancelledTask.Key });
             }
 
-            var pendingTask = AllegroTaskManager.ActiveTasks.FirstOrDefault(t => t.Value.Status == ScrapingStatus.Pending);
+            var pendingTask = AllegroGatherManager.ActiveTasks.FirstOrDefault(t => t.Value.Status == ScrapingStatus.Pending);
             if (pendingTask.Key != null)
             {
                 var taskState = pendingTask.Value;
@@ -87,10 +87,10 @@ namespace PriceSafari.ScrapersControllers
 
         {
             if (receivedApiKey != ApiKey) return Unauthorized();
-            if (AllegroTaskManager.ActiveTasks.TryGetValue(username, out var taskState) && taskState.Status == ScrapingStatus.Cancelled)
+            if (AllegroGatherManager.ActiveTasks.TryGetValue(username, out var taskState) && taskState.Status == ScrapingStatus.Cancelled)
 
             {
-                if (AllegroTaskManager.ActiveTasks.TryRemove(username, out _))
+                if (AllegroGatherManager.ActiveTasks.TryRemove(username, out _))
 
                 {
 
@@ -107,7 +107,7 @@ namespace PriceSafari.ScrapersControllers
         {
             if (receivedApiKey != ApiKey) return Unauthorized();
 
-            if (AllegroTaskManager.ActiveScrapers.TryRemove(scraperName, out var scraper))
+            if (AllegroGatherManager.ActiveScrapers.TryRemove(scraperName, out var scraper))
             {
                 await SendLog($"Użytkownik usunął scrapera '{scraperName}' z listy.", "WARN");
                 await _hubContext.Clients.All.SendAsync("ScraperRemoved", scraperName);
@@ -121,9 +121,9 @@ namespace PriceSafari.ScrapersControllers
         {
             if (receivedApiKey != ApiKey) return Unauthorized();
 
-            if (AllegroTaskManager.ActiveTasks.TryGetValue(username, out var taskState) &&
+            if (AllegroGatherManager.ActiveTasks.TryGetValue(username, out var taskState) &&
                 !string.IsNullOrEmpty(taskState.AssignedScraperName) &&
-                AllegroTaskManager.ActiveScrapers.TryGetValue(taskState.AssignedScraperName, out var scraper))
+                AllegroGatherManager.ActiveScrapers.TryGetValue(taskState.AssignedScraperName, out var scraper))
             {
 
                 bool statusChanged = false;
@@ -172,11 +172,11 @@ namespace PriceSafari.ScrapersControllers
         {
             if (receivedApiKey != ApiKey) return Unauthorized();
 
-            if (AllegroTaskManager.ActiveTasks.TryRemove(username, out var finishedTask))
+            if (AllegroGatherManager.ActiveTasks.TryRemove(username, out var finishedTask))
             {
 
                 if (!string.IsNullOrEmpty(finishedTask.AssignedScraperName) &&
-                    AllegroTaskManager.ActiveScrapers.TryGetValue(finishedTask.AssignedScraperName, out var scraper))
+                    AllegroGatherManager.ActiveScrapers.TryGetValue(finishedTask.AssignedScraperName, out var scraper))
                 {
                     scraper.Status = ScraperLiveStatus.Idle;
                     scraper.CurrentTaskUsername = null;
@@ -243,7 +243,7 @@ namespace PriceSafari.ScrapersControllers
             await _context.AllegroProducts.AddRangeAsync(newProducts);
             await _context.SaveChangesAsync();
 
-            if (AllegroTaskManager.ActiveTasks.TryGetValue(storeName, out var taskState))
+            if (AllegroGatherManager.ActiveTasks.TryGetValue(storeName, out var taskState))
             {
                 taskState.IncrementOffers(newProducts.Count);
                 await _hubContext.Clients.All.SendAsync("UpdateTaskProgress", storeName, taskState);
