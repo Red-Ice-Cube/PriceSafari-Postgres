@@ -20,6 +20,7 @@ namespace PriceSafari.ScrapersControllers
         private readonly PriceSafariContext _dbContext;
         private readonly ILogger<GoogleScraperApiController> _logger;
         private readonly IHubContext<ScrapingHub> _hubContext;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
 
         // === STATYCZNE ZARZĄDZANIE SCRAPERAMI ===
         private static readonly ConcurrentDictionary<string, ScraperStatus> _activeScrapers = new();
@@ -30,17 +31,19 @@ namespace PriceSafari.ScrapersControllers
         private static int _totalProcessedInSession = 0;
         private static int _totalRejectedInSession = 0;
 
-        private const int BATCH_SIZE = 200;
+        private const int BATCH_SIZE = 100;
         private const int SCRAPER_TIMEOUT_SECONDS = 60;
 
         public GoogleScraperApiController(
-            PriceSafariContext dbContext,
-            ILogger<GoogleScraperApiController> logger,
-            IHubContext<ScrapingHub> hubContext)
+      PriceSafariContext dbContext,
+      ILogger<GoogleScraperApiController> logger,
+      IHubContext<ScrapingHub> hubContext,
+      IServiceScopeFactory serviceScopeFactory) // <--- Dodaj to
         {
             _dbContext = dbContext;
             _logger = logger;
             _hubContext = hubContext;
+            _serviceScopeFactory = serviceScopeFactory;
         }
 
         // === HELPER: Fire and Forget SignalR ===
@@ -219,125 +222,100 @@ namespace PriceSafari.ScrapersControllers
             return Ok(new { tasks, done = false });
         }
 
-        // =====================================================================
-        // POST /api/google-scrape/submit-batch-results
-        // =====================================================================
         [HttpPost("submit-batch-results")]
-        public async Task<IActionResult> SubmitBatchResults([FromBody] List<ScraperResult>? results, [FromQuery] string scraperName = "unknown")
+        public IActionResult SubmitBatchResults(
+     [FromBody] List<ScraperResult>? results,
+     [FromQuery] string scraperName = "unknown")
         {
             if (results == null || !results.Any())
             {
-                _logger.LogWarning($"[{scraperName}] Received null or empty results");
                 return BadRequest(new { error = "No results provided" });
             }
 
-            _logger.LogInformation($"[{scraperName}] Received {results.Count} results");
+            _logger.LogInformation($"[{scraperName}] Received {results.Count} results. Starting background save.");
 
-            int successCount = 0;
-            int failedCount = 0;
-
-            // Pobierz total do progress
-            var totalTasks = await _dbContext.CoOfrs
-                .CountAsync(c => !string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer);
-
+            // 1. Natychmiastowe usunięcie z zadań w toku (aby uniknąć duplikatów przy kolejnym pobraniu)
             foreach (var result in results)
             {
-                try
-                {
-                    // Usuń z listy "w trakcie"
-                    _tasksInProgress.TryRemove(result.TaskId, out _);
+                _tasksInProgress.TryRemove(result.TaskId, out _);
+            }
 
-                    var coOfr = await _dbContext.CoOfrs.FindAsync(result.TaskId);
-                    if (coOfr == null)
-                    {
-                        _logger.LogWarning($"CoOfr {result.TaskId} not found");
-                        continue;
-                    }
+            // 2. Odpalenie zapisu w tle (Fire and Forget)
+            // Musimy wstrzyknąć IServiceScopeFactory do konstruktora klasy!
+            _ = Task.Run(async () =>
+            {
+                using (var scope = _serviceScopeFactory.CreateScope())
+                {
+                    var dbContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
+                    await ProcessResultsInBackground(results, scraperName, dbContext);
+                }
+            });
+
+            // 3. Natychmiastowa odpowiedź do scrapera - "Dzięki, mam to, leć po następne!"
+            return Ok(new { success = true, message = "Results accepted and processing in background" });
+        }
+
+        private async Task ProcessResultsInBackground(List<ScraperResult> results, string scraperName, PriceSafariContext dbContext)
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                var taskIds = results.Select(r => r.TaskId).ToList();
+                var coOfrsDict = await dbContext.CoOfrs
+                    .Where(c => taskIds.Contains(c.Id))
+                    .ToDictionaryAsync(c => c.Id);
+
+                var allHistories = new List<CoOfrPriceHistoryClass>();
+                var signalRUpdates = new List<object>();
+
+                foreach (var result in results)
+                {
+                    if (!coOfrsDict.TryGetValue(result.TaskId, out var coOfr)) continue;
 
                     if (result.Status == "success" && result.Offers.Any())
                     {
-                        // Dodaj wyniki do bazy
-                        var priceHistories = result.Offers.Select(o => new CoOfrPriceHistoryClass
+                        var histories = result.Offers.Select(o => new CoOfrPriceHistoryClass
                         {
                             CoOfrClassId = coOfr.Id,
-                            GoogleCid = coOfr.GoogleCid,
                             GoogleStoreName = o.GoogleStoreName,
                             GooglePrice = o.GooglePrice,
                             GooglePriceWithDelivery = o.GooglePriceWithDelivery,
                             GooglePosition = o.GooglePosition,
-                            IsBidding = o.IsBidding,
-                            GoogleInStock = o.GoogleInStock,
-                            GoogleOfferPerStoreCount = o.GoogleOfferPerStoreCount
+                            GoogleInStock = o.GoogleInStock
                         }).ToList();
 
-                        await _dbContext.CoOfrPriceHistories.AddRangeAsync(priceHistories);
-
+                        allHistories.AddRange(histories);
                         coOfr.GoogleIsScraped = true;
                         coOfr.GoogleIsRejected = false;
-                        coOfr.GooglePricesCount = priceHistories.Count;
-
-                        successCount++;
-                        _totalProcessedInSession++;
-
-                        // === SIGNALR: Aktualizacja wiersza ===
-                        FireAndForget("ReceiveScrapingUpdate",
-                            coOfr.Id,
-                            coOfr.GoogleIsScraped,
-                            coOfr.GoogleIsRejected,
-                            coOfr.GooglePricesCount,
-                            "Google");
+                        coOfr.GooglePricesCount = histories.Count;
                     }
-                    else if (result.Status == "rejected" || result.Status == "failed")
+                    else
                     {
                         coOfr.GoogleIsScraped = true;
                         coOfr.GoogleIsRejected = true;
-                        coOfr.GooglePricesCount = 0;
-
-                        failedCount++;
-                        _totalRejectedInSession++;
-
-                        // === SIGNALR: Aktualizacja wiersza ===
-                        FireAndForget("ReceiveScrapingUpdate",
-                            coOfr.Id,
-                            coOfr.GoogleIsScraped,
-                            coOfr.GoogleIsRejected,
-                            coOfr.GooglePricesCount,
-                            "Google");
                     }
+
+                    // Przygotowanie danych do SignalR (uproszczone dla przykładu)
+                    signalRUpdates.Add(new { id = coOfr.Id, isScraped = true });
                 }
-                catch (Exception ex)
+
+                if (allHistories.Any()) await dbContext.CoOfrPriceHistories.AddRangeAsync(allHistories);
+                await dbContext.SaveChangesAsync();
+
+                // Aktualizacja statusu statycznego
+                if (_activeScrapers.TryGetValue(scraperName, out var status))
                 {
-                    _logger.LogError(ex, $"Error processing result for TaskId {result.TaskId}");
+                    status.TasksProcessed += results.Count;
+                    status.IsWorking = false;
                 }
+
+                FireAndForget("ReceiveBatchScrapingUpdate", signalRUpdates);
+                _logger.LogInformation($"[{scraperName}] Background save finished in {stopwatch.ElapsedMilliseconds}ms");
             }
-
-            await _dbContext.SaveChangesAsync();
-
-            // Aktualizuj status scrapera
-            if (_activeScrapers.TryGetValue(scraperName, out var status))
+            catch (Exception ex)
             {
-                status.TasksProcessed += results.Count;
-                status.TasksInProgress = 0;
-                status.IsWorking = false;
+                _logger.LogError(ex, $"[{scraperName}] Error saving results in background");
             }
-
-            // === SIGNALR: Progress update ===
-            var completedTasks = await _dbContext.CoOfrs
-                .CountAsync(c => (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer) && c.GoogleIsScraped);
-
-            double elapsedSeconds = _scrapingStartedAt.HasValue
-                ? (DateTime.UtcNow - _scrapingStartedAt.Value).TotalSeconds
-                : 0;
-
-            FireAndForget("ReceiveProgressUpdate",
-                completedTasks,
-                totalTasks,
-                elapsedSeconds,
-                _totalRejectedInSession);
-
-            _logger.LogInformation($"[{scraperName}] Processed: {successCount} success, {failedCount} failed");
-
-            return Ok(new { success = true, processed = results.Count, successCount, failedCount });
         }
 
         // =====================================================================
