@@ -1028,10 +1028,10 @@
                                             <p>@item.CurrentMarkupAmount.Value.ToString("F2") PLN (@item.CurrentMarkupPercent.Value.ToString("F2")%)</p>
                                         </div>
                                     }
-                                    @* --- ZMIANA TUTAJ: Logika kampanii (Dopłaty LUB Zwykła Kampania) --- *@
+                                 
                                     @if (item.ApiAllegroPriceFromUser.HasValue)
                                     {
-                                        @* Priorytet 1: Kampania z dopłatami (Subsidy) *@
+                                  
                                         if (item.IsSubsidyActive)
                                         {
                                             <div class="subsidy-stack" style="margin-top: 4px;">
@@ -1039,7 +1039,7 @@
                                                 <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
                                             </div>
                                         }
-                                        @* Priorytet 2: Zwykła kampania (AnyPromo), jeśli nie ma dopłaty *@
+                                  
                                         else if (item.IsInAnyCampaign)
                                         {
                                             <div class="Campaign-stack" style="margin-top: 4px;">
