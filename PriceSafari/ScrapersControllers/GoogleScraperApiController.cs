@@ -7,6 +7,7 @@ using PriceSafari.Models;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -24,21 +25,27 @@ namespace PriceSafari.ScrapersControllers
 
         // === STATYCZNE ZARZĄDZANIE SCRAPERAMI ===
         private static readonly ConcurrentDictionary<string, ScraperStatus> _activeScrapers = new();
-        private static readonly ConcurrentDictionary<int, string> _tasksInProgress = new(); // TaskId -> ScraperName
+        private static readonly ConcurrentDictionary<int, string> _tasksInProgress = new();
         private static readonly object _taskLock = new();
         private static bool _isScrapingEnabled = false;
         private static DateTime? _scrapingStartedAt = null;
+
+        // === STATYSTYKI SESJI (do SignalR) ===
         private static int _totalProcessedInSession = 0;
         private static int _totalRejectedInSession = 0;
+        private static int _totalTasksInSession = 0;
+        private static readonly Stopwatch _sessionStopwatch = new();
+        private static int _lastSignalRUpdateAt = 0;
+        private const int SIGNALR_UPDATE_INTERVAL = 100; // Co 100 wyników
 
         private const int BATCH_SIZE = 100;
         private const int SCRAPER_TIMEOUT_SECONDS = 60;
 
         public GoogleScraperApiController(
-      PriceSafariContext dbContext,
-      ILogger<GoogleScraperApiController> logger,
-      IHubContext<ScrapingHub> hubContext,
-      IServiceScopeFactory serviceScopeFactory) // <--- Dodaj to
+            PriceSafariContext dbContext,
+            ILogger<GoogleScraperApiController> logger,
+            IHubContext<ScrapingHub> hubContext,
+            IServiceScopeFactory serviceScopeFactory)
         {
             _dbContext = dbContext;
             _logger = logger;
@@ -85,7 +92,7 @@ namespace PriceSafari.ScrapersControllers
             public bool UseWRGA { get; set; }
         }
 
-        // === MODEL WYNIKU (z atrybutami JSON) ===
+        // === MODEL WYNIKU ===
         public class ScraperResult
         {
             [JsonPropertyName("taskId")]
@@ -149,27 +156,23 @@ namespace PriceSafari.ScrapersControllers
                     return existing;
                 });
 
-            // Wyczyść martwe scrapery i ich zadania
             CleanupDeadScrapers();
 
-            // Sprawdź czy scrapowanie jest włączone
             if (!_isScrapingEnabled)
             {
                 _logger.LogDebug($"[{scraperName}] Scraping disabled - returning empty");
                 return Ok(new { tasks = new List<ScraperTask>(), done = false, message = "scraping_disabled" });
             }
 
-            // Pobierz paczkę zadań
             List<ScraperTask> tasks;
             lock (_taskLock)
             {
-                // Pobierz ID zadań które są już w trakcie
                 var inProgressIds = _tasksInProgress.Keys.ToHashSet();
 
                 var coOfrsToScrape = _dbContext.CoOfrs
                     .Where(c => (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer)
                                 && !c.GoogleIsScraped
-                                && !inProgressIds.Contains(c.Id))  // Wyklucz już przetwarzane
+                                && !inProgressIds.Contains(c.Id))
                     .Take(BATCH_SIZE)
                     .ToList();
 
@@ -180,11 +183,15 @@ namespace PriceSafari.ScrapersControllers
                     var remaining = _dbContext.CoOfrs.Count(c =>
                         (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer) && !c.GoogleIsScraped);
 
-                    // Sprawdź też czy nie ma zadań w trakcie
                     if (remaining == 0 && !_tasksInProgress.Any())
                     {
                         _isScrapingEnabled = false;
-                        FireAndForget("ReceiveGeneralMessage", "Google scraping completed!");
+                        _sessionStopwatch.Stop();
+
+                        // Finalny SignalR update
+                        FireAndForget("ReceiveProgressUpdate", _totalProcessedInSession, _totalTasksInSession, _sessionStopwatch.Elapsed.TotalSeconds, _totalRejectedInSession);
+                        FireAndForget("ReceiveGeneralMessage", $"[PYTHON API] Google scraping completed! Processed: {_totalProcessedInSession}, Rejected: {_totalRejectedInSession}, Time: {_sessionStopwatch.Elapsed.TotalMinutes:F1} min");
+
                         return Ok(new { tasks = new List<ScraperTask>(), done = true, message = "all_completed" });
                     }
 
@@ -203,14 +210,12 @@ namespace PriceSafari.ScrapersControllers
                     UseWRGA = c.UseWRGA
                 }).ToList();
 
-                // Oznacz zadania jako "w trakcie" W PAMIĘCI (nie w bazie!)
                 foreach (var task in tasks)
                 {
                     _tasksInProgress.TryAdd(task.TaskId, scraperName);
                 }
             }
 
-            // Aktualizuj status scrapera
             if (_activeScrapers.TryGetValue(scraperName, out var status))
             {
                 status.IsWorking = true;
@@ -222,10 +227,13 @@ namespace PriceSafari.ScrapersControllers
             return Ok(new { tasks, done = false });
         }
 
+        // =====================================================================
+        // POST /api/google-scrape/submit-batch-results
+        // =====================================================================
         [HttpPost("submit-batch-results")]
         public IActionResult SubmitBatchResults(
-     [FromBody] List<ScraperResult>? results,
-     [FromQuery] string scraperName = "unknown")
+            [FromBody] List<ScraperResult>? results,
+            [FromQuery] string scraperName = "unknown")
         {
             if (results == null || !results.Any())
             {
@@ -234,24 +242,23 @@ namespace PriceSafari.ScrapersControllers
 
             _logger.LogInformation($"[{scraperName}] Received {results.Count} results. Starting background save.");
 
-            // 1. Natychmiastowe usunięcie z zadań w toku (aby uniknąć duplikatów przy kolejnym pobraniu)
-            foreach (var result in results)
-            {
-                _tasksInProgress.TryRemove(result.TaskId, out _);
-            }
+            // ❌ NIE usuwamy z _tasksInProgress tutaj - dopiero po zapisie!
 
-            // 2. Odpalenie zapisu w tle (Fire and Forget)
-            // Musimy wstrzyknąć IServiceScopeFactory do konstruktora klasy!
             _ = Task.Run(async () =>
             {
                 using (var scope = _serviceScopeFactory.CreateScope())
                 {
                     var dbContext = scope.ServiceProvider.GetRequiredService<PriceSafariContext>();
                     await ProcessResultsInBackground(results, scraperName, dbContext);
+
+                    // ✅ DOPIERO PO ZAPISIE usuwamy z _tasksInProgress
+                    foreach (var result in results)
+                    {
+                        _tasksInProgress.TryRemove(result.TaskId, out _);
+                    }
                 }
             });
 
-            // 3. Natychmiastowa odpowiedź do scrapera - "Dzięki, mam to, leć po następne!"
             return Ok(new { success = true, message = "Results accepted and processing in background" });
         }
 
@@ -267,6 +274,8 @@ namespace PriceSafari.ScrapersControllers
 
                 var allHistories = new List<CoOfrPriceHistoryClass>();
                 var signalRUpdates = new List<object>();
+                int batchSuccessCount = 0;
+                int batchRejectedCount = 0;
 
                 foreach (var result in results)
                 {
@@ -288,29 +297,67 @@ namespace PriceSafari.ScrapersControllers
                         coOfr.GoogleIsScraped = true;
                         coOfr.GoogleIsRejected = false;
                         coOfr.GooglePricesCount = histories.Count;
+                        batchSuccessCount++;
                     }
                     else
                     {
                         coOfr.GoogleIsScraped = true;
                         coOfr.GoogleIsRejected = true;
+                        coOfr.GooglePricesCount = 0;
+                        batchRejectedCount++;
                     }
 
-                    // Przygotowanie danych do SignalR (uproszczone dla przykładu)
-                    signalRUpdates.Add(new { id = coOfr.Id, isScraped = true });
+                    // Przygotowanie danych do SignalR (pojedyncze aktualizacje)
+                    signalRUpdates.Add(new
+                    {
+                        id = coOfr.Id,
+                        isScraped = coOfr.GoogleIsScraped,
+                        isRejected = coOfr.GoogleIsRejected,
+                        pricesCount = coOfr.GooglePricesCount
+                    });
                 }
 
                 if (allHistories.Any()) await dbContext.CoOfrPriceHistories.AddRangeAsync(allHistories);
                 await dbContext.SaveChangesAsync();
 
-                // Aktualizacja statusu statycznego
+                // === AKTUALIZACJA STATYSTYK SESJI ===
+                Interlocked.Add(ref _totalProcessedInSession, batchSuccessCount + batchRejectedCount);
+                Interlocked.Add(ref _totalRejectedInSession, batchRejectedCount);
+
+                // Aktualizacja statusu scrapera
                 if (_activeScrapers.TryGetValue(scraperName, out var status))
                 {
                     status.TasksProcessed += results.Count;
                     status.IsWorking = false;
                 }
 
+                // === WYSYŁANIE SignalR CO 100 WYNIKÓW ===
+                int currentProcessed = _totalProcessedInSession;
+                int lastUpdate = _lastSignalRUpdateAt;
+
+                // Sprawdź czy minęło 100 od ostatniego update'u
+                if (currentProcessed - lastUpdate >= SIGNALR_UPDATE_INTERVAL)
+                {
+                    // Atomowo aktualizuj _lastSignalRUpdateAt
+                    if (Interlocked.CompareExchange(ref _lastSignalRUpdateAt, currentProcessed, lastUpdate) == lastUpdate)
+                    {
+                        double elapsedSeconds = _sessionStopwatch.Elapsed.TotalSeconds;
+
+                        // Wysyłamy ReceiveProgressUpdate (ten sam format co wewnętrzny scraper)
+                        FireAndForget("ReceiveProgressUpdate",
+                            currentProcessed,           // totalScrapedCount
+                            _totalTasksInSession,       // totalTasks
+                            elapsedSeconds,             // elapsedSeconds
+                            _totalRejectedInSession);   // totalRejected
+
+                        _logger.LogInformation($"[SignalR] Progress: {currentProcessed}/{_totalTasksInSession} ({_totalRejectedInSession} rejected) in {elapsedSeconds:F0}s");
+                    }
+                }
+
+                // Wysyłamy batch update dla UI (aktualizacja wierszy w tabeli)
                 FireAndForget("ReceiveBatchScrapingUpdate", signalRUpdates);
-                _logger.LogInformation($"[{scraperName}] Background save finished in {stopwatch.ElapsedMilliseconds}ms");
+
+                _logger.LogInformation($"[{scraperName}] Background save finished in {stopwatch.ElapsedMilliseconds}ms. Session total: {_totalProcessedInSession}");
             }
             catch (Exception ex)
             {
@@ -333,18 +380,27 @@ namespace PriceSafari.ScrapersControllers
 
                 _isScrapingEnabled = true;
                 _scrapingStartedAt = DateTime.UtcNow;
+
+                // Reset statystyk sesji
                 _totalProcessedInSession = 0;
                 _totalRejectedInSession = 0;
+                _lastSignalRUpdateAt = 0;
                 _tasksInProgress.Clear();
+
+                // Start stopera
+                _sessionStopwatch.Restart();
 
                 _logger.LogInformation("Google scraping ENABLED via API");
             }
 
-            // Pobierz statystyki do SignalR
+            // Pobierz statystyki
             var totalTasks = await _dbContext.CoOfrs
                 .CountAsync(c => !string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer);
             var completedTasks = await _dbContext.CoOfrs
                 .CountAsync(c => (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer) && c.GoogleIsScraped);
+
+            // Zapisz total do statystyk sesji
+            _totalTasksInSession = totalTasks;
 
             FireAndForget("ReceiveGeneralMessage", $"[PYTHON API] Google scraping started! ({totalTasks - completedTasks} tasks remaining)");
             FireAndForget("ReceiveProgressUpdate", completedTasks, totalTasks, 0, 0);
@@ -362,14 +418,13 @@ namespace PriceSafari.ScrapersControllers
             {
                 _isScrapingEnabled = false;
                 _scrapingStartedAt = null;
-
-                // Wyczyść zadania w trakcie (bez zmian w bazie!)
+                _sessionStopwatch.Stop();
                 _tasksInProgress.Clear();
 
                 _logger.LogInformation("Google scraping STOPPED via API");
             }
 
-            FireAndForget("ReceiveGeneralMessage", "[PYTHON API] Google scraping stopped.");
+            FireAndForget("ReceiveGeneralMessage", $"[PYTHON API] Google scraping stopped. Processed: {_totalProcessedInSession}, Rejected: {_totalRejectedInSession}");
 
             return Ok(new { success = true, message = "Scraping stopped" });
         }
@@ -391,7 +446,7 @@ namespace PriceSafari.ScrapersControllers
             var rejectedTasks = await _dbContext.CoOfrs
                 .CountAsync(c => (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer) && c.GoogleIsRejected);
 
-            var inProgressTasks = _tasksInProgress.Count;  // Z pamięci, nie z bazy!
+            var inProgressTasks = _tasksInProgress.Count;
 
             var activeScrapersList = _activeScrapers.Values
                 .Select(s => new
@@ -417,13 +472,16 @@ namespace PriceSafari.ScrapersControllers
                 remainingTasks = totalTasks - completedTasks,
                 progressPercent = totalTasks > 0 ? Math.Round((double)completedTasks / totalTasks * 100, 1) : 0,
                 activeScrapers = activeScrapersList,
-                activeScrapersCount = activeScrapersList.Count
+                activeScrapersCount = activeScrapersList.Count,
+                // Dodatkowe statystyki sesji
+                sessionProcessed = _totalProcessedInSession,
+                sessionRejected = _totalRejectedInSession,
+                sessionElapsedSeconds = _sessionStopwatch.IsRunning ? _sessionStopwatch.Elapsed.TotalSeconds : 0
             });
         }
 
         // =====================================================================
         // GET /api/google-scrape/settings
-        // Zwraca ustawienia scrapera z bazy danych
         // =====================================================================
         [HttpGet("settings")]
         public async Task<IActionResult> GetSettings()
@@ -446,12 +504,12 @@ namespace PriceSafari.ScrapersControllers
                 generatorsCount = settings.GoogleGeneratorsCount > 0 ? settings.GoogleGeneratorsCount : 2,
                 headlessMode = settings.HeadLessForGoogleGenerators,
                 maxWorkers = settings.SemophoreGoogle > 0 ? settings.SemophoreGoogle : 1,
-                headStartDuration = 45  // Możesz też dodać to do Settings w bazie
+                headStartDuration = 45
             });
         }
 
         // =====================================================================
-        // Helper: Usuń martwe scrapery i zwolnij ich zadania
+        // Helper: Usuń martwe scrapery
         // =====================================================================
         private void CleanupDeadScrapers()
         {
@@ -466,7 +524,6 @@ namespace PriceSafari.ScrapersControllers
                 _activeScrapers.TryRemove(name, out _);
                 _logger.LogInformation($"Removed dead scraper: {name}");
 
-                // Zwolnij zadania tego scrapera (usuń z _tasksInProgress)
                 var orphanedTasks = _tasksInProgress
                     .Where(kvp => kvp.Value == name)
                     .Select(kvp => kvp.Key)
