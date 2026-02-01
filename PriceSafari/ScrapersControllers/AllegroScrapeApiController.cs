@@ -14,13 +14,43 @@ namespace PriceSafari.ScrapersControllers
         private readonly PriceSafariContext _context;
         private readonly IHubContext<ScrapingHub> _hubContext;
         private const string ApiKey = "2764udhnJUDI8392j83jfi2ijdo1949rncowp89i3rnfiiui1203kfnf9030rfpPkUjHyHt";
-        private const int BatchSize =600;
+        private const int BatchSize = 100;
 
         public AllegroScrapeApiController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext)
         {
             _context = context;
             _hubContext = hubContext;
         }
+
+        // === NOWY ENDPOINT DO USTAWIEŃ ===
+        [HttpGet("settings")]
+        public async Task<IActionResult> GetSettings()
+        {
+            // Sprawdzenie API KEY (opcjonalne dla settings, ale dobra praktyka)
+            if (Request.Headers["X-Api-Key"] != ApiKey) return Unauthorized();
+
+            var settings = await _context.Settings.FirstOrDefaultAsync();
+
+            if (settings == null)
+            {
+                // Domyślne wartości, jeśli brak rekordu w bazie
+                return Ok(new
+                {
+                    generatorsCount = 1,
+                    headlessMode = true,
+                    maxWorkers = 1
+                });
+            }
+
+            return Ok(new
+            {
+                // Mapujemy Twoje nowe pola z modelu Settings
+                generatorsCount = settings.GeneratorsAllegroCount > 0 ? settings.GeneratorsAllegroCount : 1,
+                headlessMode = settings.HeadLessForAllegroGenerators,
+                maxWorkers = settings.SemophoreAllegroCount > 0 ? settings.SemophoreAllegroCount : 1
+            });
+        }
+        // =================================
 
         [HttpGet("get-task")]
         public async Task<IActionResult> GetTaskBatch([FromQuery] string scraperName)
@@ -51,7 +81,6 @@ namespace PriceSafari.ScrapersControllers
 
             if (!offersToScrape.Any())
             {
-
                 var anyTasksStillProcessing = await _context.AllegroOffersToScrape.AnyAsync(o => o.IsProcessing);
 
                 if (!anyTasksStillProcessing && AllegroScrapeManager.CurrentStatus == ScrapingProcessStatus.Running)
@@ -81,6 +110,7 @@ namespace PriceSafari.ScrapersControllers
             scraper.CurrentTaskId = offersToScrape.FirstOrDefault()?.Id;
             await _hubContext.Clients.All.SendAsync("UpdateDetailScraperStatus", scraper);
 
+            // Zwracamy format zgodny z tym, czego oczekuje Python
             var tasksForPython = offersToScrape.Select(o => new { taskId = o.Id, url = o.AllegroOfferUrl });
             return Ok(tasksForPython);
         }
@@ -90,6 +120,9 @@ namespace PriceSafari.ScrapersControllers
         {
             if (Request.Headers["X-Api-Key"] != ApiKey) return Unauthorized();
             if (batchResults == null || !batchResults.Any()) return BadRequest();
+
+            // Opcjonalnie: Przeróbka na asynchroniczne przetwarzanie w tle (Task.Run) jak w Google Scraperze,
+            // ale na razie zostawiam logikę biznesową Allegro bez zmian, by nie zepsuć zapisu.
 
             var taskIds = batchResults.Select(r => r.TaskId).ToList();
             var offersToUpdate = await _context.AllegroOffersToScrape
@@ -143,7 +176,10 @@ namespace PriceSafari.ScrapersControllers
                 await _hubContext.Clients.All.SendAsync("UpdateAllegroOfferRow", offer);
             }
 
-            await _context.AllegroScrapedOffers.AddRangeAsync(newScrapedOffers);
+            if (newScrapedOffers.Any())
+            {
+                await _context.AllegroScrapedOffers.AddRangeAsync(newScrapedOffers);
+            }
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Batch processed successfully." });

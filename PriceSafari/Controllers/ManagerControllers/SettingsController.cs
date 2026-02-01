@@ -23,26 +23,27 @@ namespace PriceSafari.Controllers.ManagerControllers
         public async Task<IActionResult> Index()
         {
             var settings = await _context.Settings.FirstOrDefaultAsync();
-            if (settings == null)
-            {
-                return NotFound();
-            }
+            if (settings == null) return NotFound();
 
             var viewModel = new SettingsViewModel
             {
                 VerificationRequired = settings.VerificationRequired,
-       
                 Semophore = settings.Semophore,
                 SemophoreGoogle = settings.SemophoreGoogle,
                 WarmUp = settings.WarmUpTime,
                 Headless = settings.HeadLess,
                 JS = settings.JavaScript,
                 Style = settings.Styles,
-                GetCeneoName = settings.GetCeneoName,   
+                GetCeneoName = settings.GetCeneoName,
                 ControlXY = settings.ControlXY,
                 ExpandAndCompareGoogleOffers = settings.ExpandAndCompareGoogleOffers,
                 GoogleGeneratorsCount = settings.GoogleGeneratorsCount,
-                HeadLessForGoogleGenerators = settings.HeadLessForGoogleGenerators
+                HeadLessForGoogleGenerators = settings.HeadLessForGoogleGenerators,
+
+                // Nowe mapowanie Allegro
+                HeadLessForAllegroGenerators = settings.HeadLessForAllegroGenerators,
+                GeneratorsAllegroCount = settings.GeneratorsAllegroCount,
+                SemophoreAllegroCount = settings.SemophoreAllegroCount
             };
 
             return View("~/Views/ManagerPanel/Settings/Index.cshtml", viewModel);
@@ -54,10 +55,7 @@ namespace PriceSafari.Controllers.ManagerControllers
         public async Task<IActionResult> EditSpeedSettings()
         {
             var settings = await _context.Settings.FirstOrDefaultAsync();
-            if (settings == null)
-            {
-                return NotFound();
-            }
+            if (settings == null) return NotFound();
 
             var viewModel = new EditSpeedSettingsViewModel
             {
@@ -71,13 +69,17 @@ namespace PriceSafari.Controllers.ManagerControllers
                 ControlXY = settings.ControlXY,
                 ExpandAndCompareGoogleOffers = settings.ExpandAndCompareGoogleOffers,
                 GoogleGeneratorsCount = settings.GoogleGeneratorsCount,
-                HeadLessForGoogleGenerators = settings.HeadLessForGoogleGenerators
+                HeadLessForGoogleGenerators = settings.HeadLessForGoogleGenerators,
+
+                // Nowe mapowanie Allegro
+                HeadLessForAllegroGenerators = settings.HeadLessForAllegroGenerators,
+                GeneratorsAllegroCount = settings.GeneratorsAllegroCount,
+                SemophoreAllegroCount = settings.SemophoreAllegroCount
             };
 
             return View("~/Views/ManagerPanel/Settings/EditSpeedSettings.cshtml", viewModel);
         }
 
-        // POST: Settings/EditSpeedSettings
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditSpeedSettings(EditSpeedSettingsViewModel viewModel)
@@ -85,11 +87,9 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (ModelState.IsValid)
             {
                 var settings = await _context.Settings.FirstOrDefaultAsync();
-                if (settings == null)
-                {
-                    return NotFound();
-                }
+                if (settings == null) return NotFound();
 
+                // Aktualizacja istniejących pól
                 settings.Semophore = viewModel.Semophore;
                 settings.SemophoreGoogle = viewModel.SemophoreGoogle;
                 settings.WarmUpTime = viewModel.WarmUp;
@@ -101,6 +101,12 @@ namespace PriceSafari.Controllers.ManagerControllers
                 settings.ExpandAndCompareGoogleOffers = viewModel.ExpandAndCompareGoogleOffers;
                 settings.GoogleGeneratorsCount = viewModel.GoogleGeneratorsCount;
                 settings.HeadLessForGoogleGenerators = viewModel.HeadLessForGoogleGenerators;
+
+                // Aktualizacja nowych pól Allegro
+                settings.HeadLessForAllegroGenerators = viewModel.HeadLessForAllegroGenerators;
+                settings.GeneratorsAllegroCount = viewModel.GeneratorsAllegroCount;
+                settings.SemophoreAllegroCount = viewModel.SemophoreAllegroCount;
+
                 _context.Update(settings);
                 await _context.SaveChangesAsync();
 

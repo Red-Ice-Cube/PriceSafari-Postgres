@@ -4,106 +4,174 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+<style>
+    .form-grid-layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* Dwie kolumny */
+        gap: 20px;
+    }
+
+    /* Na małych ekranach jedna kolumna */
+    @@media (max-width: 768px) {
+        .form-grid-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .form-section {
+        background: #fdfdfd;
+        padding: 15px;
+        border: 1px solid #eee;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+
+        .form-section h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: #444;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+
+    .form-actions {
+        grid-column: 1 / -1;
+        margin-top: 20px;
+        text-align: right;
+    }
+</style>
+
 <div class="Page-Box">
     <div class="Page-Box-Container">
         <div class="Page-Box-Category">
             <div class="Category-Box-Title">
-                Ustawienia Prędkości
+                Edycja Ustawień
             </div>
             <partial name="_ManageNavCol" />
         </div>
 
-        <div class="Column-30">
-            <form asp-action="EditSpeedSettings" class="Column-Form" method="post">
+        <div style="flex: 1; padding: 20px;">
+            <form asp-action="EditSpeedSettings" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-                <div class="form-group">
-                    <label asp-for="Semophore" class="control-label">Semofory</label>
-                    <input asp-for="Semophore" class="form-control" type="number" min="1" />
-                    <span asp-validation-for="Semophore" class="text-danger"></span>
-                </div>
-                <div class="form-group">
-                    <label asp-for="SemophoreGoogle" class="control-label">Semofory Google</label>
-                    <input asp-for="SemophoreGoogle" class="form-control" type="number" min="1" />
-                    <span asp-validation-for="SemophoreGoogle" class="text-danger"></span>
-                </div>
-                <div class="form-group">
-                    <label asp-for="WarmUp" class="control-label">Rozgrzewka</label>
-                    <input asp-for="WarmUp" class="form-control" type="number" min="1" />
-                    <span asp-validation-for="WarmUp" class="text-danger"></span>
-                </div>
+                <div class="form-grid-layout">
 
-                <div class="form-group">
-                    <label asp-for="Headless" class="control-label">Tryb Bezgłowicowy</label>
-                    <select asp-for="Headless" class="form-control">
-                        <option value="true">Tak</option>
-                        <option value="false">Nie</option>
-                    </select>
-                </div>
+                    <div>
+                        <div class="form-section">
+                            <h4>Ogólne parametry bota</h4>
+                            <div class="form-group">
+                                <label asp-for="Semophore" class="control-label">Semofory (Ogólne)</label>
+                                <input asp-for="Semophore" class="form-control" type="number" min="1" />
+                                <span asp-validation-for="Semophore" class="text-danger"></span>
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="WarmUp" class="control-label">Rozgrzewka (s)</label>
+                                <input asp-for="WarmUp" class="form-control" type="number" min="1" />
+                                <span asp-validation-for="WarmUp" class="text-danger"></span>
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="Headless" class="control-label">Tryb Bezgłowicowy</label>
+                                <select asp-for="Headless" class="form-control">
+                                    <option value="true">Tak</option>
+                                    <option value="false">Nie</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="JS" class="control-label">Włączony JavaScript</label>
+                                <select asp-for="JS" class="form-control">
+                                    <option value="true">Tak</option>
+                                    <option value="false">Nie</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="Style" class="control-label">Wczytywanie CSS</label>
+                                <select asp-for="Style" class="form-control">
+                                    <option value="true">Tak</option>
+                                    <option value="false">Nie</option>
+                                </select>
+                            </div>
+                        </div>
 
-                <div class="form-group">
-                    <label asp-for="JS" class="control-label">JavaScript</label>
-                    <select asp-for="JS" class="form-control">
-                        <option value="true">Tak</option>
-                        <option value="false">Nie</option>
-                    </select>
-                </div>
+                        <div class="form-section">
+                            <h4>Ceneo & Anty-Bot</h4>
+                            <div class="form-group">
+                                <label asp-for="GetCeneoName" class="control-label">Pobieranie nazw z Ceneo</label>
+                                <select asp-for="GetCeneoName" class="form-control">
+                                    <option value="true">Tak</option>
+                                    <option value="false">Nie</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="ControlXY" class="control-label">Auto ruch XY (Captcha)</label>
+                                <select asp-for="ControlXY" class="form-control">
+                                    <option value="true">Tak</option>
+                                    <option value="false">Nie</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-                <div class="form-group">
-                    <label asp-for="Style" class="control-label">Style</label>
-                    <select asp-for="Style" class="form-control">
-                        <option value="true">Tak</option>
-                        <option value="false">Nie</option>
-                    </select>
-                </div>
+                    <div>
+                        <div class="form-section">
+                            <h4>Ustawienia Google</h4>
+                            <div class="form-group">
+                                <label asp-for="SemophoreGoogle" class="control-label">Semofory Google</label>
+                                <input asp-for="SemophoreGoogle" class="form-control" type="number" min="1" />
+                                <span asp-validation-for="SemophoreGoogle" class="text-danger"></span>
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="GoogleGeneratorsCount" class="control-label">Liczba generatorów</label>
+                                <input asp-for="GoogleGeneratorsCount" class="form-control" type="number" min="1" />
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="ExpandAndCompareGoogleOffers" class="control-label">Rozwijanie ofert</label>
+                                <select asp-for="ExpandAndCompareGoogleOffers" class="form-control">
+                                    <option value="true">Tak</option>
+                                    <option value="false">Nie</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="HeadLessForGoogleGenerators" class="control-label">Tryb Bezgłowicowy (Google)</label>
+                                <select asp-for="HeadLessForGoogleGenerators" class="form-control">
+                                    <option value="true">Tak</option>
+                                    <option value="false">Nie</option>
+                                </select>
+                            </div>
+                        </div>
 
-                <div class="form-group">
-                    <label asp-for="GetCeneoName" class="control-label">Pobieranie nazw z Ceneo</label>
-                    <select asp-for="GetCeneoName" class="form-control">
-                        <option value="true">Tak</option>
-                        <option value="false">Nie</option>
-                    </select>
-                </div>
+                        <div class="form-section" style="border-left: 4px solid #ff5a00;">
+                            <h4>Ustawienia Allegro <span style="font-size:0.8em; color:green;">(Nowe)</span></h4>
 
+                            <div class="form-group">
+                                <label asp-for="SemophoreAllegroCount" class="control-label">Semofory Allegro</label>
+                                <input asp-for="SemophoreAllegroCount" class="form-control" type="number" min="1" />
+                                <span asp-validation-for="SemophoreAllegroCount" class="text-danger"></span>
+                            </div>
 
-                <div class="form-group">
-                    <label asp-for="ControlXY" class="control-label">Auto ruch XY - Captcha Ceneo</label>
-                    <select asp-for="ControlXY" class="form-control">
-                        <option value="true">Tak</option>
-                        <option value="false">Nie</option>
-                    </select>
-                </div>
+                            <div class="form-group">
+                                <label asp-for="GeneratorsAllegroCount" class="control-label">Liczba generatorów</label>
+                                <input asp-for="GeneratorsAllegroCount" class="form-control" type="number" min="1" />
+                                <span asp-validation-for="GeneratorsAllegroCount" class="text-danger"></span>
+                            </div>
 
+                            <div class="form-group">
+                                <label asp-for="HeadLessForAllegroGenerators" class="control-label">Tryb Bezgłowicowy (Allegro)</label>
+                                <select asp-for="HeadLessForAllegroGenerators" class="form-control">
+                                    <option value="true">Tak</option>
+                                    <option value="false">Nie</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-                <div class="form-group">
-                    <label asp-for="ExpandAndCompareGoogleOffers" class="control-label">Rozwijanie i porwnywanie ofert z Google PL</label>
-                    <select asp-for="ExpandAndCompareGoogleOffers" class="form-control">
-                        <option value="true">Tak</option>
-                        <option value="false">Nie</option>
-                    </select>
-                </div>
+                    <div class="form-actions">
+                        <a asp-action="Index" class="Button-Cancel-Small" style="margin-right:10px; text-decoration:none; color: #555;">Anuluj</a>
+                        <input type="submit" value="Zapisz Zmiany" class="Button-Add-Small" />
+                    </div>
 
-                <div class="form-group">
-                    <label asp-for="GoogleGeneratorsCount" class="control-label">Liczba generatorów Google:</label>
-                    <input asp-for="GoogleGeneratorsCount" class="form-control" type="number" min="1" />
-                    <span asp-validation-for="GoogleGeneratorsCount" class="text-danger"></span>
-                </div>
-
-                <div class="form-group">
-                    <label asp-for="HeadLessForGoogleGenerators" class="control-label">Genartory Google bezglowicowe</label>
-                    <select asp-for="HeadLessForGoogleGenerators" class="form-control">
-                        <option value="true">Tak</option>
-                        <option value="false">Nie</option>
-                    </select>
-                </div>
-
-
-                <div asp-validation-summary="ModelOnly" role="alert"></div>
-
-                <div class="form-group">
-                    <input type="submit" value="Zapisz" class="Button-Add-Small" />
                 </div>
             </form>
         </div>
-
     </div>
 </div>

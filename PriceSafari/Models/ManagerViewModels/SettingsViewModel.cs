@@ -17,6 +17,10 @@
 
         public bool HeadLessForGoogleGenerators { get; set; }
         public int GoogleGeneratorsCount { get; set; }
+        // Dodaj to do obu klas ViewModel
+        public bool HeadLessForAllegroGenerators { get; set; }
+        public int GeneratorsAllegroCount { get; set; }
+        public int SemophoreAllegroCount { get; set; }
     }
 
     public class EditVerificationRequiredViewModel
@@ -42,5 +46,9 @@
 
         public bool HeadLessForGoogleGenerators { get; set; }
         public int GoogleGeneratorsCount { get; set; }
+        // Dodaj to do obu klas ViewModel
+        public bool HeadLessForAllegroGenerators { get; set; }
+        public int GeneratorsAllegroCount { get; set; }
+        public int SemophoreAllegroCount { get; set; }
     }
 }
