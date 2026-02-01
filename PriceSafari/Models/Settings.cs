@@ -26,9 +26,17 @@ namespace PriceSafari.Models
         
         public bool ExpandAndCompareGoogleOffers { get; set; } = true;
 
-        //nowo dodane 
+  
         public bool HeadLessForGoogleGenerators { get; set; } = false;
         public int GoogleGeneratorsCount { get; set; } = 1;
+
+
+
+        // nowe 
+
+        public bool HeadLessForAllegroGenerators { get; set; } = true;
+        public int GeneratorsAllegroCount { get; set; } = 1;
+        public int SemophoreAllegroCount { get; set; } = 1;
 
 
         public Settings()
