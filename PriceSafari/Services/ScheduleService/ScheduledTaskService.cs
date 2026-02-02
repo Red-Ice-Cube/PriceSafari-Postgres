@@ -17,6 +17,7 @@ using PriceSafari.Models;
 using PriceSafari.Models.SchedulePlan;
 using PriceSafari.ScrapersControllers;
 using PriceSafari.Services.AllegroServices;
+using PriceSafari.Services.GoogleScraping;
 using PriceSafari.Services.PriceAutomationService;
 using PriceSafari.Services.ScheduleService;
 using System.Text;
@@ -335,6 +336,69 @@ public class ScheduledTaskService : BackgroundService
         }
     }
 
+    //private async Task RunGoogleAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
+    //{
+    //    var googleLog = new TaskExecutionLog
+    //    {
+    //        DeviceName = deviceName,
+    //        OperationName = "GOOGLE_SCRAPER",
+    //        StartTime = DateTime.Now,
+    //        Comment = $"Początek scrapowania Google | SessionName={task.SessionName}; Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
+    //    };
+
+    //    context.TaskExecutionLogs.Add(googleLog);
+    //    await context.SaveChangesAsync(ct);
+
+    //    int googleLogId = googleLog.Id;
+
+    //    try
+    //    {
+    //        var googleScraperService = context.GetService<GoogleScraperService>();
+
+    //        var resultDto = await googleScraperService.StartScraping();
+
+    //        var finishedGoogleLog = await context.TaskExecutionLogs.FindAsync(googleLogId, ct);
+    //        if (finishedGoogleLog != null)
+    //        {
+    //            finishedGoogleLog.EndTime = DateTime.Now;
+
+    //            double totalSeconds = (finishedGoogleLog.EndTime.Value - finishedGoogleLog.StartTime).TotalSeconds;
+    //            double urlsPerSecond = (totalSeconds > 0 && resultDto.TotalUrlsToScrape > 0)
+    //                ? resultDto.TotalUrlsToScrape / totalSeconds
+    //                : 0;
+
+    //            switch (resultDto.Result)
+    //            {
+    //                case GoogleScraperService.GoogleScrapingResult.Success:
+    //                    finishedGoogleLog.Comment += $" | Sukces. Zmielono: {resultDto.TotalScraped}/{resultDto.TotalUrlsToScrape} produktów, odrzucono: {resultDto.TotalRejected}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
+    //                    break;
+    //                case GoogleScraperService.GoogleScrapingResult.NoProductsToScrape:
+    //                    finishedGoogleLog.Comment += " | Brak produktów do scrapowania.";
+    //                    break;
+    //                case GoogleScraperService.GoogleScrapingResult.SettingsNotFound:
+    //                    finishedGoogleLog.Comment += " | Błąd: Brak Settings w bazie.";
+    //                    break;
+    //                default:
+    //                    finishedGoogleLog.Comment += $" | Wystąpił błąd. Szczegóły: {resultDto.Message}";
+    //                    break;
+    //            }
+    //            context.TaskExecutionLogs.Update(finishedGoogleLog);
+    //            await context.SaveChangesAsync(ct);
+    //        }
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        var finishedLog = await context.TaskExecutionLogs.FindAsync(googleLogId, ct);
+    //        if (finishedLog != null)
+    //        {
+    //            finishedLog.EndTime = DateTime.Now;
+    //            finishedLog.Comment += $" | Wystąpił błąd w GoogleScraper: {ex.Message}";
+    //            context.TaskExecutionLogs.Update(finishedLog);
+    //            await context.SaveChangesAsync(ct);
+    //        }
+    //    }
+    //}
+
     private async Task RunGoogleAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
         var googleLog = new TaskExecutionLog
@@ -352,47 +416,64 @@ public class ScheduledTaskService : BackgroundService
 
         try
         {
+            // 1. Pobieramy serwis
             var googleScraperService = context.GetService<GoogleScraperService>();
 
-            var resultDto = await googleScraperService.StartScraping();
+            // 2. Uruchamiamy proces (zwraca tylko czy się udało wystartować, a nie wynik końcowy)
+            var (success, message) = await googleScraperService.StartScrapingProcessAsync();
 
-            var finishedGoogleLog = await context.TaskExecutionLogs.FindAsync(googleLogId, ct);
+            if (!success)
+            {
+                // Jeśli nie udało się wystartować (np. brak scraperów lub proces już trwa)
+                var failLog = await context.TaskExecutionLogs.FindAsync(new object[] { googleLogId }, ct);
+                if (failLog != null)
+                {
+                    failLog.EndTime = DateTime.Now;
+                    failLog.Comment += $" | Błąd startu: {message}";
+                    context.TaskExecutionLogs.Update(failLog);
+                    await context.SaveChangesAsync(ct);
+                }
+                return;
+            }
+
+            // 3. Pętla oczekiwania - czekamy aż Manager zmieni status z Running na Idle
+            // Monitorowaniem końca zajmuje się GoogleScrapingMonitorService, my tu tylko czekamy.
+            while (GoogleScrapeManager.CurrentStatus == GoogleScrapingProcessStatus.Running && !ct.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(15), ct);
+            }
+
+            // 4. Proces zakończony - pobieramy statystyki z bazy
+            var stats = await googleScraperService.GetDatabaseStatsAsync();
+
+            var finishedGoogleLog = await context.TaskExecutionLogs.FindAsync(new object[] { googleLogId }, ct);
             if (finishedGoogleLog != null)
             {
                 finishedGoogleLog.EndTime = DateTime.Now;
 
                 double totalSeconds = (finishedGoogleLog.EndTime.Value - finishedGoogleLog.StartTime).TotalSeconds;
-                double urlsPerSecond = (totalSeconds > 0 && resultDto.TotalUrlsToScrape > 0)
-                    ? resultDto.TotalUrlsToScrape / totalSeconds
+
+                // Obliczamy ile faktycznie przetworzono (sukces + odrzuty)
+                int totalProcessed = stats.ScrapedUrls + stats.RejectedUrls;
+
+                double urlsPerSecond = (totalSeconds > 0 && totalProcessed > 0)
+                    ? totalProcessed / totalSeconds
                     : 0;
 
-                switch (resultDto.Result)
-                {
-                    case GoogleScraperService.GoogleScrapingResult.Success:
-                        finishedGoogleLog.Comment += $" | Sukces. Zmielono: {resultDto.TotalScraped}/{resultDto.TotalUrlsToScrape} produktów, odrzucono: {resultDto.TotalRejected}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
-                        break;
-                    case GoogleScraperService.GoogleScrapingResult.NoProductsToScrape:
-                        finishedGoogleLog.Comment += " | Brak produktów do scrapowania.";
-                        break;
-                    case GoogleScraperService.GoogleScrapingResult.SettingsNotFound:
-                        finishedGoogleLog.Comment += " | Błąd: Brak Settings w bazie.";
-                        break;
-                    default:
-                        finishedGoogleLog.Comment += $" | Wystąpił błąd. Szczegóły: {resultDto.Message}";
-                        break;
-                }
+                finishedGoogleLog.Comment += $" | Sukces. Zmielono: {stats.ScrapedUrls}/{stats.TotalUrls} produktów, odrzucono: {stats.RejectedUrls}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
+
                 context.TaskExecutionLogs.Update(finishedGoogleLog);
                 await context.SaveChangesAsync(ct);
             }
         }
         catch (Exception ex)
         {
-            var finishedLog = await context.TaskExecutionLogs.FindAsync(googleLogId, ct);
-            if (finishedLog != null)
+            var errorLog = await context.TaskExecutionLogs.FindAsync(new object[] { googleLogId }, ct);
+            if (errorLog != null)
             {
-                finishedLog.EndTime = DateTime.Now;
-                finishedLog.Comment += $" | Wystąpił błąd w GoogleScraper: {ex.Message}";
-                context.TaskExecutionLogs.Update(finishedLog);
+                errorLog.EndTime = DateTime.Now;
+                errorLog.Comment += $" | Wystąpił krytyczny błąd w RunGoogleAsync: {ex.Message}";
+                context.TaskExecutionLogs.Update(errorLog);
                 await context.SaveChangesAsync(ct);
             }
         }

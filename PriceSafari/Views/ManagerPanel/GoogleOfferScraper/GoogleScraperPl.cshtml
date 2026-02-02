@@ -1,0 +1,954 @@
+﻿@model PriceSafari.ScrapersControllers.GoogleScraperPlViewModel
+@{
+    ViewData["Title"] = "Google Scraper PL";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    /* ===== OGÓLNE STYLE ===== */
+    .google-scraper-container {
+        padding: 20px;
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid #4285f4;
+    }
+    
+    .page-title {
+        font-size: 28px;
+        font-weight: 600;
+        color: #1a73e8;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .page-title i {
+        color: #ea4335;
+    }
+    
+    /* ===== STATUS BADGE ===== */
+    .status-badge {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-idle { background: #e8eaed; color: #5f6368; }
+    .status-running { background: #e6f4ea; color: #1e8e3e; animation: pulse 2s infinite; }
+    .status-paused { background: #fef7e0; color: #f9ab00; }
+    
+    @@keyframes pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0.4); }
+        50% { box-shadow: 0 0 0 8px rgba(30, 142, 62, 0); }
+    }
+    
+    /* ===== DASHBOARD ===== */
+    .dashboard-section {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #202124;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+    
+    .stat-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+        border-left: 4px solid #4285f4;
+    }
+    
+    .stat-card.success { border-left-color: #34a853; }
+    .stat-card.warning { border-left-color: #fbbc05; }
+    .stat-card.danger { border-left-color: #ea4335; }
+    .stat-card.info { border-left-color: #4285f4; }
+    .stat-card.nuke { border-left-color: #9c27b0; }
+    
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #202124;
+    }
+    
+    .stat-label {
+        font-size: 12px;
+        color: #5f6368;
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* ===== KONTROLKI ===== */
+    .controls-section {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+    
+    .btn-google {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+    
+    .btn-start { background: #1e8e3e; color: white; }
+    .btn-start:hover { background: #137333; }
+    .btn-stop { background: #ea4335; color: white; }
+    .btn-stop:hover { background: #c5221f; }
+    .btn-reset { background: #fbbc05; color: #202124; }
+    .btn-reset:hover { background: #f9a825; }
+    .btn-clear { background: #5f6368; color: white; }
+    .btn-clear:hover { background: #3c4043; }
+    
+    /* ===== SCRAPERS GRID ===== */
+    .scrapers-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .scraper-card {
+        background: white;
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-left: 5px solid #5f6368;
+        transition: all 0.3s;
+    }
+    
+    .scraper-card.status-idle { border-left-color: #34a853; }
+    .scraper-card.status-busy { border-left-color: #4285f4; animation: busy-pulse 1.5s infinite; }
+    .scraper-card.status-offline { border-left-color: #ea4335; opacity: 0.7; }
+    .scraper-card.status-stopped { border-left-color: #fbbc05; }
+    .scraper-card.status-nuking { border-left-color: #9c27b0; animation: nuke-glow 1s infinite; }
+    
+    @@keyframes busy-pulse {
+        0%, 100% { box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3); }
+        50% { box-shadow: 0 2px 15px rgba(66, 133, 244, 0.6); }
+    }
+    
+    @@keyframes nuke-glow {
+        0%, 100% { box-shadow: 0 0 10px rgba(156, 39, 176, 0.5); }
+        50% { box-shadow: 0 0 20px rgba(156, 39, 176, 0.8); }
+    }
+    
+    .scraper-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    
+    .scraper-name {
+        font-weight: 700;
+        font-size: 16px;
+        color: #202124;
+    }
+    
+    .scraper-status {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .scraper-status.idle { background: #e6f4ea; color: #1e8e3e; }
+    .scraper-status.busy { background: #e8f0fe; color: #1a73e8; }
+    .scraper-status.offline { background: #fce8e6; color: #c5221f; }
+    .scraper-status.stopped { background: #fef7e0; color: #e37400; }
+    .scraper-status.resettingnetwork { background: #f3e5f5; color: #7b1fa2; }
+    
+    .scraper-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .scraper-stat {
+        text-align: center;
+        padding: 6px;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+    
+    .scraper-stat-value {
+        font-size: 16px;
+        font-weight: 700;
+        color: #202124;
+    }
+    
+    .scraper-stat-label {
+        font-size: 10px;
+        color: #5f6368;
+    }
+    
+    .scraper-details {
+        font-size: 12px;
+        color: #5f6368;
+        margin-bottom: 10px;
+    }
+    
+    .scraper-details div {
+        margin-bottom: 3px;
+    }
+    
+    .scraper-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .btn-scraper {
+        flex: 1;
+        padding: 8px;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-scraper.pause { background: #fef7e0; color: #e37400; }
+    .btn-scraper.pause:hover { background: #fbbc05; }
+    .btn-scraper.resume { background: #e6f4ea; color: #1e8e3e; }
+    .btn-scraper.resume:hover { background: #34a853; color: white; }
+    
+    /* ===== LOGI ===== */
+    .logs-section {
+        background: #1a1a2e;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 20px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .log-entry {
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 12px;
+        padding: 4px 8px;
+        margin-bottom: 2px;
+        border-radius: 4px;
+    }
+    
+    .log-entry.info { color: #82aaff; background: rgba(130, 170, 255, 0.1); }
+    .log-entry.success { color: #c3e88d; background: rgba(195, 232, 141, 0.1); }
+    .log-entry.warning { color: #ffcb6b; background: rgba(255, 203, 107, 0.1); }
+    .log-entry.error { color: #ff5370; background: rgba(255, 83, 112, 0.1); }
+    .log-entry.nuke { color: #c792ea; background: rgba(199, 146, 234, 0.1); }
+    
+    .log-time { color: #676e95; }
+    .log-scraper { color: #89ddff; font-weight: 600; }
+    
+    /* ===== TABELA URL ===== */
+    .urls-section {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .table-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .search-box {
+        padding: 10px 15px;
+        border: 1px solid #dadce0;
+        border-radius: 8px;
+        width: 300px;
+        font-size: 14px;
+    }
+    
+    .search-box:focus {
+        outline: none;
+        border-color: #4285f4;
+        box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.2);
+    }
+    
+    .filter-tabs {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .filter-tab {
+        padding: 8px 16px;
+        border: none;
+        background: #f8f9fa;
+        border-radius: 20px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .filter-tab.active {
+        background: #4285f4;
+        color: white;
+    }
+    
+    .urls-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    
+    .urls-table th {
+        background: #f8f9fa;
+        padding: 12px 10px;
+        text-align: left;
+        font-weight: 600;
+        color: #5f6368;
+        border-bottom: 2px solid #e8eaed;
+        position: sticky;
+        top: 0;
+    }
+    
+    .urls-table td {
+        padding: 10px;
+        border-bottom: 1px solid #e8eaed;
+        vertical-align: middle;
+    }
+    
+    .urls-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .urls-table tr.scraped { background: #e6f4ea; }
+    .urls-table tr.rejected { background: #fce8e6; }
+    
+    .url-cell {
+        max-width: 350px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-family: monospace;
+        font-size: 12px;
+    }
+    
+    .badge {
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    
+    .badge-wrga { background: #e8f0fe; color: #1a73e8; }
+    .badge-gpid { background: #fef7e0; color: #e37400; }
+    .badge-hid { background: #f3e5f5; color: #7b1fa2; }
+    .badge-scraped { background: #e6f4ea; color: #1e8e3e; }
+    .badge-rejected { background: #fce8e6; color: #c5221f; }
+    .badge-pending { background: #f8f9fa; color: #5f6368; }
+    
+    .table-container {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    /* ===== PROGRESS BAR ===== */
+    .progress-container {
+        margin-bottom: 20px;
+    }
+    
+    .progress-bar-bg {
+        background: #e8eaed;
+        border-radius: 10px;
+        height: 24px;
+        overflow: hidden;
+    }
+    
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #34a853, #4285f4);
+        border-radius: 10px;
+        transition: width 0.5s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 12px;
+    }
+    
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        font-size: 13px;
+        color: #5f6368;
+    }
+    
+    /* ===== NO SCRAPERS MESSAGE ===== */
+    .no-scrapers {
+        text-align: center;
+        padding: 40px;
+        background: #f8f9fa;
+        border-radius: 12px;
+        color: #5f6368;
+    }
+    
+    .no-scrapers i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        color: #dadce0;
+    }
+    
+    /* ===== ELAPSED TIME ===== */
+    .elapsed-time {
+        font-family: monospace;
+        font-size: 24px;
+        font-weight: 700;
+        color: #4285f4;
+    }
+</style>
+
+<div class="google-scraper-container">
+    <!-- NAGŁÓWEK -->
+    <div class="page-header">
+        <div class="page-title">
+            <i class="fas fa-shopping-bag"></i>
+            Google Shopping Scraper PL
+        </div>
+        <div>
+            <span id="statusBadge" class="status-badge status-@Model.CurrentStatus.ToString().ToLower()">
+                @Model.CurrentStatus
+            </span>
+        </div>
+    </div>
+    
+    <!-- KOMUNIKATY -->
+    @if (TempData["Message"] != null)
+    {
+        var msgType = TempData["MessageType"]?.ToString() ?? "info";
+        <div class="alert alert-@(msgType == "error" ? "danger" : msgType) alert-dismissible fade show" role="alert">
+            @TempData["Message"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    
+    <!-- KONTROLKI -->
+    <div class="controls-section">
+        @if (Model.CurrentStatus != PriceSafari.Services.GoogleScraping.GoogleScrapingProcessStatus.Running)
+        {
+            <form asp-action="StartScraping" method="post" style="display:inline;">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-google btn-start">
+                    <i class="fas fa-play"></i> Start Scraping
+                </button>
+            </form>
+        }
+        else
+        {
+            <form asp-action="StopScraping" method="post" style="display:inline;">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-google btn-stop">
+                    <i class="fas fa-stop"></i> Stop Scraping
+                </button>
+            </form>
+        }
+        
+        <form asp-action="ResetRejected" method="post" style="display:inline;">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn-google btn-reset">
+                <i class="fas fa-redo"></i> Reset Rejected (@Model.DbStats.RejectedUrls)
+            </button>
+        </form>
+        
+        <form asp-action="ClearData" method="post" style="display:inline;" 
+              onsubmit="return confirm('Czy na pewno chcesz wyczyścić wszystkie zebrane dane?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn-google btn-clear">
+                <i class="fas fa-trash"></i> Clear All Data
+            </button>
+        </form>
+    </div>
+    
+    <!-- PROGRESS BAR -->
+    @{
+        var progressPercent = Model.DbStats.TotalUrls > 0 
+            ? Math.Round((double)Model.DbStats.ScrapedUrls / Model.DbStats.TotalUrls * 100, 1) 
+            : 0;
+    }
+    <div class="progress-container">
+        <div class="progress-bar-bg">
+            <div id="progressBarFill" class="progress-bar-fill" style="width: @progressPercent%;">
+                @progressPercent%
+            </div>
+        </div>
+        <div class="progress-info">
+            <span><i class="fas fa-clock"></i> Elapsed: <span id="elapsedTime" class="elapsed-time">00:00:00</span></span>
+            <span><i class="fas fa-check-circle"></i> <span id="scrapedCount">@Model.DbStats.ScrapedUrls</span> / @Model.DbStats.TotalUrls</span>
+            <span><i class="fas fa-hourglass-half"></i> Pending: <span id="pendingCount">@Model.DbStats.PendingUrls</span></span>
+        </div>
+    </div>
+    
+    <!-- DASHBOARD STATS -->
+    <div class="dashboard-section">
+        <div class="section-title">
+            <i class="fas fa-chart-bar"></i> Dashboard
+        </div>
+        <div class="stats-grid">
+            <div class="stat-card info">
+                <div id="totalUrlsStat" class="stat-value">@Model.DbStats.TotalUrls</div>
+                <div class="stat-label">Total URLs</div>
+            </div>
+            <div class="stat-card success">
+                <div id="scrapedUrlsStat" class="stat-value">@Model.DbStats.ScrapedUrls</div>
+                <div class="stat-label">Scraped</div>
+            </div>
+            <div class="stat-card warning">
+                <div id="rejectedUrlsStat" class="stat-value">@Model.DbStats.RejectedUrls</div>
+                <div class="stat-label">Rejected</div>
+            </div>
+            <div class="stat-card success">
+                <div id="totalPricesStat" class="stat-value">@Model.DbStats.TotalPrices</div>
+                <div class="stat-label">Prices Collected</div>
+            </div>
+            <div class="stat-card info">
+                <div class="stat-value">@Model.DbStats.UrlsWithWRGA</div>
+                <div class="stat-label">With WRGA</div>
+            </div>
+            <div class="stat-card info">
+                <div class="stat-value">@Model.DbStats.UrlsWithGPID</div>
+                <div class="stat-label">With GPID</div>
+            </div>
+            <div class="stat-card info">
+                <div class="stat-value">@Model.DbStats.UrlsWithHidOffer</div>
+                <div class="stat-label">HID Offers</div>
+            </div>
+            <div class="stat-card nuke">
+                <div id="nukeCountStat" class="stat-value">0</div>
+                <div class="stat-label">NUKE Events</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SCRAPERS -->
+    <div class="dashboard-section">
+        <div class="section-title">
+            <i class="fas fa-server"></i> Active Scrapers
+            <span style="margin-left: auto; font-size: 14px; font-weight: 400; color: #5f6368;">
+                Online: <span id="onlineScrapersCount">@Model.Scrapers.Count</span>
+            </span>
+        </div>
+        
+        <div id="scrapersContainer" class="scrapers-grid">
+            @if (Model.Scrapers.Any())
+            {
+                @foreach (dynamic scraper in Model.Scrapers)
+                {
+                    var statusClass = ((string)scraper.status).ToLower();
+                    <div class="scraper-card status-@statusClass" data-scraper="@scraper.name">
+                        <div class="scraper-header">
+                            <div class="scraper-name">@scraper.name</div>
+                            <span class="scraper-status @statusClass">@scraper.status</span>
+                        </div>
+                        <div class="scraper-stats">
+                            <div class="scraper-stat">
+                                <div class="scraper-stat-value">@scraper.totalUrlsProcessed</div>
+                                <div class="scraper-stat-label">Processed</div>
+                            </div>
+                            <div class="scraper-stat">
+                                <div class="scraper-stat-value">@scraper.successRate%</div>
+                                <div class="scraper-stat-label">Success</div>
+                            </div>
+                            <div class="scraper-stat">
+                                <div class="scraper-stat-value">@scraper.urlsPerMinute</div>
+                                <div class="scraper-stat-label">URLs/min</div>
+                            </div>
+                        </div>
+                        <div class="scraper-details">
+                            <div><i class="fas fa-network-wired"></i> IP: @(scraper.currentIpAddress ?? "N/A")</div>
+                            <div><i class="fas fa-box"></i> Batch: @(scraper.currentBatchId ?? "None")</div>
+                            <div><i class="fas fa-bomb"></i> NUKEs: @scraper.nukeCount</div>
+                        </div>
+                        <div class="scraper-actions">
+                            @if ((bool)scraper.isManuallyPaused)
+                            {
+                                <form asp-action="ResumeScraper" method="post" style="flex:1;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="scraperName" value="@scraper.name" />
+                                    <button type="submit" class="btn-scraper resume" style="width:100%;">
+                                        <i class="fas fa-play"></i> Resume
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="PauseScraper" method="post" style="flex:1;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="scraperName" value="@scraper.name" />
+                                    <button type="submit" class="btn-scraper pause" style="width:100%;">
+                                        <i class="fas fa-pause"></i> Pause
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="no-scrapers" style="grid-column: 1 / -1;">
+                    <i class="fas fa-server"></i>
+                    <p>Brak aktywnych scraperów.</p>
+                    <p style="font-size: 14px;">Uruchom skrypt Python, aby rozpocząć scrapowanie.</p>
+                </div>
+            }
+        </div>
+    </div>
+    
+    <!-- LOGI -->
+    <div class="dashboard-section">
+        <div class="section-title">
+            <i class="fas fa-terminal"></i> Activity Logs
+        </div>
+        <div id="logsContainer" class="logs-section">
+            @foreach (var log in Model.RecentLogs.OrderByDescending(l => l.Timestamp).Take(50))
+            {
+                <div class="log-entry @log.Level.ToLower()">
+                    <span class="log-time">[@log.Timestamp.ToString("HH:mm:ss")]</span>
+                    <span class="log-scraper">[@log.ScraperName]</span>
+                    @if (!string.IsNullOrEmpty(log.BatchId))
+                    {
+                        <span style="color:#89ddff;">[#@log.BatchId]</span>
+                    }
+                    @log.Message
+                </div>
+            }
+        </div>
+    </div>
+    
+    <!-- TABELA URLs -->
+    <div class="urls-section">
+        <div class="section-title">
+            <i class="fas fa-list"></i> URLs to Scrape
+        </div>
+        
+        <div class="table-controls">
+            <input type="text" id="searchBox" class="search-box" placeholder="Search by URL, ID, CID...">
+            <div class="filter-tabs">
+                <button class="filter-tab active" data-filter="all">All (@Model.DbStats.TotalUrls)</button>
+                <button class="filter-tab" data-filter="pending">Pending (@Model.DbStats.PendingUrls)</button>
+                <button class="filter-tab" data-filter="scraped">Scraped (@Model.DbStats.ScrapedUrls)</button>
+                <button class="filter-tab" data-filter="rejected">Rejected (@Model.DbStats.RejectedUrls)</button>
+            </div>
+        </div>
+        
+        <div class="table-container">
+            <table class="urls-table" id="urlsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Google URL</th>
+                        <th>CID</th>
+                        <th>GID</th>
+                        <th>HID</th>
+                        <th>Flags</th>
+                        <th>Status</th>
+                        <th>Prices</th>
+                    </tr>
+                </thead>
+                <tbody id="urlsTableBody">
+                    @foreach (var url in Model.Urls)
+                    {
+                        var rowClass = url.GoogleIsScraped ? (url.GoogleIsRejected ? "rejected" : "scraped") : "";
+                        <tr class="@rowClass" data-id="@url.Id" data-status="@(url.GoogleIsScraped ? (url.GoogleIsRejected ? "rejected" : "scraped") : "pending")">
+                            <td><strong>@url.Id</strong></td>
+                            <td class="url-cell" title="@url.GoogleOfferUrl">
+                                @if (!string.IsNullOrEmpty(url.GoogleOfferUrl))
+                                {
+                                    <a href="@url.GoogleOfferUrl" target="_blank">@url.GoogleOfferUrl</a>
+                                }
+                                else if (url.UseGoogleHidOffer)
+                                {
+                                    <span style="color:#7b1fa2;">[HID Offer]</span>
+                                }
+                            </td>
+                            <td><code>@url.GoogleCid</code></td>
+                            <td><code>@url.GoogleGid</code></td>
+                            <td><code>@url.GoogleHid</code></td>
+                            <td>
+                                @if (url.UseWRGA) { <span class="badge badge-wrga">WRGA</span> }
+                                @if (url.UseGPID) { <span class="badge badge-gpid">GPID</span> }
+                                @if (url.UseGoogleHidOffer) { <span class="badge badge-hid">HID</span> }
+                            </td>
+                            <td>
+                                @if (url.GoogleIsRejected)
+                                {
+                                    <span class="badge badge-rejected">Rejected</span>
+                                }
+                                else if (url.GoogleIsScraped)
+                                {
+                                    <span class="badge badge-scraped">Scraped</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-pending">Pending</span>
+                                }
+                            </td>
+                            <td>
+                                @if (url.GooglePricesCount > 0)
+                                {
+                                    <strong style="color:#1e8e3e;">@url.GooglePricesCount</strong>
+                                }
+                                else
+                                {
+                                    <span style="color:#5f6368;">-</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.0/signalr.min.js"></script>
+    <script>
+        // ===== SIGNALR =====
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/scrapinghub")
+            .withAutomaticReconnect()
+            .build();
+        
+        // Aktualizacja statusu scrapera
+        connection.on("GoogleUpdateScraperStatus", function (scraper) {
+            updateScraperCard(scraper);
+        });
+        
+        // Aktualizacja dashboardu
+        connection.on("GoogleUpdateDashboard", function (dashboard) {
+            updateDashboard(dashboard);
+        });
+        
+        // Aktualizacja logów
+        connection.on("GoogleUpdateLogs", function (logs) {
+            updateLogs(logs);
+        });
+        
+        // Aktualizacja statystyk
+        connection.on("GoogleUpdateStats", function (stats) {
+            updateStats(stats);
+        });
+        
+        // Aktualizacja pojedynczego wiersza
+        connection.on("GoogleUpdateOfferRow", function (offer) {
+            updateOfferRow(offer);
+        });
+        
+        // Start/Stop scrapowania
+        connection.on("GoogleScrapingStarted", function (data) {
+            document.getElementById("statusBadge").className = "status-badge status-running";
+            document.getElementById("statusBadge").textContent = "Running";
+            scrapingStartTime = new Date(data.startTime);
+        });
+        
+        connection.on("GoogleScrapingFinished", function (data) {
+            document.getElementById("statusBadge").className = "status-badge status-idle";
+            document.getElementById("statusBadge").textContent = "Idle";
+            scrapingStartTime = null;
+        });
+        
+        connection.on("GoogleScrapingStopped", function (data) {
+            document.getElementById("statusBadge").className = "status-badge status-idle";
+            document.getElementById("statusBadge").textContent = "Idle";
+            scrapingStartTime = null;
+        });
+        
+        connection.start().catch(err => console.error("SignalR Error:", err));
+        
+        // ===== FUNKCJE AKTUALIZACJI =====
+        
+        function updateScraperCard(scraper) {
+            const card = document.querySelector(`.scraper-card[data-scraper="${scraper.name}"]`);
+            if (!card) {
+                // Dodaj nową kartę jeśli nie istnieje
+                location.reload(); // Prostsze rozwiązanie - przeładuj stronę
+                return;
+            }
+            
+            // Aktualizuj klasę statusu
+            card.className = `scraper-card status-${scraper.status.toLowerCase()}`;
+            
+            // Aktualizuj status badge
+            const statusBadge = card.querySelector('.scraper-status');
+            statusBadge.className = `scraper-status ${scraper.status.toLowerCase()}`;
+            statusBadge.textContent = scraper.status;
+            
+            // Aktualizuj statystyki
+            const stats = card.querySelectorAll('.scraper-stat-value');
+            stats[0].textContent = scraper.totalUrlsProcessed;
+            stats[1].textContent = scraper.successRate + '%';
+            stats[2].textContent = scraper.urlsPerMinute;
+            
+            // Aktualizuj szczegóły
+            const details = card.querySelectorAll('.scraper-details div');
+            details[0].innerHTML = `<i class="fas fa-network-wired"></i> IP: ${scraper.currentIpAddress || 'N/A'}`;
+            details[1].innerHTML = `<i class="fas fa-box"></i> Batch: ${scraper.currentBatchId || 'None'}`;
+            details[2].innerHTML = `<i class="fas fa-bomb"></i> NUKEs: ${scraper.nukeCount}`;
+        }
+        
+        function updateDashboard(dashboard) {
+            document.getElementById("onlineScrapersCount").textContent = dashboard.scrapersOnline;
+            document.getElementById("nukeCountStat").textContent = dashboard.totalNukeEvents;
+            
+            // Aktualizuj status badge
+            const statusBadge = document.getElementById("statusBadge");
+            statusBadge.className = `status-badge status-${dashboard.status.toLowerCase()}`;
+            statusBadge.textContent = dashboard.status;
+        }
+        
+        function updateStats(stats) {
+            document.getElementById("totalUrlsStat").textContent = stats.totalUrls;
+            document.getElementById("scrapedUrlsStat").textContent = stats.scrapedUrls;
+            document.getElementById("rejectedUrlsStat").textContent = stats.rejectedUrls;
+            document.getElementById("totalPricesStat").textContent = stats.totalPrices;
+            document.getElementById("scrapedCount").textContent = stats.scrapedUrls;
+            document.getElementById("pendingCount").textContent = stats.pendingUrls;
+            
+            // Aktualizuj progress bar
+            const percent = stats.totalUrls > 0 ? Math.round(stats.scrapedUrls / stats.totalUrls * 100 * 10) / 10 : 0;
+            const progressBar = document.getElementById("progressBarFill");
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = percent + '%';
+        }
+        
+        function updateLogs(logs) {
+            const container = document.getElementById("logsContainer");
+            container.innerHTML = logs.map(log => `
+                <div class="log-entry ${log.level.toLowerCase()}">
+                    <span class="log-time">[${new Date(log.timestamp).toLocaleTimeString()}]</span>
+                    <span class="log-scraper">[${log.scraperName}]</span>
+                    ${log.batchId ? `<span style="color:#89ddff;">[#${log.batchId}]</span>` : ''}
+                    ${log.message}
+                </div>
+            `).join('');
+        }
+        
+        function updateOfferRow(offer) {
+            const row = document.querySelector(`tr[data-id="${offer.id}"]`);
+            if (!row) return;
+            
+            row.classList.remove('scraped', 'rejected');
+            if (offer.isRejected) {
+                row.classList.add('rejected');
+                row.dataset.status = 'rejected';
+            } else if (offer.isScraped) {
+                row.classList.add('scraped');
+                row.dataset.status = 'scraped';
+            } else {
+                row.dataset.status = 'pending';
+            }
+            
+            // Aktualizuj status badge
+            const statusCell = row.querySelector('td:nth-child(7)');
+            if (offer.isRejected) {
+                statusCell.innerHTML = '<span class="badge badge-rejected">Rejected</span>';
+            } else if (offer.isScraped) {
+                statusCell.innerHTML = '<span class="badge badge-scraped">Scraped</span>';
+            } else {
+                statusCell.innerHTML = '<span class="badge badge-pending">Pending</span>';
+            }
+            
+            // Aktualizuj licznik cen
+            const pricesCell = row.querySelector('td:nth-child(8)');
+            if (offer.pricesCount > 0) {
+                pricesCell.innerHTML = `<strong style="color:#1e8e3e;">${offer.pricesCount}</strong>`;
+            } else {
+                pricesCell.innerHTML = '<span style="color:#5f6368;">-</span>';
+            }
+        }
+        
+        // ===== ELAPSED TIME =====
+        let scrapingStartTime = @(Model.ScrapingStartTime.HasValue ? $"new Date('{Model.ScrapingStartTime.Value:o}')" : "null");
+        
+        function updateElapsedTime() {
+            if (!scrapingStartTime) {
+                document.getElementById("elapsedTime").textContent = "00:00:00";
+                return;
+            }
+            
+            const now = new Date();
+            const diff = Math.floor((now - scrapingStartTime) / 1000);
+            
+            const hours = Math.floor(diff / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            const seconds = diff % 60;
+            
+            document.getElementById("elapsedTime").textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        setInterval(updateElapsedTime, 1000);
+        updateElapsedTime();
+        
+        // ===== FILTROWANIE =====
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                const filter = this.dataset.filter;
+                document.querySelectorAll('#urlsTableBody tr').forEach(row => {
+                    if (filter === 'all' || row.dataset.status === filter) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        });
+        
+        // ===== WYSZUKIWANIE =====
+        document.getElementById('searchBox').addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            document.querySelectorAll('#urlsTableBody tr').forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        });
+    </script>
+}
