@@ -2,21 +2,19 @@
 @{
     ViewData["Title"] = "Google Scraper PL";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-    // Layout = "~/Views/Shared/_Layout.cshtml";
+
 }
 
 <style>
-    /* POPRAWKA DLA PANELU: Reset marginesów i paddingów kontenera */
+   
     .google-scraper-container {
         padding: 20px;
         background: #f8f9fa;
         width: 100%;
-        /* Ważne dla PanelLayout: */
         min-height: 100%;
         box-sizing: border-box;
     }
 
-    /* ===== POZOSTAŁE STYLE BEZ ZMIAN ===== */
     .page-header {
         display: flex;
         justify-content: space-between;
@@ -55,9 +53,11 @@
         text-transform: uppercase;
     }
 
+
     .status-idle {
         background: #e8eaed;
         color: #5f6368;
+
     }
 
     .status-running {
@@ -282,7 +282,7 @@
         color: #4285f4;
     }
 
-    /* POPRAWKA DLA WYKRESU */
+  
     .chart-container {
         height: 200px;
         margin-top: 15px;
@@ -721,277 +721,283 @@
         gap: 20px;
         margin-bottom: 20px;
     }
+
   
 </style>
 
-        <div class="google-scraper-container">
-            <div class="page-header">
-                <div class="page-title">
-                    <i class="fas fa-shopping-bag"></i>
-                    Google Shopping Scraper PL
-                </div>
-                <div>
-                    <span id="statusBadge" class="status-badge status-@Model.CurrentStatus.ToString().ToLower()">
-                        @(Model.CurrentStatus == PriceSafari.Services.GoogleScraping.GoogleScrapingProcessStatus.Running ? "Działa" :
-                                                Model.CurrentStatus == PriceSafari.Services.GoogleScraping.GoogleScrapingProcessStatus.Paused ? "Wstrzymany" : "Bezczynny")
-                    </span>
-                </div>
-            </div>
+<div class="google-scraper-container">
+    <div class="page-header">
+        <div class="page-title">
+            <i class="fas fa-shopping-bag"></i>
+            Google Shopping Scraper PL
+        </div>
+        <div>
+            <span id="statusBadge" class="status-badge status-@Model.CurrentStatus.ToString().ToLower()">
+                @(Model.CurrentStatus == PriceSafari.Services.GoogleScraping.GoogleScrapingProcessStatus.Running ? "Działa" :
+                                Model.CurrentStatus == PriceSafari.Services.GoogleScraping.GoogleScrapingProcessStatus.Paused ? "Wstrzymany" : "Bezczynny")
+            </span>
+        </div>
+    </div>
 
-            @if (TempData["Message"] != null)
-            {
-                var msgType = TempData["MessageType"]?.ToString() ?? "info";
-                <div class="alert alert-@(msgType == "error" ? "danger" : msgType)" role="alert">
-                    @TempData["Message"]
-                    <button type="button" class="btn-close" onclick="this.parentElement.remove()">×</button>
-                </div>
-            }
+    @if (TempData["Message"] != null)
+    {
+        var msgType = TempData["MessageType"]?.ToString() ?? "info";
+        <div class="alert alert-@(msgType == "error" ? "danger" : msgType)" role="alert">
+            @TempData["Message"]
+            <button type="button" class="btn-close" onclick="this.parentElement.remove()">×</button>
+        </div>
+    }
 
-            <div class="stats-bar">
-                <div class="stats-bar-item"><strong>Łącznie URL:</strong> <span id="totalUrlCount">@Model.DbStats.TotalUrls</span></div>
-                <div class="stats-bar-item"><strong>Zescrapowane:</strong> <span id="scrapedUrlCount">@Model.DbStats.ScrapedUrls</span></div>
-                <div class="stats-bar-item"><strong>Odrzucone:</strong> <span id="rejectedUrlCount">@Model.DbStats.RejectedUrls</span></div>
-                <div class="stats-bar-item"><strong>Oczekujące:</strong> <span id="pendingUrlCount">@Model.DbStats.PendingUrls</span></div>
-                <div class="stats-bar-item"><strong>Zebrane ceny:</strong> <span id="totalPricesCount">@Model.DbStats.TotalPrices</span></div>
-                <div class="stats-bar-item"><strong>Scrapery online:</strong> <span id="onlineScrapersCount">@Model.Scrapers.Count</span></div>
-            </div>
+    <div class="stats-bar">
+        <div class="stats-bar-item"><strong>Łącznie URL:</strong> <span id="totalUrlCount">@Model.DbStats.TotalUrls</span></div>
+        <div class="stats-bar-item"><strong>Zescrapowane:</strong> <span id="scrapedUrlCount">@Model.DbStats.ScrapedUrls</span></div>
+        <div class="stats-bar-item"><strong>Odrzucone:</strong> <span id="rejectedUrlCount">@Model.DbStats.RejectedUrls</span></div>
+        <div class="stats-bar-item"><strong>Oczekujące:</strong> <span id="pendingUrlCount">@Model.DbStats.PendingUrls</span></div>
+        <div class="stats-bar-item"><strong>Zebrane ceny:</strong> <span id="totalPricesCount">@Model.DbStats.TotalPrices</span></div>
+        <div class="stats-bar-item"><strong>Scrapery online:</strong> <span id="onlineScrapersCount">@Model.Scrapers.Count</span></div>
+    </div>
 
-            <div class="controls-section" id="controlsSection">
-                @if (Model.CurrentStatus != PriceSafari.Services.GoogleScraping.GoogleScrapingProcessStatus.Running)
-                {
-                    <button type="button" class="btn-google btn-start" onclick="startScraping()">
-                        <i class="fas fa-play"></i> Rozpocznij scrapowanie
-                    </button>
-                }
-                else
-                {
-                    <button type="button" class="btn-google btn-stop" onclick="stopScraping()">
-                        <i class="fas fa-stop"></i> Zatrzymaj scrapowanie
-                    </button>
-                }
-                <button type="button" class="btn-google btn-reset" onclick="resetRejected()">
-                    <i class="fas fa-redo"></i> Resetuj odrzucone (<span id="rejectedCountBtn">@Model.DbStats.RejectedUrls</span>)
-                </button>
-                <button type="button" class="btn-google btn-clear" onclick="clearData()">
-                    <i class="fas fa-trash"></i> Wyczyść dane
-                </button>
-            </div>
+    <div class="controls-section" id="controlsSection">
+        @if (Model.CurrentStatus != PriceSafari.Services.GoogleScraping.GoogleScrapingProcessStatus.Running)
+        {
+            <button type="button" class="btn-google btn-start" onclick="startScraping()">
+                <i class="fas fa-play"></i> Rozpocznij scrapowanie
+            </button>
+        }
+        else
+        {
+            <button type="button" class="btn-google btn-stop" onclick="stopScraping()">
+                <i class="fas fa-stop"></i> Zatrzymaj scrapowanie
+            </button>
+        }
+        <button type="button" class="btn-google btn-reset" onclick="resetRejected()">
+            <i class="fas fa-redo"></i> Resetuj odrzucone (<span id="rejectedCountBtn">@Model.DbStats.RejectedUrls</span>)
+        </button>
+        <button type="button" class="btn-google btn-clear" onclick="clearData()">
+            <i class="fas fa-trash"></i> Wyczyść dane
+        </button>
+    </div>
 
-            <div class="progress-section">
-                <div class="section-title"><i class="fas fa-chart-line"></i> Postęp scrapowania</div>
-                @{
-                    var progressPercent = Model.DbStats.TotalUrls > 0 ? Math.Round((double)Model.DbStats.ScrapedUrls / Model.DbStats.TotalUrls * 100, 1) : 0;
-                }
-                <div class="progress-bar-bg">
-                    <div id="progressBarFill" class="progress-bar-fill" style="width: @progressPercent%;">@progressPercent%</div>
-                </div>
-                <div class="progress-info">
-                    <div class="progress-info-item"><i class="fas fa-clock"></i> Czas: <span id="elapsedTime" class="elapsed-time">00:00:00</span></div>
-                    <div class="progress-info-item"><i class="fas fa-tachometer-alt"></i> Prędkość: <span id="currentSpeed" style="color:#1e8e3e; font-weight:600;">0.00</span> URL/sek</div>
-                    <div class="progress-info-item"><i class="fas fa-check-circle"></i> <span id="progressScraped">@Model.DbStats.ScrapedUrls</span> / <span id="progressTotal">@Model.DbStats.TotalUrls</span></div>
-                    <div class="progress-info-item"><i class="fas fa-hourglass-half"></i> Pozostało: <span id="progressPending">@Model.DbStats.PendingUrls</span></div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="speedChart"></canvas>
-                </div>
-            </div>
+    <div class="progress-section">
+        <div class="section-title"><i class="fas fa-chart-line"></i> Postęp scrapowania</div>
+        @{
+            var progressPercent = Model.DbStats.TotalUrls > 0 ? Math.Round((double)Model.DbStats.ScrapedUrls / Model.DbStats.TotalUrls * 100, 1) : 0;
+        }
+        <div class="progress-bar-bg">
+            <div id="progressBarFill" class="progress-bar-fill" style="width: @progressPercent%;">@progressPercent%</div>
+        </div>
+        <div class="progress-info">
+            <div class="progress-info-item"><i class="fas fa-clock"></i> Czas: <span id="elapsedTime" class="elapsed-time">00:00:00</span></div>
+            <div class="progress-info-item"><i class="fas fa-tachometer-alt"></i> Prędkość: <span id="currentSpeed" style="color:#1e8e3e; font-weight:600;">0.00</span> URL/sek</div>
+            <div class="progress-info-item"><i class="fas fa-check-circle"></i> <span id="progressScraped">@Model.DbStats.ScrapedUrls</span> / <span id="progressTotal">@Model.DbStats.TotalUrls</span></div>
+            <div class="progress-info-item"><i class="fas fa-hourglass-half"></i> Pozostało: <span id="progressPending">@Model.DbStats.PendingUrls</span></div>
+        </div>
+        <div class="chart-container">
+            <canvas id="speedChart"></canvas>
+        </div>
+    </div>
 
-            <div class="two-column-grid">
-                <div class="dashboard-section">
-                    <div class="section-title"><i class="fas fa-chart-bar"></i> Statystyki</div>
-                    <div class="stats-grid">
-                        <div class="stat-card info"><div id="totalUrlsStat" class="stat-value">@Model.DbStats.TotalUrls</div><div class="stat-label">Wszystkie</div></div>
-                        <div class="stat-card success"><div id="scrapedUrlsStat" class="stat-value">@Model.DbStats.ScrapedUrls</div><div class="stat-label">Zescrapowane</div></div>
-                        <div class="stat-card warning"><div id="rejectedUrlsStat" class="stat-value">@Model.DbStats.RejectedUrls</div><div class="stat-label">Odrzucone</div></div>
-                        <div class="stat-card success"><div id="totalPricesStat" class="stat-value">@Model.DbStats.TotalPrices</div><div class="stat-label">Ceny</div></div>
-                        <div class="stat-card info"><div class="stat-value" id="urlsWithWRGA">@Model.DbStats.UrlsWithWRGA</div><div class="stat-label">WRGA</div></div>
-                        <div class="stat-card info"><div class="stat-value" id="urlsWithGPID">@Model.DbStats.UrlsWithGPID</div><div class="stat-label">GPID</div></div>
-                        <div class="stat-card info"><div class="stat-value" id="urlsWithHID">@Model.DbStats.UrlsWithHidOffer</div><div class="stat-label">HID</div></div>
-                        <div class="stat-card nuke"><div id="nukeCountStat" class="stat-value">0</div><div class="stat-label">NUKE</div></div>
-                    </div>
-                </div>
-                <div class="dashboard-section">
-                    <div class="section-title"><i class="fas fa-terminal"></i> Logi aktywności</div>
-                    <div id="logsContainer" class="logs-section">
-                        @foreach (var log in Model.RecentLogs.OrderByDescending(l => l.Timestamp).Take(50))
-                        {
-                            <div class="log-entry @log.Level.ToLower()">
-                                <span class="log-time">[@log.Timestamp.ToString("HH:mm:ss")]</span>
-                                <span class="log-scraper">[@log.ScraperName]</span>
-                                @if (!string.IsNullOrEmpty(log.BatchId))
-                                {
-                                    <span style="color:#89ddff;">[#@(log.BatchId.Length > 8 ? log.BatchId.Substring(log.BatchId.Length - 8) : log.BatchId)]</span>
-                                }
-                                @log.Message
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-
-            <div class="dashboard-section">
-                <div class="section-title">
-                    <i class="fas fa-server"></i> Aktywne scrapery
-                    <span style="margin-left: auto; font-size: 13px; font-weight: 400; color: #5f6368;">
-                        Online: <span id="scrapersOnlineCount">@Model.Scrapers.Count</span> | Zajęte: <span id="scrapersBusyCount">0</span>
-                    </span>
-                </div>
-                <div id="scrapersContainer" class="scrapers-grid">
-                    @if (Model.Scrapers.Any())
-                    {
-                        @foreach (dynamic scraper in Model.Scrapers)
-                        {
-                            var statusClass = ((string)scraper.status).ToLower();
-                            var statusText = statusClass == "idle" ? "Bezczynny" : statusClass == "busy" ? "Zajęty" : statusClass == "offline" ? "Offline" : statusClass == "stopped" ? "Zatrzymany" : statusClass == "resettingnetwork" ? "Reset sieci" : statusClass;
-                            <div class="scraper-card status-@statusClass" data-scraper="@scraper.name">
-                                <div class="scraper-header">
-                                    <div class="scraper-name">@scraper.name</div>
-                                    <span class="scraper-status @statusClass">@statusText</span>
-                                </div>
-                                <div class="scraper-stats">
-                                    <div class="scraper-stat"><div class="scraper-stat-value scraper-processed">@scraper.totalUrlsProcessed</div><div class="scraper-stat-label">Przetw.</div></div>
-                                    <div class="scraper-stat"><div class="scraper-stat-value scraper-success-rate">@scraper.successRate%</div><div class="scraper-stat-label">Sukces</div></div>
-                                    <div class="scraper-stat"><div class="scraper-stat-value scraper-urls-per-min">@scraper.urlsPerMinute</div><div class="scraper-stat-label">URL/min</div></div>
-                                    <div class="scraper-stat"><div class="scraper-stat-value scraper-urls-per-sec" style="color:#1e8e3e;">@(((double)scraper.urlsPerMinute / 60).ToString("F2"))</div><div class="scraper-stat-label">URL/sek</div></div>
-                                </div>
-                                <div class="scraper-details">
-                                    <div><i class="fas fa-network-wired"></i> IP: <span class="scraper-ip">@(scraper.currentIpAddress ?? "N/A")</span></div>
-                                    <div><i class="fas fa-box"></i> Paczka: <span class="scraper-batch">@(scraper.currentBatchId != null ? ((string)scraper.currentBatchId).Substring(Math.Max(0, ((string)scraper.currentBatchId).Length - 12)) : "Brak")</span></div>
-                                    <div><i class="fas fa-bomb"></i> NUKE: <span class="scraper-nuke">@scraper.nukeCount</span> | <i class="fas fa-coins"></i> Ceny: <span class="scraper-prices">@scraper.totalPricesCollected</span></div>
-                                </div>
-                                <div class="scraper-actions">
-                                    @if ((bool)scraper.isManuallyPaused)
-                                    {
-                                        <button type="button" class="btn-scraper resume" onclick="resumeScraper('@scraper.name')"><i class="fas fa-play"></i> Wznów</button>
-                                    }
-                                    else
-                                    {
-                                        <button type="button" class="btn-scraper pause" onclick="pauseScraper('@scraper.name')"><i class="fas fa-pause"></i> Wstrzymaj</button>
-                                    }
-                                </div>
-                            </div>
-                        }
-                    }
-                    else
-                    {
-                        <div class="no-scrapers">
-                            <i class="fas fa-server"></i>
-                            <p>Brak aktywnych scraperów.</p>
-                            <p style="font-size: 13px;">Uruchom skrypt Python, aby rozpocząć scrapowanie.</p>
-                        </div>
-                    }
-                </div>
-            </div>
-
-            <div class="urls-section">
-                <div class="section-title"><i class="fas fa-list"></i> Lista URLi do scrapowania (@Model.Urls.Count wierszy)</div>
-                <div class="table-controls">
-                    <input type="text" id="searchBox" class="search-box" placeholder="Szukaj po URL, ID, CID...">
-                    <div class="filter-tabs">
-                        <button class="filter-tab active" data-filter="all" onclick="applyFilter('all', this)">Wszystkie (<span id="filterAll">@Model.DbStats.TotalUrls</span>)</button>
-                        <button class="filter-tab" data-filter="pending" onclick="applyFilter('pending', this)">Oczekujące (<span id="filterPending">@Model.DbStats.PendingUrls</span>)</button>
-                        <button class="filter-tab" data-filter="scraped" onclick="applyFilter('scraped', this)">Zescrapowane (<span id="filterScraped">@Model.DbStats.ScrapedUrls</span>)</button>
-                        <button class="filter-tab" data-filter="rejected" onclick="applyFilter('rejected', this)">Odrzucone (<span id="filterRejected">@Model.DbStats.RejectedUrls</span>)</button>
-                    </div>
-                </div>
-                <div class="table-container">
-                    <table class="urls-table" id="urlsTable">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>URL Google</th>
-                                <th>CID</th>
-                                <th>
-                                    <a asp-action="GoogleScraperPl" asp-route-sortOrder="@ViewData["GidSortParam"]" style="color: inherit; text-decoration: none; cursor: pointer;">
-                                        GID <i class="fas fa-sort"></i>
-                                    </a>
-                                </th>
-                                <th>HID</th>
-                                <th>Flagi</th>
-                                <th>Status</th>
-                                <th>Ceny</th>
-                            </tr>
-                        </thead>
-                        <tbody id="urlsTableBody">
-                            @foreach (var url in Model.Urls)
-                            {
-                                var rowClass = url.GoogleIsScraped ? (url.GoogleIsRejected ? "rejected" : "scraped") : "";
-                                var statusText = url.GoogleIsRejected ? "rejected" : (url.GoogleIsScraped ? "scraped" : "pending");
-                                <tr class="@rowClass" data-id="@url.Id" data-status="@statusText">
-                                    <td><strong>@url.Id</strong></td>
-                                    <td class="url-cell" title="@url.GoogleOfferUrl">
-                                        @if (!string.IsNullOrEmpty(url.GoogleOfferUrl))
-                                        {
-                                            <a href="@url.GoogleOfferUrl" target="_blank">@url.GoogleOfferUrl</a>
-                                        }
-                                        else if (url.UseGoogleHidOffer)
-                                        {
-                                            <span style="color:#7b1fa2;">[HID Offer]</span>
-                                        }
-                                    </td>
-                                    <td><code>@(url.GoogleCid ?? "-")</code></td>
-                                    <td><code>@(url.GoogleGid ?? "-")</code></td>
-                                    <td><code>@(url.GoogleHid ?? "-")</code></td>
-                                    <td>
-                                        @if (url.UseWRGA)
-                                        {
-                                            <span class="badge badge-wrga">WRGA</span>
-                                        }
-                                        @if (url.UseGPID)
-                                        {
-                                            <span class="badge badge-gpid">GPID</span>
-                                        }
-                                        @if (url.UseGoogleHidOffer)
-                                        {
-                                            <span class="badge badge-hid">HID</span>
-                                        }
-                                    </td>
-                                    <td class="status-cell">
-                                        @if (url.GoogleIsRejected)
-                                        {
-                                            <span class="badge badge-rejected">Odrzucony</span>
-                                        }
-                                        else if (url.GoogleIsScraped)
-                                        {
-
-                                            <span class="badge badge-scraped">Zescrapowany</span>
-                                        }
-                                        else
-                                        {
-
-                                            <span class="badge badge-pending">Oczekuje</span>
-                                        }
-                                    </td>
-                                    <td class="prices-cell">
-                                        @if (url.GooglePricesCount > 0)
-                                        {
-                                            <strong style="color:#1e8e3e;">@url.GooglePricesCount</strong>
-                                        }
-                                        else
-                                        {
-
-                                            <span style="color:#5f6368;">-</span>
-                                        }
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+    <div class="two-column-grid">
+        <div class="dashboard-section">
+            <div class="section-title"><i class="fas fa-chart-bar"></i> Statystyki</div>
+            <div class="stats-grid">
+                <div class="stat-card info"><div id="totalUrlsStat" class="stat-value">@Model.DbStats.TotalUrls</div><div class="stat-label">Wszystkie</div></div>
+                <div class="stat-card success"><div id="scrapedUrlsStat" class="stat-value">@Model.DbStats.ScrapedUrls</div><div class="stat-label">Zescrapowane</div></div>
+                <div class="stat-card warning"><div id="rejectedUrlsStat" class="stat-value">@Model.DbStats.RejectedUrls</div><div class="stat-label">Odrzucone</div></div>
+                <div class="stat-card success"><div id="totalPricesStat" class="stat-value">@Model.DbStats.TotalPrices</div><div class="stat-label">Ceny</div></div>
+                <div class="stat-card info"><div class="stat-value" id="urlsWithWRGA">@Model.DbStats.UrlsWithWRGA</div><div class="stat-label">WRGA</div></div>
+                <div class="stat-card info"><div class="stat-value" id="urlsWithGPID">@Model.DbStats.UrlsWithGPID</div><div class="stat-label">GPID</div></div>
+                <div class="stat-card info"><div class="stat-value" id="urlsWithHID">@Model.DbStats.UrlsWithHidOffer</div><div class="stat-label">HID</div></div>
+                <div class="stat-card nuke"><div id="nukeCountStat" class="stat-value">0</div><div class="stat-label">NUKE</div></div>
             </div>
         </div>
+        <div class="dashboard-section">
+            <div class="section-title"><i class="fas fa-terminal"></i> Logi aktywności</div>
+            <div id="logsContainer" class="logs-section">
+                @foreach (var log in Model.RecentLogs.OrderByDescending(l => l.Timestamp).Take(50))
+                {
+                    <div class="log-entry @log.Level.ToLower()">
+                        <span class="log-time">[@log.Timestamp.ToString("HH:mm:ss")]</span>
+                        <span class="log-scraper">[@log.ScraperName]</span>
+                        @if (!string.IsNullOrEmpty(log.BatchId))
+                        {
+                            <span style="color:#89ddff;">[#@(log.BatchId.Length > 8 ? log.BatchId.Substring(log.BatchId.Length - 8) : log.BatchId)]</span>
+                        }
+                        @log.Message
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-section">
+        <div class="section-title">
+            <i class="fas fa-server"></i> Aktywne scrapery
+            <span style="margin-left: auto; font-size: 13px; font-weight: 400; color: #5f6368;">
+                Online: <span id="scrapersOnlineCount">@Model.Scrapers.Count</span> | Zajęte: <span id="scrapersBusyCount">0</span>
+            </span>
+        </div>
+        <div id="scrapersContainer" class="scrapers-grid">
+            @if (Model.Scrapers.Any())
+            {
+                @foreach (dynamic scraper in Model.Scrapers)
+                {
+                    var statusClass = ((string)scraper.status).ToLower();
+                    var statusText = statusClass == "idle" ? "Bezczynny" : statusClass == "busy" ? "Zajęty" : statusClass == "offline" ? "Offline" : statusClass == "stopped" ? "Zatrzymany" : statusClass == "resettingnetwork" ? "Reset sieci" : statusClass;
+                    <div class="scraper-card status-@statusClass" data-scraper="@scraper.name">
+                        <div class="scraper-header">
+                            <div class="scraper-name">@scraper.name</div>
+                            <span class="scraper-status @statusClass">@statusText</span>
+                        </div>
+                        <div class="scraper-stats">
+                            <div class="scraper-stat"><div class="scraper-stat-value scraper-processed">@scraper.totalUrlsProcessed</div><div class="scraper-stat-label">Przetw.</div></div>
+                            <div class="scraper-stat"><div class="scraper-stat-value scraper-success-rate">@scraper.successRate%</div><div class="scraper-stat-label">Sukces</div></div>
+                            <div class="scraper-stat"><div class="scraper-stat-value scraper-urls-per-min">@scraper.urlsPerMinute</div><div class="scraper-stat-label">URL/min</div></div>
+                            <div class="scraper-stat"><div class="scraper-stat-value scraper-urls-per-sec" style="color:#1e8e3e;">@(((double)scraper.urlsPerMinute / 60).ToString("F2"))</div><div class="scraper-stat-label">URL/sek</div></div>
+                        </div>
+                        <div class="scraper-details">
+                            <div><i class="fas fa-network-wired"></i> IP: <span class="scraper-ip">@(scraper.currentIpAddress ?? "N/A")</span></div>
+                            <div><i class="fas fa-box"></i> Paczka: <span class="scraper-batch">@(scraper.currentBatchId != null ? ((string)scraper.currentBatchId).Substring(Math.Max(0, ((string)scraper.currentBatchId).Length - 12)) : "Brak")</span></div>
+                            <div><i class="fas fa-bomb"></i> NUKE: <span class="scraper-nuke">@scraper.nukeCount</span> | <i class="fas fa-coins"></i> Ceny: <span class="scraper-prices">@scraper.totalPricesCollected</span></div>
+                        </div>
+                        <div class="scraper-actions">
+                            @if ((bool)scraper.isManuallyPaused)
+                            {
+                                <button type="button" class="btn-scraper resume" onclick="resumeScraper('@scraper.name')"><i class="fas fa-play"></i> Wznów</button>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn-scraper pause" onclick="pauseScraper('@scraper.name')"><i class="fas fa-pause"></i> Wstrzymaj</button>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="no-scrapers">
+                    <i class="fas fa-server"></i>
+                    <p>Brak aktywnych scraperów.</p>
+                    <p style="font-size: 13px;">Uruchom skrypt Python, aby rozpocząć scrapowanie.</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="urls-section">
+        <div class="section-title"><i class="fas fa-list"></i> Lista URLi do scrapowania (@Model.Urls.Count wierszy)</div>
+        <div class="table-controls">
+            <input type="text" id="searchBox" class="search-box" placeholder="Szukaj po URL, ID, CID...">
+            <div class="filter-tabs">
+                <button class="filter-tab active" data-filter="all" onclick="applyFilter('all', this)">Wszystkie (<span id="filterAll">@Model.DbStats.TotalUrls</span>)</button>
+                <button class="filter-tab" data-filter="pending" onclick="applyFilter('pending', this)">Oczekujące (<span id="filterPending">@Model.DbStats.PendingUrls</span>)</button>
+                <button class="filter-tab" data-filter="scraped" onclick="applyFilter('scraped', this)">Zescrapowane (<span id="filterScraped">@Model.DbStats.ScrapedUrls</span>)</button>
+                <button class="filter-tab" data-filter="rejected" onclick="applyFilter('rejected', this)">Odrzucone (<span id="filterRejected">@Model.DbStats.RejectedUrls</span>)</button>
+            </div>
+        </div>
+        <div class="table-container">
+            <table class="urls-table" id="urlsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>URL Google</th>
+                        <th>CID</th>
+                        <th>
+                            <a asp-action="GoogleScraperPl" asp-route-sortOrder="@ViewData["GidSortParam"]" style="color: inherit; text-decoration: none; cursor: pointer;">
+                                GID <i class="fas fa-sort"></i>
+                            </a>
+                        </th>
+                        <th>HID</th>
+                        <th>Flagi</th>
+                        <th>Status</th>
+                        <th>Ceny</th>
+                    </tr>
+                </thead>
+                <tbody id="urlsTableBody">
+                    @foreach (var url in Model.Urls)
+                    {
+                        var rowClass = url.GoogleIsScraped ? (url.GoogleIsRejected ? "rejected" : "scraped") : "";
+                        var statusText = url.GoogleIsRejected ? "rejected" : (url.GoogleIsScraped ? "scraped" : "pending");
+                        <tr class="@rowClass" data-id="@url.Id" data-status="@statusText">
+                            <td><strong>@url.Id</strong></td>
+                            <td class="url-cell" title="@url.GoogleOfferUrl">
+                                @if (!string.IsNullOrEmpty(url.GoogleOfferUrl))
+                                {
+                                    <a href="@url.GoogleOfferUrl" target="_blank">@url.GoogleOfferUrl</a>
+                                }
+                                else if (url.UseGoogleHidOffer)
+                                {
+                                    <span style="color:#7b1fa2;">[HID Offer]</span>
+                                }
+                            </td>
+                            <td><code>@(url.GoogleCid ?? "-")</code></td>
+                            <td><code>@(url.GoogleGid ?? "-")</code></td>
+                            <td><code>@(url.GoogleHid ?? "-")</code></td>
+                            <td>
+                                @if (url.UseWRGA)
+                                {
+                                    <span class="badge badge-wrga">WRGA</span>
+                                }
+                                @if (url.UseGPID)
+                                {
+                                    <span class="badge badge-gpid">GPID</span>
+                                }
+                                @if (url.UseGoogleHidOffer)
+                                {
+                                    <span class="badge badge-hid">HID</span>
+                                }
+                            </td>
+                            <td class="status-cell">
+                                @if (url.GoogleIsRejected)
+                                {
+                                    <span class="badge badge-rejected">Odrzucony</span>
+                                }
+                                else if (url.GoogleIsScraped)
+                                {
+
+                                    <span class="badge badge-scraped">Zescrapowany</span>
+                                }
+                                else
+                                {
+
+                                    <span class="badge badge-pending">Oczekuje</span>
+                                }
+                            </td>
+                            <td class="prices-cell">
+                                @if (url.GooglePricesCount > 0)
+                                {
+                                    <strong style="color:#1e8e3e;">@url.GooglePricesCount</strong>
+                                }
+                                else
+                                {
+
+                                    <span style="color:#5f6368;">-</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.0/signalr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        // Dane inicjalne z modelu
         var scrapingStartTime = @(Model.ScrapingStartTime.HasValue ? $"new Date('{Model.ScrapingStartTime.Value:o}')" : "null");
         var isRunning = @(Model.CurrentStatus == PriceSafari.Services.GoogleScraping.GoogleScrapingProcessStatus.Running ? "true" : "false");
-        var speedChart = null;
         var lastScrapedCount = @Model.DbStats.ScrapedUrls;
+
+        // Zmienne pomocnicze
+        var speedChart = null;
         var lastSpeedCheckTime = Date.now();
+        var initialBaseCount = 0;
         var currentFilter = 'all';
-        var API_KEY = '2764udhnJUDI8392j83jfi2ijdo1949rncowp89i3rnfiiui1203kfnf9030rfpPkUjHyHt';
+
+        // --- USUNIĘTO API_KEY (Bezpieczeństwo) ---
 
         function initSpeedChart() {
             var ctx = document.getElementById('speedChart').getContext('2d');
@@ -1001,10 +1007,34 @@
 
             speedChart = new Chart(ctx, {
                 type: 'line',
-                data: { labels: [], datasets: [{ label: 'URL/sek', data: [], backgroundColor: gradientFill, borderColor: 'rgba(14, 126, 135, 1)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0 }] },
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Średnia prędkość (URL/sek)',
+                        data: [],
+                        backgroundColor: gradientFill,
+                        borderColor: 'rgba(14, 126, 135, 1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6
+                    }]
+                },
                 options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y;
+                                }
+                            }
+                        }
+                    },
                     scales: {
                         x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#5f6368', maxTicksLimit: 10 } },
                         y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#5f6368' } }
@@ -1013,14 +1043,7 @@
             });
         }
 
-        function addSpeedDataPoint(speed, elapsedSeconds) {
-            if (!speedChart) return;
-            speedChart.data.labels.push(elapsedSeconds + 's');
-            speedChart.data.datasets[0].data.push(speed);
-            if (speedChart.data.labels.length > 60) { speedChart.data.labels.shift(); speedChart.data.datasets[0].data.shift(); }
-            speedChart.update('none');
-        }
-
+        // --- SIGNALR CONFIG ---
         var connection = new signalR.HubConnectionBuilder().withUrl("/scrapinghub").withAutomaticReconnect().build();
 
         connection.on("GoogleUpdateScraperStatus", updateScraperCard);
@@ -1030,15 +1053,40 @@
         connection.on("GoogleUpdateOfferRow", updateOfferRow);
 
         connection.on("GoogleScrapingStarted", function(data) {
-            isRunning = true; scrapingStartTime = new Date(data.startTime); lastScrapedCount = 0; lastSpeedCheckTime = Date.now();
-            updateStatusBadge('running', 'Działa'); updateControlButtons(true);
-            if (speedChart) { speedChart.data.labels = []; speedChart.data.datasets[0].data = []; speedChart.update(); }
+            isRunning = true;
+            scrapingStartTime = new Date(data.startTime);
+            lastSpeedCheckTime = Date.now();
+
+            // Reset licznika sesji dla wykresu
+            var currentCountText = document.getElementById('scrapedUrlCount').textContent;
+            initialBaseCount = parseInt(currentCountText) || 0;
+
+            updateStatusBadge('running', 'Działa');
+            updateControlButtons(true);
+
+            if (speedChart) {
+                speedChart.data.labels = [];
+                speedChart.data.datasets[0].data = [];
+                speedChart.update();
+            }
         });
 
-        connection.on("GoogleScrapingFinished", function() { isRunning = false; updateStatusBadge('idle', 'Zakończone'); updateControlButtons(false); });
-        connection.on("GoogleScrapingStopped", function() { isRunning = false; scrapingStartTime = null; updateStatusBadge('idle', 'Zatrzymane'); updateControlButtons(false); });
+        connection.on("GoogleScrapingFinished", function() {
+            isRunning = false;
+            updateStatusBadge('idle', 'Zakończone');
+            updateControlButtons(false);
+        });
+
+        connection.on("GoogleScrapingStopped", function() {
+            isRunning = false;
+            scrapingStartTime = null;
+            updateStatusBadge('idle', 'Zatrzymane');
+            updateControlButtons(false);
+        });
 
         connection.start().catch(function(err) { console.error('[SignalR] Błąd:', err); });
+
+        // --- FUNKCJE POMOCNICZE UI ---
 
         function updateStatusBadge(status, text) {
             var badge = document.getElementById('statusBadge');
@@ -1071,10 +1119,25 @@
             var statusClass = scraper.status.toLowerCase();
             var statusText = statusClass === 'idle' ? 'Bezczynny' : statusClass === 'busy' ? 'Zajęty' : statusClass === 'offline' ? 'Offline' : statusClass === 'stopped' ? 'Zatrzymany' : 'Reset sieci';
             var urlsPerSec = (scraper.urlsPerMinute / 60).toFixed(2);
-            var actionBtn = scraper.isManuallyPaused ? '<button type="button" class="btn-scraper resume" onclick="resumeScraper(\'' + scraper.name + '\')"><i class="fas fa-play"></i> Wznów</button>' : '<button type="button" class="btn-scraper pause" onclick="pauseScraper(\'' + scraper.name + '\')"><i class="fas fa-pause"></i> Wstrzymaj</button>';
+            // Zmieniono wywołanie pause/resume na stringi
+            var actionBtn = scraper.isManuallyPaused
+                ? `<button type="button" class="btn-scraper resume" onclick="resumeScraper('${scraper.name}')"><i class="fas fa-play"></i> Wznów</button>`
+                : `<button type="button" class="btn-scraper pause" onclick="pauseScraper('${scraper.name}')"><i class="fas fa-pause"></i> Wstrzymaj</button>`;
 
             card.className = 'scraper-card status-' + statusClass;
-            card.innerHTML = '<div class="scraper-header"><div class="scraper-name">' + scraper.name + '</div><span class="scraper-status ' + statusClass + '">' + statusText + '</span></div><div class="scraper-stats"><div class="scraper-stat"><div class="scraper-stat-value scraper-processed">' + scraper.totalUrlsProcessed + '</div><div class="scraper-stat-label">Przetw.</div></div><div class="scraper-stat"><div class="scraper-stat-value scraper-success-rate">' + scraper.successRate + '%</div><div class="scraper-stat-label">Sukces</div></div><div class="scraper-stat"><div class="scraper-stat-value scraper-urls-per-min">' + scraper.urlsPerMinute + '</div><div class="scraper-stat-label">URL/min</div></div><div class="scraper-stat"><div class="scraper-stat-value scraper-urls-per-sec" style="color:#1e8e3e;">' + urlsPerSec + '</div><div class="scraper-stat-label">URL/sek</div></div></div><div class="scraper-details"><div><i class="fas fa-network-wired"></i> IP: <span class="scraper-ip">' + (scraper.currentIpAddress || 'N/A') + '</span></div><div><i class="fas fa-box"></i> Paczka: <span class="scraper-batch">' + (scraper.currentBatchId ? scraper.currentBatchId.slice(-12) : 'Brak') + '</span></div><div><i class="fas fa-bomb"></i> NUKE: <span class="scraper-nuke">' + scraper.nukeCount + '</span> | <i class="fas fa-coins"></i> Ceny: <span class="scraper-prices">' + scraper.totalPricesCollected + '</span></div></div><div class="scraper-actions">' + actionBtn + '</div>';
+            card.innerHTML = `<div class="scraper-header"><div class="scraper-name">${scraper.name}</div><span class="scraper-status ${statusClass}">${statusText}</span></div>
+                              <div class="scraper-stats">
+                                <div class="scraper-stat"><div class="scraper-stat-value scraper-processed">${scraper.totalUrlsProcessed}</div><div class="scraper-stat-label">Przetw.</div></div>
+                                <div class="scraper-stat"><div class="scraper-stat-value scraper-success-rate">${scraper.successRate}%</div><div class="scraper-stat-label">Sukces</div></div>
+                                <div class="scraper-stat"><div class="scraper-stat-value scraper-urls-per-min">${scraper.urlsPerMinute}</div><div class="scraper-stat-label">URL/min</div></div>
+                                <div class="scraper-stat"><div class="scraper-stat-value scraper-urls-per-sec" style="color:#1e8e3e;">${urlsPerSec}</div><div class="scraper-stat-label">URL/sek</div></div>
+                              </div>
+                              <div class="scraper-details">
+                                <div><i class="fas fa-network-wired"></i> IP: <span class="scraper-ip">${scraper.currentIpAddress || 'N/A'}</span></div>
+                                <div><i class="fas fa-box"></i> Paczka: <span class="scraper-batch">${scraper.currentBatchId ? scraper.currentBatchId.slice(-12) : 'Brak'}</span></div>
+                                <div><i class="fas fa-bomb"></i> NUKE: <span class="scraper-nuke">${scraper.nukeCount}</span> | <i class="fas fa-coins"></i> Ceny: <span class="scraper-prices">${scraper.totalPricesCollected}</span></div>
+                              </div>
+                              <div class="scraper-actions">${actionBtn}</div>`;
         }
 
         function updateDashboard(d) {
@@ -1101,21 +1164,48 @@
             document.getElementById('progressScraped').textContent = s.scrapedUrls;
             document.getElementById('progressTotal').textContent = s.totalUrls;
             document.getElementById('progressPending').textContent = s.pendingUrls;
-            document.getElementById('filterAll').textContent = s.totalUrls;
-            document.getElementById('filterPending').textContent = s.pendingUrls;
-            document.getElementById('filterScraped').textContent = s.scrapedUrls;
-            document.getElementById('filterRejected').textContent = s.rejectedUrls;
-            var rb = document.getElementById('rejectedCountBtn'); if (rb) rb.textContent = s.rejectedUrls;
+
+            var rb = document.getElementById('rejectedCountBtn');
+            if (rb) rb.textContent = s.rejectedUrls;
 
             var pct = s.totalUrls > 0 ? Math.round(s.scrapedUrls / s.totalUrls * 1000) / 10 : 0;
             var pb = document.getElementById('progressBarFill'); pb.style.width = pct + '%'; pb.textContent = pct + '%';
 
-            var now = Date.now(), td = (now - lastSpeedCheckTime) / 1000;
-            if (td >= 1) {
-                var speed = (s.scrapedUrls - lastScrapedCount) / td;
-                document.getElementById('currentSpeed').textContent = speed.toFixed(2);
-                if (isRunning && scrapingStartTime) addSpeedDataPoint(speed, Math.floor((now - scrapingStartTime.getTime()) / 1000));
-                lastScrapedCount = s.scrapedUrls; lastSpeedCheckTime = now;
+            // --- LOGIKA WYKRESU ---
+            if (isRunning && scrapingStartTime) {
+                var now = new Date();
+                var elapsedSeconds = (now - scrapingStartTime) / 1000;
+
+                if (elapsedSeconds > 2) {
+                    var itemsInSession = s.scrapedUrls - initialBaseCount;
+                    if (itemsInSession < 0) itemsInSession = 0;
+                    var averageSpeed = (itemsInSession / elapsedSeconds).toFixed(2);
+
+                    document.getElementById('currentSpeed').textContent = averageSpeed;
+
+                    if (speedChart) {
+                        var currentTimeInt = Math.floor(elapsedSeconds);
+                        var lastLabel = speedChart.data.labels.length > 0 ? speedChart.data.labels[speedChart.data.labels.length - 1] : -1;
+                        var lastLabelInt = parseInt(lastLabel);
+
+                        if (lastLabelInt === currentTimeInt) {
+                            var lastIndex = speedChart.data.labels.length - 1;
+                            var currentVal = parseFloat(speedChart.data.datasets[0].data[lastIndex]);
+                            var newVal = parseFloat(averageSpeed);
+                            speedChart.data.datasets[0].data[lastIndex] = (currentVal + newVal) / 2;
+                        } else {
+                            speedChart.data.labels.push(currentTimeInt);
+                            speedChart.data.datasets[0].data.push(parseFloat(averageSpeed));
+                        }
+
+                        if (speedChart.data.labels.length > 60) {
+                            speedChart.data.labels.shift();
+                            speedChart.data.datasets[0].data.shift();
+                        }
+
+                        speedChart.update();
+                    }
+                }
             }
         }
 
@@ -1160,59 +1250,105 @@
             });
         }
 
+        // --- GŁÓWNE ZMIANY: STEROWANIE PRZEZ MVC CONTROLLER ---
+
         function startScraping() {
             console.log('[Start] Rozpoczynam...');
-            fetch('/api/google-scrape/start', { method: 'POST', headers: { 'X-Api-Key': API_KEY } })
-                .then(function(r) { return r.json(); })
-                .then(function(d) { console.log('[Start]', d); if (d.success) { isRunning = true; scrapingStartTime = new Date(); updateControlButtons(true); updateStatusBadge('running', 'Działa'); } else { alert('Błąd: ' + d.message); } })
-                .catch(function(e) { console.error(e); alert('Błąd: ' + e); });
+            // Pobieramy token Antiforgery
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            // Wywołujemy akcję MVC (nie API)
+            fetch('@Url.Action("StartScraping", "GoogleScraper")', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': token
+                }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                console.log('[Start Response]', d);
+                if (d.success) {
+                    // UI zaktualizuje się samo przez SignalR, ale dla pewności:
+                    updateControlButtons(true);
+                    updateStatusBadge('running', 'Działa');
+                } else {
+                    alert('Błąd: ' + d.message);
+                }
+            })
+            .catch(function(e) { console.error(e); alert('Błąd: ' + e); });
         }
 
         function stopScraping() {
-            fetch('/api/google-scrape/stop', { method: 'POST', headers: { 'X-Api-Key': API_KEY } })
-                .then(function(r) { return r.json(); })
-                .then(function(d) { if (d.success) { isRunning = false; updateControlButtons(false); updateStatusBadge('idle', 'Zatrzymane'); } });
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            fetch('@Url.Action("StopScraping", "GoogleScraper")', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': token
+                }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) {
+                    updateControlButtons(false);
+                    updateStatusBadge('idle', 'Zatrzymane');
+                }
+            });
         }
 
         function resetRejected() {
-            var token = document.querySelector('input[name="__RequestVerificationToken"]');
-            fetch('@Url.Action("ResetRejected", "GoogleScraper")', { method: 'POST', headers: { 'RequestVerificationToken': token ? token.value : '' } }).then(refreshStats);
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            fetch('@Url.Action("ResetRejected", "GoogleScraper")', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': token }
+            }).then(refreshStats);
         }
 
         function clearData() {
             if (!confirm('Czy na pewno chcesz wyczyścić wszystkie zebrane dane?')) return;
-            var token = document.querySelector('input[name="__RequestVerificationToken"]');
-            fetch('@Url.Action("ClearData", "GoogleScraper")', { method: 'POST', headers: { 'RequestVerificationToken': token ? token.value : '' } }).then(function() { location.reload(); });
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            fetch('@Url.Action("ClearData", "GoogleScraper")', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': token }
+            }).then(function() { location.reload(); });
         }
 
         function pauseScraper(name) {
             var fd = new FormData(); fd.append('scraperName', name);
-            var token = document.querySelector('input[name="__RequestVerificationToken"]');
-            fetch('@Url.Action("PauseScraper", "GoogleScraper")', { method: 'POST', body: fd, headers: { 'RequestVerificationToken': token ? token.value : '' } });
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            fetch('@Url.Action("PauseScraper", "GoogleScraper")', {
+                method: 'POST',
+                body: fd,
+                headers: { 'RequestVerificationToken': token }
+            });
         }
 
         function resumeScraper(name) {
             var fd = new FormData(); fd.append('scraperName', name);
-            var token = document.querySelector('input[name="__RequestVerificationToken"]');
-            fetch('@Url.Action("ResumeScraper", "GoogleScraper")', { method: 'POST', body: fd, headers: { 'RequestVerificationToken': token ? token.value : '' } });
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            fetch('@Url.Action("ResumeScraper", "GoogleScraper")', {
+                method: 'POST',
+                body: fd,
+                headers: { 'RequestVerificationToken': token }
+            });
         }
 
         function refreshStats() {
-            fetch('/ManagerPanel/GoogleOfferScraper/api/stats').then(function(r) { return r.json(); }).then(updateStats);
+            // Używamy Url.Action do pobrania statystyk (API wewnątrz controllera MVC)
+            fetch('@Url.Action("GetStats", "GoogleScraper")')
+                .then(function(r) { return r.json(); })
+                .then(updateStats);
         }
 
-        
         document.addEventListener('DOMContentLoaded', function() {
             initSpeedChart();
+            initialBaseCount = 0;
             setInterval(updateElapsedTime, 1000);
             setInterval(refreshStats, 5000);
-            console.log('[Init] Tabela: ' + document.querySelectorAll('#urlsTableBody tr').length + ' wierszy');
 
             var searchBox = document.getElementById('searchBox');
             if (searchBox) {
                 searchBox.addEventListener('input', applyCurrentFilter);
-            } else {
-                console.error("Nie znaleziono elementu searchBox!");
             }
         });
     </script>

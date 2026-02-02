@@ -85,7 +85,7 @@ namespace PriceSafari.Services.GoogleScraping
     {
         // === Konfiguracja ===
         public const int BatchSize = 100;
-        public const int BatchTimeoutSeconds = 600; // 10 minut
+        public const int BatchTimeoutSeconds = 300; // 10 minut
         public const int ScraperOfflineThresholdSeconds = 120;
         public const int MaxLogEntries = 300;
 
@@ -299,11 +299,23 @@ namespace PriceSafari.Services.GoogleScraping
                 stats.TotalPricesCollected += pricesCollected;
                 stats.LastActivityAt = DateTime.UtcNow;
 
+                // POPRAWIONE OBLICZANIE PRĘDKOŚCI
+                // Teraz FirstSeenAt jest świeże (ustawione w ResetForNewProcess),
+                // więc prędkość będzie liczona poprawnie dla bieżącej sesji.
                 if (stats.FirstSeenAt.HasValue)
                 {
                     var totalMinutes = (DateTime.UtcNow - stats.FirstSeenAt.Value).TotalMinutes;
-                    if (totalMinutes > 0)
+
+                    // Zabezpieczenie przed dzieleniem przez bardzo małe liczby na samym starcie
+                    if (totalMinutes > 0.01)
+                    {
                         stats.UrlsPerMinute = Math.Round(stats.TotalUrlsProcessed / totalMinutes, 1);
+                    }
+                    else
+                    {
+                        // Jeśli minęło mniej niż ułamek sekundy, estymujemy na podstawie tej paczki
+                        stats.UrlsPerMinute = batch.ProcessedCount * 60;
+                    }
                 }
             }
 
@@ -362,6 +374,7 @@ namespace PriceSafari.Services.GoogleScraping
             AssignedBatches.Clear();
             _batchCounter = 0;
 
+            // Resetujemy statystyki dla KAŻDEGO znanego scrapera
             foreach (var stats in ScraperStatistics.Values)
             {
                 stats.TotalUrlsProcessed = 0;
@@ -374,14 +387,29 @@ namespace PriceSafari.Services.GoogleScraping
                 stats.CurrentBatchNumber = 0;
                 stats.UrlsPerMinute = 0;
                 stats.NukeCount = 0;
+
+                // KLUCZOWA ZMIANA:
+                // Resetujemy czas "FirstSeenAt" na TERAZ. 
+                // Dzięki temu obliczanie prędkości (URL/min) zacznie się od zera dla nowej sesji.
+                stats.FirstSeenAt = DateTime.UtcNow;
+                stats.LastActivityAt = DateTime.UtcNow;
             }
 
+            // Resetujemy stan aktywnych scraperów
             foreach (var scraper in ActiveScrapers.Values)
+            {
                 scraper.NukeCount = 0;
+                // Opcjonalnie: Jeśli scraper był w stanie Stopped/Offline, a jest w mapie, 
+                // można go przestawić na Idle, żeby był gotowy do pracy
+                if (scraper.Status == GoogleScraperLiveStatus.Stopped)
+                {
+                    scraper.Status = GoogleScraperLiveStatus.Idle;
+                }
+            }
 
             while (RecentLogs.TryDequeue(out _)) { }
 
-            AddSystemLog("INFO", "🚀 Rozpoczęto nowy proces scrapowania Google");
+            AddSystemLog("INFO", "🚀 Rozpoczęto nowy proces scrapowania Google (Statystyki zresetowane)");
         }
 
         public static void FinishProcess()
