@@ -299,9 +299,7 @@ namespace PriceSafari.Services.GoogleScraping
                 stats.TotalPricesCollected += pricesCollected;
                 stats.LastActivityAt = DateTime.UtcNow;
 
-                // POPRAWIONE OBLICZANIE PRĘDKOŚCI
-                // Teraz FirstSeenAt jest świeże (ustawione w ResetForNewProcess),
-                // więc prędkość będzie liczona poprawnie dla bieżącej sesji.
+          
                 if (stats.FirstSeenAt.HasValue)
                 {
                     var totalMinutes = (DateTime.UtcNow - stats.FirstSeenAt.Value).TotalMinutes;

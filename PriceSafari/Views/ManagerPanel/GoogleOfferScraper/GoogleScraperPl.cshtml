@@ -986,18 +986,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.0/signalr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Dane inicjalne z modelu
+        
         var scrapingStartTime = @(Model.ScrapingStartTime.HasValue ? $"new Date('{Model.ScrapingStartTime.Value:o}')" : "null");
         var isRunning = @(Model.CurrentStatus == PriceSafari.Services.GoogleScraping.GoogleScrapingProcessStatus.Running ? "true" : "false");
         var lastScrapedCount = @Model.DbStats.ScrapedUrls;
 
-        // Zmienne pomocnicze
+      
         var speedChart = null;
         var lastSpeedCheckTime = Date.now();
         var initialBaseCount = 0;
         var currentFilter = 'all';
 
-        // --- USUNIĘTO API_KEY (Bezpieczeństwo) ---
+    
 
         function initSpeedChart() {
             var ctx = document.getElementById('speedChart').getContext('2d');
@@ -1043,7 +1043,7 @@
             });
         }
 
-        // --- SIGNALR CONFIG ---
+     
         var connection = new signalR.HubConnectionBuilder().withUrl("/scrapinghub").withAutomaticReconnect().build();
 
         connection.on("GoogleUpdateScraperStatus", updateScraperCard);
@@ -1057,7 +1057,7 @@
             scrapingStartTime = new Date(data.startTime);
             lastSpeedCheckTime = Date.now();
 
-            // Reset licznika sesji dla wykresu
+       
             var currentCountText = document.getElementById('scrapedUrlCount').textContent;
             initialBaseCount = parseInt(currentCountText) || 0;
 
@@ -1086,7 +1086,7 @@
 
         connection.start().catch(function(err) { console.error('[SignalR] Błąd:', err); });
 
-        // --- FUNKCJE POMOCNICZE UI ---
+       
 
         function updateStatusBadge(status, text) {
             var badge = document.getElementById('statusBadge');
@@ -1119,7 +1119,7 @@
             var statusClass = scraper.status.toLowerCase();
             var statusText = statusClass === 'idle' ? 'Bezczynny' : statusClass === 'busy' ? 'Zajęty' : statusClass === 'offline' ? 'Offline' : statusClass === 'stopped' ? 'Zatrzymany' : 'Reset sieci';
             var urlsPerSec = (scraper.urlsPerMinute / 60).toFixed(2);
-            // Zmieniono wywołanie pause/resume na stringi
+           
             var actionBtn = scraper.isManuallyPaused
                 ? `<button type="button" class="btn-scraper resume" onclick="resumeScraper('${scraper.name}')"><i class="fas fa-play"></i> Wznów</button>`
                 : `<button type="button" class="btn-scraper pause" onclick="pauseScraper('${scraper.name}')"><i class="fas fa-pause"></i> Wstrzymaj</button>`;

@@ -1,15 +1,4 @@
-﻿
-
-
-
-
-
-
-
-
-
-
-using AngleSharp.Dom;
+﻿using AngleSharp.Dom;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using PriceSafari.Data;
@@ -336,68 +325,6 @@ public class ScheduledTaskService : BackgroundService
         }
     }
 
-    //private async Task RunGoogleAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
-    //{
-    //    var googleLog = new TaskExecutionLog
-    //    {
-    //        DeviceName = deviceName,
-    //        OperationName = "GOOGLE_SCRAPER",
-    //        StartTime = DateTime.Now,
-    //        Comment = $"Początek scrapowania Google | SessionName={task.SessionName}; Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
-    //    };
-
-    //    context.TaskExecutionLogs.Add(googleLog);
-    //    await context.SaveChangesAsync(ct);
-
-    //    int googleLogId = googleLog.Id;
-
-    //    try
-    //    {
-    //        var googleScraperService = context.GetService<GoogleScraperService>();
-
-    //        var resultDto = await googleScraperService.StartScraping();
-
-    //        var finishedGoogleLog = await context.TaskExecutionLogs.FindAsync(googleLogId, ct);
-    //        if (finishedGoogleLog != null)
-    //        {
-    //            finishedGoogleLog.EndTime = DateTime.Now;
-
-    //            double totalSeconds = (finishedGoogleLog.EndTime.Value - finishedGoogleLog.StartTime).TotalSeconds;
-    //            double urlsPerSecond = (totalSeconds > 0 && resultDto.TotalUrlsToScrape > 0)
-    //                ? resultDto.TotalUrlsToScrape / totalSeconds
-    //                : 0;
-
-    //            switch (resultDto.Result)
-    //            {
-    //                case GoogleScraperService.GoogleScrapingResult.Success:
-    //                    finishedGoogleLog.Comment += $" | Sukces. Zmielono: {resultDto.TotalScraped}/{resultDto.TotalUrlsToScrape} produktów, odrzucono: {resultDto.TotalRejected}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
-    //                    break;
-    //                case GoogleScraperService.GoogleScrapingResult.NoProductsToScrape:
-    //                    finishedGoogleLog.Comment += " | Brak produktów do scrapowania.";
-    //                    break;
-    //                case GoogleScraperService.GoogleScrapingResult.SettingsNotFound:
-    //                    finishedGoogleLog.Comment += " | Błąd: Brak Settings w bazie.";
-    //                    break;
-    //                default:
-    //                    finishedGoogleLog.Comment += $" | Wystąpił błąd. Szczegóły: {resultDto.Message}";
-    //                    break;
-    //            }
-    //            context.TaskExecutionLogs.Update(finishedGoogleLog);
-    //            await context.SaveChangesAsync(ct);
-    //        }
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        var finishedLog = await context.TaskExecutionLogs.FindAsync(googleLogId, ct);
-    //        if (finishedLog != null)
-    //        {
-    //            finishedLog.EndTime = DateTime.Now;
-    //            finishedLog.Comment += $" | Wystąpił błąd w GoogleScraper: {ex.Message}";
-    //            context.TaskExecutionLogs.Update(finishedLog);
-    //            await context.SaveChangesAsync(ct);
-    //        }
-    //    }
-    //}
 
     private async Task RunGoogleAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
