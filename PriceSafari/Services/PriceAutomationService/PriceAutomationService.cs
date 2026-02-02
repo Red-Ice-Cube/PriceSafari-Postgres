@@ -502,6 +502,7 @@ namespace PriceSafari.Services.PriceAutomationService
             var competitorRules = GetCompetitorRulesForMarketplace(rule.CompetitorPreset);
             string myStoreNameAllegro = rule.Store.StoreNameAllegro;
 
+            bool includeNoDelivery = rule.CompetitorPreset?.IncludeNoDeliveryInfo ?? true;
             int minDelivery = rule.CompetitorPreset?.MinDeliveryDays ?? 0;
             int maxDelivery = rule.CompetitorPreset?.MaxDeliveryDays ?? 31;
 
@@ -532,12 +533,33 @@ namespace PriceSafari.Services.PriceAutomationService
                 var extInfo = extendedInfos.FirstOrDefault(x => x.AllegroProductId == p.AllegroProductId);
 
                 var rawCompetitors = histories
-                    .Where(h => h.Price > 0
-                             && (targetOfferId == null || h.IdAllegro != targetOfferId)
-                             && (h.SellerName == null || !h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase))
-                             && (h.DeliveryTime ?? 31) >= minDelivery
-                             && (h.DeliveryTime ?? 31) <= maxDelivery
-                            )
+                    .Where(h =>
+                    {
+                        // 1. Podstawowe warunki (cena, nie nasza oferta)
+                        if (h.Price <= 0) return false;
+                        if (targetOfferId != null && h.IdAllegro == targetOfferId) return false;
+                        if (h.SellerName != null && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase)) return false;
+
+                        // 2. LOGIKA DOSTAWY (zgodna z filtrami na froncie)
+                        if (h.DeliveryTime.HasValue)
+                        {
+                            // Jest czas dostawy -> sprawdzamy suwaki
+                            if (h.DeliveryTime.Value < minDelivery || h.DeliveryTime.Value > maxDelivery)
+                            {
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            // Brak czasu dostawy (NULL) -> sprawdzamy checkbox
+                            if (!includeNoDelivery)
+                            {
+                                return false;
+                            }
+                        }
+
+                        return true;
+                    })
                     .ToList();
 
                 var filteredCompetitors = new List<AllegroPriceHistory>();
