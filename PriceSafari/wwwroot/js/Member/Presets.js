@@ -199,6 +199,18 @@ document.addEventListener("change", async function (event) {
         hideLoading();
     }
 
+    if (event.target && event.target.id === "includeNoDeliveryInfoCheckbox") {
+        if (!window.currentPreset || window.currentPreset.presetId === null) {
+
+            return;
+        }
+
+        window.currentPreset.includeNoDeliveryInfo = event.target.checked;
+        showLoading();
+        await saveOrUpdatePreset();
+        hideLoading();
+    }
+
     if (event.target && (event.target.id === "googleCheckbox" || event.target.id === "ceneoCheckbox")) {
         const googleChk = document.getElementById("googleCheckbox");
         const ceneoChk = document.getElementById("ceneoCheckbox");
@@ -271,6 +283,7 @@ async function loadBaseView() {
             sourceGoogle: true,
             sourceCeneo: true,
             useUnmarkedStores: true,
+            includeNoDeliveryInfo: true,
             minDeliveryDays: 0,
             maxDeliveryDays: 31,
             competitors: []
@@ -310,6 +323,7 @@ async function loadBaseView() {
         const deliverySection = document.getElementById("deliveryFilterSection");
         const sliderMin = document.getElementById("deliverySliderMin");
         const sliderMax = document.getElementById("deliverySliderMax");
+        const noDeliveryCheckbox = document.getElementById("includeNoDeliveryInfoCheckbox");
 
         if (deliverySection) {
             if (presetTypeContext === 1) {
@@ -324,6 +338,10 @@ async function loadBaseView() {
                     deliverySection.classList.add("disabled-section");
 
                     updateDualSlider();
+                }
+                if (noDeliveryCheckbox) {
+                    noDeliveryCheckbox.checked = true;
+                    noDeliveryCheckbox.disabled = true;
                 }
             } else {
                 deliverySection.style.display = "none";
@@ -413,6 +431,7 @@ async function loadSelectedPreset(presetId) {
             sourceGoogle: preset.sourceGoogle,
             sourceCeneo: preset.sourceCeneo,
             useUnmarkedStores: preset.useUnmarkedStores,
+            includeNoDeliveryInfo: (preset.includeNoDeliveryInfo !== undefined) ? preset.includeNoDeliveryInfo : true,
             minDeliveryDays: (preset.minDeliveryDays !== undefined) ? preset.minDeliveryDays : 0,
             maxDeliveryDays: (preset.maxDeliveryDays !== undefined) ? preset.maxDeliveryDays : 31,
             competitors: (preset.competitorItems || []).map(ci => ({
@@ -435,6 +454,7 @@ async function loadSelectedPreset(presetId) {
         const deliverySection = document.getElementById("deliveryFilterSection");
         const sliderMin = document.getElementById("deliverySliderMin");
         const sliderMax = document.getElementById("deliverySliderMax");
+        const noDeliveryCheckbox = document.getElementById("includeNoDeliveryInfoCheckbox");
 
         if (deliverySection) {
             if (presetTypeContext === 1) {
@@ -454,6 +474,10 @@ async function loadSelectedPreset(presetId) {
                     sliderMax.onchange = saveOrUpdatePreset;
 
                     updateDualSlider();
+                }
+                if (noDeliveryCheckbox) {
+                    noDeliveryCheckbox.checked = window.currentPreset.includeNoDeliveryInfo;
+                    noDeliveryCheckbox.disabled = false; 
                 }
             } else {
                 deliverySection.style.display = "none";
@@ -928,6 +952,10 @@ document.addEventListener("click", async function (event) {
             sourceGoogle: true,
             sourceCeneo: true,
             useUnmarkedStores: true,
+            includeNoDeliveryInfo: true,
+            includeNoDeliveryInfo: true, 
+            minDeliveryDays: 0,          
+            maxDeliveryDays: 31,
             competitors: []
         };
 
