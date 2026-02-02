@@ -253,6 +253,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     List<AllegroPriceHistory> filteredCompetitors;
 
+                    bool includeNoDelivery = activePreset?.IncludeNoDeliveryInfo ?? true;
                     int minDelivery = activePreset?.MinDeliveryDays ?? 0;
                     int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
 
@@ -260,19 +261,42 @@ namespace PriceSafari.Controllers.MemberControllers
                     {
                         filteredCompetitors = g.Where(p =>
                         {
-
+                            // 1. Wykluczamy własny sklep
                             if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                             {
                                 return false;
                             }
 
+                            // --- STARA LOGIKA (DO USUNIĘCIA/ZASTĄPIENIA) ---
+                            /*
                             int deliveryDays = p.DeliveryTime ?? 31;
                             if (deliveryDays < minDelivery || deliveryDays > maxDelivery)
                             {
                                 return false;
-
                             }
+                            */
 
+                            // --- NOWA LOGIKA ---
+                            if (p.DeliveryTime.HasValue)
+                            {
+                                // Mamy konkretną liczbę dni - sprawdzamy zakres suwaków
+                                if (p.DeliveryTime.Value < minDelivery || p.DeliveryTime.Value > maxDelivery)
+                                {
+                                    return false;
+                                }
+                            }
+                            else
+                            {
+                                // Czas dostawy to NULL (brak danych) - decyduje checkbox
+                                if (!includeNoDelivery)
+                                {
+                                    return false;
+                                }
+                                // Jeśli includeNoDelivery == true, to przechodzimy dalej (oferta jest OK pod kątem dostawy)
+                            }
+                            // -------------------
+
+                            // 3. Sprawdzanie nazw konkurentów (bez zmian)
                             var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
                             if (competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
                             {
@@ -283,7 +307,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                     else
                     {
-
+                        // Brak aktywnego presetu - bierzemy wszystko (oprócz siebie)
+                        // Tutaj NULL w dostawie przechodzi automatycznie, bo nie ma warunku Where na delivery
                         filteredCompetitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
                     }
 
@@ -791,7 +816,7 @@ namespace PriceSafari.Controllers.MemberControllers
                                 aph.Price > 0)
                 .ToListAsync();
             List<AllegroPriceHistory> filteredOffers;
-
+            bool includeNoDelivery = activePreset?.IncludeNoDeliveryInfo ?? true;
             int minDelivery = activePreset?.MinDeliveryDays ?? 0;
             int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
 
@@ -801,18 +826,27 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 filteredOffers = allOffersForProduct.Where(p =>
                 {
-
+                    // Własny sklep zawsze pokazujemy w details
                     if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                     {
                         return true;
                     }
 
-                    int deliveryDays = p.DeliveryTime ?? 31;
-
-                    if (deliveryDays < minDelivery || deliveryDays > maxDelivery)
+                    // NOWA LOGIKA DOSTAWY
+                    if (p.DeliveryTime.HasValue)
                     {
-                        return false;
-
+                        if (p.DeliveryTime.Value < minDelivery || p.DeliveryTime.Value > maxDelivery)
+                        {
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        // Brak informacji o dostawie
+                        if (!includeNoDelivery)
+                        {
+                            return false;
+                        }
                     }
 
                     var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
@@ -957,7 +991,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(aph => aph.AllegroProductId == productId && scrapIds.Contains(aph.AllegroScrapeHistoryId))
                 .Where(aph => aph.Price > 0)
                 .ToListAsync();
-
+            bool includeNoDelivery = activePreset?.IncludeNoDeliveryInfo ?? true;
             int minDelivery = activePreset?.MinDeliveryDays ?? 0;
             int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
 
@@ -966,19 +1000,27 @@ namespace PriceSafari.Controllers.MemberControllers
                     .Where(ph => ph.AllegroScrapeHistoryId == scrap.Id);
 
                 List<AllegroPriceHistory> filteredDailyOffers;
-
                 if (activePreset != null)
                 {
                     filteredDailyOffers = allDailyOffers.Where(p =>
                     {
-
                         if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                             return true;
 
-                        int deliveryDays = p.DeliveryTime ?? 31;
-                        if (deliveryDays < minDelivery || deliveryDays > maxDelivery)
+                        // NOWA LOGIKA DOSTAWY
+                        if (p.DeliveryTime.HasValue)
                         {
-                            return false;
+                            if (p.DeliveryTime.Value < minDelivery || p.DeliveryTime.Value > maxDelivery)
+                            {
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            if (!includeNoDelivery)
+                            {
+                                return false;
+                            }
                         }
 
                         var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
