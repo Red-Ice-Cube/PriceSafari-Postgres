@@ -2876,6 +2876,7 @@
             const priceChangeEvent = new CustomEvent('priceBoxChange', {
                 detail: {
                     productId: String(item.productId),
+                    myIdAllegro: item.myIdAllegro, 
                     productName: item.productName,
                     currentPrice: currentPriceValue,
                     newPrice: suggestedPrice,

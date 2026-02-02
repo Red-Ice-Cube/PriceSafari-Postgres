@@ -15,7 +15,7 @@ namespace PriceSafari.Models.ViewModels
         public bool SourceGoogle { get; set; }
         public bool SourceCeneo { get; set; }
         public bool UseUnmarkedStores { get; set; }
-
+        public bool IncludeNoDeliveryInfo { get; set; }
         public int MinDeliveryDays { get; set; }
         public int MaxDeliveryDays { get; set; }
 

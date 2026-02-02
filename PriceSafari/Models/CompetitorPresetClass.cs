@@ -25,8 +25,9 @@ namespace PriceSafari.Models
         public bool SourceCeneo { get; set; } = true;
         public bool UseUnmarkedStores { get; set; } = true;
 
-        public int MinDeliveryDays { get; set; } = 0; // 0 = Natychmiast
+        public int MinDeliveryDays { get; set; } = 0; 
         public int MaxDeliveryDays { get; set; } = 31;
+        public bool IncludeNoDeliveryInfo { get; set; } = true;
 
         public bool NowInUse { get; set; }
         public List<CompetitorPresetItem> CompetitorItems { get; set; } = new List<CompetitorPresetItem>();
