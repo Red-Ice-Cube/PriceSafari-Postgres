@@ -6,7 +6,6 @@
 }
 
 <style>
-
     .form-actions-sticky {
         position: sticky;
         top: 0;
@@ -27,8 +26,13 @@
     }
 </style>
 
-<form asp-action="EditStore" asp-route-storeId="@Model.StoreId" method="post">
+@* ZABEZPIECZENIE 1: autocomplete="off" dla formularza *@
+<form asp-action="EditStore" asp-route-storeId="@Model.StoreId" method="post" autocomplete="off">
     <input type="hidden" asp-for="StoreId" />
+
+    @* ZABEZPIECZENIE 2: Fałszywe pola, które ściągają na siebie automatyczne logowanie przeglądarki *@
+    <input style="display:none" type="text" name="fakeusernameremembered" />
+    <input style="display:none" type="password" name="fakepasswordremembered" />
 
     <div class="form-actions-sticky">
         <h2 class="h4 mb-0">Edytujesz: @Model.StoreName</h2>
@@ -46,18 +50,18 @@
             <div class="form-row">
                 <div class="form-group col-md-6">
                     <label asp-for="StoreName">Nazwa sklepu</label>
-                    <input asp-for="StoreName" class="form-control" placeholder="Np. Akson" />
+                    <input asp-for="StoreName" class="form-control" placeholder="Np. Akson" autocomplete="off" />
                     <span asp-validation-for="StoreName" class="text-danger"></span>
                 </div>
                 <div class="form-group col-md-6">
                     <label asp-for="StoreProfile">Profil sklepu Ceneo</label>
-                    <input asp-for="StoreProfile" class="form-control" placeholder="Np. Sklep z elektroniką" />
+                    <input asp-for="StoreProfile" class="form-control" placeholder="Np. Sklep z elektroniką" autocomplete="off" />
                     <span asp-validation-for="StoreProfile" class="text-danger"></span>
                 </div>
             </div>
             <div class="form-group">
                 <label asp-for="StoreLogoUrl">URL logo sklepu</label>
-                <input asp-for="StoreLogoUrl" class="form-control" placeholder="https://.../logo.png" />
+                <input asp-for="StoreLogoUrl" class="form-control" placeholder="https://.../logo.png" autocomplete="off" />
                 <span asp-validation-for="StoreLogoUrl" class="text-danger"></span>
             </div>
         </div>
@@ -88,17 +92,13 @@
                 <div class="form-row">
                     <div class="form-group col-md-6">
                         <label asp-for="StoreApiUrl">URL API</label>
-                        <input asp-for="StoreApiUrl" class="form-control" placeholder="https://sklep.pl/api" />
+                        <input asp-for="StoreApiUrl" class="form-control" placeholder="https://sklep.pl/api" autocomplete="off" />
                         <span asp-validation-for="StoreApiUrl" class="text-danger"></span>
                     </div>
                     <div class="form-group col-md-6">
                         <label asp-for="StoreApiKey">Klucz API</label>
-                        <div class="input-group">
-                            <input asp-for="StoreApiKey" class="form-control" type="password" id="storeApiKeyInput" />
-                            <div class="input-group-append">
-                                <button class="btn btn-outline-secondary" type="button" onclick="toggleStoreKey()">👁️</button>
-                            </div>
-                        </div>
+                        @* ZMIANA: Zwykłe pole tekstowe (type="text"), bez oka, bez ukrywania *@
+                        <input asp-for="StoreApiKey" class="form-control" type="text" autocomplete="off" />
                         <span asp-validation-for="StoreApiKey" class="text-danger"></span>
                     </div>
                 </div>
@@ -108,12 +108,12 @@
             <div class="form-row">
                 <div class="form-group col-md-6">
                     <label asp-for="ProductMapXmlUrl">URL pliku XML (Ceneo)</label>
-                    <input asp-for="ProductMapXmlUrl" class="form-control" placeholder="Adres do pliku XML z produktami" />
+                    <input asp-for="ProductMapXmlUrl" class="form-control" placeholder="Adres do pliku XML z produktami" autocomplete="off" />
                     <span asp-validation-for="ProductMapXmlUrl" class="text-danger"></span>
                 </div>
                 <div class="form-group col-md-6">
                     <label asp-for="ProductMapXmlUrlGoogle">URL pliku XML (Google)</label>
-                    <input asp-for="ProductMapXmlUrlGoogle" class="form-control" placeholder="Adres do pliku XML dla Google" />
+                    <input asp-for="ProductMapXmlUrlGoogle" class="form-control" placeholder="Adres do pliku XML dla Google" autocomplete="off" />
                     <span asp-validation-for="ProductMapXmlUrlGoogle" class="text-danger"></span>
                 </div>
             </div>
@@ -128,17 +128,17 @@
             <div class="form-row">
                 <div class="form-group col-md-4">
                     <label asp-for="StoreNameCeneo">Nazwa sklepu w Ceneo</label>
-                    <input asp-for="StoreNameCeneo" class="form-control" />
+                    <input asp-for="StoreNameCeneo" class="form-control" autocomplete="off" />
                     <span asp-validation-for="StoreNameCeneo" class="text-danger"></span>
                 </div>
                 <div class="form-group col-md-4">
                     <label asp-for="StoreNameGoogle">Nazwa sklepu w Google</label>
-                    <input asp-for="StoreNameGoogle" class="form-control" />
+                    <input asp-for="StoreNameGoogle" class="form-control" autocomplete="off" />
                     <span asp-validation-for="StoreNameGoogle" class="text-danger"></span>
                 </div>
                 <div class="form-group col-md-4">
                     <label asp-for="StoreNameAllegro">Nazwa sklepu w Allegro</label>
-                    <input asp-for="StoreNameAllegro" class="form-control" />
+                    <input asp-for="StoreNameAllegro" class="form-control" autocomplete="off" />
                     <span asp-validation-for="StoreNameAllegro" class="text-danger"></span>
                 </div>
             </div>
@@ -226,7 +226,7 @@
             <div class="form-row">
                 <div class="form-group col-md-6">
                     <label asp-for="PaymentData.CompanyName">Pełna nazwa firmy</label>
-                    <input asp-for="PaymentData.CompanyName" class="form-control" placeholder="Pełna nazwa firmy" />
+                    <input asp-for="PaymentData.CompanyName" class="form-control" placeholder="Pełna nazwa firmy" autocomplete="off" />
                     <span asp-validation-for="PaymentData.CompanyName" class="text-danger"></span>
                 </div>
                 <div class="form-group col-md-6">
@@ -236,6 +236,7 @@
                            placeholder="Tylko cyfry (10 znaków)"
                            maxlength="10"
                            pattern="\d{10}"
+                           autocomplete="off"
                            oninput="this.value = this.value.replace(/[^0-9]/g, '')" />
                     <span asp-validation-for="PaymentData.NIP" class="text-danger"></span>
                 </div>
@@ -243,19 +244,19 @@
 
             <div class="form-group">
                 <label asp-for="PaymentData.Address">Ulica i numer</label>
-                <input asp-for="PaymentData.Address" class="form-control" placeholder="Ulica 1/2" />
+                <input asp-for="PaymentData.Address" class="form-control" placeholder="Ulica 1/2" autocomplete="off" />
                 <span asp-validation-for="PaymentData.Address" class="text-danger"></span>
             </div>
 
             <div class="form-row">
                 <div class="form-group col-md-4">
                     <label asp-for="PaymentData.PostalCode">Kod pocztowy</label>
-                    <input asp-for="PaymentData.PostalCode" class="form-control" placeholder="00-000" />
+                    <input asp-for="PaymentData.PostalCode" class="form-control" placeholder="00-000" autocomplete="off" />
                     <span asp-validation-for="PaymentData.PostalCode" class="text-danger"></span>
                 </div>
                 <div class="form-group col-md-8">
                     <label asp-for="PaymentData.City">Miasto</label>
-                    <input asp-for="PaymentData.City" class="form-control" placeholder="Miasto" />
+                    <input asp-for="PaymentData.City" class="form-control" placeholder="Miasto" autocomplete="off" />
                     <span asp-validation-for="PaymentData.City" class="text-danger"></span>
                 </div>
             </div>
@@ -265,7 +266,7 @@
             <div class="form-row align-items-center">
                 <div class="form-group col-md-8">
                     <label asp-for="PaymentData.InvoiceAutoMail">E-mail do wysyłki faktur</label>
-                    <input asp-for="PaymentData.InvoiceAutoMail" id="invoiceEmailInput" class="form-control" placeholder="faktury@firma.pl" type="email" />
+                    <input asp-for="PaymentData.InvoiceAutoMail" id="invoiceEmailInput" class="form-control" placeholder="faktury@firma.pl" type="email" autocomplete="off" />
                     <span asp-validation-for="PaymentData.InvoiceAutoMail" class="text-danger"></span>
                 </div>
                 <div class="form-group col-md-4">
@@ -397,7 +398,7 @@
                                   class="form-control"
                                   rows="4"
                                   placeholder="eyJhbGciOiJSUzI1NiIs..."
-                                  style="font-family: monospace; font-size: 0.85rem;"></textarea>
+                                  style="font-family: monospace; font-size: 0.85rem;" autocomplete="off"></textarea>
                         <span asp-validation-for="AllegroRefreshToken" class="text-danger"></span>
                     </div>
 
@@ -454,15 +455,7 @@
     @await Html.PartialAsync("_ValidationScriptsPartial")
 
     <script>
-
-        function toggleStoreKey() {
-            var x = document.getElementById("storeApiKeyInput");
-            if (x.type === "password") {
-                x.type = "text";
-            } else {
-                x.type = "password";
-            }
-        }
+        // Usunąłem funkcję toggleStoreKey(), bo już jej nie potrzebujemy
 
         $(document).ready(function () {
 
