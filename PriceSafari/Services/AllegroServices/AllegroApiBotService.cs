@@ -91,8 +91,23 @@ namespace PriceSafari.Services.AllegroServices
             var result = new ApiProcessingResult();
             _logger.LogInformation("Rozpoczynam proces pobierania dodatkowych danych z API Allegro...");
 
+            // W pliku: AllegroApiBotService.cs
+
             var activeStores = await _context.Stores
-                .Where(s => s.OnAllegro && s.FetchExtendedAllegroData && s.IsAllegroTokenActive && !string.IsNullOrEmpty(s.AllegroApiToken))
+                .Where(s =>
+                    s.OnAllegro
+                    && s.FetchExtendedAllegroData
+                    && s.IsAllegroTokenActive // Flaga musi być na TRUE (bezpiecznik)
+
+                    // ZMIANA: Dopuszczamy sklep jeśli ma AccessToken LUB RefreshToken
+                    && (!string.IsNullOrEmpty(s.AllegroApiToken) || !string.IsNullOrEmpty(s.AllegroRefreshToken))
+
+                    && _context.AllegroOffersToScrape.Any(o =>
+                        o.StoreId == s.StoreId
+                        && o.IsScraped == true
+                        && o.IsApiProcessed != true
+                    )
+                )
                 .AsNoTracking()
                 .ToListAsync();
 
