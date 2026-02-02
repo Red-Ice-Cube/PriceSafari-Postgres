@@ -23,7 +23,10 @@ namespace PriceSafari.ScrapersControllers
         public async Task<IActionResult> GoogleScraperPl()
         {
             var dbStats = await _scrapingService.GetDatabaseStatsAsync();
-            var urls = await _scrapingService.GetUrlsAsync(1000);
+
+            // ZMIANA TUTAJ: Usunięto argument 1000, pobieramy wszystko
+            var urls = await _scrapingService.GetUrlsAsync();
+
             var scrapers = GoogleScrapeManager.GetScrapersDetails();
             var logs = GoogleScrapeManager.GetRecentLogs(50);
 

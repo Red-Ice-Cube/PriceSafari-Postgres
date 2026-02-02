@@ -876,17 +876,17 @@ namespace PriceSafari.Services.ScheduleService
             stats.PendingUrls = stats.TotalUrls - stats.ScrapedUrls;
             return stats;
         }
+        // W pliku: PriceSafari.Services.ScheduleService.GoogleScraperService.cs
 
         /// <summary>
-        /// Pobiera listę URLi do widoku
+        /// Pobiera WSZYSTKIE URLe do widoku (bez limitu, naturalna kolejność)
         /// </summary>
-        public async Task<List<GoogleUrlDto>> GetUrlsAsync(int limit = 1000)
+        public async Task<List<GoogleUrlDto>> GetUrlsAsync()
         {
             return await _context.CoOfrs
                 .Where(c => !string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer)
-                .OrderBy(c => c.GoogleIsScraped)
-                .ThenBy(c => c.Id)
-                .Take(limit)
+                // USUNIĘTO: .OrderBy(...) - naturalna kolejność bazy
+                // USUNIĘTO: .Take(limit) - pobieramy wszystko
                 .Select(c => new GoogleUrlDto
                 {
                     Id = c.Id,
