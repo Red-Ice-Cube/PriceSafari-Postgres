@@ -43,8 +43,10 @@ namespace PriceSafari.Controllers
             ViewBag.ProductCount = store.ProductsToScrapAllegro;
             ViewBag.StoreId = storeId;
 
+            // --- POPRAWKA TUTAJ ---
+            // Dodano warunek: && f.StoreId == storeId
             var flags = await _context.Flags
-                .Where(f => f.IsMarketplace)
+                .Where(f => f.IsMarketplace && f.StoreId == storeId)
                 .Select(f => new FlagViewModel
                 {
                     FlagId = f.FlagId,
@@ -52,6 +54,8 @@ namespace PriceSafari.Controllers
                     FlagColor = f.FlagColor
                 })
                 .ToListAsync();
+            // ---------------------
+
             ViewBag.Flags = flags;
 
             return View("~/Views/Panel/Product/AllegroProductList.cshtml");
