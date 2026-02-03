@@ -368,21 +368,32 @@ namespace PriceSafari.Controllers
 
                 foreach (var row in importRows)
                 {
-                    AllegroProductClass productToUpdate = null;
+                    // Zmieniamy logikę na listę celów, bo jeden EAN może pasować do wielu produktów
+                    var targets = new List<AllegroProductClass>();
 
-                    // KROK A: Próba dopasowania po EAN
-                    if (!string.IsNullOrEmpty(row.Ean))
+                    // KROK A: Priorytet - Szukaj po ID (unikalne dla oferty)
+                    if (!string.IsNullOrEmpty(row.IdOnAllegro))
                     {
-                        productToUpdate = products.FirstOrDefault(p => p.AllegroEan == row.Ean);
+                        var productById = products.FirstOrDefault(p => p.IdOnAllegro == row.IdOnAllegro);
+                        if (productById != null)
+                        {
+                            targets.Add(productById);
+                        }
                     }
 
-                    // KROK B: Jeśli nie znaleziono po EAN (lub brak EAN w pliku), szukaj po ID Allegro
-                    if (productToUpdate == null && !string.IsNullOrEmpty(row.IdOnAllegro))
+                    // KROK B: Jeśli NIE znaleziono po ID (lub brak ID), szukaj po EAN
+                    // Uwaga: Pobieramy WSZYSTKIE produkty z tym EANem (Where zamiast FirstOrDefault)
+                    if (!targets.Any() && !string.IsNullOrEmpty(row.Ean))
                     {
-                        productToUpdate = products.FirstOrDefault(p => p.IdOnAllegro == row.IdOnAllegro);
+                        var productsByEan = products.Where(p => p.AllegroEan == row.Ean).ToList();
+                        if (productsByEan.Any())
+                        {
+                            targets.AddRange(productsByEan);
+                        }
                     }
 
-                    if (productToUpdate != null)
+                    // KROK C: Aktualizuj wszystkie znalezione produkty (może być 1, może być wiele, może być 0)
+                    foreach (var productToUpdate in targets)
                     {
                         bool isModified = false;
 
@@ -394,45 +405,34 @@ namespace PriceSafari.Controllers
                             isModified = true;
                         }
 
-                        // 2. Aktualizacja SKU (jeśli jest w pliku)
+                        // 2. Aktualizacja SKU
                         if (!string.IsNullOrEmpty(row.Sku) && productToUpdate.AllegroSku != row.Sku)
                         {
                             productToUpdate.AllegroSku = row.Sku;
                             isModified = true;
                         }
 
-                        // 3. Aktualizacja Flag (jeśli wiersz w Excelu zawiera jakiekolwiek flagi lub kolumna flag istniała)
-                        // Tutaj zakładamy: jeśli wiersz ma flagi, nadpisujemy obecne flagi produktu tymi z Excela.
+                        // 3. Aktualizacja Flag
                         if (row.FlagNames != null && row.FlagNames.Any())
                         {
-                            // Pobierz ID flag z Excela korzystając z naszej mapy
                             var targetFlagIds = row.FlagNames
                                 .Select(fn => fn.Trim().ToUpperInvariant())
                                 .Where(fn => flagMap.ContainsKey(fn))
                                 .Select(fn => flagMap[fn])
                                 .ToList();
 
-                            // Obecne ID flag produktu
                             var currentFlagIds = productToUpdate.ProductFlags.Select(pf => pf.FlagId).ToList();
 
-                            // Sprawdź czy zestawy flag się różnią (uproszczona logika: czy to samo?)
-                            bool flagsChanged = !new HashSet<int>(currentFlagIds).SetEquals(targetFlagIds);
-
-                            if (flagsChanged)
+                            if (!new HashSet<int>(currentFlagIds).SetEquals(targetFlagIds))
                             {
-                                // Usuń stare powiązania
                                 var flagsToRemove = productToUpdate.ProductFlags.ToList();
-                                foreach (var f in flagsToRemove)
-                                {
-                                    _context.ProductFlags.Remove(f);
-                                }
+                                foreach (var f in flagsToRemove) _context.ProductFlags.Remove(f);
 
-                                // Dodaj nowe powiązania
                                 foreach (var flagId in targetFlagIds)
                                 {
                                     _context.ProductFlags.Add(new ProductFlag
                                     {
-                                        AllegroProductId = productToUpdate.AllegroProductId, // Ważne: powiązanie z produktem Allegro
+                                        AllegroProductId = productToUpdate.AllegroProductId,
                                         FlagId = flagId
                                     });
                                 }

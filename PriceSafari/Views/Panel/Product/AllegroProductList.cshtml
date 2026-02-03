@@ -227,6 +227,7 @@
                             @Html.ValidationSummary()
                         </div>
                     }
+
                     <div id="modalAllegroProductStats" style="margin-bottom: 20px; padding: 10px; border: 1px solid #eee; border-radius: 4px; background-color: #f9f9f9;">
                         <h6 style="margin-bottom: 10px; font-weight: bold; color: #333;">Statystyki Produktów Allegro:</h6>
                         <ul class="list-unstyled" style="font-size: 0.9em; line-height: 1.6;">
@@ -239,25 +240,54 @@
                         </ul>
                     </div>
 
-                    <p>Proszę wgrać plik Excel zawierający następujące kolumny:</p>
-                    <ul>
-                        <li><strong>EAN</strong>: Kod EAN produktu Allegro.</li>
-                        <li><strong>CENA</strong>: Cena zakupu produktu BRUTTO (w formacie liczbowym, np. 44,51).</li>
-                    </ul>
-                    <p>Plik może zawierać dodatkowe kolumny, ale tylko 'EAN' i 'CENA' zostaną użyte.</p>
+                    <p class="mb-2">Proszę wgrać plik Excel (.xls, .xlsx). System rozpoznaje kolumny na podstawie nagłówków.</p>
+
+                    <div class="alert alert-secondary" style="padding: 10px; font-size: 0.9em; border-left: 4px solid #333;">
+                        <strong>1. Element Mapujący (Priorytety)</strong><br />
+                        System działa w następującej kolejności:
+                        <ol style="margin-bottom: 5px; margin-top: 5px; padding-left: 20px;">
+                            <li><strong>Priorytet 1: ID Aukcji</strong>. Jeśli w pliku podane jest ID i pasuje do produktu, cena zostanie wgrana tylko do tej jednej oferty (EAN jest wtedy ignorowany).</li>
+                            <li><strong>Priorytet 2: EAN</strong>. Jeśli ID jest puste lub nie znaleziono po nim oferty, system szuka po EAN.</li>
+                        </ol>
+                        <div style="margin-top: 8px;  color: #a00;">
+                            <i class="fas fa-exclamation-triangle"></i> Uwaga dla EAN:
+                            Jeśli w systemie istnieje wiele produktów z tym samym kodem EAN, cena (oraz flagi/SKU) zostanie zaktualizowana we WSZYSTKICH tych produktach jednocześnie.
+                        </div>
+                        <ul style="margin-bottom: 0; margin-top: 10px; padding-left: 20px; color: #555;">
+                            <li>Akceptowane nagłówki ID: <code>ID</code>, <code>IDONALLEGRO</code>, <code>OFFERID</code></li>
+                            <li>Akceptowane nagłówki EAN: <code>EAN</code>, <code>KODEAN</code></li>
+                        </ul>
+                    </div>
+
+                    <div class="alert alert-info" style="padding: 10px; font-size: 0.9em; border-left: 4px solid #17a2b8;">
+                        <strong>2. Dane Wymagane</strong>
+                        <ul style="margin-bottom: 0; margin-top: 5px; padding-left: 20px;">
+                            <li>
+                                <strong>Cena Zakupu</strong> (Brutto) - Nagłówki: <code>CENA</code>, <code>PRICE</code>, <code>CENAZAKUPU</code>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div style="background-color: #fff; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.9em; margin-bottom: 15px;">
+                        <strong>3. Dane Dodatkowe (Opcjonalne)</strong>
+                        <ul style="margin-bottom: 0; margin-top: 5px; padding-left: 20px;">
+                            <li style="margin-bottom: 6px;">
+                                <strong>SKU</strong> - Nagłówki: <code>SKU</code>, <code>SYGNATURA</code>
+                            </li>
+                            <li>
+                                <strong>Flagi</strong> - Nagłówki: <code>FLAGA</code>, <code>FLAGI</code>, <code>FLAGS</code><br />
+                                <span class="text-muted">
+                                    Wpisz nazwy flag oddzielone przecinkami. Brakujące flagi zostaną utworzone automatycznie.
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
+
                     <div class="mb-3">
-                        <label for="uploadedAllegroFile" class="form-label">Wybierz plik (.xls, .xlsx)</label>
+                        <label for="uploadedAllegroFile" class="form-label font-weight-bold">Wybierz plik:</label>
                         <input type="file" name="uploadedFile" id="uploadedAllegroFile" class="form-control" accept=".xls,.xlsx" required />
                     </div>
-                    <p>
-                        <strong>Aktualizacja cen zakupu:</strong>
-                        Jeśli ceny zakupu są już wgrane i chcesz je zaktualizować, wgraj nowy plik. Spowoduje to nadpisanie cen dla produktów, których kody EAN pasują do wpisów w nowym pliku.
-                    </p>
-                    <p style="margin-top:20px;">
-                        <strong>Ważne:</strong>
-                        Jeżeli nowy plik nie zawiera produktów (kodów EAN), dla których wcześniej istniała cena zakupu, ich dotychczasowe ceny nie zostaną zmienione ani usunięte.
-                        Aby mieć pewność, że w systemie znajdują się wyłącznie ceny z nowego pliku (a stare ceny dla produktów nieobecnych w nowym pliku zostały usunięte), najpierw skorzystaj z opcji "Usuń wszystkie ceny zakupu", a dopiero potem wgraj nowy plik.
-                    </p>
+
                     <div id="uploadAllegroClientError" class="alert alert-danger" style="display: none; margin-top: 10px;"></div>
                 </div>
                 <div class="modal-footer">
