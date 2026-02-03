@@ -530,13 +530,218 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.08);
         }
 
-
     .highlighted-text {
-        background-color: rgba(255, 235, 59, 0.6); 
+        background-color: rgba(255, 235, 59, 0.6);
         font-weight: bold;
         color: #000;
         border-radius: 2px;
         padding: 0 2px;
+    }
+
+    .filter-toolbar-wrapper {
+        background: #fff;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        margin-bottom: 0;
+    }
+
+    .filter-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        background: #f8f9fc;
+        border-radius: 6px;
+        border: 1px solid #e3e6f0;
+    }
+
+    .filter-group-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #858796;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-right: 4px;
+        white-space: nowrap;
+    }
+
+    .filter-group-divider {
+        width: 1px;
+        height: 28px;
+        background: #e3e6f0;
+        margin: 0 4px;
+    }
+
+    .filter-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #5a5c69;
+        background: #fff;
+        border: 1px solid #d1d3e2;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+        .filter-btn:hover {
+            background: #f2f2f2;
+            border-color: #e0e0e0;
+        }
+
+        .filter-btn.active {
+            background: #282828;
+            color: #fff;
+            border-color: #282828;
+        }
+
+            .filter-btn.active:hover {
+                background: #000;
+                border-color: #000;
+            }
+
+        .filter-btn .filter-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 18px;
+            padding: 0 5px;
+            font-size: 10px;
+            font-weight: 700;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        .filter-btn.active .filter-count {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .filter-btn[data-filter-key="increase"].active {
+            background: #DC3545;
+            border-color: #DC3545;
+        }
+
+        .filter-btn[data-filter-key="decrease"].active {
+            background: #198754;
+            border-color: #198754;
+        }
+
+        .filter-btn[data-filter-key="maintained"].active {
+            background: rgba(13, 110, 253, 0.7);
+            border-color: rgba(13, 110, 253, 0.7);
+        }
+
+        .filter-btn[data-filter-key="blocked"].active {
+            background: #6C757D;
+            border-color: #6C757D;
+        }
+
+        .filter-btn[data-filter-key="TargetMet"].active {
+            background: rgba(0, 145, 123, 1);
+            border-color: rgba(0, 145, 123, 1);
+        }
+
+        .filter-btn[data-filter-key="TargetMaintained"].active {
+            background: rgba(13, 110, 253, 0.7);
+            border-color: rgba(13, 110, 253, 0.7);
+        }
+
+        .filter-btn[data-filter-key="has-purchase"].active {
+            background: #282828;
+            border-color: #282828;
+        }
+
+        .filter-btn[data-filter-key="PriceLimited"].active {
+            background: #f6c23e;
+            border-color: #f6c23e;
+            color: #333;
+        }
+
+        .filter-btn[data-filter-key="Blocked"].active {
+            background: #6C757D;
+            border-color: #6C757D;
+        }
+
+        .filter-btn[data-filter-key="updated-yes"].active {
+            background: #1cc88a;
+            border-color: #1cc88a;
+        }
+
+        .filter-btn[data-filter-key="updated-no"].active {
+            background: #e74a3b;
+            border-color: #e74a3b;
+        }
+
+        .filter-btn[data-filter-key="missing-own"].active {
+            background: #fd7e14;
+            border-color: #fd7e14;
+        }
+
+        .filter-btn[data-filter-key="no-competition"].active {
+            background: #6f42c1;
+            border-color: #6f42c1;
+        }
+
+    .filter-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #e3e6f0;
+    }
+
+    .filter-summary-text {
+        font-size: 13px;
+        color: #858796;
+    }
+
+    .filter-reset-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #e74a3b;
+        background: #fff;
+        border: 1px solid #e74a3b;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .filter-reset-btn:hover {
+            background: #e74a3b;
+            color: #fff;
+        }
+
+    .filter-btn[data-filter-key="LimitFloor"].active {
+        background: #e74a3b;
+        border-color: #e74a3b;
+    }
+
+    .filter-btn[data-filter-key="LimitCeiling"].active {
+        background: #f6c23e;
+        border-color: #f6c23e;
+        color: #333;
+    }
+
+    tr.filter-hidden {
+        display: none !important;
     }
 </style>
 
@@ -737,7 +942,7 @@
                         <button class="btn btn-success btn-sm shadow-sm"
                                 onclick="executeAutomation()"
                                 title="Wymuś natychmiastowe przeliczenie reguły"
-                                style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-left: 12px; padding-right: 12px;">
+                                style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-left: 12px; padding-right: 12px; height:34px;">
                             <i class="fas fa-play"></i>
                             <span>Aktualizuj ceny teraz</span>
                         </button>
@@ -747,7 +952,7 @@
                         <button class="btn btn-secondary btn-sm shadow-sm"
                                 title="Reguła musi być aktywna, aby można było ją wykonać ręcznie."
                                 onclick="return false;"
-                                style="cursor: not-allowed; opacity: 0.6; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-left: 12px; padding-right: 12px;">
+                                style="cursor: not-allowed; opacity: 0.6; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-left: 12px; padding-right: 12px; height:34px;">
                             <i class="fas fa-play"></i>
                             <span>Aktualizuj ceny teraz</span>
                         </button>
@@ -757,7 +962,7 @@
                 {
                     <button class="btn btn-success btn-sm btn-disabled-access shadow-sm"
                             onclick="showNoAccessAlert()"
-                            style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-left: 12px; padding-right: 12px;">
+                            style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-left: 12px; padding-right: 12px; height:34px;">
                         <i class="fas fa-play"></i>
                         <span>Aktualizuj ceny teraz</span>
                     </button>
@@ -786,9 +991,18 @@
         </div>
     </div>
 
-
     <div class="Vert">
-
+        <div class="filter-toolbar-wrapper">
+            <div class="filter-toolbar" id="filterToolbar">
+           
+            </div>
+            <div class="filter-summary" id="filterSummary">
+                <span class="filter-summary-text">Wyświetlane: <strong id="visibleCount">0</strong> z <strong id="totalCount">0</strong></span>
+                <button class="filter-reset-btn" id="resetFiltersBtn" style="display: none;">
+                    <i class="fas fa-times"></i> Resetuj filtry
+                </button>
+            </div>
+        </div>
         <div class="Vert-full">
             <div class="Vert-table" style="height: 90vh;">
                 <table class="table-orders" id="automationTable" width="100%">
@@ -817,7 +1031,85 @@
                     <tbody>
                         @foreach (var item in Model.Products)
                         {
-                            <tr>
+
+                            string priceChangeType = "none";
+                            if (item.Status == AutomationCalculationStatus.Blocked)
+                            {
+                                priceChangeType = "blocked";
+                            }
+                            else if (item.PriceChange.HasValue && item.PriceChange.Value > 0)
+                            {
+                                priceChangeType = "increase";
+                            }
+                            else if (item.PriceChange.HasValue && item.PriceChange.Value < 0)
+                            {
+                                priceChangeType = "decrease";
+                            }
+                            else if (item.Status == AutomationCalculationStatus.TargetMaintained)
+                            {
+                                priceChangeType = "maintained";
+                            }
+
+                            string limitType = "none";
+
+                            if (item.Status == AutomationCalculationStatus.PriceLimited && item.SuggestedPrice.HasValue)
+                            {
+                                if (item.MinPriceLimit.HasValue &&
+                                Math.Abs(item.SuggestedPrice.Value - item.MinPriceLimit.Value) < 0.01m)
+                                {
+                                    limitType = "floor";
+                                }
+                                else if (item.MaxPriceLimit.HasValue &&
+                                Math.Abs(item.SuggestedPrice.Value - item.MaxPriceLimit.Value) < 0.01m)
+                                {
+                                    limitType = "ceiling";
+                                }
+                                else
+                                {
+                                    if (item.MinPriceLimit.HasValue && item.MaxPriceLimit.HasValue)
+                                    {
+                                        decimal distToMin = Math.Abs(item.SuggestedPrice.Value - item.MinPriceLimit.Value);
+                                        decimal distToMax = Math.Abs(item.SuggestedPrice.Value - item.MaxPriceLimit.Value);
+                                        limitType = distToMin < distToMax ? "floor" : "ceiling";
+                                    }
+                                    else if (item.MinPriceLimit.HasValue)
+                                    {
+                                        limitType = "floor";
+                                    }
+                                    else if (item.MaxPriceLimit.HasValue)
+                                    {
+                                        limitType = "ceiling";
+                                    }
+                                }
+                            }
+
+                            else if (item.Status == AutomationCalculationStatus.Blocked && item.BlockReason == "Blokada Narzutu")
+                            {
+                                limitType = "floor";
+                            }
+
+                            bool isMissingOwnOffer = item.IsMissingPlatformWarning ||
+                            (item.BlockReason != null && item.BlockReason.StartsWith("Brak oferty"));
+
+                            bool isNoCompetition = !item.BestCompetitorPrice.HasValue ||
+                            item.BlockReason == "Brak Danych";
+
+                            <tr data-price-change="@priceChangeType"
+                                data-status="@item.Status.ToString()"
+                                data-limit-type="@limitType"
+                                data-block-reason="@(item.BlockReason ?? "")"
+                                data-has-guarantee="@item.IsBestPriceGuarantee.ToString().ToLower()"
+                                data-is-super-price="@item.IsSuperPrice.ToString().ToLower()"
+                                data-is-top-offer="@item.IsTopOffer.ToString().ToLower()"
+                                data-has-cheaper-own="@item.HasCheaperOwnOffer.ToString().ToLower()"
+                                data-is-subsidy="@(item.IsSubsidyActive.ToString().ToLower())"
+                                data-is-campaign="@(item.IsInAnyCampaign.ToString().ToLower())"
+                                data-is-updated="@item.IsAlreadyUpdated.ToString().ToLower()"
+                                data-has-purchase-price="@item.PurchasePrice.HasValue.ToString().ToLower()"
+                                data-is-commission-included="@(item.IsCommissionIncluded.ToString().ToLower())"
+                                data-has-margin-warning="@item.IsMarginWarning.ToString().ToLower()"
+                                data-missing-own-offer="@isMissingOwnOffer.ToString().ToLower()"
+                                data-no-competition="@isNoCompetition.ToString().ToLower()">
                                 @if (!isMarketplace)
                                 {
                                     <td class="text-center align-middle">
@@ -864,7 +1156,7 @@
                                         }
                                     </div>
                                     <div class="mt-2">
-                                   
+
                                         <button class="select-product-btn"
                                                 data-product-id="@item.ProductId"
                                                 data-product-name="@item.Name"
@@ -903,7 +1195,6 @@
                                                         <div class="d-flex align-items-center">
                                                             <span class="price-actions-display">
 
-                                                             
                                                                 @if (item.PurchasePriceUpdatedDate.HasValue)
                                                                 {
                                                                     <i class="fas fa-clock mr-1"
@@ -912,7 +1203,6 @@
                                                                        title="Cena zakupu została zaktualizowana: @item.PurchasePriceUpdatedDate.Value.ToString("dd.MM.yyyy HH:mm")">
                                                                     </i>
                                                                 }
-                                                            
 
                                                                 @if (canEdit)
                                                                 {
@@ -932,7 +1222,7 @@
                                             {
                                                 <div class="text-center text-gray-400 small purchase-row py-2 border rounded bg-light">
                                                     <span class="ml-2 cursor-pointer" title="Dodaj cenę zakupu">
-                                                      
+
                                                         @if (canEdit)
                                                         {
                                                             <i class="fas fa-plus-circle text-gray-500 edit-btn edit-trigger" style="font-size: 12px;"></i>
@@ -947,7 +1237,6 @@
                                             }
                                         </div>
 
-                                   
                                         <div class="edit-mode d-none bg-white p-2 rounded border shadow-sm" style="position:absolute; z-index:10; width:100%; top:50%; left:0; transform: translateY(-50%);">
                                             <div class="d-flex align-items-center justify-content-between">
                                                 <input type="number" step="0.01" class="price-edit-input" value="@(item.PurchasePrice?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) ?? "")" placeholder="0.00">
@@ -1000,7 +1289,7 @@
                                         {
                                             <div class="TopOffer">Top</div>
                                         }
-                                      
+
                                     </div>
                                     <div class="small text-muted ">@Model.StoreName</div>
                                     @if (item.CommissionAmount.HasValue)
@@ -1028,10 +1317,10 @@
                                             <p>@item.CurrentMarkupAmount.Value.ToString("F2") PLN (@item.CurrentMarkupPercent.Value.ToString("F2")%)</p>
                                         </div>
                                     }
-                                 
+
                                     @if (item.ApiAllegroPriceFromUser.HasValue)
                                     {
-                                  
+
                                         if (item.IsSubsidyActive)
                                         {
                                             <div class="subsidy-stack" style="margin-top: 4px;">
@@ -1039,7 +1328,7 @@
                                                 <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
                                             </div>
                                         }
-                                  
+
                                         else if (item.IsInAnyCampaign)
                                         {
                                             <div class="Campaign-stack" style="margin-top: 4px;">
@@ -1146,7 +1435,6 @@
                                                 </div>
                                             }
 
-                                      
                                             @if (!string.IsNullOrEmpty(item.CurrentRankingCeneo) && item.CurrentRankingCeneo != "-")
                                             {
                                                 <div class="rank-row">
@@ -1160,7 +1448,6 @@
                                                 </div>
                                             }
 
-                                          
                                             @if ((string.IsNullOrEmpty(item.CurrentRankingGoogle) || item.CurrentRankingGoogle == "-") &&
                                                                                 (string.IsNullOrEmpty(item.CurrentRankingCeneo) || item.CurrentRankingCeneo == "-"))
                                             {
@@ -1181,10 +1468,10 @@
                                             }
                                             else
                                             {
-                                            <div style="display: flex; align-items: center; gap: 6px;">
-                                                <span class="price-main-style @(item.IsMarginWarning ? "text-warning" : "text-success")">
-                                                    @(item.SuggestedPrice.HasValue? item.SuggestedPrice.Value.ToString("F2") : "-") PLN
-                                                </span>
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    <span class="price-main-style @(item.IsMarginWarning ? "text-warning" : "text-success")">
+                                                        @(item.SuggestedPrice.HasValue? item.SuggestedPrice.Value.ToString("F2") : "-") PLN
+                                                    </span>
                                                     @if (item.IsMissingPlatformWarning)
                                                     {
                                                         <span class="text-warning"
@@ -1195,17 +1482,17 @@
                                                             <i class="fas fa-exclamation-triangle"></i>
                                                         </span>
                                                     }
-                                                @if (item.IsSuggestedDifferentFromUpdated)
-                                                {
-                                                    <span class="text-warning"
-                                                          style="cursor: help; font-size: 14px;"
-                                                          data-toggle="tooltip"
-                                                          data-html="true"
-                                                          title="Uwaga! Aktualnie wyliczona cena różni się od ceny już wgranej. Zmieniły się warunki (np. krok cenowy, preset danych) lub ustawienia reguły tego automatu cenowego.">
-                                                        <i class="fas fa-exclamation-triangle"></i>
-                                                    </span>
-                                                }
-                                            </div>
+                                                    @if (item.IsSuggestedDifferentFromUpdated)
+                                                    {
+                                                        <span class="text-warning"
+                                                              style="cursor: help; font-size: 14px;"
+                                                              data-toggle="tooltip"
+                                                              data-html="true"
+                                                              title="Uwaga! Aktualnie wyliczona cena różni się od ceny już wgranej. Zmieniły się warunki (np. krok cenowy, preset danych) lub ustawienia reguły tego automatu cenowego.">
+                                                            <i class="fas fa-exclamation-triangle"></i>
+                                                        </span>
+                                                    }
+                                                </div>
                                             }
 
                                             @switch (item.Status)
@@ -1236,30 +1523,25 @@
                                             }
                                         </div>
                                         <div class="small text-muted ">@Model.StoreName</div>
-                                      
+
                                         @{
-                                          
+
                                             bool showUpdatedCommission = item.IsAlreadyUpdated && item.UpdatedCommissionAmount.HasValue;
-    
-                                            
+
                                             decimal? commissionToDisplay = showUpdatedCommission ? item.UpdatedCommissionAmount : item.CommissionAmount;
 
-                                           
                                             decimal? salesPriceForCalc = item.UpdatedPrice ?? item.SuggestedPrice;
 
                                             decimal? finalMarkupAmount = item.MarkupAmount;
                                             decimal? finalMarkupPercent = item.MarkupPercent;
 
-                                           
                                             if (salesPriceForCalc.HasValue && item.PurchasePrice.HasValue && item.PurchasePrice.Value > 0)
                                             {
-                                               
+
                                                 decimal commissionCost = (item.IsCommissionIncluded && commissionToDisplay.HasValue) ? commissionToDisplay.Value : 0;
 
-                                              
                                                 finalMarkupAmount = salesPriceForCalc.Value - item.PurchasePrice.Value - commissionCost;
-        
-                                              
+
                                                 finalMarkupPercent = (finalMarkupAmount.Value / item.PurchasePrice.Value) * 100;
                                             }
                                         }
@@ -2075,23 +2357,22 @@
 
             function filterRows() {
                 const rawTerm = searchInput.value.trim();
-
                 const searchTerm = rawTerm.toLowerCase();
-
                 const highlightTerm = rawTerm;
 
                 let visibleCount = 0;
 
                 tableRows.forEach(rowObj => {
 
-                    const matches = rowObj.searchText.includes(searchTerm);
+                    const isFilterHidden = rowObj.element.classList.contains('filter-hidden');
 
-                    if (matches || searchTerm === '') {
+                    const matchesSearch = rowObj.searchText.includes(searchTerm) || searchTerm === '';
+
+                    if (matchesSearch && !isFilterHidden) {
                         rowObj.element.style.display = '';
                         visibleCount++;
 
                         if (searchTerm !== '') {
-
                             if (rowObj.nameEl) {
                                 rowObj.nameEl.innerHTML = highlightMatches(rowObj.originalNameHtml, highlightTerm);
                             }
@@ -2099,15 +2380,20 @@
                                 rowObj.codeEl.innerHTML = highlightMatches(rowObj.originalCodeHtml, highlightTerm);
                             }
                         } else {
-
                             if (rowObj.nameEl) rowObj.nameEl.innerHTML = rowObj.originalNameHtml;
                             if (rowObj.codeEl) rowObj.codeEl.innerHTML = rowObj.originalCodeHtml;
                         }
-                    } else {
+                    } else if (!isFilterHidden) {
                         rowObj.element.style.display = 'none';
                     }
                 });
 
+                const visibleEl = document.getElementById('visibleCount');
+                if (visibleEl) {
+                    const visible = Array.from(document.querySelectorAll('#automationTable tbody tr'))
+                        .filter(row => row.style.display !== 'none' && !row.classList.contains('filter-hidden')).length;
+                    visibleEl.textContent = visible;
+                }
             }
 
             if (tableBody) {
@@ -2115,6 +2401,268 @@
 
                 searchInput.addEventListener('input', debounce(filterRows, 300));
             }
+        });
+    </script>
+    <script>
+
+        const FilterSystem = (function() {
+            const isMarketplace = @(isMarketplace.ToString().ToLower());
+
+            const filterGroups = [
+                {
+                    id: 'price-changes',
+                    label: 'Zmiany cen',
+                    filters: [
+                        { key: 'increase', label: 'Podwyżki', icon: 'fa-arrow-up', attr: 'data-price-change', value: 'increase' },
+                        { key: 'decrease', label: 'Obniżki', icon: 'fa-arrow-down', attr: 'data-price-change', value: 'decrease' },
+                        { key: 'maintained', label: 'Bez zmian', icon: 'fa-equals', attr: 'data-price-change', value: 'maintained' },
+                        { key: 'blocked', label: 'Zablokowane', icon: 'fa-ban', attr: 'data-price-change', value: 'blocked' }
+                    ]
+                },
+                {
+                    id: 'status',
+                    label: 'Status',
+                    filters: [
+                        { key: 'TargetMet', label: 'Cel osiągnięty', icon: 'fa-check', attr: 'data-status', value: 'TargetMet' },
+                        { key: 'TargetMaintained', label: 'Cel utrzymany', icon: 'fa-check-circle', attr: 'data-status', value: 'TargetMaintained' },
+                        { key: 'LimitFloor', label: 'Limit (podłoga)', icon: 'fa-arrow-down', attr: 'data-limit-type', value: 'floor' },
+                        { key: 'LimitCeiling', label: 'Limit (sufit)', icon: 'fa-arrow-up', attr: 'data-limit-type', value: 'ceiling' },
+                        { key: 'Blocked', label: 'Blokada', icon: 'fa-times', attr: 'data-status', value: 'Blocked' }
+                    ]
+                },
+                {
+                    id: 'upload-status',
+                    label: 'Wgranie',
+                    filters: [
+                        { key: 'updated-yes', label: 'Wgrano', icon: 'fa-cloud-upload-alt', attr: 'data-is-updated', value: 'true' },
+                        { key: 'updated-no', label: 'Nie wgrano', icon: 'fa-clock', attr: 'data-is-updated', value: 'false' }
+                    ]
+                },
+                {
+                    id: 'data-issues',
+                    label: 'Uwagi',
+                    filters: [
+                        { key: 'missing-own', label: 'Brak Twojej oferty', icon: 'fa-store-slash', attr: 'data-missing-own-offer', value: 'true' },
+                        { key: 'no-competition', label: 'Brak konkurencji', icon: 'fa-users-slash', attr: 'data-no-competition', value: 'true' },
+                        { key: 'has-purchase', label: 'Ma cenę zakupu', icon: 'fa-tag', attr: 'data-has-purchase-price', value: 'true' },
+                        { key: 'no-purchase', label: 'Brak ceny zakupu', icon: 'fa-tag', attr: 'data-has-purchase-price', value: 'false' },
+                        { key: 'margin-warning', label: 'Ostrzeżenie narzutu', icon: 'fa-exclamation', attr: 'data-has-margin-warning', value: 'true' }
+                    ]
+                },
+
+                {
+                    id: 'marketplace',
+                    label: 'Allegro',
+                    showIf: isMarketplace,
+                    filters: [
+                        { key: 'guarantee', label: 'Gwarancja najniższej ceny', icon: 'fa-shield-alt', attr: 'data-has-guarantee', value: 'true' },
+                        { key: 'top-offer', label: 'Top oferta', icon: 'fa-star', attr: 'data-is-top-offer', value: 'true' },
+                        { key: 'super-price', label: 'Supercena', icon: 'fa-bolt', attr: 'data-is-super-price', value: 'true' },
+                        { key: 'campaign', label: 'Kampania', icon: 'fa-bullhorn', attr: 'data-is-campaign', value: 'true' },
+                        { key: 'subsidy', label: 'Dopłaty', icon: 'fa-hand-holding-usd', attr: 'data-is-subsidy', value: 'true' },
+                        { key: 'cheaper-own', label: 'Tańsza własna', icon: 'fa-exclamation-triangle', attr: 'data-has-cheaper-own', value: 'true' }
+                    ]
+                }
+            ];
+
+            let activeFilters = new Map();
+            let allRows = [];
+
+            function init() {
+                const tableBody = document.querySelector('#automationTable tbody');
+                if (!tableBody) return;
+
+                allRows = Array.from(tableBody.querySelectorAll('tr'));
+
+                buildFilterUI();
+                updateCounts();
+                bindEvents();
+            }
+
+            function buildFilterUI() {
+                const toolbar = document.getElementById('filterToolbar');
+                if (!toolbar) return;
+
+                toolbar.innerHTML = '';
+
+                filterGroups.forEach(group => {
+
+                    if (group.showIf === false) return;
+
+                    const groupHasProducts = group.filters.some(filter => {
+                        return countMatching(filter.attr, filter.value) > 0;
+                    });
+
+                    const groupEl = document.createElement('div');
+                    groupEl.className = 'filter-group';
+                    groupEl.dataset.groupId = group.id;
+
+                    const labelEl = document.createElement('span');
+                    labelEl.className = 'filter-group-label';
+                    labelEl.innerHTML = `${group.label}`;
+
+                    groupEl.appendChild(labelEl);
+
+                    group.filters.forEach(filter => {
+                        const count = countMatching(filter.attr, filter.value);
+
+                        const btn = document.createElement('button');
+                        btn.className = 'filter-btn';
+                        btn.dataset.filterKey = filter.key;
+                        btn.dataset.filterAttr = filter.attr;
+                        btn.dataset.filterValue = filter.value;
+                        btn.dataset.groupId = group.id;
+
+                        btn.innerHTML = `
+                            <i class="fas ${filter.icon}" style="font-size: 10px;"></i>
+                            ${filter.label}
+                            <span class="filter-count">${count}</span>
+                        `;
+
+                        if (count === 0) {
+                            btn.disabled = true;
+                            btn.style.opacity = '0.5';
+                            btn.style.cursor = 'not-allowed';
+                        }
+
+                        groupEl.appendChild(btn);
+                    });
+
+                    toolbar.appendChild(groupEl);
+                });
+
+                updateTotalCount();
+            }
+
+            function countMatching(attr, value) {
+                return allRows.filter(row => row.getAttribute(attr) === value).length;
+            }
+
+            function updateCounts() {
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    const attr = btn.dataset.filterAttr;
+                    const value = btn.dataset.filterValue;
+                    const count = countMatching(attr, value);
+                    const countEl = btn.querySelector('.filter-count');
+                    if (countEl) countEl.textContent = count;
+                });
+            }
+
+            function updateTotalCount() {
+                const totalEl = document.getElementById('totalCount');
+                const visibleEl = document.getElementById('visibleCount');
+
+                if (totalEl) totalEl.textContent = allRows.length;
+                if (visibleEl) {
+                    const visible = allRows.filter(row => !row.classList.contains('filter-hidden')).length;
+                    visibleEl.textContent = visible;
+                }
+            }
+
+            function bindEvents() {
+                document.getElementById('filterToolbar').addEventListener('click', function(e) {
+                    const btn = e.target.closest('.filter-btn');
+                    if (!btn || btn.disabled) return;
+
+                    const key = btn.dataset.filterKey;
+                    const attr = btn.dataset.filterAttr;
+                    const value = btn.dataset.filterValue;
+
+                    toggleFilter(key, attr, value, btn);
+                });
+
+                document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
+            }
+
+            function toggleFilter(key, attr, value, btn) {
+                if (activeFilters.has(key)) {
+                    activeFilters.delete(key);
+                    btn.classList.remove('active');
+                } else {
+                    activeFilters.set(key, { attr, value });
+                    btn.classList.add('active');
+                }
+
+                applyFilters();
+                updateGroupIndicators();
+                updateResetButton();
+            }
+
+            function applyFilters() {
+                if (activeFilters.size === 0) {
+                    allRows.forEach(row => row.classList.remove('filter-hidden'));
+                } else {
+                    const filtersByAttr = new Map();
+
+                    activeFilters.forEach((filterData, key) => {
+                        if (!filtersByAttr.has(filterData.attr)) {
+                            filtersByAttr.set(filterData.attr, []);
+                        }
+                        filtersByAttr.get(filterData.attr).push(filterData.value);
+                    });
+
+                    allRows.forEach(row => {
+                        let visible = true;
+
+                        filtersByAttr.forEach((values, attr) => {
+                            const rowValue = row.getAttribute(attr);
+                            if (!values.includes(rowValue)) {
+                                visible = false;
+                            }
+                        });
+
+                        if (visible) {
+                            row.classList.remove('filter-hidden');
+                        } else {
+                            row.classList.add('filter-hidden');
+                        }
+                    });
+                }
+
+                updateTotalCount();
+
+                if (typeof updateVisibleProductSelectionButtons === 'function') {
+                    updateVisibleProductSelectionButtons();
+                }
+            }
+
+            function updateGroupIndicators() {
+                document.querySelectorAll('.filter-group').forEach(group => {
+                    const hasActive = group.querySelector('.filter-btn.active');
+                    group.classList.toggle('has-active', !!hasActive);
+                });
+            }
+
+            function updateResetButton() {
+                const resetBtn = document.getElementById('resetFiltersBtn');
+                if (resetBtn) {
+                    resetBtn.style.display = activeFilters.size > 0 ? 'inline-flex' : 'none';
+                }
+            }
+
+            function resetFilters() {
+                activeFilters.clear();
+
+                document.querySelectorAll('.filter-btn.active').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+
+                allRows.forEach(row => row.classList.remove('filter-hidden'));
+
+                updateGroupIndicators();
+                updateResetButton();
+                updateTotalCount();
+            }
+
+            return {
+                init,
+                resetFilters,
+                getActiveFilters: () => Array.from(activeFilters.keys())
+            };
+        })();
+
+        $(document).ready(function() {
+            FilterSystem.init();
         });
     </script>
 }
