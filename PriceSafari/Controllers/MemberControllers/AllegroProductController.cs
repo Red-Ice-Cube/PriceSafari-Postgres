@@ -76,6 +76,10 @@ namespace PriceSafari.Controllers
                     p.AllegroProductId,
                     p.AllegroProductName,
                     p.AllegroOfferUrl,
+                    // --- DODANE POLA ---
+                    p.IdOnAllegro,
+                    p.AllegroSku,
+                    // -------------------
                     p.IsScrapable,
                     p.IsRejected,
                     p.AllegroMarginPrice,

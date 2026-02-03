@@ -24,6 +24,8 @@ namespace PriceSafari.Models
         [MaxLength(50)]
         public string? IdOnAllegro { get; set; }
 
+        public string? AllegroSku { get; set; }
+
         public DateTime AddedDate { get; set; } = DateTime.UtcNow;
 
         public decimal? AllegroMarginPrice { get; set; }
