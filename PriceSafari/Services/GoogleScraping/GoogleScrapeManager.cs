@@ -249,6 +249,30 @@ namespace PriceSafari.Services.GoogleScraping
             return $"GOOGLE-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{counter:D4}";
         }
 
+        /// <summary>
+        /// Zwraca wszystkie ID tasków które są w aktywnych (nieukończonych) paczkach
+        /// </summary>
+        public static HashSet<int> GetAllActiveTaskIds()
+        {
+            var activeIds = new HashSet<int>();
+
+            lock (_batchAssignmentLock)
+            {
+                foreach (var batch in AssignedBatches.Values)
+                {
+                    if (!batch.IsCompleted && !batch.IsTimedOut)
+                    {
+                        foreach (var taskId in batch.TaskIds)
+                        {
+                            activeIds.Add(taskId);
+                        }
+                    }
+                }
+            }
+
+            return activeIds;
+        }
+
         public static void RegisterAssignedBatch(string batchId, string scraperName, List<int> taskIds)
         {
             var batch = new GoogleAssignedBatch

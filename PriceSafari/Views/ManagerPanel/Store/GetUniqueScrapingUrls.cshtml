@@ -78,45 +78,7 @@
             </form>
 
 
-            <div class="scraper-status-panel" style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <h4 style="color: #fff; margin: 0 0 10px 0;">🐍 Python Google Scrapers</h4>
-
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <button id="startPythonScrapingBtn" class="Button-Page-Small-bl">
-                        ▶️ Start Python Scraping
-                    </button>
-                    <button id="stopPythonScrapingBtn" class="Button-Page-Small-r">
-                        ⏹️ Stop Python Scraping
-                    </button>
-                    <button id="refreshScraperStatusBtn" class="Button-Page-Small-b">
-                        🔄 Odśwież status
-                    </button>
-                </div>
-
-                <div id="pythonScraperStatus" style="margin-top: 15px; color: #ccc;">
-                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                        <div>
-                            <strong>Status:</strong>
-                            <span id="scrapingEnabledStatus" style="color: #ff6b6b;">Wyłączone</span>
-                        </div>
-                        <div>
-                            <strong>Aktywne scrapery:</strong>
-                            <span id="activeScrapersCount">0</span>
-                        </div>
-                        <div>
-                            <strong>Postęp:</strong>
-                            <span id="pythonProgress">0%</span>
-                        </div>
-                        <div>
-                            <strong>Pozostało:</strong>
-                            <span id="remainingTasks">-</span>
-                        </div>
-                    </div>
-
-                    <div id="scrapersList" style="margin-top: 10px; font-size: 12px;"></div>
-                </div>
-            </div>
-
+           
 
             <button id="stopScrapingCeneoButton" class="Button-Page-Small-y">Przerwij scrapowanie Ceneo</button>
             <button id="stopScrapingGoogleButton" class="Button-Page-Small-y">Przerwij scrapowanie Google</button>
@@ -556,94 +518,9 @@
                 });
             });
 
-            // ============================================================
-            // PYTHON SCRAPER CONTROL (NOWY SYSTEM)
-            // ============================================================
-            function updatePythonScraperStatus() {
-                $.get('/api/google-scrape/status', function(data) {
-                    console.log('[Python Status]', data);
+        
 
-                    // Status włączenia
-                    if (data.isEnabled) {
-                        $('#scrapingEnabledStatus').text('Włączone').css('color', '#51cf66');
-                    } else {
-                        $('#scrapingEnabledStatus').text('Wyłączone').css('color', '#ff6b6b');
-                    }
 
-                    // Liczniki
-                    $('#activeScrapersCount').text(data.activeScrapersCount);
-                    $('#pythonProgress').text(data.progressPercent + '%');
-                    $('#remainingTasks').text(data.remainingTasks);
-
-                    // Lista scraperów
-                    var scrapersHtml = '';
-                    if (data.activeScrapers && data.activeScrapers.length > 0) {
-                        scrapersHtml = '<div style="margin-top: 5px;">';
-                        data.activeScrapers.forEach(function(s) {
-                            var statusIcon = s.isWorking ? '🟢' : '🟡';
-                            var ago = s.secondsAgo + 's ago';
-                            scrapersHtml += '<span style="margin-right: 15px;">' +
-                                statusIcon + ' ' + s.scraperName +
-                                ' (📊 ' + s.tasksProcessed + ' | ⏱️ ' + ago + ')</span>';
-                        });
-                        scrapersHtml += '</div>';
-                    }
-                    $('#scrapersList').html(scrapersHtml);
-
-                }).fail(function(xhr, status, error) {
-                    console.error('Failed to get scraper status:', status, error);
-                });
-            }
-
-            // START PYTHON SCRAPING
-            $('#startPythonScrapingBtn').on('click', function() {
-                console.log('[Python] Kliknięto START');
-
-                $.ajax({
-                    url: '/api/google-scrape/start',
-                    method: 'POST',
-                    success: function(data) {
-                        console.log('[Python] Start response:', data);
-                        alert('Python scraping started: ' + data.message);
-                        updatePythonScraperStatus();
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('[Python] Start error:', status, error);
-                        alert('Błąd startu: ' + error);
-                    }
-                });
-            });
-
-            // STOP PYTHON SCRAPING
-            $('#stopPythonScrapingBtn').on('click', function() {
-                console.log('[Python] Kliknięto STOP');
-
-                $.ajax({
-                    url: '/api/google-scrape/stop',
-                    method: 'POST',
-                    success: function(data) {
-                        console.log('[Python] Stop response:', data);
-                        alert('Python scraping stopped: ' + data.message);
-                        updatePythonScraperStatus();
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('[Python] Stop error:', status, error);
-                        alert('Błąd stopu: ' + error);
-                    }
-                });
-            });
-
-            // REFRESH STATUS
-            $('#refreshScraperStatusBtn').on('click', function() {
-                console.log('[Python] Odświeżam status');
-                updatePythonScraperStatus();
-            });
-
-            // Auto-refresh co 5s
-            setInterval(updatePythonScraperStatus, 5000);
-
-            // Initial load
-            updatePythonScraperStatus();
 
             // ============================================================
             // COUNTERS UPDATE

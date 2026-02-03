@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using NPOI.SS.Formula.Functions;
 using PriceSafari.Data;
 using PriceSafari.Hubs;
 using PriceSafari.Models;
@@ -16,7 +17,7 @@ namespace PriceSafari.Services.GoogleScraping
         private readonly IHubContext<ScrapingHub> _hubContext;
         private readonly ILogger<GoogleScrapeApiController> _logger;
         private const string ApiKey = "2764udhnJUDI8392j83jfi2ijdo1949rncowp89i3rnfiiui1203kfnf9030rfpPkUjHyHt";
-
+        private static readonly object _batchAssignmentLock = new();
         public GoogleScrapeApiController(
             PriceSafariContext context,
             IHubContext<ScrapingHub> hubContext,
@@ -125,15 +126,58 @@ namespace PriceSafari.Services.GoogleScraping
                 });
             }
 
-            // 6. Pobierz nowe zadania z bazy
-            var offersToScrape = await _context.CoOfrs
-                .Where(c => (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer)
-                            && !c.GoogleIsScraped)
-                .OrderBy(c => c.Id)
-                .Take(GoogleScrapeManager.BatchSize)
-                .ToListAsync();
+            // 6. SEKCJA KRYTYCZNA - przydzielanie paczki z LOCKIEM
+            List<CoOfrClass> offersToScrape;
+            string batchId;
+            List<int> taskIds;
 
-            // 7. Brak zadań
+            lock (_batchAssignmentLock)
+            {
+                // 6a. Pobierz ID wszystkich URL które są już przydzielone w aktywnych paczkach
+                var assignedTaskIds = GoogleScrapeManager.GetAllActiveTaskIds();
+
+                _logger.LogDebug("Aktywne paczki zawierają {Count} URLi", assignedTaskIds.Count);
+
+                // 6b. Pobierz nowe zadania z bazy WYKLUCZAJĄC już przydzielone
+                offersToScrape = _context.CoOfrs
+                    .Where(c => (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer)
+                                && !c.GoogleIsScraped
+                                && !assignedTaskIds.Contains(c.Id))  // ✅ KLUCZOWA ZMIANA!
+                    .OrderBy(c => c.Id)
+                    .Take(GoogleScrapeManager.BatchSize)
+                    .ToList();  // Synchronicznie w ramach locka!
+
+                // 7. Brak zadań
+                if (!offersToScrape.Any())
+                {
+                    // Musimy zwolnić lock przed async operacjami, więc sprawdzamy stan
+                    var anyActiveBatches = GoogleScrapeManager.HasActiveBatches();
+                    var needsFinishCheck = !anyActiveBatches &&
+                                           GoogleScrapeManager.CurrentStatus == GoogleScrapingProcessStatus.Running;
+
+                    // Zwolnij lock - nie mamy co przydzielać
+                    // (lock kończy się automatycznie na końcu bloku)
+
+                    if (needsFinishCheck)
+                    {
+                        // Ten kod wykonuje się PO ZWOLNIENIU LOCKA (bo jesteśmy w if wewnątrz lock)
+                        // Ale to OK - sprawdzamy tylko czy kończyć proces
+                    }
+
+                    // Zwracamy odpowiedź - kontynuacja poniżej
+                    batchId = null!;
+                    taskIds = null!;
+                }
+                else
+                {
+                    // 8. Zarejestruj paczkę NATYCHMIAST w ramach locka
+                    batchId = GoogleScrapeManager.GenerateBatchId();
+                    taskIds = offersToScrape.Select(c => c.Id).ToList();
+                    GoogleScrapeManager.RegisterAssignedBatch(batchId, scraperName, taskIds);
+                }
+            }
+
+            // 7b. Obsługa braku zadań (poza lockiem - możemy robić async)
             if (!offersToScrape.Any())
             {
                 var anyActiveBatches = GoogleScrapeManager.HasActiveBatches();
@@ -171,11 +215,6 @@ namespace PriceSafari.Services.GoogleScraping
                     message = "No pending tasks. Waiting for batches to complete."
                 });
             }
-
-            // 8. Zarejestruj paczkę w managerze
-            var batchId = GoogleScrapeManager.GenerateBatchId();
-            var taskIds = offersToScrape.Select(c => c.Id).ToList();
-            GoogleScrapeManager.RegisterAssignedBatch(batchId, scraperName, taskIds);
 
             // 9. Wyślij aktualizacje na front
             await BroadcastScraperStatus(scraper);
