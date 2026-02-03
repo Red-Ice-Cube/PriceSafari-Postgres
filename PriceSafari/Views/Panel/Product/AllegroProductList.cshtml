@@ -313,21 +313,44 @@
             function renderProducts(products, searchTerm = "") {
                 var tbody = document.getElementById('product-list');
                 tbody.innerHTML = '';
-                products.forEach(function (product) {
-                   var row = document.createElement('tr');
-                    row.dataset.productId = product.allegroProductId; 
-                    var highlightedProductName = searchTerm ? product.allegroProductName.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.allegroProductName;
-                   var eanHtml = '';
-                    if (product.allegroEan) {
 
+                products.forEach(function (product) {
+                    var row = document.createElement('tr');
+                    row.dataset.productId = product.allegroProductId;
+
+                    // Podświetlanie nazwy
+                    var highlightedProductName = searchTerm ? product.allegroProductName.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.allegroProductName;
+
+                    // --- 1. EAN ---
+                    var eanHtml = '';
+                    if (product.allegroEan) {
                         const highlightedEan = searchTerm ? product.allegroEan.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.allegroEan;
                         eanHtml = `<b>EAN:</b> ${highlightedEan}`;
                     } else {
                         eanHtml = '<b style="color: #777;">EAN:</b> <span style="color: #777;">Brak</span>';
                     }
 
+                    // --- 2. ID Aukcji (IdOnAllegro) ---
+                    var idHtml = '';
+                    if (product.idOnAllegro) {
+                        const highlightedId = searchTerm ? product.idOnAllegro.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.idOnAllegro;
+                        idHtml = `<b>ID:</b> ${highlightedId}`;
+                    } else {
+                        idHtml = '<b style="color: #777;">ID:</b> <span style="color: #777;">Brak</span>';
+                    }
+
+                    // --- 3. SKU (AllegroSku) ---
+                    var skuHtml = '';
+                    if (product.allegroSku) {
+                        const highlightedSku = searchTerm ? product.allegroSku.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.allegroSku;
+                        skuHtml = `<b>SKU:</b> ${highlightedSku}`;
+                    } else {
+                        skuHtml = '<b style="color: #777;">SKU:</b> <span style="color: #777;">Brak</span>';
+                    }
+
                     var offerUrlButton = product.allegroOfferUrl ? `<a href="${product.allegroOfferUrl}" rel="noopener noreferrer" class="Button-Page-Small" style="width: 150px;" target="_blank">Allegro</a>` : '';
 
+                    // Logika statusów (bez zmian)
                     var statusBoxClass = "";
                     var statusText = "";
                     var checkboxStatusClass = "";
@@ -373,8 +396,12 @@
                     row.innerHTML = `
                         <td>
                             <div style="width:420px;">
-                                <p style="margin-bottom: 8px;">${highlightedProductName}</p>
-                                <p style="font-size: 0.9em; color: #555;">${eanHtml}</p>
+                                <p style="margin-bottom: 6px; font-weight:500;">${highlightedProductName}</p>
+                                <div style="font-size: 0.85em; color: #555; line-height: 1.5em;">
+                                    <div>${eanHtml}</div>
+                                    <div>${idHtml}</div>
+                                    <div>${skuHtml}</div>
+                                </div>
                             </div>
                         </td>
                         <td>${purchasePriceHtml}</td>
@@ -383,8 +410,8 @@
                         <td>
                             <div style="position: relative; width: 130px; height: 40px;">
                                 <input type="checkbox" class="scrapable-checkbox ${checkboxStatusClass}" data-product-id="${product.allegroProductId}"
-                                       style="position: absolute; top: 0; left: 0; z-index: 2;"
-                                       ${product.isScrapable ? "checked" : ""}/>
+                                     style="position: absolute; top: 0; left: 0; z-index: 2;"
+                                     ${product.isScrapable ? "checked" : ""}/>
                                 <div class="StatusBoxProduct ${statusBoxClass}" style="position: absolute; top: 0; left: 20px; z-index: 1;">
                                     ${statusText}
                                 </div>
@@ -392,9 +419,10 @@
                         </td>
                         <td>${flagsCellContent}</td>`;
 
+                    // Event listener dla checkboxa (bez zmian)
                     row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
                         var productId = this.getAttribute('data-product-id');
-                      fetch('@Url.Action("UpdateScrapableAllegroProduct", "AllegroProduct")?storeId=' + storeId, {
+                       fetch('@Url.Action("UpdateScrapableAllegroProduct", "AllegroProduct")?storeId=' + storeId, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(productId)
@@ -414,17 +442,25 @@
                 document.getElementById('displayed-count').textContent = products.length;
             }
 
-            function filterRows() {
+           function filterRows() {
                 var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked')).map(cb => cb.dataset.status);
                 var searchTerm = searchInput.value.toLowerCase();
-              var filteredProducts = allProducts.filter(p => {
-                    const nameMatch = p.allegroProductName.toLowerCase().includes(searchTerm);
 
+                var filteredProducts = allProducts.filter(p => {
+                    const nameMatch = p.allegroProductName.toLowerCase().includes(searchTerm);
                     const eanMatch = (p.allegroEan || '').toLowerCase().includes(searchTerm);
+
+                    // --- NOWE WARUNKI WYSZUKIWANIA ---
+                    const idMatch = (p.idOnAllegro || '').toLowerCase().includes(searchTerm);
+                    const skuMatch = (p.allegroSku || '').toLowerCase().includes(searchTerm);
+                    // ---------------------------------
+
                     const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(getProductStatus(p));
 
-                    return (nameMatch || eanMatch) && statusMatch;
+                    // Szukamy po nazwie LUB eanie LUB id LUB sku
+                    return (nameMatch || eanMatch || idMatch || skuMatch) && statusMatch;
                 });
+
                 let productsBeforeFlagFilter = [...filteredProducts];
 
                 if (selectedFlagsExclude.size > 0) {
