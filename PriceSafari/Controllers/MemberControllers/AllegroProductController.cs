@@ -151,6 +151,98 @@ namespace PriceSafari.Controllers
             return Json(new { success = true });
         }
 
+
+        [HttpGet]
+        public async Task<IActionResult> DownloadAllegroSkeleton(int storeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userStore = await _context.UserStores.FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
+
+            if (userStore == null) return Forbid();
+
+            // Pobieramy produkty wraz z flagami
+            var products = await _context.AllegroProducts
+                .Include(p => p.ProductFlags)
+                .ThenInclude(pf => pf.Flag) // Ważne: musimy pobrać nazwy flag
+                .Where(p => p.StoreId == storeId)
+                .ToListAsync();
+
+            using (var workbook = new XSSFWorkbook())
+            {
+                var sheet = workbook.CreateSheet("Produkty");
+
+                // --- TWORZENIE NAGŁÓWKA ---
+                // Używamy nazw, które Twój importer rozpoznaje automatycznie
+                var headerRow = sheet.CreateRow(0);
+                headerRow.CreateCell(0).SetCellValue("ID");      // ID Aukcji (Priorytet 1)
+                headerRow.CreateCell(1).SetCellValue("EAN");     // EAN (Priorytet 2)
+                headerRow.CreateCell(2).SetCellValue("SKU");     // Sygnatura
+                headerRow.CreateCell(3).SetCellValue("CENA");    // Cena zakupu
+                headerRow.CreateCell(4).SetCellValue("FLAGI");   // Flagi po przecinku
+
+                // Styl dla nagłówka (opcjonalnie, żeby ładnie wyglądało)
+                var headerStyle = workbook.CreateCellStyle();
+                var font = workbook.CreateFont();
+                font.IsBold = true;
+                headerStyle.SetFont(font);
+                for (int i = 0; i < 5; i++) headerRow.GetCell(i).CellStyle = headerStyle;
+
+                // --- WYPEŁNIANIE DANYMI ---
+                int rowIndex = 1;
+                foreach (var product in products)
+                {
+                    var row = sheet.CreateRow(rowIndex++);
+
+                    // 1. ID
+                    row.CreateCell(0).SetCellValue(product.IdOnAllegro ?? "");
+
+                    // 2. EAN
+                    row.CreateCell(1).SetCellValue(product.AllegroEan ?? "");
+
+                    // 3. SKU
+                    row.CreateCell(2).SetCellValue(product.AllegroSku ?? "");
+
+                    // 4. CENA
+                    if (product.AllegroMarginPrice.HasValue)
+                    {
+                        row.CreateCell(3).SetCellValue((double)product.AllegroMarginPrice.Value);
+                    }
+                    else
+                    {
+                        row.CreateCell(3).SetCellValue(""); // Puste, jeśli brak ceny
+                    }
+
+                    // 5. FLAGI
+                    // Łączymy nazwy flag przecinkami (np. "Wyprzedaż, Nowość")
+                    // Importer to zrozumie i przypisze odpowiednie flagi
+                    if (product.ProductFlags != null && product.ProductFlags.Any())
+                    {
+                        var flagNames = product.ProductFlags
+                            .Select(pf => pf.Flag.FlagName)
+                            .Where(n => !string.IsNullOrEmpty(n));
+
+                        var flagsString = string.Join(", ", flagNames);
+                        row.CreateCell(4).SetCellValue(flagsString);
+                    }
+                    else
+                    {
+                        row.CreateCell(4).SetCellValue("");
+                    }
+                }
+
+                // Autodopasowanie szerokości kolumn
+                for (int i = 0; i < 5; i++) sheet.AutoSizeColumn(i);
+
+                using (var stream = new MemoryStream())
+                {
+                    workbook.Write(stream);
+                    var content = stream.ToArray();
+                    var fileName = $"Allegro_Szkielet_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+                    return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+                }
+            }
+        }
+
         [HttpPost]
 
         public async Task<IActionResult> ResetMultipleScrapableAllegroProducts(int storeId, [FromBody] List<int> productIds)

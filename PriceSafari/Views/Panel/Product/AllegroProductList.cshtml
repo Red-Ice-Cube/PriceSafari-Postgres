@@ -238,6 +238,16 @@
                             <li style="padding-left: 15px;"><span style="font-size:0.9em;">↳ z kodem EAN:</span> <strong id="stat-allegro-active-monitoring-with-ean" class="float-right">Ładowanie...</strong></li>
                             <li style="padding-left: 15px;"><span style="font-size:0.9em;">↳ z wgraną ceną zakupu:</span> <strong id="stat-allegro-active-monitoring-with-purchase-price" class="float-right">Ładowanie...</strong></li>
                         </ul>
+
+                        <hr style="border-top: 1px dashed #ccc; margin: 10px 0;">
+                        <div>
+                            <a href="@Url.Action("DownloadAllegroSkeleton", "AllegroProduct", new { storeId = ViewBag.StoreId })" class="Button-Page-Small" style="text-decoration: none; display: inline-block; padding: 5px 15px; width: auto;">
+                                <i class="fas fa-file-download"></i> Pobierz obecny stan (Excel)
+                            </a>
+                            <div style="font-size: 0.8em; color: #777; margin-top: 5px;">
+                                Pobiera plik ze wszystkimi produktami, gotowy do edycji i ponownego wgrania.
+                            </div>
+                        </div>
                     </div>
 
                     <p class="mb-2">Proszę wgrać plik Excel (.xls, .xlsx). System rozpoznaje kolumny na podstawie nagłówków.</p>
