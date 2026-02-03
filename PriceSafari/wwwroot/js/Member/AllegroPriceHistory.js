@@ -32,6 +32,8 @@
     let selectedAutomationsInclude = new Set();
     let selectedAutomationsExclude = new Set();
     let showCommittedOnly = false;
+    let positionSlider;
+    let offerSlider;
 
     const selectionStorageKey = `selectedAllegroProducts_${storeId}`;
 
@@ -145,6 +147,66 @@
     }
 
     switchMode(currentViewMode);
+
+    positionSlider = document.getElementById('positionRangeSlider');
+    var positionRangeInput = document.getElementById('positionRange');
+
+    if (positionSlider) {
+        noUiSlider.create(positionSlider, {
+            start: [1, 100], 
+            connect: true,
+            range: {
+                'min': 1,
+                'max': 100
+            },
+            step: 1,
+            format: wNumb({ decimals: 0 })
+        });
+
+        positionSlider.noUiSlider.on('update', function (values, handle) {
+            const displayValues = values.map(value => {
+             
+                return 'Pozycja ' + value;
+            });
+            if (positionRangeInput) positionRangeInput.textContent = displayValues.join(' - ');
+        });
+
+        positionSlider.noUiSlider.on('change', function () {
+            filterAndSortPrices(); 
+        });
+    }
+
+  
+    offerSlider = document.getElementById('offerRangeSlider');
+    var offerRangeInput = document.getElementById('offerRange');
+
+    if (offerSlider) {
+        noUiSlider.create(offerSlider, {
+            start: [1, 1], 
+            connect: true,
+            range: {
+                'min': 1,
+                'max': 1
+            },
+            step: 1,
+            format: wNumb({ decimals: 0 })
+        });
+
+        offerSlider.noUiSlider.on('update', function (values, handle) {
+            const displayValues = values.map(value => {
+                const intValue = parseInt(value);
+                let suffix = ' Ofert';
+                if (intValue === 1) suffix = ' Oferta';
+                else if (intValue >= 2 && intValue <= 4) suffix = ' Oferty';
+                return intValue + suffix;
+            });
+            if (offerRangeInput) offerRangeInput.textContent = displayValues.join(' - ');
+        });
+
+        offerSlider.noUiSlider.on('change', function () {
+            filterAndSortPrices();
+        });
+    }
 
     function getMarginBadgeClass(marginClass) {
         switch (marginClass) {
@@ -266,6 +328,15 @@
         document.getElementById('unitLabel2').textContent = unit;
         document.getElementById('unitLabelStepPrice').textContent = unit;
     }
+
+    function extractRankNumber(rankStr) {
+        if (!rankStr) return null;
+        
+        const part = rankStr.toString().split('/')[0].trim();
+        const num = parseInt(part, 10);
+        return isNaN(num) ? null : num;
+    }
+
 
     function convertPriceValue(price) {
         if (price.isRejected) return {
@@ -2573,7 +2644,30 @@
 
                 }
             }
+            if (positionSlider && offerSlider) {
+                const positionValues = positionSlider.noUiSlider.get();
+                const positionMin = parseInt(positionValues[0]);
+                const positionMax = parseInt(positionValues[1]);
 
+                const offerValues = offerSlider.noUiSlider.get();
+                const offerMin = parseInt(offerValues[0]);
+                const offerMax = parseInt(offerValues[1]);
+
+                filtered = filtered.filter(item => {
+                   
+                    const currentPos = extractRankNumber(item.myPricePosition);
+  
+                    let positionMatch = true;
+                    if (currentPos !== null) {
+                        positionMatch = currentPos >= positionMin && currentPos <= positionMax;
+                    }
+                
+                    const currentOffers = item.totalOfferCount || 0;
+                    const offerMatch = currentOffers >= offerMin && currentOffers <= offerMax;
+
+                    return positionMatch && offerMatch;
+                });
+            }
             renderPrices(filtered);
             debouncedRenderChart(filtered);
             updateColorCounts(filtered);
@@ -3338,6 +3432,32 @@
                         automationRuleId: p.automationRuleId
                     };
                 });
+
+
+                const offerCounts = allPrices.map(item => item.totalOfferCount || 1);
+                const maxOfferCount = offerCounts.length > 0 ? Math.max(...offerCounts) : 1;
+                const offerSliderMax = Math.max(maxOfferCount, 1);
+
+                if (offerSlider) {
+                    offerSlider.noUiSlider.updateOptions({
+                        range: { 'min': 1, 'max': offerSliderMax }
+                    });
+                    offerSlider.noUiSlider.set([1, offerSliderMax]);
+                }
+
+                
+                const positions = allPrices
+                    .map(item => extractRankNumber(item.myPricePosition))
+                    .filter(p => p !== null && !isNaN(p));
+
+                const maxPosition = positions.length > 0 ? Math.max(...positions) : 50; 
+
+                if (positionSlider) {
+                    positionSlider.noUiSlider.updateOptions({
+                        range: { 'min': 1, 'max': maxPosition }
+                    });
+                    positionSlider.noUiSlider.set([1, maxPosition]);
+                }
 
                 const producerDropdown = document.getElementById('producerFilterDropdown');
                 while (producerDropdown.options.length > 1) producerDropdown.remove(1);
