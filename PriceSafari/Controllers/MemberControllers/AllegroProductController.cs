@@ -174,7 +174,14 @@ namespace PriceSafari.Controllers
 
 
 
-
+        private class AllegroImportRow
+        {
+            public string Ean { get; set; }
+            public string IdOnAllegro { get; set; } // Nowe pole do matchowania
+            public decimal? Price { get; set; }
+            public string Sku { get; set; }         // Nowe pole SKU
+            public List<string> FlagNames { get; set; } = new List<string>(); // Lista flag
+        }
 
 
 
@@ -296,50 +303,261 @@ namespace PriceSafari.Controllers
 
             try
             {
-                _logger.LogInformation("Rozpoczynam parsowanie pliku Excel dla Allegro");
-                var marginData = await ParseExcelFile(uploadedFile);
-                if (marginData == null || !marginData.Any())
+                // 1. Parsowanie pliku do nowej struktury listy obiektów
+                var importRows = await ParseExcelFileExtended(uploadedFile);
+
+                if (importRows == null || !importRows.Any())
                 {
-                    _logger.LogWarning("Plik dla Allegro nie zawiera poprawnych danych o cenach zakupu.");
                     TempData["ErrorMessage"] = "Plik nie zawiera poprawnych danych.";
                     return RedirectToAction("AllegroProductList", new { storeId });
                 }
-                _logger.LogInformation("Pobrano {Count} wpisów cen zakupu z pliku dla Allegro", marginData.Count);
 
-                var products = await _context.AllegroProducts
-                    .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.AllegroEan))
+                // 2. LOGIKA FLAG - Tworzenie brakujących flag
+                // Pobierz unikalne nazwy flag z pliku Excel
+                var distinctFlagNamesFromExcel = importRows
+                    .SelectMany(r => r.FlagNames)
+                    .Select(f => f.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Where(f => !string.IsNullOrEmpty(f))
+                    .ToList();
+
+                // Pobierz istniejące flagi marketplace dla tego sklepu
+                var existingFlags = await _context.Flags
+                    .Where(f => f.StoreId == storeId && f.IsMarketplace)
                     .ToListAsync();
-                _logger.LogInformation("Znaleziono {Count} produktów Allegro do potencjalnej aktualizacji", products.Count);
+
+                var flagsToCreate = new List<FlagsClass>();
+
+                foreach (var flagName in distinctFlagNamesFromExcel)
+                {
+                    // Sprawdź czy flaga już istnieje (ignorując wielkość liter)
+                    if (!existingFlags.Any(f => f.FlagName.Equals(flagName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        flagsToCreate.Add(new FlagsClass
+                        {
+                            StoreId = storeId,
+                            FlagName = flagName,
+                            FlagColor = GenerateRandomColor(), // Metoda pomocnicza do generowania koloru
+                            IsMarketplace = true
+                        });
+                    }
+                }
+
+                // Zapisz nowe flagi w bazie, aby dostały ID
+                if (flagsToCreate.Any())
+                {
+                    _context.Flags.AddRange(flagsToCreate);
+                    await _context.SaveChangesAsync();
+
+                    // Dodaj nowo utworzone flagi do listy istniejących, abyśmy mieli ich ID
+                    existingFlags.AddRange(flagsToCreate);
+                }
+
+                // Stwórz słownik: Nazwa Flagi -> ID Flagi (dla szybkiego wyszukiwania)
+                var flagMap = existingFlags.ToDictionary(f => f.FlagName.ToUpperInvariant(), f => f.FlagId);
+
+
+                // 3. AKTUALIZACJA PRODUKTÓW
+                // Pobieramy produkty z dołączonymi flagami, aby móc je modyfikować
+                var products = await _context.AllegroProducts
+                    .Include(p => p.ProductFlags)
+                    .Where(p => p.StoreId == storeId)
+                    .ToListAsync();
 
                 int updatedCount = 0;
-                foreach (var prod in products)
-                {
-                    if (marginData.TryGetValue(prod.AllegroEan, out var marginValue))
-                    {
-                        // Jeśli cena się różni -> aktualizuj cenę i datę
-                        if (prod.AllegroMarginPrice != marginValue)
-                        {
-                            _logger.LogInformation("Aktualizuję produkt Allegro EAN={Ean}. Stara={Old}, Nowa={New}", prod.AllegroEan, prod.AllegroMarginPrice, marginValue);
 
-                            prod.AllegroMarginPrice = marginValue;
-                            prod.AllegroMarginPriceUpdatedDate = DateTime.UtcNow; // Data aktualizacji
-                            updatedCount++;
+                foreach (var row in importRows)
+                {
+                    AllegroProductClass productToUpdate = null;
+
+                    // KROK A: Próba dopasowania po EAN
+                    if (!string.IsNullOrEmpty(row.Ean))
+                    {
+                        productToUpdate = products.FirstOrDefault(p => p.AllegroEan == row.Ean);
+                    }
+
+                    // KROK B: Jeśli nie znaleziono po EAN (lub brak EAN w pliku), szukaj po ID Allegro
+                    if (productToUpdate == null && !string.IsNullOrEmpty(row.IdOnAllegro))
+                    {
+                        productToUpdate = products.FirstOrDefault(p => p.IdOnAllegro == row.IdOnAllegro);
+                    }
+
+                    if (productToUpdate != null)
+                    {
+                        bool isModified = false;
+
+                        // 1. Aktualizacja Ceny
+                        if (row.Price.HasValue && productToUpdate.AllegroMarginPrice != row.Price.Value)
+                        {
+                            productToUpdate.AllegroMarginPrice = row.Price.Value;
+                            productToUpdate.AllegroMarginPriceUpdatedDate = DateTime.UtcNow;
+                            isModified = true;
                         }
+
+                        // 2. Aktualizacja SKU (jeśli jest w pliku)
+                        if (!string.IsNullOrEmpty(row.Sku) && productToUpdate.AllegroSku != row.Sku)
+                        {
+                            productToUpdate.AllegroSku = row.Sku;
+                            isModified = true;
+                        }
+
+                        // 3. Aktualizacja Flag (jeśli wiersz w Excelu zawiera jakiekolwiek flagi lub kolumna flag istniała)
+                        // Tutaj zakładamy: jeśli wiersz ma flagi, nadpisujemy obecne flagi produktu tymi z Excela.
+                        if (row.FlagNames != null && row.FlagNames.Any())
+                        {
+                            // Pobierz ID flag z Excela korzystając z naszej mapy
+                            var targetFlagIds = row.FlagNames
+                                .Select(fn => fn.Trim().ToUpperInvariant())
+                                .Where(fn => flagMap.ContainsKey(fn))
+                                .Select(fn => flagMap[fn])
+                                .ToList();
+
+                            // Obecne ID flag produktu
+                            var currentFlagIds = productToUpdate.ProductFlags.Select(pf => pf.FlagId).ToList();
+
+                            // Sprawdź czy zestawy flag się różnią (uproszczona logika: czy to samo?)
+                            bool flagsChanged = !new HashSet<int>(currentFlagIds).SetEquals(targetFlagIds);
+
+                            if (flagsChanged)
+                            {
+                                // Usuń stare powiązania
+                                var flagsToRemove = productToUpdate.ProductFlags.ToList();
+                                foreach (var f in flagsToRemove)
+                                {
+                                    _context.ProductFlags.Remove(f);
+                                }
+
+                                // Dodaj nowe powiązania
+                                foreach (var flagId in targetFlagIds)
+                                {
+                                    _context.ProductFlags.Add(new ProductFlag
+                                    {
+                                        AllegroProductId = productToUpdate.AllegroProductId, // Ważne: powiązanie z produktem Allegro
+                                        FlagId = flagId
+                                    });
+                                }
+                                isModified = true;
+                            }
+                        }
+
+                        if (isModified) updatedCount++;
                     }
                 }
 
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Zaktualizowano ceny zakupu dla {UpdatedCount} produktów Allegro", updatedCount);
 
-                TempData["SuccessMessage"] = $"Ceny zakupu zostały zaktualizowane dla {updatedCount} produktów Allegro.";
+                TempData["SuccessMessage"] = $"Zaktualizowano {updatedCount} produktów (Ceny, SKU, Flagi).";
                 return RedirectToAction("AllegroProductList", new { storeId });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Błąd podczas SetAllegroMargins");
+                _logger.LogError(ex, "Błąd podczas importu Allegro");
                 TempData["ErrorMessage"] = $"Wystąpił błąd: {ex.Message}";
                 return RedirectToAction("AllegroProductList", new { storeId });
             }
+        }
+
+        private async Task<List<AllegroImportRow>> ParseExcelFileExtended(IFormFile file)
+        {
+            var list = new List<AllegroImportRow>();
+
+            using (var stream = new MemoryStream())
+            {
+                await file.CopyToAsync(stream);
+                stream.Position = 0;
+
+                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                IWorkbook workbook = extension == ".xls" ? new HSSFWorkbook(stream) : new XSSFWorkbook(stream);
+
+                var evaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
+                var sheet = workbook.GetSheetAt(0);
+                if (sheet == null) return null;
+
+                var headerRow = sheet.GetRow(0);
+                if (headerRow == null) return null;
+
+                // --- Detekcja Kolumn ---
+                int eanCol = -1, priceCol = -1, idCol = -1, skuCol = -1, flagCol = -1;
+
+                for (int c = headerRow.FirstCellNum; c < headerRow.LastCellNum; c++)
+                {
+                    var txt = GetCellValue(headerRow.GetCell(c), evaluator)?.Trim().ToUpperInvariant().Replace(" ", "");
+                    if (string.IsNullOrEmpty(txt)) continue;
+
+                    if (txt == "EAN" || txt == "KODEAN") eanCol = c;
+                    else if (txt == "CENA" || txt == "PRICE" || txt == "CENAZAKUPU") priceCol = c;
+                    else if (txt == "ID" || txt == "IDONALLEGRO" || txt == "OFFERID") idCol = c; // Kolumna ID
+                    else if (txt == "SKU" || txt == "SYGNATURA") skuCol = c; // Kolumna SKU
+                    else if (txt == "FLAGA" || txt == "FLAGI" || txt == "FLAGS") flagCol = c; // Kolumna Flag
+                }
+
+                // Wymagamy przynajmniej EAN lub ID oraz CENY (chyba że importujemy tylko SKU/Flagi, ale na razie załóżmy cenę jako standard)
+                if ((eanCol < 0 && idCol < 0))
+                {
+                    _logger.LogError("Brak kolumn identyfikacyjnych (EAN lub ID)");
+                    return null;
+                }
+
+                // --- Iteracja po wierszach ---
+                for (int r = 1; r <= sheet.LastRowNum; r++)
+                {
+                    var row = sheet.GetRow(r);
+                    if (row == null) continue;
+
+                    var importItem = new AllegroImportRow();
+
+                    // 1. EAN
+                    if (eanCol >= 0) importItem.Ean = GetCellValue(row.GetCell(eanCol), evaluator)?.Trim();
+
+                    // 2. ID
+                    if (idCol >= 0) importItem.IdOnAllegro = GetCellValue(row.GetCell(idCol), evaluator)?.Trim();
+
+                    // Jeśli nie ma ani EAN ani ID, pomijamy wiersz
+                    if (string.IsNullOrEmpty(importItem.Ean) && string.IsNullOrEmpty(importItem.IdOnAllegro)) continue;
+
+                    // 3. CENA
+                    if (priceCol >= 0)
+                    {
+                        var priceTxt = GetCellValue(row.GetCell(priceCol), evaluator)?.Trim().Replace(",", ".");
+                        if (decimal.TryParse(priceTxt, NumberStyles.Any, CultureInfo.InvariantCulture, out var p))
+                        {
+                            importItem.Price = p;
+                        }
+                    }
+
+                    // 4. SKU
+                    if (skuCol >= 0)
+                    {
+                        importItem.Sku = GetCellValue(row.GetCell(skuCol), evaluator)?.Trim();
+                    }
+
+                    // 5. FLAGI
+                    if (flagCol >= 0)
+                    {
+                        var flagsRaw = GetCellValue(row.GetCell(flagCol), evaluator)?.Trim();
+                        if (!string.IsNullOrEmpty(flagsRaw))
+                        {
+                            // Dzielimy po przecinku lub średniku
+                            var parts = flagsRaw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            foreach (var part in parts)
+                            {
+                                importItem.FlagNames.Add(part.Trim());
+                            }
+                        }
+                    }
+
+                    list.Add(importItem);
+                }
+            }
+
+            return list;
+        }
+
+        private string GenerateRandomColor()
+        {
+            var random = new Random();
+            // Generuje losowy kolor HEX, np. #A3B2C1
+            return String.Format("#{0:X6}", random.Next(0x1000000));
         }
 
         [HttpPost]
