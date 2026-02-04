@@ -55,6 +55,9 @@ namespace PriceSafari.Models.ViewModels
             ? (int)Math.Round((double)(CountMet + CountMaintained + CountLimited) / TotalProducts * 100)
             : 0;
 
+        public bool EnforceMinimalMarkup { get; set; }      // Czy w ogóle sprawdzamy min. narzut?
+        public bool IsMinimalMarkupPercent { get; set; }    // true = %, false = kwota (PLN)
+        public decimal MinimalMarkupValue { get; set; }
 
     }
 

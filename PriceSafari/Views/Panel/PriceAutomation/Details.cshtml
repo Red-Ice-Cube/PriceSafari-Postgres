@@ -1094,6 +1094,55 @@
                             bool isNoCompetition = !item.BestCompetitorPrice.HasValue ||
                             item.BlockReason == "Brak Danych";
 
+                         
+                            string marginBadgeClass = "price-badge-positive";
+                            string marginBoxClass = "price-box-diff-margin-ib-positive";
+                            bool isMarginIssue = false; 
+
+                            if (item.CurrentMarkupAmount.HasValue && item.CurrentMarkupPercent.HasValue)
+                            {
+                                decimal currentMarginPercent = item.CurrentMarkupPercent.Value;
+                                decimal currentMarginAmount = item.CurrentMarkupAmount.Value;
+
+                                
+                                if (currentMarginAmount < 0)
+                                {
+                                    marginBadgeClass = "price-badge-negative";
+                                    marginBoxClass = "price-box-diff-margin-ib-negative";
+                                    isMarginIssue = true; 
+                                }
+                                
+                                else if (Model.EnforceMinimalMarkup)
+                                {
+                                    bool isBelowLimit = false;
+
+                                    if (Model.IsMinimalMarkupPercent)
+                                    {
+                                   
+                                        if (currentMarginPercent < Model.MinimalMarkupValue)
+                                        {
+                                            isBelowLimit = true;
+                                        }
+                                    }
+                                    else
+                                    {
+                                   
+                                        if (currentMarginAmount < Model.MinimalMarkupValue)
+                                        {
+                                            isBelowLimit = true;
+                                        }
+                                    }
+
+                                    if (isBelowLimit)
+                                    {
+                                        marginBadgeClass = "price-badge-warning";            
+                                        marginBoxClass = "price-box-diff-margin-ib-warning"; 
+                                        isMarginIssue = true; 
+                                    }
+                                }
+                            }
+
+
                             <tr data-price-change="@priceChangeType"
                                 data-status="@item.Status.ToString()"
                                 data-limit-type="@limitType"
@@ -1107,7 +1156,7 @@
                                 data-is-updated="@item.IsAlreadyUpdated.ToString().ToLower()"
                                 data-has-purchase-price="@item.PurchasePrice.HasValue.ToString().ToLower()"
                                 data-is-commission-included="@(item.IsCommissionIncluded.ToString().ToLower())"
-                                data-has-margin-warning="@item.IsMarginWarning.ToString().ToLower()"
+                                data-has-margin-warning="@isMarginIssue.ToString().ToLower()"
                                 data-missing-own-offer="@isMissingOwnOffer.ToString().ToLower()"
                                 data-no-competition="@isNoCompetition.ToString().ToLower()">
                                 @if (!isMarketplace)
@@ -1312,8 +1361,10 @@
                                     }
                                     @if (item.CurrentMarkupAmount.HasValue && item.CurrentMarkupPercent.HasValue)
                                     {
-                                        <div class="price-box-diff-margin-ib @(item.CurrentMarkupAmount > 0 ? "price-box-diff-margin-ib-positive" : "price-box-diff-margin-ib-negative")" style="margin-top: 4px; width: 100%;">
-                                            <span class="price-badge @(item.CurrentMarkupAmount > 0 ? "price-badge-positive" : "price-badge-negative")">Narzut</span>
+                                        <div class="price-box-diff-margin-ib @marginBoxClass" style="margin-top: 4px; width: 100%;">
+
+                                            <span class="price-badge @marginBadgeClass">Narzut</span>
+
                                             <p>@item.CurrentMarkupAmount.Value.ToString("F2") PLN (@item.CurrentMarkupPercent.Value.ToString("F2")%)</p>
                                         </div>
                                     }

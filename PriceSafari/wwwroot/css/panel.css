@@ -3904,6 +3904,17 @@ tr:last-child .sub-line {
     background-color: rgba(156, 156, 156, 1);
 }
 
+.price-badge-warning {
+    background-color: #f6c23e; /* Żółty/Pomarańczowy */
+    color: #fff !important;
+}
+
+.price-box-diff-margin-ib-warning {
+    
+    background-color: rgba(246, 194, 62, 0.1); /* Delikatne tło */
+
+}
+
 .price-box-diff-margin-ib {
     display: flex;
     gap: 4px;

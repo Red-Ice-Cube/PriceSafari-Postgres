@@ -675,6 +675,10 @@ namespace PriceSafari.Services.PriceAutomationService
         {
             var calculationResult = await GetCalculatedComparisonData(rule);
 
+            model.EnforceMinimalMarkup = rule.EnforceMinimalMarkup;
+            model.IsMinimalMarkupPercent = rule.IsMinimalMarkupPercent;
+            model.MinimalMarkupValue = rule.MinimalMarkupValue;
+
             model.Products = calculationResult.Products;
             model.TotalProducts = calculationResult.Products.Count;
             model.LastScrapDate = calculationResult.ScrapDate;
@@ -684,6 +688,11 @@ namespace PriceSafari.Services.PriceAutomationService
         public async Task PrepareMarketplaceData(AutomationRule rule, AutomationDetailsViewModel model)
         {
             var result = await GetCalculatedMarketplaceData(rule);
+
+            model.EnforceMinimalMarkup = rule.EnforceMinimalMarkup;
+            model.IsMinimalMarkupPercent = rule.IsMinimalMarkupPercent;
+            model.MinimalMarkupValue = rule.MinimalMarkupValue;
+
             model.Products = result.Products;
             model.TotalProducts = result.Products.Count;
             model.LastScrapDate = result.ScrapDate;
