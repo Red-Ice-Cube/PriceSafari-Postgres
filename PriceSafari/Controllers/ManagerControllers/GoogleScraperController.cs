@@ -5,6 +5,8 @@ using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Services.ControlNetwork;
 using System.Collections.Concurrent;
+using System.Collections.Concurrent;
+using System.Text.Json.Serialization;
 
 [Authorize(Roles = "Admin")]
 public class GoogleScraperController : Controller
@@ -1458,14 +1460,18 @@ public class GoogleScraperController : Controller
     [HttpPost("stop")]
     public IActionResult StopScraping()
     {
-        if (!_isScrapingActive)
+        // 1. Zatrzymaj wewnętrzne
+        if (_isScrapingActive)
         {
-            return Ok("Scrapowanie nie jest aktywne.");
+            _currentGlobalScrapingOperationCts?.Cancel();
         }
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Otrzymano żądanie ZATRZYMANIA scrapowania...");
-        _currentGlobalScrapingOperationCts?.Cancel();
 
-        return Ok("Żądanie zatrzymania wysłane. Proces zakończy się wkrótce.");
+        // 2. Zatrzymaj zewnętrzne (wyczyść kolejkę)
+        _externalTaskQueue.Clear();
+
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] ZATRZYMANIE: Wątki wewnętrzne anulowane, kolejka zewnętrzna wyczyszczona.");
+
+        return Ok("Zatrzymano procesy i wyczyszczono kolejki.");
     }
 
     private async Task TimerBatchUpdateCallback(CancellationToken cancellationToken)
@@ -2699,4 +2705,1041 @@ public class GoogleScraperController : Controller
             }
         }
     }
+
+
+
+    #region ============== ZEWNĘTRZNE SCRAPERY API ==============
+
+    // Klucz API dla zewnętrznych scraperów
+    private const string EXTERNAL_SCRAPER_API_KEY = "2764udhnJUDI8392j83jfi2ijdo1949rncowp89i3rnfiiui1203kfnf9030rfpPkUjHyHt";
+
+    // Zarejestrowane zewnętrzne scrapery
+    private static readonly ConcurrentDictionary<string, ExternalScraperInfo> _registeredScrapers = new();
+
+    // Kolejka zadań dla zewnętrznych scraperów
+    private static readonly ConcurrentQueue<ExternalScraperTask> _externalTaskQueue = new();
+
+    // Wyniki od zewnętrznych scraperów
+    private static readonly ConcurrentDictionary<string, ExternalScraperResult> _externalResults = new();
+
+    // Ustawienia dla zewnętrznych scraperów
+    private static ExternalScraperSettings _externalScraperSettings = new();
+
+    // Lock dla ustawień
+    private static readonly object _settingsLock = new object();
+
+    #endregion
+
+    #region ============== MODELE DLA ZEWNĘTRZNYCH SCRAPERÓW ==============
+
+    public class ExternalScraperInfo
+    {
+        public string ScraperName { get; set; }
+        public DateTime LastHeartbeat { get; set; }
+        public DateTime RegisteredAt { get; set; }
+        public bool IsActive => (DateTime.UtcNow - LastHeartbeat).TotalSeconds < 120;
+        public int TasksCompleted { get; set; }
+        public int TasksFailed { get; set; }
+    }
+
+
+    public class ExternalScraperSettings
+    {
+        [JsonPropertyName("generatorsCount")]
+        public int GeneratorsCount { get; set; } = 2;
+
+        [JsonPropertyName("headlessMode")]
+        public bool HeadlessMode { get; set; } = true;
+
+        [JsonPropertyName("maxWorkers")]
+        public int MaxWorkers { get; set; } = 1;
+
+        [JsonPropertyName("headStartDuration")]
+        public int HeadStartDuration { get; set; } = 50;
+
+        [JsonPropertyName("maxCookiesInQueue")]
+        public int MaxCookiesInQueue { get; set; } = 200;
+
+        [JsonPropertyName("nukeThreshold")]
+        public int NukeThreshold { get; set; } = 7;
+
+        [JsonPropertyName("maxSessionErrorsPerUrl")]
+        public int MaxSessionErrorsPerUrl { get; set; } = 2;
+
+        // Reset sieci
+        [JsonPropertyName("networkResetMethod")]
+        public string NetworkResetMethod { get; set; } = "mullvad"; // "mullvad" lub "modem_lte"
+
+        [JsonPropertyName("autoNetworkResetOnCaptcha")]
+        public bool AutoNetworkResetOnCaptcha { get; set; } = true;
+
+        [JsonPropertyName("captchaCountBeforeNetworkReset")]
+        public int CaptchaCountBeforeNetworkReset { get; set; } = 5;
+
+        // Mullvad
+        [JsonPropertyName("mullvadPath")]
+        public string MullvadPath { get; set; } = @"C:\Program Files\Mullvad VPN\resources\mullvad.exe";
+
+        [JsonPropertyName("mullvadCountryCode")]
+        public string MullvadCountryCode { get; set; } = "pl";
+
+        [JsonPropertyName("mullvadCityCode")]
+        public string MullvadCityCode { get; set; } = "waw";
+
+        // Modem LTE
+        [JsonPropertyName("modemUrl")]
+        public string ModemUrl { get; set; } = "http://192.168.1.1";
+
+        [JsonPropertyName("modemPassword")]
+        public string ModemPassword { get; set; } = "QqD9wWUF";
+
+        [JsonPropertyName("modemRestartWaitSeconds")]
+        public int ModemRestartWaitSeconds { get; set; } = 50;
+
+        // Tryb scrapowania
+        [JsonPropertyName("scrapingMode")]
+        public string ScrapingMode { get; set; } = "Standard"; // Standard, FirstMatch, Intermediate, MultiCatalog
+
+        [JsonPropertyName("maxCidsToProcess")]
+        public int MaxCidsToProcess { get; set; } = 3;
+
+        [JsonPropertyName("appendProducerCode")]
+        public bool AppendProducerCode { get; set; } = false;
+
+        [JsonPropertyName("compareOnlyCurrentProductCode")]
+        public bool CompareOnlyCurrentProductCode { get; set; } = false;
+
+        [JsonPropertyName("productNamePrefix")]
+        public string ProductNamePrefix { get; set; } = null;
+
+        [JsonPropertyName("searchModeUdm")]
+        public int SearchModeUdm { get; set; } = 3;
+    }
+
+
+    public class ExternalScraperTask
+    {
+        [JsonPropertyName("taskId")]
+        public string TaskId { get; set; } = Guid.NewGuid().ToString();
+
+        [JsonPropertyName("createdAt")]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [JsonPropertyName("assignedTo")]
+        public string AssignedTo { get; set; }
+
+        [JsonPropertyName("assignedAt")]
+        public DateTime? AssignedAt { get; set; }
+
+        // Dane produktu
+        [JsonPropertyName("productId")]
+        public int ProductId { get; set; }
+
+        [JsonPropertyName("productName")]
+        public string ProductName { get; set; }
+
+        [JsonPropertyName("cleanedUrl")]
+        public string CleanedUrl { get; set; }
+
+        [JsonPropertyName("originalUrl")]
+        public string OriginalUrl { get; set; }
+
+        [JsonPropertyName("ean")]
+        public string Ean { get; set; }
+
+        [JsonPropertyName("producerCode")]
+        public string ProducerCode { get; set; }
+
+        // Tryb i ustawienia
+        [JsonPropertyName("mode")]
+        public string Mode { get; set; } // "Standard", "FirstMatch", "Intermediate", "MultiCatalog"
+
+        [JsonPropertyName("searchTerm")]
+        public string SearchTerm { get; set; }
+
+        [JsonPropertyName("maxItemsToExtract")]
+        public int MaxItemsToExtract { get; set; } = 20;
+
+        [JsonPropertyName("udmValue")]
+        public int UdmValue { get; set; } = 3;
+
+        [JsonPropertyName("googleCid")]
+        public string GoogleCid { get; set; }
+
+        [JsonPropertyName("googleGid")]
+        public string GoogleGid { get; set; }
+
+        [JsonPropertyName("googleHid")]
+        public string GoogleHid { get; set; }
+
+        [JsonPropertyName("targetCode")]
+        public string TargetCode { get; set; }
+
+        // Kontekst dla pełnego przetwarzania
+        [JsonPropertyName("storeId")]
+        public int StoreId { get; set; }
+
+        [JsonPropertyName("eligibleProductsMap")]
+        public Dictionary<string, int> EligibleProductsMap { get; set; } // CleanedUrl -> ProductId
+    }
+
+
+    public class ExternalScraperResult
+    {
+        [JsonPropertyName("taskId")]
+        public string TaskId { get; set; }
+
+        [JsonPropertyName("scraperName")]
+        public string ScraperName { get; set; }
+
+        [JsonPropertyName("completedAt")]
+        public DateTime CompletedAt { get; set; } = DateTime.UtcNow;
+
+        [JsonPropertyName("isSuccess")]
+        public bool IsSuccess { get; set; }
+
+        [JsonPropertyName("captchaEncountered")]
+        public bool CaptchaEncountered { get; set; }
+
+        [JsonPropertyName("errorMessage")]
+        public string ErrorMessage { get; set; }
+
+        [JsonPropertyName("productId")]
+        public int? ProductId { get; set; }
+
+        // Wyniki wyszukiwania identyfikatorów
+        [JsonPropertyName("identifiers")]
+        public List<GoogleProductIdentifierDto> Identifiers { get; set; }
+
+        // Wyniki wyszukiwania URL-i sklepów
+        [JsonPropertyName("storeUrls")]
+        public List<string> StoreUrls { get; set; }
+
+        // Wyniki szczegółów produktu
+        [JsonPropertyName("productDetails")]
+        public GoogleProductDetailsDto ProductDetails { get; set; }
+
+        [JsonPropertyName("rawResponse")]
+        public string RawResponse { get; set; }
+
+        // Wyniki pełnego przetwarzania
+        [JsonPropertyName("finalStatus")]
+        public string FinalStatus { get; set; } // "Found", "NotFound", "Error", "CaptchaHalt"
+
+        [JsonPropertyName("foundGoogleUrl")]
+        public string FoundGoogleUrl { get; set; }
+
+        [JsonPropertyName("foundCid")]
+        public string FoundCid { get; set; }
+
+        [JsonPropertyName("foundGid")]
+        public string FoundGid { get; set; }
+
+        // Dopasowane produkty (dla trybu Intermediate)
+        [JsonPropertyName("matchedProducts")]
+        public List<MatchedProductDto> MatchedProducts { get; set; }
+    }
+    public class GoogleProductIdentifierDto
+    {
+        [JsonPropertyName("cid")]
+        public string Cid { get; set; }
+
+        [JsonPropertyName("gid")]
+        public string Gid { get; set; }
+
+        [JsonPropertyName("hid")]
+        public string Hid { get; set; }
+    }
+
+    public class GoogleProductDetailsDto
+    {
+        [JsonPropertyName("mainTitle")]
+        public string MainTitle { get; set; }
+
+        [JsonPropertyName("offerTitles")]
+        public List<string> OfferTitles { get; set; }
+    }
+
+    public class MatchedProductDto
+    {
+        [JsonPropertyName("productId")]
+        public int ProductId { get; set; }
+
+        [JsonPropertyName("matchedCode")]
+        public string MatchedCode { get; set; }
+
+        [JsonPropertyName("googleUrl")]
+        public string GoogleUrl { get; set; }
+
+        [JsonPropertyName("cid")]
+        public string Cid { get; set; }
+
+        [JsonPropertyName("gid")]
+        public string Gid { get; set; }
+    }
+
+    public class NukeReportDto
+    {
+        [JsonPropertyName("scraperName")]
+        public string ScraperName { get; set; }
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } // "started", "completed"
+
+        [JsonPropertyName("reason")]
+        public string Reason { get; set; }
+
+        [JsonPropertyName("newIpAddress")]
+        public string NewIpAddress { get; set; }
+    }
+
+    public class RegisterScraperRequest
+    {
+        [JsonPropertyName("scraperName")]
+        public string ScraperName { get; set; }
+    }
+
+
+    #endregion
+
+    #region ============== ENDPOINTY API DLA ZEWNĘTRZNYCH SCRAPERÓW ==============
+
+    /// <summary>
+    /// Walidacja klucza API
+    /// </summary>
+    private bool ValidateApiKey(string apiKey)
+    {
+        return !string.IsNullOrEmpty(apiKey) && apiKey == EXTERNAL_SCRAPER_API_KEY;
+    }
+
+    /// <summary>
+    /// Pobiera klucz API z nagłówka
+    /// </summary>
+    private string GetApiKeyFromHeader()
+    {
+        if (Request.Headers.TryGetValue("X-Api-Key", out var apiKey))
+            return apiKey.ToString();
+        return null;
+    }
+
+    /// <summary>
+    /// Rejestracja zewnętrznego scrapera
+    /// </summary>
+    [HttpPost]
+    [Route("api/external-scraper/register")]
+    [AllowAnonymous]
+    public IActionResult RegisterExternalScraper([FromBody] RegisterScraperRequest request)
+    {
+        var apiKey = GetApiKeyFromHeader();
+        if (!ValidateApiKey(apiKey))
+            return Unauthorized(new { error = "Invalid API key" });
+
+        if (string.IsNullOrEmpty(request?.ScraperName))
+            return BadRequest(new { error = "ScraperName is required" });
+
+        var info = _registeredScrapers.AddOrUpdate(
+            request.ScraperName,
+            new ExternalScraperInfo
+            {
+                ScraperName = request.ScraperName,
+                RegisteredAt = DateTime.UtcNow,
+                LastHeartbeat = DateTime.UtcNow
+            },
+            (key, existing) =>
+            {
+                existing.LastHeartbeat = DateTime.UtcNow;
+                return existing;
+            }
+        );
+
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Scraper '{request.ScraperName}' zarejestrowany/odświeżony.");
+
+        return Ok(new
+        {
+            message = "Registered successfully",
+            scraperName = info.ScraperName,
+            registeredAt = info.RegisteredAt,
+            isActive = info.IsActive
+        });
+    }
+
+
+
+    [HttpGet]
+    [Route("api/external-scraper/settings")]
+    [AllowAnonymous]
+    public IActionResult GetExternalScraperSettings()
+    {
+        // Sprawdź czy to Python (Klucz API) LUB czy to Admin (Zalogowany w przeglądarce)
+        var apiKey = GetApiKeyFromHeader();
+        bool isAuthorizedScraper = ValidateApiKey(apiKey);
+        bool isAdminUser = User.Identity != null && User.Identity.IsAuthenticated;
+
+        if (!isAuthorizedScraper && !isAdminUser)
+        {
+            return Unauthorized(new { error = "Invalid API key or Session" });
+        }
+
+        lock (_settingsLock)
+        {
+            return Ok(_externalScraperSettings);
+        }
+    }
+
+    [HttpPost]
+    [Route("api/external-scraper/settings")]
+    [AllowAnonymous]
+    public IActionResult UpdateExternalScraperSettings([FromBody] ExternalScraperSettings settings)
+    {
+        // Sprawdzamy uprawnienia (Python LUB Admin)
+        var apiKey = GetApiKeyFromHeader();
+        bool isAuthorizedScraper = ValidateApiKey(apiKey);
+        bool isAdminUser = User.Identity != null && User.Identity.IsAuthenticated;
+
+        if (!isAuthorizedScraper && !isAdminUser)
+            return Unauthorized(new { error = "Unauthorized" });
+
+        if (settings == null)
+            return BadRequest(new { error = "Settings object is required" });
+
+        lock (_settingsLock)
+        {
+            _externalScraperSettings = settings;
+        }
+
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Ustawienia zaktualizowane.");
+        return Ok(new { message = "Settings updated" });
+    }
+
+    /// <summary>
+    /// Pobieranie zadania dla zewnętrznego scrapera - POPRAWIONE
+    /// </summary>
+    [HttpGet]
+    [Route("api/external-scraper/get-task")]
+    [AllowAnonymous]
+    public IActionResult GetExternalScraperTask([FromQuery] string scraperName = null)
+    {
+        var apiKey = GetApiKeyFromHeader();
+        if (!ValidateApiKey(apiKey))
+            return Unauthorized(new { error = "Invalid API key" });
+
+        // Odśwież heartbeat jeśli podano nazwę
+        if (!string.IsNullOrEmpty(scraperName) && _registeredScrapers.TryGetValue(scraperName, out var info))
+        {
+            info.LastHeartbeat = DateTime.UtcNow;
+        }
+
+        // Pobierz zadanie z kolejki
+        if (_externalTaskQueue.TryDequeue(out var task))
+        {
+            task.AssignedTo = scraperName ?? "unknown";
+            task.AssignedAt = DateTime.UtcNow;
+
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Zadanie {task.TaskId.Substring(0, Math.Min(20, task.TaskId.Length))}... przydzielone do '{scraperName}'");
+            Console.ResetColor();
+
+            // Zwróć zadanie z odpowiednim formatem JSON
+            return Ok(new
+            {
+                hasTask = true,
+                task = new
+                {
+                    taskId = task.TaskId,
+                    productId = task.ProductId,
+                    productName = task.ProductName,
+                    searchTerm = task.SearchTerm,
+                    cleanedUrl = task.CleanedUrl,
+                    originalUrl = task.OriginalUrl,
+                    ean = task.Ean,
+                    producerCode = task.ProducerCode,
+                    mode = task.Mode,
+                    maxItemsToExtract = task.MaxItemsToExtract,
+                    udmValue = task.UdmValue,
+                    storeId = task.StoreId,
+                    googleCid = task.GoogleCid,
+                    googleGid = task.GoogleGid,
+                    googleHid = task.GoogleHid,
+                    targetCode = task.TargetCode,
+                    eligibleProductsMap = task.EligibleProductsMap
+                }
+            });
+        }
+
+        // Brak zadań
+        return Ok(new
+        {
+            hasTask = false,
+            message = "No tasks available"
+        });
+    }
+
+    /// <summary>
+    /// Pobieranie paczki zadań dla zewnętrznego scrapera
+    /// </summary>
+    [HttpGet]
+    [Route("api/external-scraper/get-task-batch")]
+    [AllowAnonymous]
+    public IActionResult GetExternalScraperTaskBatch([FromQuery] string scraperName, [FromQuery] int maxTasks = 10)
+    {
+        var apiKey = GetApiKeyFromHeader();
+        if (!ValidateApiKey(apiKey))
+            return Unauthorized(new { error = "Invalid API key" });
+
+        if (string.IsNullOrEmpty(scraperName))
+            return BadRequest(new { error = "scraperName is required" });
+
+        // Odśwież heartbeat
+        if (_registeredScrapers.TryGetValue(scraperName, out var info))
+        {
+            info.LastHeartbeat = DateTime.UtcNow;
+        }
+
+        var tasks = new List<ExternalScraperTask>();
+
+        for (int i = 0; i < maxTasks; i++)
+        {
+            if (_externalTaskQueue.TryDequeue(out var task))
+            {
+                task.AssignedTo = scraperName;
+                task.AssignedAt = DateTime.UtcNow;
+                tasks.Add(task);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if (tasks.Any())
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] {tasks.Count} zadań przydzielonych do '{scraperName}'");
+        }
+
+        return Ok(new
+        {
+            hasTasks = tasks.Any(),
+            tasksCount = tasks.Count,
+            tasks = tasks,
+            queueRemaining = _externalTaskQueue.Count
+        });
+    }
+
+    [HttpPost]
+    [Route("api/external-scraper/submit-result")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SubmitExternalScraperResult([FromBody] ExternalScraperResult result)
+    {
+        var apiKey = GetApiKeyFromHeader();
+        if (!ValidateApiKey(apiKey))
+            return Unauthorized(new { error = "Invalid API key" });
+
+        if (result == null || string.IsNullOrEmpty(result.TaskId))
+            return BadRequest(new { error = "Invalid result" });
+
+        // Zapisz wynik
+        _externalResults[result.TaskId] = result;
+
+        // Aktualizuj statystyki scrapera
+        if (!string.IsNullOrEmpty(result.ScraperName) && _registeredScrapers.TryGetValue(result.ScraperName, out var info))
+        {
+            info.LastHeartbeat = DateTime.UtcNow;
+            if (result.IsSuccess)
+                info.TasksCompleted++;
+            else
+                info.TasksFailed++;
+        }
+
+        // Przetworz wynik - aktualizuj bazę danych
+        await ProcessExternalResultAsync(result);
+
+        // Logowanie z kolorami
+        if (result.IsSuccess && result.FinalStatus == "Found")
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] ✓ Wynik {result.TaskId.Substring(0, Math.Min(20, result.TaskId.Length))}... od '{result.ScraperName}': FOUND");
+            Console.ResetColor();
+        }
+        else if (result.CaptchaEncountered)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] ⚠ Wynik {result.TaskId.Substring(0, Math.Min(20, result.TaskId.Length))}... od '{result.ScraperName}': CAPTCHA");
+            Console.ResetColor();
+        }
+        else
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Wynik {result.TaskId.Substring(0, Math.Min(20, result.TaskId.Length))}... od '{result.ScraperName}': {result.FinalStatus}");
+        }
+
+        return Ok(new { message = "Result received", taskId = result.TaskId });
+    }
+
+    [HttpPost]
+    public IActionResult StartExternalScraping(
+         int storeId,
+         List<int> productIds,
+         string mode = "Standard",
+         int maxCids = 3,
+         bool appendProducerCode = false,
+         bool compareOnlyCode = false,
+         string prefix = null,
+         int udm = 3)
+    {
+        // 1. Sprawdź czy mamy w ogóle podłączone scrapery
+        int activeScrapers = _registeredScrapers.Values.Count(s => s.IsActive);
+        if (activeScrapers == 0)
+        {
+            return Json(new { success = false, message = "Błąd: Brak aktywnych scraperów zewnętrznych (Python). Uruchom skrypt Pythona." });
+        }
+
+        // ==============================================================================
+        // KROK 2: AKTYWACJA PROCESU I TIMERA ZAPISU
+        // ==============================================================================
+        _isScrapingActive = true; // Oznaczamy proces jako aktywny globalnie
+
+        lock (_lockTimer)
+        {
+            if (_batchSaveTimer == null)
+            {
+                // Timer uruchamia się co 10 sekund i zrzuca zmiany z pamięci do bazy danych
+                // Zmieniono z 30s na 10s dla szybszego podglądu wyników
+                _batchSaveTimer = new Timer(async _ => await TimerBatchUpdateCallback(CancellationToken.None), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Timer do zapisu wsadowego został uruchomiony (interwał 10s).");
+            }
+        }
+
+        // ==============================================================================
+        // KROK 3: AKTUALIZACJA USTAWIEŃ W LOCIE
+        // ==============================================================================
+        lock (_settingsLock)
+        {
+            _externalScraperSettings.ScrapingMode = mode;
+            _externalScraperSettings.MaxCidsToProcess = maxCids;
+            _externalScraperSettings.AppendProducerCode = appendProducerCode;
+            _externalScraperSettings.CompareOnlyCurrentProductCode = compareOnlyCode;
+            _externalScraperSettings.ProductNamePrefix = prefix;
+            _externalScraperSettings.SearchModeUdm = udm;
+        }
+
+        // ==============================================================================
+        // KROK 4: INICJALIZACJA LISTY PRODUKTÓW (MASTER LIST)
+        // ==============================================================================
+        // Tryb Standard wymaga URL-a w bazie, inne tryby mogą szukać po nazwie/kodzie
+        InitializeMasterProductListIfNeeded(storeId, productIds, false, requireUrl: mode == "Standard");
+
+        var pendingProducts = new List<ProductProcessingState>();
+
+        // Pobierz produkty, które mają status Pending z pamięci RAM
+        lock (_lockMasterListInit)
+        {
+            pendingProducts = _masterProductStateList.Values
+                .Where(p => p.Status == ProductStatus.Pending)
+                .ToList();
+        }
+
+        if (!pendingProducts.Any())
+        {
+            // Jeśli nie ma co robić, zwracamy info, ale NIE wyłączamy timera od razu,
+            // bo może trwać jeszcze zapis poprzedniej partii.
+            return Json(new { success = true, message = "Wszystkie wybrane produkty są już przetworzone lub nie kwalifikują się." });
+        }
+
+        // ==============================================================================
+        // KROK 5: KOLEJKOWANIE ZADAŃ (Z FILTREM DUPLIKATÓW)
+        // ==============================================================================
+
+        // Pobieramy ID produktów, które JUŻ są w kolejce, żeby ich nie dublować
+        var existingTaskProductIds = _externalTaskQueue.Select(t => t.ProductId).ToHashSet();
+
+        int addedCount = 0;
+
+        // Budowanie mapy eligibleProductsMap (potrzebne tylko dla trybu Standard/Full)
+        Dictionary<string, int> eligibleProductsMap = null;
+        if (mode == "Standard" || mode == "full_process")
+        {
+            lock (_lockMasterListInit)
+            {
+                eligibleProductsMap = _masterProductStateList.Values
+                    .Where(p => !string.IsNullOrEmpty(p.CleanedUrl) && p.Status == ProductStatus.Pending)
+                    .GroupBy(p => p.CleanedUrl, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First().ProductId, StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        foreach (var product in pendingProducts)
+        {
+            // ZMIANA: Jeśli produkt już jest w kolejce, pomiń go (nie dodawaj duplikatu)
+            if (existingTaskProductIds.Contains(product.ProductId))
+            {
+                continue;
+            }
+
+            // Zbuduj searchTerm
+            string searchTerm = product.ProductNameInStoreForGoogle;
+
+            if (appendProducerCode && !string.IsNullOrEmpty(product.ProducerCode))
+                searchTerm = $"{searchTerm} {product.ProducerCode}";
+
+            if (!string.IsNullOrEmpty(prefix))
+                searchTerm = $"{prefix} {searchTerm}";
+
+            // Stwórz obiekt zadania
+            var task = new ExternalScraperTask
+            {
+                TaskId = $"product_{product.ProductId}_{Guid.NewGuid():N}",
+                ProductId = product.ProductId,
+                ProductName = product.ProductNameInStoreForGoogle,
+                SearchTerm = searchTerm,
+                CleanedUrl = product.CleanedUrl,
+                OriginalUrl = product.OriginalUrl,
+                Ean = product.Ean,
+                ProducerCode = product.ProducerCode,
+                Mode = mode,
+                MaxItemsToExtract = maxCids,
+                UdmValue = udm,
+                StoreId = storeId,
+                EligibleProductsMap = eligibleProductsMap,
+                TargetCode = product.ProducerCode // Ważne dla trybu Intermediate
+            };
+
+            _externalTaskQueue.Enqueue(task);
+            existingTaskProductIds.Add(product.ProductId); // Dodaj do lokalnego seta, żeby nie dodać 2x w tej samej pętli
+            addedCount++;
+        }
+
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Zakolejkowano {addedCount} nowych zadań. (Pominięto {pendingProducts.Count - addedCount} duplikatów).");
+
+        return Json(new
+        {
+            success = true,
+            message = $"Dodano {addedCount} nowych zadań do kolejki (pominięto {pendingProducts.Count - addedCount} duplikatów). Zapis do bazy aktywny.",
+            queueSize = _externalTaskQueue.Count
+        });
+    }
+
+    /// <summary>
+    /// Wysyłanie paczki wyników przez zewnętrzny scraper
+    /// </summary>
+    [HttpPost]
+    [Route("api/external-scraper/submit-result-batch")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SubmitExternalScraperResultBatch([FromBody] List<ExternalScraperResult> results)
+    {
+        var apiKey = GetApiKeyFromHeader();
+        if (!ValidateApiKey(apiKey))
+            return Unauthorized(new { error = "Invalid API key" });
+
+        if (results == null || !results.Any())
+            return BadRequest(new { error = "No results provided" });
+
+        int successCount = 0;
+        int failCount = 0;
+
+        foreach (var result in results)
+        {
+            if (string.IsNullOrEmpty(result?.TaskId)) continue;
+
+            _externalResults[result.TaskId] = result;
+
+            if (!string.IsNullOrEmpty(result.ScraperName) && _registeredScrapers.TryGetValue(result.ScraperName, out var info))
+            {
+                info.LastHeartbeat = DateTime.UtcNow;
+                if (result.IsSuccess)
+                    info.TasksCompleted++;
+                else
+                    info.TasksFailed++;
+            }
+
+            await ProcessExternalResultAsync(result);
+
+            if (result.IsSuccess)
+                successCount++;
+            else
+                failCount++;
+        }
+
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Paczka {results.Count} wyników: {successCount} OK, {failCount} FAIL");
+
+        return Ok(new
+        {
+            message = "Batch received",
+            totalProcessed = results.Count,
+            successCount,
+            failCount
+        });
+    }
+
+    /// <summary>
+    /// Raport o procedurze NUKE (reset sieci)
+    /// </summary>
+    [HttpPost]
+    [Route("api/external-scraper/report-nuke")]
+    [AllowAnonymous]
+    public IActionResult ReportNuke([FromBody] NukeReportDto report)
+    {
+        var apiKey = GetApiKeyFromHeader();
+        if (!ValidateApiKey(apiKey))
+            return Unauthorized(new { error = "Invalid API key" });
+
+        if (report == null)
+            return BadRequest(new { error = "Report is required" });
+
+        Console.ForegroundColor = report.Status == "started" ? ConsoleColor.Yellow : ConsoleColor.Green;
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [NUKE] Scraper '{report.ScraperName}': {report.Status.ToUpper()}");
+        if (!string.IsNullOrEmpty(report.Reason))
+            Console.WriteLine($"   Powód: {report.Reason}");
+        if (!string.IsNullOrEmpty(report.NewIpAddress))
+            Console.WriteLine($"   Nowe IP: {report.NewIpAddress}");
+        Console.ResetColor();
+
+        return Ok(new { message = "Nuke report received" });
+    }
+
+    [HttpGet]
+    [Route("api/external-scraper/status")]
+    [AllowAnonymous] // Musi być AllowAnonymous, żeby przyjąć Pythona, ale sprawdzamy też usera
+    public IActionResult GetExternalScrapersStatus()
+    {
+        // Hybrydowa autoryzacja: Klucz API LUB Zalogowany Admin
+        var apiKey = GetApiKeyFromHeader();
+        if (!ValidateApiKey(apiKey) && (!User.Identity.IsAuthenticated))
+        {
+            return Unauthorized(new { error = "Unauthorized" });
+        }
+        var scrapers = _registeredScrapers.Values.Select(s => new
+        {
+            s.ScraperName,
+            s.RegisteredAt,
+            s.LastHeartbeat,
+            s.IsActive,
+            s.TasksCompleted,
+            s.TasksFailed,
+            SecondsSinceHeartbeat = (DateTime.UtcNow - s.LastHeartbeat).TotalSeconds
+        }).ToList();
+
+        return Ok(new
+        {
+            totalScrapers = scrapers.Count,
+            activeScrapers = scrapers.Count(s => s.IsActive),
+            queuedTasks = _externalTaskQueue.Count,
+            pendingResults = _externalResults.Count,
+            scrapers
+        });
+    }
+
+
+    /// <summary>
+    /// Przetwarza wynik od zewnętrznego scrapera i aktualizuje bazę danych - POPRAWIONE
+    /// </summary>
+    private async Task ProcessExternalResultAsync(ExternalScraperResult result)
+    {
+        if (result == null) return;
+
+        try
+        {
+            // Wyciągnij ProductId z TaskId (format: "product_123_guid")
+            int? productId = result.ProductId;
+
+            if (!productId.HasValue && result.TaskId.Contains("product_"))
+            {
+                var parts = result.TaskId.Split('_');
+                if (parts.Length >= 2 && int.TryParse(parts[1], out int parsedId))
+                {
+                    productId = parsedId;
+                }
+            }
+
+            if (productId.HasValue)
+            {
+                // Znajdź stan produktu w master liście
+                if (_masterProductStateList.TryGetValue(productId.Value, out var productState))
+                {
+                    lock (productState)
+                    {
+                        switch (result.FinalStatus)
+                        {
+                            case "Found":
+                                productState.UpdateStatus(ProductStatus.Found, result.FoundGoogleUrl, result.FoundCid, result.FoundGid);
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.WriteLine($"[EXT-API] Produkt {productId} ZNALEZIONY: CID={result.FoundCid}, URL={result.FoundGoogleUrl}");
+                                Console.ResetColor();
+                                break;
+
+                            case "NotFound":
+                                productState.UpdateStatus(ProductStatus.NotFound);
+                                Console.WriteLine($"[EXT-API] Produkt {productId} NIE ZNALEZIONY");
+                                break;
+
+                            case "CaptchaHalt":
+                                productState.UpdateStatus(ProductStatus.CaptchaHalt);
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.WriteLine($"[EXT-API] Produkt {productId} CAPTCHA HALT");
+                                Console.ResetColor();
+                                break;
+
+                            case "Error":
+                            default:
+                                productState.UpdateStatus(ProductStatus.Error);
+                                Console.WriteLine($"[EXT-API] Produkt {productId} ERROR: {result.ErrorMessage}");
+                                break;
+                        }
+                    }
+                }
+            }
+
+            // Jeśli są dopasowane produkty (tryb Intermediate lub Standard)
+            if (result.MatchedProducts != null && result.MatchedProducts.Any())
+            {
+                foreach (var matched in result.MatchedProducts)
+                {
+                    if (_masterProductStateList.TryGetValue(matched.ProductId, out var matchedState))
+                    {
+                        lock (matchedState)
+                        {
+                            if (matchedState.Status != ProductStatus.Found)
+                            {
+                                matchedState.UpdateStatus(ProductStatus.Found, matched.GoogleUrl, matched.Cid, matched.Gid);
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.WriteLine($"[EXT-API] ✓ Dopasowano produkt {matched.ProductId} (CID: {matched.Cid})");
+                                Console.ResetColor();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[EXT-API] Błąd przetwarzania wyniku: {ex.Message}");
+            Console.ResetColor();
+        }
+    }
+
+    /// <summary>
+    /// Dodaje zadania do kolejki dla zewnętrznych scraperów - POPRAWIONE
+    /// </summary>
+    public void EnqueueTasksForExternalScrapers(int storeId, List<ProductProcessingState> products, string mode)
+    {
+        lock (_settingsLock)
+        {
+            // Przygotuj mapę URL -> ProductId dla trybu Standard
+            Dictionary<string, int> eligibleProductsMap = null;
+            if (mode == "Standard" || mode == "full_process")
+            {
+                eligibleProductsMap = products
+                    .Where(p => !string.IsNullOrEmpty(p.CleanedUrl))
+                    .GroupBy(p => p.CleanedUrl, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First().ProductId, StringComparer.OrdinalIgnoreCase);
+            }
+
+            int addedCount = 0;
+
+            foreach (var product in products.Where(p => p.Status == ProductStatus.Pending))
+            {
+                // Zbuduj searchTerm zgodnie z ustawieniami
+                string searchTerm = product.ProductNameInStoreForGoogle;
+
+                if (_externalScraperSettings.AppendProducerCode && !string.IsNullOrEmpty(product.ProducerCode))
+                    searchTerm = $"{searchTerm} {product.ProducerCode}";
+
+                if (!string.IsNullOrEmpty(_externalScraperSettings.ProductNamePrefix))
+                    searchTerm = $"{_externalScraperSettings.ProductNamePrefix} {searchTerm}";
+
+                var task = new ExternalScraperTask
+                {
+                    TaskId = $"product_{product.ProductId}_{Guid.NewGuid():N}",
+                    ProductId = product.ProductId,
+                    ProductName = product.ProductNameInStoreForGoogle,
+                    SearchTerm = searchTerm,
+                    CleanedUrl = product.CleanedUrl,
+                    OriginalUrl = product.OriginalUrl,
+                    Ean = product.Ean,
+                    ProducerCode = product.ProducerCode,
+                    Mode = mode,
+                    MaxItemsToExtract = _externalScraperSettings.MaxCidsToProcess,
+                    UdmValue = _externalScraperSettings.SearchModeUdm,
+                    StoreId = storeId,
+                    EligibleProductsMap = eligibleProductsMap,
+                    TargetCode = product.ProducerCode // Dla trybu Intermediate
+                };
+
+                _externalTaskQueue.Enqueue(task);
+                addedCount++;
+            }
+
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Dodano {addedCount} zadań do kolejki. Tryb: {mode}");
+            Console.ResetColor();
+        }
+    }
+
+    /// <summary>
+    /// Uruchamia scrapowanie z użyciem zewnętrznych scraperów
+    /// </summary>
+    [HttpPost]
+    [Route("api/external-scraper/start-scraping")]
+    public async Task<IActionResult> StartScrapingWithExternalScrapers(
+        int storeId,
+        List<int> productIds,
+        string mode = "Standard")
+    {
+        if (!_registeredScrapers.Values.Any(s => s.IsActive))
+            return BadRequest(new { error = "Brak aktywnych zewnętrznych scraperów. Uruchom scraper Python." });
+
+        // Inicjalizuj listę produktów
+        InitializeMasterProductListIfNeeded(storeId, productIds, false, requireUrl: mode == "Standard");
+
+        var pendingProducts = _masterProductStateList.Values
+            .Where(p => p.Status == ProductStatus.Pending)
+            .ToList();
+
+        if (!pendingProducts.Any())
+            return Ok(new { message = "Brak produktów do przetworzenia" });
+
+        // Dodaj zadania do kolejki
+        EnqueueTasksForExternalScrapers(storeId, pendingProducts, mode);
+
+        return Ok(new
+        {
+            message = "Zadania dodane do kolejki",
+            tasksEnqueued = pendingProducts.Count,
+            activeScrapers = _registeredScrapers.Values.Count(s => s.IsActive),
+            queueSize = _externalTaskQueue.Count
+        });
+    }
+
+
+
+    [HttpPost]
+    [Route("api/external-scraper/reset-queue")]
+    public IActionResult ResetExternalQueue()
+    {
+        // 1. Wyczyść kolejkę zadań
+        _externalTaskQueue.Clear();
+
+        // 2. Zresetuj stan produktów w pamięci, które są "w trakcie" przetwarzania przez zewnętrzne
+        // (czyli te, które nie są Found/NotFound/Error, a wiszą w pamięci)
+        lock (_lockMasterListInit)
+        {
+            var stuckProducts = _masterProductStateList.Values
+                .Where(p => p.Status == ProductStatus.Processing && p.ProcessingByTaskId == null) // ProcessingByTaskId jest null dla zewnętrznych (bo nie ma TaskId wątku C#)
+                .ToList();
+
+            foreach (var p in stuckProducts)
+            {
+                p.Status = ProductStatus.Pending; // Cofnij do Pending
+            }
+
+            // Opcjonalnie: wyczyść całą listę master, żeby załadować od nowa z bazy przy następnym starcie
+            // _masterProductStateList.Clear(); 
+        }
+
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Kolejka zadań została wyczyszczona ręcznie.");
+        return Ok(new { message = "Kolejka i stan zresetowane." });
+    }
+
+    #endregion
+
 }
+

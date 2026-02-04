@@ -1,4 +1,4 @@
-﻿@model IEnumerable<PriceSafari.Models.ProductClass>
+﻿@* @model IEnumerable<PriceSafari.Models.ProductClass>
 
 @{
     ViewData["Title"] = "Lista Produktów";
@@ -381,6 +381,910 @@
                 });
 
                 // Aktualizacja podsumowania
+                $('#foundCount').text(foundCount);
+                $('#pendingCount').text(pendingCount);
+                $('#notFoundCount').text(notFoundCount);
+            }
+        });
+    </script>
+}
+
+
+
+ *@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@model IEnumerable<PriceSafari.Models.ProductClass>
+
+@{
+    ViewData["Title"] = "Lista Produktów";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    var storeId = ViewBag.StoreId;
+    var storeName = ViewBag.StoreName;
+}
+
+<style>
+    /* Uproszczone style - Czysty Bootstrap-like */
+    .ext-scraper-section {
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        margin-bottom: 2rem;
+    }
+
+        .ext-scraper-section h4 {
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 0.5rem;
+        }
+
+    .scraper-status-card {
+        border: 1px solid #e9ecef;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        background-color: #f8f9fa;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s;
+    }
+
+        .scraper-status-card.active {
+            border-left: 4px solid #28a745;
+            background-color: #f0fff4;
+        }
+
+        .scraper-status-card.inactive {
+            border-left: 4px solid #dc3545;
+            background-color: #fff5f5;
+        }
+
+    .queue-counter-ext {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #0d6efd;
+        line-height: 1;
+    }
+
+    .status-badge-ext {
+        font-size: 0.7rem;
+        padding: 0.2em 0.5em;
+        border-radius: 0.25rem;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+
+        .status-badge-ext.online {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .status-badge-ext.offline {
+            background-color: #6c757d;
+            color: white;
+        }
+
+    .ext-log-container {
+        background-color: #212529; /* Logi zostają ciemne dla kontrastu */
+        color: #f8f9fa;
+        font-family: 'Consolas', monospace;
+        font-size: 0.8rem;
+        padding: 0.75rem;
+        border-radius: 0.375rem;
+        height: 180px;
+        overflow-y: auto;
+    }
+
+    .ext-log-line {
+        margin-bottom: 2px;
+        border-bottom: 1px solid #343a40;
+    }
+
+        .ext-log-line.success {
+            color: #2ecc71;
+        }
+
+        .ext-log-line.error {
+            color: #e74c3c;
+        }
+
+        .ext-log-line.warning {
+            color: #f1c40f;
+        }
+
+        .ext-log-line.info {
+            color: #adb5bd;
+        }
+
+    .settings-group {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        height: 100%;
+    }
+
+    .settings-group-title {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #6c757d;
+        margin-bottom: 0.75rem;
+        font-weight: 700;
+    }
+
+    .nuke-button {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.25rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+        .nuke-button:hover {
+            background-color: #bb2d3b;
+            color: white;
+        }
+</style>
+
+<h2 class="mt-4 mb-4">
+    <i class="bi bi-google"></i> Google Scraper - @storeName
+</h2>
+
+<div class="ext-scraper-section">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4><i class="bi bi-robot"></i> Zewnętrzne Scrapery (Python API)</h4>
+        <div>
+            <span class="badge bg-light text-dark border me-2">
+                <i class="bi bi-hdd-network"></i> Status: <span id="apiStatusText">Łączenie...</span>
+            </span>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3 border-end">
+            <div class="d-flex justify-content-around text-center">
+                <div>
+                    <div class="text-muted small text-uppercase">Kolejka</div>
+                    <div class="queue-counter-ext" id="extQueueCount">0</div>
+                </div>
+                <div>
+                    <div class="text-muted small text-uppercase">Scrapery</div>
+                    <div class="queue-counter-ext text-success" id="extActiveScrapers">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5 border-end">
+            <div id="extScrapersList" style="max-height: 80px; overflow-y: auto; padding-right: 5px;">
+                <div class="text-center text-muted py-3"><small>Brak aktywnych scraperów</small></div>
+            </div>
+        </div>
+
+        <div class="col-md-4 d-flex flex-column justify-content-center gap-2">
+            <div class="btn-group w-100">
+                <button type="button" class="btn btn-success" onclick="startExternalScraping()">
+                    <i class="bi bi-play-fill"></i> Start
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="stopExternalScraping()">
+                    <i class="bi bi-pause-fill"></i> Stop
+                </button>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-danger flex-grow-1" onclick="resetExternalQueue()">
+                    <i class="bi bi-trash"></i> Reset Kolejki
+                </button>
+                <button type="button" class="btn btn-danger" onclick="triggerManualNuke()" title="Reset Sieci (NUKE)">
+                    <i class="bi bi-lightning-fill"></i> NUKE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="settings-group">
+                <div class="settings-group-title"><i class="bi bi-sliders"></i> Parametry</div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label small">Workerów</label>
+                        <input type="number" class="form-control form-control-sm" id="extMaxWorkers" value="1" min="1" max="20" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Max Wyników</label>
+                        <input type="number" class="form-control form-control-sm" id="extMaxCids" value="3" min="1" max="20" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Tryb UDM</label>
+                        <select class="form-select form-select-sm" id="extSearchModeUdm">
+                            <option value="3">3 (Produkty)</option>
+                            <option value="28">28 (Siatka)</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Strategia</label>
+                        <select class="form-select form-select-sm" id="extScrapingMode">
+                            <option value="Standard">Standard</option>
+                            <option value="FirstMatch">Pierwszy</option>
+                            <option value="Intermediate">Pośredni</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-check mt-2">
+                    <input type="checkbox" class="form-check-input" id="extHeadlessMode" checked />
+                    <label class="form-check-label small">Tryb Headless</label>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="extAppendProducerCode" />
+                    <label class="form-check-label small">Doklej kod producenta do zapytania</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="settings-group">
+                <div class="settings-group-title"><i class="bi bi-router"></i> Sieć & Restart</div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label small">Metoda</label>
+                        <select class="form-select form-select-sm" id="extNetworkResetMethod">
+                            <option value="mullvad">Mullvad VPN</option>
+                            <option value="modem_lte">Modem LTE</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Próg CAPTCHA</label>
+                        <input type="number" class="form-control form-control-sm" id="extNukeThreshold" value="7" />
+                    </div>
+                </div>
+                <div class="form-check mt-2">
+                    <input type="checkbox" class="form-check-input" id="extAutoNuke" checked />
+                    <label class="form-check-label small">Auto-reset sieci</label>
+                </div>
+
+                <div id="extMullvadSettings" class="mt-2 row g-1">
+                    <div class="col-6"><input type="text" class="form-control form-control-sm" id="extMullvadCountry" value="pl" placeholder="Kraj" /></div>
+                    <div class="col-6"><input type="text" class="form-control form-control-sm" id="extMullvadCity" value="waw" placeholder="Miasto" /></div>
+                </div>
+                <div id="extModemSettings" class="mt-2" style="display:none;">
+                    <input type="text" class="form-control form-control-sm mb-1" id="extModemUrl" value="http://192.168.1.1" placeholder="URL" />
+                    <input type="password" class="form-control form-control-sm" id="extModemPassword" placeholder="Hasło" />
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="settings-group p-0 overflow-hidden d-flex flex-column">
+                <div class="settings-group-title p-3 m-0 bg-white border-bottom d-flex justify-content-between">
+                    <span><i class="bi bi-terminal"></i> Logi operacji</span>
+                    <button class="btn btn-link btn-sm p-0 text-muted" onclick="clearExtLogs()">Wyczyść</button>
+                </div>
+                <div class="ext-log-container flex-grow-1 border-0 rounded-0" id="extLogContainer" style="height: 140px;">
+                    <div class="ext-log-line info">Gotowy do pracy.</div>
+                </div>
+                <div class="p-2 bg-white border-top d-flex gap-2">
+                    <button class="btn btn-primary btn-sm w-50" onclick="saveExtSettings()">Zapisz Config</button>
+                    <button class="btn btn-outline-secondary btn-sm w-50" onclick="loadExtSettings()">Wczytaj</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mb-3 p-3 border rounded bg-light" id="scrapingOptions">
+    <h4>Opcje Uruchomienia Bota (Wewnętrznego - C#)</h4>
+    <div class="row g-3 align-items-end">
+
+        <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" id="allowManualCaptchaSolving" style="background-color: #fd7e14; border-color: #fd7e14;">
+            <label class="form-check-label" for="allowManualCaptchaSolving">
+                <strong>Włącz tryb ręcznego rozwiązywania CAPTCHA</strong> (Gdy bot trafi na CAPTCHA, poczeka 30s na ręczne rozwiązanie zamiast resetować sieć)
+            </label>
+        </div>
+        <div class="col-md-3">
+            <label for="searchModeUdm" class="form-label">Tryb widoku Google (UDM):</label>
+            <select class="form-select" id="searchModeUdm">
+                <option value="3" selected>Standardowy (udm=3)</option>
+                <option value="28">Alternatywny / Siatka (udm=28)</option>
+            </select>
+            <small class="text-muted">Zmień, jeśli scraper nie znajduje wyników.</small>
+        </div>
+        <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" id="filterMultiCatalog">
+            <label class="form-check-label" for="filterMultiCatalog">
+                <strong class="text-info">Pokaż tylko produkty z dodatkowymi katalogami (Multi-Catalog)</strong>
+            </label>
+        </div>
+        <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" id="useFirstMatchLogic">
+            <label class="form-check-label" for="useFirstMatchLogic">
+                <strong>Włącz tryb "Pierwszy Trafiony"</strong> (szybki, mniej dokładny - przypisuje pierwszy znaleziony produkt w Google)
+            </label>
+        </div>
+
+        <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" id="ensureNameMatch">
+            <label class="form-check-label" for="ensureNameMatch">
+                <strong>Tryb Pośredni:</strong> Upewnij się, że w nazwie wyniku występuje wyszukiwany parametr (np. Kod produktu)
+            </label>
+        </div>
+        <div class="form-check form-switch mt-2 ms-4" id="compareOnlyCurrentProductCodeContainer" style="display: none;">
+            <input class="form-check-input" type="checkbox" id="compareOnlyCurrentProductCode">
+            <label class="form-check-label" for="compareOnlyCurrentProductCode">
+                Porównuj kod tylko aktualnie wyszukiwanego produktu (Ogranicza dopasowanie do własnego kodu. Zwiększa dokładność, zmniejsza szybkość).
+            </label>
+        </div>
+        <div class="col-md-3">
+            <label for="numberOfConcurrentScrapers" class="form-label">Liczba scraperów (wątków):</label>
+            <input type="number" class="form-control" id="numberOfConcurrentScrapers" value="7" min="1">
+        </div>
+        <div class="col-md-3">
+            <label for="maxCidsToProcessPerProduct" class="form-label">Max CIDów / Wyników:</label>
+            <input type="number" class="form-control" id="maxCidsToProcessPerProduct" value="5" min="1">
+            <small class="text-muted">Dla Multi-Catalog zalecane 8-10</small>
+        </div>
+        <div class="col-md-3">
+            <label for="searchTermSource" class="form-label">Źródło terminu wyszukiwania:</label>
+            <select class="form-select" id="searchTermSource">
+                <option value="ProductName" selected>Nazwa produktu</option>
+                <option value="ProductUrl">URL produktu</option>
+                <option value="Ean">Kod EAN</option>
+                <option value="ProducerCode">Kod producenta</option>
+            </select>
+        </div>
+        <div class="col-md-3" id="productNameOptionsContainer">
+            <div class="mb-2" id="prefixContainer">
+                <label for="productNamePrefix" class="form-label">Prefix (np. nazwa sklepu):</label>
+                <input type="text" class="form-control" id="productNamePrefix" placeholder="np. sklep">
+            </div>
+
+            <div class="form-check" id="appendCodeContainer">
+                <input class="form-check-input" type="checkbox" id="appendProducerCode">
+                <label class="form-check-label" for="appendProducerCode">
+                    Dołącz kod producenta do nazwy
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex mb-3 flex-wrap">
+    <button id="startScraping" class="btn btn-primary me-2 mb-2">Uruchom BOT (Główny)</button>
+
+    <button id="startMultiCatalogScraping" class="btn btn-info me-2 mb-2 text-white">
+        <i class="bi bi-collection"></i> Szukaj Dodatkowych Katalogów (Multi)
+    </button>
+
+    <button id="stopScrapingButton" class="btn me-2 mb-2" style="background-color: purple; color: white;">Zatrzymaj BOTa</button>
+
+    <div class="vr mx-2"></div>
+
+    <button id="updatePendingStatuses" class="btn btn-secondary me-2 mb-2">Przelicz korekty</button>
+    <button id="resetNotFoundStatuses" class="btn btn-warning me-2 mb-2">Resetuj nieznalezione</button>
+    <button id="resetIncorrectGoogleStatuses" class="btn btn-danger me-2 mb-2">Resetuj Błędne Google</button>
+    <button id="clearGoogleUrls" class="btn btn-danger mb-2">Wyczyść Google URLs</button>
+</div>
+
+<h3>Podsumowanie</h3>
+<div class="d-flex mb-3">
+    <p class="me-4">Liczba produktów znalezionych: <span id="foundCount" class="badge bg-success">0</span></p>
+    <p class="me-4">Liczba produktów do znalezienia: <span id="pendingCount" class="badge bg-secondary">0</span></p>
+    <p>Liczba produktów nieznalezionych: <span id="notFoundCount" class="badge bg-danger">0</span></p>
+</div>
+
+<table class="table table-bordered table-striped table-hover">
+    <thead class="table-dark">
+        <tr>
+            <th><input type="checkbox" id="selectAllProducts" /></th>
+            <th>Product Name</th>
+            <th>EAN</th>
+            <th>Kod Producenta</th>
+            <th>Product URL</th>
+            <th>Status</th>
+            <th>Google URL</th>
+            <th>Akcja</th>
+            <th>GID/CID</th>
+        </tr>
+    </thead>
+    <tbody id="productTable">
+    </tbody>
+</table>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // =========================================================================
+        // SEKCJA ZEWNĘTRZNYCH SCRAPERÓW
+        // =========================================================================
+
+        const EXT_STORE_ID = '@storeId';
+        let extRefreshInterval;
+
+        // Inicjalizacja sekcji zewnętrznych scraperów
+        $(document).ready(function() {
+            // Auto-refresh statusu co 5 sekund
+            extRefreshInterval = setInterval(refreshExtStatus, 5000);
+
+            // Przełączanie Mullvad/Modem
+            $('#extNetworkResetMethod').change(function() {
+                if (this.value === 'mullvad') {
+                    $('#extMullvadSettings').show();
+                    $('#extModemSettings').hide();
+                } else {
+                    $('#extMullvadSettings').hide();
+                    $('#extModemSettings').show();
+                }
+            });
+
+            // Załaduj ustawienia i status
+            loadExtSettings();
+            refreshExtStatus();
+        });
+
+        function addExtLog(message, type = 'info') {
+            const container = document.getElementById('extLogContainer');
+            const timestamp = new Date().toLocaleTimeString('pl-PL');
+            const line = document.createElement('div');
+            line.className = `ext-log-line ${type}`;
+            line.textContent = `[${timestamp}] ${message}`;
+            container.appendChild(line);
+            container.scrollTop = container.scrollHeight;
+
+            // Ogranicz liczbę linii
+            while (container.children.length > 50) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        function clearExtLogs() {
+            document.getElementById('extLogContainer').innerHTML = '';
+            addExtLog('Logi wyczyszczone', 'info');
+        }
+
+        async function refreshExtStatus() {
+            try {
+                const response = await fetch('/api/external-scraper/status');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('extQueueCount').textContent = data.queuedTasks || 0;
+                    document.getElementById('extActiveScrapers').textContent = data.activeScrapers || 0;
+
+                    let html = '';
+                    if (data.scrapers && data.scrapers.length > 0) {
+                        data.scrapers.forEach(s => {
+                            const badge = s.isActive ?
+                                '<span class="status-badge-ext online">ON</span>' :
+                                '<span class="status-badge-ext offline">OFF</span>';
+                            html += `<div class="scraper-status-card ${s.isActive ? 'active' : 'inactive'}">
+                                        <small><strong>${s.scraperName}</strong> ${badge}</small>
+                                        <br/><small class="text-muted">${s.tasksCompleted}✓ ${s.tasksFailed}✗</small>
+                                    </div>`;
+                        });
+                    } else {
+                        html = '<small class="text-muted">Brak scraperów</small>';
+                    }
+                    document.getElementById('extScrapersList').innerHTML = html;
+                }
+            } catch (e) {
+                console.error('Błąd odświeżania statusu:', e);
+            }
+        }
+
+        async function loadExtSettings() {
+            try {
+                const response = await fetch('/api/external-scraper/settings');
+                if (response.ok) {
+                    const data = await response.json();
+                    $('#extMaxWorkers').val(data.maxWorkers || 1);
+                    $('#extMaxCids').val(data.maxCidsToProcess || 3);
+                    $('#extSearchModeUdm').val(data.searchModeUdm || 3);
+                    $('#extScrapingMode').val(data.scrapingMode || 'Standard');
+                    $('#extHeadlessMode').prop('checked', data.headlessMode !== false);
+                    $('#extAppendProducerCode').prop('checked', data.appendProducerCode === true);
+                    $('#extNetworkResetMethod').val(data.networkResetMethod || 'mullvad');
+                    $('#extNukeThreshold').val(data.nukeThreshold || 7);
+                    $('#extAutoNuke').prop('checked', data.autoNetworkResetOnCaptcha !== false);
+                    $('#extMullvadCountry').val(data.mullvadCountryCode || 'pl');
+                    $('#extMullvadCity').val(data.mullvadCityCode || 'waw');
+                    $('#extModemUrl').val(data.modemUrl || 'http://192.168.1.1');
+                    $('#extModemWait').val(data.modemRestartWaitSeconds || 50);
+
+                    $('#extNetworkResetMethod').trigger('change');
+                    addExtLog('Ustawienia załadowane', 'success');
+                }
+            } catch (e) {
+                addExtLog('Błąd ładowania ustawień: ' + e.message, 'error');
+            }
+        }
+
+        async function saveExtSettings() {
+            const settings = {
+                maxWorkers: parseInt($('#extMaxWorkers').val()),
+                maxCidsToProcess: parseInt($('#extMaxCids').val()),
+                searchModeUdm: parseInt($('#extSearchModeUdm').val()),
+                scrapingMode: $('#extScrapingMode').val(),
+                headlessMode: $('#extHeadlessMode').is(':checked'),
+                appendProducerCode: $('#extAppendProducerCode').is(':checked'),
+                networkResetMethod: $('#extNetworkResetMethod').val(),
+                nukeThreshold: parseInt($('#extNukeThreshold').val()),
+                autoNetworkResetOnCaptcha: $('#extAutoNuke').is(':checked'),
+                mullvadCountryCode: $('#extMullvadCountry').val(),
+                mullvadCityCode: $('#extMullvadCity').val(),
+                modemUrl: $('#extModemUrl').val(),
+                modemPassword: $('#extModemPassword').val() || null,
+                modemRestartWaitSeconds: parseInt($('#extModemWait').val())
+            };
+
+            try {
+                const response = await fetch('/api/external-scraper/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+
+                if (response.ok) {
+                    addExtLog('Ustawienia zapisane', 'success');
+                } else {
+                    addExtLog('Błąd zapisu: ' + response.statusText, 'error');
+                }
+            } catch (e) {
+                addExtLog('Błąd zapisu: ' + e.message, 'error');
+            }
+        }
+
+        function startExternalScraping() {
+            // 1. Pobierz zaznaczone ID produktów
+            var selectedProductIds = [];
+            $('.product-checkbox:checked').each(function() {
+                selectedProductIds.push(parseInt($(this).val(), 10));
+            });
+
+            // 2. Pobierz ustawienia z formularza w widoku
+            var mode = $('#extScrapingMode').val();
+            var maxCids = $('#extMaxCids').val();
+            var udm = $('#extSearchModeUdm').val();
+            var prefix = $('#productNamePrefix').val(); // Pobieramy z głównego formularza
+            var appendCode = $('#extAppendProducerCode').is(':checked');
+
+            // Jeśli wybrano tryb pośredni, sprawdzamy opcję ścisłego dopasowania
+            var compareOnly = $('#compareOnlyCurrentProductCode').is(':checked');
+
+            // Logowanie w konsoli panelu
+            addExtLog('Wysyłanie żądania do serwera...', 'info');
+
+            // 3. Wyślij do Akcji MVC (nie API)
+            $.ajax({
+                url: '@Url.Action("StartExternalScraping", "GoogleScraper")',
+                type: 'POST',
+                data: {
+                    storeId: '@storeId',
+                    productIds: selectedProductIds,
+                    mode: mode,
+                    maxCids: maxCids,
+                    udm: udm,
+                    productNamePrefix: prefix,
+                    appendProducerCode: appendCode,
+                    compareOnlyCode: compareOnly
+                },
+                success: function(response) {
+                    if (response.success) {
+                        addExtLog('SUKCES: ' + response.message, 'success');
+                        refreshExtStatus();
+                        $('#selectAllProducts').prop('checked', false);
+                        $('.product-checkbox').prop('checked', false);
+                    } else {
+                        addExtLog('BŁĄD: ' + response.message, 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    var msg = "Błąd połączenia";
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    } else if (xhr.responseText) {
+                        msg = xhr.responseText.substring(0, 50) + "...";
+                    }
+                    addExtLog('BŁĄD AJAX: ' + msg, 'error');
+                }
+            });
+        }
+
+        async function stopExternalScraping() {
+            try {
+                const response = await fetch('@Url.Action("StopScraping", "GoogleScraper")', { method: 'POST' });
+                if (response.ok) {
+                    addExtLog('Zatrzymywanie...', 'warning');
+                }
+            } catch (e) {
+                addExtLog('Błąd zatrzymywania: ' + e.message, 'error');
+            }
+        }
+
+        async function resetExternalQueue() {
+            if (!confirm('Czy na pewno wyczyścić kolejkę zadań zewnętrznych? To nie zatrzyma obecnie przetwarzanych zadań przez Pythona.')) return;
+
+            try {
+                const response = await fetch('/api/external-scraper/reset-queue', { method: 'POST' });
+                if (response.ok) {
+                    addExtLog('Kolejka wyczyszczona', 'warning');
+                    refreshExtStatus(); // Odśwież licznik
+                }
+            } catch (e) {
+                addExtLog('Błąd resetu: ' + e.message, 'error');
+            }
+        }
+
+        function triggerManualNuke() {
+            if (!confirm('Czy na pewno chcesz ręcznie zresetować sieć?\nTo rozłączy VPN/zrestartuje modem.')) {
+                return;
+            }
+
+            addExtLog('NUKE - Reset sieci zainicjowany ręcznie', 'warning');
+
+            setTimeout(() => {
+                addExtLog('NUKE - operacja zakończona', 'info');
+            }, 5000);
+        }
+
+        // =========================================================================
+        // ORYGINALNY SKRYPT - BEZ ZMIAN
+        // =========================================================================
+
+        $(document).ready(function () {
+            let cachedProducts = [];
+
+            console.log("Document ready, loading products...");
+            loadProducts();
+
+            // === UI LOGIC ===
+            function toggleIntermediateOptions() {
+                if ($('#ensureNameMatch').is(':checked')) {
+                    $('#compareOnlyCurrentProductCodeContainer').show();
+                } else {
+                    $('#compareOnlyCurrentProductCodeContainer').hide();
+                }
+            }
+
+            $('#filterMultiCatalog').change(function() {
+                updateTable(cachedProducts);
+            });
+
+            $('#searchTermSource').change(function () {
+                var source = $(this).val();
+
+                if (source === 'ProductUrl') {
+                    $('#prefixContainer').hide();
+                } else {
+                    $('#prefixContainer').show();
+                }
+
+                if (source === 'ProductName') {
+                    $('#appendCodeContainer').show();
+                } else {
+                    $('#appendCodeContainer').hide();
+                    $('#appendProducerCode').prop('checked', false);
+                }
+            }).trigger('change');
+
+            $('#ensureNameMatch').change(toggleIntermediateOptions).trigger('change');
+
+            $('#selectAllProducts').click(function () {
+                $('.product-checkbox').prop('checked', this.checked);
+            });
+
+            // === BUTTON HANDLERS ===
+
+            $('#startScraping').click(function () {
+                startScrapingProcess('@Url.Action("StartScrapingForProducts", "GoogleScraper")');
+            });
+
+            $('#startMultiCatalogScraping').click(function () {
+                let maxCids = parseInt($('#maxCidsToProcessPerProduct').val(), 10);
+                if(maxCids < 5) {
+                    if(!confirm("Tryb Multi-Catalog działa najlepiej przy sprawdzaniu min. 5-8 wyników. Kontynuować?")) return;
+                }
+                startScrapingProcess('@Url.Action("StartScrapingForAdditionalCatalogs", "GoogleScraper")');
+            });
+
+            $('#stopScrapingButton').click(function () {
+                if (confirm("Czy na pewno chcesz zatrzymać proces scrapowania?")) {
+                    sendPostRequest('@Url.Action("StopScraping", "GoogleScraper")', {}, "Wysłano żądanie zatrzymania.");
+                }
+            });
+
+            $('#updatePendingStatuses').click(() => sendPostRequest('@Url.Action("UpdatePendingProducts", "GoogleScraper")', { storeId: '@storeId' }, "Zaktualizowano statusy."));
+            $('#resetNotFoundStatuses').click(() => sendPostRequest('@Url.Action("ResetNotFoundProducts", "GoogleScraper")', { storeId: '@storeId' }, "Zresetowano nieznalezione."));
+            $('#resetIncorrectGoogleStatuses').click(() => sendPostRequest('@Url.Action("ResetIncorrectGoogleStatuses", "GoogleScraper")', { storeId: '@storeId' }, "Zresetowano błędne statusy."));
+            $('#clearGoogleUrls').click(() => sendPostRequest('@Url.Action("ClearGoogleUrls", "GoogleScraper")', { storeId: '@storeId' }, "Wyczyszczono URL Google."));
+
+
+            // === CORE FUNCTIONS ===
+
+            function loadProducts() {
+                $.ajax({
+                    type: "GET",
+                    url: '@Url.Action("GoogleProducts", "GoogleScraper")',
+                    data: { storeId: '@storeId' },
+                    success: function (products) {
+                        cachedProducts = products;
+                        updateTable(products);
+                    },
+                    error: function (xhr) {
+                        console.error("Error loading products: ", xhr.responseText);
+                    }
+                });
+            }
+
+            function startScrapingProcess(actionUrl) {
+                var selectedProductIds = [];
+                $('.product-checkbox:checked').each(function () {
+                    selectedProductIds.push(parseInt($(this).val(), 10));
+                });
+
+                var maxCidsValue = parseInt($('#maxCidsToProcessPerProduct').val(), 10);
+
+                var scrapingData = {
+                    storeId: '@storeId',
+                    productIds: selectedProductIds,
+                    numberOfConcurrentScrapers: parseInt($('#numberOfConcurrentScrapers').val(), 10),
+                    maxCidsToProcessPerProduct: parseInt($('#maxCidsToProcessPerProduct').val(), 10),
+                    maxCidsToProcess: parseInt($('#maxCidsToProcessPerProduct').val(), 10),
+                    searchModeUdm: parseInt($('#searchModeUdm').val(), 10),
+                    searchTermSource: $('#searchTermSource').val(),
+                    useFirstMatchLogic: $('#useFirstMatchLogic').is(':checked'),
+                    ensureNameMatch: $('#ensureNameMatch').is(':checked'),
+                    compareOnlyCurrentProductCode: $('#compareOnlyCurrentProductCode').is(':checked'),
+                    allowManualCaptchaSolving: $('#allowManualCaptchaSolving').is(':checked'),
+                    appendProducerCode: $('#appendProducerCode').is(':checked'),
+                    productNamePrefix: $('#productNamePrefix').val()
+                };
+
+                $.ajax({
+                    type: "POST",
+                    url: actionUrl,
+                    data: scrapingData,
+                    traditional: true,
+                    success: function (response) {
+                        alert("Rozpoczęto: " + response);
+                    },
+                    error: function (xhr) {
+                        alert("Błąd: " + xhr.responseText);
+                    }
+                });
+            }
+
+            function sendPostRequest(url, data, successMsg) {
+                $.ajax({
+                    type: "POST",
+                    url: url,
+                    data: data,
+                    success: function () {
+                        console.log(successMsg);
+                        loadProducts();
+                    }
+                });
+            }
+
+            function updateTable(products) {
+                const tableBody = $('#productTable');
+                tableBody.empty();
+
+                const onlyMulti = $('#filterMultiCatalog').is(':checked');
+
+                let foundCount = 0;
+                let pendingCount = 0;
+                let notFoundCount = 0;
+
+                $.each(products, function (index, product) {
+                    const hasExtraCatalogs = product.googleCatalogs && product.googleCatalogs.length > 0;
+
+                    if (onlyMulti && !hasExtraCatalogs) {
+                        return true;
+                    }
+
+                    if (product.foundOnGoogle === true) foundCount++;
+                    else if (product.foundOnGoogle === false) notFoundCount++;
+                    else pendingCount++;
+
+                    let statusBadge = '<span class="badge bg-secondary">Pending</span>';
+                    if (product.foundOnGoogle === true) statusBadge = '<span class="badge bg-success">Found</span>';
+                    else if (product.foundOnGoogle === false) statusBadge = '<span class="badge bg-danger">Not Found</span>';
+
+                    let typeBadge = '';
+                    if (product.googleCid) {
+                        typeBadge = '<span class="badge bg-success" style="font-size: 0.7rem;">KATALOG</span>';
+                    } else if (product.googleHid) {
+                        typeBadge = '<span class="badge bg-warning text-dark" style="font-size: 0.7rem;">OFERTA</span>';
+                    }
+
+                    let mainIdsHtml = `
+                        <div style="font-size: 0.75rem; line-height: 1.2;">
+                            ${product.googleGid ? `GID: ${product.googleGid}<br/>` : ''}
+                            ${product.googleCid ? `CID: ${product.googleCid}<br/>` : ''}
+                            ${product.googleHid ? `HID: ${product.googleHid}` : ''}
+                        </div>`;
+
+                    let googleLinkHtml = product.generatedGoogleUrl ? `<a href="${product.generatedGoogleUrl}" target="_blank" class="btn btn-sm btn-outline-primary">Szukaj</a>` : '';
+                    let mainGoogleUrl = product.googleUrl ? `<a href="${product.googleUrl}" target="_blank" style="word-break: break-all; font-size: 0.85rem;">${product.googleUrl}</a>` : '';
+
+                    let row = `
+                        <tr id="productRow-${product.productId}" class="${hasExtraCatalogs ? 'table-info' : ''}">
+                            <td><input type="checkbox" class="product-checkbox" value="${product.productId}" /></td>
+                            <td><small>${product.productNameInStoreForGoogle || ''}</small><br/>${typeBadge}</td>
+                            <td>${product.ean || ''}</td>
+                            <td class="fw-bold text-primary">${product.producerCode || ''}</td>
+                            <td><a href="${product.url || '#'}" target="_blank">Sklep</a></td>
+                            <td>${statusBadge}</td>
+                            <td>${mainGoogleUrl}</td>
+                            <td>${googleLinkHtml}</td>
+                            <td>${mainIdsHtml}</td>
+                        </tr>`;
+
+                    tableBody.append(row);
+
+                    if (hasExtraCatalogs) {
+                        $.each(product.googleCatalogs, function(i, cat) {
+                            let dynamicUrl = '';
+                            let subTypeBadge = '';
+
+                            if (cat.isExtendedOfferByHid) {
+                                let name = encodeURIComponent(product.productNameInStoreForGoogle);
+                                dynamicUrl = `https://www.google.com/search?q=${name}&udm=28#oshopproduct=gid:${cat.googleGid},hid:${cat.googleHid},pvt:hg,pvo:3&oshop=apv`;
+                                subTypeBadge = '<span class="badge bg-warning text-dark" style="font-size: 0.6rem;">OFERTA</span>';
+                            } else {
+                                dynamicUrl = `https://www.google.com/shopping/product/${cat.googleCid}`;
+                                subTypeBadge = '<span class="badge bg-success" style="font-size: 0.6rem;">KATALOG</span>';
+                            }
+
+                            let subIdsHtml = `
+                                <div style="font-size: 0.7rem; line-height: 1.1;">
+                                    ${cat.googleGid ? `Gid: ${cat.googleGid}<br/>` : ''}
+                                    ${cat.googleCid ? `Cid: ${cat.googleCid}<br/>` : ''}
+                                    ${cat.googleHid ? `Hid: ${cat.googleHid}` : ''}
+                                </div>`;
+
+                            let subRow = `
+                                <tr style="background-color: #f0faff;">
+                                    <td></td>
+                                    <td colspan="4" class="text-end text-muted small">
+                                        <i class="bi bi-arrow-return-right"></i> Dodatkowy (${i+1}):
+                                    </td>
+                                    <td>${subTypeBadge}</td>
+                                    <td>
+                                        <a href="${dynamicUrl}" target="_blank" style="word-break: break-all; font-size: 0.8rem;">
+                                            Link do Google
+                                        </a>
+                                    </td>
+                                    <td></td>
+                                    <td>${subIdsHtml}</td>
+                                </tr>`;
+                            tableBody.append(subRow);
+                        });
+                    }
+                });
+
                 $('#foundCount').text(foundCount);
                 $('#pendingCount').text(pendingCount);
                 $('#notFoundCount').text(notFoundCount);
