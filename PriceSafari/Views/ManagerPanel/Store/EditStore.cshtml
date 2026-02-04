@@ -277,6 +277,28 @@
                 </div>
             </div>
         </div>
+        <hr class="border-warning my-4" />
+
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="text-dark"> Ręczne generowanie odnowienia</h4>
+                <p class="text-muted small mb-0">
+                    Ta akcja natychmiast wystawi nową fakturę zgodnie z przypisanym planem,
+                    <strong>doda dni subskrypcji</strong> do konta sklepu i odświeży limity produktów.
+                    Faktura <strong>nie zostanie</strong> automatycznie wysłana mailem do klienta.
+                </p>
+            </div>
+            <div class="col-md-4 text-right">
+                <button type="submit"
+                        asp-action="GenerateInvoiceManually"
+                        asp-route-storeId="@Model.StoreId"
+                        formnovalidate
+                        class="btn btn-warning font-weight-bold shadow-sm"
+                        onclick="return confirm('Czy na pewno chcesz wystawić nową fakturę i dodać dni? Ta operacja jest nieodwracalna.');">
+                    <i class="fas fa-plus-circle"></i> Wystaw FV i Dodaj Dni
+                </button>
+            </div>
+        </div>
     </div>
     <div class="card">
         <div class="card-header">

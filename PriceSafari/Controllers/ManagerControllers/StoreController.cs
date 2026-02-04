@@ -518,5 +518,102 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("ProductList", new { storeId });
         }
 
+
+        // W pliku: Controllers/ManagerControllers/StoreController.cs
+
+        [HttpPost]
+        public async Task<IActionResult> GenerateInvoiceManually(int storeId)
+        {
+            // 1. Pobieramy sklep z bazy (świeże dane)
+            var store = await _context.Stores
+                .Include(s => s.Plan)
+                .Include(s => s.PaymentData)
+                .FirstOrDefaultAsync(s => s.StoreId == storeId);
+
+            if (store == null) return NotFound();
+
+            // Walidacja czy sklep ma plan
+            if (store.PlanId == null || store.Plan == null)
+            {
+                TempData["ErrorMessage"] = "Nie można wygenerować faktury: Sklep nie ma przypisanego Planu.";
+                return RedirectToAction("EditStore", new { storeId });
+            }
+
+            // 2. Obsługa licznika faktur (pobranie i inkrementacja)
+            var currentYear = DateTime.Now.Year;
+            var invoiceCounter = await _context.InvoiceCounters.FirstOrDefaultAsync(c => c.Year == currentYear);
+
+            if (invoiceCounter == null)
+            {
+                invoiceCounter = new InvoiceCounter { Year = currentYear, LastInvoiceNumber = 0, LastProformaNumber = 0 };
+                _context.InvoiceCounters.Add(invoiceCounter);
+                await _context.SaveChangesAsync();
+            }
+
+            invoiceCounter.LastInvoiceNumber++;
+            string invNum = $"PS/{invoiceCounter.LastInvoiceNumber:D6}/sDB/{DateTime.Now.Year}";
+
+            // 3. Wyliczenia kwot
+            decimal netPrice = store.Plan.NetPrice;
+            decimal appliedDiscountPercentage = 0;
+            decimal appliedDiscountAmount = 0;
+
+            if (store.DiscountPercentage.HasValue && store.DiscountPercentage.Value > 0)
+            {
+                appliedDiscountPercentage = store.DiscountPercentage.Value;
+                appliedDiscountAmount = netPrice * (appliedDiscountPercentage / 100m);
+                netPrice = netPrice - appliedDiscountAmount;
+            }
+
+            // 4. Tworzenie obiektu faktury
+            var invoice = new InvoiceClass
+            {
+                StoreId = store.StoreId,
+                PlanId = store.PlanId.Value,
+                IssueDate = DateTime.Now,
+                DueDate = DateTime.Now.AddDays(14),
+                IsPaid = false,         // Ręcznie generowana - domyślnie nieopłacona
+                IsPaidByCard = false,
+                InvoiceNumber = invNum,
+                NetAmount = netPrice,
+                DaysIncluded = store.Plan.DaysPerInvoice,
+                UrlsIncluded = store.Plan.ProductsToScrap,
+                UrlsIncludedAllegro = store.Plan.ProductsToScrapAllegro,
+                // Pobieramy dane z PaymentData sklepu
+                CompanyName = store.PaymentData?.CompanyName ?? "Brak Danych",
+                Address = store.PaymentData?.Address ?? "",
+                PostalCode = store.PaymentData?.PostalCode ?? "",
+                City = store.PaymentData?.City ?? "",
+                NIP = store.PaymentData?.NIP ?? "",
+                AppliedDiscountPercentage = appliedDiscountPercentage,
+                AppliedDiscountAmount = appliedDiscountAmount,
+                IsSentByEmail = false // Zgodnie z życzeniem - nie wysyłamy, tylko generujemy
+            };
+
+            // 5. DODANIE DNI I ZAKTUALIZOWANIE LIMITÓW (Logika z serwisu)
+            store.RemainingDays += store.Plan.DaysPerInvoice;
+            store.ProductsToScrap = store.Plan.ProductsToScrap;
+            store.ProductsToScrapAllegro = store.Plan.ProductsToScrapAllegro;
+
+            _context.Invoices.Add(invoice);
+
+            // 6. Logowanie akcji (opcjonalnie, dla porządku w logach systemowych)
+            _context.TaskExecutionLogs.Add(new TaskExecutionLog
+            {
+                DeviceName = "ManagerPanel",
+                OperationName = "FAKTURA_RECZNA",
+                StartTime = DateTime.Now,
+                EndTime = DateTime.Now,
+                Comment = $"Admin wygenerował ręcznie FV: {invNum} dla sklepu ID: {store.StoreId}. Dodano {store.Plan.DaysPerInvoice} dni."
+            });
+
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"Wygenerowano fakturę {invNum} i dodano {store.Plan.DaysPerInvoice} dni.";
+
+            // Powrót do edycji sklepu
+            return RedirectToAction("EditStore", new { storeId });
+        }
+
     }
 }
