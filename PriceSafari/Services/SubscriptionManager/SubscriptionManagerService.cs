@@ -34,8 +34,8 @@ namespace PriceSafari.Services.SubscriptionService
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
 
-            var timeGenerator = new TimeSpan(0, 5, 0);
-            var timePayer = new TimeSpan(0, 10, 0);
+            var timeGenerator = new TimeSpan(0, 30, 0);
+            var timePayer = new TimeSpan(0, 40, 0);
             var timeMailer = new TimeSpan(10, 0, 0);
 
             var genKey = Environment.GetEnvironmentVariable("SUBSCRIPTION_KEY");
