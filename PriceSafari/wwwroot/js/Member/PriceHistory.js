@@ -177,7 +177,8 @@
 
     let positionSlider;
     let offerSlider;
-
+    let myPriceSlider;
+    let myPriceRangeInput;
     const openMassChangeModalBtn = document.getElementById('openMassChangeModalBtn');
     const massChangeModal = document.getElementById('massChangeModal');
     const closeMassChangeModalBtn = document.querySelector('#massChangeModal .close');
@@ -888,6 +889,34 @@
     }
 
 
+    myPriceSlider = document.getElementById('myPriceRangeSlider');
+    myPriceRangeInput = document.getElementById('myPriceRange');
+
+    noUiSlider.create(myPriceSlider, {
+        start: [0, 10000], 
+        connect: true,
+        range: {
+            'min': 0,
+            'max': 10000
+        },
+       
+        format: wNumb({
+            decimals: 2,
+            thousand: ' ',
+            suffix: ' PLN'
+        })
+    });
+
+    
+    myPriceSlider.noUiSlider.on('update', function (values, handle) {
+        myPriceRangeInput.textContent = values.join(' - ');
+    });
+
+
+    myPriceSlider.noUiSlider.on('change', function () {
+        filterPricesAndUpdateUI();
+    });
+
     positionSlider.noUiSlider.on('update', function (values, handle) {
         const displayValues = values.map(value => {
             return parseInt(value) === 60 ? 'Schowany' : 'Pozycja ' + value;
@@ -1176,6 +1205,33 @@
                 const storeCounts = allPrices.map(item => item.storeCount);
                 const maxStoreCount = Math.max(...storeCounts);
                 const offerSliderMax = Math.max(maxStoreCount, 1);
+
+                const validPrices = allPrices
+                    .map(item => parseFloat(item.myPrice))
+                    .filter(p => !isNaN(p) && p > 0.01);
+
+                let minPriceVal = 0;
+                let maxPriceVal = 1000;
+
+                if (validPrices.length > 0) {
+                    minPriceVal = Math.min(...validPrices);
+                    maxPriceVal = Math.max(...validPrices);
+                }
+
+               
+                minPriceVal = Math.floor(minPriceVal);
+                maxPriceVal = Math.ceil(maxPriceVal);
+
+            
+                myPriceSlider.noUiSlider.updateOptions({
+                    range: {
+                        'min': minPriceVal,
+                        'max': maxPriceVal
+                    }
+                });
+
+              
+                myPriceSlider.noUiSlider.set([minPriceVal, maxPriceVal]);
 
                 offerSlider.noUiSlider.updateOptions({
                     range: {
@@ -1527,6 +1583,10 @@
         const offerMin = parseInt(offerSliderValues[0]);
         const offerMax = parseInt(offerSliderValues[1]);
 
+        const rawPriceValues = myPriceSlider.noUiSlider.get();
+        const priceMin = parseFloat(rawPriceValues[0].replace(' PLN', '').replace(/\s/g, '').replace(',', '.'));
+        const priceMax = parseFloat(rawPriceValues[1].replace(' PLN', '').replace(/\s/g, '').replace(',', '.'));
+
         filteredPrices = filteredPrices.filter(item => {
             const position = item.myPosition;
             if (position === null || position === undefined) return true;
@@ -1537,6 +1597,14 @@
         filteredPrices = filteredPrices.filter(item => {
             const storeCount = item.storeCount;
             return storeCount >= offerMin && storeCount <= offerMax;
+        });
+
+        filteredPrices = filteredPrices.filter(item => {
+            const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : 0;
+
+            if (myPrice <= 0.01) return false;
+
+            return myPrice >= priceMin && myPrice <= priceMax;
         });
 
         if (suspiciouslyLowFilter) {

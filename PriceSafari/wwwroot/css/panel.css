@@ -4955,6 +4955,11 @@ th small {
     margin-left: 6px;
 }
 
+#myPriceRangeSlider {
+    width: 85%;
+    margin-left: 6px;
+}
+
 .offer-slider-container {
     margin-bottom: 10px;
 }
