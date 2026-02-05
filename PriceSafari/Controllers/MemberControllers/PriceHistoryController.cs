@@ -1638,6 +1638,248 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
+        //[HttpGet]
+        //public async Task<IActionResult> ExportToExcel(int? storeId)
+        //{
+        //    if (storeId == null) return NotFound("Store ID not provided.");
+
+        //    if (!await UserHasAccessToStore(storeId.Value))
+        //    {
+        //        return Content("Brak dostępu do sklepu");
+        //    }
+
+        //    var latestScrap = await _context.ScrapHistories
+        //        .Where(sh => sh.StoreId == storeId)
+        //        .OrderByDescending(sh => sh.Date)
+        //        .Select(sh => new { sh.Id, sh.Date })
+        //        .FirstOrDefaultAsync();
+
+        //    if (latestScrap == null) return Content("Brak danych scrapowania.");
+
+        //    var storeName = await _context.Stores
+        //        .Where(s => s.StoreId == storeId)
+        //        .Select(s => s.StoreName)
+        //        .FirstOrDefaultAsync();
+
+        //    var myStoreNameLower = storeName?.ToLower().Trim() ?? "";
+
+        //    var priceValues = await _context.PriceValues
+        //        .Where(pv => pv.StoreId == storeId)
+        //        .Select(pv => new { pv.UsePriceWithDelivery })
+        //        .FirstOrDefaultAsync() ?? new { UsePriceWithDelivery = false };
+
+        //    var rawData = await (from p in _context.Products
+        //                         join ph in _context.PriceHistories on p.ProductId equals ph.ProductId
+        //                         where p.StoreId == storeId && ph.ScrapHistoryId == latestScrap.Id
+        //                         select new
+        //                         {
+        //                             p.ProductName,
+        //                             p.Producer,
+
+        //                             p.Ean,
+        //                             p.ExternalId,
+        //                             p.MarginPrice,
+        //                             ph.Price,
+        //                             ph.StoreName,
+        //                             ph.IsGoogle,
+        //                             ph.ShippingCostNum
+        //                         }).ToListAsync();
+
+        //    var groupedData = rawData
+        //        .GroupBy(x => new { x.ProductName, x.Producer, x.Ean, x.ExternalId, x.MarginPrice })
+        //        .Select(g =>
+        //        {
+        //            var allOffers = g.Select(x => new
+        //            {
+        //                Store = x.StoreName ?? (x.IsGoogle == true ? "Google" : "Ceneo"),
+        //                FinalPrice = (priceValues.UsePriceWithDelivery && x.ShippingCostNum.HasValue)
+        //                             ? x.Price + x.ShippingCostNum.Value
+        //                             : x.Price,
+        //                IsMe = x.StoreName != null && x.StoreName.ToLower().Trim() == myStoreNameLower
+        //            }).ToList();
+
+        //            var myOffer = allOffers.FirstOrDefault(x => x.IsMe);
+        //            var competitors = allOffers.Where(x => !x.IsMe).OrderBy(x => x.FinalPrice).ToList();
+        //            decimal minMarketPrice = allOffers.Min(x => x.FinalPrice);
+
+        //            string positionString = "-";
+        //            int statusColorCode = 0;
+        //            decimal? diffToLowest = null;
+
+        //            if (myOffer != null)
+        //            {
+        //                int cheaperCount = allOffers.Count(x => x.FinalPrice < myOffer.FinalPrice);
+        //                int myRank = cheaperCount + 1;
+        //                int totalOffers = allOffers.Count;
+        //                positionString = $"{myRank} z {totalOffers}";
+
+        //                if (competitors.Any())
+        //                {
+        //                    decimal lowestCompetitor = competitors.First().FinalPrice;
+        //                    diffToLowest = myOffer.FinalPrice - lowestCompetitor;
+        //                }
+
+        //                if (myOffer.FinalPrice == minMarketPrice)
+        //                {
+        //                    int othersWithSamePrice = allOffers.Count(x => x.FinalPrice == minMarketPrice && !x.IsMe);
+        //                    if (othersWithSamePrice == 0) statusColorCode = 1;
+        //                    else statusColorCode = 2;
+        //                }
+        //                else
+        //                {
+        //                    statusColorCode = 3;
+        //                }
+        //            }
+
+        //            return new
+        //            {
+        //                Product = g.Key,
+        //                MyPrice = myOffer?.FinalPrice,
+        //                DiffToLowest = diffToLowest,
+        //                Position = positionString,
+        //                ColorCode = statusColorCode,
+        //                Competitors = competitors
+        //            };
+        //        })
+        //        .OrderBy(x => x.Product.ProductName)
+        //        .ToList();
+
+        //    using (var workbook = new XSSFWorkbook())
+        //    {
+        //        var sheet = workbook.CreateSheet("Monitoring Cen");
+
+        //        var headerStyle = workbook.CreateCellStyle();
+        //        var headerFont = workbook.CreateFont();
+        //        headerFont.IsBold = true;
+        //        headerStyle.SetFont(headerFont);
+
+        //        var currencyStyle = workbook.CreateCellStyle();
+        //        currencyStyle.DataFormat = workbook.CreateDataFormat().GetFormat("#,##0.00");
+
+        //        var styleGreen = workbook.CreateCellStyle();
+        //        styleGreen.CloneStyleFrom(currencyStyle);
+        //        styleGreen.FillForegroundColor = IndexedColors.LightGreen.Index;
+        //        styleGreen.FillPattern = FillPattern.SolidForeground;
+
+        //        var styleLightGreen = workbook.CreateCellStyle();
+        //        styleLightGreen.CloneStyleFrom(currencyStyle);
+        //        styleLightGreen.FillForegroundColor = IndexedColors.LemonChiffon.Index;
+        //        styleLightGreen.FillPattern = FillPattern.SolidForeground;
+
+        //        var styleRed = workbook.CreateCellStyle();
+        //        styleRed.CloneStyleFrom(currencyStyle);
+        //        styleRed.FillForegroundColor = IndexedColors.Rose.Index;
+        //        styleRed.FillPattern = FillPattern.SolidForeground;
+
+        //        var headerRow = sheet.CreateRow(0);
+        //        int colIndex = 0;
+
+        //        string[] staticHeaders = { "ID Produktu", "Nazwa Produktu", "Producent", "EAN", "Cena Zakupu", "Twoja Cena", "Pozycja", "Różnica" };
+
+        //        foreach (var h in staticHeaders) headerRow.CreateCell(colIndex++).SetCellValue(h);
+
+        //        int maxCompetitors = 12;
+        //        for (int i = 1; i <= maxCompetitors; i++)
+        //        {
+        //            headerRow.CreateCell(colIndex++).SetCellValue($"Sklep {i}");
+        //            headerRow.CreateCell(colIndex++).SetCellValue($"Cena {i}");
+        //        }
+
+        //        for (int i = 0; i < colIndex; i++) headerRow.GetCell(i).CellStyle = headerStyle;
+
+        //        int rowIndex = 1;
+        //        foreach (var item in groupedData)
+        //        {
+        //            var row = sheet.CreateRow(rowIndex++);
+        //            colIndex = 0;
+
+        //            row.CreateCell(colIndex++).SetCellValue(item.Product.ExternalId?.ToString() ?? "");
+
+        //            row.CreateCell(colIndex++).SetCellValue(item.Product.ProductName);
+
+        //            row.CreateCell(colIndex++).SetCellValue(item.Product.Producer ?? "");
+
+        //            row.CreateCell(colIndex++).SetCellValue(item.Product.Ean);
+
+        //            var cellMargin = row.CreateCell(colIndex++);
+        //            if (item.Product.MarginPrice.HasValue)
+        //            {
+        //                cellMargin.SetCellValue((double)item.Product.MarginPrice.Value);
+        //                cellMargin.CellStyle = currencyStyle;
+        //            }
+
+        //            var cellMyPrice = row.CreateCell(colIndex++);
+        //            if (item.MyPrice.HasValue)
+        //            {
+        //                cellMyPrice.SetCellValue((double)item.MyPrice.Value);
+        //                if (item.ColorCode == 1) cellMyPrice.CellStyle = styleGreen;
+        //                else if (item.ColorCode == 2) cellMyPrice.CellStyle = styleLightGreen;
+        //                else if (item.ColorCode == 3) cellMyPrice.CellStyle = styleRed;
+        //                else cellMyPrice.CellStyle = currencyStyle;
+        //            }
+        //            else
+        //            {
+        //                cellMyPrice.SetCellValue("-");
+        //            }
+
+        //            row.CreateCell(colIndex++).SetCellValue(item.Position);
+
+        //            var cellDiff = row.CreateCell(colIndex++);
+        //            if (item.DiffToLowest.HasValue)
+        //            {
+        //                cellDiff.SetCellValue((double)item.DiffToLowest.Value);
+        //                cellDiff.CellStyle = currencyStyle;
+        //            }
+        //            else
+        //            {
+        //                cellDiff.SetCellValue("");
+        //            }
+
+        //            for (int i = 0; i < maxCompetitors; i++)
+        //            {
+        //                if (i < item.Competitors.Count)
+        //                {
+        //                    var comp = item.Competitors[i];
+        //                    row.CreateCell(colIndex++).SetCellValue(comp.Store);
+
+        //                    var cellCompPrice = row.CreateCell(colIndex++);
+        //                    cellCompPrice.SetCellValue((double)comp.FinalPrice);
+        //                    cellCompPrice.CellStyle = currencyStyle;
+        //                }
+        //                else
+        //                {
+        //                    colIndex += 2;
+        //                }
+        //            }
+        //        }
+
+        //        sheet.AutoSizeColumn(0);
+
+        //        sheet.AutoSizeColumn(1);
+
+        //        sheet.AutoSizeColumn(2);
+
+        //        sheet.AutoSizeColumn(3);
+
+        //        sheet.AutoSizeColumn(5);
+
+        //        sheet.AutoSizeColumn(6);
+
+        //        for (int i = 8; i < colIndex; i++)
+        //        {
+        //            sheet.SetColumnWidth(i, 4000);
+        //        }
+
+        //        using (var stream = new MemoryStream())
+        //        {
+        //            workbook.Write(stream);
+        //            var content = stream.ToArray();
+        //            var fileName = $"Analiza_{storeName}_{DateTime.Now:yyyy-MM-dd_HHmm}.xlsx";
+        //            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        //        }
+        //    }
+        //}
+
         [HttpGet]
         public async Task<IActionResult> ExportToExcel(int? storeId)
         {
@@ -1648,6 +1890,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Content("Brak dostępu do sklepu");
             }
 
+            // 1. Pobieramy ID ostatniego scrapu
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -1668,23 +1911,74 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(pv => new { pv.UsePriceWithDelivery })
                 .FirstOrDefaultAsync() ?? new { UsePriceWithDelivery = false };
 
-            var rawData = await (from p in _context.Products
-                                 join ph in _context.PriceHistories on p.ProductId equals ph.ProductId
-                                 where p.StoreId == storeId && ph.ScrapHistoryId == latestScrap.Id
-                                 select new
-                                 {
-                                     p.ProductName,
-                                     p.Producer,
+            // 2. Pobieramy aktywny preset
+            var activePreset = await _context.CompetitorPresets
+                .Include(x => x.CompetitorItems)
+                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
 
-                                     p.Ean,
-                                     p.ExternalId,
-                                     p.MarginPrice,
-                                     ph.Price,
-                                     ph.StoreName,
-                                     ph.IsGoogle,
-                                     ph.ShippingCostNum
-                                 }).ToListAsync();
+            // 3. Budujemy zapytanie bazowe
+            var query = from p in _context.Products
+                        join ph in _context.PriceHistories on p.ProductId equals ph.ProductId
+                        // Tylko aktywne produkty (IsScrapable)
+                        where p.StoreId == storeId && p.IsScrapable && ph.ScrapHistoryId == latestScrap.Id
+                        select new
+                        {
+                            p.ProductName,
+                            p.Producer,
+                            p.Ean,
+                            p.ExternalId,
+                            p.MarginPrice,
+                            ph.Price,
+                            ph.StoreName,
+                            ph.IsGoogle,
+                            ph.ShippingCostNum
+                        };
 
+            // 4. Filtrowanie źródeł (Google/Ceneo) na poziomie SQL
+            if (activePreset != null)
+            {
+                if (!activePreset.SourceGoogle) query = query.Where(x => x.IsGoogle != true);
+                if (!activePreset.SourceCeneo) query = query.Where(x => x.IsGoogle == true);
+            }
+
+            // Pobieramy dane z bazy (Lista typów anonimowych)
+            var rawData = await query.ToListAsync();
+
+            // 5. POPRAWKA: Filtrowanie konkretnych sklepów konkurencji (LINQ w pamięci)
+            // Używamy .Where() zamiast pętli i rzutowania, aby zachować typ anonimowy.
+            if (activePreset != null && activePreset.Type == PresetType.PriceComparison)
+            {
+                var competitorItemsDict = activePreset.CompetitorItems.ToDictionary(
+                    ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource),
+                    ci => ci.UseCompetitor
+                );
+
+                // Nadpisujemy listę rawData przefiltrowaną wersją
+                rawData = rawData.Where(row =>
+                {
+                    // A. Zawsze zostawiamy nasz sklep
+                    if (row.StoreName != null && row.StoreName.ToLower().Trim() == myStoreNameLower)
+                    {
+                        return true;
+                    }
+
+                    // B. Sprawdzamy konkurencję
+                    DataSourceType currentSource = row.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
+                    var key = (Store: (row.StoreName ?? "").ToLower().Trim(), Source: currentSource);
+
+                    if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
+                    {
+                        return useCompetitor; // Zwracamy true/false w zależności od ustawień presetu
+                    }
+                    else
+                    {
+                        // C. Jeśli sklepu nie ma na liście, decyduje flaga UseUnmarkedStores
+                        return activePreset.UseUnmarkedStores;
+                    }
+                }).ToList();
+            }
+
+            // 6. Grupowanie i obliczenia
             var groupedData = rawData
                 .GroupBy(x => new { x.ProductName, x.Producer, x.Ean, x.ExternalId, x.MarginPrice })
                 .Select(g =>
@@ -1700,7 +1994,8 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     var myOffer = allOffers.FirstOrDefault(x => x.IsMe);
                     var competitors = allOffers.Where(x => !x.IsMe).OrderBy(x => x.FinalPrice).ToList();
-                    decimal minMarketPrice = allOffers.Min(x => x.FinalPrice);
+
+                    decimal minMarketPrice = allOffers.Any() ? allOffers.Min(x => x.FinalPrice) : 0;
 
                     string positionString = "-";
                     int statusColorCode = 0;
@@ -1719,7 +2014,7 @@ namespace PriceSafari.Controllers.MemberControllers
                             diffToLowest = myOffer.FinalPrice - lowestCompetitor;
                         }
 
-                        if (myOffer.FinalPrice == minMarketPrice)
+                        if (allOffers.Any() && myOffer.FinalPrice == minMarketPrice)
                         {
                             int othersWithSamePrice = allOffers.Count(x => x.FinalPrice == minMarketPrice && !x.IsMe);
                             if (othersWithSamePrice == 0) statusColorCode = 1;
@@ -1744,6 +2039,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .OrderBy(x => x.Product.ProductName)
                 .ToList();
 
+            // 7. Generowanie Excela (Reszta kodu bez zmian)
             using (var workbook = new XSSFWorkbook())
             {
                 var sheet = workbook.CreateSheet("Monitoring Cen");
@@ -1778,7 +2074,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 foreach (var h in staticHeaders) headerRow.CreateCell(colIndex++).SetCellValue(h);
 
-                int maxCompetitors = 12;
+                int maxCompetitors = 60;
                 for (int i = 1; i <= maxCompetitors; i++)
                 {
                     headerRow.CreateCell(colIndex++).SetCellValue($"Sklep {i}");
@@ -1794,11 +2090,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     colIndex = 0;
 
                     row.CreateCell(colIndex++).SetCellValue(item.Product.ExternalId?.ToString() ?? "");
-
                     row.CreateCell(colIndex++).SetCellValue(item.Product.ProductName);
-
                     row.CreateCell(colIndex++).SetCellValue(item.Product.Producer ?? "");
-
                     row.CreateCell(colIndex++).SetCellValue(item.Product.Ean);
 
                     var cellMargin = row.CreateCell(colIndex++);
@@ -1854,15 +2147,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
 
                 sheet.AutoSizeColumn(0);
-
                 sheet.AutoSizeColumn(1);
-
                 sheet.AutoSizeColumn(2);
-
                 sheet.AutoSizeColumn(3);
-
                 sheet.AutoSizeColumn(5);
-
                 sheet.AutoSizeColumn(6);
 
                 for (int i = 8; i < colIndex; i++)
@@ -1879,8 +2167,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             }
         }
-
-
 
 
         [HttpGet]
