@@ -17,7 +17,7 @@ namespace PriceSafari.Services.GoogleScraping
         private readonly IHubContext<ScrapingHub> _hubContext;
         private readonly ILogger<GoogleScrapeApiController> _logger;
         private const string ApiKey = "2764udhnJUDI8392j83jfi2ijdo1949rncowp89i3rnfiiui1203kfnf9030rfpPkUjHyHt";
-        private static readonly object _batchAssignmentLock = new();
+        
         public GoogleScrapeApiController(
             PriceSafariContext context,
             IHubContext<ScrapingHub> hubContext,
@@ -131,7 +131,7 @@ namespace PriceSafari.Services.GoogleScraping
             string batchId;
             List<int> taskIds;
 
-            lock (_batchAssignmentLock)
+            lock (GoogleScrapeManager.BatchAssignmentLock)
             {
                 // 6a. Pobierz ID wszystkich URL które są już przydzielone w aktywnych paczkach
                 var assignedTaskIds = GoogleScrapeManager.GetAllActiveTaskIds();
@@ -256,8 +256,19 @@ namespace PriceSafari.Services.GoogleScraping
             if (batchResults?.Results == null || !batchResults.Results.Any())
                 return BadRequest(new { error = "No results provided" });
 
+
             var batchId = batchResults.BatchId ?? "UNKNOWN";
             var results = batchResults.Results;
+
+            // SPRAWDZENIE CZY PACZKA NIE WYGASŁA
+            if (GoogleScrapeManager.AssignedBatches.TryGetValue(batchId, out var existingBatch))
+            {
+                if (existingBatch.IsTimedOut)
+                {
+                    _logger.LogWarning($"[API] Odrzucono wyniki paczki {batchId} od {scraperName} - paczka wygasła (TIMEOUT).");
+                    return Ok(new { success = false, message = "Batch timed out" });
+                }
+            }
 
             _logger.LogInformation("Otrzymano wyniki dla paczki {BatchId}: {Count} URLi od {ScraperName}",
                 batchId, results.Count, scraperName);
@@ -297,8 +308,10 @@ namespace PriceSafari.Services.GoogleScraping
                         });
                     }
                 }
-                else if (result.Status == "rejected")
+                else if (result.Status == "rejected" ||
+                (result.Status == "success" && (result.Offers == null || !result.Offers.Any())))
                 {
+                    // "rejected" LUB "success" bez ofert → traktuj jak rejected
                     offer.GoogleIsScraped = true;
                     offer.GoogleIsRejected = true;
                     offer.GooglePricesCount = 0;
