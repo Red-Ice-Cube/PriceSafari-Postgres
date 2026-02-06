@@ -110,23 +110,26 @@ public class ScheduledTaskService : BackgroundService
                                 .OrderBy(t => t.StartTime)
                                 .ToList();
 
+                            var allDayTasks = dayDetail.Tasks
+                               .Where(t => (t.LastRunDateOfTask == null || t.LastRunDateOfTask.Value.Date < today)
+                                            && nowTime < t.StartTime.Add(TimeSpan.FromMinutes(5)))
+                               .OrderBy(t => t.StartTime)
+                               .ToList();
+
                             foreach (var t in tasksToRun)
                             {
-
                                 bool canRunAnything =
                                 (t.UrlEnabled && urlScalKey == "83208716") ||
                                 (t.CeneoEnabled && cenCrawKey == "84011233") ||
                                 (t.GoogleEnabled && gooCrawKey == "63891743") ||
                                 (t.ApiBotEnabled && apiBotKey == "11223344") ||
-
                                 (t.BaseEnabled && baseScalKey == "55380981") ||
                                 (t.UrlScalAleEnabled && urlScalAleKey == "74902379") ||
                                 (t.AleCrawEnabled && aleCrawKey == "13894389") ||
                                 (t.AleBaseEnabled && aleBaseScalKey == "64920067") ||
                                 (t.AleApiBotEnabled && aleApiBotKey == "00937384") ||
-                              
-                                    (t.MarketPlaceAutomationEnabled && marketAutoKey == "99112233") ||
-                                    (t.PriceComparisonAutomationEnabled && compAutoKey == "88776655");
+                                (t.MarketPlaceAutomationEnabled && marketAutoKey == "99112233") ||
+                                (t.PriceComparisonAutomationEnabled && compAutoKey == "88776655");
 
                                 if (!canRunAnything)
                                 {
@@ -136,6 +139,34 @@ public class ScheduledTaskService : BackgroundService
                                     continue;
                                 }
 
+                                // === PREEMPCJA: Oblicz deadline na podstawie następnego zadania ===
+                                var nextTask = allDayTasks
+                                    .Where(nt => nt.StartTime > t.StartTime && nt.Id != t.Id)
+                                    .OrderBy(nt => nt.StartTime)
+                                    .FirstOrDefault();
+
+                                CancellationTokenSource taskCts;
+                                if (nextTask != null)
+                                {
+                                    var timeUntilNext = nextTask.StartTime - DateTime.Now.TimeOfDay;
+                                    if (timeUntilNext.TotalSeconds < 30) timeUntilNext = TimeSpan.FromSeconds(30); // minimum 30s
+
+                                    taskCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                                    taskCts.CancelAfter(timeUntilNext);
+
+                                    _logger.LogInformation(
+                                        "Zadanie '{SessionName}' ma {Minutes:F1} min do preempcji (następne: '{NextName}' o {NextTime}).",
+                                        t.SessionName, timeUntilNext.TotalMinutes, nextTask.SessionName, nextTask.StartTime);
+                                }
+                                else
+                                {
+                                    // Ostatnie zadanie dnia — dajemy max 3h
+                                    taskCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                                    taskCts.CancelAfter(TimeSpan.FromHours(3));
+                                }
+
+                                var taskToken = taskCts.Token;
+
                                 _logger.LogInformation(
                                     "Rozpoczynam wykonywanie zadania '{SessionName}' (StartTime: {StartTime}) na urządzeniu '{DeviceName}'.",
                                     t.SessionName, t.StartTime, deviceName);
@@ -144,49 +175,69 @@ public class ScheduledTaskService : BackgroundService
                                 context.ScheduleTasks.Update(t);
                                 await context.SaveChangesAsync(stoppingToken);
 
-                                if (t.UrlEnabled && urlScalKey == "83208716")
-                                    await RunUrlScalAsync(context, deviceName, t, stoppingToken);
-
-                                if (t.CeneoEnabled && cenCrawKey == "84011233")
-                                    await RunCeneoAsync(context, deviceName, t, stoppingToken);
-
-                                if (t.GoogleEnabled && gooCrawKey == "63891743")
-                                    await RunGoogleAsync(context, deviceName, t, stoppingToken);
-
-                                if (t.ApiBotEnabled && apiBotKey == "11223344")
+                                try
                                 {
-                                    await RunApiBotAsync(context, deviceName, t, stoppingToken);
+                                    if (t.UrlEnabled && urlScalKey == "83208716")
+                                        await RunUrlScalAsync(context, deviceName, t, taskToken);
+
+                                    if (t.CeneoEnabled && cenCrawKey == "84011233")
+                                        await RunCeneoAsync(context, deviceName, t, taskToken);
+
+                                    if (t.GoogleEnabled && gooCrawKey == "63891743")
+                                        await RunGoogleAsync(context, deviceName, t, taskToken);
+
+                                    if (t.ApiBotEnabled && apiBotKey == "11223344")
+                                        await RunApiBotAsync(context, deviceName, t, taskToken);
+
+                                    if (t.BaseEnabled && baseScalKey == "55380981")
+                                        await RunBaseScalAsync(context, deviceName, t, taskToken);
+
+                                    if (t.UrlScalAleEnabled && urlScalAleKey == "74902379")
+                                        await RunUrlScalAleAsync(context, deviceName, t, taskToken);
+
+                                    if (t.AleCrawEnabled && aleCrawKey == "13894389")
+                                        await RunAleCrawAsync(context, deviceName, t, taskToken);
+
+                                    if (t.AleApiBotEnabled && aleApiBotKey == "00937384")
+                                        await RunAleApiBotAsync(context, deviceName, t, taskToken);
+
+                                    if (t.AleBaseEnabled && aleBaseScalKey == "64920067")
+                                        await RunAleBaseScalAsync(context, deviceName, t, taskToken);
+
+                                    if (t.MarketPlaceAutomationEnabled && marketAutoKey == "99112233")
+                                    {
+                                        await Task.Delay(TimeSpan.FromSeconds(30), taskToken);
+                                        await RunMarketPlaceAutomationAsync(context, deviceName, t, taskToken);
+                                    }
+
+                                    if (t.PriceComparisonAutomationEnabled && compAutoKey == "88776655")
+                                    {
+                                        await Task.Delay(TimeSpan.FromSeconds(30), taskToken);
+                                        await RunPriceComparisonAutomationAsync(context, deviceName, t, taskToken);
+                                    }
                                 }
-
-                                if (t.BaseEnabled && baseScalKey == "55380981")
-                                    await RunBaseScalAsync(context, deviceName, t, stoppingToken);
-
-                                if (t.UrlScalAleEnabled && urlScalAleKey == "74902379")
-                                    await RunUrlScalAleAsync(context, deviceName, t, stoppingToken);
-
-                                if (t.AleCrawEnabled && aleCrawKey == "13894389")
-                                    await RunAleCrawAsync(context, deviceName, t, stoppingToken);
-
-                                if (t.AleApiBotEnabled && aleApiBotKey == "00937384")
-                                    await RunAleApiBotAsync(context, deviceName, t, stoppingToken);
-
-                                if (t.AleBaseEnabled && aleBaseScalKey == "64920067")
-                                    await RunAleBaseScalAsync(context, deviceName, t, stoppingToken);
-
-
-                                // Automatyzacja Allegro (Marketplace)
-                                if (t.MarketPlaceAutomationEnabled && marketAutoKey == "99112233")
+                                catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
                                 {
-                                    // Opcjonalne opóźnienie, aby upewnić się, że dane są przetworzone
-                                    await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
-                                    await RunMarketPlaceAutomationAsync(context, deviceName, t, stoppingToken);
+                                    // Preempcja — następne zadanie nadchodzi
+                                    _logger.LogWarning(
+                                        "⚡ PREEMPCJA: Zadanie '{SessionName}' przerwane — nadchodzi kolejne zadanie.",
+                                        t.SessionName);
+
+                                    // Wymuś zakończenie procesów scrapowania jeśli trwają
+                                    if (AllegroScrapeManager.CurrentStatus == ScrapingProcessStatus.Running)
+                                    {
+                                        AllegroScrapeManager.FinishProcess();
+                                        _logger.LogWarning("☢️ Wymuszono zakończenie AllegroScrapeManager.");
+                                    }
+                                    if (GoogleScrapeManager.CurrentStatus == GoogleScrapingProcessStatus.Running)
+                                    {
+                                        GoogleScrapeManager.FinishProcess();
+                                        _logger.LogWarning("☢️ Wymuszono zakończenie GoogleScrapeManager.");
+                                    }
                                 }
-
-                                // Automatyzacja Porównywarek (Sklep/Ceneo/Google)
-                                if (t.PriceComparisonAutomationEnabled && compAutoKey == "88776655")
+                                finally
                                 {
-                                    await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
-                                    await RunPriceComparisonAutomationAsync(context, deviceName, t, stoppingToken);
+                                    taskCts.Dispose();
                                 }
 
                                 await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
