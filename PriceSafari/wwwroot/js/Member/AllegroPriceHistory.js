@@ -34,7 +34,8 @@
     let showCommittedOnly = false;
     let positionSlider;
     let offerSlider;
-
+    let myPriceSlider;
+    let myPriceRangeInput;
     const selectionStorageKey = `selectedAllegroProducts_${storeId}`;
 
     let currentScrapId = null;
@@ -207,7 +208,35 @@
             filterAndSortPrices();
         });
     }
+    myPriceSlider = document.getElementById('myPriceRangeSlider');
+    myPriceRangeInput = document.getElementById('myPriceRange');
 
+    if (myPriceSlider) {
+        noUiSlider.create(myPriceSlider, {
+            start: [0, 10000],
+            connect: true,
+            range: {
+                'min': 0,
+                'max': 10000
+            },
+           
+            format: wNumb({
+                decimals: 2,
+                thousand: ' ',
+                suffix: ' PLN'
+            })
+        });
+
+        
+        myPriceSlider.noUiSlider.on('update', function (values, handle) {
+            if (myPriceRangeInput) myPriceRangeInput.textContent = values.join(' - ');
+        });
+
+     
+        myPriceSlider.noUiSlider.on('change', function () {
+            filterAndSortPrices();
+        });
+    }
     function getMarginBadgeClass(marginClass) {
         switch (marginClass) {
             case 'priceBox-diff-margin-ins':
@@ -2644,28 +2673,43 @@
 
                 }
             }
-            if (positionSlider && offerSlider) {
+            if (positionSlider && offerSlider && myPriceSlider) {
+             
                 const positionValues = positionSlider.noUiSlider.get();
                 const positionMin = parseInt(positionValues[0]);
                 const positionMax = parseInt(positionValues[1]);
 
+              
                 const offerValues = offerSlider.noUiSlider.get();
                 const offerMin = parseInt(offerValues[0]);
                 const offerMax = parseInt(offerValues[1]);
 
+             
+                const rawPriceValues = myPriceSlider.noUiSlider.get();
+                const priceMin = parseFloat(rawPriceValues[0].replace(' PLN', '').replace(/\s/g, '').replace(',', '.'));
+                const priceMax = parseFloat(rawPriceValues[1].replace(' PLN', '').replace(/\s/g, '').replace(',', '.'));
+
                 filtered = filtered.filter(item => {
-                   
+                
                     const currentPos = extractRankNumber(item.myPricePosition);
-  
                     let positionMatch = true;
                     if (currentPos !== null) {
                         positionMatch = currentPos >= positionMin && currentPos <= positionMax;
                     }
-                
+
+                   
                     const currentOffers = item.totalOfferCount || 0;
                     const offerMatch = currentOffers >= offerMin && currentOffers <= offerMax;
 
-                    return positionMatch && offerMatch;
+                 
+                    const myPriceVal = item.myPrice != null ? parseFloat(item.myPrice) : 0;
+                    let priceMatch = false;
+                  
+                    if (myPriceVal > 0.01) {
+                        priceMatch = myPriceVal >= priceMin && myPriceVal <= priceMax;
+                    }
+
+                    return positionMatch && offerMatch && priceMatch;
                 });
             }
             renderPrices(filtered);
@@ -3457,6 +3501,28 @@
                         range: { 'min': 1, 'max': maxPosition }
                     });
                     positionSlider.noUiSlider.set([1, maxPosition]);
+                }
+
+                const validPrices = allPrices
+                    .map(item => parseFloat(item.myPrice))
+                    .filter(p => !isNaN(p) && p > 0.01);
+
+                let minPriceVal = 0;
+                let maxPriceVal = 1000;
+
+                if (validPrices.length > 0) {
+                    minPriceVal = Math.floor(Math.min(...validPrices));
+                    maxPriceVal = Math.ceil(Math.max(...validPrices));
+                }
+
+                if (myPriceSlider) {
+                    myPriceSlider.noUiSlider.updateOptions({
+                        range: {
+                            'min': minPriceVal,
+                            'max': maxPriceVal
+                        }
+                    });
+                    myPriceSlider.noUiSlider.set([minPriceVal, maxPriceVal]);
                 }
 
                 const producerDropdown = document.getElementById('producerFilterDropdown');
