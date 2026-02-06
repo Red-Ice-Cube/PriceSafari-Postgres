@@ -566,7 +566,20 @@ namespace PriceSafari.ScrapersControllers
             List<AllegroOfferToScrape> offersToScrape;
             string batchId;
             List<int> taskIds;
+            var timedOutBatches = AllegroScrapeManager.FindAndMarkTimedOutBatches();
+            if (timedOutBatches.Any())
+            {
+                var allTimedOutTaskIds = timedOutBatches.SelectMany(b => b.TaskIds).ToList();
+                var stuckOffers = await _context.AllegroOffersToScrape
+                    .Where(o => allTimedOutTaskIds.Contains(o.Id) && o.IsProcessing && !o.IsScraped)
+                    .ToListAsync();
 
+                foreach (var offer in stuckOffers)
+                    offer.IsProcessing = false;
+
+                if (stuckOffers.Any())
+                    await _context.SaveChangesAsync();
+            }
             // 6. Pobieranie nowych zadań (z LOCKIEM globalnym)
             lock (AllegroScrapeManager.BatchAssignmentLock)
             {
@@ -712,6 +725,11 @@ namespace PriceSafari.ScrapersControllers
                 }
                 else
                 {
+                    // Python zdecydował że URL jest zły — oznaczamy jako odrzucony
+                    offer.IsScraped = true;
+                    offer.IsRejected = true;
+                    offer.IsProcessing = false;
+                    offer.CollectedPricesCount = 0;
                     failedCount++;
                 }
 
