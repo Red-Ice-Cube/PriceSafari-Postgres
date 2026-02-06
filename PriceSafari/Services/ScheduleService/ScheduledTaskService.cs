@@ -110,9 +110,10 @@ public class ScheduledTaskService : BackgroundService
                                 .OrderBy(t => t.StartTime)
                                 .ToList();
 
+                            
                             var allDayTasks = dayDetail.Tasks
                                .Where(t => (t.LastRunDateOfTask == null || t.LastRunDateOfTask.Value.Date < today)
-                                            && nowTime < t.StartTime.Add(TimeSpan.FromMinutes(5)))
+                                            && t.StartTime > nowTime.Subtract(TimeSpan.FromMinutes(5)))
                                .OrderBy(t => t.StartTime)
                                .ToList();
 
