@@ -218,7 +218,6 @@ public class ScheduledTaskService : BackgroundService
                                 }
                                 catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
                                 {
-                                    // Preempcja — następne zadanie nadchodzi
                                     _logger.LogWarning(
                                         "⚡ PREEMPCJA: Zadanie '{SessionName}' przerwane — nadchodzi kolejne zadanie.",
                                         t.SessionName);
@@ -233,6 +232,27 @@ public class ScheduledTaskService : BackgroundService
                                     {
                                         GoogleScrapeManager.FinishProcess();
                                         _logger.LogWarning("☢️ Wymuszono zakończenie GoogleScrapeManager.");
+                                    }
+
+                                    // Zamknij osierocone logi — używamy stoppingToken (NIE taskToken, bo ten jest anulowany)
+                                    try
+                                    {
+                                        var orphanedLogs = await context.TaskExecutionLogs
+                                            .Where(l => l.DeviceName == deviceName && l.EndTime == null)
+                                            .ToListAsync(stoppingToken);
+
+                                        foreach (var orphan in orphanedLogs)
+                                        {
+                                            orphan.EndTime = DateTime.Now;
+                                            orphan.Comment += $" | ⚡ PREEMPCJA: Zadanie przerwane — nadchodziło kolejne zadanie '{nextTask?.SessionName ?? "?"}' o {nextTask?.StartTime.ToString() ?? "?"}.";
+                                        }
+
+                                        if (orphanedLogs.Any())
+                                            await context.SaveChangesAsync(stoppingToken);
+                                    }
+                                    catch (Exception logEx)
+                                    {
+                                        _logger.LogError(logEx, "Nie udało się zaktualizować logów po preempcji.");
                                     }
                                 }
                                 finally
