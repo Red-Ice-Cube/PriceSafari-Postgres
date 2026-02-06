@@ -585,8 +585,7 @@ namespace PriceSafari.Services.AllegroServices
             }
             var userAllegroStoreName = userStore.StoreNameAllegro;
 
-            // ZMIANA 1: Pobieramy WSZYSTKIE produkty (również te odrzucone), 
-            // aby sprawdzić, czy nie pojawiły się dla nich nowe, poprawne dane.
+     
             var storeProducts = await _context.AllegroProducts
                 .Where(p => p.StoreId == storeId) // Usunięto: && !p.IsRejected
                 .ToListAsync();

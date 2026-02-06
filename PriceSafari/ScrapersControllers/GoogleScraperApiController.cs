@@ -17,7 +17,7 @@ namespace PriceSafari.Services.GoogleScraping
         private readonly IHubContext<ScrapingHub> _hubContext;
         private readonly ILogger<GoogleScrapeApiController> _logger;
         private const string ApiKey = "2764udhnJUDI8392j83jfi2ijdo1949rncowp89i3rnfiiui1203kfnf9030rfpPkUjHyHt";
-        
+
         public GoogleScrapeApiController(
             PriceSafariContext context,
             IHubContext<ScrapingHub> hubContext,
@@ -28,7 +28,6 @@ namespace PriceSafari.Services.GoogleScraping
             _logger = logger;
         }
 
-        // ===== USTAWIENIA =====
         [HttpGet("settings")]
         public async Task<IActionResult> GetSettings()
         {
@@ -46,7 +45,6 @@ namespace PriceSafari.Services.GoogleScraping
             });
         }
 
-        // ===== POBIERANIE ZADAŃ =====
         [HttpGet("get-task")]
         public async Task<IActionResult> GetTaskBatch(
             [FromQuery] string scraperName,
@@ -58,10 +56,8 @@ namespace PriceSafari.Services.GoogleScraping
             if (string.IsNullOrWhiteSpace(scraperName))
                 return BadRequest(new { error = "scraperName is required" });
 
-            // 1. Zarejestruj check-in scrapera
             var scraper = GoogleScrapeManager.RegisterScraperCheckIn(scraperName, ipAddress);
 
-            // 2. Obsługa statusu NUKE od Pythona
             if (currentStatus == "NUKE_IN_PROGRESS" && scraper.Status != GoogleScraperLiveStatus.ResettingNetwork)
             {
                 GoogleScrapeManager.MarkScraperNuking(scraperName, "Zgłoszony przez Python");
@@ -71,10 +67,8 @@ namespace PriceSafari.Services.GoogleScraping
                 GoogleScrapeManager.MarkScraperNukeCompleted(scraperName, ipAddress);
             }
 
-            // 3. Wyślij aktualizację statusu scrapera na front
             await BroadcastScraperStatus(scraper);
 
-            // 4. Sprawdź czy scraper może otrzymać zadanie
             if (!GoogleScrapeManager.CanScraperReceiveTask(scraperName))
             {
                 var reason = GoogleScrapeManager.CurrentStatus != GoogleScrapingProcessStatus.Running
@@ -92,7 +86,6 @@ namespace PriceSafari.Services.GoogleScraping
                 });
             }
 
-            // 5. Sprawdź czy scraper ma już przydzieloną aktywną paczkę
             var existingBatch = GoogleScrapeManager.GetActiveScraperBatch(scraperName);
             if (existingBatch != null)
             {
@@ -126,58 +119,50 @@ namespace PriceSafari.Services.GoogleScraping
                 });
             }
 
-            // 6. SEKCJA KRYTYCZNA - przydzielanie paczki z LOCKIEM
             List<CoOfrClass> offersToScrape;
             string batchId;
             List<int> taskIds;
 
             lock (GoogleScrapeManager.BatchAssignmentLock)
             {
-                // 6a. Pobierz ID wszystkich URL które są już przydzielone w aktywnych paczkach
+
                 var assignedTaskIds = GoogleScrapeManager.GetAllActiveTaskIds();
 
                 _logger.LogDebug("Aktywne paczki zawierają {Count} URLi", assignedTaskIds.Count);
 
-                // 6b. Pobierz nowe zadania z bazy WYKLUCZAJĄC już przydzielone
                 offersToScrape = _context.CoOfrs
                     .Where(c => (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer)
                                 && !c.GoogleIsScraped
-                                && !assignedTaskIds.Contains(c.Id))  // ✅ KLUCZOWA ZMIANA!
+                                && !assignedTaskIds.Contains(c.Id))
+
                     .OrderBy(c => c.Id)
                     .Take(GoogleScrapeManager.BatchSize)
-                    .ToList();  // Synchronicznie w ramach locka!
+                    .ToList();
 
-                // 7. Brak zadań
                 if (!offersToScrape.Any())
                 {
-                    // Musimy zwolnić lock przed async operacjami, więc sprawdzamy stan
+
                     var anyActiveBatches = GoogleScrapeManager.HasActiveBatches();
                     var needsFinishCheck = !anyActiveBatches &&
                                            GoogleScrapeManager.CurrentStatus == GoogleScrapingProcessStatus.Running;
 
-                    // Zwolnij lock - nie mamy co przydzielać
-                    // (lock kończy się automatycznie na końcu bloku)
-
                     if (needsFinishCheck)
                     {
-                        // Ten kod wykonuje się PO ZWOLNIENIU LOCKA (bo jesteśmy w if wewnątrz lock)
-                        // Ale to OK - sprawdzamy tylko czy kończyć proces
+
                     }
 
-                    // Zwracamy odpowiedź - kontynuacja poniżej
                     batchId = null!;
                     taskIds = null!;
                 }
                 else
                 {
-                    // 8. Zarejestruj paczkę NATYCHMIAST w ramach locka
+
                     batchId = GoogleScrapeManager.GenerateBatchId();
                     taskIds = offersToScrape.Select(c => c.Id).ToList();
                     GoogleScrapeManager.RegisterAssignedBatch(batchId, scraperName, taskIds);
                 }
             }
 
-            // 7b. Obsługa braku zadań (poza lockiem - możemy robić async)
             if (!offersToScrape.Any())
             {
                 var anyActiveBatches = GoogleScrapeManager.HasActiveBatches();
@@ -216,12 +201,10 @@ namespace PriceSafari.Services.GoogleScraping
                 });
             }
 
-            // 9. Wyślij aktualizacje na front
             await BroadcastScraperStatus(scraper);
             await BroadcastDashboardUpdate();
             await BroadcastLogs();
 
-            // 10. Zwróć zadania do scrapera
             var tasksForPython = offersToScrape.Select(c => new
             {
                 taskId = c.Id,
@@ -245,7 +228,6 @@ namespace PriceSafari.Services.GoogleScraping
             });
         }
 
-        // ===== WYSYŁANIE WYNIKÓW =====
         [HttpPost("submit-batch-results")]
         public async Task<IActionResult> SubmitBatchResults(
             [FromBody] GoogleBatchResultsDto batchResults,
@@ -256,11 +238,9 @@ namespace PriceSafari.Services.GoogleScraping
             if (batchResults?.Results == null || !batchResults.Results.Any())
                 return BadRequest(new { error = "No results provided" });
 
-
             var batchId = batchResults.BatchId ?? "UNKNOWN";
             var results = batchResults.Results;
 
-            // SPRAWDZENIE CZY PACZKA NIE WYGASŁA
             if (GoogleScrapeManager.AssignedBatches.TryGetValue(batchId, out var existingBatch))
             {
                 if (existingBatch.IsTimedOut)
@@ -273,7 +253,6 @@ namespace PriceSafari.Services.GoogleScraping
             _logger.LogInformation("Otrzymano wyniki dla paczki {BatchId}: {Count} URLi od {ScraperName}",
                 batchId, results.Count, scraperName);
 
-            // Pobierz oferty do aktualizacji
             var taskIds = results.Select(r => r.TaskId).ToList();
             var offersToUpdate = await _context.CoOfrs
                 .Where(c => taskIds.Contains(c.Id))
@@ -311,7 +290,7 @@ namespace PriceSafari.Services.GoogleScraping
                 else if (result.Status == "rejected" ||
                 (result.Status == "success" && (result.Offers == null || !result.Offers.Any())))
                 {
-                    // "rejected" LUB "success" bez ofert → traktuj jak rejected
+
                     offer.GoogleIsScraped = true;
                     offer.GoogleIsRejected = true;
                     offer.GooglePricesCount = 0;
@@ -322,7 +301,6 @@ namespace PriceSafari.Services.GoogleScraping
                     failedCount++;
                 }
 
-                // Wyślij aktualizację wiersza na front
                 await _hubContext.Clients.All.SendAsync("GoogleUpdateOfferRow", new
                 {
                     id = offer.Id,
@@ -332,19 +310,15 @@ namespace PriceSafari.Services.GoogleScraping
                 });
             }
 
-            // Zapisz do bazy
             if (newPriceHistories.Any())
                 await _context.CoOfrPriceHistories.AddRangeAsync(newPriceHistories);
             await _context.SaveChangesAsync();
 
-            // Oznacz paczkę jako ukończoną
             GoogleScrapeManager.CompleteBatch(batchId, successCount, failedCount, rejectedCount, totalPricesCollected);
 
-            // Aktualizuj status scrapera
             if (GoogleScrapeManager.ActiveScrapers.TryGetValue(scraperName, out var scraper))
                 await BroadcastScraperStatus(scraper);
 
-            // Wyślij aktualizacje na front
             await BroadcastDashboardUpdate();
             await BroadcastLogs();
             await BroadcastStatsUpdate();
@@ -363,7 +337,6 @@ namespace PriceSafari.Services.GoogleScraping
             });
         }
 
-        // ===== RAPORTOWANIE NUKE =====
         [HttpPost("report-nuke")]
         public async Task<IActionResult> ReportNuke([FromBody] NukeReportDto report)
         {
@@ -393,7 +366,6 @@ namespace PriceSafari.Services.GoogleScraping
             return Ok(new { acknowledged = true });
         }
 
-        // ===== HEARTBEAT =====
         [HttpPost("heartbeat")]
         public async Task<IActionResult> Heartbeat([FromBody] GoogleHeartbeatDto heartbeat)
         {
@@ -410,7 +382,6 @@ namespace PriceSafari.Services.GoogleScraping
             });
         }
 
-        // ===== STATUS =====
         [HttpGet("status")]
         public async Task<IActionResult> GetStatus()
         {
@@ -436,7 +407,6 @@ namespace PriceSafari.Services.GoogleScraping
             });
         }
 
-        // ===== START/STOP =====
         [HttpPost("start")]
         public async Task<IActionResult> StartScraping()
         {
@@ -478,8 +448,6 @@ namespace PriceSafari.Services.GoogleScraping
 
             return Ok(new { success = true, message = "Stopped" });
         }
-
-        // ===== BROADCAST HELPERS =====
 
         private async Task BroadcastScraperStatus(GoogleScraperClient scraper)
         {
@@ -551,8 +519,6 @@ namespace PriceSafari.Services.GoogleScraping
         }
     }
 
-    // ===== DTOs =====
-
     public class GoogleBatchResultsDto
     {
         [JsonPropertyName("batchId")]
@@ -602,7 +568,8 @@ namespace PriceSafari.Services.GoogleScraping
     {
         public string ScraperName { get; set; } = string.Empty;
         public string? Reason { get; set; }
-        public string? Status { get; set; } // "started" lub "completed"
+        public string? Status { get; set; }
+
         public string? NewIpAddress { get; set; }
     }
 }
