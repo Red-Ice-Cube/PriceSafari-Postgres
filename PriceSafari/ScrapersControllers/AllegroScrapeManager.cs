@@ -682,8 +682,8 @@ namespace PriceSafari.ScrapersControllers
     {
         // Konfiguracja
         public const int BatchSize = 100;
-        public const int BatchTimeoutSeconds = 360; // 5 minut
-        public const int ScraperOfflineThresholdSeconds = 100;
+        public const int BatchTimeoutSeconds = 420; // 5 minut
+        public const int ScraperOfflineThresholdSeconds = 180;
         public const int MaxLogEntries = 200;
         public static Func<List<int>, Task>? OnBatchTimedOutCallback { get; set; }
         // Stan
