@@ -223,7 +223,7 @@ public class ScheduledTaskService : BackgroundService
                                         "⚡ PREEMPCJA: Zadanie '{SessionName}' przerwane — nadchodzi kolejne zadanie.",
                                         t.SessionName);
 
-                                    // Wymuś zakończenie procesów scrapowania jeśli trwają
+                                
                                     if (AllegroScrapeManager.CurrentStatus == ScrapingProcessStatus.Running)
                                     {
                                         AllegroScrapeManager.FinishProcess();
@@ -235,7 +235,7 @@ public class ScheduledTaskService : BackgroundService
                                         _logger.LogWarning("☢️ Wymuszono zakończenie GoogleScrapeManager.");
                                     }
 
-                                    // Zamknij osierocone logi — używamy stoppingToken (NIE taskToken, bo ten jest anulowany)
+                  
                                     try
                                     {
                                         var orphanedLogs = await context.TaskExecutionLogs
