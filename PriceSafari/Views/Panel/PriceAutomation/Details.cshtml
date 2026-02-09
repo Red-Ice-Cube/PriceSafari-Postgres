@@ -903,11 +903,22 @@
                     @if (isMarketplace)
                     {
                         <div class="seg-toggle" role="group">
-                            <button type="button" id="viewModeExec" class="button-active seg-btn-left" onclick="switchChartMode('execution')">
+                            <button type="button" id="viewModeExec" class="button-active seg-btn-left"
+                                    style="border-radius: 4px 0 0 4px;"
+                                    onclick="switchChartMode('execution')">
                                 <i class="fas fa-chart-bar" style="margin-right: 4px;"></i> Wykonania
                             </button>
-                            <button type="button" id="viewModeBadges" class="button-inactive seg-btn-right" onclick="switchChartMode('badges')">
-                                <i class="fas fa-medal" style="margin-right: 4px;"></i> Odznaki Allegro
+
+                            <button type="button" id="viewModeSales" class="button-inactive"
+                                    style="border-radius: 0; border-left: 1px solid #ccc; border-right: 1px solid #ccc;"
+                                    onclick="switchChartMode('sales')">
+                                <i class="fas fa-chart-line" style="margin-right: 4px;"></i> Sprzedaż
+                            </button>
+
+                            <button type="button" id="viewModeBadges" class="button-inactive seg-btn-right"
+                                    style="border-radius: 0 4px 4px 0;"
+                                    onclick="switchChartMode('badges')">
+                                <i class="fas fa-medal" style="margin-right: 4px;"></i> Odznaki
                             </button>
                         </div>
                     }
@@ -927,6 +938,10 @@
                 <div style="flex: 1; min-width: 300px; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
                     <div id="chartDynamics" style="width: 100%; height: 100%;"></div>
                 </div>
+            </div>
+
+            <div id="salesChartContainer" style="display: none; width: 100%; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+                <div id="chartSales" style="width: 100%; height: 100%;"></div>
             </div>
 
             <div id="badgeChartContainer" style="display: none; width: 100%; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
@@ -2204,49 +2219,61 @@
     <script>
         var chartEff = null;
         var chartDyn = null;
-        var chartBadges = null; // Nowy wykres
+        var chartSales = null; // Nowy wykres
+        var chartBadges = null;
         var currentLimit = 7;
-        var currentMode = 'execution'; // 'execution' lub 'badges'
+        var currentMode = 'execution'; // 'execution', 'sales', 'badges'
 
-        // Sprawdzamy czy to marketplace (żeby nie sypało błędami na Ceneo)
         const isMarketplaceContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
 
-        // Przełączanie widoków (Wykonania vs Odznaki)
+        // --- PRZEŁĄCZANIE WIDOKÓW ---
         function switchChartMode(mode) {
             currentMode = mode;
 
-            if (mode === 'execution') {
-                // Style przycisków
-                $('#viewModeExec').removeClass('button-inactive').addClass('button-active');
-                $('#viewModeBadges').removeClass('button-active').addClass('button-inactive');
+            // Resetowanie klas przycisków
+            $('#viewModeExec, #viewModeSales, #viewModeBadges')
+                .removeClass('button-active').addClass('button-inactive');
 
-                // Widoczność kontenerów
+            // Ukrywanie kontenerów
+            $('#executionChartsContainer, #salesChartContainer, #badgeChartContainer').hide();
+
+            if (mode === 'execution') {
+                $('#viewModeExec').addClass('button-active').removeClass('button-inactive');
                 $('#executionChartsContainer').css('display', 'flex');
-                $('#badgeChartContainer').hide();
 
                 if(chartEff) chartEff.resize();
                 if(chartDyn) chartDyn.resize();
-            } else {
-                $('#viewModeExec').removeClass('button-active').addClass('button-inactive');
-                $('#viewModeBadges').removeClass('button-inactive').addClass('button-active');
+                // Jeśli nie ma danych (np. pierwsze wejście), można je załadować, ale zazwyczaj są one defaultowe.
+            }
+            else if (mode === 'sales') {
+                $('#viewModeSales').addClass('button-active').removeClass('button-inactive');
+                $('#salesChartContainer').show();
 
-                $('#executionChartsContainer').hide();
+                if (!chartSales) {
+                    chartSales = echarts.init(document.getElementById('chartSales'));
+                }
+                chartSales.resize();
+                loadSalesHistoryData(currentLimit);
+            }
+            else if (mode === 'badges') {
+                $('#viewModeBadges').addClass('button-active').removeClass('button-inactive');
                 $('#badgeChartContainer').show();
 
                 if (!chartBadges) {
                     chartBadges = echarts.init(document.getElementById('chartBadges'));
                 }
                 chartBadges.resize();
-
-                // Ładujemy dane badgey
                 loadBadgeHistoryData(currentLimit);
             }
         }
 
+        // --- LOADING ---
         function showChartLoading() {
             if (currentMode === 'execution') {
                 if (chartEff) chartEff.showLoading();
                 if (chartDyn) chartDyn.showLoading();
+            } else if (currentMode === 'sales') {
+                if (chartSales) chartSales.showLoading();
             } else {
                 if (chartBadges) chartBadges.showLoading();
             }
@@ -2255,37 +2282,52 @@
         function hideChartLoading() {
             if (chartEff) chartEff.hideLoading();
             if (chartDyn) chartDyn.hideLoading();
+            if (chartSales) chartSales.hideLoading();
             if (chartBadges) chartBadges.hideLoading();
         }
 
-        // --- ŁADOWANIE DANYCH WYKONAŃ (STARE WYKRESY) ---
+        // --- AJAX: EXECUTION ---
         function loadHistoryData(limit) {
-            // Jeśli jesteśmy w trybie badge, przekieruj do ładowania badgey
-            if (currentMode === 'badges') {
-                loadBadgeHistoryData(limit);
-                return;
-            }
+            if (currentMode === 'sales') { loadSalesHistoryData(limit); return; }
+            if (currentMode === 'badges') { loadBadgeHistoryData(limit); return; }
 
             showChartLoading();
             $.ajax({
                 url: '@Url.Action("GetAutomationHistory", "PriceAutomation")',
                 type: 'POST',
                 contentType: 'application/json',
-                // Upewnij się, że RuleId jest liczbą (parseInt)
                 data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
                 success: function(data) {
                     hideChartLoading();
                     renderEffectivenessChart(data);
                     renderDynamicsChart(data);
                 },
+                error: function(xhr) { hideChartLoading(); console.error(xhr); }
+            });
+        }
+
+        // --- AJAX: SALES (NOWY) ---
+        function loadSalesHistoryData(limit) {
+            if (!chartSales) chartSales = echarts.init(document.getElementById('chartSales'));
+            chartSales.showLoading();
+
+            $.ajax({
+                url: '@Url.Action("GetAutomationSalesHistory", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
+                success: function(data) {
+                    chartSales.hideLoading();
+                    renderSalesChart(data);
+                },
                 error: function(xhr) {
-                    hideChartLoading();
-                    console.error("Błąd Execution:", xhr.responseText);
+                    chartSales.hideLoading();
+                    console.error("Błąd Sales:", xhr.responseText);
                 }
             });
         }
 
-        // --- ŁADOWANIE DANYCH BADGE (NOWY WYKRES) ---
+        // --- AJAX: BADGES ---
         function loadBadgeHistoryData(limit) {
             if (!chartBadges) chartBadges = echarts.init(document.getElementById('chartBadges'));
             chartBadges.showLoading();
@@ -2294,21 +2336,114 @@
                 url: '@Url.Action("GetAutomationBadgeHistory", "PriceAutomation")',
                 type: 'POST',
                 contentType: 'application/json',
-                // Upewnij się, że RuleId jest liczbą
                 data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
                 success: function(data) {
                     chartBadges.hideLoading();
                     renderBadgeChart(data);
                 },
-                error: function(xhr) {
-                    chartBadges.hideLoading();
-                    console.error("Błąd Badge:", xhr.responseText);
-                    // alert("Nie udało się pobrać danych odznak: " + xhr.status);
-                }
+                error: function(xhr) { chartBadges.hideLoading(); console.error(xhr); }
             });
         }
 
-        // --- RENDEROWANIE STARYCH WYKRESÓW (Z ZACHOWANIEM CZARNEJ LINII) ---
+           // --- RENDER: SALES CHART (ZAKTUALIZOWANY WIZUALNIE) ---
+        function renderSalesChart(data) {
+            if (!data || !chartSales) return;
+
+            var option = {
+                title: {
+                    text: 'Trend Sprzedaży: Twoje oferty vs Rynek',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } },
+                    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+                    textStyle: { color: '#333' },
+                    // --- NOWOŚĆ: Custom Formatter do obliczania procentów w locie ---
+                    formatter: function (params) {
+                        // params to tablica z danymi obu serii w danym punkcie czasu
+                        var date = params[0].axisValueLabel;
+                        var html = '<div style="font-weight:bold; margin-bottom:5px;">' + date + '</div>';
+
+                        var marketValue = 0;
+                        var myValue = 0;
+
+                        // Znajdź wartości dla rynku i dla nas
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Cały Rynek (Katalog)') marketValue = item.value;
+                            if (item.seriesName === 'Twoja Sprzedaż') myValue = item.value;
+
+                            // Dodaj standardowy wiersz z kropką koloru i wartością
+                            html += '<div>' + item.marker + ' ' + item.seriesName + ': <b>' + item.value + ' szt.</b></div>';
+                        });
+
+                        // Oblicz i dodaj wiersz z procentowym udziałem
+                        var sharePercentage = (marketValue > 0) ? ((myValue / marketValue) * 100).toFixed(1) : 0;
+
+                        html += '<div style="margin-top:8px; padding-top:8px; border-top:1px solid #eee; font-weight:bold; color:#ff9800;">';
+                        // Mała ikona procenta
+                        html += '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:#ff9800;"></span>';
+                        html += 'Twój udział w rynku: ' + sharePercentage + '%</div>';
+
+                        return html;
+                    }
+                    // -----------------------------------------------------------
+                },
+                legend: {
+                    bottom: 0,
+                    data: ['Twoja Sprzedaż', 'Cały Rynek (Katalog)']
+                },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '60px', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: data.dates
+                },
+                // --- ZMIANA: Jedna wspólna oś Y ---
+                yAxis: {
+                    type: 'value',
+                    name: 'Liczba sprzedanych sztuk (30 dni)',
+                    axisLabel: { formatter: '{value}' },
+                    splitLine: { show: true, lineStyle: { color: '#eee' } }
+                },
+                series: [
+                    {
+                        name: 'Cały Rynek (Katalog)',
+                        type: 'line',
+                        // yAxisIndex usunięty - korzysta z domyślnej osi
+                        data: data.marketSales,
+                        smooth: true,
+                        // --- ZMIANA STYLU: Czarna, pusta linia ---
+                        symbol: 'none', // Brak kropek na linii
+                        itemStyle: { color: '#000000' }, // Czarny kolor
+                        lineStyle: { width: 2, color: '#000000', type: 'solid' },
+                        // areaStyle usunięty (brak wypełnienia)
+                    },
+                    {
+                        name: 'Twoja Sprzedaż',
+                        type: 'line',
+                        // yAxisIndex usunięty
+                        data: data.mySales,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 8,
+                        // --- ZMIANA STYLU: Pomarańczowy z gradientem ---
+                        itemStyle: { color: '#ff9800', borderColor: '#fff', borderWidth: 2 },
+                        lineStyle: { width: 3, color: '#ff9800' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(255, 152, 0, 0.6)' },  // Start: Pomarańczowy półprzezroczysty
+                                { offset: 1, color: 'rgba(255, 152, 0, 0.05)' } // Koniec: Prawie przezroczysty
+                            ])
+                        }
+                    }
+                ]
+            };
+            chartSales.setOption(option);
+        }
+
+        // --- RENDER: EFFECTIVENESS ---
         function renderEffectivenessChart(data) {
              if (!chartEff) return;
              var option = {
@@ -2326,142 +2461,50 @@
             chartEff.setOption(option);
         }
 
+        // --- RENDER: DYNAMICS ---
         function renderDynamicsChart(data) {
             if (!chartDyn) return;
             var option = {
                 title: { text: 'Dynamika Zmian', left: 'center', textStyle: { fontSize: 13 } },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                // Dodajemy 'Razem' do legendy
                 legend: { bottom: 0, data: ['Obniżki', 'Utrzymane', 'Podwyżki', 'Razem'] },
                 grid: { left: '3%', right: '4%', bottom: '10%', top: '35px', containLabel: true },
                 xAxis: { type: 'category', data: data.dates },
                 yAxis: { type: 'value' },
                 series: [
-                    {
-                        name: 'Obniżki', type: 'bar', stack: 'total',
-                        itemStyle: { color: 'rgba(25, 135, 84, 0.8)' },
-                        data: data.decreased
-                    },
-                    {
-                        name: 'Utrzymane', type: 'bar', stack: 'total',
-                        itemStyle: { color: 'rgba(13, 110, 253, 0.8)' },
-                        data: data.maintained
-                    },
-                    {
-                        name: 'Podwyżki', type: 'bar', stack: 'total',
-                        itemStyle: { color: 'rgba(231, 74, 59, 0.8)' },
-                        data: data.increased
-                    },
-                    // --- TO JEST TA CZARNA LINIA, KTÓRĄ CHCIAŁEŚ ZACHOWAĆ ---
+                    { name: 'Obniżki', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(25, 135, 84, 0.8)' }, data: data.decreased },
+                    { name: 'Utrzymane', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(13, 110, 253, 0.8)' }, data: data.maintained },
+                    { name: 'Podwyżki', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(231, 74, 59, 0.8)' }, data: data.increased },
                     {
                         name: 'Razem',
                         type: 'line',
-                        data: data.totalProducts, // Dane pobrane z backendu
-                        symbol: 'none', // Bez kropek
+                        data: data.totalProducts,
+                        symbol: 'none',
                         itemStyle: { color: '#000000' },
-                        lineStyle: {
-                            color: '#000000',
-                            width: 2,
-                            type: 'dashed' // Linia przerywana
-                        }
+                        lineStyle: { color: '#000000', width: 2, type: 'dashed' }
                     }
                 ]
             };
             chartDyn.setOption(option);
         }
 
-          // --- WYKRES 3: ODZNAKI ALLEGRO (ZAKTUALIZOWANY) ---
+        // --- RENDER: BADGES ---
         function renderBadgeChart(data) {
             if (!data || !chartBadges) return;
-
             var option = {
                 title: { text: 'Trendy Odznak i Promocji', left: 'center', textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' } },
-                tooltip: {
-                    trigger: 'axis',
-                    axisPointer: { type: 'cross' },
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    borderColor: '#ccc',
-                    borderWidth: 1,
-                    textStyle: { color: '#333' }
-                },
-                legend: {
-                    bottom: 0,
-                    // Dodano 'Razem w automacie' do legendy
-                    data: ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty', 'Razem w automacie']
-                },
+                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, backgroundColor: 'rgba(255, 255, 255, 0.95)' },
+                legend: { bottom: 0, data: ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty', 'Razem w automacie'] },
                 grid: { left: '3%', right: '4%', bottom: '10%', top: '50px', containLabel: true },
-                xAxis: {
-                    type: 'category',
-                    boundaryGap: false,
-                    data: data.dates
-                },
-                yAxis: {
-                    type: 'value',
-                    name: 'Liczba ofert',
-                    minInterval: 1
-                },
+                xAxis: { type: 'category', boundaryGap: false, data: data.dates },
+                yAxis: { type: 'value', minInterval: 1 },
                 series: [
-                    {
-                        name: 'Top Oferta',
-                        type: 'line',
-                        data: data.topOfferCounts,
-                        smooth: true,
-                        // ZMIANA KOLORU: Pomarańczowy
-                        itemStyle: { color: '#ff9800' },
-                        lineStyle: { width: 3 },
-                        areaStyle: { opacity: 0.1, color: '#ff9800' }
-                    },
-                    {
-                        name: 'Super Cena',
-                        type: 'line',
-                        data: data.superPriceCounts,
-                        smooth: true,
-                        // ZMIANA KOLORU: Ciemny zielony
-                        itemStyle: { color: '#155724' },
-                        lineStyle: { width: 3 }
-                    },
-                    {
-                        name: 'Gwarancja Ceny',
-                        type: 'line',
-                        data: data.bestPriceGuaranteeCounts,
-                        smooth: true,
-                        // ZMIANA KOLORU: Jasny zielony
-                        itemStyle: { color: '#4caf50' },
-                        lineStyle: { width: 3 }
-                    },
-                    {
-                        name: 'Kampania',
-                        type: 'line',
-                        data: data.campaignCounts,
-                        smooth: true,
-                        // ZMIANA KOLORU: Żółty
-                        itemStyle: { color: '#ffc107' },
-                        lineStyle: { width: 2, type: 'dashed' }
-                    },
-                    {
-                        name: 'Dopłaty',
-                        type: 'line',
-                        data: data.subsidyCounts,
-                        smooth: true,
-                        // BEZ ZMIAN: Turkusowy
-                        itemStyle: { color: '#1cc88a' },
-                        lineStyle: { width: 2, type: 'dotted' }
-                    },
-                    // --- NOWA SERIA: RAZEM PRODUKTÓW ---
-                    {
-                        name: 'Razem w automacie',
-                        type: 'line',
-                        data: data.totalProductsCounts,
-                        smooth: false,
-                        symbol: 'none',
-                        itemStyle: { color: '#333333' }, // Ciemnoszary/Czarny
-                        lineStyle: {
-                            color: '#333333',
-                            width: 2,
-                            type: 'dashed',
-                            opacity: 0.7
-                        }
-                    }
+                    { name: 'Top Oferta', type: 'line', data: data.topOfferCounts, smooth: true, itemStyle: { color: '#ff9800' }, lineStyle: { width: 3 }, areaStyle: { opacity: 0.1, color: '#ff9800' } },
+                    { name: 'Super Cena', type: 'line', data: data.superPriceCounts, smooth: true, itemStyle: { color: '#155724' }, lineStyle: { width: 3 } },
+                    { name: 'Gwarancja Ceny', type: 'line', data: data.bestPriceGuaranteeCounts, smooth: true, itemStyle: { color: '#4caf50' }, lineStyle: { width: 3 } },
+                    { name: 'Kampania', type: 'line', data: data.campaignCounts, smooth: true, itemStyle: { color: '#ffc107' }, lineStyle: { width: 2, type: 'dashed' } },
+                    { name: 'Dopłaty', type: 'line', data: data.subsidyCounts, smooth: true, itemStyle: { color: '#1cc88a' }, lineStyle: { width: 2, type: 'dotted' } },
+                    { name: 'Razem w automacie', type: 'line', data: data.totalProductsCounts, smooth: false, symbol: 'none', itemStyle: { color: '#333333' }, lineStyle: { color: '#333333', width: 2, type: 'dashed', opacity: 0.7 } }
                 ]
             };
             chartBadges.setOption(option);
@@ -2471,30 +2514,26 @@
             var elemEff = document.getElementById('chartEffectiveness');
             var elemDyn = document.getElementById('chartDynamics');
 
-            // Inicjalizacja domyślnych wykresów
             if (elemEff && elemDyn) {
                 chartEff = echarts.init(elemEff);
                 chartDyn = echarts.init(elemDyn);
                 loadHistoryData(currentLimit);
             }
 
-            // Obsługa przycisków zakresu czasu (7/14/30 dni)
             $('.history-btn').click(function() {
                 $('.history-btn').removeClass('active');
                 $(this).addClass('active');
                 currentLimit = $(this).data('days');
 
-                if (currentMode === 'badges') {
-                    loadBadgeHistoryData(currentLimit);
-                } else {
-                    loadHistoryData(currentLimit);
-                }
+                if (currentMode === 'badges') { loadBadgeHistoryData(currentLimit); }
+                else if (currentMode === 'sales') { loadSalesHistoryData(currentLimit); }
+                else { loadHistoryData(currentLimit); }
             });
 
-            // Responsywność
             window.addEventListener('resize', function() {
                 if(chartEff) chartEff.resize();
                 if(chartDyn) chartDyn.resize();
+                if(chartSales) chartSales.resize();
                 if(chartBadges) chartBadges.resize();
             });
         });

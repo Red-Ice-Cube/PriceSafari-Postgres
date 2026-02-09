@@ -1096,6 +1096,75 @@ namespace PriceSafari.Services.PriceAutomationService
 
             return model;
         }
+
+
+        public async Task<AutomationSalesHistoryViewModel> GetSalesHistoryAsync(int ruleId, int limit)
+        {
+            if (limit <= 0) limit = 7;
+
+            // 1. Pobierz regułę i nazwę sklepu
+            var rule = await _context.AutomationRules
+                .Include(r => r.Store)
+                .FirstOrDefaultAsync(r => r.Id == ruleId);
+
+            if (rule == null || rule.Store == null) return null;
+            string myStoreName = rule.Store.StoreNameAllegro ?? "";
+
+            // 2. KLUCZOWE: Pobierz ID produktów, które są w regule NA DZIEŃ DZISIEJSZY.
+            // Ignorujemy historię przypisań. Interesuje nas obecny skład portfela.
+            var currentProductIds = await _context.AutomationProductAssignments
+                .Where(a => a.AutomationRuleId == ruleId && a.AllegroProductId.HasValue)
+                .Select(a => a.AllegroProductId.Value)
+                .ToListAsync();
+
+            if (!currentProductIds.Any()) return new AutomationSalesHistoryViewModel();
+
+            // 3. Pobierz historię scrapowania (daty) z zadanego okresu
+            // Sortujemy rosnąco po dacie, żeby wykres szedł od lewej do prawej
+            var scrapHistories = await _context.AllegroScrapeHistories
+                .Where(sh => sh.StoreId == rule.StoreId)
+                .OrderByDescending(sh => sh.Date)
+                .Take(limit)
+                .Select(sh => new { sh.Id, sh.Date })
+                .OrderBy(x => x.Date)
+                .ToListAsync();
+
+            var scrapIds = scrapHistories.Select(s => s.Id).ToList();
+
+            // 4. Pobierz dane sprzedażowe (Popularity) dla wybranych scrapów i WYŁĄCZNIE obecnych produktów
+            var salesData = await _context.AllegroPriceHistories
+                .Where(h => scrapIds.Contains(h.AllegroScrapeHistoryId)
+                         && currentProductIds.Contains(h.AllegroProductId)) // Tu jest filtr "obecnych" produktów
+                .GroupBy(h => h.AllegroScrapeHistoryId)
+                .Select(g => new
+                {
+                    ScrapId = g.Key,
+                    // Suma popularity dla Twojego sklepu
+                    MyTotalSales = g.Where(x => x.SellerName == myStoreName).Sum(x => x.Popularity ?? 0),
+                    // Suma popularity całego rynku (wszyscy w katalogu)
+                    MarketTotalSales = g.Sum(x => x.Popularity ?? 0)
+                })
+                .ToListAsync();
+
+            // 5. Złóż wynik
+            var model = new AutomationSalesHistoryViewModel();
+
+            foreach (var scrap in scrapHistories)
+            {
+                model.Dates.Add(scrap.Date.ToString("dd.MM HH:mm"));
+
+                var dataPoint = salesData.FirstOrDefault(d => d.ScrapId == scrap.Id);
+
+                // Jeśli w danym scrapie nie było danych dla tych produktów, wpisujemy 0 
+                // (lub poprzednią wartość, ale 0 jest bezpieczniejsze analitycznie, bo widać brak danych)
+                model.MySales.Add(dataPoint?.MyTotalSales ?? 0);
+                model.MarketSales.Add(dataPoint?.MarketTotalSales ?? 0);
+            }
+
+            return model;
+        }
+
+
     }
     public class AutomationTriggerRequest
     {
@@ -1119,5 +1188,13 @@ namespace PriceSafari.Services.PriceAutomationService
 
         // NOWE POLE:
         public List<int> TotalProductsCounts { get; set; } = new List<int>();
+    }
+
+    // W pliku PriceSafari.Models.DTOs (lub obok innych DTO)
+    public class AutomationSalesHistoryViewModel
+    {
+        public List<string> Dates { get; set; } = new List<string>();
+        public List<long> MySales { get; set; } = new List<long>();      // Nasza łączna sprzedaż (suma Popularity)
+        public List<long> MarketSales { get; set; } = new List<long>();  // Łączna sprzedaż w katalogach (suma wszystkich Popularity)
     }
 }

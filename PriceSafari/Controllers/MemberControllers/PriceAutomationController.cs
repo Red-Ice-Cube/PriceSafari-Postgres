@@ -116,5 +116,22 @@ namespace PriceSafari.Controllers.MemberControllers
                 return BadRequest(ex.Message);
             }
         }
+
+
+        [HttpPost]
+        public async Task<IActionResult> GetAutomationSalesHistory([FromBody] HistoryRequest request)
+        {
+            if (request == null || request.RuleId <= 0) return BadRequest();
+
+            try
+            {
+                var result = await _automationService.GetSalesHistoryAsync(request.RuleId, request.Limit);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }
