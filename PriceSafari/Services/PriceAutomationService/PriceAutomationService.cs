@@ -1102,7 +1102,7 @@ namespace PriceSafari.Services.PriceAutomationService
         {
             if (limit <= 0) limit = 7;
 
-            // 1. Pobierz regułę i nazwę sklepu
+            // 1. Pobierz regułę
             var rule = await _context.AutomationRules
                 .Include(r => r.Store)
                 .FirstOrDefaultAsync(r => r.Id == ruleId);
@@ -1110,8 +1110,7 @@ namespace PriceSafari.Services.PriceAutomationService
             if (rule == null || rule.Store == null) return null;
             string myStoreName = rule.Store.StoreNameAllegro ?? "";
 
-            // 2. KLUCZOWE: Pobierz ID produktów, które są w regule NA DZIEŃ DZISIEJSZY.
-            // Ignorujemy historię przypisań. Interesuje nas obecny skład portfela.
+            // 2. Pobierz ID produktów, które są w regule TERAZ
             var currentProductIds = await _context.AutomationProductAssignments
                 .Where(a => a.AutomationRuleId == ruleId && a.AllegroProductId.HasValue)
                 .Select(a => a.AllegroProductId.Value)
@@ -1119,8 +1118,7 @@ namespace PriceSafari.Services.PriceAutomationService
 
             if (!currentProductIds.Any()) return new AutomationSalesHistoryViewModel();
 
-            // 3. Pobierz historię scrapowania (daty) z zadanego okresu
-            // Sortujemy rosnąco po dacie, żeby wykres szedł od lewej do prawej
+            // 3. Pobierz historię scrapowania
             var scrapHistories = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == rule.StoreId)
                 .OrderByDescending(sh => sh.Date)
@@ -1131,18 +1129,19 @@ namespace PriceSafari.Services.PriceAutomationService
 
             var scrapIds = scrapHistories.Select(s => s.Id).ToList();
 
-            // 4. Pobierz dane sprzedażowe (Popularity) dla wybranych scrapów i WYŁĄCZNIE obecnych produktów
+            // 4. Pobierz dane sprzedażowe ORAZ ilość dostępnych ofert
             var salesData = await _context.AllegroPriceHistories
                 .Where(h => scrapIds.Contains(h.AllegroScrapeHistoryId)
-                         && currentProductIds.Contains(h.AllegroProductId)) // Tu jest filtr "obecnych" produktów
+                         && currentProductIds.Contains(h.AllegroProductId))
                 .GroupBy(h => h.AllegroScrapeHistoryId)
                 .Select(g => new
                 {
                     ScrapId = g.Key,
-                    // Suma popularity dla Twojego sklepu
                     MyTotalSales = g.Where(x => x.SellerName == myStoreName).Sum(x => x.Popularity ?? 0),
-                    // Suma popularity całego rynku (wszyscy w katalogu)
-                    MarketTotalSales = g.Sum(x => x.Popularity ?? 0)
+                    MarketTotalSales = g.Sum(x => x.Popularity ?? 0),
+
+                    // NOWOŚĆ: Ile z tych produktów faktycznie miało Twoją ofertę w tym dniu?
+                    ActiveCount = g.Count(x => x.SellerName == myStoreName)
                 })
                 .ToListAsync();
 
@@ -1155,10 +1154,11 @@ namespace PriceSafari.Services.PriceAutomationService
 
                 var dataPoint = salesData.FirstOrDefault(d => d.ScrapId == scrap.Id);
 
-                // Jeśli w danym scrapie nie było danych dla tych produktów, wpisujemy 0 
-                // (lub poprzednią wartość, ale 0 jest bezpieczniejsze analitycznie, bo widać brak danych)
                 model.MySales.Add(dataPoint?.MyTotalSales ?? 0);
                 model.MarketSales.Add(dataPoint?.MarketTotalSales ?? 0);
+
+                // Dodajemy licznik ofert
+                model.ActiveOffersCount.Add(dataPoint?.ActiveCount ?? 0);
             }
 
             return model;
@@ -1190,11 +1190,13 @@ namespace PriceSafari.Services.PriceAutomationService
         public List<int> TotalProductsCounts { get; set; } = new List<int>();
     }
 
-    // W pliku PriceSafari.Models.DTOs (lub obok innych DTO)
     public class AutomationSalesHistoryViewModel
     {
         public List<string> Dates { get; set; } = new List<string>();
-        public List<long> MySales { get; set; } = new List<long>();      // Nasza łączna sprzedaż (suma Popularity)
-        public List<long> MarketSales { get; set; } = new List<long>();  // Łączna sprzedaż w katalogach (suma wszystkich Popularity)
+        public List<long> MySales { get; set; } = new List<long>();
+        public List<long> MarketSales { get; set; } = new List<long>();
+
+        // NOWE POLE: Liczba ofert z obecnej puli, które istniały w danym dniu
+        public List<int> ActiveOffersCount { get; set; } = new List<int>();
     }
 }

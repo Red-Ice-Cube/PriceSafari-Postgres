@@ -2345,7 +2345,7 @@
             });
         }
 
-           // --- RENDER: SALES CHART (ZAKTUALIZOWANY WIZUALNIE) ---
+             // --- RENDER: SALES CHART (Z DODATKOWĄ LINIĄ DOSTĘPNOŚCI) ---
         function renderSalesChart(data) {
             if (!data || !chartSales) return;
 
@@ -2360,39 +2360,41 @@
                     axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } },
                     backgroundColor: 'rgba(255, 255, 255, 0.96)',
                     textStyle: { color: '#333' },
-                    // --- NOWOŚĆ: Custom Formatter do obliczania procentów w locie ---
                     formatter: function (params) {
-                        // params to tablica z danymi obu serii w danym punkcie czasu
                         var date = params[0].axisValueLabel;
                         var html = '<div style="font-weight:bold; margin-bottom:5px;">' + date + '</div>';
 
                         var marketValue = 0;
                         var myValue = 0;
+                        var activeOffers = 0;
 
-                        // Znajdź wartości dla rynku i dla nas
                         params.forEach(function (item) {
                             if (item.seriesName === 'Cały Rynek (Katalog)') marketValue = item.value;
                             if (item.seriesName === 'Twoja Sprzedaż') myValue = item.value;
+                            if (item.seriesName === 'Aktywne oferty') activeOffers = item.value;
 
-                            // Dodaj standardowy wiersz z kropką koloru i wartością
-                            html += '<div>' + item.marker + ' ' + item.seriesName + ': <b>' + item.value + ' szt.</b></div>';
+                            // Nie pokazuj tooltipa dla linii "Rynek" w ten sam sposób,
+                            // lub pokaż wszystkie standardowo:
+                            let unit = (item.seriesName === 'Aktywne oferty') ? ' szt.' : ' sprzed.';
+                            html += '<div>' + item.marker + ' ' + item.seriesName + ': <b>' + item.value + unit + '</b></div>';
                         });
 
-                        // Oblicz i dodaj wiersz z procentowym udziałem
                         var sharePercentage = (marketValue > 0) ? ((myValue / marketValue) * 100).toFixed(1) : 0;
 
                         html += '<div style="margin-top:8px; padding-top:8px; border-top:1px solid #eee; font-weight:bold; color:#ff9800;">';
-                        // Mała ikona procenta
                         html += '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:#ff9800;"></span>';
                         html += 'Twój udział w rynku: ' + sharePercentage + '%</div>';
 
+                        // Informacja o pokryciu
+                        html += '<div style="font-size:11px; color:#888; margin-top:4px;">';
+                        html += 'Dane dostępne dla ' + activeOffers + ' ofert</div>';
+
                         return html;
                     }
-                    // -----------------------------------------------------------
                 },
                 legend: {
                     bottom: 0,
-                    data: ['Twoja Sprzedaż', 'Cały Rynek (Katalog)']
+                    data: ['Twoja Sprzedaż', 'Cały Rynek (Katalog)', 'Aktywne oferty']
                 },
                 grid: { left: '3%', right: '4%', bottom: '10%', top: '60px', containLabel: true },
                 xAxis: {
@@ -2400,43 +2402,68 @@
                     boundaryGap: false,
                     data: data.dates
                 },
-                // --- ZMIANA: Jedna wspólna oś Y ---
-                yAxis: {
-                    type: 'value',
-                    name: 'Liczba sprzedanych sztuk (30 dni)',
-                    axisLabel: { formatter: '{value}' },
-                    splitLine: { show: true, lineStyle: { color: '#eee' } }
-                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: 'Sprzedaż (szt.)',
+                        position: 'left',
+                        axisLabel: { formatter: '{value}' },
+                        splitLine: { show: true, lineStyle: { color: '#eee' } }
+                    },
+                    {
+                        type: 'value',
+                        name: 'Liczba ofert',
+                        position: 'right',
+                        minInterval: 1,
+                        axisLine: { show: false }, // Ukrywa linię osi, zostawia tylko liczby
+                        axisLabel: { formatter: '{value}', color: '#999' },
+                        splitLine: { show: false } // Żeby nie robić kratki na wykresie
+                    }
+                ],
                 series: [
                     {
                         name: 'Cały Rynek (Katalog)',
                         type: 'line',
-                        // yAxisIndex usunięty - korzysta z domyślnej osi
+                        yAxisIndex: 0, // Lewa oś (Sprzedaż)
                         data: data.marketSales,
                         smooth: true,
-                        // --- ZMIANA STYLU: Czarna, pusta linia ---
-                        symbol: 'none', // Brak kropek na linii
-                        itemStyle: { color: '#000000' }, // Czarny kolor
+                        symbol: 'none',
+                        itemStyle: { color: '#000000' },
                         lineStyle: { width: 2, color: '#000000', type: 'solid' },
-                        // areaStyle usunięty (brak wypełnienia)
+                        areaStyle: null
                     },
                     {
                         name: 'Twoja Sprzedaż',
                         type: 'line',
-                        // yAxisIndex usunięty
+                        yAxisIndex: 0, // Lewa oś (Sprzedaż)
                         data: data.mySales,
                         smooth: true,
                         symbol: 'circle',
                         symbolSize: 8,
-                        // --- ZMIANA STYLU: Pomarańczowy z gradientem ---
                         itemStyle: { color: '#ff9800', borderColor: '#fff', borderWidth: 2 },
                         lineStyle: { width: 3, color: '#ff9800' },
                         areaStyle: {
                             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                { offset: 0, color: 'rgba(255, 152, 0, 0.6)' },  // Start: Pomarańczowy półprzezroczysty
-                                { offset: 1, color: 'rgba(255, 152, 0, 0.05)' } // Koniec: Prawie przezroczysty
+                                { offset: 0, color: 'rgba(255, 152, 0, 0.6)' },
+                                { offset: 1, color: 'rgba(255, 152, 0, 0.05)' }
                             ])
                         }
+                    },
+                    // --- NOWA SERIA: AKTYWNE OFERTY (SZARA LINIA) ---
+                    {
+                        name: 'Aktywne oferty',
+                        type: 'line',
+                        yAxisIndex: 1, // PRAWA OŚ (Liczba)
+                        data: data.activeOffersCount,
+                        smooth: false, // Kanciasta linia lepiej pokazuje zmiany w liczbie
+                        symbol: 'none',
+                        itemStyle: { color: '#b0b0b0' }, // Szary
+                        lineStyle: {
+                            width: 2,
+                            color: '#b0b0b0',
+                            type: 'dashed' // Przerywana
+                        },
+                        z: 0 // Na samym spodzie
                     }
                 ]
             };
