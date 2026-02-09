@@ -1240,7 +1240,6 @@ namespace PriceSafari.Services.PriceAutomationService
                 })
                 .ToListAsync();
 
-            // 4. Oblicz pozycje per scrap
             var model = new AutomationPricePositionHistoryViewModel();
             model.TotalProductsInRule = currentProductIds.Count;
 
@@ -1248,20 +1247,18 @@ namespace PriceSafari.Services.PriceAutomationService
             {
                 model.Dates.Add(scrap.Date.ToString("dd.MM HH:mm"));
 
-                var recordsForScrap = allRecords
-                    .Where(r => r.ScrapHistoryId == scrap.Id)
-                    .ToList();
+                var recordsForScrap = allRecords.Where(r => r.ScrapHistoryId == scrap.Id).ToList();
 
                 int top1Solo = 0, top1ExAequo = 0, pos2to3 = 0, pos4to5 = 0, pos6to10 = 0, pos11plus = 0;
 
-                // Zbiór produktów, które miały jakiekolwiek dane w tym scrapie (nasze lub konkurencji)
+                // Zbiór unikalnych produktów w tym scrapie (pokrycie danych)
                 var productsInScrape = new HashSet<int>();
 
                 var byProduct = recordsForScrap.GroupBy(r => r.ProductId);
 
                 foreach (var group in byProduct)
                 {
-                    productsInScrape.Add(group.Key); // Produkt ma dane (katalog istnieje w danych)
+                    productsInScrape.Add(group.Key); // Dodajemy do pokrycia
                     var offers = group.ToList();
 
                     // Znajdź nasze oferty
@@ -1270,11 +1267,7 @@ namespace PriceSafari.Services.PriceAutomationService
                         o.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase))
                         .ToList();
 
-                    // Jeśli nie ma naszej oferty, nie liczymy pozycji, ale produkt jest w "Katalogach z danymi"
-                    if (!myOffers.Any())
-                    {
-                        continue;
-                    }
+                    if (!myOffers.Any()) continue; // Produkt jest w danych (productsInScrape), ale my nie mamy oferty -> nie liczymy rankingu
 
                     decimal myBestPrice = myOffers.Min(o => o.Price);
                     var allPrices = offers.Select(o => o.Price).OrderBy(p => p).ToList();
@@ -1308,9 +1301,8 @@ namespace PriceSafari.Services.PriceAutomationService
                 model.Position6to10.Add(pos6to10);
                 model.Position11Plus.Add(pos11plus);
 
-                // ZMIANA LOGIKI: NotRanked teraz przechowuje "Katalogi z danymi" (czyli pokrycie)
-                // Zamiast liczyć braki, wpisujemy ile unikalnych produktów znaleziono w tym scrapie.
-                model.NotRanked.Add(productsInScrape.Count);
+                // ZMIANA: Przypisujemy ilość znalezionych do nowej nazwy
+                model.ProductsWithDataCount.Add(productsInScrape.Count);
             }
 
             return model;
@@ -1353,7 +1345,6 @@ namespace PriceSafari.Services.PriceAutomationService
                 })
                 .ToListAsync();
 
-            // 4. Oblicz pozycje per scrap
             var model = new AutomationPricePositionHistoryViewModel();
             model.TotalProductsInRule = currentProductIds.Count;
 
@@ -1361,31 +1352,25 @@ namespace PriceSafari.Services.PriceAutomationService
             {
                 model.Dates.Add(scrap.Date.ToString("dd.MM HH:mm"));
 
-                var recordsForScrap = allRecords
-                    .Where(r => r.AllegroScrapeHistoryId == scrap.Id)
-                    .ToList();
+                var recordsForScrap = allRecords.Where(r => r.AllegroScrapeHistoryId == scrap.Id).ToList();
 
                 int top1Solo = 0, top1ExAequo = 0, pos2to3 = 0, pos4to5 = 0, pos6to10 = 0, pos11plus = 0;
 
-                var productsInScrape = new HashSet<int>();
+                var productsInScrape = new HashSet<int>(); // Pokrycie
 
                 var byProduct = recordsForScrap.GroupBy(r => r.AllegroProductId);
 
                 foreach (var group in byProduct)
                 {
-                    productsInScrape.Add(group.Key); // Produkt ma dane
+                    productsInScrape.Add(group.Key); // Dodajemy do pokrycia
                     var offers = group.ToList();
 
-                    // Znajdź nasze oferty
                     var myOffers = offers.Where(o =>
                         o.SellerName != null &&
                         o.SellerName.Equals(myStoreName, StringComparison.OrdinalIgnoreCase))
                         .ToList();
 
-                    if (!myOffers.Any())
-                    {
-                        continue;
-                    }
+                    if (!myOffers.Any()) continue;
 
                     decimal myBestPrice = myOffers.Min(o => o.Price);
                     var allPrices = offers.Select(o => o.Price).OrderBy(p => p).ToList();
@@ -1419,8 +1404,8 @@ namespace PriceSafari.Services.PriceAutomationService
                 model.Position6to10.Add(pos6to10);
                 model.Position11Plus.Add(pos11plus);
 
-                // ZMIANA LOGIKI: NotRanked teraz przechowuje "Katalogi z danymi" (pokrycie)
-                model.NotRanked.Add(productsInScrape.Count);
+                // ZMIANA: Przypisujemy ilość znalezionych do nowej nazwy
+                model.ProductsWithDataCount.Add(productsInScrape.Count);
             }
 
             return model;
@@ -1488,8 +1473,7 @@ namespace PriceSafari.Services.PriceAutomationService
         /// <summary>Pozycja 11+</summary>
         public List<int> Position11Plus { get; set; } = new();
 
-        /// <summary>Brak naszej oferty lub brak danych w scrapie</summary>
-        public List<int> NotRanked { get; set; } = new();
+        public List<int> ProductsWithDataCount { get; set; } = new();
 
         public int TotalProductsInRule { get; set; }
     }
