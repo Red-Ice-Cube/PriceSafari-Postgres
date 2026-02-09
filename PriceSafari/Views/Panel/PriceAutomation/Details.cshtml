@@ -2442,6 +2442,21 @@
             });
         }
 
+        function calculateSharedMax(arrays) {
+            let maxVal = 0;
+            // Przeszukujemy wszystkie tablice danych
+            arrays.forEach(arr => {
+                if (arr && Array.isArray(arr)) {
+                    let localMax = Math.max(...arr);
+                    if (localMax > maxVal) maxVal = localMax;
+                }
+            });
+
+            // Dodajemy 5-10% zapasu, żeby wykres nie dotykał sufitu
+            // Jeśli max to 0, ustawiamy np. 10 jako domyślną skalę
+            return maxVal > 0 ? Math.ceil(maxVal * 1.1) : 10;
+        }
+
         // =============================================
         // RENDER: EFFECTIVENESS (SKUTECZNOŚĆ)
         // =============================================
@@ -2718,108 +2733,127 @@
             }
 
 
-            function renderBadgeChart(data) {
-                if (!data || !chartBadges) return;
-                var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
+           function renderBadgeChart(data) {
+            if (!data || !chartBadges) return;
+            var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
 
-                var option = {
-                    title: {
-                        text: 'Trendy Odznak i Promocji',
-                        subtext: 'Dane dla ' + totalInRule + ' produktów obecnie w automacie',
-                        left: 'center',
-                        textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' },
-                        subtextStyle: { fontSize: 11, color: '#999' }
+            // --- OBLICZANIE WSPÓLNEJ SKALI (1:1) ---
+            // Zbieramy wszystkie serie, aby znaleźć najwyższy punkt
+            var allDataArrays = [
+                data.topOfferCounts,
+                data.superPriceCounts,
+                data.bestPriceGuaranteeCounts,
+                data.campaignCounts,
+                data.subsidyCounts,
+                data.coveredProductsCounts // Szara linia
+            ];
+            // calculateSharedMax musi być zdefiniowane w skrypcie (helper z poprzedniego kroku)
+            var commonMax = calculateSharedMax(allDataArrays);
+            // ---------------------------------------
+
+            var option = {
+                title: {
+                    text: 'Trendy Odznak i Promocji',
+                    subtext: 'Dane dla ' + totalInRule + ' produktów obecnie w automacie',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' },
+                    subtextStyle: { fontSize: 11, color: '#999' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    borderColor: '#e3e6f0',
+                    borderWidth: 1,
+                    padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; min-width: 250px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+
+                        var coveredProducts = 0;
+                        var badgeValues = {};
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Katalogi z danymi') {
+                                coveredProducts = item.value;
+                            } else {
+                                badgeValues[item.seriesName] = item;
+                            }
+                        });
+
+                        var html = tooltipDateHeader(date);
+                        html += tooltipSectionHeader('Aktywne Odznaki');
+
+                        var badgeOrder = ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty'];
+                        badgeOrder.forEach(function (name) {
+                            var item = badgeValues[name];
+                            if (item) {
+                                var pctOfCovered = coveredProducts > 0 ? ((item.value / coveredProducts) * 100).toFixed(0) + '%' : '-';
+                                html += tooltipRow(item.marker, name, item.value, '', false, '(' + pctOfCovered + ' ofert)');
+                            }
+                        });
+
+                        html += tooltipSeparator();
+                        html += buildCoverageBar(coveredProducts, totalInRule, 'Katalogi z danymi');
+
+                        return html;
+                    }
+                },
+                legend: {
+                    bottom: 0,
+                    data: ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty', 'Katalogi z danymi'],
+                    textStyle: { fontSize: 11 }
+                },
+                grid: { left: '3%', right: '4%', bottom: '12%', top: '70px', containLabel: true },
+                xAxis: { type: 'category', boundaryGap: false, data: data.dates, axisLabel: { fontSize: 10 } },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: 'Liczba odznak',
+                        // ZMIANA: Skala 1:1
+                        min: 0,
+                        max: commonMax,
+                        minInterval: 1,
+                        nameTextStyle: { fontSize: 10, color: '#999' },
+                        axisLabel: { fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#f0f0f0' } }
                     },
-                    tooltip: {
-                        trigger: 'axis',
-                        axisPointer: { type: 'cross' },
-                        backgroundColor: 'rgba(255, 255, 255, 0.98)',
-                        borderColor: '#e3e6f0',
-                        borderWidth: 1,
-                        padding: [12, 16],
-                        extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; min-width: 250px;',
-                        formatter: function (params) {
-                            var date = params[0].axisValueLabel;
+                    {
+                        type: 'value',
+                        name: 'Liczba ofert',
+                        position: 'right',
+                        // ZMIANA: Skala 1:1
+                        min: 0,
+                        max: commonMax,
+                        minInterval: 1,
+                        nameTextStyle: { fontSize: 10, color: '#999' },
+                        axisLine: { show: false },
+                        axisLabel: { formatter: '{value}', color: '#999', fontSize: 10 },
+                        splitLine: { show: false }
+                    }
+                ],
+                series: [
+                    { name: 'Top Oferta', type: 'line', data: data.topOfferCounts, smooth: true, itemStyle: { color: '#ff9800' }, symbol: 'circle', symbolSize: 6 },
+                    { name: 'Super Cena', type: 'line', data: data.superPriceCounts, smooth: true, itemStyle: { color: '#155724' }, symbol: 'circle', symbolSize: 6 },
+                    { name: 'Gwarancja Ceny', type: 'line', data: data.bestPriceGuaranteeCounts, smooth: true, itemStyle: { color: '#4caf50' }, symbol: 'circle', symbolSize: 6 },
+                    { name: 'Kampania', type: 'line', data: data.campaignCounts, smooth: true, itemStyle: { color: '#ffc107' }, lineStyle: { type: 'dashed' }, symbol: 'circle', symbolSize: 6 },
+                    { name: 'Dopłaty', type: 'line', data: data.subsidyCounts, smooth: true, itemStyle: { color: '#1cc88a' }, lineStyle: { type: 'dotted' }, symbol: 'circle', symbolSize: 6 },
+                    {
+                        name: 'Katalogi z danymi',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: data.coveredProductsCounts,
+                        smooth: false,
+                        symbol: 'none',
+                        itemStyle: { color: '#d1d3e2' },
+                        lineStyle: { width: 1.5, color: '#d1d3e2', type: 'dotted' },
+                        z: 0
+                    }
+                ]
+            };
+            chartBadges.setOption(option, true);
+        }
 
-                            var coveredProducts = 0;
-                            var badgeValues = {};
-                            params.forEach(function (item) {
-                                if (item.seriesName === 'Katalogi z danymi') {
-                                    coveredProducts = item.value;
-                                } else {
-                                    badgeValues[item.seriesName] = item;
-                                }
-                            });
-
-                            var html = tooltipDateHeader(date);
-                            html += tooltipSectionHeader('Aktywne Odznaki');
-
-                            var badgeOrder = ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty'];
-                            badgeOrder.forEach(function (name) {
-                                var item = badgeValues[name];
-                                if (item) {
-                                    var pctOfCovered = coveredProducts > 0 ? ((item.value / coveredProducts) * 100).toFixed(0) + '%' : '-';
-                                    html += tooltipRow(item.marker, name, item.value, '', false, '(' + pctOfCovered + ' ofert)');
-                                }
-                            });
-
-                            html += tooltipSeparator();
-                            html += buildCoverageBar(coveredProducts, totalInRule, 'Katalogi z danymi');
-
-                            return html;
-                        }
-                    },
-                    legend: {
-                        bottom: 0,
-                        data: ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty', 'Katalogi z danymi'],
-                        textStyle: { fontSize: 11 }
-                    },
-                    grid: { left: '3%', right: '4%', bottom: '12%', top: '70px', containLabel: true },
-                    xAxis: { type: 'category', boundaryGap: false, data: data.dates, axisLabel: { fontSize: 10 } },
-                    yAxis: [
-                        {
-                            type: 'value',
-                            name: 'Liczba odznak',
-                            minInterval: 1,
-                            nameTextStyle: { fontSize: 10, color: '#999' },
-                            axisLabel: { fontSize: 10 },
-                            splitLine: { lineStyle: { color: '#f0f0f0' } }
-                        },
-                        // ZMIANA TUTAJ: Włączono prawą oś z opisem "Liczba ofert"
-                        {
-                            type: 'value',
-                            name: 'Liczba ofert',
-                            position: 'right',
-                            minInterval: 1,
-                            nameTextStyle: { fontSize: 10, color: '#999' },
-                            axisLine: { show: false },
-                            axisLabel: { formatter: '{value}', color: '#999', fontSize: 10 },
-                            splitLine: { show: false }
-                        }
-                    ],
-                    series: [
-                        { name: 'Top Oferta', type: 'line', data: data.topOfferCounts, smooth: true, itemStyle: { color: '#ff9800' }, symbol: 'circle', symbolSize: 6 },
-                        { name: 'Super Cena', type: 'line', data: data.superPriceCounts, smooth: true, itemStyle: { color: '#155724' }, symbol: 'circle', symbolSize: 6 },
-                        { name: 'Gwarancja Ceny', type: 'line', data: data.bestPriceGuaranteeCounts, smooth: true, itemStyle: { color: '#4caf50' }, symbol: 'circle', symbolSize: 6 },
-                        { name: 'Kampania', type: 'line', data: data.campaignCounts, smooth: true, itemStyle: { color: '#ffc107' }, lineStyle: { type: 'dashed' }, symbol: 'circle', symbolSize: 6 },
-                        { name: 'Dopłaty', type: 'line', data: data.subsidyCounts, smooth: true, itemStyle: { color: '#1cc88a' }, lineStyle: { type: 'dotted' }, symbol: 'circle', symbolSize: 6 },
-                        {
-                            name: 'Katalogi z danymi',
-                            type: 'line',
-                            yAxisIndex: 1,
-                            data: data.coveredProductsCounts,
-                            smooth: false,
-                            symbol: 'none',
-                            itemStyle: { color: '#d1d3e2' },
-                            lineStyle: { width: 1.5, color: '#d1d3e2', type: 'dotted' },
-                            z: 0
-                        }
-                    ]
-                };
-                chartBadges.setOption(option, true);
-            }
-
-          function renderPricePositionChart(data) {
+            function renderPricePositionChart(data) {
             if (!data || !chartPosition) return;
             var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
 
@@ -2832,6 +2866,20 @@
                 pos11plus: '#852b24',
                 notRanked: '#d1d3e2'
             };
+
+            // --- OBLICZANIE WSPÓLNEJ SKALI ---
+            // Zbieramy wszystkie tablice danych, które będą na wykresie
+            var allDataArrays = [
+                data.top1Solo,
+                data.top1ExAequo,
+                data.position2to3,
+                data.position4to5,
+                data.position6to10,
+                data.position11Plus,
+                data.productsWithDataCount // Nasza szara linia
+            ];
+            var commonMax = calculateSharedMax(allDataArrays);
+            // ---------------------------------
 
             var option = {
                 title: {
@@ -2854,21 +2902,13 @@
                         var values = {};
                         var rankedCount = 0;
 
-                        // Zbieranie wartości z serii
                         params.forEach(function (item) {
                             values[item.seriesName] = { val: item.value, marker: item.marker };
-                            // Zliczamy tylko pozycje (kolorowe kropki)
                             if (item.seriesName !== 'Katalogi z danymi') {
                                 rankedCount += item.value;
                             }
                         });
 
-                        // ZMIANA LOGIKI:
-                        // 'Katalogi z danymi' to linia pokrycia (ile produktów ma dane).
-                        // Nie dodajemy jej do rankedCount, bo rankedCount zawiera się w niej.
-
-                        // Total bierzemy z danych reguły (stała liczba produktów w regule)
-                        // lub jeśli dynamicznie się zmieniała, bierzemy max z pokrycia.
                         var realTotal = totalInRule;
 
                         var html = tooltipDateHeader(date);
@@ -2878,16 +2918,11 @@
                         order.forEach(function (name) {
                             var item = values[name];
                             if (!item) return;
-                            // Procent liczony względem CAŁKOWITEJ liczby produktów w regule (realTotal)
                             var pct = realTotal > 0 ? ((item.val / realTotal) * 100).toFixed(0) + '%' : '0%';
                             html += tooltipRow(item.marker, name, item.val, '', false, '(' + pct + ')');
                         });
 
                         html += tooltipSeparator();
-
-                        // Pasek pokrycia:
-                        // rankedCount = ile produktów ma pozycję cenową
-                        // realTotal = ile produktów jest w regule
                         html += buildCoverageBar(rankedCount, realTotal, 'Produkty z pozycją cenową');
 
                         return html;
@@ -2904,6 +2939,9 @@
                     {
                         type: 'value',
                         name: 'Liczba produktów',
+                        // ZMIANA: Wymuszona skala
+                        min: 0,
+                        max: commonMax,
                         nameTextStyle: { fontSize: 10, color: '#999' },
                         axisLabel: { fontSize: 10 },
                         splitLine: { lineStyle: { color: '#f0f0f0' } }
@@ -2912,7 +2950,9 @@
                         type: 'value',
                         name: 'Liczba ofert',
                         position: 'right',
-                        minInterval: 1,
+                        // ZMIANA: Wymuszona identyczna skala
+                        min: 0,
+                        max: commonMax,
                         nameTextStyle: { fontSize: 10, color: '#999' },
                         axisLine: { show: false },
                         axisLabel: { formatter: '{value}', color: '#999', fontSize: 10 },
@@ -2934,7 +2974,6 @@
                         itemStyle: { color: colors.notRanked },
                         lineStyle: { width: 1.5, color: colors.notRanked, type: 'dotted' },
                         symbol: 'none',
-                        // ZMIANA: Używamy nowej nazwy pola z backendu (JSON serializer zmieni ProductsWithDataCount na productsWithDataCount)
                         data: data.productsWithDataCount
                     }
                 ]
