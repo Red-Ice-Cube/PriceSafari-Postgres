@@ -1,38 +1,4 @@
-﻿// --- 1. DODAJ TE OBLICZENIA (Kopiuj z sekcji Marketplace) ---
-
-// -------------------------------------------------------------
-
-// --- 2. ZAKTUALIZUJ WYWOŁANIE SERWISU ---
-
-// Przekazujemy obliczone statystyki:
-
-// lub "-"
-
-// lub "-"
-
-// --- FIX: Obliczamy nowy ranking TYLKO jeśli źródło jest włączone ---
-
-// --- DODAJ TEN FRAGMENT (to naprawia problem) ---
-
-// Sprawdzamy czy nowa wyliczona cena różni się od tej już wgranej
-
-// ------------------------------------------------
-
-// Wywołujemy główny silnik obliczeniowy (ten sam, co przy ExecuteAutomation)
-
-// Przepisujemy wyniki do modelu widoku
-
-// Ustawiamy daty ostatniego scrapingu
-
-// Dla Allegro bierzemy zweryfikowaną cenę (jeśli API potwierdziło zmianę) lub symulowaną
-
-// NOWOŚĆ: Sprawdzamy rozbieżność
-
-//private async Task SavePriceComparisonBatch(AutomationExecutionRequest request, string? userId, AutomationRule rule)
-
-//{
-
-//}
+﻿
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -133,6 +99,22 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (result == null) return NotFound();
             return Ok(result);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> GetAutomationBadgeHistory([FromBody] HistoryRequest request)
+        {
+            if (request == null || request.RuleId <= 0) return BadRequest();
+
+            try
+            {
+                var result = await _automationService.GetBadgeHistoryAsync(request.RuleId, request.Limit);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
     }
 }

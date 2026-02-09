@@ -792,7 +792,7 @@ namespace PriceSafari.Services.PriceAutomationService
                 }
             }
 
-            if ((rule.EnforceMinimalMarkup || rule.EnforceMaxMarkup) && (!row.PurchasePrice.HasValue || row.PurchasePrice <= 0))
+            if (rule.UsePurchasePrice && (!row.PurchasePrice.HasValue || row.PurchasePrice <= 0))
             {
                 ApplyBlock(row, "Brak Ceny Zakupu");
                 return;
@@ -1006,7 +1006,96 @@ namespace PriceSafari.Services.PriceAutomationService
             return useUnmarkedStores;
         }
 
-        
+        public async Task<AutomationBadgeHistoryViewModel> GetBadgeHistoryAsync(int ruleId, int limit)
+        {
+            if (limit <= 0) limit = 7;
+
+            // 1. Pobierz regułę i nazwę sklepu (zabezpieczenie przed błędem LINQ)
+            var rule = await _context.AutomationRules
+                .Include(r => r.Store)
+                .FirstOrDefaultAsync(r => r.Id == ruleId);
+
+            if (rule == null || rule.Store == null) return null;
+
+            string myStoreName = rule.Store.StoreNameAllegro ?? "";
+
+            // 2. Pobierz produkty przypisane do reguły
+            var productAssignments = await _context.AutomationProductAssignments
+                .Where(a => a.AutomationRuleId == ruleId && a.AllegroProductId.HasValue)
+                .Select(a => a.AllegroProductId.Value)
+                .ToListAsync();
+
+            if (!productAssignments.Any()) return new AutomationBadgeHistoryViewModel();
+
+            // 3. Pobierz historię scrapowania (daty)
+            var scrapHistories = await _context.AllegroScrapeHistories
+                .Where(sh => sh.StoreId == rule.StoreId)
+                .OrderByDescending(sh => sh.Date)
+                .Take(limit)
+                .Select(sh => new { sh.Id, sh.Date })
+                .OrderBy(x => x.Date)
+                .ToListAsync();
+
+            var scrapIds = scrapHistories.Select(s => s.Id).ToList();
+
+            // --- NOWOŚĆ: Pobierz historyczną liczbę produktów w automacie dla tych dni ---
+            var batches = await _context.AllegroPriceBridgeBatches
+                .Where(b => b.AutomationRuleId == ruleId && scrapIds.Contains(b.AllegroScrapeHistoryId))
+                .Select(b => new { b.AllegroScrapeHistoryId, Count = b.TotalProductsCount ?? 0 })
+                .ToListAsync();
+            // ---------------------------------------------------------------------------
+
+            // 4. Pobierz dane o odznakach (Top, Super, Gwarancja)
+            var basicBadges = await _context.AllegroPriceHistories
+                .Where(h => scrapIds.Contains(h.AllegroScrapeHistoryId)
+                         && productAssignments.Contains(h.AllegroProductId)
+                         && h.SellerName == myStoreName)
+                .GroupBy(h => h.AllegroScrapeHistoryId)
+                .Select(g => new
+                {
+                    ScrapId = g.Key,
+                    TopOfferCount = g.Count(x => x.TopOffer == true),
+                    SuperPriceCount = g.Count(x => x.SuperPrice == true),
+                    BestPriceGuaranteeCount = g.Count(x => x.IsBestPriceGuarantee == true)
+                })
+                .ToListAsync();
+
+            // 5. Pobierz dane z ExtendedInfo (Kampanie, Dopłaty)
+            var extendedBadges = await _context.AllegroPriceHistoryExtendedInfos
+                .Where(h => scrapIds.Contains(h.ScrapHistoryId)
+                         && productAssignments.Contains(h.AllegroProductId))
+                .GroupBy(h => h.ScrapHistoryId)
+                .Select(g => new
+                {
+                    ScrapId = g.Key,
+                    CampaignCount = g.Count(x => x.AnyPromoActive == true),
+                    SubsidyCount = g.Count(x => x.IsSubsidyActive == true)
+                })
+                .ToListAsync();
+
+            // 6. Złóż wyniki
+            var model = new AutomationBadgeHistoryViewModel();
+
+            foreach (var scrap in scrapHistories)
+            {
+                model.Dates.Add(scrap.Date.ToString("dd.MM HH:mm"));
+
+                var basic = basicBadges.FirstOrDefault(b => b.ScrapId == scrap.Id);
+                var ext = extendedBadges.FirstOrDefault(b => b.ScrapId == scrap.Id);
+                var batch = batches.FirstOrDefault(b => b.AllegroScrapeHistoryId == scrap.Id); // Szukamy batcha
+
+                model.TopOfferCounts.Add(basic?.TopOfferCount ?? 0);
+                model.SuperPriceCounts.Add(basic?.SuperPriceCount ?? 0);
+                model.BestPriceGuaranteeCounts.Add(basic?.BestPriceGuaranteeCount ?? 0);
+                model.CampaignCounts.Add(ext?.CampaignCount ?? 0);
+                model.SubsidyCounts.Add(ext?.SubsidyCount ?? 0);
+
+                // Dodajemy liczbę produktów (jeśli nie ma batcha, bierzemy 0 lub liczbę przypisań, 0 jest bezpieczniejsze bo widać przerwę w działaniu)
+                model.TotalProductsCounts.Add(batch?.Count ?? 0);
+            }
+
+            return model;
+        }
     }
     public class AutomationTriggerRequest
     {
@@ -1017,5 +1106,18 @@ namespace PriceSafari.Services.PriceAutomationService
     {
         public int RuleId { get; set; }
         public int Limit { get; set; }
+    }
+
+    public class AutomationBadgeHistoryViewModel
+    {
+        public List<string> Dates { get; set; } = new List<string>();
+        public List<int> TopOfferCounts { get; set; } = new List<int>();
+        public List<int> SuperPriceCounts { get; set; } = new List<int>();
+        public List<int> BestPriceGuaranteeCounts { get; set; } = new List<int>();
+        public List<int> CampaignCounts { get; set; } = new List<int>();
+        public List<int> SubsidyCounts { get; set; } = new List<int>();
+
+        // NOWE POLE:
+        public List<int> TotalProductsCounts { get; set; } = new List<int>();
     }
 }

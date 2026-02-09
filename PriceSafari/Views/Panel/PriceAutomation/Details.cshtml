@@ -894,32 +894,47 @@
     <div class="Vert">
         <div class="Chart-Box-a" style="width: 100%; min-height: 400px;">
 
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div class="kpi-title">
-                    Historia Wykonań Reguły
-                 
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 15px;">
+                <div style="display:flex; align-items:center; gap: 20px;">
+                    <div class="kpi-title" style="margin-bottom:0;">
+                        Analiza Automatu
+                    </div>
+
+                    @if (isMarketplace)
+                    {
+                        <div class="seg-toggle" role="group">
+                            <button type="button" id="viewModeExec" class="button-active seg-btn-left" onclick="switchChartMode('execution')">
+                                <i class="fas fa-chart-bar" style="margin-right: 4px;"></i> Wykonania
+                            </button>
+                            <button type="button" id="viewModeBadges" class="button-inactive seg-btn-right" onclick="switchChartMode('badges')">
+                                <i class="fas fa-medal" style="margin-right: 4px;"></i> Odznaki Allegro
+                            </button>
+                        </div>
+                    }
                 </div>
+
                 <div class="period-selector-group">
-                    <button type="button" class="period-btn-custom active history-btn" data-days="7">7 Analiz</button>
-                    <button type="button" class="period-btn-custom history-btn" data-days="14">14 Analiz</button>
-                    <button type="button" class="period-btn-custom history-btn" data-days="30">30 Analiz</button>
+                    <button type="button" class="period-btn-custom active history-btn" data-days="7">7 Dni</button>
+                    <button type="button" class="period-btn-custom history-btn" data-days="14">14 Dni</button>
+                    <button type="button" class="period-btn-custom history-btn" data-days="30">30 Dni</button>
                 </div>
             </div>
 
-            <div style="display: flex; width: 100%; gap: 20px; flex-wrap: wrap;">
-
+            <div id="executionChartsContainer" style="display: flex; width: 100%; gap: 20px; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 300px; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
                     <div id="chartEffectiveness" style="width: 100%; height: 100%;"></div>
                 </div>
-
                 <div style="flex: 1; min-width: 300px; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
                     <div id="chartDynamics" style="width: 100%; height: 100%;"></div>
                 </div>
-
             </div>
+
+            <div id="badgeChartContainer" style="display: none; width: 100%; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+                <div id="chartBadges" style="width: 100%; height: 100%;"></div>
+            </div>
+
         </div>
     </div>
-
 
 
 
@@ -2185,79 +2200,127 @@
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script>
         var chartEff = null;
         var chartDyn = null;
+        var chartBadges = null; // Nowy wykres
+        var currentLimit = 7;
+        var currentMode = 'execution'; // 'execution' lub 'badges'
+
+        // Sprawdzamy czy to marketplace (żeby nie sypało błędami na Ceneo)
+        const isMarketplaceContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
+
+        // Przełączanie widoków (Wykonania vs Odznaki)
+        function switchChartMode(mode) {
+            currentMode = mode;
+
+            if (mode === 'execution') {
+                // Style przycisków
+                $('#viewModeExec').removeClass('button-inactive').addClass('button-active');
+                $('#viewModeBadges').removeClass('button-active').addClass('button-inactive');
+
+                // Widoczność kontenerów
+                $('#executionChartsContainer').css('display', 'flex');
+                $('#badgeChartContainer').hide();
+
+                if(chartEff) chartEff.resize();
+                if(chartDyn) chartDyn.resize();
+            } else {
+                $('#viewModeExec').removeClass('button-active').addClass('button-inactive');
+                $('#viewModeBadges').removeClass('button-inactive').addClass('button-active');
+
+                $('#executionChartsContainer').hide();
+                $('#badgeChartContainer').show();
+
+                if (!chartBadges) {
+                    chartBadges = echarts.init(document.getElementById('chartBadges'));
+                }
+                chartBadges.resize();
+
+                // Ładujemy dane badgey
+                loadBadgeHistoryData(currentLimit);
+            }
+        }
 
         function showChartLoading() {
-            if (chartEff) chartEff.showLoading();
-            if (chartDyn) chartDyn.showLoading();
+            if (currentMode === 'execution') {
+                if (chartEff) chartEff.showLoading();
+                if (chartDyn) chartDyn.showLoading();
+            } else {
+                if (chartBadges) chartBadges.showLoading();
+            }
         }
 
         function hideChartLoading() {
             if (chartEff) chartEff.hideLoading();
             if (chartDyn) chartDyn.hideLoading();
+            if (chartBadges) chartBadges.hideLoading();
         }
 
+        // --- ŁADOWANIE DANYCH WYKONAŃ (STARE WYKRESY) ---
         function loadHistoryData(limit) {
-            showChartLoading();
+            // Jeśli jesteśmy w trybie badge, przekieruj do ładowania badgey
+            if (currentMode === 'badges') {
+                loadBadgeHistoryData(limit);
+                return;
+            }
 
+            showChartLoading();
             $.ajax({
                 url: '@Url.Action("GetAutomationHistory", "PriceAutomation")',
                 type: 'POST',
                 contentType: 'application/json',
-                data: JSON.stringify({ RuleId: @Model.RuleId, Limit: limit }),
+                // Upewnij się, że RuleId jest liczbą (parseInt)
+                data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
                 success: function(data) {
                     hideChartLoading();
                     renderEffectivenessChart(data);
                     renderDynamicsChart(data);
                 },
-                error: function(xhr, status, error) {
+                error: function(xhr) {
                     hideChartLoading();
-                    console.error("Błąd pobierania danych:", error);
+                    console.error("Błąd Execution:", xhr.responseText);
                 }
             });
         }
 
-              function renderEffectivenessChart(data) {
-            if (!chartEff) return;
+        // --- ŁADOWANIE DANYCH BADGE (NOWY WYKRES) ---
+        function loadBadgeHistoryData(limit) {
+            if (!chartBadges) chartBadges = echarts.init(document.getElementById('chartBadges'));
+            chartBadges.showLoading();
 
-            var option = {
+            $.ajax({
+                url: '@Url.Action("GetAutomationBadgeHistory", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                // Upewnij się, że RuleId jest liczbą
+                data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
+                success: function(data) {
+                    chartBadges.hideLoading();
+                    renderBadgeChart(data);
+                },
+                error: function(xhr) {
+                    chartBadges.hideLoading();
+                    console.error("Błąd Badge:", xhr.responseText);
+                    // alert("Nie udało się pobrać danych odznak: " + xhr.status);
+                }
+            });
+        }
+
+        // --- RENDEROWANIE STARYCH WYKRESÓW (Z ZACHOWANIEM CZARNEJ LINII) ---
+        function renderEffectivenessChart(data) {
+             if (!chartEff) return;
+             var option = {
                 title: { text: 'Skuteczność Reguły', left: 'center', textStyle: { fontSize: 13 } },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-
                 legend: { bottom: 0, data: ['Spełnione', 'Niespełnione/Blok'] },
                 grid: { left: '3%', right: '4%', bottom: '10%', top: '35px', containLabel: true },
                 xAxis: { type: 'category', data: data.dates },
                 yAxis: { type: 'value' },
                 series: [
-                    {
-                        name: 'Spełnione',
-                        type: 'bar',
-                        stack: 'total',
-                        itemStyle: {
-
-                            color: 'rgba(0, 145, 123, 0.8)',
-                            borderColor: 'rgba(0, 145, 123, 1)',
-                            borderWidth: 1,
-                            borderRadius: 0
-                        },
-                        data: data.targetMet
-                    },
-                    {
-                        name: 'Niespełnione/Blok',
-                        type: 'bar',
-                        stack: 'total',
-                        itemStyle: {
-                            color: 'rgba(108, 117, 125, 0.8)',
-                            borderColor: '#6C757D',
-                            borderWidth: 1,
-                            borderRadius: 0
-                        },
-                        data: data.targetUnmet
-                    }
-
+                    { name: 'Spełnione', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(0, 145, 123, 0.8)' }, data: data.targetMet },
+                    { name: 'Niespełnione/Blok', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(108, 117, 125, 0.8)' }, data: data.targetUnmet }
                 ]
             };
             chartEff.setOption(option);
@@ -2265,65 +2328,41 @@
 
         function renderDynamicsChart(data) {
             if (!chartDyn) return;
-
             var option = {
                 title: { text: 'Dynamika Zmian', left: 'center', textStyle: { fontSize: 13 } },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                legend: { bottom: 0, data: ['Podwyżki', 'Utrzymane', 'Obniżki', 'Razem'] },
+                // Dodajemy 'Razem' do legendy
+                legend: { bottom: 0, data: ['Obniżki', 'Utrzymane', 'Podwyżki', 'Razem'] },
                 grid: { left: '3%', right: '4%', bottom: '10%', top: '35px', containLabel: true },
                 xAxis: { type: 'category', data: data.dates },
                 yAxis: { type: 'value' },
                 series: [
-
                     {
-                        name: 'Obniżki',
-                        type: 'bar',
-                        stack: 'total',
-                        itemStyle: {
-                            color: 'rgba(25, 135, 84, 0.8)',
-                            borderColor: '#198754',
-                            borderWidth: 1,
-                            borderRadius: 0
-                        },
+                        name: 'Obniżki', type: 'bar', stack: 'total',
+                        itemStyle: { color: 'rgba(25, 135, 84, 0.8)' },
                         data: data.decreased
                     },
-
                     {
-                        name: 'Utrzymane',
-                        type: 'bar',
-                        stack: 'total',
-                        itemStyle: {
-                            color: 'rgba(13, 110, 253, 0.8)',
-                            borderColor: '#0d6efd',
-                            borderWidth: 1,
-                            borderRadius: 0
-                        },
+                        name: 'Utrzymane', type: 'bar', stack: 'total',
+                        itemStyle: { color: 'rgba(13, 110, 253, 0.8)' },
                         data: data.maintained
                     },
-
                     {
-                        name: 'Podwyżki',
-                        type: 'bar',
-                        stack: 'total',
-                        itemStyle: {
-                            color: 'rgba(231, 74, 59, 0.8)',
-                            borderColor: '#e74a3b',
-                            borderWidth: 1,
-                            borderRadius: 0
-                        },
+                        name: 'Podwyżki', type: 'bar', stack: 'total',
+                        itemStyle: { color: 'rgba(231, 74, 59, 0.8)' },
                         data: data.increased
                     },
-
+                    // --- TO JEST TA CZARNA LINIA, KTÓRĄ CHCIAŁEŚ ZACHOWAĆ ---
                     {
                         name: 'Razem',
                         type: 'line',
-                        data: data.totalProducts,
-                        symbol: 'none',
+                        data: data.totalProducts, // Dane pobrane z backendu
+                        symbol: 'none', // Bez kropek
                         itemStyle: { color: '#000000' },
                         lineStyle: {
-                            type: 'dashed',
-                            width: 3,
-                            color: '#000000'
+                            color: '#000000',
+                            width: 2,
+                            type: 'dashed' // Linia przerywana
                         }
                     }
                 ]
@@ -2331,27 +2370,132 @@
             chartDyn.setOption(option);
         }
 
+          // --- WYKRES 3: ODZNAKI ALLEGRO (ZAKTUALIZOWANY) ---
+        function renderBadgeChart(data) {
+            if (!data || !chartBadges) return;
+
+            var option = {
+                title: { text: 'Trendy Odznak i Promocji', left: 'center', textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' } },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderColor: '#ccc',
+                    borderWidth: 1,
+                    textStyle: { color: '#333' }
+                },
+                legend: {
+                    bottom: 0,
+                    // Dodano 'Razem w automacie' do legendy
+                    data: ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty', 'Razem w automacie']
+                },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '50px', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: data.dates
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'Liczba ofert',
+                    minInterval: 1
+                },
+                series: [
+                    {
+                        name: 'Top Oferta',
+                        type: 'line',
+                        data: data.topOfferCounts,
+                        smooth: true,
+                        // ZMIANA KOLORU: Pomarańczowy
+                        itemStyle: { color: '#ff9800' },
+                        lineStyle: { width: 3 },
+                        areaStyle: { opacity: 0.1, color: '#ff9800' }
+                    },
+                    {
+                        name: 'Super Cena',
+                        type: 'line',
+                        data: data.superPriceCounts,
+                        smooth: true,
+                        // ZMIANA KOLORU: Ciemny zielony
+                        itemStyle: { color: '#155724' },
+                        lineStyle: { width: 3 }
+                    },
+                    {
+                        name: 'Gwarancja Ceny',
+                        type: 'line',
+                        data: data.bestPriceGuaranteeCounts,
+                        smooth: true,
+                        // ZMIANA KOLORU: Jasny zielony
+                        itemStyle: { color: '#4caf50' },
+                        lineStyle: { width: 3 }
+                    },
+                    {
+                        name: 'Kampania',
+                        type: 'line',
+                        data: data.campaignCounts,
+                        smooth: true,
+                        // ZMIANA KOLORU: Żółty
+                        itemStyle: { color: '#ffc107' },
+                        lineStyle: { width: 2, type: 'dashed' }
+                    },
+                    {
+                        name: 'Dopłaty',
+                        type: 'line',
+                        data: data.subsidyCounts,
+                        smooth: true,
+                        // BEZ ZMIAN: Turkusowy
+                        itemStyle: { color: '#1cc88a' },
+                        lineStyle: { width: 2, type: 'dotted' }
+                    },
+                    // --- NOWA SERIA: RAZEM PRODUKTÓW ---
+                    {
+                        name: 'Razem w automacie',
+                        type: 'line',
+                        data: data.totalProductsCounts,
+                        smooth: false,
+                        symbol: 'none',
+                        itemStyle: { color: '#333333' }, // Ciemnoszary/Czarny
+                        lineStyle: {
+                            color: '#333333',
+                            width: 2,
+                            type: 'dashed',
+                            opacity: 0.7
+                        }
+                    }
+                ]
+            };
+            chartBadges.setOption(option);
+        }
+
         $(document).ready(function() {
             var elemEff = document.getElementById('chartEffectiveness');
             var elemDyn = document.getElementById('chartDynamics');
 
+            // Inicjalizacja domyślnych wykresów
             if (elemEff && elemDyn) {
                 chartEff = echarts.init(elemEff);
                 chartDyn = echarts.init(elemDyn);
-
-                loadHistoryData(7);
-
-                window.addEventListener('resize', function() {
-                    chartEff.resize();
-                    chartDyn.resize();
-                });
+                loadHistoryData(currentLimit);
             }
 
+            // Obsługa przycisków zakresu czasu (7/14/30 dni)
             $('.history-btn').click(function() {
                 $('.history-btn').removeClass('active');
                 $(this).addClass('active');
-                var days = $(this).data('days');
-                loadHistoryData(days);
+                currentLimit = $(this).data('days');
+
+                if (currentMode === 'badges') {
+                    loadBadgeHistoryData(currentLimit);
+                } else {
+                    loadHistoryData(currentLimit);
+                }
+            });
+
+            // Responsywność
+            window.addEventListener('resize', function() {
+                if(chartEff) chartEff.resize();
+                if(chartDyn) chartDyn.resize();
+                if(chartBadges) chartBadges.resize();
             });
         });
     </script>
