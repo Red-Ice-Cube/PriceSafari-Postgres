@@ -133,5 +133,26 @@ namespace PriceSafari.Controllers.MemberControllers
                 return BadRequest(ex.Message);
             }
         }
+
+
+        // =============================================================
+        // DODAJ DO: PriceAutomationController.cs (nowy endpoint)
+        // =============================================================
+
+        [HttpPost]
+        public async Task<IActionResult> GetAutomationPricePositionHistory([FromBody] HistoryRequest request)
+        {
+            if (request == null || request.RuleId <= 0) return BadRequest();
+
+            try
+            {
+                var result = await _automationService.GetPricePositionHistoryAsync(request.RuleId, request.Limit);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

@@ -900,28 +900,36 @@
                         Analiza Automatu
                     </div>
 
-                    @if (isMarketplace)
-                    {
-                        <div class="seg-toggle" role="group">
-                            <button type="button" id="viewModeExec" class="button-active seg-btn-left"
-                                    style="border-radius: 4px 0 0 4px;"
-                                    onclick="switchChartMode('execution')">
-                                <i class="fas fa-chart-bar" style="margin-right: 4px;"></i> Wykonania
-                            </button>
+                    @* Toggle ZAWSZE widoczny — Marketplace: 4 opcje, PriceComparison: 2 opcje *@
+                    <div class="seg-toggle" role="group">
+                        <button type="button" id="viewModeExec" class="button-active seg-btn-left"
+                                style="border-radius: 4px 0 0 4px;"
+                                onclick="switchChartMode('execution')">
+                            <i class="fas fa-chart-bar" style="margin-right: 4px;"></i> Wykonania
+                        </button>
 
+                        @if (isMarketplace)
+                        {
                             <button type="button" id="viewModeSales" class="button-inactive"
-                                    style="border-radius: 0; border-left: 1px solid #ccc; border-right: 1px solid #ccc;"
+                                    style="border-radius: 0; border-left: 1px solid #ccc;"
                                     onclick="switchChartMode('sales')">
                                 <i class="fas fa-chart-line" style="margin-right: 4px;"></i> Sprzedaż
                             </button>
 
-                            <button type="button" id="viewModeBadges" class="button-inactive seg-btn-right"
-                                    style="border-radius: 0 4px 4px 0;"
+                            <button type="button" id="viewModeBadges" class="button-inactive"
+                                    style="border-radius: 0; border-left: 1px solid #ccc;"
                                     onclick="switchChartMode('badges')">
                                 <i class="fas fa-medal" style="margin-right: 4px;"></i> Odznaki
                             </button>
-                        </div>
-                    }
+                        }
+
+                        <button type="button" id="viewModePosition" class="button-inactive seg-btn-right"
+                                style="border-radius: 0 4px 4px 0; border-left: 1px solid #ccc;"
+                                onclick="switchChartMode('position')">
+                            <i class="fas fa-trophy" style="margin-right: 4px;"></i> Pozycja cenowa
+                        </button>
+                    </div>
+
                 </div>
 
                 <div class="period-selector-group">
@@ -930,6 +938,7 @@
                     <button type="button" class="period-btn-custom history-btn" data-days="30">30 Dni</button>
                 </div>
             </div>
+
 
             <div id="executionChartsContainer" style="display: flex; width: 100%; gap: 20px; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 300px; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
@@ -946,6 +955,11 @@
 
             <div id="badgeChartContainer" style="display: none; width: 100%; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
                 <div id="chartBadges" style="width: 100%; height: 100%;"></div>
+            </div>
+
+            @* --- NOWY KONTENER: POZYCJA CENOWA --- *@
+            <div id="positionChartContainer" style="display: none; width: 100%; height: 380px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+                <div id="chartPosition" style="width: 100%; height: 100%;"></div>
             </div>
 
         </div>
@@ -2219,55 +2233,1056 @@
     <script>
         var chartEff = null;
         var chartDyn = null;
-        var chartSales = null; // Nowy wykres
+        var chartSales = null;
         var chartBadges = null;
+        var chartPosition = null;   // NOWY
         var currentLimit = 7;
-        var currentMode = 'execution'; // 'execution', 'sales', 'badges'
+        var currentMode = 'execution';
 
         const isMarketplaceContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
+        const totalProductsInRuleNow = parseInt('@Model.TotalProducts') || 0;
 
-        // --- PRZEŁĄCZANIE WIDOKÓW ---
+        // =============================================
+        // PRZEŁĄCZANIE WIDOKÓW
+        // =============================================
         function switchChartMode(mode) {
             currentMode = mode;
 
-            // Resetowanie klas przycisków
-            $('#viewModeExec, #viewModeSales, #viewModeBadges')
+            $('#viewModeExec, #viewModeSales, #viewModeBadges, #viewModePosition')
                 .removeClass('button-active').addClass('button-inactive');
 
-            // Ukrywanie kontenerów
-            $('#executionChartsContainer, #salesChartContainer, #badgeChartContainer').hide();
+            $('#executionChartsContainer, #salesChartContainer, #badgeChartContainer, #positionChartContainer').hide();
 
             if (mode === 'execution') {
                 $('#viewModeExec').addClass('button-active').removeClass('button-inactive');
                 $('#executionChartsContainer').css('display', 'flex');
-
-                if(chartEff) chartEff.resize();
-                if(chartDyn) chartDyn.resize();
-                // Jeśli nie ma danych (np. pierwsze wejście), można je załadować, ale zazwyczaj są one defaultowe.
+                if (chartEff) chartEff.resize();
+                if (chartDyn) chartDyn.resize();
             }
             else if (mode === 'sales') {
                 $('#viewModeSales').addClass('button-active').removeClass('button-inactive');
                 $('#salesChartContainer').show();
-
-                if (!chartSales) {
-                    chartSales = echarts.init(document.getElementById('chartSales'));
-                }
+                if (!chartSales) chartSales = echarts.init(document.getElementById('chartSales'));
                 chartSales.resize();
                 loadSalesHistoryData(currentLimit);
             }
             else if (mode === 'badges') {
                 $('#viewModeBadges').addClass('button-active').removeClass('button-inactive');
                 $('#badgeChartContainer').show();
+                if (!chartBadges) chartBadges = echarts.init(document.getElementById('chartBadges'));
+                chartBadges.resize();
+                loadBadgeHistoryData(currentLimit);
+            }
+            else if (mode === 'position') {
+                $('#viewModePosition').addClass('button-active').removeClass('button-inactive');
+                $('#positionChartContainer').show();
+                if (!chartPosition) chartPosition = echarts.init(document.getElementById('chartPosition'));
+                chartPosition.resize();
+                loadPricePositionHistoryData(currentLimit);
+            }
+        }
 
-                if (!chartBadges) {
-                    chartBadges = echarts.init(document.getElementById('chartBadges'));
+        // =============================================
+        // LOADING
+        // =============================================
+        function showChartLoading() {
+            if (currentMode === 'execution') {
+                if (chartEff) chartEff.showLoading();
+                if (chartDyn) chartDyn.showLoading();
+            } else if (currentMode === 'sales') {
+                if (chartSales) chartSales.showLoading();
+            } else if (currentMode === 'badges') {
+                if (chartBadges) chartBadges.showLoading();
+            } else if (currentMode === 'position') {
+                if (chartPosition) chartPosition.showLoading();
+            }
+        }
+
+        function hideChartLoading() {
+            if (chartEff) chartEff.hideLoading();
+            if (chartDyn) chartDyn.hideLoading();
+            if (chartSales) chartSales.hideLoading();
+            if (chartBadges) chartBadges.hideLoading();
+            if (chartPosition) chartPosition.hideLoading();
+        }
+
+        // =============================================
+        // AJAX LOADERS
+        // =============================================
+        function loadHistoryData(limit) {
+            if (currentMode === 'sales') { loadSalesHistoryData(limit); return; }
+            if (currentMode === 'badges') { loadBadgeHistoryData(limit); return; }
+            if (currentMode === 'position') { loadPricePositionHistoryData(limit); return; }
+
+            showChartLoading();
+            $.ajax({
+                url: '@Url.Action("GetAutomationHistory", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
+                success: function (data) {
+                    hideChartLoading();
+                    renderEffectivenessChart(data);
+                    renderDynamicsChart(data);
+                },
+                error: function (xhr) { hideChartLoading(); console.error(xhr); }
+            });
+        }
+
+        function loadSalesHistoryData(limit) {
+            if (!chartSales) chartSales = echarts.init(document.getElementById('chartSales'));
+            chartSales.showLoading();
+
+            $.ajax({
+                url: '@Url.Action("GetAutomationSalesHistory", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
+                success: function (data) {
+                    chartSales.hideLoading();
+                    renderSalesChart(data);
+                },
+                error: function (xhr) {
+                    chartSales.hideLoading();
+                    console.error("Błąd Sales:", xhr.responseText);
                 }
+            });
+        }
+
+        function loadBadgeHistoryData(limit) {
+            if (!chartBadges) chartBadges = echarts.init(document.getElementById('chartBadges'));
+            chartBadges.showLoading();
+
+            $.ajax({
+                url: '@Url.Action("GetAutomationBadgeHistory", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
+                success: function (data) {
+                    chartBadges.hideLoading();
+                    renderBadgeChart(data);
+                },
+                error: function (xhr) { chartBadges.hideLoading(); console.error(xhr); }
+            });
+        }
+
+        // --- NOWY: AJAX LOADER POZYCJA CENOWA ---
+        function loadPricePositionHistoryData(limit) {
+            if (!chartPosition) chartPosition = echarts.init(document.getElementById('chartPosition'));
+            chartPosition.showLoading();
+
+            $.ajax({
+                url: '@Url.Action("GetAutomationPricePositionHistory", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
+                success: function (data) {
+                    chartPosition.hideLoading();
+                    renderPricePositionChart(data);
+                },
+                error: function (xhr) {
+                    chartPosition.hideLoading();
+                    console.error("Błąd Position:", xhr.responseText);
+                }
+            });
+        }
+
+        // =============================================
+        // HELPERS
+        // =============================================
+
+        function buildCoverageBar(covered, total, label) {
+            if (!total || total === 0) return '';
+            var pct = Math.round((covered / total) * 100);
+            var barColor = pct >= 90 ? '#1cc88a' : pct >= 60 ? '#f6c23e' : '#e74a3b';
+            var barBg = pct >= 90 ? 'rgba(28,200,138,0.15)' : pct >= 60 ? 'rgba(246,194,62,0.15)' : 'rgba(231,74,59,0.15)';
+
+            return ''
+                + '<div style="margin-top:6px; padding:6px 8px; background:' + barBg + '; border-radius:4px; border-left:3px solid ' + barColor + ';">'
+                + '  <div style="font-size:10px; color:#666; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px;">' + label + '</div>'
+                + '  <div style="display:flex; align-items:center; gap:8px;">'
+                + '    <div style="flex:1; height:5px; background:#e3e3e3; border-radius:3px; overflow:hidden;">'
+                + '      <div style="width:' + pct + '%; height:100%; background:' + barColor + '; border-radius:3px;"></div>'
+                + '    </div>'
+                + '    <span style="font-size:11px; font-weight:700; color:' + barColor + ';">' + covered + '/' + total + ' (' + pct + '%)</span>'
+                + '  </div>'
+                + '</div>';
+        }
+
+        function tooltipRow(marker, label, value, unit, bold) {
+            var style = bold ? 'font-weight:700;' : '';
+            return '<div style="display:flex; justify-content:space-between; align-items:center; padding:1px 0;' + style + '">'
+                 + '  <span>' + marker + ' ' + label + '</span>'
+                 + '  <span style="margin-left:20px; font-weight:600;">' + value + (unit || '') + '</span>'
+                 + '</div>';
+        }
+
+        function tooltipSeparator() {
+            return '<div style="border-top:1px solid #eee; margin:6px 0;"></div>';
+        }
+
+
+        // =============================================
+        // RENDER: PRICE POSITION CHART (NOWY)
+        // =============================================
+        function renderPricePositionChart(data) {
+            if (!data || !chartPosition) return;
+
+            var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
+
+            // Kolory od najlepszego do najgorszego
+            var colors = {
+                top1Solo:    '#1cc88a',  // Zielony — bezwzględny lider
+                top1ExAequo: '#36b9cc',  // Cyjan — lider ex aequo
+                pos2to3:     '#4e73df',  // Niebieski — blisko
+                pos4to5:     '#f6c23e',  // Żółty — średnio
+                pos6to10:    '#fd7e14',  // Pomarańczowy — daleko
+                pos11plus:   '#e74a3b',  // Czerwony — bardzo daleko
+                notRanked:   '#d1d3e2'   // Szary — brak danych
+            };
+
+            var option = {
+                title: {
+                    text: 'Pozycja Cenowa w Czasie',
+                    subtext: 'Rozkład pozycji dla ' + totalInRule + ' produktów w automacie',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' },
+                    subtextStyle: { fontSize: 11, color: '#999' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    borderColor: '#e3e6f0',
+                    borderWidth: 1,
+                    textStyle: { color: '#333', fontSize: 12 },
+                    padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; max-width: 380px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var html = '<div style="font-weight:700; font-size:13px; margin-bottom:8px; color:#333;">'
+                                 + '<i class="fas fa-calendar-alt" style="margin-right:5px; color:#999;"></i>' + date + '</div>';
+
+                        // Zbieramy dane z serii
+                        var values = {};
+                        var totalRanked = 0;
+                        var totalAll = 0;
+
+                        params.forEach(function (item) {
+                            values[item.seriesName] = { val: item.value, marker: item.marker };
+                            totalAll += item.value;
+                            if (item.seriesName !== 'Brak danych') totalRanked += item.value;
+                        });
+
+                        // Top 1 sumaryczny (solo + ex aequo)
+                        var top1Total = (values['Top 1 (lider)']?.val || 0) + (values['Top 1 (ex aequo)']?.val || 0);
+                        var top1Pct = totalRanked > 0 ? ((top1Total / totalRanked) * 100).toFixed(0) : 0;
+
+                        // Top 3 sumaryczny
+                        var top3Total = top1Total + (values['Pozycja 2–3']?.val || 0);
+                        var top3Pct = totalRanked > 0 ? ((top3Total / totalRanked) * 100).toFixed(0) : 0;
+
+                        // --- KPI na górze ---
+                        html += '<div style="display:flex; gap:12px; margin-bottom:8px;">';
+
+                        html += '<div style="flex:1; padding:6px 10px; background:rgba(28,200,138,0.1); border-radius:6px; text-align:center;">'
+                             + '  <div style="font-size:10px; color:#666; text-transform:uppercase; letter-spacing:0.3px;">Top 1</div>'
+                             + '  <div style="font-size:18px; font-weight:700; color:#1cc88a;">' + top1Total + '</div>'
+                             + '  <div style="font-size:10px; color:#999;">' + top1Pct + '% rankowanych</div>'
+                             + '</div>';
+
+                        html += '<div style="flex:1; padding:6px 10px; background:rgba(78,115,223,0.08); border-radius:6px; text-align:center;">'
+                             + '  <div style="font-size:10px; color:#666; text-transform:uppercase; letter-spacing:0.3px;">Top 3</div>'
+                             + '  <div style="font-size:18px; font-weight:700; color:#4e73df;">' + top3Total + '</div>'
+                             + '  <div style="font-size:10px; color:#999;">' + top3Pct + '% rankowanych</div>'
+                             + '</div>';
+
+                        html += '</div>';
+
+                        html += tooltipSeparator();
+
+                        // --- Szczegółowy rozkład ---
+                        html += '<div style="font-size:10px; color:#999; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Szczegółowy rozkład</div>';
+
+                        var order = ['Top 1 (lider)', 'Top 1 (ex aequo)', 'Pozycja 2–3', 'Pozycja 4–5', 'Pozycja 6–10', 'Pozycja 11+', 'Brak danych'];
+
+                        order.forEach(function (name) {
+                            var item = values[name];
+                            if (!item) return;
+
+                            var pctOfTotal = totalInRule > 0 ? ((item.val / totalInRule) * 100).toFixed(0) : 0;
+
+                            html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;">'
+                                 + '  <span>' + item.marker + ' ' + name + '</span>'
+                                 + '  <span style="font-weight:600;">' + item.val
+                                 + '    <span style="color:#999; font-weight:400; font-size:10px; margin-left:3px;">(' + pctOfTotal + '%)</span>'
+                                 + '  </span>'
+                                 + '</div>';
+                        });
+
+                        // --- Ostrzeżenie jeśli dużo bez danych ---
+                        var notRankedVal = values['Brak danych']?.val || 0;
+                        var notRankedPct = totalInRule > 0 ? Math.round((notRankedVal / totalInRule) * 100) : 0;
+                        if (notRankedPct > 30) {
+                            html += '<div style="margin-top:6px; font-size:10px; color:#e74a3b; display:flex; align-items:flex-start; gap:4px;">'
+                                 + '<i class="fas fa-info-circle" style="margin-top:1px;"></i>'
+                                 + '<span>' + notRankedPct + '% produktów nie miało danych — prawdopodobnie nie istniały jeszcze w scrapie.</span>'
+                                 + '</div>';
+                        }
+
+                        return html;
+                    }
+                },
+                legend: {
+                    bottom: 0,
+                    data: ['Top 1 (lider)', 'Top 1 (ex aequo)', 'Pozycja 2–3', 'Pozycja 4–5', 'Pozycja 6–10', 'Pozycja 11+', 'Brak danych'],
+                    textStyle: { fontSize: 10 }
+                },
+                grid: { left: '3%', right: '4%', bottom: '14%', top: '70px', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    data: data.dates,
+                    axisLabel: { fontSize: 10 }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'Liczba produktów',
+                    nameTextStyle: { fontSize: 10, color: '#999' },
+                    axisLabel: { fontSize: 10 },
+                    splitLine: { lineStyle: { color: '#f0f0f0' } }
+                },
+                series: [
+                    {
+                        name: 'Top 1 (lider)',
+                        type: 'bar',
+                        stack: 'position',
+                        data: data.top1Solo,
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: colors.top1Solo },
+                                { offset: 1, color: 'rgba(28, 200, 138, 0.7)' }
+                            ])
+                        },
+                        emphasis: { focus: 'series' }
+                    },
+                    {
+                        name: 'Top 1 (ex aequo)',
+                        type: 'bar',
+                        stack: 'position',
+                        data: data.top1ExAequo,
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: colors.top1ExAequo },
+                                { offset: 1, color: 'rgba(54, 185, 204, 0.7)' }
+                            ])
+                        },
+                        emphasis: { focus: 'series' }
+                    },
+                    {
+                        name: 'Pozycja 2–3',
+                        type: 'bar',
+                        stack: 'position',
+                        data: data.position2to3,
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: colors.pos2to3 },
+                                { offset: 1, color: 'rgba(78, 115, 223, 0.7)' }
+                            ])
+                        },
+                        emphasis: { focus: 'series' }
+                    },
+                    {
+                        name: 'Pozycja 4–5',
+                        type: 'bar',
+                        stack: 'position',
+                        data: data.position4to5,
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: colors.pos4to5 },
+                                { offset: 1, color: 'rgba(246, 194, 62, 0.7)' }
+                            ])
+                        },
+                        emphasis: { focus: 'series' }
+                    },
+                    {
+                        name: 'Pozycja 6–10',
+                        type: 'bar',
+                        stack: 'position',
+                        data: data.position6to10,
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: colors.pos6to10 },
+                                { offset: 1, color: 'rgba(253, 126, 20, 0.7)' }
+                            ])
+                        },
+                        emphasis: { focus: 'series' }
+                    },
+                    {
+                        name: 'Pozycja 11+',
+                        type: 'bar',
+                        stack: 'position',
+                        data: data.position11Plus,
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: colors.pos11plus },
+                                { offset: 1, color: 'rgba(231, 74, 59, 0.7)' }
+                            ])
+                        },
+                        emphasis: { focus: 'series' }
+                    },
+                    {
+                        name: 'Brak danych',
+                        type: 'bar',
+                        stack: 'position',
+                        data: data.notRanked,
+                        itemStyle: {
+                            color: colors.notRanked,
+                            borderRadius: [3, 3, 0, 0]
+                        },
+                        emphasis: { focus: 'series' }
+                    }
+                ]
+            };
+
+            chartPosition.setOption(option, true);
+        }
+
+
+        // =============================================
+        // RENDER: SALES CHART
+        // =============================================
+        function renderSalesChart(data) {
+            if (!data || !chartSales) return;
+
+            var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
+
+            var option = {
+                title: {
+                    text: 'Sprzedaż: Twoje oferty vs Cały rynek',
+                    subtext: 'Dane dla ' + totalInRule + ' produktów obecnie w automacie',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' },
+                    subtextStyle: { fontSize: 11, color: '#999' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    borderColor: '#e3e6f0',
+                    borderWidth: 1,
+                    textStyle: { color: '#333', fontSize: 12 },
+                    padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; max-width: 340px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var html = '<div style="font-weight:700; font-size:13px; margin-bottom:8px; color:#333;">'
+                                 + '<i class="fas fa-calendar-alt" style="margin-right:5px; color:#999;"></i>' + date + '</div>';
+
+                        var marketVal = 0, myVal = 0, activeOffers = 0, productsWithData = 0;
+
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Cały Rynek (Katalog)') marketVal = item.value;
+                            else if (item.seriesName === 'Twoja Sprzedaż') myVal = item.value;
+                            else if (item.seriesName === 'Twoje aktywne oferty') activeOffers = item.value;
+                            else if (item.seriesName === 'Katalogi z danymi') productsWithData = item.value;
+                        });
+
+                        html += '<div style="font-size:10px; color:#999; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Sprzedaż</div>';
+                        html += tooltipRow(params.find(p => p.seriesName === 'Twoja Sprzedaż')?.marker || '', 'Twoja sprzedaż', myVal, ' szt.', true);
+                        html += tooltipRow(params.find(p => p.seriesName === 'Cały Rynek (Katalog)')?.marker || '', 'Cały rynek', marketVal, ' szt.', false);
+
+                        var sharePercent = (marketVal > 0) ? ((myVal / marketVal) * 100).toFixed(1) : '0.0';
+                        html += '<div style="margin-top:4px; padding:4px 8px; background:rgba(255,152,0,0.1); border-radius:4px; display:flex; justify-content:space-between; align-items:center;">'
+                             + '  <span style="font-size:11px; color:#ff9800;"><i class="fas fa-chart-pie" style="margin-right:4px;"></i>Twój udział w rynku</span>'
+                             + '  <span style="font-size:13px; font-weight:700; color:#ff9800;">' + sharePercent + '%</span>'
+                             + '</div>';
+
+                        html += tooltipSeparator();
+                        html += '<div style="font-size:10px; color:#999; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">Pokrycie danych</div>';
+                        html += buildCoverageBar(productsWithData, totalInRule, 'Katalogi z danymi w scrapie');
+                        html += buildCoverageBar(activeOffers, productsWithData || totalInRule, 'Z tego — Twoje aktywne oferty');
+
+                        var coveragePct = totalInRule > 0 ? Math.round((productsWithData / totalInRule) * 100) : 100;
+                        if (coveragePct < 70) {
+                            html += '<div style="margin-top:6px; font-size:10px; color:#e74a3b; display:flex; align-items:flex-start; gap:4px;">'
+                                 + '<i class="fas fa-info-circle" style="margin-top:1px;"></i>'
+                                 + '<span>Niskie pokrycie — część obecnych produktów nie istniała jeszcze w tym scrapie. Wartości sprzedaży mogą być zaniżone.</span>'
+                                 + '</div>';
+                        }
+
+                        return html;
+                    }
+                },
+                legend: {
+                    bottom: 0,
+                    data: ['Twoja Sprzedaż', 'Cały Rynek (Katalog)', 'Twoje aktywne oferty', 'Katalogi z danymi'],
+                    textStyle: { fontSize: 11 }
+                },
+                grid: { left: '3%', right: '4%', bottom: '12%', top: '70px', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: data.dates,
+                    axisLabel: { fontSize: 10 }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: 'Sprzedaż (szt.)',
+                        position: 'left',
+                        nameTextStyle: { fontSize: 10, color: '#999' },
+                        axisLabel: { formatter: '{value}', fontSize: 10 },
+                        splitLine: { show: true, lineStyle: { color: '#f0f0f0' } }
+                    },
+                    {
+                        type: 'value',
+                        name: 'Liczba ofert / katalogów',
+                        position: 'right',
+                        minInterval: 1,
+                        nameTextStyle: { fontSize: 10, color: '#999' },
+                        axisLine: { show: false },
+                        axisLabel: { formatter: '{value}', color: '#999', fontSize: 10 },
+                        splitLine: { show: false }
+                    }
+                ],
+                series: [
+                    {
+                        name: 'Cały Rynek (Katalog)',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: data.marketSales,
+                        smooth: true,
+                        symbol: 'none',
+                        itemStyle: { color: '#000000' },
+                        lineStyle: { width: 2, color: '#000000' },
+                        areaStyle: null
+                    },
+                    {
+                        name: 'Twoja Sprzedaż',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: data.mySales,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 8,
+                        itemStyle: { color: '#ff9800', borderColor: '#fff', borderWidth: 2 },
+                        lineStyle: { width: 3, color: '#ff9800' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(255, 152, 0, 0.5)' },
+                                { offset: 1, color: 'rgba(255, 152, 0, 0.03)' }
+                            ])
+                        }
+                    },
+                    {
+                        name: 'Twoje aktywne oferty',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: data.activeOffersCount,
+                        smooth: false,
+                        symbol: 'none',
+                        itemStyle: { color: '#36b9cc' },
+                        lineStyle: { width: 2, color: '#36b9cc', type: 'dashed' },
+                        z: 0
+                    },
+                    {
+                        name: 'Katalogi z danymi',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: data.productsWithDataCount,
+                        smooth: false,
+                        symbol: 'none',
+                        itemStyle: { color: '#d1d3e2' },
+                        lineStyle: { width: 1.5, color: '#d1d3e2', type: 'dotted' },
+                        z: 0
+                    }
+                ]
+            };
+
+            chartSales.setOption(option, true);
+        }
+
+
+        // =============================================
+        // RENDER: BADGES CHART
+        // =============================================
+        function renderBadgeChart(data) {
+            if (!data || !chartBadges) return;
+
+            var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
+
+            var option = {
+                title: {
+                    text: 'Trendy Odznak i Promocji',
+                    subtext: 'Dane dla ' + totalInRule + ' produktów obecnie w automacie',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' },
+                    subtextStyle: { fontSize: 11, color: '#999' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    borderColor: '#e3e6f0',
+                    borderWidth: 1,
+                    textStyle: { color: '#333', fontSize: 12 },
+                    padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; max-width: 360px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var html = '<div style="font-weight:700; font-size:13px; margin-bottom:8px; color:#333;">'
+                                 + '<i class="fas fa-calendar-alt" style="margin-right:5px; color:#999;"></i>' + date + '</div>';
+
+                        var coveredProducts = 0;
+                        var badgeValues = {};
+
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Pokrycie danych') {
+                                coveredProducts = item.value;
+                            } else {
+                                badgeValues[item.seriesName] = item;
+                            }
+                        });
+
+                        html += '<div style="font-size:10px; color:#999; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Odznaki i promocje</div>';
+
+                        var badgeOrder = ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty'];
+                        badgeOrder.forEach(function (name) {
+                            var item = badgeValues[name];
+                            if (item) {
+                                var pctOfCovered = coveredProducts > 0 ? ((item.value / coveredProducts) * 100).toFixed(0) : 0;
+                                html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;">'
+                                     + '  <span>' + item.marker + ' ' + name + '</span>'
+                                     + '  <span style="font-weight:600;">' + item.value
+                                     + '    <span style="color:#999; font-weight:400; font-size:10px; margin-left:3px;">(' + pctOfCovered + '% ofert)</span>'
+                                     + '  </span>'
+                                     + '</div>';
+                            }
+                        });
+
+                        html += tooltipSeparator();
+                        html += buildCoverageBar(coveredProducts, totalInRule, 'Oferty z danymi w tym scrapie');
+
+                        var coveragePct = totalInRule > 0 ? Math.round((coveredProducts / totalInRule) * 100) : 100;
+                        if (coveragePct < 70) {
+                            html += '<div style="margin-top:6px; font-size:10px; color:#e74a3b; display:flex; align-items:flex-start; gap:4px;">'
+                                 + '<i class="fas fa-info-circle" style="margin-top:1px;"></i>'
+                                 + '<span>Niskie pokrycie — część produktów nie miała jeszcze oferty w tym scrapie. Liczby odznak mogą być zaniżone.</span>'
+                                 + '</div>';
+                        }
+
+                        return html;
+                    }
+                },
+                legend: {
+                    bottom: 0,
+                    data: ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty', 'Pokrycie danych'],
+                    textStyle: { fontSize: 11 }
+                },
+                grid: { left: '3%', right: '4%', bottom: '12%', top: '70px', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: data.dates,
+                    axisLabel: { fontSize: 10 }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: 'Liczba ofert z odznaką',
+                        minInterval: 1,
+                        nameTextStyle: { fontSize: 10, color: '#999' },
+                        axisLabel: { fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#f0f0f0' } }
+                    },
+                    {
+                        type: 'value',
+                        name: 'Pokrycie',
+                        position: 'right',
+                        minInterval: 1,
+                        nameTextStyle: { fontSize: 10, color: '#999' },
+                        axisLine: { show: false },
+                        axisLabel: { formatter: '{value}', color: '#999', fontSize: 10 },
+                        splitLine: { show: false }
+                    }
+                ],
+                series: [
+                    {
+                        name: 'Top Oferta',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: data.topOfferCounts,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        itemStyle: { color: '#ff9800' },
+                        lineStyle: { width: 3 },
+                        areaStyle: { opacity: 0.08, color: '#ff9800' }
+                    },
+                    {
+                        name: 'Super Cena',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: data.superPriceCounts,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        itemStyle: { color: '#155724' },
+                        lineStyle: { width: 3 }
+                    },
+                    {
+                        name: 'Gwarancja Ceny',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: data.bestPriceGuaranteeCounts,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        itemStyle: { color: '#4caf50' },
+                        lineStyle: { width: 3 }
+                    },
+                    {
+                        name: 'Kampania',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: data.campaignCounts,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 6,
+                        itemStyle: { color: '#ffc107' },
+                        lineStyle: { width: 2, type: 'dashed' }
+                    },
+                    {
+                        name: 'Dopłaty',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: data.subsidyCounts,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 6,
+                        itemStyle: { color: '#1cc88a' },
+                        lineStyle: { width: 2, type: 'dotted' }
+                    },
+                    {
+                        name: 'Pokrycie danych',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: data.coveredProductsCounts,
+                        smooth: false,
+                        symbol: 'none',
+                        itemStyle: { color: '#d1d3e2' },
+                        lineStyle: { width: 1.5, color: '#d1d3e2', type: 'dotted' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(209, 211, 226, 0.15)' },
+                                { offset: 1, color: 'rgba(209, 211, 226, 0)' }
+                            ])
+                        },
+                        z: 0
+                    }
+                ]
+            };
+
+            chartBadges.setOption(option, true);
+        }
+
+
+        // =============================================
+        // RENDER: EFFECTIVENESS
+        // =============================================
+        function renderEffectivenessChart(data) {
+            if (!chartEff) return;
+
+            var option = {
+                title: {
+                    text: 'Skuteczność Reguły',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    borderColor: '#e3e6f0',
+                    borderWidth: 1,
+                    textStyle: { color: '#333', fontSize: 12 },
+                    padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var html = '<div style="font-weight:700; font-size:13px; margin-bottom:8px; color:#333;">'
+                                 + '<i class="fas fa-calendar-alt" style="margin-right:5px; color:#999;"></i>' + date + '</div>';
+
+                        var met = 0, unmet = 0;
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Spełnione') met = item.value;
+                            if (item.seriesName === 'Niespełnione / Blokady') unmet = item.value;
+                        });
+
+                        var total = met + unmet;
+                        var pctMet = total > 0 ? ((met / total) * 100).toFixed(0) : 0;
+
+                        html += tooltipRow(params[0]?.marker || '', 'Spełnione', met, '', true);
+                        html += tooltipRow(params[1]?.marker || '', 'Niespełnione / Blokady', unmet, '', false);
+
+                        html += tooltipSeparator();
+
+                        html += '<div style="display:flex; justify-content:space-between; align-items:center;">'
+                             + '  <span style="font-size:11px; color:#666;">Skuteczność</span>'
+                             + '  <span style="font-size:14px; font-weight:700; color:' + (pctMet >= 80 ? '#1cc88a' : pctMet >= 50 ? '#f6c23e' : '#e74a3b') + ';">'
+                             + pctMet + '%</span>'
+                             + '</div>';
+
+                        html += '<div style="margin-top:4px; font-size:10px; color:#999;">Łącznie produktów: ' + total + '</div>';
+
+                        return html;
+                    }
+                },
+                legend: {
+                    bottom: 0,
+                    data: ['Spełnione', 'Niespełnione / Blokady'],
+                    textStyle: { fontSize: 11 }
+                },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '40px', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    data: data.dates,
+                    axisLabel: { fontSize: 10 }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { fontSize: 10 },
+                    splitLine: { lineStyle: { color: '#f0f0f0' } }
+                },
+                series: [
+                    {
+                        name: 'Spełnione',
+                        type: 'bar',
+                        stack: 'total',
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(0, 145, 123, 0.9)' },
+                                { offset: 1, color: 'rgba(0, 145, 123, 0.6)' }
+                            ]),
+                            borderRadius: [0, 0, 0, 0]
+                        },
+                        data: data.targetMet
+                    },
+                    {
+                        name: 'Niespełnione / Blokady',
+                        type: 'bar',
+                        stack: 'total',
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(108, 117, 125, 0.9)' },
+                                { offset: 1, color: 'rgba(108, 117, 125, 0.6)' }
+                            ]),
+                            borderRadius: [3, 3, 0, 0]
+                        },
+                        data: data.targetUnmet
+                    }
+                ]
+            };
+
+            chartEff.setOption(option, true);
+        }
+
+
+        // =============================================
+        // RENDER: DYNAMICS
+        // =============================================
+        function renderDynamicsChart(data) {
+            if (!chartDyn) return;
+
+            var option = {
+                title: {
+                    text: 'Dynamika Zmian',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    borderColor: '#e3e6f0',
+                    borderWidth: 1,
+                    textStyle: { color: '#333', fontSize: 12 },
+                    padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var html = '<div style="font-weight:700; font-size:13px; margin-bottom:8px; color:#333;">'
+                                 + '<i class="fas fa-calendar-alt" style="margin-right:5px; color:#999;"></i>' + date + '</div>';
+
+                        var decreased = 0, maintained = 0, increased = 0, total = 0;
+
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Obniżki') decreased = item.value;
+                            else if (item.seriesName === 'Utrzymane') maintained = item.value;
+                            else if (item.seriesName === 'Podwyżki') increased = item.value;
+                            else if (item.seriesName === 'Razem w regule') total = item.value;
+                        });
+
+                        var changed = decreased + increased;
+
+                        html += '<div style="font-size:10px; color:#999; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Zmiany cenowe</div>';
+
+                        params.forEach(function (item) {
+                            if (item.seriesName !== 'Razem w regule') {
+                                html += tooltipRow(item.marker, item.seriesName, item.value, '', false);
+                            }
+                        });
+
+                        html += tooltipSeparator();
+
+                        html += '<div style="display:flex; justify-content:space-between; font-size:11px; color:#666;">'
+                             + '  <span>Zoptymalizowano cen:</span>'
+                             + '  <span style="font-weight:700;">' + changed + '</span>'
+                             + '</div>';
+
+                        html += '<div style="display:flex; justify-content:space-between; font-size:11px; color:#666; margin-top:2px;">'
+                             + '  <span>Razem produktów w regule:</span>'
+                             + '  <span style="font-weight:700;">' + total + '</span>'
+                             + '</div>';
+
+                        return html;
+                    }
+                },
+                legend: {
+                    bottom: 0,
+                    data: ['Obniżki', 'Utrzymane', 'Podwyżki', 'Razem w regule'],
+                    textStyle: { fontSize: 11 }
+                },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '40px', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    data: data.dates,
+                    axisLabel: { fontSize: 10 }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { fontSize: 10 },
+                    splitLine: { lineStyle: { color: '#f0f0f0' } }
+                },
+                series: [
+                    {
+                        name: 'Obniżki',
+                        type: 'bar',
+                        stack: 'total',
+                        itemStyle: { color: 'rgba(25, 135, 84, 0.85)' },
+                        data: data.decreased
+                    },
+                    {
+                        name: 'Utrzymane',
+                        type: 'bar',
+                        stack: 'total',
+                        itemStyle: { color: 'rgba(13, 110, 253, 0.7)' },
+                        data: data.maintained
+                    },
+                    {
+                        name: 'Podwyżki',
+                        type: 'bar',
+                        stack: 'total',
+                        itemStyle: { color: 'rgba(231, 74, 59, 0.85)' },
+                        barBorderRadius: [3, 3, 0, 0],
+                        data: data.increased
+                    },
+                    {
+                        name: 'Razem w regule',
+                        type: 'line',
+                        data: data.totalProducts,
+                        symbol: 'none',
+                        itemStyle: { color: '#333' },
+                        lineStyle: { color: '#333', width: 2, type: 'dashed', opacity: 0.6 }
+                    }
+                ]
+            };
+
+            chartDyn.setOption(option, true);
+        }
+
+
+        // =============================================
+        // INIT + EVENT BINDING
+        // =============================================
+        $(document).ready(function () {
+            var elemEff = document.getElementById('chartEffectiveness');
+            var elemDyn = document.getElementById('chartDynamics');
+
+            if (elemEff && elemDyn) {
+                chartEff = echarts.init(elemEff);
+                chartDyn = echarts.init(elemDyn);
+                loadHistoryData(currentLimit);
+            }
+
+            $('.history-btn').click(function () {
+                $('.history-btn').removeClass('active');
+                $(this).addClass('active');
+                currentLimit = $(this).data('days');
+
+                if (currentMode === 'badges') loadBadgeHistoryData(currentLimit);
+                else if (currentMode === 'sales') loadSalesHistoryData(currentLimit);
+                else if (currentMode === 'position') loadPricePositionHistoryData(currentLimit);
+                else loadHistoryData(currentLimit);
+            });
+
+            window.addEventListener('resize', function () {
+                if (chartEff) chartEff.resize();
+                if (chartDyn) chartDyn.resize();
+                if (chartSales) chartSales.resize();
+                if (chartBadges) chartBadges.resize();
+                if (chartPosition) chartPosition.resize();
+            });
+        });
+    </script>
+
+    @* <script>
+        var chartEff = null;
+        var chartDyn = null;
+        var chartSales = null;
+        var chartBadges = null;
+        var currentLimit = 7;
+        var currentMode = 'execution';
+
+        const isMarketplaceContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
+        const totalProductsInRuleNow = parseInt('@Model.TotalProducts') || 0;
+
+        // =============================================
+        // PRZEŁĄCZANIE WIDOKÓW
+        // =============================================
+        function switchChartMode(mode) {
+            currentMode = mode;
+
+            $('#viewModeExec, #viewModeSales, #viewModeBadges')
+                .removeClass('button-active').addClass('button-inactive');
+
+            $('#executionChartsContainer, #salesChartContainer, #badgeChartContainer').hide();
+
+            if (mode === 'execution') {
+                $('#viewModeExec').addClass('button-active').removeClass('button-inactive');
+                $('#executionChartsContainer').css('display', 'flex');
+                if (chartEff) chartEff.resize();
+                if (chartDyn) chartDyn.resize();
+            }
+            else if (mode === 'sales') {
+                $('#viewModeSales').addClass('button-active').removeClass('button-inactive');
+                $('#salesChartContainer').show();
+                if (!chartSales) chartSales = echarts.init(document.getElementById('chartSales'));
+                chartSales.resize();
+                loadSalesHistoryData(currentLimit);
+            }
+            else if (mode === 'badges') {
+                $('#viewModeBadges').addClass('button-active').removeClass('button-inactive');
+                $('#badgeChartContainer').show();
+                if (!chartBadges) chartBadges = echarts.init(document.getElementById('chartBadges'));
                 chartBadges.resize();
                 loadBadgeHistoryData(currentLimit);
             }
         }
 
-        // --- LOADING ---
+        // =============================================
+        // LOADING
+        // =============================================
         function showChartLoading() {
             if (currentMode === 'execution') {
                 if (chartEff) chartEff.showLoading();
@@ -2286,7 +3301,9 @@
             if (chartBadges) chartBadges.hideLoading();
         }
 
-        // --- AJAX: EXECUTION ---
+        // =============================================
+        // AJAX LOADERS
+        // =============================================
         function loadHistoryData(limit) {
             if (currentMode === 'sales') { loadSalesHistoryData(limit); return; }
             if (currentMode === 'badges') { loadBadgeHistoryData(limit); return; }
@@ -2297,16 +3314,15 @@
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
-                success: function(data) {
+                success: function (data) {
                     hideChartLoading();
                     renderEffectivenessChart(data);
                     renderDynamicsChart(data);
                 },
-                error: function(xhr) { hideChartLoading(); console.error(xhr); }
+                error: function (xhr) { hideChartLoading(); console.error(xhr); }
             });
         }
 
-        // --- AJAX: SALES (NOWY) ---
         function loadSalesHistoryData(limit) {
             if (!chartSales) chartSales = echarts.init(document.getElementById('chartSales'));
             chartSales.showLoading();
@@ -2316,18 +3332,17 @@
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
-                success: function(data) {
+                success: function (data) {
                     chartSales.hideLoading();
                     renderSalesChart(data);
                 },
-                error: function(xhr) {
+                error: function (xhr) {
                     chartSales.hideLoading();
                     console.error("Błąd Sales:", xhr.responseText);
                 }
             });
         }
 
-        // --- AJAX: BADGES ---
         function loadBadgeHistoryData(limit) {
             if (!chartBadges) chartBadges = echarts.init(document.getElementById('chartBadges'));
             chartBadges.showLoading();
@@ -2337,105 +3352,176 @@
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
-                success: function(data) {
+                success: function (data) {
                     chartBadges.hideLoading();
                     renderBadgeChart(data);
                 },
-                error: function(xhr) { chartBadges.hideLoading(); console.error(xhr); }
+                error: function (xhr) { chartBadges.hideLoading(); console.error(xhr); }
             });
         }
 
-             // --- RENDER: SALES CHART (Z DODATKOWĄ LINIĄ DOSTĘPNOŚCI) ---
+        // =============================================
+        // HELPERS
+        // =============================================
+
+        // Pasek pokrycia danych w tooltipie (HTML)
+        function buildCoverageBar(covered, total, label) {
+            if (!total || total === 0) return '';
+            var pct = Math.round((covered / total) * 100);
+            var barColor = pct >= 90 ? '#1cc88a' : pct >= 60 ? '#f6c23e' : '#e74a3b';
+            var barBg = pct >= 90 ? 'rgba(28,200,138,0.15)' : pct >= 60 ? 'rgba(246,194,62,0.15)' : 'rgba(231,74,59,0.15)';
+
+            return ''
+                + '<div style="margin-top:6px; padding:6px 8px; background:' + barBg + '; border-radius:4px; border-left:3px solid ' + barColor + ';">'
+                + '  <div style="font-size:10px; color:#666; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px;">' + label + '</div>'
+                + '  <div style="display:flex; align-items:center; gap:8px;">'
+                + '    <div style="flex:1; height:5px; background:#e3e3e3; border-radius:3px; overflow:hidden;">'
+                + '      <div style="width:' + pct + '%; height:100%; background:' + barColor + '; border-radius:3px;"></div>'
+                + '    </div>'
+                + '    <span style="font-size:11px; font-weight:700; color:' + barColor + ';">' + covered + '/' + total + ' (' + pct + '%)</span>'
+                + '  </div>'
+                + '</div>';
+        }
+
+        // Wiersz tooltipa
+        function tooltipRow(marker, label, value, unit, bold) {
+            var style = bold ? 'font-weight:700;' : '';
+            return '<div style="display:flex; justify-content:space-between; align-items:center; padding:1px 0;' + style + '">'
+                 + '  <span>' + marker + ' ' + label + '</span>'
+                 + '  <span style="margin-left:20px; font-weight:600;">' + value + (unit || '') + '</span>'
+                 + '</div>';
+        }
+
+        // Separator w tooltipie
+        function tooltipSeparator() {
+            return '<div style="border-top:1px solid #eee; margin:6px 0;"></div>';
+        }
+
+
+        // =============================================
+        // RENDER: SALES CHART
+        // =============================================
         function renderSalesChart(data) {
             if (!data || !chartSales) return;
 
+            var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
+
             var option = {
                 title: {
-                    text: 'Trend Sprzedaży: Twoje oferty vs Rynek',
+                    text: 'Sprzedaż: Twoje oferty vs Cały rynek',
+                    subtext: 'Dane dla ' + totalInRule + ' produktów obecnie w automacie',
                     left: 'center',
-                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' }
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' },
+                    subtextStyle: { fontSize: 11, color: '#999' }
                 },
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } },
-                    backgroundColor: 'rgba(255, 255, 255, 0.96)',
-                    textStyle: { color: '#333' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    borderColor: '#e3e6f0',
+                    borderWidth: 1,
+                    textStyle: { color: '#333', fontSize: 12 },
+                    padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; max-width: 340px;',
                     formatter: function (params) {
                         var date = params[0].axisValueLabel;
-                        var html = '<div style="font-weight:bold; margin-bottom:5px;">' + date + '</div>';
+                        var html = '<div style="font-weight:700; font-size:13px; margin-bottom:8px; color:#333;">'
+                                 + '<i class="fas fa-calendar-alt" style="margin-right:5px; color:#999;"></i>' + date + '</div>';
 
-                        var marketValue = 0;
-                        var myValue = 0;
-                        var activeOffers = 0;
+                        var marketVal = 0, myVal = 0, activeOffers = 0, productsWithData = 0;
 
                         params.forEach(function (item) {
-                            if (item.seriesName === 'Cały Rynek (Katalog)') marketValue = item.value;
-                            if (item.seriesName === 'Twoja Sprzedaż') myValue = item.value;
-                            if (item.seriesName === 'Aktywne oferty') activeOffers = item.value;
-
-                            // Nie pokazuj tooltipa dla linii "Rynek" w ten sam sposób,
-                            // lub pokaż wszystkie standardowo:
-                            let unit = (item.seriesName === 'Aktywne oferty') ? ' szt.' : ' sprzed.';
-                            html += '<div>' + item.marker + ' ' + item.seriesName + ': <b>' + item.value + unit + '</b></div>';
+                            if (item.seriesName === 'Cały Rynek (Katalog)') marketVal = item.value;
+                            else if (item.seriesName === 'Twoja Sprzedaż') myVal = item.value;
+                            else if (item.seriesName === 'Twoje aktywne oferty') activeOffers = item.value;
+                            else if (item.seriesName === 'Katalogi z danymi') productsWithData = item.value;
                         });
 
-                        var sharePercentage = (marketValue > 0) ? ((myValue / marketValue) * 100).toFixed(1) : 0;
+                        // --- Sekcja sprzedaży ---
+                        html += '<div style="font-size:10px; color:#999; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Sprzedaż</div>';
+                        html += tooltipRow(params.find(p => p.seriesName === 'Twoja Sprzedaż')?.marker || '', 'Twoja sprzedaż', myVal, ' szt.', true);
+                        html += tooltipRow(params.find(p => p.seriesName === 'Cały Rynek (Katalog)')?.marker || '', 'Cały rynek', marketVal, ' szt.', false);
 
-                        html += '<div style="margin-top:8px; padding-top:8px; border-top:1px solid #eee; font-weight:bold; color:#ff9800;">';
-                        html += '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:#ff9800;"></span>';
-                        html += 'Twój udział w rynku: ' + sharePercentage + '%</div>';
+                        // Udział w rynku
+                        var sharePercent = (marketVal > 0) ? ((myVal / marketVal) * 100).toFixed(1) : '0.0';
+                        html += '<div style="margin-top:4px; padding:4px 8px; background:rgba(255,152,0,0.1); border-radius:4px; display:flex; justify-content:space-between; align-items:center;">'
+                             + '  <span style="font-size:11px; color:#ff9800;"><i class="fas fa-chart-pie" style="margin-right:4px;"></i>Twój udział w rynku</span>'
+                             + '  <span style="font-size:13px; font-weight:700; color:#ff9800;">' + sharePercent + '%</span>'
+                             + '</div>';
 
-                        // Informacja o pokryciu
-                        html += '<div style="font-size:11px; color:#888; margin-top:4px;">';
-                        html += 'Dane dostępne dla ' + activeOffers + ' ofert</div>';
+                        html += tooltipSeparator();
+
+                        // --- Sekcja pokrycia ---
+                        html += '<div style="font-size:10px; color:#999; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">Pokrycie danych</div>';
+
+                        // Pasek: katalogi z danymi vs obecna pula
+                        html += buildCoverageBar(productsWithData, totalInRule, 'Katalogi z danymi w scrapie');
+
+                        // Pasek: twoje oferty vs katalogi
+                        html += buildCoverageBar(activeOffers, productsWithData || totalInRule, 'Z tego — Twoje aktywne oferty');
+
+                        // Uwaga jeśli pokrycie niskie
+                        var coveragePct = totalInRule > 0 ? Math.round((productsWithData / totalInRule) * 100) : 100;
+                        if (coveragePct < 70) {
+                            html += '<div style="margin-top:6px; font-size:10px; color:#e74a3b; display:flex; align-items:flex-start; gap:4px;">'
+                                 + '<i class="fas fa-info-circle" style="margin-top:1px;"></i>'
+                                 + '<span>Niskie pokrycie — część obecnych produktów nie istniała jeszcze w tym scrapie. Wartości sprzedaży mogą być zaniżone.</span>'
+                                 + '</div>';
+                        }
 
                         return html;
                     }
                 },
                 legend: {
                     bottom: 0,
-                    data: ['Twoja Sprzedaż', 'Cały Rynek (Katalog)', 'Aktywne oferty']
+                    data: ['Twoja Sprzedaż', 'Cały Rynek (Katalog)', 'Twoje aktywne oferty', 'Katalogi z danymi'],
+                    textStyle: { fontSize: 11 }
                 },
-                grid: { left: '3%', right: '4%', bottom: '10%', top: '60px', containLabel: true },
+                grid: { left: '3%', right: '4%', bottom: '12%', top: '70px', containLabel: true },
                 xAxis: {
                     type: 'category',
                     boundaryGap: false,
-                    data: data.dates
+                    data: data.dates,
+                    axisLabel: { fontSize: 10 }
                 },
                 yAxis: [
                     {
                         type: 'value',
                         name: 'Sprzedaż (szt.)',
                         position: 'left',
-                        axisLabel: { formatter: '{value}' },
-                        splitLine: { show: true, lineStyle: { color: '#eee' } }
+                        nameTextStyle: { fontSize: 10, color: '#999' },
+                        axisLabel: { formatter: '{value}', fontSize: 10 },
+                        splitLine: { show: true, lineStyle: { color: '#f0f0f0' } }
                     },
                     {
                         type: 'value',
-                        name: 'Liczba ofert',
+                        name: 'Liczba ofert / katalogów',
                         position: 'right',
                         minInterval: 1,
-                        axisLine: { show: false }, // Ukrywa linię osi, zostawia tylko liczby
-                        axisLabel: { formatter: '{value}', color: '#999' },
-                        splitLine: { show: false } // Żeby nie robić kratki na wykresie
+                        nameTextStyle: { fontSize: 10, color: '#999' },
+                        axisLine: { show: false },
+                        axisLabel: { formatter: '{value}', color: '#999', fontSize: 10 },
+                        splitLine: { show: false }
                     }
                 ],
                 series: [
+                    // --- Sprzedaż rynku ---
                     {
                         name: 'Cały Rynek (Katalog)',
                         type: 'line',
-                        yAxisIndex: 0, // Lewa oś (Sprzedaż)
+                        yAxisIndex: 0,
                         data: data.marketSales,
                         smooth: true,
                         symbol: 'none',
                         itemStyle: { color: '#000000' },
-                        lineStyle: { width: 2, color: '#000000', type: 'solid' },
+                        lineStyle: { width: 2, color: '#000000' },
                         areaStyle: null
                     },
+                    // --- Twoja sprzedaż ---
                     {
                         name: 'Twoja Sprzedaż',
                         type: 'line',
-                        yAxisIndex: 0, // Lewa oś (Sprzedaż)
+                        yAxisIndex: 0,
                         data: data.mySales,
                         smooth: true,
                         symbol: 'circle',
@@ -2444,100 +3530,450 @@
                         lineStyle: { width: 3, color: '#ff9800' },
                         areaStyle: {
                             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                { offset: 0, color: 'rgba(255, 152, 0, 0.6)' },
-                                { offset: 1, color: 'rgba(255, 152, 0, 0.05)' }
+                                { offset: 0, color: 'rgba(255, 152, 0, 0.5)' },
+                                { offset: 1, color: 'rgba(255, 152, 0, 0.03)' }
                             ])
                         }
                     },
-                    // --- NOWA SERIA: AKTYWNE OFERTY (SZARA LINIA) ---
+                    // --- Twoje aktywne oferty (prawa oś) ---
                     {
-                        name: 'Aktywne oferty',
+                        name: 'Twoje aktywne oferty',
                         type: 'line',
-                        yAxisIndex: 1, // PRAWA OŚ (Liczba)
+                        yAxisIndex: 1,
                         data: data.activeOffersCount,
-                        smooth: false, // Kanciasta linia lepiej pokazuje zmiany w liczbie
+                        smooth: false,
                         symbol: 'none',
-                        itemStyle: { color: '#b0b0b0' }, // Szary
-                        lineStyle: {
-                            width: 2,
-                            color: '#b0b0b0',
-                            type: 'dashed' // Przerywana
-                        },
-                        z: 0 // Na samym spodzie
+                        itemStyle: { color: '#36b9cc' },
+                        lineStyle: { width: 2, color: '#36b9cc', type: 'dashed' },
+                        z: 0
+                    },
+                    // --- Katalogi z danymi (prawa oś) ---
+                    {
+                        name: 'Katalogi z danymi',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: data.productsWithDataCount,
+                        smooth: false,
+                        symbol: 'none',
+                        itemStyle: { color: '#d1d3e2' },
+                        lineStyle: { width: 1.5, color: '#d1d3e2', type: 'dotted' },
+                        z: 0
                     }
                 ]
             };
-            chartSales.setOption(option);
+
+            chartSales.setOption(option, true);
         }
 
-        // --- RENDER: EFFECTIVENESS ---
-        function renderEffectivenessChart(data) {
-             if (!chartEff) return;
-             var option = {
-                title: { text: 'Skuteczność Reguły', left: 'center', textStyle: { fontSize: 13 } },
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                legend: { bottom: 0, data: ['Spełnione', 'Niespełnione/Blok'] },
-                grid: { left: '3%', right: '4%', bottom: '10%', top: '35px', containLabel: true },
-                xAxis: { type: 'category', data: data.dates },
-                yAxis: { type: 'value' },
+
+        // =============================================
+        // RENDER: BADGES CHART
+        // =============================================
+        function renderBadgeChart(data) {
+            if (!data || !chartBadges) return;
+
+            var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
+
+            var option = {
+                title: {
+                    text: 'Trendy Odznak i Promocji',
+                    subtext: 'Dane dla ' + totalInRule + ' produktów obecnie w automacie',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' },
+                    subtextStyle: { fontSize: 11, color: '#999' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    borderColor: '#e3e6f0',
+                    borderWidth: 1,
+                    textStyle: { color: '#333', fontSize: 12 },
+                    padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; max-width: 360px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var html = '<div style="font-weight:700; font-size:13px; margin-bottom:8px; color:#333;">'
+                                 + '<i class="fas fa-calendar-alt" style="margin-right:5px; color:#999;"></i>' + date + '</div>';
+
+                        var coveredProducts = 0;
+                        var badgeValues = {};
+
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Pokrycie danych') {
+                                coveredProducts = item.value;
+                            } else {
+                                badgeValues[item.seriesName] = item;
+                            }
+                        });
+
+                        // --- Sekcja odznak ---
+                        html += '<div style="font-size:10px; color:#999; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Odznaki i promocje</div>';
+
+                        var badgeOrder = ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty'];
+                        badgeOrder.forEach(function (name) {
+                            var item = badgeValues[name];
+                            if (item) {
+                                var pctOfCovered = coveredProducts > 0 ? ((item.value / coveredProducts) * 100).toFixed(0) : 0;
+                                html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;">'
+                                     + '  <span>' + item.marker + ' ' + name + '</span>'
+                                     + '  <span style="font-weight:600;">' + item.value
+                                     + '    <span style="color:#999; font-weight:400; font-size:10px; margin-left:3px;">(' + pctOfCovered + '% ofert)</span>'
+                                     + '  </span>'
+                                     + '</div>';
+                            }
+                        });
+
+                        html += tooltipSeparator();
+
+                        // --- Sekcja pokrycia ---
+                        html += buildCoverageBar(coveredProducts, totalInRule, 'Oferty z danymi w tym scrapie');
+
+                        var coveragePct = totalInRule > 0 ? Math.round((coveredProducts / totalInRule) * 100) : 100;
+                        if (coveragePct < 70) {
+                            html += '<div style="margin-top:6px; font-size:10px; color:#e74a3b; display:flex; align-items:flex-start; gap:4px;">'
+                                 + '<i class="fas fa-info-circle" style="margin-top:1px;"></i>'
+                                 + '<span>Niskie pokrycie — część produktów nie miała jeszcze oferty w tym scrapie. Liczby odznak mogą być zaniżone.</span>'
+                                 + '</div>';
+                        }
+
+                        return html;
+                    }
+                },
+                legend: {
+                    bottom: 0,
+                    data: ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty', 'Pokrycie danych'],
+                    textStyle: { fontSize: 11 }
+                },
+                grid: { left: '3%', right: '4%', bottom: '12%', top: '70px', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: data.dates,
+                    axisLabel: { fontSize: 10 }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: 'Liczba ofert z odznaką',
+                        minInterval: 1,
+                        nameTextStyle: { fontSize: 10, color: '#999' },
+                        axisLabel: { fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#f0f0f0' } }
+                    },
+                    {
+                        type: 'value',
+                        name: 'Pokrycie',
+                        position: 'right',
+                        minInterval: 1,
+                        nameTextStyle: { fontSize: 10, color: '#999' },
+                        axisLine: { show: false },
+                        axisLabel: { formatter: '{value}', color: '#999', fontSize: 10 },
+                        splitLine: { show: false }
+                    }
+                ],
                 series: [
-                    { name: 'Spełnione', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(0, 145, 123, 0.8)' }, data: data.targetMet },
-                    { name: 'Niespełnione/Blok', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(108, 117, 125, 0.8)' }, data: data.targetUnmet }
+                    {
+                        name: 'Top Oferta',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: data.topOfferCounts,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        itemStyle: { color: '#ff9800' },
+                        lineStyle: { width: 3 },
+                        areaStyle: { opacity: 0.08, color: '#ff9800' }
+                    },
+                    {
+                        name: 'Super Cena',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: data.superPriceCounts,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        itemStyle: { color: '#155724' },
+                        lineStyle: { width: 3 }
+                    },
+                    {
+                        name: 'Gwarancja Ceny',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: data.bestPriceGuaranteeCounts,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        itemStyle: { color: '#4caf50' },
+                        lineStyle: { width: 3 }
+                    },
+                    {
+                        name: 'Kampania',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: data.campaignCounts,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 6,
+                        itemStyle: { color: '#ffc107' },
+                        lineStyle: { width: 2, type: 'dashed' }
+                    },
+                    {
+                        name: 'Dopłaty',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: data.subsidyCounts,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 6,
+                        itemStyle: { color: '#1cc88a' },
+                        lineStyle: { width: 2, type: 'dotted' }
+                    },
+                    // --- Pokrycie danych (prawa oś, szara linia referencyjna) ---
+                    {
+                        name: 'Pokrycie danych',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: data.coveredProductsCounts,
+                        smooth: false,
+                        symbol: 'none',
+                        itemStyle: { color: '#d1d3e2' },
+                        lineStyle: { width: 1.5, color: '#d1d3e2', type: 'dotted' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(209, 211, 226, 0.15)' },
+                                { offset: 1, color: 'rgba(209, 211, 226, 0)' }
+                            ])
+                        },
+                        z: 0
+                    }
                 ]
             };
-            chartEff.setOption(option);
+
+            chartBadges.setOption(option, true);
         }
 
-        // --- RENDER: DYNAMICS ---
+
+        // =============================================
+        // RENDER: EFFECTIVENESS
+        // =============================================
+        function renderEffectivenessChart(data) {
+            if (!chartEff) return;
+
+            var option = {
+                title: {
+                    text: 'Skuteczność Reguły',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    borderColor: '#e3e6f0',
+                    borderWidth: 1,
+                    textStyle: { color: '#333', fontSize: 12 },
+                    padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var html = '<div style="font-weight:700; font-size:13px; margin-bottom:8px; color:#333;">'
+                                 + '<i class="fas fa-calendar-alt" style="margin-right:5px; color:#999;"></i>' + date + '</div>';
+
+                        var met = 0, unmet = 0;
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Spełnione') met = item.value;
+                            if (item.seriesName === 'Niespełnione / Blokady') unmet = item.value;
+                        });
+
+                        var total = met + unmet;
+                        var pctMet = total > 0 ? ((met / total) * 100).toFixed(0) : 0;
+
+                        html += tooltipRow(params[0]?.marker || '', 'Spełnione', met, '', true);
+                        html += tooltipRow(params[1]?.marker || '', 'Niespełnione / Blokady', unmet, '', false);
+
+                        html += tooltipSeparator();
+
+                        html += '<div style="display:flex; justify-content:space-between; align-items:center;">'
+                             + '  <span style="font-size:11px; color:#666;">Skuteczność</span>'
+                             + '  <span style="font-size:14px; font-weight:700; color:' + (pctMet >= 80 ? '#1cc88a' : pctMet >= 50 ? '#f6c23e' : '#e74a3b') + ';">'
+                             + pctMet + '%</span>'
+                             + '</div>';
+
+                        html += '<div style="margin-top:4px; font-size:10px; color:#999;">Łącznie produktów: ' + total + '</div>';
+
+                        return html;
+                    }
+                },
+                legend: {
+                    bottom: 0,
+                    data: ['Spełnione', 'Niespełnione / Blokady'],
+                    textStyle: { fontSize: 11 }
+                },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '40px', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    data: data.dates,
+                    axisLabel: { fontSize: 10 }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { fontSize: 10 },
+                    splitLine: { lineStyle: { color: '#f0f0f0' } }
+                },
+                series: [
+                    {
+                        name: 'Spełnione',
+                        type: 'bar',
+                        stack: 'total',
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(0, 145, 123, 0.9)' },
+                                { offset: 1, color: 'rgba(0, 145, 123, 0.6)' }
+                            ]),
+                            borderRadius: [0, 0, 0, 0]
+                        },
+                        data: data.targetMet
+                    },
+                    {
+                        name: 'Niespełnione / Blokady',
+                        type: 'bar',
+                        stack: 'total',
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(108, 117, 125, 0.9)' },
+                                { offset: 1, color: 'rgba(108, 117, 125, 0.6)' }
+                            ]),
+                            borderRadius: [3, 3, 0, 0]
+                        },
+                        data: data.targetUnmet
+                    }
+                ]
+            };
+
+            chartEff.setOption(option, true);
+        }
+
+
+        // =============================================
+        // RENDER: DYNAMICS
+        // =============================================
         function renderDynamicsChart(data) {
             if (!chartDyn) return;
+
             var option = {
-                title: { text: 'Dynamika Zmian', left: 'center', textStyle: { fontSize: 13 } },
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                legend: { bottom: 0, data: ['Obniżki', 'Utrzymane', 'Podwyżki', 'Razem'] },
-                grid: { left: '3%', right: '4%', bottom: '10%', top: '35px', containLabel: true },
-                xAxis: { type: 'category', data: data.dates },
-                yAxis: { type: 'value' },
+                title: {
+                    text: 'Dynamika Zmian',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    borderColor: '#e3e6f0',
+                    borderWidth: 1,
+                    textStyle: { color: '#333', fontSize: 12 },
+                    padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var html = '<div style="font-weight:700; font-size:13px; margin-bottom:8px; color:#333;">'
+                                 + '<i class="fas fa-calendar-alt" style="margin-right:5px; color:#999;"></i>' + date + '</div>';
+
+                        var decreased = 0, maintained = 0, increased = 0, total = 0;
+
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Obniżki') decreased = item.value;
+                            else if (item.seriesName === 'Utrzymane') maintained = item.value;
+                            else if (item.seriesName === 'Podwyżki') increased = item.value;
+                            else if (item.seriesName === 'Razem w regule') total = item.value;
+                        });
+
+                        var changed = decreased + increased;
+                        var active = decreased + maintained + increased;
+
+                        html += '<div style="font-size:10px; color:#999; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Zmiany cenowe</div>';
+
+                        params.forEach(function (item) {
+                            if (item.seriesName !== 'Razem w regule') {
+                                html += tooltipRow(item.marker, item.seriesName, item.value, '', false);
+                            }
+                        });
+
+                        html += tooltipSeparator();
+
+                        html += '<div style="display:flex; justify-content:space-between; font-size:11px; color:#666;">'
+                             + '  <span>Zoptymalizowano cen:</span>'
+                             + '  <span style="font-weight:700;">' + changed + '</span>'
+                             + '</div>';
+
+                        html += '<div style="display:flex; justify-content:space-between; font-size:11px; color:#666; margin-top:2px;">'
+                             + '  <span>Razem produktów w regule:</span>'
+                             + '  <span style="font-weight:700;">' + total + '</span>'
+                             + '</div>';
+
+                        return html;
+                    }
+                },
+                legend: {
+                    bottom: 0,
+                    data: ['Obniżki', 'Utrzymane', 'Podwyżki', 'Razem w regule'],
+                    textStyle: { fontSize: 11 }
+                },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '40px', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    data: data.dates,
+                    axisLabel: { fontSize: 10 }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { fontSize: 10 },
+                    splitLine: { lineStyle: { color: '#f0f0f0' } }
+                },
                 series: [
-                    { name: 'Obniżki', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(25, 135, 84, 0.8)' }, data: data.decreased },
-                    { name: 'Utrzymane', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(13, 110, 253, 0.8)' }, data: data.maintained },
-                    { name: 'Podwyżki', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(231, 74, 59, 0.8)' }, data: data.increased },
                     {
-                        name: 'Razem',
+                        name: 'Obniżki',
+                        type: 'bar',
+                        stack: 'total',
+                        itemStyle: { color: 'rgba(25, 135, 84, 0.85)' },
+                        data: data.decreased
+                    },
+                    {
+                        name: 'Utrzymane',
+                        type: 'bar',
+                        stack: 'total',
+                        itemStyle: { color: 'rgba(13, 110, 253, 0.7)' },
+                        data: data.maintained
+                    },
+                    {
+                        name: 'Podwyżki',
+                        type: 'bar',
+                        stack: 'total',
+                        itemStyle: { color: 'rgba(231, 74, 59, 0.85)' },
+                        barBorderRadius: [3, 3, 0, 0],
+                        data: data.increased
+                    },
+                    {
+                        name: 'Razem w regule',
                         type: 'line',
                         data: data.totalProducts,
                         symbol: 'none',
-                        itemStyle: { color: '#000000' },
-                        lineStyle: { color: '#000000', width: 2, type: 'dashed' }
+                        itemStyle: { color: '#333' },
+                        lineStyle: { color: '#333', width: 2, type: 'dashed', opacity: 0.6 }
                     }
                 ]
             };
-            chartDyn.setOption(option);
+
+            chartDyn.setOption(option, true);
         }
 
-        // --- RENDER: BADGES ---
-        function renderBadgeChart(data) {
-            if (!data || !chartBadges) return;
-            var option = {
-                title: { text: 'Trendy Odznak i Promocji', left: 'center', textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' } },
-                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, backgroundColor: 'rgba(255, 255, 255, 0.95)' },
-                legend: { bottom: 0, data: ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty', 'Razem w automacie'] },
-                grid: { left: '3%', right: '4%', bottom: '10%', top: '50px', containLabel: true },
-                xAxis: { type: 'category', boundaryGap: false, data: data.dates },
-                yAxis: { type: 'value', minInterval: 1 },
-                series: [
-                    { name: 'Top Oferta', type: 'line', data: data.topOfferCounts, smooth: true, itemStyle: { color: '#ff9800' }, lineStyle: { width: 3 }, areaStyle: { opacity: 0.1, color: '#ff9800' } },
-                    { name: 'Super Cena', type: 'line', data: data.superPriceCounts, smooth: true, itemStyle: { color: '#155724' }, lineStyle: { width: 3 } },
-                    { name: 'Gwarancja Ceny', type: 'line', data: data.bestPriceGuaranteeCounts, smooth: true, itemStyle: { color: '#4caf50' }, lineStyle: { width: 3 } },
-                    { name: 'Kampania', type: 'line', data: data.campaignCounts, smooth: true, itemStyle: { color: '#ffc107' }, lineStyle: { width: 2, type: 'dashed' } },
-                    { name: 'Dopłaty', type: 'line', data: data.subsidyCounts, smooth: true, itemStyle: { color: '#1cc88a' }, lineStyle: { width: 2, type: 'dotted' } },
-                    { name: 'Razem w automacie', type: 'line', data: data.totalProductsCounts, smooth: false, symbol: 'none', itemStyle: { color: '#333333' }, lineStyle: { color: '#333333', width: 2, type: 'dashed', opacity: 0.7 } }
-                ]
-            };
-            chartBadges.setOption(option);
-        }
 
-        $(document).ready(function() {
+        // =============================================
+        // INIT + EVENT BINDING
+        // =============================================
+        $(document).ready(function () {
             var elemEff = document.getElementById('chartEffectiveness');
             var elemDyn = document.getElementById('chartDynamics');
 
@@ -2547,24 +3983,25 @@
                 loadHistoryData(currentLimit);
             }
 
-            $('.history-btn').click(function() {
+            $('.history-btn').click(function () {
                 $('.history-btn').removeClass('active');
                 $(this).addClass('active');
                 currentLimit = $(this).data('days');
 
-                if (currentMode === 'badges') { loadBadgeHistoryData(currentLimit); }
-                else if (currentMode === 'sales') { loadSalesHistoryData(currentLimit); }
-                else { loadHistoryData(currentLimit); }
+                if (currentMode === 'badges') loadBadgeHistoryData(currentLimit);
+                else if (currentMode === 'sales') loadSalesHistoryData(currentLimit);
+                else loadHistoryData(currentLimit);
             });
 
-            window.addEventListener('resize', function() {
-                if(chartEff) chartEff.resize();
-                if(chartDyn) chartDyn.resize();
-                if(chartSales) chartSales.resize();
-                if(chartBadges) chartBadges.resize();
+            window.addEventListener('resize', function () {
+                if (chartEff) chartEff.resize();
+                if (chartDyn) chartDyn.resize();
+                if (chartSales) chartSales.resize();
+                if (chartBadges) chartBadges.resize();
             });
         });
-    </script>
+    </script> *@
+
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {

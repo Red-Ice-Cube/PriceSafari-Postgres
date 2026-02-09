@@ -1010,24 +1010,22 @@ namespace PriceSafari.Services.PriceAutomationService
         {
             if (limit <= 0) limit = 7;
 
-            // 1. Pobierz regułę i nazwę sklepu (zabezpieczenie przed błędem LINQ)
             var rule = await _context.AutomationRules
                 .Include(r => r.Store)
                 .FirstOrDefaultAsync(r => r.Id == ruleId);
 
             if (rule == null || rule.Store == null) return null;
-
             string myStoreName = rule.Store.StoreNameAllegro ?? "";
 
-            // 2. Pobierz produkty przypisane do reguły
-            var productAssignments = await _context.AutomationProductAssignments
+            // 1. Obecne produkty
+            var currentProductIds = await _context.AutomationProductAssignments
                 .Where(a => a.AutomationRuleId == ruleId && a.AllegroProductId.HasValue)
                 .Select(a => a.AllegroProductId.Value)
                 .ToListAsync();
 
-            if (!productAssignments.Any()) return new AutomationBadgeHistoryViewModel();
+            if (!currentProductIds.Any()) return new AutomationBadgeHistoryViewModel();
 
-            // 3. Pobierz historię scrapowania (daty)
+            // 2. Historia scrapowania
             var scrapHistories = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == rule.StoreId)
                 .OrderByDescending(sh => sh.Date)
@@ -1038,60 +1036,61 @@ namespace PriceSafari.Services.PriceAutomationService
 
             var scrapIds = scrapHistories.Select(s => s.Id).ToList();
 
-            // --- NOWOŚĆ: Pobierz historyczną liczbę produktów w automacie dla tych dni ---
-            var batches = await _context.AllegroPriceBridgeBatches
-                .Where(b => b.AutomationRuleId == ruleId && scrapIds.Contains(b.AllegroScrapeHistoryId))
-                .Select(b => new { b.AllegroScrapeHistoryId, Count = b.TotalProductsCount ?? 0 })
-                .ToListAsync();
-            // ---------------------------------------------------------------------------
-
-            // 4. Pobierz dane o odznakach (Top, Super, Gwarancja)
-            var basicBadges = await _context.AllegroPriceHistories
+            // 3. Dane odznak
+            var allBasicBadges = await _context.AllegroPriceHistories
                 .Where(h => scrapIds.Contains(h.AllegroScrapeHistoryId)
-                         && productAssignments.Contains(h.AllegroProductId)
+                         && currentProductIds.Contains(h.AllegroProductId)
                          && h.SellerName == myStoreName)
-                .GroupBy(h => h.AllegroScrapeHistoryId)
-                .Select(g => new
+                .Select(h => new
                 {
-                    ScrapId = g.Key,
-                    TopOfferCount = g.Count(x => x.TopOffer == true),
-                    SuperPriceCount = g.Count(x => x.SuperPrice == true),
-                    BestPriceGuaranteeCount = g.Count(x => x.IsBestPriceGuarantee == true)
+                    h.AllegroScrapeHistoryId,
+                    h.AllegroProductId,
+                    h.TopOffer,
+                    h.SuperPrice,
+                    h.IsBestPriceGuarantee
                 })
                 .ToListAsync();
 
-            // 5. Pobierz dane z ExtendedInfo (Kampanie, Dopłaty)
-            var extendedBadges = await _context.AllegroPriceHistoryExtendedInfos
+            var allExtendedBadges = await _context.AllegroPriceHistoryExtendedInfos
                 .Where(h => scrapIds.Contains(h.ScrapHistoryId)
-                         && productAssignments.Contains(h.AllegroProductId))
-                .GroupBy(h => h.ScrapHistoryId)
-                .Select(g => new
+                         && currentProductIds.Contains(h.AllegroProductId))
+                .Select(h => new
                 {
-                    ScrapId = g.Key,
-                    CampaignCount = g.Count(x => x.AnyPromoActive == true),
-                    SubsidyCount = g.Count(x => x.IsSubsidyActive == true)
+                    h.ScrapHistoryId,
+                    h.AllegroProductId,
+                    h.AnyPromoActive,
+                    h.IsSubsidyActive
                 })
                 .ToListAsync();
 
-            // 6. Złóż wyniki
+            // 4. Składamy z kontekstem pokrycia
             var model = new AutomationBadgeHistoryViewModel();
+            model.TotalProductsInRule = currentProductIds.Count;
 
             foreach (var scrap in scrapHistories)
             {
                 model.Dates.Add(scrap.Date.ToString("dd.MM HH:mm"));
 
-                var basic = basicBadges.FirstOrDefault(b => b.ScrapId == scrap.Id);
-                var ext = extendedBadges.FirstOrDefault(b => b.ScrapId == scrap.Id);
-                var batch = batches.FirstOrDefault(b => b.AllegroScrapeHistoryId == scrap.Id); // Szukamy batcha
+                var basicForScrap = allBasicBadges
+                    .Where(b => b.AllegroScrapeHistoryId == scrap.Id)
+                    .ToList();
 
-                model.TopOfferCounts.Add(basic?.TopOfferCount ?? 0);
-                model.SuperPriceCounts.Add(basic?.SuperPriceCount ?? 0);
-                model.BestPriceGuaranteeCounts.Add(basic?.BestPriceGuaranteeCount ?? 0);
-                model.CampaignCounts.Add(ext?.CampaignCount ?? 0);
-                model.SubsidyCounts.Add(ext?.SubsidyCount ?? 0);
+                var extForScrap = allExtendedBadges
+                    .Where(b => b.ScrapHistoryId == scrap.Id)
+                    .ToList();
 
-                // Dodajemy liczbę produktów (jeśli nie ma batcha, bierzemy 0 lub liczbę przypisań, 0 jest bezpieczniejsze bo widać przerwę w działaniu)
-                model.TotalProductsCounts.Add(batch?.Count ?? 0);
+                // Pokrycie: ile z obecnych produktów miało naszą ofertę w tym scrapie
+                int coveredProducts = basicForScrap
+                    .Select(b => b.AllegroProductId)
+                    .Distinct()
+                    .Count();
+
+                model.TopOfferCounts.Add(basicForScrap.Count(x => x.TopOffer == true));
+                model.SuperPriceCounts.Add(basicForScrap.Count(x => x.SuperPrice == true));
+                model.BestPriceGuaranteeCounts.Add(basicForScrap.Count(x => x.IsBestPriceGuarantee == true));
+                model.CampaignCounts.Add(extForScrap.Count(x => x.AnyPromoActive == true));
+                model.SubsidyCounts.Add(extForScrap.Count(x => x.IsSubsidyActive == true));
+                model.CoveredProductsCounts.Add(coveredProducts);
             }
 
             return model;
@@ -1102,7 +1101,6 @@ namespace PriceSafari.Services.PriceAutomationService
         {
             if (limit <= 0) limit = 7;
 
-            // 1. Pobierz regułę
             var rule = await _context.AutomationRules
                 .Include(r => r.Store)
                 .FirstOrDefaultAsync(r => r.Id == ruleId);
@@ -1110,7 +1108,7 @@ namespace PriceSafari.Services.PriceAutomationService
             if (rule == null || rule.Store == null) return null;
             string myStoreName = rule.Store.StoreNameAllegro ?? "";
 
-            // 2. Pobierz ID produktów, które są w regule TERAZ
+            // 1. Obecne produkty w automacie
             var currentProductIds = await _context.AutomationProductAssignments
                 .Where(a => a.AutomationRuleId == ruleId && a.AllegroProductId.HasValue)
                 .Select(a => a.AllegroProductId.Value)
@@ -1118,7 +1116,9 @@ namespace PriceSafari.Services.PriceAutomationService
 
             if (!currentProductIds.Any()) return new AutomationSalesHistoryViewModel();
 
-            // 3. Pobierz historię scrapowania
+            var currentProductIdSet = currentProductIds.ToHashSet();
+
+            // 2. Historia scrapowania
             var scrapHistories = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == rule.StoreId)
                 .OrderByDescending(sh => sh.Date)
@@ -1129,42 +1129,329 @@ namespace PriceSafari.Services.PriceAutomationService
 
             var scrapIds = scrapHistories.Select(s => s.Id).ToList();
 
-            // 4. Pobierz dane sprzedażowe ORAZ ilość dostępnych ofert
-            var salesData = await _context.AllegroPriceHistories
+            // 3. Pobierz WSZYSTKIE rekordy cenowe dla tych produktów i scrapów
+            var allRecords = await _context.AllegroPriceHistories
                 .Where(h => scrapIds.Contains(h.AllegroScrapeHistoryId)
                          && currentProductIds.Contains(h.AllegroProductId))
-                .GroupBy(h => h.AllegroScrapeHistoryId)
-                .Select(g => new
+                .Select(h => new
                 {
-                    ScrapId = g.Key,
-                    MyTotalSales = g.Where(x => x.SellerName == myStoreName).Sum(x => x.Popularity ?? 0),
-                    MarketTotalSales = g.Sum(x => x.Popularity ?? 0),
-
-                    // NOWOŚĆ: Ile z tych produktów faktycznie miało Twoją ofertę w tym dniu?
-                    ActiveCount = g.Count(x => x.SellerName == myStoreName)
+                    h.AllegroScrapeHistoryId,
+                    h.AllegroProductId,
+                    h.SellerName,
+                    h.Popularity
                 })
                 .ToListAsync();
 
-            // 5. Złóż wynik
+            // 4. Składamy wynik z pełnym kontekstem pokrycia
             var model = new AutomationSalesHistoryViewModel();
 
             foreach (var scrap in scrapHistories)
             {
                 model.Dates.Add(scrap.Date.ToString("dd.MM HH:mm"));
 
-                var dataPoint = salesData.FirstOrDefault(d => d.ScrapId == scrap.Id);
+                var recordsForScrap = allRecords
+                    .Where(h => h.AllegroScrapeHistoryId == scrap.Id)
+                    .ToList();
 
-                model.MySales.Add(dataPoint?.MyTotalSales ?? 0);
-                model.MarketSales.Add(dataPoint?.MarketTotalSales ?? 0);
+                // Ile z OBECNYCH produktów automatu w ogóle istniało w tym scrapie
+                // (= miało jakikolwiek rekord, niekoniecznie naszą ofertę)
+                int productsWithAnyData = recordsForScrap
+                    .Select(r => r.AllegroProductId)
+                    .Distinct()
+                    .Count();
 
-                // Dodajemy licznik ofert
-                model.ActiveOffersCount.Add(dataPoint?.ActiveCount ?? 0);
+                // Ile z nich miało NASZĄ ofertę
+                int productsWithMyOffer = recordsForScrap
+                    .Where(r => r.SellerName == myStoreName)
+                    .Select(r => r.AllegroProductId)
+                    .Distinct()
+                    .Count();
+
+                long mySales = recordsForScrap
+                    .Where(x => x.SellerName == myStoreName)
+                    .Sum(x => x.Popularity ?? 0);
+
+                long marketSales = recordsForScrap
+                    .Sum(x => x.Popularity ?? 0);
+
+                model.MySales.Add(mySales);
+                model.MarketSales.Add(marketSales);
+                model.ActiveOffersCount.Add(productsWithMyOffer);
+                model.ProductsWithDataCount.Add(productsWithAnyData);
             }
+
+            model.TotalProductsInRule = currentProductIds.Count;
 
             return model;
         }
 
 
+
+        public async Task<AutomationPricePositionHistoryViewModel> GetPricePositionHistoryAsync(int ruleId, int limit)
+        {
+            if (limit <= 0) limit = 7;
+
+            var rule = await _context.AutomationRules
+                .Include(r => r.Store)
+                .FirstOrDefaultAsync(r => r.Id == ruleId);
+
+            if (rule == null || rule.Store == null) return null;
+
+            if (rule.SourceType == AutomationSourceType.Marketplace)
+                return await GetPricePositionMarketplace(rule, limit);
+            else
+                return await GetPricePositionComparison(rule, limit);
+        }
+
+        private async Task<AutomationPricePositionHistoryViewModel> GetPricePositionComparison(AutomationRule rule, int limit)
+        {
+            string myStoreName = rule.Store.StoreName ?? "";
+
+            // 1. Obecne produkty w automacie
+            var currentProductIds = await _context.AutomationProductAssignments
+                .Where(a => a.AutomationRuleId == rule.Id && a.ProductId.HasValue)
+                .Select(a => a.ProductId.Value)
+                .ToListAsync();
+
+            if (!currentProductIds.Any()) return new AutomationPricePositionHistoryViewModel();
+
+            var currentProductIdSet = currentProductIds.ToHashSet();
+
+            // 2. Historia scrapowania
+            var scrapHistories = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == rule.StoreId)
+                .OrderByDescending(sh => sh.Date)
+                .Take(limit)
+                .Select(sh => new { sh.Id, sh.Date })
+                .OrderBy(x => x.Date)
+                .ToListAsync();
+
+            var scrapIds = scrapHistories.Select(s => s.Id).ToList();
+
+            // 3. Pobierz WSZYSTKIE oferty (nie tylko nasze!) dla tych produktów
+            var allRecords = await _context.PriceHistories
+                .Where(h => scrapIds.Contains(h.ScrapHistoryId)
+                         && currentProductIds.Contains(h.ProductId)
+                         && h.Price > 0)
+                .Select(h => new
+                {
+                    h.ScrapHistoryId,
+                    h.ProductId,
+                    h.StoreName,
+                    h.Price
+                })
+                .ToListAsync();
+
+            // 4. Oblicz pozycje per scrap
+            var model = new AutomationPricePositionHistoryViewModel();
+            model.TotalProductsInRule = currentProductIds.Count;
+
+            foreach (var scrap in scrapHistories)
+            {
+                model.Dates.Add(scrap.Date.ToString("dd.MM HH:mm"));
+
+                var recordsForScrap = allRecords
+                    .Where(r => r.ScrapHistoryId == scrap.Id)
+                    .ToList();
+
+                int top1Solo = 0, top1ExAequo = 0, pos2to3 = 0, pos4to5 = 0, pos6to10 = 0, pos11plus = 0, notRanked = 0;
+
+                var productsInScrape = new HashSet<int>();
+
+                var byProduct = recordsForScrap.GroupBy(r => r.ProductId);
+
+                foreach (var group in byProduct)
+                {
+                    productsInScrape.Add(group.Key);
+                    var offers = group.ToList();
+
+                    // Znajdź nasze oferty (Contains + OrdinalIgnoreCase — spójne z resztą kodu)
+                    var myOffers = offers.Where(o =>
+                        o.StoreName != null &&
+                        o.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    if (!myOffers.Any())
+                    {
+                        notRanked++;
+                        continue;
+                    }
+
+                    decimal myBestPrice = myOffers.Min(o => o.Price);
+
+                    var allPrices = offers.Select(o => o.Price).OrderBy(p => p).ToList();
+
+                    int firstIndex = -1;
+                    for (int i = 0; i < allPrices.Count; i++)
+                    {
+                        if (allPrices[i] == myBestPrice) { firstIndex = i; break; }
+                    }
+
+                    if (firstIndex == -1) { notRanked++; continue; }
+
+                    int startRank = firstIndex + 1;
+                    int sameAsBestCount = allPrices.Count(p => p == allPrices[0]);
+
+                    if (startRank == 1)
+                    {
+                        if (sameAsBestCount == 1)
+                            top1Solo++;
+                        else
+                            top1ExAequo++;
+                    }
+                    else if (startRank <= 3)
+                        pos2to3++;
+                    else if (startRank <= 5)
+                        pos4to5++;
+                    else if (startRank <= 10)
+                        pos6to10++;
+                    else
+                        pos11plus++;
+                }
+
+                int productsNotInScrape = currentProductIds.Count(id => !productsInScrape.Contains(id));
+                notRanked += productsNotInScrape;
+
+                model.Top1Solo.Add(top1Solo);
+                model.Top1ExAequo.Add(top1ExAequo);
+                model.Position2to3.Add(pos2to3);
+                model.Position4to5.Add(pos4to5);
+                model.Position6to10.Add(pos6to10);
+                model.Position11Plus.Add(pos11plus);
+                model.NotRanked.Add(notRanked);
+            }
+
+            return model;
+        }
+
+        private async Task<AutomationPricePositionHistoryViewModel> GetPricePositionMarketplace(AutomationRule rule, int limit)
+        {
+            string myStoreName = rule.Store.StoreNameAllegro ?? "";
+
+            // 1. Obecne produkty w automacie
+            var currentProductIds = await _context.AutomationProductAssignments
+                .Where(a => a.AutomationRuleId == rule.Id && a.AllegroProductId.HasValue)
+                .Select(a => a.AllegroProductId.Value)
+                .ToListAsync();
+
+            if (!currentProductIds.Any()) return new AutomationPricePositionHistoryViewModel();
+
+            var currentProductIdSet = currentProductIds.ToHashSet();
+
+            // 2. Historia scrapowania
+            var scrapHistories = await _context.AllegroScrapeHistories
+                .Where(sh => sh.StoreId == rule.StoreId)
+                .OrderByDescending(sh => sh.Date)
+                .Take(limit)
+                .Select(sh => new { sh.Id, sh.Date })
+                .OrderBy(x => x.Date)
+                .ToListAsync();
+
+            var scrapIds = scrapHistories.Select(s => s.Id).ToList();
+
+            // 3. Pobierz WSZYSTKIE oferty (nie tylko nasze!) dla tych produktów
+            var allRecords = await _context.AllegroPriceHistories
+                .Where(h => scrapIds.Contains(h.AllegroScrapeHistoryId)
+                         && currentProductIds.Contains(h.AllegroProductId)
+                         && h.Price > 0)
+                .Select(h => new
+                {
+                    h.AllegroScrapeHistoryId,
+                    h.AllegroProductId,
+                    h.SellerName,
+                    h.Price
+                })
+                .ToListAsync();
+
+            // 4. Oblicz pozycje per scrap
+            var model = new AutomationPricePositionHistoryViewModel();
+            model.TotalProductsInRule = currentProductIds.Count;
+
+            foreach (var scrap in scrapHistories)
+            {
+                model.Dates.Add(scrap.Date.ToString("dd.MM HH:mm"));
+
+                var recordsForScrap = allRecords
+                    .Where(r => r.AllegroScrapeHistoryId == scrap.Id)
+                    .ToList();
+
+                int top1Solo = 0, top1ExAequo = 0, pos2to3 = 0, pos4to5 = 0, pos6to10 = 0, pos11plus = 0, notRanked = 0;
+
+                var productsInScrape = new HashSet<int>();
+
+                // Grupujemy po produkcie
+                var byProduct = recordsForScrap.GroupBy(r => r.AllegroProductId);
+
+                foreach (var group in byProduct)
+                {
+                    productsInScrape.Add(group.Key);
+                    var offers = group.ToList();
+
+                    // Znajdź nasze oferty
+                    var myOffers = offers.Where(o =>
+                        o.SellerName != null &&
+                        o.SellerName.Equals(myStoreName, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    if (!myOffers.Any())
+                    {
+                        notRanked++;
+                        continue;
+                    }
+
+                    // Nasza najlepsza (najniższa) cena
+                    decimal myBestPrice = myOffers.Min(o => o.Price);
+
+                    // Wszystkie ceny posortowane rosnąco
+                    var allPrices = offers.Select(o => o.Price).OrderBy(p => p).ToList();
+
+                    // Pozycja = index pierwszego wystąpienia naszej ceny + 1
+                    int firstIndex = -1;
+                    for (int i = 0; i < allPrices.Count; i++)
+                    {
+                        if (allPrices[i] == myBestPrice) { firstIndex = i; break; }
+                    }
+
+                    if (firstIndex == -1) { notRanked++; continue; }
+
+                    int startRank = firstIndex + 1;
+
+                    // Ile ofert ma tę samą cenę co najlepsza?
+                    int sameAsBestCount = allPrices.Count(p => p == allPrices[0]);
+
+                    if (startRank == 1)
+                    {
+                        // Jesteśmy na pozycji 1
+                        if (sameAsBestCount == 1)
+                            top1Solo++;       // Tylko my mamy tę cenę
+                        else
+                            top1ExAequo++;    // Ktoś jeszcze ma tę samą cenę
+                    }
+                    else if (startRank <= 3)
+                        pos2to3++;
+                    else if (startRank <= 5)
+                        pos4to5++;
+                    else if (startRank <= 10)
+                        pos6to10++;
+                    else
+                        pos11plus++;
+                }
+
+                // Produkty które w ogóle nie miały danych w tym scrapie
+                int productsNotInScrape = currentProductIds.Count(id => !productsInScrape.Contains(id));
+                notRanked += productsNotInScrape;
+
+                model.Top1Solo.Add(top1Solo);
+                model.Top1ExAequo.Add(top1ExAequo);
+                model.Position2to3.Add(pos2to3);
+                model.Position4to5.Add(pos4to5);
+                model.Position6to10.Add(pos6to10);
+                model.Position11Plus.Add(pos11plus);
+                model.NotRanked.Add(notRanked);
+            }
+
+            return model;
+        }
     }
     public class AutomationTriggerRequest
     {
@@ -1177,26 +1464,61 @@ namespace PriceSafari.Services.PriceAutomationService
         public int Limit { get; set; }
     }
 
-    public class AutomationBadgeHistoryViewModel
-    {
-        public List<string> Dates { get; set; } = new List<string>();
-        public List<int> TopOfferCounts { get; set; } = new List<int>();
-        public List<int> SuperPriceCounts { get; set; } = new List<int>();
-        public List<int> BestPriceGuaranteeCounts { get; set; } = new List<int>();
-        public List<int> CampaignCounts { get; set; } = new List<int>();
-        public List<int> SubsidyCounts { get; set; } = new List<int>();
-
-        // NOWE POLE:
-        public List<int> TotalProductsCounts { get; set; } = new List<int>();
-    }
-
     public class AutomationSalesHistoryViewModel
     {
-        public List<string> Dates { get; set; } = new List<string>();
-        public List<long> MySales { get; set; } = new List<long>();
-        public List<long> MarketSales { get; set; } = new List<long>();
+        public List<string> Dates { get; set; } = new();
+        public List<long> MySales { get; set; } = new();
+        public List<long> MarketSales { get; set; } = new();
+        public List<int> ActiveOffersCount { get; set; } = new();
 
-        // NOWE POLE: Liczba ofert z obecnej puli, które istniały w danym dniu
-        public List<int> ActiveOffersCount { get; set; } = new List<int>();
+        // NOWE:
+        public List<int> ProductsWithDataCount { get; set; } = new();
+        public int TotalProductsInRule { get; set; }
     }
+
+    public class AutomationBadgeHistoryViewModel
+    {
+        public List<string> Dates { get; set; } = new();
+        public List<int> TopOfferCounts { get; set; } = new();
+        public List<int> SuperPriceCounts { get; set; } = new();
+        public List<int> BestPriceGuaranteeCounts { get; set; } = new();
+        public List<int> CampaignCounts { get; set; } = new();
+        public List<int> SubsidyCounts { get; set; } = new();
+        public List<int> TotalProductsCounts { get; set; } = new();
+
+        // NOWE:
+        public List<int> CoveredProductsCounts { get; set; } = new();
+        public int TotalProductsInRule { get; set; }
+    }
+
+
+
+    public class AutomationPricePositionHistoryViewModel
+    {
+        public List<string> Dates { get; set; } = new();
+
+        /// <summary>Bezwzględnie najtańsi — tylko my na pozycji 1</summary>
+        public List<int> Top1Solo { get; set; } = new();
+
+        /// <summary>Najtańsi ale ex aequo — nasza cena = najlepsza, ale ktoś jeszcze ją ma</summary>
+        public List<int> Top1ExAequo { get; set; } = new();
+
+        /// <summary>Pozycja 2–3</summary>
+        public List<int> Position2to3 { get; set; } = new();
+
+        /// <summary>Pozycja 4–5</summary>
+        public List<int> Position4to5 { get; set; } = new();
+
+        /// <summary>Pozycja 6–10</summary>
+        public List<int> Position6to10 { get; set; } = new();
+
+        /// <summary>Pozycja 11+</summary>
+        public List<int> Position11Plus { get; set; } = new();
+
+        /// <summary>Brak naszej oferty lub brak danych w scrapie</summary>
+        public List<int> NotRanked { get; set; } = new();
+
+        public int TotalProductsInRule { get; set; }
+    }
+
 }
