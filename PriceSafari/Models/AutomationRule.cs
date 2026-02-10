@@ -185,5 +185,20 @@ namespace PriceSafari.Models
         /// Czy zmieniać cenę dla ofert biorących udział w kampaniach/akcjach promocyjnych.
         /// </summary>
         public bool MarketplaceChangePriceForBadgeInCampaign { get; set; } = false;
+
+
+        /// <summary>
+        /// Czy blokować obniżkę ceny, jeśli spadłaby ona poniżej progu Smart (zdefiniowanego w SkipIfValueGoBelow).
+        /// </summary>
+        [Display(Name = "Ochrona progu Smart!")]
+        public bool BlockAtSmartValue { get; set; } = false;
+
+        /// <summary>
+        /// Wartość graniczna (np. 35.00 zł, 40.00 zł). Jeśli wyliczona cena ma spaść poniżej tej wartości
+        /// (ale jest wyższa od 0), automat zablokuje zmianę lub ustawi równo tę wartość (zależnie od logiki).
+        /// </summary>
+        [Column(TypeName = "decimal(18,2)")]
+        [Display(Name = "Wartość progu Smart")]
+        public decimal SkipIfValueGoBelow { get; set; } = 35.00m;
     }
 }

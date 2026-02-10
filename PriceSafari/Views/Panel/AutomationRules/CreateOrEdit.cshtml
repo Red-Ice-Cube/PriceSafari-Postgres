@@ -747,6 +747,96 @@
                         </div>
                     </div>
                 </div>
+                <div class="row-option">
+                    <div class="option-desc" style="max-width: 65%;">
+                        <div class="option-title">
+                            <span>Ochrona Progu Smart!</span>
+                            <div class="Smart-Allegro">
+                                <img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto;">
+                            </div>
+                        </div>
+
+                        <div class="option-subtitle">
+                            Zapobiegaj utracie darmowej wysyłki dla niewielkich obniżek cen poniżej 45,00 PLN.
+                        </div>
+
+                        <div class="option-subtitle">
+                            Z naszych analiz wynika, że klienci są w stanie zapłacić ok. 10 zł więcej, aby skorzystać z darmowej dostawy (np. wybierając ofertę 45 zł ze Smart! zamiast 35 zł bez).
+                        </div>
+                        <div class="option-subtitle">
+                             Każdy rynek jest jednak inny, dlatego pozostawiamy tę decyzję Tobie.
+                        </div>
+
+                        <div style="margin-top: 15px; font-size: 13px; color: #5a5c69;">
+                            <div style="margin-bottom: 10px; font-weight: 600;">
+                                Przykładowy scenariusz:
+                            </div>
+                            <div style="font-size: 13px; color: #858796; margin-bottom: 10px;">
+                                Twój cel to bycie tańszym o 1 grosz. Ustawiasz "LIMIT OCHRONY" na 35,00 PLN.
+                            </div>
+
+                            <div style="display: flex; flex-direction: column; gap: 13px;">
+                                <div style="padding-left: 10px; border-left: 3px solid #f1f3f9;">
+                                    <strong>Sytuacja A: Konkurent ma cenę 37,00 PLN</strong><br />
+                                    <span style="font-size: 13px;">(Cena jest poniżej Smart, ale powyżej Twojej granicy 35 zł)</span>
+                                    <div style="margin-top: 4px;">
+                                        <span style="color: #e74a3b;">NIE:</span> Automat ustawi 36,99 PLN (Tracisz Smarta).<br />
+                                        <span style="color: #1cc88a;">TAK:</span> Automat ustawi 45,00 PLN (Utrzymujesz Smarta, masz wyższą marżę).
+                                    </div>
+                                </div>
+
+                                <div style="padding-left: 10px; border-left: 3px solid #f1f3f9;">
+                                    <strong>Sytuacja B: Konkurent ma cenę 33,00 PLN</strong><br />
+                                    <span style="font-size: 13px;">(Cena spadła poniżej Twojej granicy 35 zł)</span>
+                                    <div style="margin-top: 4px;">
+                                        <span style="color: #1cc88a;">TAK:</span> Automat ustawi 32,99 PLN.<br />
+                                        <span style="font-size: 13px; font-style: italic;">Różnica cenowa jest zbyt duża, by "bronić" Smarta. System priorytetowo traktuje pozycję na liście ofert.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction:column; gap: 20px; align-self: flex-start;">
+                        <div class="switch-container switch-status @(Model.BlockAtSmartValue ? "state-right" : "state-left")"
+                             onclick="toggleSwitch(this); toggleInputs(this.querySelector('input'), 'smartValueInputContainer')">
+
+                            <input type="checkbox" asp-for="BlockAtSmartValue" />
+                            <div class="switch-slider-bg"></div>
+                            <div class="switch-labels">
+                                <span class="switch-label-text label-left">NIE</span>
+                                <span class="switch-label-text label-right">TAK</span>
+                            </div>
+                        </div>
+                        <div id="smartValueInputContainer"
+                             style="opacity: @(Model.BlockAtSmartValue ? "1" : "0.5");
+                                        pointer-events: @(Model.BlockAtSmartValue ? "auto" : "none");
+                                        transition: opacity 0.3s; display: flex; flex-direction:column; gap: 2px;">
+
+                            <label style="margin:0; font-size:13px; color:#858796; text-align:left; font-weight:500;">LIMIT OCHRONY</label>
+
+                            @* <div style="display:flex; align-items:center; gap:8px;">
+                                <input asp-for="SkipIfValueGoBelow" type="number" step="0.01"
+                                       class="form-control-custom input-narrow"
+                                       style="width: 110px; text-align: right; height: 45px; font-weight:500;" />
+                                <span style="font-weight: 500; font-size:13px; color: #2e3035;">PLN</span>
+                            </div> *@
+
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <input asp-for="SkipIfValueGoBelow" type="number" step="0.01" 
+                                       min="0.01" max="44.99"
+                                       class="form-control-custom input-narrow" 
+                                       style="width: 110px;  height: 45px; font-weight:500;"
+                                       onchange="validateSmartThreshold(this)" 
+                                       title="Wartość musi być większa od 0 i mniejsza niż 45.00 PLN" />
+                                <span style="font-weight: 500; font-size:13px; color: #2e3035;">PLN</span>
+                            </div>
+                        </div>
+
+                      
+
+                    </div>
+                </div>
             }
             else
             {
@@ -912,6 +1002,27 @@
                 }
             }
         };
+
+        window.validateSmartThreshold = function(input) {
+            let val = parseFloat(input.value);
+
+            // 1. Walidacja minimum (0.01)
+            if (isNaN(val) || val <= 0) {
+                alert("Granica przebicia musi być większa od 0.");
+                input.value = 0.01;
+                return;
+            }
+
+            // 2. Walidacja maksimum (44.99)
+            // Logika: Nie ma sensu chronić Smarta powyżej kwoty 45 zł,
+            // bo wtedy i tak mamy darmową wysyłkę.
+            const allegroSmartThreshold = 45.00;
+
+            if (val >= allegroSmartThreshold) {
+                alert(`Granica przebicia nie może być wyższa niż próg Smart! (${allegroSmartThreshold.toFixed(2)} PLN).\n\nJeśli ustawisz tu więcej, mechanizm ochrony nie zadziała, ponieważ Twoja granica będzie wyższa niż sufit Smarta.`);
+                input.value = 44.99;
+            }
+        }
 
         window.toggleInputs = function(switchEl, containerId) {
             const container = document.getElementById(containerId);

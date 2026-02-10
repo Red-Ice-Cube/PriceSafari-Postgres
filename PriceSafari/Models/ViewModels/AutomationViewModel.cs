@@ -149,6 +149,8 @@ namespace PriceSafari.Models.ViewModels
 
         public bool IsMissingPlatformWarning { get; set; }
         public string MissingPlatformName { get; set; }
+
+        public bool IsSmartPriceAdjusted { get; set; } = false;
     }
 
     public class AutomationExecutionRequest
