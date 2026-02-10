@@ -851,22 +851,42 @@ namespace PriceSafari.Services.PriceAutomationService
                 return;
             }
 
-            decimal idealPrice = suggested;
+            // 4. APLIKACJA LIMITÓW - TU JEST KLUCZOWA ZMIANA
             bool wasLimited = false;
 
             if (row.MinPriceLimit.HasValue)
             {
                 if (suggested < row.MinPriceLimit.Value)
                 {
-                    if (rule.SkipIfMarkupLimited)
-                    {
-                        ApplyBlock(row, "Blokada Narzutu");
-                        return;
-                    }
+                    // --- LOGIKA NAPRAWY MARŻY (MARGIN RECOVERY) ---
+                    // Sprawdzamy, czy nowa cena (suggested) jest wyższa od obecnej (basePrice).
+                    // Jeśli suggested > basePrice, to znaczy że podnosimy cenę, czyli poprawiamy sytuację,
+                    // nawet jeśli nadal jesteśmy "pod kreską" limitu.
 
-                    suggested = row.MinPriceLimit.Value;
-                    row.IsMarginWarning = true;
-                    wasLimited = true;
+                    bool isPriceImprovement = suggested > basePrice;
+
+                    if (isPriceImprovement)
+                    {
+                        // Pozwalamy na tę cenę.
+                        // Ustawiamy flagę ostrzeżenia, żeby użytkownik widział żółty kolor w panelu.
+                        row.IsMarginWarning = true;
+
+                        // NIE ustawiamy wasLimited = true, ponieważ chcemy użyć wyliczonej ceny (np. 32.99),
+                        // a nie ceny minimalnej (np. 35.00).
+                    }
+                    else
+                    {
+                        // Standardowa logika: Blokada lub Równanie do Podłogi
+                        if (rule.SkipIfMarkupLimited)
+                        {
+                            ApplyBlock(row, "Blokada Narzutu");
+                            return;
+                        }
+
+                        suggested = row.MinPriceLimit.Value;
+                        row.IsMarginWarning = true;
+                        wasLimited = true;
+                    }
                 }
             }
 
@@ -879,6 +899,7 @@ namespace PriceSafari.Services.PriceAutomationService
                 }
             }
 
+            // 5. Finalizacja
             row.SuggestedPrice = Math.Round(suggested, 2);
             decimal finalSuggested = row.SuggestedPrice.Value;
             decimal finalBase = Math.Round(basePrice, 2);
