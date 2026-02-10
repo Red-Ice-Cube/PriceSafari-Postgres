@@ -900,31 +900,26 @@
                         Analiza Automatu
                     </div>
 
-                    @* Toggle ZAWSZE widoczny — Marketplace: 4 opcje, PriceComparison: 2 opcje *@
-                    <div class="seg-toggle" role="group">
-                        <button type="button" id="viewModeExec" class="button-active seg-btn-left"
-                                style="border-radius: 4px 0 0 4px;"
+                    <div class="period-selector-group">
+                        <button type="button" id="viewModeExec" class="period-btn-custom active"
                                 onclick="switchChartMode('execution')">
                             <i class="fas fa-chart-bar" style="margin-right: 4px;"></i> Wykonania
                         </button>
 
                         @if (isMarketplace)
                         {
-                            <button type="button" id="viewModeSales" class="button-inactive"
-                                    style="border-radius: 0; border-left: 1px solid #ccc;"
+                            <button type="button" id="viewModeSales" class="period-btn-custom"
                                     onclick="switchChartMode('sales')">
                                 <i class="fas fa-chart-line" style="margin-right: 4px;"></i> Sprzedaż
                             </button>
 
-                            <button type="button" id="viewModeBadges" class="button-inactive"
-                                    style="border-radius: 0; border-left: 1px solid #ccc;"
+                            <button type="button" id="viewModeBadges" class="period-btn-custom"
                                     onclick="switchChartMode('badges')">
                                 <i class="fas fa-medal" style="margin-right: 4px;"></i> Odznaki
                             </button>
                         }
 
-                        <button type="button" id="viewModePosition" class="button-inactive seg-btn-right"
-                                style="border-radius: 0 4px 4px 0; border-left: 1px solid #ccc;"
+                        <button type="button" id="viewModePosition" class="period-btn-custom"
                                 onclick="switchChartMode('position')">
                             <i class="fas fa-trophy" style="margin-right: 4px;"></i> Pozycja cenowa
                         </button>
@@ -2247,7 +2242,13 @@
 
         const isMarketplaceContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
         const totalProductsInRuleNow = parseInt('@Model.TotalProducts') || 0;
-
+                const loaderConfig = {
+            text: 'Ładowanie...',   // Twój tekst
+            color: '#000000',       // Kolor "kręciołka" (czarny)
+            textColor: '#000000',   // Kolor tekstu (czarny)
+            maskColor: 'rgba(255, 255, 255, 0.8)', // Białe tło z lekką przezroczystością
+            zlevel: 0
+        };
         // =============================================
         // HELPERY DO TOOLTIPÓW (UJEDNOLICENIE)
         // =============================================
@@ -2301,39 +2302,39 @@
                 + '</div>';
         }
 
-        // =============================================
-        // PRZEŁĄCZANIE WIDOKÓW
-        // =============================================
-        function switchChartMode(mode) {
+               function switchChartMode(mode) {
             currentMode = mode;
 
+            // 1. Resetujemy klasę 'active' na wszystkich przyciskach tego typu
             $('#viewModeExec, #viewModeSales, #viewModeBadges, #viewModePosition')
-                .removeClass('button-active').addClass('button-inactive');
+                .removeClass('active');
 
+            // 2. Ukrywamy wszystkie kontenery wykresów
             $('#executionChartsContainer, #salesChartContainer, #badgeChartContainer, #positionChartContainer').hide();
 
+            // 3. Logika włączania odpowiedniego przycisku i kontenera
             if (mode === 'execution') {
-                $('#viewModeExec').addClass('button-active').removeClass('button-inactive');
+                $('#viewModeExec').addClass('active');
                 $('#executionChartsContainer').css('display', 'flex');
                 if (chartEff) chartEff.resize();
                 if (chartDyn) chartDyn.resize();
             }
             else if (mode === 'sales') {
-                $('#viewModeSales').addClass('button-active').removeClass('button-inactive');
+                $('#viewModeSales').addClass('active');
                 $('#salesChartContainer').show();
                 if (!chartSales) chartSales = echarts.init(document.getElementById('chartSales'));
                 chartSales.resize();
                 loadSalesHistoryData(currentLimit);
             }
             else if (mode === 'badges') {
-                $('#viewModeBadges').addClass('button-active').removeClass('button-inactive');
+                $('#viewModeBadges').addClass('active');
                 $('#badgeChartContainer').show();
                 if (!chartBadges) chartBadges = echarts.init(document.getElementById('chartBadges'));
                 chartBadges.resize();
                 loadBadgeHistoryData(currentLimit);
             }
             else if (mode === 'position') {
-                $('#viewModePosition').addClass('button-active').removeClass('button-inactive');
+                $('#viewModePosition').addClass('active');
                 $('#positionChartContainer').show();
                 if (!chartPosition) chartPosition = echarts.init(document.getElementById('chartPosition'));
                 chartPosition.resize();
@@ -2341,19 +2342,16 @@
             }
         }
 
-        // =============================================
-        // LOADING & AJAX
-        // =============================================
         function showChartLoading() {
             if (currentMode === 'execution') {
-                if (chartEff) chartEff.showLoading();
-                if (chartDyn) chartDyn.showLoading();
+                if (chartEff) chartEff.showLoading('default', loaderConfig);
+                if (chartDyn) chartDyn.showLoading('default', loaderConfig);
             } else if (currentMode === 'sales') {
-                if (chartSales) chartSales.showLoading();
+                if (chartSales) chartSales.showLoading('default', loaderConfig);
             } else if (currentMode === 'badges') {
-                if (chartBadges) chartBadges.showLoading();
+                if (chartBadges) chartBadges.showLoading('default', loaderConfig);
             } else if (currentMode === 'position') {
-                if (chartPosition) chartPosition.showLoading();
+                if (chartPosition) chartPosition.showLoading('default', loaderConfig);
             }
         }
 
@@ -2387,7 +2385,7 @@
 
         function loadSalesHistoryData(limit) {
             if (!chartSales) chartSales = echarts.init(document.getElementById('chartSales'));
-            chartSales.showLoading();
+            chartSales.showLoading('default', loaderConfig);
 
             $.ajax({
                 url: '@Url.Action("GetAutomationSalesHistory", "PriceAutomation")',
@@ -2407,7 +2405,7 @@
 
         function loadBadgeHistoryData(limit) {
             if (!chartBadges) chartBadges = echarts.init(document.getElementById('chartBadges'));
-            chartBadges.showLoading();
+            chartBadges.showLoading('default', loaderConfig);
 
             $.ajax({
                 url: '@Url.Action("GetAutomationBadgeHistory", "PriceAutomation")',
@@ -2424,7 +2422,7 @@
 
         function loadPricePositionHistoryData(limit) {
             if (!chartPosition) chartPosition = echarts.init(document.getElementById('chartPosition'));
-            chartPosition.showLoading();
+            chartPosition.showLoading('default', loaderConfig);
 
             $.ajax({
                 url: '@Url.Action("GetAutomationPricePositionHistory", "PriceAutomation")',
