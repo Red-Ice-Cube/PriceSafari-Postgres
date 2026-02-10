@@ -1128,7 +1128,7 @@
                             }
 
                             bool isMissingOwnOffer = item.IsMissingPlatformWarning ||
-                            (item.BlockReason != null && item.BlockReason.StartsWith("Brak oferty"));
+                            (item.BlockReason != null && (item.BlockReason.StartsWith("Brak oferty") || item.BlockReason == "Brak Twojej Oferty" || item.BlockReason == "Brak Ceny Obecnej"));
 
                             bool isNoCompetition = !item.BestCompetitorPrice.HasValue ||
                             item.BlockReason == "Brak Danych";
