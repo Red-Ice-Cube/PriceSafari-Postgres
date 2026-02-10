@@ -1561,6 +1561,14 @@
                     <span class="price-main-style @(item.IsMarginWarning ? "text-warning" : "text-success")">
                         @(item.SuggestedPrice.HasValue? item.SuggestedPrice.Value.ToString("F2") : "-") PLN
                     </span>
+                    @if (item.IsSmartPriceAdjusted)
+                    {
+                          <span style="color: #6f42c1; cursor: help; font-size: 14px;"
+                                data-toggle="tooltip"
+                                 title="Ochrona Smart! Cena została podniesiona do 45,00 PLN, aby zachować darmową wysyłkę, mimo że automat wyliczył niższą kwotę.">
+                                <i class="fas fa-exclamation-triangle"></i>
+                          </span>
+                    }
                     @if (item.IsMissingPlatformWarning)
                     {
                         <span class="text-warning"

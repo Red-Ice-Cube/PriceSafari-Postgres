@@ -922,6 +922,213 @@ namespace PriceSafari.Services.PriceAutomationService
         //}
 
 
+        //private void CalculateSuggestedPrice(AutomationRule rule, AutomationProductRowViewModel row)
+        //{
+        //    // 1. NAJPIERW pobieramy cenę bazową.
+        //    // Jeśli jej nie ma, blokujemy od razu (unikamy fałszywych błędów "Ocena Kampanii").
+        //    decimal basePrice = row.ApiAllegroPriceFromUser ?? row.CurrentPrice ?? 0;
+
+        //    if (basePrice == 0)
+        //    {
+        //        row.SuggestedPrice = null;
+        //        row.Status = AutomationCalculationStatus.Blocked;
+        //        row.BlockReason = "Brak Twojej Oferty";
+        //        return;
+        //    }
+
+        //    // 2. Wyliczenie limitów cenowych (Min/Max)
+        //    decimal extraCost = 0;
+        //    if (rule.SourceType == AutomationSourceType.Marketplace &&
+        //        rule.MarketplaceIncludeCommission &&
+        //        row.CommissionAmount.HasValue)
+        //    {
+        //        extraCost = row.CommissionAmount.Value;
+        //    }
+
+        //    if (rule.EnforceMinimalMarkup && row.PurchasePrice.HasValue && row.PurchasePrice > 0)
+        //    {
+        //        decimal minLimit;
+        //        if (rule.IsMinimalMarkupPercent)
+        //            minLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MinimalMarkupValue / 100)) + extraCost;
+        //        else
+        //            minLimit = row.PurchasePrice.Value + rule.MinimalMarkupValue + extraCost;
+
+        //        row.MinPriceLimit = Math.Round(minLimit, 2);
+        //    }
+
+        //    if (rule.EnforceMaxMarkup && row.PurchasePrice.HasValue && row.PurchasePrice > 0)
+        //    {
+        //        decimal maxLimit;
+        //        if (rule.IsMaxMarkupPercent)
+        //            maxLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MaxMarkupValue / 100)) + extraCost;
+        //        else
+        //            maxLimit = row.PurchasePrice.Value + rule.MaxMarkupValue + extraCost;
+
+        //        row.MaxPriceLimit = Math.Round(maxLimit, 2);
+        //    }
+
+        //    // 3. Walidacja reguł Marketplace (Allegro)
+        //    if (rule.SourceType == AutomationSourceType.Marketplace)
+        //    {
+        //        bool missingApiData = !row.CommissionAmount.HasValue;
+
+        //        if (missingApiData)
+        //        {
+        //            if (rule.MarketplaceIncludeCommission)
+        //            {
+        //                ApplyBlock(row, "Brak Prowizji");
+        //                return;
+        //            }
+
+        //            if (!rule.MarketplaceChangePriceForBadgeInCampaign)
+        //            {
+        //                ApplyBlock(row, "Ocena Kampanii");
+        //                return;
+        //            }
+        //        }
+
+        //        if (row.IsInAnyCampaign && !rule.MarketplaceChangePriceForBadgeInCampaign)
+        //        {
+        //            ApplyBlock(row, "Aktywna Kampania");
+        //            return;
+        //        }
+
+        //        if (row.IsSuperPrice && !rule.MarketplaceChangePriceForBadgeSuperPrice)
+        //        {
+        //            ApplyBlock(row, "Super Cena");
+        //            return;
+        //        }
+
+        //        if (row.IsTopOffer && !rule.MarketplaceChangePriceForBadgeTopOffer)
+        //        {
+        //            ApplyBlock(row, "Top Oferta");
+        //            return;
+        //        }
+
+        //        if (row.IsBestPriceGuarantee && !rule.MarketplaceChangePriceForBadgeBestPriceGuarantee)
+        //        {
+        //            ApplyBlock(row, "Gwarancja Ceny");
+        //            return;
+        //        }
+        //    }
+
+        //    // 4. Walidacja ceny zakupu
+        //    if (rule.UsePurchasePrice && (!row.PurchasePrice.HasValue || row.PurchasePrice <= 0))
+        //    {
+        //        ApplyBlock(row, "Brak Ceny Zakupu");
+        //        return;
+        //    }
+
+        //    // 5. Obliczenie ceny sugerowanej (Symulacja)
+        //    decimal suggested = basePrice;
+        //    bool calculationPossible = false;
+
+        //    if (rule.StrategyMode == AutomationStrategyMode.Competitiveness)
+        //    {
+        //        if (row.BestCompetitorPrice.HasValue)
+        //        {
+        //            decimal targetVisiblePrice;
+        //            if (rule.IsPriceStepPercent)
+        //                targetVisiblePrice = row.BestCompetitorPrice.Value + (row.BestCompetitorPrice.Value * (rule.PriceStep / 100));
+        //            else
+        //                targetVisiblePrice = row.BestCompetitorPrice.Value + rule.PriceStep;
+
+        //            decimal subsidyAmount = (row.ApiAllegroPriceFromUser.HasValue && row.CurrentPrice.HasValue)
+        //                                    ? row.ApiAllegroPriceFromUser.Value - row.CurrentPrice.Value
+        //                                    : 0;
+
+        //            suggested = targetVisiblePrice + subsidyAmount;
+        //            calculationPossible = true;
+        //        }
+        //    }
+        //    else if (rule.StrategyMode == AutomationStrategyMode.Profit)
+        //    {
+        //        if (row.MarketAveragePrice.HasValue && row.MarketAveragePrice.Value > 0)
+        //        {
+        //            decimal targetVisiblePrice = row.MarketAveragePrice.Value * (rule.PriceIndexTargetPercent / 100);
+        //            decimal subsidyAmount = (row.ApiAllegroPriceFromUser.HasValue && row.CurrentPrice.HasValue)
+        //                                    ? row.ApiAllegroPriceFromUser.Value - row.CurrentPrice.Value
+        //                                    : 0;
+
+        //            suggested = targetVisiblePrice + subsidyAmount;
+        //            calculationPossible = true;
+        //        }
+        //    }
+
+        //    if (!calculationPossible)
+        //    {
+        //        row.SuggestedPrice = null;
+        //        row.Status = AutomationCalculationStatus.Blocked;
+        //        row.BlockReason = "Brak Konkurencji";
+        //        return;
+        //    }
+
+        //    // 6. Aplikacja limitów (z logiką Margin Recovery)
+        //    bool wasLimited = false;
+
+        //    if (row.MinPriceLimit.HasValue)
+        //    {
+        //        if (suggested < row.MinPriceLimit.Value)
+        //        {
+        //            // --- LOGIKA NAPRAWY MARŻY (MARGIN RECOVERY) ---
+        //            // Jeśli nowa cena jest wyższa od obecnej, pozwalamy na zmianę,
+        //            // mimo że wciąż jesteśmy poniżej limitu.
+        //            bool isPriceImprovement = suggested > basePrice;
+
+        //            if (isPriceImprovement)
+        //            {
+        //                // Pozwalamy na zmianę, ale oznaczamy ostrzeżeniem (żółty narzut w widoku)
+        //                row.IsMarginWarning = true;
+        //            }
+        //            else
+        //            {
+        //                // Standardowa blokada lub równanie do minimum
+        //                if (rule.SkipIfMarkupLimited)
+        //                {
+        //                    ApplyBlock(row, "Blokada Narzutu");
+        //                    return;
+        //                }
+
+        //                suggested = row.MinPriceLimit.Value;
+        //                row.IsMarginWarning = true;
+        //                wasLimited = true;
+        //            }
+        //        }
+        //    }
+
+        //    if (row.MaxPriceLimit.HasValue)
+        //    {
+        //        if (suggested > row.MaxPriceLimit.Value)
+        //        {
+        //            suggested = row.MaxPriceLimit.Value;
+        //            wasLimited = true;
+        //        }
+        //    }
+
+        //    // 7. Finalizacja wyników
+        //    row.SuggestedPrice = Math.Round(suggested, 2);
+        //    decimal finalSuggested = row.SuggestedPrice.Value;
+        //    decimal finalBase = Math.Round(basePrice, 2);
+        //    row.PriceChange = Math.Round(finalSuggested - finalBase, 2);
+
+        //    if (wasLimited)
+        //    {
+        //        row.Status = AutomationCalculationStatus.PriceLimited;
+        //    }
+        //    else if (row.PriceChange == 0)
+        //    {
+        //        row.Status = AutomationCalculationStatus.TargetMaintained;
+        //    }
+        //    else
+        //    {
+        //        row.Status = AutomationCalculationStatus.TargetMet;
+        //    }
+
+        //    CalculateMarkup(row);
+        //}
+
+
+
         private void CalculateSuggestedPrice(AutomationRule rule, AutomationProductRowViewModel row)
         {
             // 1. NAJPIERW pobieramy cenę bazową.
@@ -1063,6 +1270,32 @@ namespace PriceSafari.Services.PriceAutomationService
                 return;
             }
 
+            // ==============================================================================
+            // 5a. OCHRONA PROGU SMART! (Allegro)
+            // ==============================================================================
+            if (rule.SourceType == AutomationSourceType.Marketplace && rule.BlockAtSmartValue)
+            {
+                // Sztywny próg Smart na Allegro
+                decimal allegroSmartThreshold = 45.00m;
+
+                // Jeśli wyliczona cena (suggested) spada poniżej progu Smart, ale jest wyższa od 0...
+                if (suggested < allegroSmartThreshold && suggested > 0)
+                {
+                    // ...sprawdzamy czy mieści się w "strefie obrony" (jest powyżej Twojego dolnego limitu ochrony)
+                    // Np. Limit ochrony: 35.00. Wyliczona: 42.00. -> Warunek spełniony.
+                    if (suggested >= rule.SkipIfValueGoBelow)
+                    {
+                        // Podciągamy cenę sztucznie do 45.00 PLN, aby zachować darmową wysyłkę
+                        suggested = allegroSmartThreshold;
+
+                        // Ustawiamy flagę informacyjną dla widoku
+                        row.IsSmartPriceAdjusted = true;
+                    }
+                    // W przeciwnym razie (jeśli wyliczona to np. 34.00, a limit ochrony to 35.00):
+                    // Nic nie robimy -> cena spada do 34.00 (tracimy Smart, ale walczymy ceną).
+                }
+            }
+
             // 6. Aplikacja limitów (z logiką Margin Recovery)
             bool wasLimited = false;
 
@@ -1126,7 +1359,6 @@ namespace PriceSafari.Services.PriceAutomationService
 
             CalculateMarkup(row);
         }
-
 
         private void CalculateMarkup(AutomationProductRowViewModel row)
         {
