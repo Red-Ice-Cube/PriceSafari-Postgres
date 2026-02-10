@@ -928,9 +928,9 @@
                 </div>
 
                 <div class="period-selector-group">
-                    <button type="button" class="period-btn-custom active history-btn" data-days="7">7 Dni</button>
-                    <button type="button" class="period-btn-custom history-btn" data-days="14">14 Dni</button>
-                    <button type="button" class="period-btn-custom history-btn" data-days="30">30 Dni</button>
+                    <button type="button" class="period-btn-custom active history-btn" data-days="7">7 Analiz</button>
+                    <button type="button" class="period-btn-custom history-btn" data-days="14">14 Analiz</button>
+                    <button type="button" class="period-btn-custom history-btn" data-days="30">30 Analiz</button>
                 </div>
             </div>
 
@@ -2302,22 +2302,28 @@
                 + '</div>';
         }
 
-               function switchChartMode(mode) {
+        function switchChartMode(mode) {
             currentMode = mode;
 
-            // 1. Resetujemy klasę 'active' na wszystkich przyciskach tego typu
+            // 1. Resetujemy klasę 'active' na przyciskach
             $('#viewModeExec, #viewModeSales, #viewModeBadges, #viewModePosition')
                 .removeClass('active');
 
-            // 2. Ukrywamy wszystkie kontenery wykresów
+            // 2. Ukrywamy wszystkie kontenery
             $('#executionChartsContainer, #salesChartContainer, #badgeChartContainer, #positionChartContainer').hide();
 
-            // 3. Logika włączania odpowiedniego przycisku i kontenera
+            // 3. Logika włączania
             if (mode === 'execution') {
                 $('#viewModeExec').addClass('active');
                 $('#executionChartsContainer').css('display', 'flex');
+
                 if (chartEff) chartEff.resize();
                 if (chartDyn) chartDyn.resize();
+
+                // --- TO JEST TA ZMIANA ---
+                // Wymuszamy załadowanie danych dla aktualnie wybranego okresu (currentLimit)
+                loadHistoryData(currentLimit);
+                // -------------------------
             }
             else if (mode === 'sales') {
                 $('#viewModeSales').addClass('active');
