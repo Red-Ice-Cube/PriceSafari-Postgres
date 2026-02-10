@@ -352,7 +352,7 @@
     .Chart-Box-a {
         display: flex;
         flex-grow: 1;
-        min-height: 320px;
+        min-height: 500px;
         padding: 24px;
         flex-direction: column;
         align-items: center;
@@ -941,24 +941,24 @@
 
 
             <div id="executionChartsContainer" style="display: flex; width: 100%; gap: 20px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 300px; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+                <div style="flex: 1; min-width: 300px; height: 400px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
                     <div id="chartEffectiveness" style="width: 100%; height: 100%;"></div>
                 </div>
-                <div style="flex: 1; min-width: 300px; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+                <div style="flex: 1; min-width: 300px; height: 400px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
                     <div id="chartDynamics" style="width: 100%; height: 100%;"></div>
                 </div>
             </div>
 
-            <div id="salesChartContainer" style="display: none; width: 100%; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+            <div id="salesChartContainer" style="display: none; width: 100%; height: 400px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
                 <div id="chartSales" style="width: 100%; height: 100%;"></div>
             </div>
 
-            <div id="badgeChartContainer" style="display: none; width: 100%; height: 320px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+            <div id="badgeChartContainer" style="display: none; width: 100%; height: 400px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
                 <div id="chartBadges" style="width: 100%; height: 100%;"></div>
             </div>
 
             @* --- NOWY KONTENER: POZYCJA CENOWA --- *@
-            <div id="positionChartContainer" style="display: none; width: 100%; height: 380px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+            <div id="positionChartContainer" style="display: none; width: 100%; height: 400px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
                 <div id="chartPosition" style="width: 100%; height: 100%;"></div>
             </div>
 
@@ -2724,8 +2724,8 @@
                             data: data.productsWithDataCount,
                             smooth: false,
                             symbol: 'none',
-                            itemStyle: { color: '#d1d3e2' },
-                            lineStyle: { width: 1.5, color: '#d1d3e2', type: 'dotted' }
+                              itemStyle: { color: '#777777' },
+                                lineStyle: { width: 1.5, color: '#777777', type: 'dotted' }
                         }
                     ]
                 };
@@ -2844,8 +2844,8 @@
                         data: data.coveredProductsCounts,
                         smooth: false,
                         symbol: 'none',
-                        itemStyle: { color: '#d1d3e2' },
-                        lineStyle: { width: 1.5, color: '#d1d3e2', type: 'dotted' },
+                            itemStyle: { color: '#777777' },
+                            lineStyle: { width: 1.5, color: '#777777', type: 'dotted' },
                         z: 0
                     }
                 ]
@@ -2864,7 +2864,7 @@
                 pos4to5: '#fd7e14',
                 pos6to10: '#e74a3b',
                 pos11plus: '#852b24',
-                notRanked: '#d1d3e2'
+                notRanked: '#777777'
             };
 
             // --- OBLICZANIE WSPÓLNEJ SKALI ---
@@ -2884,7 +2884,7 @@
             var option = {
                 title: {
                     text: 'Pozycja Cenowa w Czasie',
-                    subtext: 'Gdzie plasują się Twoje oferty względem rywali',
+                    subtext: 'Dane dla ' + totalInRule + ' produktów obecnie w automacie',
                     left: 'center',
                     textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' },
                     subtextStyle: { fontSize: 11, color: '#999' }
