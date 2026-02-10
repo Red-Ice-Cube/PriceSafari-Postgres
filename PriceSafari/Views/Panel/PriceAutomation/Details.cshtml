@@ -752,16 +752,16 @@
 
             <div style="display: flex; align-items: center;">
                 <div class="Order-Container-Title" style="font-size: 23px;">
-                   Automat cenowy <strong>@Model.RuleName</strong>
-               
+                    Automat cenowy <strong>@Model.RuleName</strong>
+
                 </div>
 
-             
+
             </div>
 
             <div style="display: flex; align-items: center; gap: 10px;">
 
-               
+
 
                 <div class="header-info-box">
                     <div class="strategy-text @strategyClass">
@@ -796,35 +796,33 @@
     </div>
 
 
-
-
     <div class="Vert">
         <div class="kpi-container">
 
-        
-            
 
-                <div class="kpi-card">
-                  
-                    <div class="kpi-title">
-                        Przypisane Produkty
-                        <i class="fas fa-cube text-gray-400"></i>
-                    </div>
-                    <div class="kpi-value-big">@Model.TotalProducts</div>
 
-                    <div class="kpi-subtext" style="display:flex; align-items:center; gap:6px;">
-                        <i class="fas fa-clock" style="font-size: 12px; width: 12px; text-align: center;"></i>
-                        <span>Aktualizacja: @(Model.LastScrapDate.HasValue? Model.LastScrapDate.Value.ToString("dd.MM HH:mm") : "-")</span>
-                    </div>
-
-                    <div class="kpi-subtext" style="display:flex; align-items:center; gap:6px; margin-top:3px;">
-                        <i class="fas fa-store" style="font-size: 12px; width: 12px; text-align: center;"></i>
-                        <span>Sklep: @Model.StoreName</span>
-                    </div>
-                </div>
 
             <div class="kpi-card">
-          
+
+                <div class="kpi-title">
+                    Przypisane Produkty
+                    <i class="fas fa-cube text-gray-400"></i>
+                </div>
+                <div class="kpi-value-big">@Model.TotalProducts</div>
+
+                <div class="kpi-subtext" style="display:flex; align-items:center; gap:6px;">
+                    <i class="fas fa-clock" style="font-size: 12px; width: 12px; text-align: center;"></i>
+                    <span>Aktualizacja: @(Model.LastScrapDate.HasValue? Model.LastScrapDate.Value.ToString("dd.MM HH:mm") : "-")</span>
+                </div>
+
+                <div class="kpi-subtext" style="display:flex; align-items:center; gap:6px; margin-top:3px;">
+                    <i class="fas fa-store" style="font-size: 12px; width: 12px; text-align: center;"></i>
+                    <span>Sklep: @Model.StoreName</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+
 
                 <div class="kpi-title">
                     Skuteczność Reguły
@@ -846,7 +844,7 @@
             </div>
 
             <div class="kpi-card">
-             
+
 
                 <div class="kpi-title">
                     Dynamika Zmian
@@ -883,13 +881,6 @@
 
         </div>
     </div>
-
-
-
-
-
-
-
 
     <div class="Vert">
         <div class="Chart-Box-a" style="width: 100%; min-height: 400px;">
@@ -952,22 +943,13 @@
                 <div id="chartBadges" style="width: 100%; height: 100%;"></div>
             </div>
 
-            @* --- NOWY KONTENER: POZYCJA CENOWA --- *@
+    
             <div id="positionChartContainer" style="display: none; width: 100%; height: 440px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
                 <div id="chartPosition" style="width: 100%; height: 100%;"></div>
             </div>
 
         </div>
     </div>
-
-
-
-
-
-
-
-
-
 
     <div class="Vert">
         <div class="Date" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -1181,7 +1163,6 @@
                                 }
                             }
 
-
                             <tr data-price-change="@priceChangeType"
                                 data-status="@item.Status.ToString()"
                                 data-limit-type="@limitType"
@@ -1237,10 +1218,10 @@
                                         }
                                     </div>
                                     <div class="small text-muted mb-1 mt-1">
-                                        @item.Identifier
+                                        ID: @item.Identifier
                                         @if (item.ApiAllegroPriceFromUser.HasValue)
                                         {
-                                            <span class="text-xs ml-1 text-gray-500" title="Cena bazowa w API (przed dopłatami)">(API: @item.ApiAllegroPriceFromUser)</span>
+                                            <span class="text-xs ml-1 text-gray-500" title="Cena bazowa w API (przed dopłatami)"> | API: @item.ApiAllegroPriceFromUser</span>
                                         }
                                     </div>
                                     <div class="mt-2">
@@ -1248,6 +1229,7 @@
                                         <button class="select-product-btn"
                                                 data-product-id="@item.ProductId"
                                                 data-product-name="@item.Name"
+                                                data-identifier="@item.Identifier"
                                                 style="font-size: 11px; padding: 2px 8px; width: 100px; pointer-events: auto;">
                                             Zaznacz
                                         </button>
@@ -1547,179 +1529,188 @@
                                     </div>
                                 </td>
                                 <td class="align-middle text-right bg-light border-left-primary">
-    <div class="d-flex flex-column" style="width:100%;">
-        <div class="price-row-space">
-            @if (item.Status == AutomationCalculationStatus.Blocked)
-            {
-                <div class="price-main-style" style="color:#6C757D;">
-                    @(item.SuggestedPrice?.ToString("F2") ?? "-") PLN
-                </div>
-            }
-            else
-            {
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span class="price-main-style @(item.IsMarginWarning ? "text-warning" : "text-success")">
-                        @(item.SuggestedPrice.HasValue? item.SuggestedPrice.Value.ToString("F2") : "-") PLN
-                    </span>
-                    @if (item.IsSmartPriceAdjusted)
-                    {
-                          <span style="color: #6f42c1; cursor: help; font-size: 14px;"
-                                data-toggle="tooltip"
-                                 title="Ochrona Smart! Cena została podniesiona do 45,00 PLN, aby zachować darmową wysyłkę, mimo że automat wyliczył niższą kwotę.">
-                                <i class="fas fa-exclamation-triangle"></i>
-                          </span>
-                    }
-                    @if (item.IsMissingPlatformWarning)
-                    {
-                        <span class="text-warning"
-                              style="cursor: help; font-size: 14px;"
-                              data-toggle="tooltip"
-                              data-html="true"
-                              title="Uwaga! Twoja oferta nie jest widoczna na platformie @item.MissingPlatformName, gdzie znajduje się Twój rywal. Cena została wyliczona na podstawie danych z innego źródła.">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </span>
-                    }
-                    @if (item.IsSuggestedDifferentFromUpdated)
-                    {
-                        <span class="text-warning"
-                              style="cursor: help; font-size: 14px;"
-                              data-toggle="tooltip"
-                              data-html="true"
-                              title="Uwaga! Aktualnie wyliczona cena różni się od ceny już wgranej. Zmieniły się warunki (np. krok cenowy, preset danych) lub ustawienia reguły tego automatu cenowego.">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </span>
-                    }
-                </div>
-            }
+                                    <div class="d-flex flex-column" style="width:100%;">
+                                        <div class="price-row-space">
+                                            @if (item.Status == AutomationCalculationStatus.Blocked)
+                                            {
+                                                <div class="price-main-style" style="color:#6C757D;">
+                                                    @(item.SuggestedPrice?.ToString("F2") ?? "-") PLN
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    <span class="price-main-style @(item.IsMarginWarning ? "text-warning" : "text-success")">
+                                                        @(item.SuggestedPrice.HasValue? item.SuggestedPrice.Value.ToString("F2") : "-") PLN
+                                                    </span>
+                                                    @if (item.IsSmartPriceAdjusted)
+                                                    {
+                                                        <span style="color: #6f42c1; cursor: help; font-size: 14px;"
+                                                              data-toggle="tooltip"
+                                                              title="Ochrona Smart! Cena została podniesiona do 45,00 PLN, aby zachować darmową wysyłkę, mimo że automat wyliczył niższą kwotę.">
+                                                            <i class="fas fa-exclamation-triangle"></i>
+                                                        </span>
+                                                    }
+                                                    @if (item.IsMissingPlatformWarning)
+                                                    {
+                                                        <span class="text-warning"
+                                                              style="cursor: help; font-size: 14px;"
+                                                              data-toggle="tooltip"
+                                                              data-html="true"
+                                                              title="Uwaga! Twoja oferta nie jest widoczna na platformie @item.MissingPlatformName, gdzie znajduje się Twój rywal. Cena została wyliczona na podstawie danych z innego źródła.">
+                                                            <i class="fas fa-exclamation-triangle"></i>
+                                                        </span>
+                                                    }
+                                                    @if (item.IsSuggestedDifferentFromUpdated)
+                                                    {
+                                                        <span class="text-warning"
+                                                              style="cursor: help; font-size: 14px;"
+                                                              data-toggle="tooltip"
+                                                              data-html="true"
+                                                              title="Uwaga! Aktualnie wyliczona cena różni się od ceny już wgranej. Zmieniły się warunki (np. krok cenowy, preset danych) lub ustawienia reguły tego automatu cenowego.">
+                                                            <i class="fas fa-exclamation-triangle"></i>
+                                                        </span>
+                                                    }
+                                                </div>
+                                            }
 
-            @switch (item.Status)
-            {
-                case AutomationCalculationStatus.TargetMet:
-                    <div class="status-badge status-ok">
-                        <i class="fas fa-check mr-2"></i> Cel Osiągnięty
-                    </div>
-                    break;
-                case AutomationCalculationStatus.TargetMaintained:
-                    <div class="status-badge status-maintained">
-                        <i class="fas fa-check-circle mr-2"></i> Cel Utrzymany
-                    </div>
-                    break;
-                case AutomationCalculationStatus.PriceLimited:
-                    <div class="status-badge status-limited">
-                        <i class="fas fa-filter mr-2"></i> Limit Ceny
-                    </div>
-                    break;
-                case AutomationCalculationStatus.Blocked:
-                    <div class="status-badge status-blocked">
-                        <i class="fas fa-times mr-2"></i> @item.BlockReason
-                    </div>
-                    break;
-                default:
-                    <span class="badge badge-light border px-3 py-2">Brak danych</span>
-                    break;
-            }
-        </div>
-        <div class="small text-muted ">@Model.StoreName</div>
+                                            @switch (item.Status)
+                                            {
+                                                case AutomationCalculationStatus.TargetMet:
+                                                    <div class="status-badge status-ok">
+                                                        <i class="fas fa-check mr-2"></i> Cel Osiągnięty
+                                                    </div>
+                                                    break;
+                                                case AutomationCalculationStatus.TargetMaintained:
+                                                    <div class="status-badge status-maintained">
+                                                        <i class="fas fa-check-circle mr-2"></i> Cel Utrzymany
+                                                    </div>
+                                                    break;
+                                                case AutomationCalculationStatus.PriceLimited:
+                                                    <div class="status-badge status-limited">
+                                                        <i class="fas fa-filter mr-2"></i> Limit Ceny
+                                                    </div>
+                                                    break;
+                                                case AutomationCalculationStatus.Blocked:
+                                                    <div class="status-badge status-blocked">
+                                                        <i class="fas fa-times mr-2"></i> @item.BlockReason
+                                                    </div>
+                                                    break;
+                                                default:
+                                                    <span class="badge badge-light border px-3 py-2">Brak danych</span>
+                                                    break;
+                                            }
+                                        </div>
+                                        <div class="small text-muted ">@Model.StoreName</div>
 
-        @{
-            // --- LOGIKA WYLICZANIA PROWIZJI I NARZUTU DLA NOWEJ CENY ---
+                                        @{
 
-            bool showUpdatedCommission = item.IsAlreadyUpdated && item.UpdatedCommissionAmount.HasValue;
-            decimal? commissionToDisplay = showUpdatedCommission ? item.UpdatedCommissionAmount : item.CommissionAmount;
+                                            bool showUpdatedCommission = item.IsAlreadyUpdated && item.UpdatedCommissionAmount.HasValue;
+                                            decimal? commissionToDisplay = showUpdatedCommission ? item.UpdatedCommissionAmount : item.CommissionAmount;
 
-            // Cena do obliczeń (Albo wgrana, albo sugerowana)
-            decimal? salesPriceForCalc = item.UpdatedPrice ?? item.SuggestedPrice;
+                                            decimal? salesPriceForCalc = item.UpdatedPrice ?? item.SuggestedPrice;
 
-            decimal? finalMarkupAmount = item.MarkupAmount;
-            decimal? finalMarkupPercent = item.MarkupPercent;
+                                            decimal? finalMarkupAmount = item.MarkupAmount;
+                                            decimal? finalMarkupPercent = item.MarkupPercent;
 
-            // Jeśli mamy cenę i cenę zakupu, przeliczamy narzut "na żywo"
-            if (salesPriceForCalc.HasValue && item.PurchasePrice.HasValue && item.PurchasePrice.Value > 0)
-            {
-                decimal commissionCost = (item.IsCommissionIncluded && commissionToDisplay.HasValue) ? commissionToDisplay.Value : 0;
-                finalMarkupAmount = salesPriceForCalc.Value - item.PurchasePrice.Value - commissionCost;
-                finalMarkupPercent = (finalMarkupAmount.Value / item.PurchasePrice.Value) * 100;
-            }
+                                            if (salesPriceForCalc.HasValue && item.PurchasePrice.HasValue && item.PurchasePrice.Value > 0)
+                                            {
+                                                decimal commissionCost = (item.IsCommissionIncluded && commissionToDisplay.HasValue) ? commissionToDisplay.Value : 0;
+                                                finalMarkupAmount = salesPriceForCalc.Value - item.PurchasePrice.Value - commissionCost;
+                                                finalMarkupPercent = (finalMarkupAmount.Value / item.PurchasePrice.Value) * 100;
+                                            }
 
-            // --- NOWA LOGIKA KOLORÓW DLA NARZUTU (Czerwony / Żółty / Zielony) ---
-            string finalMarginBadge = "price-badge-positive";
-            string finalMarginBox = "price-box-diff-margin-ib-positive";
+                                            string finalMarginBadge = "price-badge-positive";
+                                            string finalMarginBox = "price-box-diff-margin-ib-positive";
 
-            if (finalMarkupAmount.HasValue && finalMarkupPercent.HasValue)
-            {
-                if (finalMarkupAmount.Value < 0)
-                {
-                    // Ujemny narzut -> Czerwony
-                    finalMarginBadge = "price-badge-negative";
-                    finalMarginBox = "price-box-diff-margin-ib-negative";
-                }
-                else if (Model.EnforceMinimalMarkup)
-                {
-                    // Sprawdzamy czy jest poniżej limitu -> Żółty
-                    bool isBelowFinalLimit = false;
-                    if (Model.IsMinimalMarkupPercent)
-                    {
-                        if (finalMarkupPercent.Value < Model.MinimalMarkupValue) isBelowFinalLimit = true;
-                    }
-                    else
-                    {
-                        if (finalMarkupAmount.Value < Model.MinimalMarkupValue) isBelowFinalLimit = true;
-                    }
+                                            if (finalMarkupAmount.HasValue && finalMarkupPercent.HasValue)
+                                            {
+                                                if (finalMarkupAmount.Value < 0)
+                                                {
 
-                    if (isBelowFinalLimit)
-                    {
-                        finalMarginBadge = "price-badge-warning";
-                        finalMarginBox = "price-box-diff-margin-ib-warning";
-                    }
-                }
-            }
-        }
+                                                    finalMarginBadge = "price-badge-negative";
+                                                    finalMarginBox = "price-box-diff-margin-ib-negative";
+                                                }
+                                                else if (Model.EnforceMinimalMarkup)
+                                                {
 
-        @* --- WYŚWIETLANIE PROWIZJI --- *@
-        @if (commissionToDisplay.HasValue)
-        {
-            <div class="Commission-stack" title="@(showUpdatedCommission ? "To jest potwierdzona prowizja po aktualizacji ceny" : "Szacowana prowizja dla obecnej ceny")">
-                <span class="commission-stack-badge" style="@(showUpdatedCommission ? "background-color:#1cc88a; color:white;" : "")">
-                    @(showUpdatedCommission ? "Prowizja" : "Prowizja")
-                </span>
-                <p>
-                    @commissionToDisplay.Value.ToString("F2") PLN
-                    @if (item.IsCommissionIncluded)
-                    {
-                        @if (showUpdatedCommission) { <span style="font-weight: 400; color: #1cc88a;"> | akt. uwzg.</span> }
-                        else { <span style="font-weight: 400; color: #555;"> | uwzg.</span> }
-                    }
-                    else
-                    {
-                        @if (showUpdatedCommission) { <span style="font-weight: 400; color: #1cc88a;"> | akt. nieuwzg.</span> }
-                        else { <span style="font-weight: 400; color: #555"> | nieuwzg.</span> }
-                    }
-                </p>
-            </div>
-        }
+                                                    bool isBelowFinalLimit = false;
+                                                    if (Model.IsMinimalMarkupPercent)
+                                                    {
+                                                        if (finalMarkupPercent.Value < Model.MinimalMarkupValue) isBelowFinalLimit = true;
+                                                    }
+                                                    else
+                                                    {
+                                                        if (finalMarkupAmount.Value < Model.MinimalMarkupValue) isBelowFinalLimit = true;
+                                                    }
 
-        @* --- WYŚWIETLANIE FINALNEGO NARZUTU (JEDEN RAZ Z POPRAWNYM KOLOREM) --- *@
-        @if (finalMarkupAmount.HasValue && finalMarkupPercent.HasValue)
-        {
-            <div class="price-box-diff-margin-ib @finalMarginBox" style="margin-top: 4px; width: 100%;">
-                <span class="price-badge @finalMarginBadge">Narzut</span>
-                <p>@finalMarkupAmount.Value.ToString("F2") PLN (@finalMarkupPercent.Value.ToString("F2")%)</p>
-            </div>
-        }
-    </div>
-</td>
-                      
+                                                    if (isBelowFinalLimit)
+                                                    {
+                                                        finalMarginBadge = "price-badge-warning";
+                                                        finalMarginBox = "price-box-diff-margin-ib-warning";
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                    
+                                        @if (commissionToDisplay.HasValue)
+                                        {
+                                            <div class="Commission-stack" title="@(showUpdatedCommission ? "To jest potwierdzona prowizja po aktualizacji ceny" : "Szacowana prowizja dla obecnej ceny")">
+                                                <span class="commission-stack-badge" style="@(showUpdatedCommission ? "background-color:#1cc88a; color:white;" : "")">
+                                                    @(showUpdatedCommission ? "Prowizja" : "Prowizja")
+                                                </span>
+                                                <p>
+                                                    @commissionToDisplay.Value.ToString("F2") PLN
+                                                    @if (item.IsCommissionIncluded)
+                                                    {
+                                                        @if (showUpdatedCommission)
+                                                        {
+                                                            <span style="font-weight: 400; color: #1cc88a;"> | akt. uwzg.</span>
+                                                        }
+                                                        else
+                                                        {
+
+                                                            <span style="font-weight: 400; color: #555;"> | uwzg.</span>
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        @if (showUpdatedCommission)
+                                                        {
+                                                            <span style="font-weight: 400; color: #1cc88a;"> | akt. nieuwzg.</span>
+                                                        }
+                                                        else
+                                                        {
+
+                                                            <span style="font-weight: 400; color: #555"> | nieuwzg.</span>
+                                                        }
+                                                    }
+                                                </p>
+                                            </div>
+                                        }
+
+                             
+                                        @if (finalMarkupAmount.HasValue && finalMarkupPercent.HasValue)
+                                        {
+                                            <div class="price-box-diff-margin-ib @finalMarginBox" style="margin-top: 4px; width: 100%;">
+                                                <span class="price-badge @finalMarginBadge">Narzut</span>
+                                                <p>@finalMarkupAmount.Value.ToString("F2") PLN (@finalMarkupPercent.Value.ToString("F2")%)</p>
+                                            </div>
+                                        }
+                                    </div>
+                                </td>
+
                                 <td class="align-middle text-center">
                                     <div class="d-flex flex-column align-items-center" style="gap: 4px;">
 
                                         @if (item.IsAlreadyUpdated)
                                         {
-                                      
+
                                             <div class="status-box-dashed status-dashed-success" title="Cena wgrana: @(item.UpdateDate?.ToString("dd.MM HH:mm") ?? "-")">
                                                 <i class="fas fa-check mr-1"></i> WGRANO
                                             </div>
 
-                                         
                                             @if (item.UpdateDate.HasValue)
                                             {
                                                 <div style="font-size: 10px; color: #858796; line-height: 1.1;">
@@ -1728,7 +1719,6 @@
                                                 </div>
                                             }
 
-                                         
                                             @if (item.UpdatedPrice.HasValue)
                                             {
                                                 <div style="font-size: 11px; color: #1cc88a; font-weight: 700; margin-top: 2px;">
@@ -1738,7 +1728,7 @@
                                         }
                                         else
                                         {
-                                          
+
                                             @if (item.Status != AutomationCalculationStatus.Blocked && item.SuggestedPrice.HasValue)
                                             {
                                                 <div class="status-box-dashed status-dashed-danger">
@@ -1748,7 +1738,7 @@
                                             }
                                             else
                                             {
-                                              
+
                                                 <div class="status-box-dashed status-dashed-secondary">
                                                     <i class="fas fa-ban mr-1"></i> BLOKADA
                                                 </div>
@@ -1772,351 +1762,353 @@
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap4.min.js"></script>
 
     <script>
-        const storeId = @Model.StoreId;
-        const currentRuleId = @Model.RuleId;
+                const storeId = @Model.StoreId;
+                const currentRuleId = @Model.RuleId;
 
-        const isAllegroContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
-        const sourceTypeInt = isAllegroContext ? 1 : 0;
+                const isAllegroContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
+                const sourceTypeInt = isAllegroContext ? 1 : 0;
 
-        let selectedProductIds = new Set();
-        let selectedProductNames = new Map();
-        let selectedProductIdentifiers = new Map();
+                let selectedProductIds = new Set();
+                let selectedProductNames = new Map();
+                let selectedProductIdentifiers = new Map();
 
-        function showNoAccessAlert() {
-            alert('@Html.Raw(noAccessMessage)');
-        }
-
-        function showLoading() { $('#loadingOverlay').css('display', 'flex'); }
-        function hideLoading() { $('#loadingOverlay').hide(); }
-
-        function updateCounter() {
-
-            const count = selectedProductIds.size;
-            $('#selectedProductsCounter').text(`Wybrano: ${count}`);
-
-            const modalCounter = document.getElementById('selectedProductsModalCounter');
-            if (modalCounter) modalCounter.textContent = count;
-
-            const automationCount = document.getElementById('automationProductCountDisplay');
-            if (automationCount) automationCount.textContent = count;
-        }
-
-              function updateBtnState(btn, isSelected) {
-            if (isSelected) {
-                btn.text('Wybrano');
-                btn.addClass('selected');
-            } else {
-                btn.text('Zaznacz');
-                btn.removeClass('selected');
-            }
-        }
-
-        function updateVisibleProductSelectionButtons() {
-            $('.select-product-btn').each(function() {
-                const btn = $(this);
-                const pid = btn.data('product-id').toString();
-                if (selectedProductIds.has(pid)) {
-                    updateBtnState(btn, true);
-                } else {
-                    updateBtnState(btn, false);
+                function showNoAccessAlert() {
+                    alert('@Html.Raw(noAccessMessage)');
                 }
-            });
-        }
 
-        function renderSelectedList() {
-            const container = document.getElementById('selectedProductsList');
-            container.innerHTML = '';
+                function showLoading() { $('#loadingOverlay').css('display', 'flex'); }
+                function hideLoading() { $('#loadingOverlay').hide(); }
 
-            if (selectedProductIds.size === 0) {
-                container.innerHTML = '<div class="alert alert-info text-center">Nie zaznaczono żadnych produktów.</div>';
-                return;
-            }
+                function updateCounter() {
 
-            const table = document.createElement('table');
-            table.className = 'table-orders';
-            table.innerHTML = `<thead><tr><th style="width: 70%;">Nazwa Produktu</th><th>ID/EAN</th><th class="text-center">Akcja</th></tr></thead>`;
-            const tbody = document.createElement('tbody');
+                    const count = selectedProductIds.size;
+                    $('#selectedProductsCounter').text(`Wybrano: ${count}`);
 
-            selectedProductIds.forEach(productId => {
-                const name = selectedProductNames.get(productId) || '---';
+                    const modalCounter = document.getElementById('selectedProductsModalCounter');
+                    if (modalCounter) modalCounter.textContent = count;
 
-                const identifier = selectedProductIdentifiers.get(productId) || '';
+                    const automationCount = document.getElementById('automationProductCountDisplay');
+                    if (automationCount) automationCount.textContent = count;
+                }
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                  <td>${name}</td>
-                  <td>${identifier}</td>
-                  <td class="text-center align-middle">
-                      <button class="btn btn-danger btn-sm remove-selection-btn" data-product-id="${productId}" title="Usuń z zaznaczonych" style="padding: 2px 6px;">
-                          <i class="fa-solid fa-trash-can"></i>
-                      </button>
-                  </td>`;
-                tbody.appendChild(tr);
-            });
+                      function updateBtnState(btn, isSelected) {
+                    if (isSelected) {
+                        btn.text('Wybrano');
+                        btn.addClass('selected');
+                    } else {
+                        btn.text('Zaznacz');
+                        btn.removeClass('selected');
+                    }
+                }
 
-            table.appendChild(tbody);
-            container.appendChild(table);
-        }
+                function updateVisibleProductSelectionButtons() {
+                    $('.select-product-btn').each(function() {
+                        const btn = $(this);
+                        const pid = btn.data('product-id').toString();
+                        if (selectedProductIds.has(pid)) {
+                            updateBtnState(btn, true);
+                        } else {
+                            updateBtnState(btn, false);
+                        }
+                    });
+                }
 
-        function renderAutomationRulesInModal(rules, totalSelected) {
-            console.log("Renderowanie reguł...", rules);
-            const container = document.getElementById('automationRulesListContainer');
-            if (!container) return;
+                function renderSelectedList() {
+                     const container = document.getElementById('selectedProductsList');
+                     container.innerHTML = '';
 
-            container.innerHTML = '';
+                     if (selectedProductIds.size === 0) {
+                         container.innerHTML = '<div class="alert alert-info text-center">Nie zaznaczono żadnych produktów.</div>';
+                         return;
+                     }
 
-            const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
-            const totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
+                     const table = document.createElement('table');
+                     table.className = 'table-orders';
 
-            const statsHeader = document.createElement('div');
-            statsHeader.style.cssText = `
-                background-color: #f8f9fa; border: 1px solid #e3e6f0; border-radius: 8px;
-                padding: 15px; margin-bottom: 20px; display: flex;
-                justify-content: space-around; align-items: center; text-align: center;
-            `;
+                     table.innerHTML = `<thead><tr><th style="width: 60%;">Nazwa Produktu</th><th style="width: 30%;">Identyfikator</th><th class="text-center">Akcja</th></tr></thead>`;
+                     const tbody = document.createElement('tbody');
 
-            statsHeader.innerHTML = `
-                <div>
-                    <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Łącznie zaznaczone</div>
-                    <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalSelected}</div>
-                </div>
-                <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
-                <div>
-                    <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Przypisane do reguły</div>
-                    <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalAssignedInSelection}</div>
-                </div>
-                <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
-                <div>
-                    <div style="font-size: 11px; color: #e74a3b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Nieprzypisane</div>
-                    <div style="font-size: 20px; font-weight: 700; color: #e74a3b;">${Math.max(0, totalUnassignedInSelection)}</div>
-                </div>
-            `;
-            container.appendChild(statsHeader);
+                     selectedProductIds.forEach(productId => {
+                         const name = selectedProductNames.get(productId) || '---';
+                         const identifier = selectedProductIdentifiers.get(productId) || '-';
 
-            const unassignDiv = document.createElement('div');
-            const hasAssignments = totalAssignedInSelection > 0;
+                         const tr = document.createElement('tr');
 
-            unassignDiv.className = 'automation-rule-item';
-            unassignDiv.style.cssText = `
-                border: 1px dashed ${hasAssignments ? '#e74a3b' : '#ccc'};
-                border-radius: 8px; padding: 10px 15px;
-                cursor: ${hasAssignments ? 'pointer' : 'default'};
-                background-color: #fff;
-                display: flex; justify-content: space-between; align-items: center;
-                transition: background-color 0.2s; margin-bottom: 20px; opacity: ${hasAssignments ? '1' : '0.6'};
-            `;
+                         tr.innerHTML = `
+                           <td class="align-middle">
+                               <div style="line-height:1.2; font-weight:600;">${name}</div>
+                           </td>
+                           <td class="align-middle">
+                               <div style="display:flex; flex-direction:column;">
+                                   <span style="font-size:10px; color:#858796; text-transform:uppercase;">ID:</span>
+                                   <span style="font-family:monospace; font-size:12px; color:#333;">${identifier}</span>
+                               </div>
+                           </td>
+                           <td class="text-center align-middle">
+                               <button class="btn btn-danger btn-sm remove-selection-btn" data-product-id="${productId}" title="Usuń z zaznaczonych" style="padding: 2px 6px;">
+                                   <i class="fa-solid fa-trash-can"></i>
+                               </button>
+                           </td>`;
+                         tbody.appendChild(tr);
+                     });
 
-            if (hasAssignments) {
-                unassignDiv.onmouseover = () => { unassignDiv.style.backgroundColor = '#fff5f5'; };
-                unassignDiv.onmouseout = () => { unassignDiv.style.backgroundColor = '#fff'; };
-                unassignDiv.addEventListener('click', () => {
-                    confirmAndUnassignRules();
-                });
-            }
+                     table.appendChild(tbody);
+                     container.appendChild(table);
+                 }
 
-            unassignDiv.innerHTML = `
-                <div style="display:flex; align-items:center; gap:15px;">
-                    <div style="width:6px; height:45px; background-color:${hasAssignments ? '#e74a3b' : '#ccc'}; border-radius:3px;"></div>
-                    <div>
-                        <div style="font-weight:600; font-size:15px; color:${hasAssignments ? '#e74a3b' : '#888'};">Brak Automatyzacji (Odepnij)</div>
-                        <div style="font-size:13px; color:#666; margin-top:2px;">
-                            ${hasAssignments ? `Odepnij <strong>${totalAssignedInSelection}</strong> zaznaczonych produktów od ich obecnych reguł.` : 'Żaden z zaznaczonych produktów nie jest przypisany do reguły.'}
+                function renderAutomationRulesInModal(rules, totalSelected) {
+                    console.log("Renderowanie reguł...", rules);
+                    const container = document.getElementById('automationRulesListContainer');
+                    if (!container) return;
+
+                    container.innerHTML = '';
+
+                    const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
+                    const totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
+
+                    const statsHeader = document.createElement('div');
+                    statsHeader.style.cssText = `
+                        background-color: #f8f9fa; border: 1px solid #e3e6f0; border-radius: 8px;
+                        padding: 15px; margin-bottom: 20px; display: flex;
+                        justify-content: space-around; align-items: center; text-align: center;
+                    `;
+
+                    statsHeader.innerHTML = `
+                        <div>
+                            <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Łącznie zaznaczone</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalSelected}</div>
                         </div>
-                    </div>
-                </div>
-                  <button class="Button-Page-Small-r" type="button" style="pointer-events:none; ${!hasAssignments ? 'background-color:#ccc; border-color:#ccc;' : ''}">Odepnij</button>
-            `;
-            container.appendChild(unassignDiv);
+                        <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
+                        <div>
+                            <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Przypisane do reguły</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalAssignedInSelection}</div>
+                        </div>
+                        <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
+                        <div>
+                            <div style="font-size: 11px; color: #e74a3b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Nieprzypisane</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #e74a3b;">${Math.max(0, totalUnassignedInSelection)}</div>
+                        </div>
+                    `;
+                    container.appendChild(statsHeader);
 
-            if (!rules || rules.length === 0) {
-                const emptyDiv = document.createElement('div');
-                emptyDiv.innerHTML = `<div class="alert alert-warning" style="text-align:center;">Brak zdefiniowanych innych reguł.</div>`;
-                container.appendChild(emptyDiv);
-                return;
-            }
+                    const unassignDiv = document.createElement('div');
+                    const hasAssignments = totalAssignedInSelection > 0;
 
-            rules.sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }));
+                    unassignDiv.className = 'automation-rule-item';
+                    unassignDiv.style.cssText = `
+                        border: 1px dashed ${hasAssignments ? '#e74a3b' : '#ccc'};
+                        border-radius: 8px; padding: 10px 15px;
+                        cursor: ${hasAssignments ? 'pointer' : 'default'};
+                        background-color: #fff;
+                        display: flex; justify-content: space-between; align-items: center;
+                        transition: background-color 0.2s; margin-bottom: 20px; opacity: ${hasAssignments ? '1' : '0.6'};
+                    `;
 
-            rules.forEach(rule => {
+                    if (hasAssignments) {
+                        unassignDiv.onmouseover = () => { unassignDiv.style.backgroundColor = '#fff5f5'; };
+                        unassignDiv.onmouseout = () => { unassignDiv.style.backgroundColor = '#fff'; };
+                        unassignDiv.addEventListener('click', () => {
+                            confirmAndUnassignRules();
+                        });
+                    }
 
-                const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b';
-                const statusText = rule.isActive ? 'Aktywna' : 'Nieaktywna';
-
-                const isCompetitiveness = rule.strategyMode === 0;
-                const strategyIcon = isCompetitiveness ? '<i class="fa-solid fa-bolt" style="color:#888;"></i>' : '<i class="fa-solid fa-dollar-sign" style="color:#888;"></i>';
-                const strategyName = isCompetitiveness ? "Lider Rynku" : "Rentowność";
-
-                const globalTotalInRule = rule.totalCount;
-                const selectedAlreadyInRule = rule.matchingCount;
-                const toBeAdded = totalSelected - selectedAlreadyInRule;
-
-                let backgroundStyle = selectedAlreadyInRule > 0 ? '#fcfcfc' : '#fff';
-                let borderStyle = '#e3e6f0';
-
-                const div = document.createElement('div');
-                div.className = 'automation-rule-item';
-                div.style.cssText = `
-                    border: 1px solid ${borderStyle}; border-radius: 8px; padding: 12px 15px;
-                    cursor: pointer; background: ${backgroundStyle};
-                    display: flex; justify-content: space-between; align-items: center;
-                    transition: background-color 0.2s, border-color 0.2s; margin-bottom: 10px;
-                `;
-
-                div.innerHTML = `
-                    <div style="display:flex; align-items:center; gap:15px; flex-grow: 1;">
-                        <div style="width:6px; height:45px; background-color:${rule.colorHex}; border-radius:3px; flex-shrink: 0;"></div>
-                        <div style="flex-grow: 1;">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <div style="font-weight:600; font-size:16px; color:#333;">${rule.name}</div>
-                                <div style="font-size:12px; color:#888; display:flex; align-items:center; gap:8px;">
-                                    <span style="display:flex; align-items:center; gap:4px;">${strategyIcon} ${strategyName}</span>
-                                    <span style="color:#e3e6f0;">|</span>
-                                    <span style="color:${statusColor}; font-weight:500; display:flex; align-items:center; gap:4px;"><i class="fa-solid fa-circle" style="font-size:6px;"></i> ${statusText}</span>
+                    unassignDiv.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:15px;">
+                            <div style="width:6px; height:45px; background-color:${hasAssignments ? '#e74a3b' : '#ccc'}; border-radius:3px;"></div>
+                            <div>
+                                <div style="font-weight:600; font-size:15px; color:${hasAssignments ? '#e74a3b' : '#888'};">Brak Automatyzacji (Odepnij)</div>
+                                <div style="font-size:13px; color:#666; margin-top:2px;">
+                                    ${hasAssignments ? `Odepnij <strong>${totalAssignedInSelection}</strong> zaznaczonych produktów od ich obecnych reguł.` : 'Żaden z zaznaczonych produktów nie jest przypisany do reguły.'}
                                 </div>
                             </div>
-                            <div style="display:flex; gap: 15px; margin-top:6px; font-size:13px; color:#666; align-items: center; flex-wrap: wrap;">
-                                <span title="Całkowita liczba produktów w tej regule"><i class="fa-solid fa-database" style="color:#999; margin-right:4px;"></i> Razem: <strong>${globalTotalInRule}</strong></span>
-                                <span style="color:#e3e6f0;">|</span>
-                                <span title="Ile z zaznaczonych jest tutaj"><i class="fa-solid fa-check-double" style="color:#999; margin-right:4px;"></i> Wybranych: <strong>${selectedAlreadyInRule}</strong></span>
-                                <span style="color:#e3e6f0;">|</span>
-                                <span title="Ile zostanie dodanych">Zostanie dodanych: <strong style="color:#1cc88a;">+${toBeAdded}</strong></span>
-                            </div>
                         </div>
-                    </div>
-                    <div style="margin-left: 20px;">
-                        <button class="Button-Page-Small-bl assign-rule-btn" type="button" style="pointer-events:none; white-space:nowrap; padding: 5px 15px;">Wybierz</button>
-                    </div>
-                `;
+                          <button class="Button-Page-Small-r" type="button" style="pointer-events:none; ${!hasAssignments ? 'background-color:#ccc; border-color:#ccc;' : ''}">Odepnij</button>
+                    `;
+                    container.appendChild(unassignDiv);
 
-                div.addEventListener('click', () => {
-                    confirmAndAssignRule(rule.id, rule.name);
-                });
+                    if (!rules || rules.length === 0) {
+                        const emptyDiv = document.createElement('div');
+                        emptyDiv.innerHTML = `<div class="alert alert-warning" style="text-align:center;">Brak zdefiniowanych innych reguł.</div>`;
+                        container.appendChild(emptyDiv);
+                        return;
+                    }
 
-                container.appendChild(div);
-            });
-        }
+                    rules.sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }));
 
-        function confirmAndAssignRule(targetRuleId, ruleName) {
-            if (!confirm(`Czy na pewno chcesz przypisać ${selectedProductIds.size} produktów do grupy "${ruleName}"?\n\nJeśli produkty były w innych grupach, zostaną przeniesione.`)) {
-                return;
-            }
-            executeAutomationAction('/AutomationRules/AssignProducts', { RuleId: targetRuleId });
-        }
+                    rules.forEach(rule => {
 
-        function confirmAndUnassignRules() {
-            if (!confirm(`Czy na pewno chcesz usunąć przypisanie do reguł automatyzacji dla ${selectedProductIds.size} produktów?`)) {
-                return;
-            }
-            executeAutomationAction('/AutomationRules/UnassignProducts', {});
-        }
+                        const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b';
+                        const statusText = rule.isActive ? 'Aktywna' : 'Nieaktywna';
 
-        function executeAutomationAction(url, extraData) {
-            $('#automationSelectionModal').modal('hide');
-            showLoading();
+                        const isCompetitiveness = rule.strategyMode === 0;
+                        const strategyIcon = isCompetitiveness ? '<i class="fa-solid fa-bolt" style="color:#888;"></i>' : '<i class="fa-solid fa-dollar-sign" style="color:#888;"></i>';
+                        const strategyName = isCompetitiveness ? "Lider Rynku" : "Rentowność";
 
-            const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
+                        const globalTotalInRule = rule.totalCount;
+                        const selectedAlreadyInRule = rule.matchingCount;
+                        const toBeAdded = totalSelected - selectedAlreadyInRule;
 
-            const payload = {
-                ProductIds: productIdsArray,
-                IsAllegro: isAllegroContext,
-                ...extraData
-            };
+                        let backgroundStyle = selectedAlreadyInRule > 0 ? '#fcfcfc' : '#fff';
+                        let borderStyle = '#e3e6f0';
 
-            $.ajax({
-                url: url,
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(payload),
-                success: function(res) {
-                    hideLoading();
-                    alert(res.message || 'Operacja zakończona sukcesem.');
+                        const div = document.createElement('div');
+                        div.className = 'automation-rule-item';
+                        div.style.cssText = `
+                            border: 1px solid ${borderStyle}; border-radius: 8px; padding: 12px 15px;
+                            cursor: pointer; background: ${backgroundStyle};
+                            display: flex; justify-content: space-between; align-items: center;
+                            transition: background-color 0.2s, border-color 0.2s; margin-bottom: 10px;
+                        `;
 
-                    location.reload();
-                },
-                error: function(xhr) {
-                    hideLoading();
-                    alert('Błąd: ' + (xhr.responseJSON ? xhr.responseJSON.message : xhr.statusText));
+                        div.innerHTML = `
+                            <div style="display:flex; align-items:center; gap:15px; flex-grow: 1;">
+                                <div style="width:6px; height:45px; background-color:${rule.colorHex}; border-radius:3px; flex-shrink: 0;"></div>
+                                <div style="flex-grow: 1;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <div style="font-weight:600; font-size:16px; color:#333;">${rule.name}</div>
+                                        <div style="font-size:12px; color:#888; display:flex; align-items:center; gap:8px;">
+                                            <span style="display:flex; align-items:center; gap:4px;">${strategyIcon} ${strategyName}</span>
+                                            <span style="color:#e3e6f0;">|</span>
+                                            <span style="color:${statusColor}; font-weight:500; display:flex; align-items:center; gap:4px;"><i class="fa-solid fa-circle" style="font-size:6px;"></i> ${statusText}</span>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; gap: 15px; margin-top:6px; font-size:13px; color:#666; align-items: center; flex-wrap: wrap;">
+                                        <span title="Całkowita liczba produktów w tej regule"><i class="fa-solid fa-database" style="color:#999; margin-right:4px;"></i> Razem: <strong>${globalTotalInRule}</strong></span>
+                                        <span style="color:#e3e6f0;">|</span>
+                                        <span title="Ile z zaznaczonych jest tutaj"><i class="fa-solid fa-check-double" style="color:#999; margin-right:4px;"></i> Wybranych: <strong>${selectedAlreadyInRule}</strong></span>
+                                        <span style="color:#e3e6f0;">|</span>
+                                        <span title="Ile zostanie dodanych">Zostanie dodanych: <strong style="color:#1cc88a;">+${toBeAdded}</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="margin-left: 20px;">
+                                <button class="Button-Page-Small-bl assign-rule-btn" type="button" style="pointer-events:none; white-space:nowrap; padding: 5px 15px;">Wybierz</button>
+                            </div>
+                        `;
 
-                    setTimeout(() => $('#automationSelectionModal').modal('show'), 500);
+                        div.addEventListener('click', () => {
+                            confirmAndAssignRule(rule.id, rule.name);
+                        });
+
+                        container.appendChild(div);
+                    });
                 }
-            });
-        }
 
-        $(document).ready(function() {
-
-            $(document).on('click', '.select-product-btn', function(e) {
-                e.stopPropagation();
-                const btn = $(this);
-                const pid = btn.data('product-id').toString();
-                const pname = btn.data('product-name');
-
-                const row = btn.closest('tr');
-                const identifierText = row.find('.small.text-muted').text().trim();
-
-                if (selectedProductIds.has(pid)) {
-                    selectedProductIds.delete(pid);
-                    selectedProductNames.delete(pid);
-                    selectedProductIdentifiers.delete(pid);
-                    updateBtnState(btn, false);
-                } else {
-                    selectedProductIds.add(pid);
-                    selectedProductNames.set(pid, pname);
-                    selectedProductIdentifiers.set(pid, identifierText);
-                    updateBtnState(btn, true);
+                function confirmAndAssignRule(targetRuleId, ruleName) {
+                    if (!confirm(`Czy na pewno chcesz przypisać ${selectedProductIds.size} produktów do grupy "${ruleName}"?\n\nJeśli produkty były w innych grupach, zostaną przeniesione.`)) {
+                        return;
+                    }
+                    executeAutomationAction('/AutomationRules/AssignProducts', { RuleId: targetRuleId });
                 }
-                updateCounter();
-            });
 
-        // --- POPRAWIONE ZAZNACZANIE TYLKO WIDOCZNYCH ---
+                function confirmAndUnassignRules() {
+                    if (!confirm(`Czy na pewno chcesz usunąć przypisanie do reguł automatyzacji dla ${selectedProductIds.size} produktów?`)) {
+                        return;
+                    }
+                    executeAutomationAction('/AutomationRules/UnassignProducts', {});
+                }
 
-             $('#selectAllVisibleBtn').on('click', function() {
-                 $('.select-product-btn').each(function() {
-                     const btn = $(this);
-                     const row = btn.closest('tr');
+                function executeAutomationAction(url, extraData) {
+                    $('#automationSelectionModal').modal('hide');
+                    showLoading();
 
-                     // Sprawdź, czy wiersz jest widoczny:
-                     // 1. Nie ma display: none (wyszukiwarka)
-                     // 2. Nie ma klasy filter-hidden (filtry przyciskowe)
-                     const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
+                    const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
 
-                     if (isVisible) {
-                         const pid = btn.data('product-id').toString();
-                         const pname = btn.data('product-name');
-                         const identifierText = row.find('.small.text-muted').text().trim();
+                    const payload = {
+                        ProductIds: productIdsArray,
+                        IsAllegro: isAllegroContext,
+                        ...extraData
+                    };
 
-                         if (!selectedProductIds.has(pid)) {
-                             selectedProductIds.add(pid);
-                             selectedProductNames.set(pid, pname);
-                             selectedProductIdentifiers.set(pid, identifierText);
-                             updateBtnState(btn, true);
-                         }
-                     }
-                 });
-                 updateCounter();
-             });
+                    $.ajax({
+                        url: url,
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(payload),
+                        success: function(res) {
+                            hideLoading();
+                            alert(res.message || 'Operacja zakończona sukcesem.');
 
-             $('#deselectAllVisibleBtn').on('click', function() {
-                 $('.select-product-btn').each(function() {
-                     const btn = $(this);
-                     const row = btn.closest('tr');
+                            location.reload();
+                        },
+                        error: function(xhr) {
+                            hideLoading();
+                            alert('Błąd: ' + (xhr.responseJSON ? xhr.responseJSON.message : xhr.statusText));
 
-                     // Tutaj też sprawdzamy widoczność, żeby nie odznaczyć czegoś,
-                     // czego użytkownik aktualnie nie widzi (chyba że intencją jest 'odznacz wszystko w ogóle')
-                     // Zakładam, że 'deselectAllVisible' ma dotyczyć widocznych.
-                     const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
+                            setTimeout(() => $('#automationSelectionModal').modal('show'), 500);
+                        }
+                    });
+                }
 
-                     if (isVisible) {
-                         const pid = btn.data('product-id').toString();
+                $(document).ready(function() {
 
-                         if (selectedProductIds.has(pid)) {
-                             selectedProductIds.delete(pid);
-                             selectedProductNames.delete(pid);
-                             selectedProductIdentifiers.delete(pid);
-                             updateBtnState(btn, false);
-                         }
-                     }
-                 });
-                 updateCounter();
+                 $(document).on('click', '.select-product-btn', function(e) {
+                        e.stopPropagation();
+                        const btn = $(this);
+                        const pid = btn.data('product-id').toString();
+                        const pname = btn.data('product-name');
+
+
+
+                        const identifierText = btn.data('identifier');
+
+                        if (selectedProductIds.has(pid)) {
+                            selectedProductIds.delete(pid);
+                            selectedProductNames.delete(pid);
+                            selectedProductIdentifiers.delete(pid);
+                            updateBtnState(btn, false);
+                        } else {
+                            selectedProductIds.add(pid);
+                            selectedProductNames.set(pid, pname);
+                            selectedProductIdentifiers.set(pid, identifierText);
+                            updateBtnState(btn, true);
+                        }
+                        updateCounter();
+                    });
+
+                     $('#selectAllVisibleBtn').on('click', function() {
+                         $('.select-product-btn').each(function() {
+                             const btn = $(this);
+                             const row = btn.closest('tr');
+
+                             const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
+
+                             if (isVisible) {
+                                 const pid = btn.data('product-id').toString();
+                                 const pname = btn.data('product-name');
+                                 const identifierText = row.find('.small.text-muted').text().trim();
+
+                                 if (!selectedProductIds.has(pid)) {
+                                     selectedProductIds.add(pid);
+                                     selectedProductNames.set(pid, pname);
+                                     selectedProductIdentifiers.set(pid, identifierText);
+                                     updateBtnState(btn, true);
+                                 }
+                             }
+                         });
+                         updateCounter();
+                     });
+
+                     $('#deselectAllVisibleBtn').on('click', function() {
+                         $('.select-product-btn').each(function() {
+                             const btn = $(this);
+                             const row = btn.closest('tr');
+
+                             const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
+
+                             if (isVisible) {
+                                 const pid = btn.data('product-id').toString();
+
+                                 if (selectedProductIds.has(pid)) {
+                                     selectedProductIds.delete(pid);
+                                     selectedProductNames.delete(pid);
+                                     selectedProductIdentifiers.delete(pid);
+                                     updateBtnState(btn, false);
+                                 }
+                             }
+                         });
+                         updateCounter();
+
              });
             $('#showSelectedProductsBtn').on('click', function() {
                 if (selectedProductIds.size === 0) {
@@ -2273,13 +2265,8 @@
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-
-
-
     <script>
-        // =============================================
-        // ZMIENNE GLOBALNE I KONFIGURACJA
-        // =============================================
+
         var chartEff = null;
         var chartDyn = null;
         var chartSales = null;
@@ -2291,28 +2278,26 @@
         const isMarketplaceContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
         const totalProductsInRuleNow = parseInt('@Model.TotalProducts') || 0;
                 const loaderConfig = {
-            text: 'Ładowanie...',   // Twój tekst
-            color: '#000000',       // Kolor "kręciołka" (czarny)
-            textColor: '#000000',   // Kolor tekstu (czarny)
-            maskColor: 'rgba(255, 255, 255, 0.8)', // Białe tło z lekką przezroczystością
+            text: 'Ładowanie...',
+
+            color: '#000000',
+
+            textColor: '#000000',
+
+            maskColor: 'rgba(255, 255, 255, 0.8)',
+
             zlevel: 0
         };
-        // =============================================
-        // HELPERY DO TOOLTIPÓW (UJEDNOLICENIE)
-        // =============================================
 
-        // 1. Nagłówek z datą
         function tooltipDateHeader(date) {
             return '<div style="font-weight:700; font-size:13px; margin-bottom:8px; color:#333; border-bottom: 1px solid #f0f0f0; padding-bottom:6px;">'
                  + '<i class="fas fa-calendar-alt" style="margin-right:6px; color:#858796;"></i>' + date + '</div>';
         }
 
-        // 2. Nagłówek sekcji (małe litery, uppercase)
         function tooltipSectionHeader(title) {
             return '<div style="font-size:10px; color:#858796; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; margin-top:6px;">' + title + '</div>';
         }
 
-        // 3. Standardowy wiersz danych: Kropka | Nazwa | Wartość | Jednostka | (opcjonalne sub-info)
         function tooltipRow(marker, label, value, unit, bold, subValue) {
             var style = bold ? 'font-weight:700; color:#333;' : 'font-weight:600; color:#555;';
             var subHtml = subValue ? '<span style="color:#999; font-weight:400; font-size:10px; margin-left:4px;">' + subValue + '</span>' : '';
@@ -2323,18 +2308,16 @@
                  + '</div>';
         }
 
-        // 4. Szary separator
         function tooltipSeparator() {
             return '<div style="border-top:1px solid #f0f0f0; margin:8px 0;"></div>';
         }
 
-        // 5. Pasek pokrycia danych (zielony/żółty/czerwony)
         function buildCoverageBar(covered, total, label) {
             if (!total || total === 0) return '';
             var pct = Math.round((covered / total) * 100);
-            // Kolory: >90% zielony, >60% żółty, poniżej czerwony
+
             var barColor = pct >= 90 ? '#1cc88a' : pct >= 60 ? '#f6c23e' : '#e74a3b';
-            // Tło paska (jaśniejsza wersja koloru)
+
             var barBg = pct >= 90 ? 'rgba(28,200,138,0.15)' : pct >= 60 ? 'rgba(246,194,62,0.15)' : 'rgba(231,74,59,0.15)';
 
             return ''
@@ -2353,14 +2336,11 @@
         function switchChartMode(mode) {
             currentMode = mode;
 
-            // 1. Resetujemy klasę 'active' na przyciskach
             $('#viewModeExec, #viewModeSales, #viewModeBadges, #viewModePosition')
                 .removeClass('active');
 
-            // 2. Ukrywamy wszystkie kontenery
             $('#executionChartsContainer, #salesChartContainer, #badgeChartContainer, #positionChartContainer').hide();
 
-            // 3. Logika włączania
             if (mode === 'execution') {
                 $('#viewModeExec').addClass('active');
                 $('#executionChartsContainer').css('display', 'flex');
@@ -2368,10 +2348,8 @@
                 if (chartEff) chartEff.resize();
                 if (chartDyn) chartDyn.resize();
 
-                // --- TO JEST TA ZMIANA ---
-                // Wymuszamy załadowanie danych dla aktualnie wybranego okresu (currentLimit)
                 loadHistoryData(currentLimit);
-                // -------------------------
+
             }
             else if (mode === 'sales') {
                 $('#viewModeSales').addClass('active');
@@ -2496,7 +2474,7 @@
 
         function calculateSharedMax(arrays) {
             let maxVal = 0;
-            // Przeszukujemy wszystkie tablice danych
+
             arrays.forEach(arr => {
                 if (arr && Array.isArray(arr)) {
                     let localMax = Math.max(...arr);
@@ -2504,14 +2482,9 @@
                 }
             });
 
-            // Dodajemy 5-10% zapasu, żeby wykres nie dotykał sufitu
-            // Jeśli max to 0, ustawiamy np. 10 jako domyślną skalę
             return maxVal > 0 ? Math.ceil(maxVal * 1.1) : 10;
         }
 
-        // =============================================
-        // RENDER: EFFECTIVENESS (SKUTECZNOŚĆ)
-        // =============================================
         function renderEffectivenessChart(data) {
             if (!chartEff) return;
             var totalInRuleFallback = totalProductsInRuleNow;
@@ -2531,7 +2504,6 @@
                     textStyle: { color: '#333', fontSize: 12 },
                     padding: [12, 16],
                     extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; min-width: 200px;',
-                           // Wewnątrz funkcji renderEffectivenessChart(data) -> obiekt option -> tooltip:
 
                         formatter: function (params) {
                             var date = params[0].axisValueLabel;
@@ -2545,7 +2517,6 @@
                             var calculatedSum = met + unmet;
                             var pctMet = calculatedSum > 0 ? ((met / calculatedSum) * 100).toFixed(0) : 0;
 
-                            // Budowanie HTML
                             var html = tooltipDateHeader(date);
 
                             html += tooltipSectionHeader('Status Wykonania');
@@ -2554,14 +2525,11 @@
 
                             html += tooltipSeparator();
 
-                            // Wskaźnik skuteczności (TO ZOSTAJE)
                             var effColor = pctMet >= 80 ? '#1cc88a' : pctMet >= 50 ? '#f6c23e' : '#e74a3b';
                             html += '<div style="display:flex; justify-content:space-between; align-items:center;">'
                                   + '  <span style="font-size:12px; color:#555;">Skuteczność:</span>'
                                   + '  <span style="font-size:14px; font-weight:700; color:' + effColor + ';">' + pctMet + '%</span>'
                                   + '</div>';
-
-                            // USUNIĘTO: Pasek pokrycia danych (buildCoverageBar)
 
                             return html;
                         }
@@ -2570,14 +2538,13 @@
                 grid: { left: '3%', right: '4%', bottom: '10%', top: '40px', containLabel: true },
                 xAxis: { type: 'category', data: data.dates, axisLabel: { fontSize: 10 } },
                 yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f0f0' } } },
-                       // Wewnątrz funkcji renderEffectivenessChart(data) -> obiekt option -> series:
 
                 series: [
                     {
                         name: 'Spełnione',
                         type: 'bar',
                         stack: 'total',
-                        // ZMIANA: Prosty kolor, brak zaokrągleń
+
                         itemStyle: {
                             color: '#00917B'
                         },
@@ -2587,7 +2554,7 @@
                         name: 'Niespełnione / Blokady',
                         type: 'bar',
                         stack: 'total',
-                        // ZMIANA: Prosty kolor, brak zaokrągleń
+
                         itemStyle: {
                             color: '#6C757D'
                         },
@@ -2598,9 +2565,6 @@
             chartEff.setOption(option, true);
         }
 
-        // =============================================
-        // RENDER: DYNAMICS (DYNAMIKA)
-        // =============================================
         function renderDynamicsChart(data) {
             if (!chartDyn) return;
 
@@ -2632,7 +2596,6 @@
 
                         var changed = decreased + increased;
 
-                        // HTML
                         var html = tooltipDateHeader(date);
 
                         html += tooltipSectionHeader('Zmiany Cenowe');
@@ -2645,14 +2608,11 @@
 
                         html += tooltipSeparator();
 
-                        // Podsumowanie
                         html += '<div style="display:flex; justify-content:space-between; font-size:11px; color:#666;">'
                               + '  <span>Zoptymalizowano cen:</span>'
                               + '  <span style="font-weight:700;">' + changed + '</span>'
                               + '</div>';
 
-                        // Używamy helpera paska pokrycia, ale tutaj pokrycie to 100% (wszystkie produkty w regule są analizowane)
-                        // więc użyjemy go jako ładnego paska totalu
                         html += '<div style="margin-top:6px; padding-top:4px; border-top:1px dashed #eee; font-size:10px; color:#999; display:flex; justify-content:space-between;">'
                               + 'Razem produktów w regule: <strong>' + total + '</strong>'
                               + '</div>';
@@ -2673,9 +2633,7 @@
             };
             chartDyn.setOption(option, true);
         }
-        // =============================================
-            // RENDER: SALES (SPRZEDAŻ) - BEZ "TWOJE AKTYWNE OFERTY"
-            // =============================================
+
             function renderSalesChart(data) {
                 if (!data || !chartSales) return;
                 var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
@@ -2696,7 +2654,7 @@
                         borderWidth: 1,
                         textStyle: { color: '#333', fontSize: 12 },
                         padding: [12, 16],
-                        // Zachowane min-width dla spójności z wykresem skuteczności
+
                         extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; min-width: 250px;',
                         formatter: function (params) {
                             var date = params[0].axisValueLabel;
@@ -2718,7 +2676,6 @@
                             html += tooltipRow(myMarker, 'Twoja sprzedaż', myVal, ' szt.', true);
                             html += tooltipRow(marketMarker, 'Cały rynek', marketVal, ' szt.', false);
 
-                            // Udział w rynku
                             var sharePercent = (marketVal > 0) ? ((myVal / marketVal) * 100).toFixed(1) + '%' : '0.0%';
                             html += '<div style="margin-top:4px; padding:4px 8px; background:rgba(255,152,0,0.1); border-radius:4px; display:flex; justify-content:space-between; align-items:center;">'
                                   + '  <span style="font-size:11px; color:#ff9800;"><i class="fas fa-chart-pie" style="margin-right:4px;"></i>Twój udział w rynku</span>'
@@ -2727,7 +2684,6 @@
 
                             html += tooltipSeparator();
 
-                            // Pasek pokrycia
                             html += buildCoverageBar(productsWithData, totalInRule, 'Katalogi z danymi w analizie');
 
                             return html;
@@ -2735,7 +2691,7 @@
                     },
                     legend: {
                         bottom: 0,
-                        // Usunięto 'Twoje aktywne oferty' z legendy
+
                         data: ['Twoja Sprzedaż', 'Cały Rynek (Katalog)', 'Katalogi z danymi'],
                         textStyle: { fontSize: 11 }
                     },
@@ -2768,7 +2724,7 @@
                             lineStyle: { width: 3, color: '#ff9800' },
                             areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(255, 152, 0, 0.5)' }, { offset: 1, color: 'rgba(255, 152, 0, 0.03)' }]) }
                         },
-                        // USUNIĘTO SERIĘ: Twoje aktywne oferty
+
                         {
                             name: 'Katalogi z danymi',
                             type: 'line',
@@ -2784,24 +2740,21 @@
                 chartSales.setOption(option, true);
             }
 
-
            function renderBadgeChart(data) {
             if (!data || !chartBadges) return;
             var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
 
-            // --- OBLICZANIE WSPÓLNEJ SKALI (1:1) ---
-            // Zbieramy wszystkie serie, aby znaleźć najwyższy punkt
             var allDataArrays = [
                 data.topOfferCounts,
                 data.superPriceCounts,
                 data.bestPriceGuaranteeCounts,
                 data.campaignCounts,
                 data.subsidyCounts,
-                data.coveredProductsCounts // Szara linia
+                data.coveredProductsCounts
+
             ];
-            // calculateSharedMax musi być zdefiniowane w skrypcie (helper z poprzedniego kroku)
+
             var commonMax = calculateSharedMax(allDataArrays);
-            // ---------------------------------------
 
             var option = {
                 title: {
@@ -2861,7 +2814,7 @@
                     {
                         type: 'value',
                         name: 'Liczba odznak',
-                        // ZMIANA: Skala 1:1
+
                         min: 0,
                         max: commonMax,
                         minInterval: 1,
@@ -2873,7 +2826,7 @@
                         type: 'value',
                         name: 'Liczba ofert',
                         position: 'right',
-                        // ZMIANA: Skala 1:1
+
                         min: 0,
                         max: commonMax,
                         minInterval: 1,
@@ -2919,8 +2872,6 @@
                 notRanked: '#777777'
             };
 
-            // --- OBLICZANIE WSPÓLNEJ SKALI ---
-            // Zbieramy wszystkie tablice danych, które będą na wykresie
             var allDataArrays = [
                 data.top1Solo,
                 data.top1ExAequo,
@@ -2928,12 +2879,12 @@
                 data.position4to5,
                 data.position6to10,
                 data.position11Plus,
-                data.productsWithDataCount // Nasza szara linia
+                data.productsWithDataCount
+
             ];
             var commonMax = calculateSharedMax(allDataArrays);
-            // ---------------------------------
 
-            var option = {
+                        var option = {
                 title: {
                     text: 'Pozycja Cenowa w Czasie',
                     subtext: 'Dane dla ' + totalInRule + ' produktów obecnie w automacie',
@@ -2941,6 +2892,8 @@
                     textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' },
                     subtextStyle: { fontSize: 11, color: '#999' }
                 },
+
+
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: { type: 'line', lineStyle: { color: '#999', type: 'dashed' } },
@@ -2991,7 +2944,7 @@
                     {
                         type: 'value',
                         name: 'Liczba produktów',
-                        // ZMIANA: Wymuszona skala
+
                         min: 0,
                         max: commonMax,
                         nameTextStyle: { fontSize: 10, color: '#999' },
@@ -3002,7 +2955,7 @@
                         type: 'value',
                         name: 'Liczba ofert',
                         position: 'right',
-                        // ZMIANA: Wymuszona identyczna skala
+
                         min: 0,
                         max: commonMax,
                         nameTextStyle: { fontSize: 10, color: '#999' },
@@ -3032,9 +2985,7 @@
             };
             chartPosition.setOption(option, true);
         }
-        // =============================================
-        // INIT
-        // =============================================
+
         $(document).ready(function () {
             var elemEff = document.getElementById('chartEffectiveness');
             var elemDyn = document.getElementById('chartDynamics');
@@ -3067,9 +3018,7 @@
     </script>
 
     <script>
-        // =============================================
-        // TABLE SEARCH LOGIC
-        // =============================================
+
         document.addEventListener("DOMContentLoaded", function () {
 
             const searchInput = document.getElementById('productSearch');
@@ -3156,9 +3105,7 @@
     </script>
 
     <script>
-        // =============================================
-        // FILTER SYSTEM LOGIC
-        // =============================================
+
         const FilterSystem = (function() {
             const isMarketplace = @(isMarketplace.ToString().ToLower());
 
@@ -3373,7 +3320,6 @@
 
                 updateTotalCount();
 
-                // Jeśli funkcja z innego skryptu istnieje, wywołaj ją
                 if (typeof updateVisibleProductSelectionButtons === 'function') {
                     updateVisibleProductSelectionButtons();
                 }
@@ -3418,8 +3364,6 @@
             FilterSystem.init();
         });
     </script>
-
-  
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -3519,5 +3463,5 @@
             }
         });
     </script>
-   
+
 }
