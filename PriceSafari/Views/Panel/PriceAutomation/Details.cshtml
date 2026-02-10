@@ -2067,39 +2067,57 @@
                 updateCounter();
             });
 
-            $('#selectAllVisibleBtn').on('click', function() {
-                $('.select-product-btn').each(function() {
-                    const btn = $(this);
-                    const pid = btn.data('product-id').toString();
-                    const pname = btn.data('product-name');
-                    const row = btn.closest('tr');
-                    const identifierText = row.find('.small.text-muted').text().trim();
+        // --- POPRAWIONE ZAZNACZANIE TYLKO WIDOCZNYCH ---
 
-                    if (!selectedProductIds.has(pid)) {
-                        selectedProductIds.add(pid);
-                        selectedProductNames.set(pid, pname);
-                        selectedProductIdentifiers.set(pid, identifierText);
-                        updateBtnState(btn, true);
-                    }
-                });
-                updateCounter();
-            });
+             $('#selectAllVisibleBtn').on('click', function() {
+                 $('.select-product-btn').each(function() {
+                     const btn = $(this);
+                     const row = btn.closest('tr');
 
-            $('#deselectAllVisibleBtn').on('click', function() {
-                $('.select-product-btn').each(function() {
-                    const btn = $(this);
-                    const pid = btn.data('product-id').toString();
+                     // Sprawdź, czy wiersz jest widoczny:
+                     // 1. Nie ma display: none (wyszukiwarka)
+                     // 2. Nie ma klasy filter-hidden (filtry przyciskowe)
+                     const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
 
-                    if (selectedProductIds.has(pid)) {
-                        selectedProductIds.delete(pid);
-                        selectedProductNames.delete(pid);
-                        selectedProductIdentifiers.delete(pid);
-                        updateBtnState(btn, false);
-                    }
-                });
-                updateCounter();
-            });
+                     if (isVisible) {
+                         const pid = btn.data('product-id').toString();
+                         const pname = btn.data('product-name');
+                         const identifierText = row.find('.small.text-muted').text().trim();
 
+                         if (!selectedProductIds.has(pid)) {
+                             selectedProductIds.add(pid);
+                             selectedProductNames.set(pid, pname);
+                             selectedProductIdentifiers.set(pid, identifierText);
+                             updateBtnState(btn, true);
+                         }
+                     }
+                 });
+                 updateCounter();
+             });
+
+             $('#deselectAllVisibleBtn').on('click', function() {
+                 $('.select-product-btn').each(function() {
+                     const btn = $(this);
+                     const row = btn.closest('tr');
+
+                     // Tutaj też sprawdzamy widoczność, żeby nie odznaczyć czegoś,
+                     // czego użytkownik aktualnie nie widzi (chyba że intencją jest 'odznacz wszystko w ogóle')
+                     // Zakładam, że 'deselectAllVisible' ma dotyczyć widocznych.
+                     const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
+
+                     if (isVisible) {
+                         const pid = btn.data('product-id').toString();
+
+                         if (selectedProductIds.has(pid)) {
+                             selectedProductIds.delete(pid);
+                             selectedProductNames.delete(pid);
+                             selectedProductIdentifiers.delete(pid);
+                             updateBtnState(btn, false);
+                         }
+                     }
+                 });
+                 updateCounter();
+             });
             $('#showSelectedProductsBtn').on('click', function() {
                 if (selectedProductIds.size === 0) {
                     alert('Nie zaznaczono żadnych produktów.');
