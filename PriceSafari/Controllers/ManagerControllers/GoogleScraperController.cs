@@ -118,7 +118,11 @@ public class GoogleScraperController : Controller
         {
             ProductId = product.ProductId;
             OriginalUrl = product.Url;
-            CleanedUrl = !string.IsNullOrEmpty(product.Url) ? cleanUrlFunc(product.Url) : string.Empty;
+
+            CleanedUrl = OriginalUrl;
+
+
+
             ProductNameInStoreForGoogle = product.ProductNameInStoreForGoogle;
             Ean = product.Ean;
             ProducerCode = product.ProducerCode;
@@ -3114,6 +3118,67 @@ public class GoogleScraperController : Controller
     /// <summary>
     /// Pobieranie zadania dla zewnętrznego scrapera - POPRAWIONE
     /// </summary>
+    //[HttpGet]
+    //[Route("api/external-scraper/get-task")]
+    //[AllowAnonymous]
+    //public IActionResult GetExternalScraperTask([FromQuery] string scraperName = null)
+    //{
+    //    var apiKey = GetApiKeyFromHeader();
+    //    if (!ValidateApiKey(apiKey))
+    //        return Unauthorized(new { error = "Invalid API key" });
+
+    //    // Odśwież heartbeat jeśli podano nazwę
+    //    if (!string.IsNullOrEmpty(scraperName) && _registeredScrapers.TryGetValue(scraperName, out var info))
+    //    {
+    //        info.LastHeartbeat = DateTime.UtcNow;
+    //    }
+
+    //    // Pobierz zadanie z kolejki
+    //    if (_externalTaskQueue.TryDequeue(out var task))
+    //    {
+    //        task.AssignedTo = scraperName ?? "unknown";
+    //        task.AssignedAt = DateTime.UtcNow;
+
+    //        Console.ForegroundColor = ConsoleColor.Cyan;
+    //        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Zadanie {task.TaskId.Substring(0, Math.Min(20, task.TaskId.Length))}... przydzielone do '{scraperName}'");
+    //        Console.ResetColor();
+
+    //        // Zwróć zadanie z odpowiednim formatem JSON
+    //        return Ok(new
+    //        {
+    //            hasTask = true,
+    //            task = new
+    //            {
+    //                taskId = task.TaskId,
+    //                productId = task.ProductId,
+    //                productName = task.ProductName,
+    //                searchTerm = task.SearchTerm,
+    //                cleanedUrl = task.CleanedUrl,
+    //                originalUrl = task.OriginalUrl,
+    //                ean = task.Ean,
+    //                producerCode = task.ProducerCode,
+    //                mode = task.Mode,
+    //                maxItemsToExtract = task.MaxItemsToExtract,
+    //                udmValue = task.UdmValue,
+    //                storeId = task.StoreId,
+    //                googleCid = task.GoogleCid,
+    //                googleGid = task.GoogleGid,
+    //                googleHid = task.GoogleHid,
+    //                targetCode = task.TargetCode,
+    //                eligibleProductsMap = task.EligibleProductsMap
+    //            }
+    //        });
+    //    }
+
+    //    // Brak zadań
+    //    return Ok(new
+    //    {
+    //        hasTask = false,
+    //        message = "No tasks available"
+    //    });
+    //}
+
+
     [HttpGet]
     [Route("api/external-scraper/get-task")]
     [AllowAnonymous]
@@ -3123,15 +3188,30 @@ public class GoogleScraperController : Controller
         if (!ValidateApiKey(apiKey))
             return Unauthorized(new { error = "Invalid API key" });
 
-        // Odśwież heartbeat jeśli podano nazwę
         if (!string.IsNullOrEmpty(scraperName) && _registeredScrapers.TryGetValue(scraperName, out var info))
         {
             info.LastHeartbeat = DateTime.UtcNow;
         }
 
-        // Pobierz zadanie z kolejki
-        if (_externalTaskQueue.TryDequeue(out var task))
+        // ZMIANA: Pętla upewniająca się, że wydajemy tylko zadania wciąż wymagające przetworzenia
+        while (_externalTaskQueue.TryDequeue(out var task))
         {
+            // Sprawdź w Master List, czy ten produkt nie został już znaleziony przy okazji (z puli)
+            if (_masterProductStateList.TryGetValue(task.ProductId, out var currentState))
+            {
+                if (currentState.Status == ProductStatus.Found || currentState.Status == ProductStatus.NotFound || currentState.Status == ProductStatus.Error)
+                {
+                    // Produkt został już przetworzony. Wyrzucamy to zadanie do śmieci i szukamy następnego.
+                    continue;
+                }
+
+                // Oznacz produkt jako "W przetwarzaniu", żeby inne instancje go nie dublowały
+                lock (currentState)
+                {
+                    currentState.Status = ProductStatus.Processing;
+                }
+            }
+
             task.AssignedTo = scraperName ?? "unknown";
             task.AssignedAt = DateTime.UtcNow;
 
@@ -3139,7 +3219,6 @@ public class GoogleScraperController : Controller
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Zadanie {task.TaskId.Substring(0, Math.Min(20, task.TaskId.Length))}... przydzielone do '{scraperName}'");
             Console.ResetColor();
 
-            // Zwróć zadanie z odpowiednim formatem JSON
             return Ok(new
             {
                 hasTask = true,
@@ -3166,7 +3245,6 @@ public class GoogleScraperController : Controller
             });
         }
 
-        // Brak zadań
         return Ok(new
         {
             hasTask = false,
@@ -3174,9 +3252,55 @@ public class GoogleScraperController : Controller
         });
     }
 
-    /// <summary>
-    /// Pobieranie paczki zadań dla zewnętrznego scrapera
-    /// </summary>
+
+    //[HttpGet]
+    //[Route("api/external-scraper/get-task-batch")]
+    //[AllowAnonymous]
+    //public IActionResult GetExternalScraperTaskBatch([FromQuery] string scraperName, [FromQuery] int maxTasks = 10)
+    //{
+    //    var apiKey = GetApiKeyFromHeader();
+    //    if (!ValidateApiKey(apiKey))
+    //        return Unauthorized(new { error = "Invalid API key" });
+
+    //    if (string.IsNullOrEmpty(scraperName))
+    //        return BadRequest(new { error = "scraperName is required" });
+
+    //    // Odśwież heartbeat
+    //    if (_registeredScrapers.TryGetValue(scraperName, out var info))
+    //    {
+    //        info.LastHeartbeat = DateTime.UtcNow;
+    //    }
+
+    //    var tasks = new List<ExternalScraperTask>();
+
+    //    for (int i = 0; i < maxTasks; i++)
+    //    {
+    //        if (_externalTaskQueue.TryDequeue(out var task))
+    //        {
+    //            task.AssignedTo = scraperName;
+    //            task.AssignedAt = DateTime.UtcNow;
+    //            tasks.Add(task);
+    //        }
+    //        else
+    //        {
+    //            break;
+    //        }
+    //    }
+
+    //    if (tasks.Any())
+    //    {
+    //        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] {tasks.Count} zadań przydzielonych do '{scraperName}'");
+    //    }
+
+    //    return Ok(new
+    //    {
+    //        hasTasks = tasks.Any(),
+    //        tasksCount = tasks.Count,
+    //        tasks = tasks,
+    //        queueRemaining = _externalTaskQueue.Count
+    //    });
+    //}
+
     [HttpGet]
     [Route("api/external-scraper/get-task-batch")]
     [AllowAnonymous]
@@ -3189,7 +3313,6 @@ public class GoogleScraperController : Controller
         if (string.IsNullOrEmpty(scraperName))
             return BadRequest(new { error = "scraperName is required" });
 
-        // Odśwież heartbeat
         if (_registeredScrapers.TryGetValue(scraperName, out var info))
         {
             info.LastHeartbeat = DateTime.UtcNow;
@@ -3197,18 +3320,26 @@ public class GoogleScraperController : Controller
 
         var tasks = new List<ExternalScraperTask>();
 
-        for (int i = 0; i < maxTasks; i++)
+        // ZMIANA: Pobieramy zadania póki nie osiągniemy maxTasks LUB nie wyczerpiemy kolejki
+        while (tasks.Count < maxTasks && _externalTaskQueue.TryDequeue(out var task))
         {
-            if (_externalTaskQueue.TryDequeue(out var task))
+            if (_masterProductStateList.TryGetValue(task.ProductId, out var currentState))
             {
-                task.AssignedTo = scraperName;
-                task.AssignedAt = DateTime.UtcNow;
-                tasks.Add(task);
+                // Jeśli produkt ma już finalny status (np. Found z puli), to go pomijamy!
+                if (currentState.Status == ProductStatus.Found || currentState.Status == ProductStatus.NotFound || currentState.Status == ProductStatus.Error)
+                {
+                    continue;
+                }
+
+                lock (currentState)
+                {
+                    currentState.Status = ProductStatus.Processing;
+                }
             }
-            else
-            {
-                break;
-            }
+
+            task.AssignedTo = scraperName;
+            task.AssignedAt = DateTime.UtcNow;
+            tasks.Add(task);
         }
 
         if (tasks.Any())
@@ -3224,6 +3355,9 @@ public class GoogleScraperController : Controller
             queueRemaining = _externalTaskQueue.Count
         });
     }
+
+
+
 
     [HttpPost]
     [Route("api/external-scraper/submit-result")]
@@ -3528,9 +3662,6 @@ public class GoogleScraperController : Controller
     }
 
 
-    /// <summary>
-    /// Przetwarza wynik od zewnętrznego scrapera i aktualizuje bazę danych - POPRAWIONE
-    /// </summary>
     private async Task ProcessExternalResultAsync(ExternalScraperResult result)
     {
         if (result == null) return;
@@ -3560,38 +3691,62 @@ public class GoogleScraperController : Controller
                         {
                             case "Found":
                                 productState.UpdateStatus(ProductStatus.Found, result.FoundGoogleUrl, result.FoundCid, result.FoundGid);
-                                Console.ForegroundColor = ConsoleColor.Green;
-                                Console.WriteLine($"[EXT-API] Produkt {productId} ZNALEZIONY: CID={result.FoundCid}, URL={result.FoundGoogleUrl}");
-                                Console.ResetColor();
+
+                                lock (_consoleLock)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Green;
+                                    Console.WriteLine($"\n[EXT-API - BEZPOŚREDNIE TRAFIENIE]");
+                                    Console.WriteLine($" ├─ ID Produktu : {productId.Value}");
+                                    Console.WriteLine($" ├─ Nazwa       : {productState.ProductNameInStoreForGoogle}");
+                                    Console.WriteLine($" ├─ URL z bazy  : {productState.CleanedUrl}");
+                                    Console.WriteLine($" ├─ CID Google  : {result.FoundCid}");
+                                    Console.WriteLine($" └─ URL Google  : {result.FoundGoogleUrl}");
+                                    Console.ResetColor();
+                                }
                                 break;
 
                             case "NotFound":
                                 productState.UpdateStatus(ProductStatus.NotFound);
-                                Console.WriteLine($"[EXT-API] Produkt {productId} NIE ZNALEZIONY");
+                                // To zostawiamy szare/standardowe, żeby nie zaśmiecać konsoli
+                                // Console.WriteLine($"[EXT-API] Produkt {productId} NIE ZNALEZIONY");
                                 break;
 
                             case "CaptchaHalt":
                                 productState.UpdateStatus(ProductStatus.CaptchaHalt);
-                                Console.ForegroundColor = ConsoleColor.Red;
-                                Console.WriteLine($"[EXT-API] Produkt {productId} CAPTCHA HALT");
-                                Console.ResetColor();
+                                lock (_consoleLock)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.WriteLine($"[EXT-API] ⚠ Produkt {productId} ZATRZYMANY PRZEZ CAPTCHA");
+                                    Console.ResetColor();
+                                }
                                 break;
 
                             case "Error":
                             default:
                                 productState.UpdateStatus(ProductStatus.Error);
-                                Console.WriteLine($"[EXT-API] Produkt {productId} ERROR: {result.ErrorMessage}");
+                                lock (_consoleLock)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.WriteLine($"[EXT-API] ❌ Produkt {productId} BŁĄD: {result.ErrorMessage}");
+                                    Console.ResetColor();
+                                }
                                 break;
                         }
                     }
                 }
             }
 
-            // Jeśli są dopasowane produkty (tryb Intermediate lub Standard)
+            // ====================================================================
+            // CROSS-MATCHING (Dopasowania rykoszetem z puli)
+            // ====================================================================
             if (result.MatchedProducts != null && result.MatchedProducts.Any())
             {
                 foreach (var matched in result.MatchedProducts)
                 {
+                    // ZABEZPIECZENIE: Pomijamy produkt główny, bo on został wylistowany wyżej na zielono
+                    if (productId.HasValue && matched.ProductId == productId.Value)
+                        continue;
+
                     if (_masterProductStateList.TryGetValue(matched.ProductId, out var matchedState))
                     {
                         lock (matchedState)
@@ -3599,9 +3754,19 @@ public class GoogleScraperController : Controller
                             if (matchedState.Status != ProductStatus.Found)
                             {
                                 matchedState.UpdateStatus(ProductStatus.Found, matched.GoogleUrl, matched.Cid, matched.Gid);
-                                Console.ForegroundColor = ConsoleColor.Green;
-                                Console.WriteLine($"[EXT-API] ✓ Dopasowano produkt {matched.ProductId} (CID: {matched.Cid})");
-                                Console.ResetColor();
+
+                                lock (_consoleLock)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Magenta;
+                                    Console.WriteLine($"\n[EXT-API - CROSS-MATCH (RYKOSZET Z PULI!)]");
+                                    Console.WriteLine($" ├─ Wątek szukał : Głównego produktu ID {productId}");
+                                    Console.WriteLine($" ├─ DOPASOWANO   : Produkt ID {matched.ProductId} z puli oczekujących!");
+                                    Console.WriteLine($" ├─ Nazwa w bazie: {matchedState.ProductNameInStoreForGoogle}");
+                                    Console.WriteLine($" ├─ URL z bazy   : {matchedState.CleanedUrl}");
+                                    Console.WriteLine($" ├─ CID Google   : {matched.Cid}");
+                                    Console.WriteLine($" └─ URL Google   : {matched.GoogleUrl}");
+                                    Console.ResetColor();
+                                }
                             }
                         }
                     }
@@ -3610,9 +3775,12 @@ public class GoogleScraperController : Controller
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"[EXT-API] Błąd przetwarzania wyniku: {ex.Message}");
-            Console.ResetColor();
+            lock (_consoleLock)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[EXT-API] Błąd przetwarzania wyniku: {ex.Message}");
+                Console.ResetColor();
+            }
         }
     }
 
