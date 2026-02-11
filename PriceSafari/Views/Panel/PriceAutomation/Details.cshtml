@@ -2066,28 +2066,30 @@
                         updateCounter();
                     });
 
-                     $('#selectAllVisibleBtn').on('click', function() {
-                         $('.select-product-btn').each(function() {
-                             const btn = $(this);
-                             const row = btn.closest('tr');
+                           $('#selectAllVisibleBtn').on('click', function() {
+                            $('.select-product-btn').each(function() {
+                                const btn = $(this);
+                                const row = btn.closest('tr');
 
-                             const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
+                              
+                                const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
 
-                             if (isVisible) {
-                                 const pid = btn.data('product-id').toString();
-                                 const pname = btn.data('product-name');
-                                 const identifierText = row.find('.small.text-muted').text().trim();
+                                if (isVisible) {
+                                    const pid = btn.data('product-id').toString();
+                                    const pname = btn.data('product-name');
 
-                                 if (!selectedProductIds.has(pid)) {
-                                     selectedProductIds.add(pid);
-                                     selectedProductNames.set(pid, pname);
-                                     selectedProductIdentifiers.set(pid, identifierText);
-                                     updateBtnState(btn, true);
-                                 }
-                             }
-                         });
-                         updateCounter();
-                     });
+                                    const identifierText = btn.data('identifier');
+                                  
+                                    if (!selectedProductIds.has(pid)) {
+                                        selectedProductIds.add(pid);
+                                        selectedProductNames.set(pid, pname);
+                                        selectedProductIdentifiers.set(pid, identifierText);
+                                        updateBtnState(btn, true);
+                                    }
+                                }
+                            });
+                            updateCounter();
+                        });
 
                      $('#deselectAllVisibleBtn').on('click', function() {
                          $('.select-product-btn').each(function() {
