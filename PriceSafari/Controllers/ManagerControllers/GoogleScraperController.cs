@@ -3803,7 +3803,16 @@ public class GoogleScraperController : Controller
 
             int addedCount = 0;
 
-            foreach (var product in products.Where(p => p.Status == ProductStatus.Pending))
+            //foreach (var product in products.Where(p => p.Status == ProductStatus.Pending))
+
+
+
+            var pendingProducts = products
+            .Where(p => p.Status == ProductStatus.Pending)
+            .OrderBy(x => Guid.NewGuid()) 
+            .ToList();
+
+            foreach (var product in pendingProducts)
             {
                 // Zbuduj searchTerm zgodnie z ustawieniami
                 string searchTerm = product.ProductNameInStoreForGoogle;
