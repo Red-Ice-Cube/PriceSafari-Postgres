@@ -3784,14 +3784,11 @@ public class GoogleScraperController : Controller
         }
     }
 
-    /// <summary>
-    /// Dodaje zadania do kolejki dla zewnętrznych scraperów - POPRAWIONE
-    /// </summary>
     public void EnqueueTasksForExternalScrapers(int storeId, List<ProductProcessingState> products, string mode)
     {
         lock (_settingsLock)
         {
-            // Przygotuj mapę URL -> ProductId dla trybu Standard
+            // 1. Logika mapowania dla trybu Standard (bez zmian)
             Dictionary<string, int> eligibleProductsMap = null;
             if (mode == "Standard" || mode == "full_process")
             {
@@ -3801,20 +3798,24 @@ public class GoogleScraperController : Controller
                     .ToDictionary(g => g.Key, g => g.First().ProductId, StringComparer.OrdinalIgnoreCase);
             }
 
-            int addedCount = 0;
-
-            //foreach (var product in products.Where(p => p.Status == ProductStatus.Pending))
-
-
-
+            // 2. Filtrowanie i LOSOWANIE (Shuffle)
+            // Używamy Random.Shared dla lepszej wydajności niż Guid.NewGuid() przy dużych listach
             var pendingProducts = products
-            .Where(p => p.Status == ProductStatus.Pending)
-            .OrderBy(x => Guid.NewGuid()) 
-            .ToList();
+                .Where(p => p.Status == ProductStatus.Pending)
+                .OrderBy(_ => Random.Shared.Next())
+                .ToList();
+
+            if (!pendingProducts.Any()) return;
+
+            // DEBUG: Pokaż w konsoli pierwsze 3 ID, aby upewnić się, że są losowe
+            var previewIds = string.Join(", ", pendingProducts.Take(3).Select(p => p.ProductId));
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Kolejność po losowaniu (start): {previewIds}...");
+
+            int addedCount = 0;
 
             foreach (var product in pendingProducts)
             {
-                // Zbuduj searchTerm zgodnie z ustawieniami
+                // Budowanie searchTerm
                 string searchTerm = product.ProductNameInStoreForGoogle;
 
                 if (_externalScraperSettings.AppendProducerCode && !string.IsNullOrEmpty(product.ProducerCode))
@@ -3838,7 +3839,7 @@ public class GoogleScraperController : Controller
                     UdmValue = _externalScraperSettings.SearchModeUdm,
                     StoreId = storeId,
                     EligibleProductsMap = eligibleProductsMap,
-                    TargetCode = product.ProducerCode // Dla trybu Intermediate
+                    TargetCode = product.ProducerCode
                 };
 
                 _externalTaskQueue.Enqueue(task);
@@ -3846,7 +3847,8 @@ public class GoogleScraperController : Controller
             }
 
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Dodano {addedCount} zadań do kolejki. Tryb: {mode}");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Dodano {addedCount} zadań do kolejki w LOSOWEJ kolejności. Tryb: {mode}");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Aktualny rozmiar kolejki: {_externalTaskQueue.Count}");
             Console.ResetColor();
         }
     }
