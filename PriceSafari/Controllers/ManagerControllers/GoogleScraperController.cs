@@ -3788,18 +3788,34 @@ public class GoogleScraperController : Controller
     {
         lock (_settingsLock)
         {
-            // 1. Logika mapowania dla trybu Standard (bez zmian)
+            // ==============================================================================
+            // 1. TWORZENIE MAPY (TUTAJ JEST ZMIANA)
+            // ==============================================================================
             Dictionary<string, int> eligibleProductsMap = null;
+
+            // Budujemy mapę tylko dla trybów, które szukają po URL sklepu
             if (mode == "Standard" || mode == "full_process")
             {
-                eligibleProductsMap = products
-                    .Where(p => !string.IsNullOrEmpty(p.CleanedUrl))
-                    .GroupBy(p => p.CleanedUrl, StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(g => g.Key, g => g.First().ProductId, StringComparer.OrdinalIgnoreCase);
+                lock (_lockMasterListInit)
+                {
+                    // ZMIANA: Zamiast brać tylko z listy 'products' (która ma tylko Pending),
+                    // bierzemy z GLOBALNEJ listy (_masterProductStateList).
+                    // Dzięki temu Python dostanie też produkty 'NotFound' i jeśli trafi na nie przypadkiem,
+                    // to je naprawi na 'Found'.
+                    eligibleProductsMap = _masterProductStateList.Values
+                        .Where(p => !string.IsNullOrEmpty(p.CleanedUrl))
+                        // WAŻNE: Bierzemy Pending ORAZ NotFound (oraz Error, jeśli chcesz)
+                        .Where(p => p.Status == ProductStatus.Pending || p.Status == ProductStatus.NotFound || p.Status == ProductStatus.Error)
+                        .GroupBy(p => p.CleanedUrl, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(g => g.Key, g => g.First().ProductId, StringComparer.OrdinalIgnoreCase);
+                }
             }
 
+            // ==============================================================================
             // 2. Filtrowanie i LOSOWANIE (Shuffle)
-            // Używamy Random.Shared dla lepszej wydajności niż Guid.NewGuid() przy dużych listach
+            // ==============================================================================
+            // Tutaj nadal kolejkujemy do *aktywnego* szukania tylko te, które są Pending.
+            // Nie chcemy marnować zasobów na aktywne szukanie NotFound, chyba że użytkownik zresetuje statusy.
             var pendingProducts = products
                 .Where(p => p.Status == ProductStatus.Pending)
                 .OrderBy(_ => Random.Shared.Next())
@@ -3807,7 +3823,6 @@ public class GoogleScraperController : Controller
 
             if (!pendingProducts.Any()) return;
 
-            // DEBUG: Pokaż w konsoli pierwsze 3 ID, aby upewnić się, że są losowe
             var previewIds = string.Join(", ", pendingProducts.Take(3).Select(p => p.ProductId));
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Kolejność po losowaniu (start): {previewIds}...");
 
@@ -3838,7 +3853,7 @@ public class GoogleScraperController : Controller
                     MaxItemsToExtract = _externalScraperSettings.MaxCidsToProcess,
                     UdmValue = _externalScraperSettings.SearchModeUdm,
                     StoreId = storeId,
-                    EligibleProductsMap = eligibleProductsMap,
+                    EligibleProductsMap = eligibleProductsMap, // Przekazujemy rozszerzoną mapę!
                     TargetCode = product.ProducerCode
                 };
 
@@ -3847,8 +3862,7 @@ public class GoogleScraperController : Controller
             }
 
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Dodano {addedCount} zadań do kolejki w LOSOWEJ kolejności. Tryb: {mode}");
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Aktualny rozmiar kolejki: {_externalTaskQueue.Count}");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Dodano {addedCount} zadań. Mapa rykoszetów zawiera {eligibleProductsMap?.Count ?? 0} adresów (w tym NotFound).");
             Console.ResetColor();
         }
     }

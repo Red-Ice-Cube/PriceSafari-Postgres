@@ -220,6 +220,11 @@
                             <option value="Intermediate">Pośredni</option>
                         </select>
                     </div>
+
+                    <div class="col-12">
+                        <label class="form-label small text-primary fw-bold">Dopisz do zapytania (Prefix)</label>
+                        <input type="text" class="form-control form-control-sm" id="extAdHocQueryPrefix" placeholder="np. sklep wędkarski" />
+                    </div>
                 </div>
                 <div class="form-check mt-2">
                     <input type="checkbox" class="form-check-input" id="extHeadlessMode" checked />
@@ -545,59 +550,64 @@
         }
 
         function startExternalScraping() {
-            // 1. Pobierz zaznaczone ID produktów
-            var selectedProductIds = [];
-            $('.product-checkbox:checked').each(function() {
-                selectedProductIds.push(parseInt($(this).val(), 10));
-            });
+        // 1. Pobierz zaznaczone ID produktów
+        var selectedProductIds = [];
+        $('.product-checkbox:checked').each(function() {
+        selectedProductIds.push(parseInt($(this).val(), 10));
+        });
 
-            // 2. Pobierz ustawienia z formularza w widoku
-            var mode = $('#extScrapingMode').val();
-            var maxCids = $('#extMaxCids').val();
-            var udm = $('#extSearchModeUdm').val();
-            var prefix = $('#productNamePrefix').val(); // Pobieramy z głównego formularza
-            var appendCode = $('#extAppendProducerCode').is(':checked');
+        // 2. Pobierz ustawienia z formularza w widoku
+        var mode = $('#extScrapingMode').val();
+        var maxCids = $('#extMaxCids').val();
+        var udm = $('#extSearchModeUdm').val();
+            
+        // --- ZMIANA TUTAJ ---
+        // Pobieramy prefix z nowego pola w sekcji zewnętrznej
+        var prefix = $('#extAdHocQueryPrefix').val();
+        // --------------------
 
-            // Jeśli wybrano tryb pośredni, sprawdzamy opcję ścisłego dopasowania
-            var compareOnly = $('#compareOnlyCurrentProductCode').is(':checked');
+        var appendCode = $('#extAppendProducerCode').is(':checked');
 
-            // Logowanie w konsoli panelu
-            addExtLog('Wysyłanie żądania do serwera...', 'info');
+        // Jeśli wybrano tryb pośredni, sprawdzamy opcję ścisłego dopasowania
+        var compareOnly = $('#compareOnlyCurrentProductCode').is(':checked');
 
-            // 3. Wyślij do Akcji MVC (nie API)
-            $.ajax({
-                url: '@Url.Action("StartExternalScraping", "GoogleScraper")',
-                type: 'POST',
-                data: {
-                    storeId: '@storeId',
-                    productIds: selectedProductIds,
-                    mode: mode,
-                    maxCids: maxCids,
-                    udm: udm,
-                    productNamePrefix: prefix,
-                    appendProducerCode: appendCode,
-                    compareOnlyCode: compareOnly
-                },
-                success: function(response) {
-                    if (response.success) {
-                        addExtLog('SUKCES: ' + response.message, 'success');
-                        refreshExtStatus();
-                        $('#selectAllProducts').prop('checked', false);
-                        $('.product-checkbox').prop('checked', false);
-                    } else {
-                        addExtLog('BŁĄD: ' + response.message, 'error');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    var msg = "Błąd połączenia";
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        msg = xhr.responseJSON.message;
-                    } else if (xhr.responseText) {
-                        msg = xhr.responseText.substring(0, 50) + "...";
-                    }
-                    addExtLog('BŁĄD AJAX: ' + msg, 'error');
-                }
-            });
+        // Logowanie w konsoli panelu
+        addExtLog('Wysyłanie żądania do serwera... Prefix: ' + (prefix || 'BRAK'), 'info');
+
+        // 3. Wyślij do Akcji MVC
+        $.ajax({
+        url: '@Url.Action("StartExternalScraping", "GoogleScraper")',
+        type: 'POST',
+        data: {
+        storeId: '@storeId',
+        productIds: selectedProductIds,
+        mode: mode,
+        maxCids: maxCids,
+        udm: udm,
+        prefix: prefix, // Przekazujemy wartość z nowego pola
+        appendProducerCode: appendCode,
+        compareOnlyCode: compareOnly
+        },
+        success: function(response) {
+        if (response.success) {
+        addExtLog('SUKCES: ' + response.message, 'success');
+        refreshExtStatus();
+        $('#selectAllProducts').prop('checked', false);
+        $('.product-checkbox').prop('checked', false);
+        } else {
+        addExtLog('BŁĄD: ' + response.message, 'error');
+        }
+        },
+        error: function(xhr, status, error) {
+        var msg = "Błąd połączenia";
+        if (xhr.responseJSON && xhr.responseJSON.message) {
+        msg = xhr.responseJSON.message;
+        } else if (xhr.responseText) {
+        msg = xhr.responseText.substring(0, 50) + "...";
+        }
+        addExtLog('BŁĄD AJAX: ' + msg, 'error');
+        }
+        });
         }
 
         async function stopExternalScraping() {
@@ -824,7 +834,9 @@
                             <td><small>${product.productNameInStoreForGoogle || ''}</small><br/>${typeBadge}</td>
                             <td>${product.ean || ''}</td>
                             <td class="fw-bold text-primary">${product.producerCode || ''}</td>
-                            <td><a href="${product.url || '#'}" target="_blank">Sklep</a></td>
+                            <td style="max-width: 250px; word-break: break-all;">
+                                <a href="${product.url || '#'}" target="_blank">${product.url || '-'}</a>
+                            </td>
                             <td>${statusBadge}</td>
                             <td>${mainGoogleUrl}</td>
                             <td>${googleLinkHtml}</td>
