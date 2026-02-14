@@ -3798,9 +3798,7 @@ public class GoogleScraperController : Controller
             {
                 lock (_lockMasterListInit)
                 {
-                    // ZMIANA: Zamiast brać tylko z listy 'products' (która ma tylko Pending),
-                    // bierzemy z GLOBALNEJ listy (_masterProductStateList).
-                    // Dzięki temu Python dostanie też produkty 'NotFound' i jeśli trafi na nie przypadkiem,
+        
                     // to je naprawi na 'Found'.
                     eligibleProductsMap = _masterProductStateList.Values
                         .Where(p => !string.IsNullOrEmpty(p.CleanedUrl))
@@ -3811,11 +3809,7 @@ public class GoogleScraperController : Controller
                 }
             }
 
-            // ==============================================================================
-            // 2. Filtrowanie i LOSOWANIE (Shuffle)
-            // ==============================================================================
-            // Tutaj nadal kolejkujemy do *aktywnego* szukania tylko te, które są Pending.
-            // Nie chcemy marnować zasobów na aktywne szukanie NotFound, chyba że użytkownik zresetuje statusy.
+
             var pendingProducts = products
                 .Where(p => p.Status == ProductStatus.Pending)
                 .OrderBy(_ => Random.Shared.Next())
