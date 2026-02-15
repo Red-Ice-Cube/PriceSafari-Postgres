@@ -674,7 +674,8 @@
     let productId = @ViewBag.ProductId;
     let myStoreLower = "@storeName".toLowerCase().trim();
     let lastHoverParams = null;
-
+    let currentHistoryLimit = 30; 
+    let originalChartData = null;
     let highlightedStores = [];
     let storeColorMap = {};
     let lastHighlightedStore = null;
@@ -758,18 +759,15 @@
     }
 
     $('.history-btn').on('click', function() {
-
     $('.history-btn').removeClass('active');
     $(this).addClass('active');
 
     var newLimit = $(this).data('days');
 
-
     if (currentHistoryLimit !== newLimit) {
     currentHistoryLimit = newLimit;
-                
- 
-    originalChartData = null;
+            
+  
 
     if ($('#trendChartContainer').is(':visible')) {
     loadTrendDataAndDrawEcharts();
