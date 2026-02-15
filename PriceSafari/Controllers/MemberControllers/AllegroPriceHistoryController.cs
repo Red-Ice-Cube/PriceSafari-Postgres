@@ -753,6 +753,8 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.StoreId = storeId;
             ViewBag.ProductId = productId;
             ViewBag.ProductName = product.AllegroProductName;
+            ViewBag.OfferId = product.IdOnAllegro; 
+            ViewBag.Ean = product.AllegroEan;
             ViewBag.StoreName = store.StoreNameAllegro;
             ViewBag.AllegroOfferUrl = product.AllegroOfferUrl;
 

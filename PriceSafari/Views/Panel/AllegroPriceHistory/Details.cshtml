@@ -4,6 +4,8 @@
     var storeId = ViewBag.StoreId;
     var productId = ViewBag.ProductId;
     var productName = ViewBag.ProductName as string;
+    var offerId = ViewBag.OfferId as string;
+    var ean = ViewBag.Ean as string;
     var storeName = ViewBag.StoreName as string;
     var allegroOfferUrl = ViewBag.AllegroOfferUrl as string;
 }
@@ -119,6 +121,16 @@
 
         <div class="form-check-orders" style="margin-bottom:16px;">
             <div id="lastScrapeInfo"></div>
+
+            @if (!string.IsNullOrEmpty(offerId))
+            {
+                <p><strong>ID oferty:</strong> @offerId</p>
+            }
+
+            @if (!string.IsNullOrEmpty(ean))
+            {
+                <p><strong>EAN:</strong> @ean</p>
+            }
         </div>
 
         <div style="display: flex; width: 100%; gap: 48px;  align-items: flex-end; justify-content:space-between;">
@@ -301,24 +313,27 @@
         }
 
         function setCheapestMode(mode) {
-            const currentChartType = document.getElementById('switchToPriceChartBtn').classList.contains('button-active') ? 'price' : 'sales';
-            if (showOnlyCheapest === mode || currentChartType !== 'price') return;
-            showOnlyCheapest = mode;
+        // BŁĄD JEST TUTAJ: sprawdź, czy w nawiasie masz 'active' (poprawnie), czy 'button-active' (źle)
+        const currentChartType = document.getElementById('switchToPriceChartBtn').classList.contains('active') ? 'price' : 'sales';
+    
+        if (showOnlyCheapest === mode && currentChartType === 'price') return;
+    
+        showOnlyCheapest = mode;
 
-            if (originalChartData) {
-                displayCurrentTrendChart();
-                if (echartsTrendChart && lastHoverParams) {
-                    setTimeout(() => {
-                        const opt = echartsTrendChart.getOption();
-                        if (opt && opt.xAxis && opt.xAxis[0].data) {
-                            const idx = opt.xAxis[0].data.indexOf(lastHoverParams[0].axisValue);
-                            if (idx > -1) {
-                                echartsTrendChart.dispatchAction({ type: 'showTip', xAxisIndex: 0, dataIndex: idx });
-                            }
-                        }
-                    }, 100);
-                }
-            }
+        if (originalChartData) {
+        displayCurrentTrendChart();
+        if (echartsTrendChart && lastHoverParams) {
+        setTimeout(() => {
+        const opt = echartsTrendChart.getOption();
+        if (opt && opt.xAxis && opt.xAxis[0].data) {
+        const idx = opt.xAxis[0].data.indexOf(lastHoverParams[0].axisValue);
+        if (idx > -1) {
+        echartsTrendChart.dispatchAction({ type: 'showTip', xAxisIndex: 0, dataIndex: idx });
+        }
+        }
+        }, 100);
+        }
+        }
         }
 
         function hideStoreFromChart(storeName) {
@@ -589,7 +604,6 @@
         let defaultGrayAlpha = 0.3;
         const defaultCustomTooltipContent = 'Najedź na punkt na wykresie...';
         let currentChartType = 'price';
-
         window.updateEchartsStylesAndZ = updateEchartsStylesAndZ;
         window.recalculateYAxisRange = recalculateYAxisRange;
         window.generateTooltipPanelHtml = generateTooltipPanelHtml;
@@ -1072,8 +1086,7 @@
         function switchChartType(type) {
         if (currentChartType === type) return;
         currentChartType = type;
-    
-        // Aktualizacja klas dla nowego stylu (period-btn-custom)
+
         $('#switchToPriceChartBtn').toggleClass('active', type === 'price');
         $('#switchToSalesChartBtn').toggleClass('active', type === 'sales');
 
@@ -1111,40 +1124,211 @@
         });
         }
 
+        function rgbaToHex(rgba) {
+        if (typeof rgba !== 'string' || !rgba.toLowerCase().startsWith('rgba')) {
+
+        if (rgba.startsWith('#')) return rgba;
+        return null;
+        }
+        const parts = rgba.substring(rgba.indexOf('(') + 1, rgba.lastIndexOf(')')).split(/,\s*/);
+        if (parts.length < 3) return null;
+
+        try {
+        const r = parseInt(parts[0], 10);
+        const g = parseInt(parts[1], 10);
+        const b = parseInt(parts[2], 10);
+
+        const toHex = c => ('0' + c.toString(16)).slice(-2);
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
+        } catch (e) {
+        return null;
+        }
+        }
+
+        function getExcelColorForAllegroRow(storeName) {
+        if (!storeName) return null;
+        const sLower = storeName.toLowerCase().trim();
+
+        if (typeof myStoreLower !== 'undefined' && sLower === myStoreLower) {
+
+        return rgbaToHex(myMainOfferColor) || '#FF6400';
+        }
+
+        if (typeof highlightedStores !== 'undefined' && highlightedStores.includes(sLower)) {
+        if (typeof storeColorMap !== 'undefined' && typeof highlightColors !== 'undefined') {
+        const colorIndex = storeColorMap[sLower];
+        if (colorIndex != null && highlightColors[colorIndex]) {
+        return rgbaToHex(highlightColors[colorIndex]);
+        }
+        }
+        }
+
+        return null;
+        }
+
         async function exportChartDataToExcel() {
-        if (!originalChartData || !echartsTrendChart) return;
+        console.log("Rozpoczynanie eksportu Allegro do Excel...");
+
+        if (!originalChartData || !echartsTrendChart) {
+        alert("Brak danych do wyeksportowania.");
+        return;
+        }
+
         try {
         const workbook = new ExcelJS.Workbook();
         const dataType = currentChartType;
+
         const ws = workbook.addWorksheet(`Historia ${dataType === 'price' ? 'Cen' : 'Sprzedaży'}`);
-        const { data, xAxis, name } = echartsTrendChart.getOption();
-        const allDates = xAxis[0].data;
-        const { start, end } = data[0];
-        const visDates = allDates.slice(Math.floor(allDates.length * (start / 100)), Math.ceil(allDates.length * (end / 100)));
+
+        const option = echartsTrendChart.getOption();
+        const allDates = option.xAxis[0].data;
+
+        let startPct = 0;
+        let endPct = 100;
+
+        if (option.dataZoom && option.dataZoom.length > 0) {
+        const sliderZoom = option.dataZoom.find(dz => dz.type === 'slider' || dz.type === 'inside');
+        if (sliderZoom) {
+
+        startPct = sliderZoom.start !== undefined ? sliderZoom.start : 0;
+        endPct = sliderZoom.end !== undefined ? sliderZoom.end : 100;
+        }
+        }
+
+        const startIndex = Math.floor(allDates.length * (startPct / 100));
+        const endIndex = Math.ceil(allDates.length * (endPct / 100));
+
+        const visDates = allDates.slice(startIndex, endIndex);
+
+        if (visDates.length === 0) {
+        alert("Wybrany zakres dat jest pusty.");
+        return;
+        }
+
         const { dataByInstance, allInstances } = processData(originalChartData.timelineData, dataType);
 
-        ws.columns = [{h:'Sklep',k:'s',w:35},{h:'ID',k:'o',w:15},...visDates.map(d=>({h:d,k:d,w:12,s:dataType==='price'?{n:'#,##0.00 "PLN"'}:{n:'#,##0'}}))];
-        allInstances.forEach(id => {
-        const [store, offerId] = id.split('|');
-        if (hiddenStores.includes(store.toLowerCase().trim())) return;
-        const row = { s: store, o: offerId };
-        visDates.forEach(date => { row[date] = dataByInstance[id]?.[date]?.[dataType] ?? null; });
-        ws.addRow(row);
-        });
-        if(dataType==='sales') {
-        ws.addRow({});
-        const totals = {s:'SUMA SPRZEDAŻY'};
-        visDates.forEach(d=>{const day=originalChartData.timelineData.find(x=>x.scrapDate===d);totals[d]=day?day.totalSales:null});
-        const r = ws.addRow(totals);
-        r.font = {bold:true};
+        const columns = [
+        { header: 'Sklep', key: 's', width: 35 },
+        { header: 'ID Oferty / Info', key: 'o', width: 20 }
+        ];
+
+        visDates.forEach(date => {
+        columns.push({
+        header: date,
+        key: date,
+        width: 12,
+        style: {
+        numFmt: dataType === 'price' ? '#,##0.00 "PLN"' : '#,##0',
+        alignment: { horizontal: 'right' }
         }
-        const buf = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buf], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-        const safeName = (originalChartData.productName||"Produkt").replace(/[^a-z0-9_]/gi,'_');
-        const fname = `PriceSafari_${safeName}_${dataType}_${visDates[0]}_do_${visDates[visDates.length-1]}.xlsx`;
+        });
+        });
+
+        ws.columns = columns;
+
+        ws.getRow(1).font = { bold: true };
+        ws.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+        };
+
+        let rowsAdded = 0;
+
+        allInstances.forEach(id => {
+
+        const parts = id.split('|');
+        const storeName = parts[0];
+        const offerId = parts.length > 1 ? parts[1] : '';
+        const source = parts.length > 2 ? parts[2] : '';
+
+        if (typeof hiddenStores !== 'undefined' && hiddenStores.includes(storeName.toLowerCase().trim())) {
+        return;
+        }
+
+        const rowData = {
+        s: storeName,
+        o: offerId + (source ? ` (${source})` : '')
+        };
+
+        let hasDataInRange = false;
+        visDates.forEach(date => {
+        const val = dataByInstance[id]?.[date]?.[dataType] ?? dataByInstance[id]?.[date];
+
+        let cellValue = null;
+        const dataPoint = dataByInstance[id]?.[date];
+
+        if (dataPoint) {
+
+        if (typeof dataPoint === 'object') {
+        cellValue = dataPoint[dataType] ?? dataPoint.price;
+        } else {
+
+        cellValue = dataPoint;
+        }
+        }
+
+        if (cellValue !== null && cellValue !== undefined) {
+        rowData[date] = cellValue;
+        hasDataInRange = true;
+        }
+        });
+
+        if (hasDataInRange) {
+        const row = ws.addRow(rowData);
+        rowsAdded++;
+
+        const hexColor = getExcelColorForAllegroRow(storeName);
+        if (hexColor) {
+
+        const argbColor = 'FF' + hexColor.replace('#', '');
+        row.eachCell({ includeEmpty: true }, function(cell) {
+        cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: argbColor }
+        };
+        });
+        }
+        }
+        });
+
+        if (dataType === 'sales') {
+        ws.addRow({});
+
+        const totalsRowData = { s: 'SUMA SPRZEDAŻY CAŁKOWITEJ (KATALOG)' };
+
+        visDates.forEach(date => {
+
+        const dayData = originalChartData.timelineData.find(x => x.scrapDate === date);
+        if (dayData) {
+        totalsRowData[date] = dayData.totalSales;
+        }
+        });
+
+        const r = ws.addRow(totalsRowData);
+        r.font = { bold: true, color: { argb: 'FF000000' } };
+        r.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCCCCC' } };
+        }
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+        const prodNameSafe = (originalChartData.productName || "Produkt").replace(/[^a-z0-9_ -]/gi, '_').substring(0, 50);
+        const fileName = `PriceSafari_${prodNameSafe}_${dataType}_${visDates[0]}_do_${visDates[visDates.length - 1]}.xlsx`;
+
         const link = document.createElement("a");
-        link.href=URL.createObjectURL(blob);link.download=fname;link.click();URL.revokeObjectURL(link.href);
-        } catch (e) { console.error("Błąd Excel:", e); alert("Błąd tworzenia pliku Excel."); }
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => { URL.revokeObjectURL(link.href); }, 100);
+
+        } catch (e) {
+        console.error("Błąd Excel:", e);
+        alert("Błąd tworzenia pliku Excel: " + e.message);
+        }
         }
         });
     </script>
