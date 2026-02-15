@@ -10,7 +10,6 @@ using PriceSafari.Services.AllegroServices;
 using PriceSafari.ViewModels;
 using System.Security.Claims;
 using Microsoft.Extensions.Logging;
-
 namespace PriceSafari.Controllers.MemberControllers
 {
     [Authorize(Roles = "Admin, Manager, Member")]
@@ -79,12 +78,7 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/AllegroPriceHistory/Index.cshtml");
         }
 
-        ///aktualizacja id w bazie dla allegro
         //aktualizacja id w bazie dla allegro
-
-        // Pobierz wszystkie produkty, które mają URL, a nie mają ID
-
-        // WYWOŁANIE LOGIKI Z KLASY - CZYSTY KOD!
 
         [HttpGet]
         [Authorize(Roles = "Admin")]
@@ -261,25 +255,15 @@ namespace PriceSafari.Controllers.MemberControllers
                     {
                         filteredCompetitors = g.Where(p =>
                         {
-                            // 1. Wykluczamy własny sklep
+
                             if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                             {
                                 return false;
                             }
 
-                            // --- STARA LOGIKA (DO USUNIĘCIA/ZASTĄPIENIA) ---
-                            /*
-                            int deliveryDays = p.DeliveryTime ?? 31;
-                            if (deliveryDays < minDelivery || deliveryDays > maxDelivery)
-                            {
-                                return false;
-                            }
-                            */
-
-                            // --- NOWA LOGIKA ---
                             if (p.DeliveryTime.HasValue)
                             {
-                                // Mamy konkretną liczbę dni - sprawdzamy zakres suwaków
+
                                 if (p.DeliveryTime.Value < minDelivery || p.DeliveryTime.Value > maxDelivery)
                                 {
                                     return false;
@@ -287,16 +271,14 @@ namespace PriceSafari.Controllers.MemberControllers
                             }
                             else
                             {
-                                // Czas dostawy to NULL (brak danych) - decyduje checkbox
+
                                 if (!includeNoDelivery)
                                 {
                                     return false;
                                 }
-                                // Jeśli includeNoDelivery == true, to przechodzimy dalej (oferta jest OK pod kątem dostawy)
-                            }
-                            // -------------------
 
-                            // 3. Sprawdzanie nazw konkurentów (bez zmian)
+                            }
+
                             var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
                             if (competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
                             {
@@ -307,8 +289,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                     else
                     {
-                        // Brak aktywnego presetu - bierzemy wszystko (oprócz siebie)
-                        // Tutaj NULL w dostawie przechodzi automatycznie, bo nie ma warunku Where na delivery
+
                         filteredCompetitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
                     }
 
@@ -505,7 +486,6 @@ namespace PriceSafari.Controllers.MemberControllers
             public decimal PriceIndexTargetPercent { get; set; }
         }
 
-
         private decimal? CalculateMedian(List<decimal> prices)
         {
             if (prices == null || prices.Count == 0) return null;
@@ -515,12 +495,12 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (count % 2 == 0)
             {
-                // Parzysta liczba elementów - średnia z dwóch środkowych
+
                 return (sortedPrices[count / 2 - 1] + sortedPrices[count / 2]) / 2m;
             }
             else
             {
-                // Nieparzysta liczba - środkowy element
+
                 return sortedPrices[count / 2];
             }
         }
@@ -826,13 +806,12 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 filteredOffers = allOffersForProduct.Where(p =>
                 {
-                    // Własny sklep zawsze pokazujemy w details
+
                     if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                     {
                         return true;
                     }
 
-                    // NOWA LOGIKA DOSTAWY
                     if (p.DeliveryTime.HasValue)
                     {
                         if (p.DeliveryTime.Value < minDelivery || p.DeliveryTime.Value > maxDelivery)
@@ -842,7 +821,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                     else
                     {
-                        // Brak informacji o dostawie
+
                         if (!includeNoDelivery)
                         {
                             return false;
@@ -893,7 +872,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                 }
             }
-
             foreach (var offerId in myOfferIdsInList)
             {
                 if (myProductsLookup.TryGetValue(offerId, out var productIdTarget))
@@ -941,7 +919,7 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetPriceTrendData(int productId)
+        public async Task<IActionResult> GetPriceTrendData(int productId, int limit = 30) // 1. Dodano parametr limit z domyślną wartością
         {
             var product = await _context.AllegroProducts.FindAsync(productId);
             if (product == null)
@@ -968,10 +946,13 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(ci => ci.DataSource == DataSourceType.Allegro)
                 .ToDictionary(ci => ci.StoreName.ToLower().Trim(), ci => ci.UseCompetitor);
 
+            // 2. Walidacja limitu (zabezpieczenie)
+            if (limit <= 0) limit = 30;
+
             var lastScraps = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
-                .Take(30)
+                .Take(limit) // 3. Użycie zmiennej limit zamiast sztywnej 30
                 .OrderBy(sh => sh.Date)
                 .ToListAsync();
 
@@ -1007,7 +988,6 @@ namespace PriceSafari.Controllers.MemberControllers
                         if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                             return true;
 
-                        // NOWA LOGIKA DOSTAWY
                         if (p.DeliveryTime.HasValue)
                         {
                             if (p.DeliveryTime.Value < minDelivery || p.DeliveryTime.Value > maxDelivery)
@@ -1246,7 +1226,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .AsNoTracking()
                 .Where(b => b.StoreId == storeId && b.AllegroScrapeHistoryId == allegroScrapeHistoryId)
                 .Include(b => b.User)
-                // --- NOWOŚĆ: Dołączamy regułę automatyzacji ---
+
                 .Include(b => b.AutomationRule)
                 .Include(b => b.BridgeItems)
                     .ThenInclude(i => i.AllegroProduct)
@@ -1256,10 +1236,9 @@ namespace PriceSafari.Controllers.MemberControllers
             var result = batches.Select(b => new
             {
                 executionDate = b.ExecutionDate,
-                // --- ZMIANA LOGIKI NAZWY UŻYTKOWNIKA ---
+
                 userName = b.User != null ? b.User.UserName : (b.IsAutomation ? "Automat Cenowy" : "System/Nieznany"),
 
-                // --- NOWE POLA DLA AUTOMATYZACJI ---
                 isAutomation = b.IsAutomation,
                 automationRuleName = b.AutomationRule?.Name,
                 automationRuleColor = b.AutomationRule?.ColorHex,
@@ -1267,7 +1246,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 successfulCount = b.SuccessfulCount,
                 failedCount = b.FailedCount,
 
-                // --- ZMIANA TUTAJ: Zawsze zwracamy "Api" dla Allegro ---
                 exportMethod = "Api",
 
                 items = b.BridgeItems.Select(i => new
