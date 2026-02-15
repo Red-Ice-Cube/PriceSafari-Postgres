@@ -945,7 +945,7 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetPriceTrendData(int productId)
+        public async Task<IActionResult> GetPriceTrendData(int productId, int limit = 30) // 1. Dodany parametr
         {
             var product = await _context.Products.FindAsync(productId);
             if (product == null)
@@ -970,10 +970,13 @@ namespace PriceSafari.Controllers.MemberControllers
                .Include(x => x.CompetitorItems)
                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
 
+            // 2. Walidacja limitu
+            if (limit <= 0) limit = 30;
+
             var lastScraps = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
-                .Take(30)
+                .Take(limit) // 3. Użycie zmiennej limit
                 .OrderBy(sh => sh.Date)
                 .ToListAsync();
 

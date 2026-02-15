@@ -313,7 +313,7 @@
         }
 
         function setCheapestMode(mode) {
-        // BŁĄD JEST TUTAJ: sprawdź, czy w nawiasie masz 'active' (poprawnie), czy 'button-active' (źle)
+     
         const currentChartType = document.getElementById('switchToPriceChartBtn').classList.contains('active') ? 'price' : 'sales';
     
         if (showOnlyCheapest === mode && currentChartType === 'price') return;

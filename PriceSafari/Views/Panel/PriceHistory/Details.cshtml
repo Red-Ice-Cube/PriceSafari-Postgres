@@ -434,17 +434,24 @@
 
         <div id="trendChartContainer" class="price-trend-section">
             <div class="price-trend__main-panel">
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <div class="period-selector-group">
+                        <button type="button" class="period-btn-custom history-btn" data-days="7">7 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="14">14 Analiz</button>
+                        <button type="button" class="period-btn-custom active history-btn" data-days="30">30 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="60">60 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="90">90 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="120">120 Analiz</button>
+                    </div>
+                </div>
+
                 <div class="price-trend__chart-area">
                     <div id="trendChart" style="width: 100%; height: 100%;"></div>
                 </div>
+    
                 <div class="price-trend__controls">
                     <div class="price-trend__alpha-slider-wrapper">
-                        <input type="range"
-                               id="grayAlphaRange"
-                               min="0"
-                               max="0.6"
-                               step="0.01"
-                               value="0.3">
+                        <input type="range" id="grayAlphaRange" min="0" max="0.6" step="0.01" value="0.3">
                     </div>
                     <button type="button" id="exportExcelBtn" class="Button-Page-Small" title="Eksportuj dane historii cen do pliku Excel">
                         <i class="fas fa-file-excel" style="margin-right: 5px;"></i> Excel
@@ -749,6 +756,26 @@
 
         return { min: finalMin, max: finalMax };
     }
+
+    $('.history-btn').on('click', function() {
+
+    $('.history-btn').removeClass('active');
+    $(this).addClass('active');
+
+    var newLimit = $(this).data('days');
+
+
+    if (currentHistoryLimit !== newLimit) {
+    currentHistoryLimit = newLimit;
+                
+ 
+    originalChartData = null;
+
+    if ($('#trendChartContainer').is(':visible')) {
+    loadTrendDataAndDrawEcharts();
+    }
+    }
+    });
 
     function findNextFreeColorIndex() {
         for (let i = 0; i < highlightColors.length; i++) {
@@ -1489,14 +1516,18 @@
     });
 
     function loadTrendDataAndDrawEcharts() {
-         if ($('#trendChartContainer').is(':visible')) {
-              $('#loadingOverlay').show();
-         }
+    if ($('#trendChartContainer').is(':visible')) {
+    $('#loadingOverlay').show();
+    }
 
-        $.ajax({
-            url: '@Url.Action("GetPriceTrendData", "PriceHistory")',
-            type: 'GET',
-            data: { productId: productId },
+    $.ajax({
+    url: '@Url.Action("GetPriceTrendData", "PriceHistory")',
+    type: 'GET',
+  
+    data: {
+    productId: productId,
+    limit: currentHistoryLimit 
+    },
             success: function(response) {
                 if (response && response.timelineData && Array.isArray(response.timelineData)) {
                      currentTimelineData = response.timelineData;
