@@ -291,11 +291,7 @@ namespace PriceSafari.Services.AllegroServices
             scrapeHistory.ProcessedUrlsCount = relevantOffersForStore.Count;
             scrapeHistory.SavedOffersCount = newPriceHistories.Count;
 
-            // SaveChangesAsync zapisze:
-            // 1. Nową historię (scrapeHistory)
-            // 2. Nowe ceny (newPriceHistories)
-            // 3. Ewentualne zmiany EAN
-            // 4. Ewentualne zmiany flagi IsRejected na false (ZMIANA 2)
+   
             await _context.SaveChangesAsync();
 
             return (scrapeHistory.ProcessedUrlsCount, scrapeHistory.SavedOffersCount);

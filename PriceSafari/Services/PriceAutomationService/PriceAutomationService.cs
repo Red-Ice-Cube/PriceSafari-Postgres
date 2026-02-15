@@ -29,7 +29,6 @@ namespace PriceSafari.Services.PriceAutomationService
             _storePriceBridgeService = storePriceBridgeService;
         }
 
-        // --- GŁÓWNA METODA WYKONAWCZA (Odpowiednik ExecuteAutomation z kontrolera) ---
         public async Task<object> ExecuteAutomationAsync(int ruleId, string? userId)
         {
             var rule = await _context.AutomationRules
@@ -180,7 +179,6 @@ namespace PriceSafari.Services.PriceAutomationService
             throw new Exception("Nieznany typ źródła.");
         }
 
-        // --- HISTORIA WYKRESU (Odpowiednik GetAutomationHistory) ---
         public async Task<AutomationHistoryChartViewModel> GetAutomationHistoryAsync(int ruleId, int limit)
         {
             if (limit <= 0) limit = 7;
@@ -244,8 +242,6 @@ namespace PriceSafari.Services.PriceAutomationService
             return model;
         }
 
-        // --- PUBLICZNE METODY OBLICZENIOWE (Dla kontrolera widoku Details) ---
-
         public async Task<(List<AutomationProductRowViewModel> Products, int ScrapId, DateTime? ScrapDate)> GetCalculatedComparisonData(AutomationRule rule)
         {
             var resultProducts = new List<AutomationProductRowViewModel>();
@@ -290,7 +286,6 @@ namespace PriceSafari.Services.PriceAutomationService
             var competitorRules = GetCompetitorRulesForComparison(rule.CompetitorPreset);
             string myStoreName = rule.Store.StoreName ?? "";
 
-
             bool includeGoogle = rule.CompetitorPreset == null || rule.CompetitorPreset.SourceGoogle;
             bool includeCeneo = rule.CompetitorPreset == null || rule.CompetitorPreset.SourceCeneo;
 
@@ -306,8 +301,6 @@ namespace PriceSafari.Services.PriceAutomationService
 
                 var myGoogle = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle == true);
                 var myCeneo = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle != true);
-                // ==============================================================================
-
 
                 var rawCompetitors = histories
                     .Where(h => h.Price > 0 && h != myHistory && (h.StoreName == null || !h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase)))
@@ -362,15 +355,9 @@ namespace PriceSafari.Services.PriceAutomationService
                     PurchasePriceUpdatedDate = p.MarginPriceUpdatedDate
                 };
 
-                // ==============================================================================
-                // 2. TUTAJ WSTAWIAMY NOWĄ LOGIKĘ BLOKAD/OSTRZEŻEŃ
-                //    (Teraz zadziała, bo myCeneo i myGoogle są zadeklarowane wyżej)
-                // ==============================================================================
-
                 bool bestRivalIsCeneo = bestCompetitor != null && bestCompetitor.IsGoogle != true;
                 bool bestRivalIsGoogle = bestCompetitor != null && bestCompetitor.IsGoogle == true;
 
-                // Przypadek: Rywal na CENEO, a nas tam nie ma
                 if (bestRivalIsCeneo && myCeneo == null)
                 {
                     if (rule.RequireOwnOfferOnCeneo)
@@ -386,7 +373,6 @@ namespace PriceSafari.Services.PriceAutomationService
                     }
                 }
 
-                // Przypadek: Rywal na GOOGLE, a nas tam nie ma
                 if (bestRivalIsGoogle && myGoogle == null)
                 {
                     if (rule.RequireOwnOfferOnGoogle)
@@ -405,10 +391,6 @@ namespace PriceSafari.Services.PriceAutomationService
                 var googlePrices = filteredCompetitors.Where(c => c.IsGoogle == true).Select(c => c.Price).ToList();
                 var ceneoPrices = filteredCompetitors.Where(c => c.IsGoogle != true).Select(c => c.Price).ToList();
 
-                // --- FIX: Fallback rankingu ---
-                // Jeśli nie mamy dedykowanej oferty z Google (myGoogle), ale mamy CurrentPrice (np. z XML),
-                // używamy CurrentPrice do wyliczenia teoretycznej pozycji.
-
                 decimal? googlePriceCalc = (myGoogle != null && myGoogle.Price > 0) ? myGoogle.Price : row.CurrentPrice;
 
                 if (includeGoogle && googlePriceCalc.HasValue && googlePriceCalc.Value > 0)
@@ -416,8 +398,6 @@ namespace PriceSafari.Services.PriceAutomationService
                 else
                     row.CurrentRankingGoogle = null;
 
-
-                // To samo dla Ceneo
                 decimal? ceneoPriceCalc = (myCeneo != null && myCeneo.Price > 0) ? myCeneo.Price : row.CurrentPrice;
 
                 if (includeCeneo && ceneoPriceCalc.HasValue && ceneoPriceCalc.Value > 0)
@@ -535,15 +515,14 @@ namespace PriceSafari.Services.PriceAutomationService
                 var rawCompetitors = histories
                     .Where(h =>
                     {
-                        // 1. Podstawowe warunki (cena, nie nasza oferta)
+
                         if (h.Price <= 0) return false;
                         if (targetOfferId != null && h.IdAllegro == targetOfferId) return false;
                         if (h.SellerName != null && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase)) return false;
 
-                        // 2. LOGIKA DOSTAWY (zgodna z filtrami na froncie)
                         if (h.DeliveryTime.HasValue)
                         {
-                            // Jest czas dostawy -> sprawdzamy suwaki
+
                             if (h.DeliveryTime.Value < minDelivery || h.DeliveryTime.Value > maxDelivery)
                             {
                                 return false;
@@ -551,7 +530,7 @@ namespace PriceSafari.Services.PriceAutomationService
                         }
                         else
                         {
-                            // Brak czasu dostawy (NULL) -> sprawdzamy checkbox
+
                             if (!includeNoDelivery)
                             {
                                 return false;
@@ -641,20 +620,14 @@ namespace PriceSafari.Services.PriceAutomationService
                 }
                 row.NewRankingAllegro = newRankAllegro;
 
-                // Wewnątrz metody GetCalculatedMarketplaceData, w pętli foreach:
-
                 if (committedLookup.TryGetValue(p.AllegroProductId, out var committedItem))
                 {
                     row.IsAlreadyUpdated = true;
 
-                    // Istniejący kod:
                     row.UpdatedPrice = committedItem.PriceAfter_Verified ?? committedItem.PriceAfter_Simulated;
                     row.UpdateDate = committedItem.PriceBridgeBatch.ExecutionDate;
 
-                    // --- DODAJ TEN FRAGMENT ---
-                    // Pobieramy faktyczną prowizję po zmianie ceny (o ile istnieje w bazie)
                     row.UpdatedCommissionAmount = committedItem.CommissionAfter_Verified;
-                    // --------------------------
 
                     if (row.SuggestedPrice.HasValue && row.UpdatedPrice.HasValue)
                     {
@@ -699,8 +672,6 @@ namespace PriceSafari.Services.PriceAutomationService
             model.LatestScrapId = result.ScrapId;
         }
 
-        // --- PRYWATNE METODY POMOCNICZE (1 do 1) ---
-
         private string CalculateRanking(List<decimal> competitors, decimal myPrice)
         {
             var allPrices = new List<decimal>(competitors);
@@ -716,423 +687,10 @@ namespace PriceSafari.Services.PriceAutomationService
             else return $"{startRank}-{endRank}/{totalCount}";
         }
 
-        //private void CalculateSuggestedPrice(AutomationRule rule, AutomationProductRowViewModel row)
-        //{
-        //    decimal extraCost = 0;
-        //    if (rule.SourceType == AutomationSourceType.Marketplace &&
-        //        rule.MarketplaceIncludeCommission &&
-        //        row.CommissionAmount.HasValue)
-        //    {
-        //        extraCost = row.CommissionAmount.Value;
-        //    }
-
-        //    if (rule.EnforceMinimalMarkup && row.PurchasePrice.HasValue && row.PurchasePrice > 0)
-        //    {
-        //        decimal minLimit;
-        //        if (rule.IsMinimalMarkupPercent)
-        //            minLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MinimalMarkupValue / 100)) + extraCost;
-        //        else
-        //            minLimit = row.PurchasePrice.Value + rule.MinimalMarkupValue + extraCost;
-
-        //        row.MinPriceLimit = Math.Round(minLimit, 2);
-        //    }
-
-        //    if (rule.EnforceMaxMarkup && row.PurchasePrice.HasValue && row.PurchasePrice > 0)
-        //    {
-        //        decimal maxLimit;
-        //        if (rule.IsMaxMarkupPercent)
-        //            maxLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MaxMarkupValue / 100)) + extraCost;
-        //        else
-        //            maxLimit = row.PurchasePrice.Value + rule.MaxMarkupValue + extraCost;
-
-        //        row.MaxPriceLimit = Math.Round(maxLimit, 2);
-        //    }
-
-        //    if (rule.SourceType == AutomationSourceType.Marketplace)
-        //    {
-        //        bool missingApiData = !row.CommissionAmount.HasValue;
-
-        //        if (missingApiData)
-        //        {
-        //            if (rule.MarketplaceIncludeCommission)
-        //            {
-        //                ApplyBlock(row, "Brak Prowizji");
-        //                return;
-        //            }
-
-        //            if (!rule.MarketplaceChangePriceForBadgeInCampaign)
-        //            {
-        //                ApplyBlock(row, "Ocena Kampanii");
-        //                return;
-        //            }
-        //        }
-
-        //        if (row.IsInAnyCampaign && !rule.MarketplaceChangePriceForBadgeInCampaign)
-        //        {
-        //            ApplyBlock(row, "Aktywna Kampania");
-        //            return;
-        //        }
-
-        //        if (row.IsSuperPrice && !rule.MarketplaceChangePriceForBadgeSuperPrice)
-        //        {
-        //            ApplyBlock(row, "Super Cena");
-        //            return;
-        //        }
-
-        //        if (row.IsTopOffer && !rule.MarketplaceChangePriceForBadgeTopOffer)
-        //        {
-        //            ApplyBlock(row, "Top Oferta");
-        //            return;
-        //        }
-
-        //        if (row.IsBestPriceGuarantee && !rule.MarketplaceChangePriceForBadgeBestPriceGuarantee)
-        //        {
-        //            ApplyBlock(row, "Gwarancja Ceny");
-        //            return;
-        //        }
-        //    }
-
-        //    if (rule.UsePurchasePrice && (!row.PurchasePrice.HasValue || row.PurchasePrice <= 0))
-        //    {
-        //        ApplyBlock(row, "Brak Ceny Zakupu");
-        //        return;
-        //    }
-
-        //    decimal basePrice = row.ApiAllegroPriceFromUser ?? row.CurrentPrice ?? 0;
-
-        //    if (basePrice == 0)
-        //    {
-        //        row.SuggestedPrice = null;
-        //        row.Status = AutomationCalculationStatus.Blocked;
-        //        row.BlockReason = "Brak Ceny Obecnej";
-        //        return;
-        //    }
-
-        //    decimal suggested = basePrice;
-        //    bool calculationPossible = false;
-
-        //    if (rule.StrategyMode == AutomationStrategyMode.Competitiveness)
-        //    {
-        //        if (row.BestCompetitorPrice.HasValue)
-        //        {
-        //            decimal targetVisiblePrice;
-        //            if (rule.IsPriceStepPercent)
-        //                targetVisiblePrice = row.BestCompetitorPrice.Value + (row.BestCompetitorPrice.Value * (rule.PriceStep / 100));
-        //            else
-        //                targetVisiblePrice = row.BestCompetitorPrice.Value + rule.PriceStep;
-
-        //            decimal subsidyAmount = (row.ApiAllegroPriceFromUser.HasValue && row.CurrentPrice.HasValue)
-        //                                    ? row.ApiAllegroPriceFromUser.Value - row.CurrentPrice.Value
-        //                                    : 0;
-
-        //            suggested = targetVisiblePrice + subsidyAmount;
-        //            calculationPossible = true;
-        //        }
-        //    }
-        //    else if (rule.StrategyMode == AutomationStrategyMode.Profit)
-        //    {
-        //        if (row.MarketAveragePrice.HasValue && row.MarketAveragePrice.Value > 0)
-        //        {
-        //            decimal targetVisiblePrice = row.MarketAveragePrice.Value * (rule.PriceIndexTargetPercent / 100);
-        //            decimal subsidyAmount = (row.ApiAllegroPriceFromUser.HasValue && row.CurrentPrice.HasValue)
-        //                                    ? row.ApiAllegroPriceFromUser.Value - row.CurrentPrice.Value
-        //                                    : 0;
-
-        //            suggested = targetVisiblePrice + subsidyAmount;
-        //            calculationPossible = true;
-        //        }
-        //    }
-
-        //    if (!calculationPossible)
-        //    {
-        //        row.SuggestedPrice = null;
-        //        row.Status = AutomationCalculationStatus.Blocked;
-        //        row.BlockReason = "Brak Danych";
-        //        return;
-        //    }
-
-        //    // 4. APLIKACJA LIMITÓW - TU JEST KLUCZOWA ZMIANA
-        //    bool wasLimited = false;
-
-        //    if (row.MinPriceLimit.HasValue)
-        //    {
-        //        if (suggested < row.MinPriceLimit.Value)
-        //        {
-        //            // --- LOGIKA NAPRAWY MARŻY (MARGIN RECOVERY) ---
-        //            // Sprawdzamy, czy nowa cena (suggested) jest wyższa od obecnej (basePrice).
-        //            // Jeśli suggested > basePrice, to znaczy że podnosimy cenę, czyli poprawiamy sytuację,
-        //            // nawet jeśli nadal jesteśmy "pod kreską" limitu.
-
-        //            bool isPriceImprovement = suggested > basePrice;
-
-        //            if (isPriceImprovement)
-        //            {
-        //                // Pozwalamy na tę cenę.
-        //                // Ustawiamy flagę ostrzeżenia, żeby użytkownik widział żółty kolor w panelu.
-        //                row.IsMarginWarning = true;
-
-        //                // NIE ustawiamy wasLimited = true, ponieważ chcemy użyć wyliczonej ceny (np. 32.99),
-        //                // a nie ceny minimalnej (np. 35.00).
-        //            }
-        //            else
-        //            {
-        //                // Standardowa logika: Blokada lub Równanie do Podłogi
-        //                if (rule.SkipIfMarkupLimited)
-        //                {
-        //                    ApplyBlock(row, "Blokada Narzutu");
-        //                    return;
-        //                }
-
-        //                suggested = row.MinPriceLimit.Value;
-        //                row.IsMarginWarning = true;
-        //                wasLimited = true;
-        //            }
-        //        }
-        //    }
-
-        //    if (row.MaxPriceLimit.HasValue)
-        //    {
-        //        if (suggested > row.MaxPriceLimit.Value)
-        //        {
-        //            suggested = row.MaxPriceLimit.Value;
-        //            wasLimited = true;
-        //        }
-        //    }
-
-        //    // 5. Finalizacja
-        //    row.SuggestedPrice = Math.Round(suggested, 2);
-        //    decimal finalSuggested = row.SuggestedPrice.Value;
-        //    decimal finalBase = Math.Round(basePrice, 2);
-        //    row.PriceChange = Math.Round(finalSuggested - finalBase, 2);
-
-        //    if (wasLimited)
-        //    {
-        //        row.Status = AutomationCalculationStatus.PriceLimited;
-        //    }
-        //    else if (row.PriceChange == 0)
-        //    {
-        //        row.Status = AutomationCalculationStatus.TargetMaintained;
-        //    }
-        //    else
-        //    {
-        //        row.Status = AutomationCalculationStatus.TargetMet;
-        //    }
-
-        //    CalculateMarkup(row);
-        //}
-
-
-        //private void CalculateSuggestedPrice(AutomationRule rule, AutomationProductRowViewModel row)
-        //{
-        //    // 1. NAJPIERW pobieramy cenę bazową.
-        //    // Jeśli jej nie ma, blokujemy od razu (unikamy fałszywych błędów "Ocena Kampanii").
-        //    decimal basePrice = row.ApiAllegroPriceFromUser ?? row.CurrentPrice ?? 0;
-
-        //    if (basePrice == 0)
-        //    {
-        //        row.SuggestedPrice = null;
-        //        row.Status = AutomationCalculationStatus.Blocked;
-        //        row.BlockReason = "Brak Twojej Oferty";
-        //        return;
-        //    }
-
-        //    // 2. Wyliczenie limitów cenowych (Min/Max)
-        //    decimal extraCost = 0;
-        //    if (rule.SourceType == AutomationSourceType.Marketplace &&
-        //        rule.MarketplaceIncludeCommission &&
-        //        row.CommissionAmount.HasValue)
-        //    {
-        //        extraCost = row.CommissionAmount.Value;
-        //    }
-
-        //    if (rule.EnforceMinimalMarkup && row.PurchasePrice.HasValue && row.PurchasePrice > 0)
-        //    {
-        //        decimal minLimit;
-        //        if (rule.IsMinimalMarkupPercent)
-        //            minLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MinimalMarkupValue / 100)) + extraCost;
-        //        else
-        //            minLimit = row.PurchasePrice.Value + rule.MinimalMarkupValue + extraCost;
-
-        //        row.MinPriceLimit = Math.Round(minLimit, 2);
-        //    }
-
-        //    if (rule.EnforceMaxMarkup && row.PurchasePrice.HasValue && row.PurchasePrice > 0)
-        //    {
-        //        decimal maxLimit;
-        //        if (rule.IsMaxMarkupPercent)
-        //            maxLimit = row.PurchasePrice.Value + (row.PurchasePrice.Value * (rule.MaxMarkupValue / 100)) + extraCost;
-        //        else
-        //            maxLimit = row.PurchasePrice.Value + rule.MaxMarkupValue + extraCost;
-
-        //        row.MaxPriceLimit = Math.Round(maxLimit, 2);
-        //    }
-
-        //    // 3. Walidacja reguł Marketplace (Allegro)
-        //    if (rule.SourceType == AutomationSourceType.Marketplace)
-        //    {
-        //        bool missingApiData = !row.CommissionAmount.HasValue;
-
-        //        if (missingApiData)
-        //        {
-        //            if (rule.MarketplaceIncludeCommission)
-        //            {
-        //                ApplyBlock(row, "Brak Prowizji");
-        //                return;
-        //            }
-
-        //            if (!rule.MarketplaceChangePriceForBadgeInCampaign)
-        //            {
-        //                ApplyBlock(row, "Ocena Kampanii");
-        //                return;
-        //            }
-        //        }
-
-        //        if (row.IsInAnyCampaign && !rule.MarketplaceChangePriceForBadgeInCampaign)
-        //        {
-        //            ApplyBlock(row, "Aktywna Kampania");
-        //            return;
-        //        }
-
-        //        if (row.IsSuperPrice && !rule.MarketplaceChangePriceForBadgeSuperPrice)
-        //        {
-        //            ApplyBlock(row, "Super Cena");
-        //            return;
-        //        }
-
-        //        if (row.IsTopOffer && !rule.MarketplaceChangePriceForBadgeTopOffer)
-        //        {
-        //            ApplyBlock(row, "Top Oferta");
-        //            return;
-        //        }
-
-        //        if (row.IsBestPriceGuarantee && !rule.MarketplaceChangePriceForBadgeBestPriceGuarantee)
-        //        {
-        //            ApplyBlock(row, "Gwarancja Ceny");
-        //            return;
-        //        }
-        //    }
-
-        //    // 4. Walidacja ceny zakupu
-        //    if (rule.UsePurchasePrice && (!row.PurchasePrice.HasValue || row.PurchasePrice <= 0))
-        //    {
-        //        ApplyBlock(row, "Brak Ceny Zakupu");
-        //        return;
-        //    }
-
-        //    // 5. Obliczenie ceny sugerowanej (Symulacja)
-        //    decimal suggested = basePrice;
-        //    bool calculationPossible = false;
-
-        //    if (rule.StrategyMode == AutomationStrategyMode.Competitiveness)
-        //    {
-        //        if (row.BestCompetitorPrice.HasValue)
-        //        {
-        //            decimal targetVisiblePrice;
-        //            if (rule.IsPriceStepPercent)
-        //                targetVisiblePrice = row.BestCompetitorPrice.Value + (row.BestCompetitorPrice.Value * (rule.PriceStep / 100));
-        //            else
-        //                targetVisiblePrice = row.BestCompetitorPrice.Value + rule.PriceStep;
-
-        //            decimal subsidyAmount = (row.ApiAllegroPriceFromUser.HasValue && row.CurrentPrice.HasValue)
-        //                                    ? row.ApiAllegroPriceFromUser.Value - row.CurrentPrice.Value
-        //                                    : 0;
-
-        //            suggested = targetVisiblePrice + subsidyAmount;
-        //            calculationPossible = true;
-        //        }
-        //    }
-        //    else if (rule.StrategyMode == AutomationStrategyMode.Profit)
-        //    {
-        //        if (row.MarketAveragePrice.HasValue && row.MarketAveragePrice.Value > 0)
-        //        {
-        //            decimal targetVisiblePrice = row.MarketAveragePrice.Value * (rule.PriceIndexTargetPercent / 100);
-        //            decimal subsidyAmount = (row.ApiAllegroPriceFromUser.HasValue && row.CurrentPrice.HasValue)
-        //                                    ? row.ApiAllegroPriceFromUser.Value - row.CurrentPrice.Value
-        //                                    : 0;
-
-        //            suggested = targetVisiblePrice + subsidyAmount;
-        //            calculationPossible = true;
-        //        }
-        //    }
-
-        //    if (!calculationPossible)
-        //    {
-        //        row.SuggestedPrice = null;
-        //        row.Status = AutomationCalculationStatus.Blocked;
-        //        row.BlockReason = "Brak Konkurencji";
-        //        return;
-        //    }
-
-        //    // 6. Aplikacja limitów (z logiką Margin Recovery)
-        //    bool wasLimited = false;
-
-        //    if (row.MinPriceLimit.HasValue)
-        //    {
-        //        if (suggested < row.MinPriceLimit.Value)
-        //        {
-        //            // --- LOGIKA NAPRAWY MARŻY (MARGIN RECOVERY) ---
-        //            // Jeśli nowa cena jest wyższa od obecnej, pozwalamy na zmianę,
-        //            // mimo że wciąż jesteśmy poniżej limitu.
-        //            bool isPriceImprovement = suggested > basePrice;
-
-        //            if (isPriceImprovement)
-        //            {
-        //                // Pozwalamy na zmianę, ale oznaczamy ostrzeżeniem (żółty narzut w widoku)
-        //                row.IsMarginWarning = true;
-        //            }
-        //            else
-        //            {
-        //                // Standardowa blokada lub równanie do minimum
-        //                if (rule.SkipIfMarkupLimited)
-        //                {
-        //                    ApplyBlock(row, "Blokada Narzutu");
-        //                    return;
-        //                }
-
-        //                suggested = row.MinPriceLimit.Value;
-        //                row.IsMarginWarning = true;
-        //                wasLimited = true;
-        //            }
-        //        }
-        //    }
-
-        //    if (row.MaxPriceLimit.HasValue)
-        //    {
-        //        if (suggested > row.MaxPriceLimit.Value)
-        //        {
-        //            suggested = row.MaxPriceLimit.Value;
-        //            wasLimited = true;
-        //        }
-        //    }
-
-        //    // 7. Finalizacja wyników
-        //    row.SuggestedPrice = Math.Round(suggested, 2);
-        //    decimal finalSuggested = row.SuggestedPrice.Value;
-        //    decimal finalBase = Math.Round(basePrice, 2);
-        //    row.PriceChange = Math.Round(finalSuggested - finalBase, 2);
-
-        //    if (wasLimited)
-        //    {
-        //        row.Status = AutomationCalculationStatus.PriceLimited;
-        //    }
-        //    else if (row.PriceChange == 0)
-        //    {
-        //        row.Status = AutomationCalculationStatus.TargetMaintained;
-        //    }
-        //    else
-        //    {
-        //        row.Status = AutomationCalculationStatus.TargetMet;
-        //    }
-
-        //    CalculateMarkup(row);
-        //}
-
-
 
         private void CalculateSuggestedPrice(AutomationRule rule, AutomationProductRowViewModel row)
         {
-            // 1. NAJPIERW pobieramy cenę bazową.
-            // Jeśli jej nie ma, blokujemy od razu (unikamy fałszywych błędów "Ocena Kampanii").
+
             decimal basePrice = row.ApiAllegroPriceFromUser ?? row.CurrentPrice ?? 0;
 
             if (basePrice == 0)
@@ -1143,7 +701,6 @@ namespace PriceSafari.Services.PriceAutomationService
                 return;
             }
 
-            // 2. Wyliczenie limitów cenowych (Min/Max)
             decimal extraCost = 0;
             if (rule.SourceType == AutomationSourceType.Marketplace &&
                 rule.MarketplaceIncludeCommission &&
@@ -1174,7 +731,6 @@ namespace PriceSafari.Services.PriceAutomationService
                 row.MaxPriceLimit = Math.Round(maxLimit, 2);
             }
 
-            // 3. Walidacja reguł Marketplace (Allegro)
             if (rule.SourceType == AutomationSourceType.Marketplace)
             {
                 bool missingApiData = !row.CommissionAmount.HasValue;
@@ -1219,14 +775,12 @@ namespace PriceSafari.Services.PriceAutomationService
                 }
             }
 
-            // 4. Walidacja ceny zakupu
             if (rule.UsePurchasePrice && (!row.PurchasePrice.HasValue || row.PurchasePrice <= 0))
             {
                 ApplyBlock(row, "Brak Ceny Zakupu");
                 return;
             }
 
-            // 5. Obliczenie ceny sugerowanej (Symulacja)
             decimal suggested = basePrice;
             bool calculationPossible = false;
 
@@ -1270,52 +824,42 @@ namespace PriceSafari.Services.PriceAutomationService
                 return;
             }
 
-            // ==============================================================================
-            // 5a. OCHRONA PROGU SMART! (Allegro)
-            // ==============================================================================
             if (rule.SourceType == AutomationSourceType.Marketplace && rule.BlockAtSmartValue)
             {
-                // Sztywny próg Smart na Allegro
+
                 decimal allegroSmartThreshold = 45.00m;
 
-                // Jeśli wyliczona cena (suggested) spada poniżej progu Smart, ale jest wyższa od 0...
                 if (suggested < allegroSmartThreshold && suggested > 0)
                 {
-                    // ...sprawdzamy czy mieści się w "strefie obrony" (jest powyżej Twojego dolnego limitu ochrony)
-                    // Np. Limit ochrony: 35.00. Wyliczona: 42.00. -> Warunek spełniony.
+
                     if (suggested >= rule.SkipIfValueGoBelow)
                     {
-                        // Podciągamy cenę sztucznie do 45.00 PLN, aby zachować darmową wysyłkę
+
                         suggested = allegroSmartThreshold;
 
-                        // Ustawiamy flagę informacyjną dla widoku
                         row.IsSmartPriceAdjusted = true;
                     }
-                    // W przeciwnym razie (jeśli wyliczona to np. 34.00, a limit ochrony to 35.00):
-                    // Nic nie robimy -> cena spada do 34.00 (tracimy Smart, ale walczymy ceną).
+
                 }
             }
 
-            // 6. Aplikacja limitów (z logiką Margin Recovery)
             bool wasLimited = false;
 
             if (row.MinPriceLimit.HasValue)
             {
                 if (suggested < row.MinPriceLimit.Value)
                 {
-                    // --- LOGIKA NAPRAWY MARŻY (MARGIN RECOVERY) ---
-                    // Jeśli nowa cena jest wyższa od obecnej, pozwalamy na zmianę,
-                    // mimo że wciąż jesteśmy poniżej limitu.
+
                     bool isPriceImprovement = suggested > basePrice;
 
                     if (isPriceImprovement)
                     {
-                        // Pozwalamy na zmianę, ale oznaczamy ostrzeżeniem (żółty narzut w widoku)
+
                         row.IsMarginWarning = true;
                     }
                     else
                     {
-                        // Standardowa blokada lub równanie do minimum
+
                         if (rule.SkipIfMarkupLimited)
                         {
                             ApplyBlock(row, "Blokada Narzutu");
@@ -1338,7 +882,6 @@ namespace PriceSafari.Services.PriceAutomationService
                 }
             }
 
-            // 7. Finalizacja wyników
             row.SuggestedPrice = Math.Round(suggested, 2);
             decimal finalSuggested = row.SuggestedPrice.Value;
             decimal finalBase = Math.Round(basePrice, 2);
@@ -1477,7 +1020,6 @@ namespace PriceSafari.Services.PriceAutomationService
             if (rule == null || rule.Store == null) return null;
             string myStoreName = rule.Store.StoreNameAllegro ?? "";
 
-            // 1. Obecne produkty
             var currentProductIds = await _context.AutomationProductAssignments
                 .Where(a => a.AutomationRuleId == ruleId && a.AllegroProductId.HasValue)
                 .Select(a => a.AllegroProductId.Value)
@@ -1485,7 +1027,6 @@ namespace PriceSafari.Services.PriceAutomationService
 
             if (!currentProductIds.Any()) return new AutomationBadgeHistoryViewModel();
 
-            // 2. Historia scrapowania
             var scrapHistories = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == rule.StoreId)
                 .OrderByDescending(sh => sh.Date)
@@ -1496,7 +1037,6 @@ namespace PriceSafari.Services.PriceAutomationService
 
             var scrapIds = scrapHistories.Select(s => s.Id).ToList();
 
-            // 3. Dane odznak
             var allBasicBadges = await _context.AllegroPriceHistories
                 .Where(h => scrapIds.Contains(h.AllegroScrapeHistoryId)
                          && currentProductIds.Contains(h.AllegroProductId)
@@ -1523,7 +1063,6 @@ namespace PriceSafari.Services.PriceAutomationService
                 })
                 .ToListAsync();
 
-            // 4. Składamy z kontekstem pokrycia
             var model = new AutomationBadgeHistoryViewModel();
             model.TotalProductsInRule = currentProductIds.Count;
 
@@ -1539,7 +1078,6 @@ namespace PriceSafari.Services.PriceAutomationService
                     .Where(b => b.ScrapHistoryId == scrap.Id)
                     .ToList();
 
-                // Pokrycie: ile z obecnych produktów miało naszą ofertę w tym scrapie
                 int coveredProducts = basicForScrap
                     .Select(b => b.AllegroProductId)
                     .Distinct()
@@ -1556,7 +1094,6 @@ namespace PriceSafari.Services.PriceAutomationService
             return model;
         }
 
-
         public async Task<AutomationSalesHistoryViewModel> GetSalesHistoryAsync(int ruleId, int limit)
         {
             if (limit <= 0) limit = 7;
@@ -1568,7 +1105,6 @@ namespace PriceSafari.Services.PriceAutomationService
             if (rule == null || rule.Store == null) return null;
             string myStoreName = rule.Store.StoreNameAllegro ?? "";
 
-            // 1. Obecne produkty w automacie
             var currentProductIds = await _context.AutomationProductAssignments
                 .Where(a => a.AutomationRuleId == ruleId && a.AllegroProductId.HasValue)
                 .Select(a => a.AllegroProductId.Value)
@@ -1578,7 +1114,6 @@ namespace PriceSafari.Services.PriceAutomationService
 
             var currentProductIdSet = currentProductIds.ToHashSet();
 
-            // 2. Historia scrapowania
             var scrapHistories = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == rule.StoreId)
                 .OrderByDescending(sh => sh.Date)
@@ -1589,7 +1124,6 @@ namespace PriceSafari.Services.PriceAutomationService
 
             var scrapIds = scrapHistories.Select(s => s.Id).ToList();
 
-            // 3. Pobierz WSZYSTKIE rekordy cenowe dla tych produktów i scrapów
             var allRecords = await _context.AllegroPriceHistories
                 .Where(h => scrapIds.Contains(h.AllegroScrapeHistoryId)
                          && currentProductIds.Contains(h.AllegroProductId))
@@ -1602,7 +1136,6 @@ namespace PriceSafari.Services.PriceAutomationService
                 })
                 .ToListAsync();
 
-            // 4. Składamy wynik z pełnym kontekstem pokrycia
             var model = new AutomationSalesHistoryViewModel();
 
             foreach (var scrap in scrapHistories)
@@ -1613,14 +1146,11 @@ namespace PriceSafari.Services.PriceAutomationService
                     .Where(h => h.AllegroScrapeHistoryId == scrap.Id)
                     .ToList();
 
-                // Ile z OBECNYCH produktów automatu w ogóle istniało w tym scrapie
-                // (= miało jakikolwiek rekord, niekoniecznie naszą ofertę)
                 int productsWithAnyData = recordsForScrap
                     .Select(r => r.AllegroProductId)
                     .Distinct()
                     .Count();
 
-                // Ile z nich miało NASZĄ ofertę
                 int productsWithMyOffer = recordsForScrap
                     .Where(r => r.SellerName == myStoreName)
                     .Select(r => r.AllegroProductId)
@@ -1645,8 +1175,6 @@ namespace PriceSafari.Services.PriceAutomationService
             return model;
         }
 
-
-
         public async Task<AutomationPricePositionHistoryViewModel> GetPricePositionHistoryAsync(int ruleId, int limit)
         {
             if (limit <= 0) limit = 7;
@@ -1667,7 +1195,6 @@ namespace PriceSafari.Services.PriceAutomationService
         {
             string myStoreName = rule.Store.StoreName ?? "";
 
-            // 1. Obecne produkty w automacie
             var currentProductIds = await _context.AutomationProductAssignments
                 .Where(a => a.AutomationRuleId == rule.Id && a.ProductId.HasValue)
                 .Select(a => a.ProductId.Value)
@@ -1675,7 +1202,6 @@ namespace PriceSafari.Services.PriceAutomationService
 
             if (!currentProductIds.Any()) return new AutomationPricePositionHistoryViewModel();
 
-            // 2. Historia scrapowania
             var scrapHistories = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == rule.StoreId)
                 .OrderByDescending(sh => sh.Date)
@@ -1686,7 +1212,6 @@ namespace PriceSafari.Services.PriceAutomationService
 
             var scrapIds = scrapHistories.Select(s => s.Id).ToList();
 
-            // 3. Pobierz WSZYSTKIE oferty (nie tylko nasze!) dla tych produktów
             var allRecords = await _context.PriceHistories
                 .Where(h => scrapIds.Contains(h.ScrapHistoryId)
                          && currentProductIds.Contains(h.ProductId)
@@ -1711,23 +1236,22 @@ namespace PriceSafari.Services.PriceAutomationService
 
                 int top1Solo = 0, top1ExAequo = 0, pos2to3 = 0, pos4to5 = 0, pos6to10 = 0, pos11plus = 0;
 
-                // Zbiór unikalnych produktów w tym scrapie (pokrycie danych)
                 var productsInScrape = new HashSet<int>();
 
                 var byProduct = recordsForScrap.GroupBy(r => r.ProductId);
 
                 foreach (var group in byProduct)
                 {
-                    productsInScrape.Add(group.Key); // Dodajemy do pokrycia
+                    productsInScrape.Add(group.Key);
+
                     var offers = group.ToList();
 
-                    // Znajdź nasze oferty
                     var myOffers = offers.Where(o =>
                         o.StoreName != null &&
                         o.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase))
                         .ToList();
 
-                    if (!myOffers.Any()) continue; // Produkt jest w danych (productsInScrape), ale my nie mamy oferty -> nie liczymy rankingu
+                    if (!myOffers.Any()) continue;
 
                     decimal myBestPrice = myOffers.Min(o => o.Price);
                     var allPrices = offers.Select(o => o.Price).OrderBy(p => p).ToList();
@@ -1761,7 +1285,6 @@ namespace PriceSafari.Services.PriceAutomationService
                 model.Position6to10.Add(pos6to10);
                 model.Position11Plus.Add(pos11plus);
 
-                // ZMIANA: Przypisujemy ilość znalezionych do nowej nazwy
                 model.ProductsWithDataCount.Add(productsInScrape.Count);
             }
 
@@ -1772,7 +1295,6 @@ namespace PriceSafari.Services.PriceAutomationService
         {
             string myStoreName = rule.Store.StoreNameAllegro ?? "";
 
-            // 1. Obecne produkty w automacie
             var currentProductIds = await _context.AutomationProductAssignments
                 .Where(a => a.AutomationRuleId == rule.Id && a.AllegroProductId.HasValue)
                 .Select(a => a.AllegroProductId.Value)
@@ -1780,7 +1302,6 @@ namespace PriceSafari.Services.PriceAutomationService
 
             if (!currentProductIds.Any()) return new AutomationPricePositionHistoryViewModel();
 
-            // 2. Historia scrapowania
             var scrapHistories = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == rule.StoreId)
                 .OrderByDescending(sh => sh.Date)
@@ -1791,7 +1312,6 @@ namespace PriceSafari.Services.PriceAutomationService
 
             var scrapIds = scrapHistories.Select(s => s.Id).ToList();
 
-            // 3. Pobierz WSZYSTKIE oferty
             var allRecords = await _context.AllegroPriceHistories
                 .Where(h => scrapIds.Contains(h.AllegroScrapeHistoryId)
                          && currentProductIds.Contains(h.AllegroProductId)
@@ -1816,13 +1336,14 @@ namespace PriceSafari.Services.PriceAutomationService
 
                 int top1Solo = 0, top1ExAequo = 0, pos2to3 = 0, pos4to5 = 0, pos6to10 = 0, pos11plus = 0;
 
-                var productsInScrape = new HashSet<int>(); // Pokrycie
+                var productsInScrape = new HashSet<int>();
 
                 var byProduct = recordsForScrap.GroupBy(r => r.AllegroProductId);
 
                 foreach (var group in byProduct)
                 {
-                    productsInScrape.Add(group.Key); // Dodajemy do pokrycia
+                    productsInScrape.Add(group.Key);
+
                     var offers = group.ToList();
 
                     var myOffers = offers.Where(o =>
@@ -1864,7 +1385,6 @@ namespace PriceSafari.Services.PriceAutomationService
                 model.Position6to10.Add(pos6to10);
                 model.Position11Plus.Add(pos11plus);
 
-                // ZMIANA: Przypisujemy ilość znalezionych do nowej nazwy
                 model.ProductsWithDataCount.Add(productsInScrape.Count);
             }
 
@@ -1889,7 +1409,6 @@ namespace PriceSafari.Services.PriceAutomationService
         public List<long> MarketSales { get; set; } = new();
         public List<int> ActiveOffersCount { get; set; } = new();
 
-        // NOWE:
         public List<int> ProductsWithDataCount { get; set; } = new();
         public int TotalProductsInRule { get; set; }
     }
@@ -1904,33 +1423,36 @@ namespace PriceSafari.Services.PriceAutomationService
         public List<int> SubsidyCounts { get; set; } = new();
         public List<int> TotalProductsCounts { get; set; } = new();
 
-        // NOWE:
         public List<int> CoveredProductsCounts { get; set; } = new();
         public int TotalProductsInRule { get; set; }
     }
-
-
 
     public class AutomationPricePositionHistoryViewModel
     {
         public List<string> Dates { get; set; } = new();
 
-        /// <summary>Bezwzględnie najtańsi — tylko my na pozycji 1</summary>
+        // <summary>Bezwzględnie najtańsi — tylko my na pozycji 1</summary>
+
         public List<int> Top1Solo { get; set; } = new();
 
-        /// <summary>Najtańsi ale ex aequo — nasza cena = najlepsza, ale ktoś jeszcze ją ma</summary>
+        // <summary>Najtańsi ale ex aequo — nasza cena = najlepsza, ale ktoś jeszcze ją ma</summary>
+
         public List<int> Top1ExAequo { get; set; } = new();
 
-        /// <summary>Pozycja 2–3</summary>
+        // <summary>Pozycja 2–3</summary>
+
         public List<int> Position2to3 { get; set; } = new();
 
-        /// <summary>Pozycja 4–5</summary>
+        // <summary>Pozycja 4–5</summary>
+
         public List<int> Position4to5 { get; set; } = new();
 
-        /// <summary>Pozycja 6–10</summary>
+        // <summary>Pozycja 6–10</summary>
+
         public List<int> Position6to10 { get; set; } = new();
 
-        /// <summary>Pozycja 11+</summary>
+        // <summary>Pozycja 11+</summary>
+
         public List<int> Position11Plus { get; set; } = new();
 
         public List<int> ProductsWithDataCount { get; set; } = new();
