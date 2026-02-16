@@ -232,27 +232,49 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction(nameof(StoreDetails), new { storeId });
         }
 
+
+
         [HttpPost, ActionName("DeleteSelectedPriceSafariReports")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteSelectedPriceSafariReports(int[] selectedIds, int storeId)
         {
             if (selectedIds != null && selectedIds.Any())
             {
+                // Zwiększamy timeout, bo usuwanie dużych ilości danych może chwilę potrwać
                 _context.Database.SetCommandTimeout(TimeSpan.FromMinutes(10));
 
                 foreach (var reportId in selectedIds)
                 {
-                    // 1. Usuń szczegóły raportu bezpośrednim SQL
-                    await _context.Database.ExecuteSqlRawAsync(
-                        "DELETE FROM [GlobalPriceReports] WHERE [PriceSafariReportId] = {0}", reportId);
+                  
+                    var batchDeleteSql = @"
+                        DECLARE @rowsAffected INT = 1;
+                        
+                       
+                        WHILE @rowsAffected > 0
+                        BEGIN
+                            
+                            DELETE TOP (4000) 
+                            FROM [GlobalPriceReports] 
+                            WHERE [PriceSafariReportId] = {0};
+                            
+                            
+                            SET @rowsAffected = @@ROWCOUNT;
+                            
+                           
+                        END";
 
-                    // 2. Usuń nagłówek raportu
+                    await _context.Database.ExecuteSqlRawAsync(batchDeleteSql, reportId);
+
+                    // 2. Usuń nagłówek raportu (to jest tylko 1 rekord, więc można normalnie)
                     await _context.Database.ExecuteSqlRawAsync(
                         "DELETE FROM [PriceSafariReports] WHERE [ReportId] = {0}", reportId);
                 }
             }
             return RedirectToAction(nameof(StoreDetails), new { storeId });
         }
+
+
+
         [HttpPost, ActionName("DeleteSelectedAllegroScrapHistories")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteSelectedAllegroScrapHistories(int[] selectedIds, int storeId)
