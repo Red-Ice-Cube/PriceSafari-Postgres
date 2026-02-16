@@ -51,7 +51,7 @@ namespace PriceSafari.ScrapersControllers
                 ActiveRegionFilter = regionFilter ?? GoogleGlobalScrapeManager.ActiveRegionFilter
             };
 
-            return View("~/Views/ManagerPanel/GlobalOfferScraper/GlobalScraperEU.cshtml", viewModel);
+            return View("~/Views/ManagerPanel/GoogleOfferScraper/GoogleScraperEU.cshtml", viewModel);
         }
 
         // ===== AKCJE STEROWANIA (JSON dla JavaScript) =====
