@@ -4682,8 +4682,8 @@ th small {
 #trendChartContainer {
     display: flex;
     width: 100%;
-    height: 65vh;
-    margin-top: 10px;
+    height: 68vh;
+
 }
 
 .chart-column {
@@ -4716,8 +4716,7 @@ th small {
     width: 400px;
     flex-shrink: 0;
     border-radius: 4px;
-    margin-top: 8px;
-    height: 64vh;
+    height: 68vh;
     overflow-y: auto;
     padding: 16px;
     background: #fefefe;
