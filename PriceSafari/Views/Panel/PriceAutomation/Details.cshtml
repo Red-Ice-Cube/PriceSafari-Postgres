@@ -1734,7 +1734,83 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap4.min.js"></script>
+    <script>
+        if (sessionStorage.getItem('automation_scrollToProduct')) {
+        document.documentElement.style.visibility = 'hidden';
+        }
+    </script>
+       <script>
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
 
+        const StateManager = {
+            saveState: function () {
+                const activeFilters = [];
+                document.querySelectorAll('.filter-btn.active').forEach(btn => {
+                    activeFilters.push(btn.dataset.filterKey);
+                });
+                sessionStorage.setItem('automation_activeFilters', JSON.stringify(activeFilters));
+
+                const searchInput = document.getElementById('productSearch');
+                if (searchInput) {
+                    sessionStorage.setItem('automation_searchText', searchInput.value);
+                }
+            },
+
+            restoreFiltersAndSearch: function () {
+                const savedSearch = sessionStorage.getItem('automation_searchText');
+                if (savedSearch) {
+                    const searchInput = document.getElementById('productSearch');
+                    if (searchInput) {
+                        searchInput.value = savedSearch;
+                        searchInput.dispatchEvent(new Event('input'));
+                    }
+                }
+
+                const savedFilters = sessionStorage.getItem('automation_activeFilters');
+                if (savedFilters) {
+                    try {
+                        const filters = JSON.parse(savedFilters);
+                        if (Array.isArray(filters)) {
+                            filters.forEach(key => {
+                                const btn = document.querySelector(`.filter-btn[data-filter-key="${key}"]`);
+                                if (btn && !btn.classList.contains('active')) {
+                                    btn.click();
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error("Błąd przywracania filtrów:", e);
+                    }
+                }
+            },
+
+           scrollToProduct: function () {
+                const scrollToId = sessionStorage.getItem('automation_scrollToProduct');
+                if (!scrollToId) return;
+
+                sessionStorage.removeItem('automation_scrollToProduct');
+                sessionStorage.removeItem('automation_activeFilters');
+                sessionStorage.removeItem('automation_searchText');
+
+                setTimeout(function () {
+                    const wrapper = document.querySelector('.purchase-wrapper[data-id="' + scrollToId + '"]');
+                    if (wrapper) {
+                        const row = wrapper.closest('tr');
+                        row.scrollIntoView({ behavior: 'instant', block: 'center' });
+                        row.style.transition = 'background-color 0s';
+                        row.style.backgroundColor = '#fff3cd';
+                        setTimeout(function () {
+                            row.style.transition = 'background-color 2s ease';
+                            row.style.backgroundColor = '';
+                        }, 100);
+                    }
+                    document.documentElement.style.visibility = 'visible';
+                }, 300);
+            }
+        };
+    </script>
     <script>
                 const storeId = @Model.StoreId;
                 const currentRuleId = @Model.RuleId;
@@ -2175,8 +2251,12 @@
                 if(confirm("Usunąć cenę zakupu?")) sendPriceUpdate($(this).closest('.purchase-wrapper'), null, $(this));
             });
             $(document).on('keypress', '.price-edit-input', function(e) {
-                if(e.which == 13) { e.preventDefault(); $(this).closest('.edit-mode').find('.save-btn').click(); }
+            if(e.which == 13) { e.preventDefault(); $(this).closest('.edit-mode').find('.save-btn').click(); }
             });
+
+            
+        StateManager.restoreFiltersAndSearch();
+        StateManager.scrollToProduct();
         });
 
         function sendPriceUpdate(wrapper, priceValue, btnElement) {
@@ -2189,32 +2269,38 @@
             if (!token) { alert("Brak tokenu CSRF."); return; }
 
             var url = isMarketplaceBool
-                ? '@Url.Action("UpdateAllegroPurchasePrice", "AllegroProduct")?storeId=' + storeId
-                : '@Url.Action("UpdatePurchasePrice", "Product")?storeId=' + storeId;
+            ? '@Url.Action("UpdateAllegroPurchasePrice", "AllegroProduct")?storeId=' + storeId
+            : '@Url.Action("UpdatePurchasePrice", "Product")?storeId=' + storeId;
 
             var payload = isMarketplaceBool
-                ? { AllegroProductId: parseInt(productId), NewPrice: priceValue }
-                : { ProductId: parseInt(productId), NewPrice: priceValue };
+            ? { AllegroProductId: parseInt(productId), NewPrice: priceValue }
+            : { ProductId: parseInt(productId), NewPrice: priceValue };
 
             var originalContent = btnElement.html();
             btnElement.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
 
             $.ajax({
-                url: url,
-                type: 'POST',
-                contentType: 'application/json',
-                headers: { 'RequestVerificationToken': token },
-                data: JSON.stringify(payload),
-                success: function(response) {
-                    if(response.success) location.reload();
-                    else { alert("Błąd: " + response.message); btnElement.html(originalContent).prop('disabled', false); }
-                },
-                error: function(xhr) {
-                    alert("Błąd serwera.");
+            url: url,
+            type: 'POST',
+            contentType: 'application/json',
+            headers: { 'RequestVerificationToken': token },
+            data: JSON.stringify(payload),
+            success: function(response) {
+                if(response.success) {
+                    sessionStorage.setItem('automation_scrollToProduct', productId); 
+                    location.reload();
+                }
+                else {
+                    alert("Błąd: " + response.message);
                     btnElement.html(originalContent).prop('disabled', false);
                 }
+            },
+            error: function(xhr) {
+            alert("Błąd serwera.");
+            btnElement.html(originalContent).prop('disabled', false);
+            }
             });
-        }
+            }
 
         function executeAutomation() {
             if (!confirm("Czy na pewno chcesz wykonać automatyzację?")) { return; }
@@ -3438,6 +3524,8 @@
                 searchInput.addEventListener('input', debounce(filterRows, 300));
             }
         });
+
+      
     </script>
 
 }
