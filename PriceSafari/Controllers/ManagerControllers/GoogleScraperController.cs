@@ -3115,68 +3115,6 @@ public class GoogleScraperController : Controller
         return Ok(new { message = "Settings updated" });
     }
 
-    /// <summary>
-    /// Pobieranie zadania dla zewnętrznego scrapera - POPRAWIONE
-    /// </summary>
-    //[HttpGet]
-    //[Route("api/external-scraper/get-task")]
-    //[AllowAnonymous]
-    //public IActionResult GetExternalScraperTask([FromQuery] string scraperName = null)
-    //{
-    //    var apiKey = GetApiKeyFromHeader();
-    //    if (!ValidateApiKey(apiKey))
-    //        return Unauthorized(new { error = "Invalid API key" });
-
-    //    // Odśwież heartbeat jeśli podano nazwę
-    //    if (!string.IsNullOrEmpty(scraperName) && _registeredScrapers.TryGetValue(scraperName, out var info))
-    //    {
-    //        info.LastHeartbeat = DateTime.UtcNow;
-    //    }
-
-    //    // Pobierz zadanie z kolejki
-    //    if (_externalTaskQueue.TryDequeue(out var task))
-    //    {
-    //        task.AssignedTo = scraperName ?? "unknown";
-    //        task.AssignedAt = DateTime.UtcNow;
-
-    //        Console.ForegroundColor = ConsoleColor.Cyan;
-    //        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] Zadanie {task.TaskId.Substring(0, Math.Min(20, task.TaskId.Length))}... przydzielone do '{scraperName}'");
-    //        Console.ResetColor();
-
-    //        // Zwróć zadanie z odpowiednim formatem JSON
-    //        return Ok(new
-    //        {
-    //            hasTask = true,
-    //            task = new
-    //            {
-    //                taskId = task.TaskId,
-    //                productId = task.ProductId,
-    //                productName = task.ProductName,
-    //                searchTerm = task.SearchTerm,
-    //                cleanedUrl = task.CleanedUrl,
-    //                originalUrl = task.OriginalUrl,
-    //                ean = task.Ean,
-    //                producerCode = task.ProducerCode,
-    //                mode = task.Mode,
-    //                maxItemsToExtract = task.MaxItemsToExtract,
-    //                udmValue = task.UdmValue,
-    //                storeId = task.StoreId,
-    //                googleCid = task.GoogleCid,
-    //                googleGid = task.GoogleGid,
-    //                googleHid = task.GoogleHid,
-    //                targetCode = task.TargetCode,
-    //                eligibleProductsMap = task.EligibleProductsMap
-    //            }
-    //        });
-    //    }
-
-    //    // Brak zadań
-    //    return Ok(new
-    //    {
-    //        hasTask = false,
-    //        message = "No tasks available"
-    //    });
-    //}
 
 
     [HttpGet]
@@ -3253,53 +3191,6 @@ public class GoogleScraperController : Controller
     }
 
 
-    //[HttpGet]
-    //[Route("api/external-scraper/get-task-batch")]
-    //[AllowAnonymous]
-    //public IActionResult GetExternalScraperTaskBatch([FromQuery] string scraperName, [FromQuery] int maxTasks = 10)
-    //{
-    //    var apiKey = GetApiKeyFromHeader();
-    //    if (!ValidateApiKey(apiKey))
-    //        return Unauthorized(new { error = "Invalid API key" });
-
-    //    if (string.IsNullOrEmpty(scraperName))
-    //        return BadRequest(new { error = "scraperName is required" });
-
-    //    // Odśwież heartbeat
-    //    if (_registeredScrapers.TryGetValue(scraperName, out var info))
-    //    {
-    //        info.LastHeartbeat = DateTime.UtcNow;
-    //    }
-
-    //    var tasks = new List<ExternalScraperTask>();
-
-    //    for (int i = 0; i < maxTasks; i++)
-    //    {
-    //        if (_externalTaskQueue.TryDequeue(out var task))
-    //        {
-    //            task.AssignedTo = scraperName;
-    //            task.AssignedAt = DateTime.UtcNow;
-    //            tasks.Add(task);
-    //        }
-    //        else
-    //        {
-    //            break;
-    //        }
-    //    }
-
-    //    if (tasks.Any())
-    //    {
-    //        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] {tasks.Count} zadań przydzielonych do '{scraperName}'");
-    //    }
-
-    //    return Ok(new
-    //    {
-    //        hasTasks = tasks.Any(),
-    //        tasksCount = tasks.Count,
-    //        tasks = tasks,
-    //        queueRemaining = _externalTaskQueue.Count
-    //    });
-    //}
 
     [HttpGet]
     [Route("api/external-scraper/get-task-batch")]
@@ -3455,10 +3346,6 @@ public class GoogleScraperController : Controller
             _externalScraperSettings.SearchModeUdm = udm;
         }
 
-        // ==============================================================================
-        // KROK 4: INICJALIZACJA LISTY PRODUKTÓW (MASTER LIST)
-        // ==============================================================================
-        // Tryb Standard wymaga URL-a w bazie, inne tryby mogą szukać po nazwie/kodzie
         InitializeMasterProductListIfNeeded(storeId, productIds, false, requireUrl: mode == "Standard");
 
         var pendingProducts = new List<ProductProcessingState>();
@@ -3508,14 +3395,27 @@ public class GoogleScraperController : Controller
                 continue;
             }
 
-            // Zbuduj searchTerm
-            string searchTerm = product.ProductNameInStoreForGoogle;
+            string searchTerm;
 
-            if (appendProducerCode && !string.IsNullOrEmpty(product.ProducerCode))
-                searchTerm = $"{searchTerm} {product.ProducerCode}";
+            if (mode == "MatchByEan")
+            {
+                if (string.IsNullOrWhiteSpace(product.Ean))
+                {
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] [MatchByEan] Pominięto produkt ID {product.ProductId} - brak EAN.");
+                    continue;
+                }
+                searchTerm = product.Ean; // Python sam obuduje w cudzysłowy
+            }
+            else
+            {
+                searchTerm = product.ProductNameInStoreForGoogle;
 
-            if (!string.IsNullOrEmpty(prefix))
-                searchTerm = $"{prefix} {searchTerm}";
+                if (appendProducerCode && !string.IsNullOrEmpty(product.ProducerCode))
+                    searchTerm = $"{searchTerm} {product.ProducerCode}";
+
+                if (!string.IsNullOrEmpty(prefix))
+                    searchTerm = $"{prefix} {searchTerm}";
+            }
 
             // Stwórz obiekt zadania
             var task = new ExternalScraperTask
@@ -3824,14 +3724,24 @@ public class GoogleScraperController : Controller
 
             foreach (var product in pendingProducts)
             {
-                // Budowanie searchTerm
-                string searchTerm = product.ProductNameInStoreForGoogle;
+                string searchTerm;
 
-                if (_externalScraperSettings.AppendProducerCode && !string.IsNullOrEmpty(product.ProducerCode))
-                    searchTerm = $"{searchTerm} {product.ProducerCode}";
+                if (mode == "MatchByEan")
+                {
+                    if (string.IsNullOrWhiteSpace(product.Ean))
+                        continue;
+                    searchTerm = product.Ean;
+                }
+                else
+                {
+                    searchTerm = product.ProductNameInStoreForGoogle;
 
-                if (!string.IsNullOrEmpty(_externalScraperSettings.ProductNamePrefix))
-                    searchTerm = $"{_externalScraperSettings.ProductNamePrefix} {searchTerm}";
+                    if (_externalScraperSettings.AppendProducerCode && !string.IsNullOrEmpty(product.ProducerCode))
+                        searchTerm = $"{searchTerm} {product.ProducerCode}";
+
+                    if (!string.IsNullOrEmpty(_externalScraperSettings.ProductNamePrefix))
+                        searchTerm = $"{_externalScraperSettings.ProductNamePrefix} {searchTerm}";
+                }
 
                 var task = new ExternalScraperTask
                 {
