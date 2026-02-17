@@ -3350,11 +3350,11 @@ public class GoogleScraperController : Controller
 
         var pendingProducts = new List<ProductProcessingState>();
 
-        // Pobierz produkty, które mają status Pending z pamięci RAM
         lock (_lockMasterListInit)
         {
             pendingProducts = _masterProductStateList.Values
                 .Where(p => p.Status == ProductStatus.Pending)
+                .OrderBy(_ => Random.Shared.Next())
                 .ToList();
         }
 
