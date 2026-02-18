@@ -24,5 +24,7 @@ namespace PriceSafari.Models
 
         public bool? GoogleInStock { get; set; }
         public int? GoogleOfferPerStoreCount { get; set; }
+
+        public string? GoogleOfferUrl { get; set; }
     }
 }
