@@ -109,7 +109,7 @@ namespace PriceSafari.Models
 
         public bool UseAdditionalCatalogsForGoogle { get; set; } = false;
 
-        public bool? CollectGoogleStoreLinks { get; set; } = false;
+        public bool CollectGoogleStoreLinks { get; set; } = false;
 
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
         public ICollection<ProductClass> Products { get; set; } = new List<ProductClass>();

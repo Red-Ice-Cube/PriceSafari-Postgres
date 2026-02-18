@@ -146,7 +146,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.StoreSystemType = store.StoreSystemType;
             existingStore.UseGPID = store.UseGPID;
             existingStore.UseWRGA = store.UseWRGA;
-            existingStore.CollectGoogleStoreLinks = store.CollectGoogleStoreLinks ?? false;
+            existingStore.CollectGoogleStoreLinks = store.CollectGoogleStoreLinks;
             existingStore.UseGoogleXMLFeedPrice = store.UseGoogleXMLFeedPrice;
             existingStore.UseCeneoXMLFeedPrice = store.UseCeneoXMLFeedPrice;
             existingStore.OnCeneo = store.OnCeneo;
