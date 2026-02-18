@@ -22,7 +22,6 @@
         </button>
     </form>
 
-
     <button id="extractProducts" style="margin-left:10px;">
         Wyciągnij produkty z XML (FRONT)
     </button>
@@ -32,46 +31,36 @@
     </button>
 </div>
 
-
-<div>
-    <label for="xmlFileInput">Wybierz zapisany plik XML/TXT:</label>
-    <input type="file" id="xmlFileInput" accept=".xml,.txt">
-    <button id="processXmlButton">Przetwórz wybrany plik</button>
+<div style="margin-bottom: 10px;">
+    <button id="loadFromNetworkBtn" style="background:#4a90d9; color:white; padding:6px 12px; border:none; border-radius:4px; cursor:pointer;">
+        ⬇ Załaduj XML z sieci
+    </button>
 </div>
 
+<div style="margin-bottom: 10px;">
+    <label for="xmlFileInput">lub wybierz zapisany plik XML/TXT:</label>
+    <input type="file" id="xmlFileInput" accept=".xml,.txt">
+    <button id="processXmlButton">Przetwórz wybrany plik</button>
+    <span id="fileInfoLabel" class="file-info-label"></span>
+</div>
 
 <div id="urlParamsInfo" style="margin-bottom:10px; font-weight:bold;">
     Liczba URL zawierających parametry: 0
 </div>
 
-<div id="duplicatesInfo" style="margin-bottom:10px; font-weight:bold;">
-</div>
+<div id="duplicatesInfo" style="margin-bottom:10px; font-weight:bold;"></div>
 
 <div style="margin-bottom: 10px;">
-    <label>
-        <input type="checkbox" id="removeDuplicateUrls">
-        Usuń duplikaty URL (zostaw pierwszy wystąpienie)
-    </label>
-</div>
-
-<div style="margin-bottom: 10px;">
-    <label>
-        <input type="checkbox" id="removeDuplicateEans">
-        Usuń duplikaty EAN (zostaw pierwszy wystąpienie)
-    </label>
-</div>
-
-<div style="margin-bottom: 10px;">
-    <label>
-        <input type="checkbox" id="removeDuplicateProducerCodes">
-        Usuń duplikaty kodu producenta (zostaw pierwsze wystąpienie)
-    </label>
+    <label><input type="checkbox" id="removeDuplicateUrls"> Usuń duplikaty URL (zostaw pierwsze wystąpienie)</label>
 </div>
 <div style="margin-bottom: 10px;">
-    <label>
-        <input type="checkbox" id="onlyEanProducts" checked>
-        Bierz tylko produkty z EAN
-    </label>
+    <label><input type="checkbox" id="removeDuplicateEans"> Usuń duplikaty EAN (zostaw pierwsze wystąpienie)</label>
+</div>
+<div style="margin-bottom: 10px;">
+    <label><input type="checkbox" id="removeDuplicateProducerCodes"> Usuń duplikaty kodu producenta (zostaw pierwsze wystąpienie)</label>
+</div>
+<div style="margin-bottom: 10px;">
+    <label><input type="checkbox" id="onlyEanProducts" checked> Bierz tylko produkty z EAN</label>
 </div>
 
 <div id="finalNodesInfo" style="margin-bottom:10px; font-weight:bold;">
@@ -79,10 +68,7 @@
 </div>
 
 <div style="margin-bottom: 10px;">
-    <label>
-        <input type="checkbox" id="cleanUrlParameters" checked>
-        Usuń parametry URL (usuwamy wszystko od znaku "?")
-    </label>
+    <label><input type="checkbox" id="cleanUrlParameters" checked> Usuń parametry URL (usuwamy wszystko od znaku "?")</label>
 </div>
 
 <div style="margin-bottom: 10px;">
@@ -98,18 +84,18 @@
         <option value="GoogleXMLPrice">Eksportowana Cena (Google)</option>
         <option value="GoogleDeliveryXMLPrice">Eksportowana Cena z dostawa (Google)</option>
     </select>
-    <button id="saveMapping" style="margin-left:10px;">
-        Zapisz Mapowanie
-    </button>
-    <button id="reloadMappings" style="margin-left:10px;">
-        Załaduj mapowania
-    </button>
+    <button id="saveMapping" style="margin-left:10px;">Zapisz Mapowanie</button>
+    <button id="reloadMappings" style="margin-left:10px;">Załaduj mapowania</button>
 </div>
 
 <div style="display: flex; gap: 10px; width:100%;">
 
     <div style="flex: 1; border:1px solid #ccc; height:900px; overflow:auto; padding:5px;">
         <h4>Struktura XML</h4>
+
+    
+        <div id="xmlProgressContainer" style="display:none;"></div>
+
         <div id="xmlContainer"></div>
     </div>
 
@@ -129,62 +115,48 @@
         </table>
 
         <pre id="productMapsPreview"
-             style="border:1px solid #ccc; margin-top:10px; min-height:100px; padding:10px;">
-        </pre>
+             style="border:1px solid #ccc; margin-top:10px; min-height:100px; padding:10px;"></pre>
     </div>
 </div>
 
 <script src="~/js/Manager/GoogleWizard.js"></script>
 
 <style>
+    .xml-node { cursor: pointer; margin: 3px 0; }
 
-    .xml-node {
-        cursor: pointer;
-        margin: 3px 0;
+    .highlight-ExternalId                  { background-color: rgba(255, 0,   0,   0.10); }
+    .highlight-Url                         { background-color: rgba(0,   255, 0,   0.10); }
+    .highlight-GoogleEan                   { background-color: rgba(0,   0,   255, 0.10); }
+    .highlight-GoogleImage                 { background-color: rgba(255, 165, 0,   0.10); }
+    .highlight-GoogleExportedName          { background-color: rgba(255, 255, 0,   0.20); }
+    .highlight-GoogleExportedProducer      { background-color: rgba(17,  205, 255, 0.10); }
+    .highlight-GoogleExportedProducerCode  { background-color: rgba(135, 206, 250, 0.20); }
+    .highlight-GoogleXMLPrice              { background-color: rgba(255, 192, 203, 0.20); }
+    .highlight-GoogleDeliveryXMLPrice      { background-color: rgba(255, 165, 0,   0.20); }
+
+    #mappingTable { width: 100%; }
+    #mappingTable th, #mappingTable td { padding: 4px 8px; text-align: left; }
+
+    #xmlProgressContainer {
+        padding: 14px;
+        background: #f5f8ff;
+        border: 1px solid #c8d8f0;
+        border-radius: 6px;
+        margin-bottom: 10px;
     }
 
-    .highlight-ExternalId {
-        background-color: rgba(255, 0, 0, 0.1);
-    }
-
-    .highlight-Url {
-        background-color: rgba(0, 255, 0, 0.1);
-    }
-
-    .highlight-GoogleEan {
-        background-color: rgba(0, 0, 255, 0.1);
-    }
-
-    .highlight-GoogleImage {
-        background-color: rgba(255, 165, 0, 0.1);
-    }
-
-    .highlight-GoogleExportedName {
-        background-color: rgba(255, 255, 0, 0.2);
-    }
-
-    .highlight-GoogleExportedProducer {
-        background-color: rgba(17, 205, 255, 0.1);
-    }
-
-    .highlight-GoogleExportedProducerCode {
-        background-color: rgba(135, 206, 250, 0.2);
-    }
-
-    .highlight-GoogleXMLPrice {
-        background-color: rgba(255, 192, 203, 0.2);
-    }
-
-    .highlight-GoogleDeliveryXMLPrice {
-        background-color: rgba(255, 165, 0, 0.2);
-    }
-
-    #mappingTable {
-        width: 100%;
-    }
-
-        #mappingTable th, #mappingTable td {
-            padding: 4px 8px;
-            text-align: left;
-        }
+    .file-info-label { margin-left: 10px; font-size: 12px; color: #666; font-style: italic; }
+    .file-info-label.large-file { color: #c07000; font-weight: bold; }
 </style>
+
+<script>
+    document.getElementById('xmlFileInput').addEventListener('change', function () {
+        const label = document.getElementById('fileInfoLabel');
+        if (!this.files || this.files.length === 0) { label.textContent = ''; return; }
+        const file = this.files[0];
+        const mb = (file.size / 1024 / 1024).toFixed(1);
+        const isLarge = file.size > 10 * 1024 * 1024;
+        label.textContent = `Rozmiar: ${mb} MB` + (isLarge ? ' – duży plik, chwilę poczekaj' : '');
+        label.className = 'file-info-label' + (isLarge ? ' large-file' : '');
+    });
+</script>
