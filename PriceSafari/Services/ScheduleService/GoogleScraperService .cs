@@ -9,9 +9,13 @@ using PriceSafari.Services.GoogleScraping;
 
 namespace PriceSafari.Services.ScheduleService
 {
-    /// <summary>
-    /// Serwis zarządzający procesem scrapowania Google Shopping
-    /// </summary>
+
+// <summary>
+
+// Serwis zarządzający procesem scrapowania Google Shopping
+
+// </summary>
+
     public class GoogleScraperService
     {
         private readonly PriceSafariContext _context;
@@ -28,9 +32,12 @@ namespace PriceSafari.Services.ScheduleService
             _logger = logger;
         }
 
-        /// <summary>
-        /// Uruchamia proces scrapowania Google
-        /// </summary>
+// <summary>
+
+// Uruchamia proces scrapowania Google
+
+// </summary>
+
         public async Task<(bool success, string message)> StartScrapingProcessAsync()
         {
             _logger.LogInformation("Uruchamianie procesu scrapowania Google...");
@@ -38,24 +45,20 @@ namespace PriceSafari.Services.ScheduleService
             if (GoogleScrapeManager.CurrentStatus == GoogleScrapingProcessStatus.Running)
                 return (false, "Proces już działa.");
 
-            // Sprawdź czy są aktywne scrapery
             var anyActiveScrapers = GoogleScrapeManager.ActiveScrapers.Values
                 .Any(s => s.Status != GoogleScraperLiveStatus.Offline && s.Status != GoogleScraperLiveStatus.Stopped);
 
             if (!anyActiveScrapers)
                 return (false, "Brak aktywnych scraperów. Uruchom skrypt Python.");
 
-            // Sprawdź ile URLi do przetworzenia
             var urlsToScrape = await _context.CoOfrs
                 .CountAsync(c => (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer) && !c.GoogleIsScraped);
 
             if (urlsToScrape == 0)
                 return (true, "Brak URLi do scrapowania.");
 
-            // Uruchom proces
             GoogleScrapeManager.ResetForNewProcess();
 
-            // Powiadom front
             await _hubContext.Clients.All.SendAsync("GoogleScrapingStarted", new
             {
                 startTime = GoogleScrapeManager.ScrapingStartTime,
@@ -68,9 +71,12 @@ namespace PriceSafari.Services.ScheduleService
             return (true, $"Proces uruchomiony. {urlsToScrape} URLi do przetworzenia.");
         }
 
-        /// <summary>
-        /// Zatrzymuje proces scrapowania Google
-        /// </summary>
+// <summary>
+
+// Zatrzymuje proces scrapowania Google
+
+// </summary>
+
         public async Task<(bool success, string message)> StopScrapingProcessAsync()
         {
             GoogleScrapeManager.CurrentStatus = GoogleScrapingProcessStatus.Idle;
@@ -88,9 +94,12 @@ namespace PriceSafari.Services.ScheduleService
             return (true, "Proces zatrzymany.");
         }
 
-        /// <summary>
-        /// Zatrzymuje indywidualnego scrapera
-        /// </summary>
+// <summary>
+
+// Zatrzymuje indywidualnego scrapera
+
+// </summary>
+
         public async Task PauseScraperAsync(string scraperName)
         {
             GoogleScrapeManager.PauseScraper(scraperName);
@@ -102,9 +111,12 @@ namespace PriceSafari.Services.ScheduleService
             _logger.LogInformation("Scraper {ScraperName} zatrzymany.", scraperName);
         }
 
-        /// <summary>
-        /// Wznawia indywidualnego scrapera
-        /// </summary>
+// <summary>
+
+// Wznawia indywidualnego scrapera
+
+// </summary>
+
         public async Task ResumeScraperAsync(string scraperName)
         {
             GoogleScrapeManager.ResumeScraper(scraperName);
@@ -116,9 +128,12 @@ namespace PriceSafari.Services.ScheduleService
             _logger.LogInformation("Scraper {ScraperName} wznowiony.", scraperName);
         }
 
-        /// <summary>
-        /// Sprawdza i obsługuje timeout paczek
-        /// </summary>
+// <summary>
+
+// Sprawdza i obsługuje timeout paczek
+
+// </summary>
+
         public async Task<int> CheckAndHandleTimeoutsAsync()
         {
             if (GoogleScrapeManager.CurrentStatus != GoogleScrapingProcessStatus.Running)
@@ -131,11 +146,9 @@ namespace PriceSafari.Services.ScheduleService
 
             _logger.LogWarning("Znaleziono {Count} paczek z timeoutem.", timedOutBatches.Count);
 
-            // Zwróć URLe do puli (w tym przypadku po prostu zostaną pobrane ponownie,
-            // bo GoogleIsScraped jest false)
             foreach (var (batchId, scraperName, taskIds) in timedOutBatches)
             {
-                // Aktualizuj status scrapera
+
                 if (GoogleScrapeManager.ActiveScrapers.TryGetValue(scraperName, out var scraper))
                 {
                     scraper.Status = GoogleScraperLiveStatus.Offline;
@@ -150,9 +163,12 @@ namespace PriceSafari.Services.ScheduleService
             return timedOutBatches.Count;
         }
 
-        /// <summary>
-        /// Sprawdza i oznacza nieaktywne scrapery jako offline
-        /// </summary>
+// <summary>
+
+// Sprawdza i oznacza nieaktywne scrapery jako offline
+
+// </summary>
+
         public async Task<int> CheckAndMarkOfflineScrapersAsync()
         {
             var markedOffline = GoogleScrapeManager.MarkInactiveScrapersAsOffline();
@@ -172,9 +188,12 @@ namespace PriceSafari.Services.ScheduleService
             return markedOffline.Count;
         }
 
-        /// <summary>
-        /// Pobiera statystyki z bazy danych
-        /// </summary>
+// <summary>
+
+// Pobiera statystyki z bazy danych
+
+// </summary>
+
         public async Task<GoogleDbStatsDto> GetDatabaseStatsAsync()
         {
             var stats = await _context.CoOfrs
@@ -195,17 +214,18 @@ namespace PriceSafari.Services.ScheduleService
             stats.PendingUrls = stats.TotalUrls - stats.ScrapedUrls;
             return stats;
         }
-        // W pliku: PriceSafari.Services.ScheduleService.GoogleScraperService.cs
 
-        /// <summary>
-        /// Pobiera WSZYSTKIE URLe do widoku (bez limitu, naturalna kolejność)
-        /// </summary>
+// <summary>
+
+// Pobiera WSZYSTKIE URLe do widoku (bez limitu, naturalna kolejność)
+
+// </summary>
+
         public async Task<List<GoogleUrlDto>> GetUrlsAsync()
         {
             return await _context.CoOfrs
                 .Where(c => !string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer)
-                // USUNIĘTO: .OrderBy(...) - naturalna kolejność bazy
-                // USUNIĘTO: .Take(limit) - pobieramy wszystko
+
                 .Select(c => new GoogleUrlDto
                 {
                     Id = c.Id,
@@ -224,9 +244,12 @@ namespace PriceSafari.Services.ScheduleService
                 .ToListAsync();
         }
 
-        /// <summary>
-        /// Resetuje odrzucone URLe
-        /// </summary>
+// <summary>
+
+// Resetuje odrzucone URLe
+
+// </summary>
+
         public async Task<int> ResetRejectedUrlsAsync()
         {
             var rejected = await _context.CoOfrs
@@ -247,9 +270,12 @@ namespace PriceSafari.Services.ScheduleService
             return rejected.Count;
         }
 
-        /// <summary>
-        /// Czyści zebrane dane Google
-        /// </summary>
+// <summary>
+
+// Czyści zebrane dane Google
+
+// </summary>
+
         public async Task<int> ClearCollectedDataAsync()
         {
             var deletedPrices = await _context.CoOfrPriceHistories.CountAsync();
@@ -273,8 +299,6 @@ namespace PriceSafari.Services.ScheduleService
 
             return deletedPrices;
         }
-
-        // ===== BROADCAST HELPERS =====
 
         private async Task BroadcastScraperStatus(GoogleScraperClient scraper)
         {
@@ -318,8 +342,6 @@ namespace PriceSafari.Services.ScheduleService
         }
     }
 
-    // ===== DTOs =====
-
     public class GoogleDbStatsDto
     {
         public int TotalUrls { get; set; }
@@ -348,11 +370,12 @@ namespace PriceSafari.Services.ScheduleService
         public List<int> ProductIdsGoogle { get; set; } = new();
     }
 
-    // ===== BACKGROUND SERVICE =====
+// <summary>
 
-    /// <summary>
-    /// BackgroundService monitorujący timeouty i status scraperów Google
-    /// </summary>
+// BackgroundService monitorujący timeouty i status scraperów Google
+
+// </summary>
+
     public class GoogleScrapingMonitorService : BackgroundService
     {
         private readonly IServiceProvider _serviceProvider;
@@ -378,17 +401,14 @@ namespace PriceSafari.Services.ScheduleService
                     using var scope = _serviceProvider.CreateScope();
                     var scrapingService = scope.ServiceProvider.GetRequiredService<GoogleScraperService>();
 
-                    // Sprawdź timeouty paczek
                     var timedOutCount = await scrapingService.CheckAndHandleTimeoutsAsync();
                     if (timedOutCount > 0)
                         _logger.LogWarning("Obsłużono {Count} paczek z timeoutem.", timedOutCount);
 
-                    // Sprawdź nieaktywne scrapery
                     var offlineCount = await scrapingService.CheckAndMarkOfflineScrapersAsync();
                     if (offlineCount > 0)
                         _logger.LogInformation("Oznaczono {Count} scraperów jako offline.", offlineCount);
 
-                    // Sprawdź czy proces się zakończył
                     if (GoogleScrapeManager.CurrentStatus == GoogleScrapingProcessStatus.Running)
                     {
                         var stats = await scrapingService.GetDatabaseStatsAsync();

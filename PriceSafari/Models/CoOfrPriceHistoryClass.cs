@@ -16,18 +16,15 @@ namespace PriceSafari.Models
         //dane z cene scrapera 
         public string? StoreName { get; set; }
         public decimal? Price { get; set; }
-        public string? IsBidding { get; set; } // tutaj tez moze trafic informacja ze mamy dfo czynienia z najlepsza cena Google 
+        public string? IsBidding { get; set; } 
         public string? Position { get; set; }
         public decimal? ShippingCostNum { get; set; }
 
-        // ZMIANA: Z 'int? AvailabilityNum' na 'bool? CeneoInStock'
+
         public bool? CeneoInStock { get; set; }
 
         public string? ExportedName { get; set; }
 
-
-
-        // nowe pola do danych z google scrapera
 
         public string? GoogleStoreName { get; set; }
         public decimal? GooglePrice { get; set; }
@@ -37,7 +34,7 @@ namespace PriceSafari.Models
         public bool? GoogleInStock { get; set; }
         public int? GoogleOfferPerStoreCount { get; set; }
 
-        public string? GoogleCid { get; set; }
+        public string? GoogleOfferUrl { get; set; }
 
 
     }
