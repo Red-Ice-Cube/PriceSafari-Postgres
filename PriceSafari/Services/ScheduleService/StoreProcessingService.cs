@@ -194,7 +194,7 @@ public class StoreProcessingService
                 foundOurStoreGoogle = true;
             }
 
-            // --- Aktualizacja flagi IsRejected produktu ---
+          
             bool hasStorePrice = foundOurStoreCeneo || foundOurStoreGoogle;
             lock (product)
             {
@@ -206,7 +206,6 @@ public class StoreProcessingService
             }
         }));
 
-        // --- Zapis do bazy ---
         scrapHistory.PriceCount = priceHistoriesBag.Count;
         _context.ScrapHistories.Add(scrapHistory);
         await _context.SaveChangesAsync();

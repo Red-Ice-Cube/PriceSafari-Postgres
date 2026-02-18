@@ -899,7 +899,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     isGoogle = p.IsGoogle,
                     ceneoInStock = p.CeneoInStock,
                     googleInStock = p.GoogleInStock,
-                    offerCount = p.GoogleOfferPerStoreCount
+                    offerCount = p.GoogleOfferPerStoreCount,
+                    googleOfferUrl = p.GoogleOfferUrl
                 })
             );
 

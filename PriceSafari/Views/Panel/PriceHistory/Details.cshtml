@@ -18,7 +18,7 @@
     var totalOffers = Model.Count();
     var googleOffers = Model.Count(x => x.IsGoogle == true);
     var ceneoOffers = totalOffers - googleOffers;
-
+    var hasAnyStoreLinks = Model.Any(x => !string.IsNullOrEmpty(x.GoogleOfferUrl));
     var myStorePrice = Model.FirstOrDefault(p => string.Equals(p.StoreName, storeName, StringComparison.OrdinalIgnoreCase));
     if (myStorePrice != null)
     {
@@ -242,7 +242,10 @@
                         <th>Koszt wysyłki</th>
                         <th>Dostępność</th>
                         <th>Ilość Ofert</th>
-                        <th></th>
+                        <th></th> @if (hasAnyStoreLinks)
+                        {
+                            <th></th>
+                        }
                     </tr>
                 </thead>
                 <tbody>
@@ -426,6 +429,17 @@
                             <td class="data-chanel">
                                 <img src="@Url.Content(item.IsGoogle ? "~/images/GoogleShopping.png" : "~/images/Ceneo.png")" alt="Channel Icon" style="width:24px; height:24px;" />
                             </td>
+                            @if (hasAnyStoreLinks)
+                            {
+                                <td style="text-align: right; white-space: nowrap;">
+                                    @if (!string.IsNullOrEmpty(item.GoogleOfferUrl))
+                                    {
+                                        <a href="@item.GoogleOfferUrl" target="_blank" class="Button-Page-Small" style="text-decoration:none; padding: 2px 8px; font-size: 11px;">
+                                            Link &gt;
+                                        </a>
+                                    }
+                                </td>
+                            }
                         </tr>
                     }
                 </tbody>
