@@ -18,15 +18,15 @@ namespace PriceSafari.Controllers.ManagerControllers
     {
         private readonly PriceSafariContext _context;
         private readonly IHubContext<ScrapingHub> _hubContext;
-        // 1. DODAJ POLE SERWISU
+
         private readonly UrlGroupingService _urlGroupingService;
 
-        // 2. ZAKTUALIZUJ KONSTRUKTOR
         public StoreController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, UrlGroupingService urlGroupingService)
         {
             _context = context;
             _hubContext = hubContext;
-            _urlGroupingService = urlGroupingService; // Przypisanie serwisu
+            _urlGroupingService = urlGroupingService;
+
         }
 
         [HttpGet]
@@ -146,6 +146,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.StoreSystemType = store.StoreSystemType;
             existingStore.UseGPID = store.UseGPID;
             existingStore.UseWRGA = store.UseWRGA;
+            existingStore.CollectGoogleStoreLinks = store.CollectGoogleStoreLinks ?? false;
             existingStore.UseGoogleXMLFeedPrice = store.UseGoogleXMLFeedPrice;
             existingStore.UseCeneoXMLFeedPrice = store.UseCeneoXMLFeedPrice;
             existingStore.OnCeneo = store.OnCeneo;
@@ -191,7 +192,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             if (existingStore.AllegroRefreshToken != store.AllegroRefreshToken)
             {
-                // Jeśli użytkownik wkleił nowy Refresh Token, czyścimy go ze spacji i enterów
+
                 if (!string.IsNullOrEmpty(store.AllegroRefreshToken))
                 {
                     existingStore.AllegroRefreshToken = store.AllegroRefreshToken
@@ -200,10 +201,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                         .Replace("\n", "")
                         .Trim();
 
-                    // Resetujemy status, system sam sprawdzi token przy następnym użyciu
                     existingStore.IsAllegroTokenActive = true;
 
-                    // Opcjonalnie: czyścimy stary Access Token, żeby wymusić odświeżenie
                     existingStore.AllegroApiToken = null;
                 }
                 else
@@ -311,12 +310,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("ProductList", new { storeId });
         }
 
-
-
-
-
-
-
         [HttpPost]
         public async Task<IActionResult> DeleteStore(int storeId)
         {
@@ -337,9 +330,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             {
                 int chunkSize = 100;
 
-                // =================================================================================
-                // 1. STARE ZAAWANSOWANE USUWANIE (Flagi i Oferty Allegro)
-                // =================================================================================
                 Console.WriteLine($"Rozpoczynam usuwanie [ProductFlags] dla StoreId={storeId}...");
                 int totalProductFlagsDeleted = 0;
                 while (true)
@@ -384,9 +374,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                     Console.WriteLine($"[AllegroOffersToScrape] - usunięto {deleted} rekordów (łącznie {totalOffersDeleted}).");
                 }
 
-                // =================================================================================
-                // 2. ZABEZPIECZENIE FAKTUR 
-                // =================================================================================
                 Console.WriteLine($"Zabezpieczanie faktur dla StoreId={storeId} (archiwizacja nazwy i odpięcie)...");
                 int securedInvoices = await _context.Database.ExecuteSqlRawAsync(@"
             UPDATE Invoices 
@@ -398,9 +385,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 );
                 Console.WriteLine($"Zaktualizowano {securedInvoices} faktur (zachowano w systemie).");
 
-                // =================================================================================
-                // 3. NOWE TABELE (Mosty, Automatyzacje) - USUWANIE ZALEŻNOŚCI
-                // =================================================================================
                 Console.WriteLine("Usuwanie powiązań z nowych modułów (Automatyzacje, Mosty Cenowe)...");
 
                 await _context.Database.ExecuteSqlRawAsync($@"
@@ -421,17 +405,11 @@ namespace PriceSafari.Controllers.ManagerControllers
             WHERE PBB.StoreId = @storeId", new SqlParameter("@storeId", storeId));
                 await DeleteInChunksAsync("PriceBridgeBatches", "StoreId", storeId, chunkSize);
 
-                // =================================================================================
-                // 4. MAPOWANIA (Usuwanie wszystkiego do zera)
-                // =================================================================================
                 Console.WriteLine("Usuwanie mapowań sklepu...");
                 await DeleteInChunksAsync("GoogleFieldMappings", "StoreId", storeId, chunkSize);
                 await DeleteInChunksAsync("CeneoFieldMappings", "StoreId", storeId, chunkSize);
                 await DeleteInChunksAsync("ProductMaps", "StoreId", storeId, chunkSize);
 
-                // =================================================================================
-                // 5. HISTORIE ZMIENIONYCH CEN I ROZSZERZONE INFO (KRYTYCZNE DLA BLOKAD KLUCZY!)
-                // =================================================================================
                 Console.WriteLine("Usuwanie rozszerzonych logów ze scrapowania...");
 
                 await _context.Database.ExecuteSqlRawAsync($@"
@@ -470,9 +448,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                     Console.WriteLine($"[PriceHistories] - usunięto {deleted} rekordów.");
                 }
 
-                // =================================================================================
-                // 6. KLASYCZNE TABELE BAZOWE (Odwrócona kolejność ze względu na relacje)
-                // =================================================================================
                 Console.WriteLine("Usuwanie starych struktur (Produkty, ScrapHistories)...");
 
                 await _context.Database.ExecuteSqlRawAsync($@"
@@ -494,9 +469,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 await DeleteInChunksAsync("UserStores", "StoreId", storeId, chunkSize);
                 await DeleteInChunksAsync("PriceSafariReports", "StoreId", storeId, chunkSize);
 
-                // =================================================================================
-                // 7. USUNIĘCIE SAMEGO SKLEPU
-                // =================================================================================
                 int deletedStores = await _context.Database.ExecuteSqlRawAsync(
                     "DELETE FROM [Stores] WHERE StoreId = {0}",
                     storeId
@@ -514,7 +486,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 await transaction.RollbackAsync();
                 Console.WriteLine($"Wystąpił błąd podczas usuwania Store o ID={storeId}. Transakcja została wycofana. Błąd: {ex.Message}");
 
-                // Rozszerzone logowanie z InnerException, aby widzieć dokładne błędy kluczy SQL
                 var innerMsg = ex.InnerException != null ? ex.InnerException.Message : "";
                 TempData["ErrorMessage"] = $"Nie udało się usunąć sklepu. Błąd: {ex.Message} | Detale: {innerMsg}";
 
@@ -573,14 +544,12 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/Store/ProductList.cshtml", products);
         }
 
-
-        // 3. DODAJ NOWĄ METODĘ DO SCALANIA URL
         [HttpPost]
         public async Task<IActionResult> MergeStoreUrls(int storeId)
         {
             try
             {
-                // Wywołujemy Twoją metodę z serwisu, przekazując ID sklepu w liście
+
                 var result = await _urlGroupingService.GroupAndSaveUniqueUrls(new List<int> { storeId });
 
                 TempData["SuccessMessage"] = $"Sukces! Przeanalizowano {result.totalProducts} produktów. Znaleziono unikalne sklepy: {string.Join(", ", result.distinctStoreNames)}";
@@ -590,7 +559,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 TempData["ErrorMessage"] = $"Błąd podczas scalania URL: {ex.Message}";
             }
 
-            // Wracamy do widoku listy produktów
             return RedirectToAction("ProductList", new { storeId });
         }
 
@@ -612,13 +580,10 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("ProductList", new { storeId });
         }
 
-
-        // W pliku: Controllers/ManagerControllers/StoreController.cs
-
         [HttpPost]
         public async Task<IActionResult> GenerateInvoiceManually(int storeId)
         {
-            // 1. Pobieramy sklep z bazy (świeże dane)
+
             var store = await _context.Stores
                 .Include(s => s.Plan)
                 .Include(s => s.PaymentData)
@@ -626,14 +591,12 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             if (store == null) return NotFound();
 
-            // Walidacja czy sklep ma plan
             if (store.PlanId == null || store.Plan == null)
             {
                 TempData["ErrorMessage"] = "Nie można wygenerować faktury: Sklep nie ma przypisanego Planu.";
                 return RedirectToAction("EditStore", new { storeId });
             }
 
-            // 2. Obsługa licznika faktur (pobranie i inkrementacja)
             var currentYear = DateTime.Now.Year;
             var invoiceCounter = await _context.InvoiceCounters.FirstOrDefaultAsync(c => c.Year == currentYear);
 
@@ -647,7 +610,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             invoiceCounter.LastInvoiceNumber++;
             string invNum = $"PS/{invoiceCounter.LastInvoiceNumber:D6}/sDB/{DateTime.Now.Year}";
 
-            // 3. Wyliczenia kwot
             decimal netPrice = store.Plan.NetPrice;
             decimal appliedDiscountPercentage = 0;
             decimal appliedDiscountAmount = 0;
@@ -659,21 +621,21 @@ namespace PriceSafari.Controllers.ManagerControllers
                 netPrice = netPrice - appliedDiscountAmount;
             }
 
-            // 4. Tworzenie obiektu faktury
             var invoice = new InvoiceClass
             {
                 StoreId = store.StoreId,
                 PlanId = store.PlanId.Value,
                 IssueDate = DateTime.Now,
                 DueDate = DateTime.Now.AddDays(14),
-                IsPaid = false,         // Ręcznie generowana - domyślnie nieopłacona
+                IsPaid = false,
+
                 IsPaidByCard = false,
                 InvoiceNumber = invNum,
                 NetAmount = netPrice,
                 DaysIncluded = store.Plan.DaysPerInvoice,
                 UrlsIncluded = store.Plan.ProductsToScrap,
                 UrlsIncludedAllegro = store.Plan.ProductsToScrapAllegro,
-                // Pobieramy dane z PaymentData sklepu
+
                 CompanyName = store.PaymentData?.CompanyName ?? "Brak Danych",
                 Address = store.PaymentData?.Address ?? "",
                 PostalCode = store.PaymentData?.PostalCode ?? "",
@@ -681,17 +643,16 @@ namespace PriceSafari.Controllers.ManagerControllers
                 NIP = store.PaymentData?.NIP ?? "",
                 AppliedDiscountPercentage = appliedDiscountPercentage,
                 AppliedDiscountAmount = appliedDiscountAmount,
-                IsSentByEmail = false // Zgodnie z życzeniem - nie wysyłamy, tylko generujemy
+                IsSentByEmail = false
+
             };
 
-            // 5. DODANIE DNI I ZAKTUALIZOWANIE LIMITÓW (Logika z serwisu)
             store.RemainingDays += store.Plan.DaysPerInvoice;
             store.ProductsToScrap = store.Plan.ProductsToScrap;
             store.ProductsToScrapAllegro = store.Plan.ProductsToScrapAllegro;
 
             _context.Invoices.Add(invoice);
 
-            // 6. Logowanie akcji (opcjonalnie, dla porządku w logach systemowych)
             _context.TaskExecutionLogs.Add(new TaskExecutionLog
             {
                 DeviceName = "ManagerPanel",
@@ -705,7 +666,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             TempData["SuccessMessage"] = $"Wygenerowano fakturę {invNum} i dodano {store.Plan.DaysPerInvoice} dni.";
 
-            // Powrót do edycji sklepu
             return RedirectToAction("EditStore", new { storeId });
         }
 
