@@ -121,7 +121,7 @@ namespace PriceSafari.Scrapers
 
 
 
-        public async Task ScrapeCategoryProducts(int storeId, string categoryName, string baseUrlTemplate)
+        public async Task ScrapeCategoryProducts(int storeId, string categoryName, string baseUrlTemplate, bool isProducer = false)
         {
             int pageIndex = 0;
             int pageCount = 1;
@@ -134,15 +134,36 @@ namespace PriceSafari.Scrapers
 
             while (hasMorePages)
             {
-                var url = string.Format(baseUrlTemplate, pageIndex);
+                // NOWA LOGIKA BUDOWANIA URL
+                string url;
+                if (isProducer)
+                {
+                    // Dla producentów: base url wygląda np. tak: /producenci/mova/Male_AGD_do_domu
+                    // A paginacja: /producenci/mova/Male_AGD_do_domu;0020-30-0-0-1.htm
+                    if (pageIndex == 0)
+                    {
+                        url = string.Format(baseUrlTemplate, ""); // Pierwsza strona to czysty baseUrl
+                    }
+                    else
+                    {
+                        // Dodajemy przyrostek paginacji. W Ceneo strony indeksowane są od 0 wizualnie na pierwszej stronie, ale w linku zaczyna się od 1.
+                        // Uwaga: zakładam, że baseUrlTemplate dla producenta to pełny link przed dodaniem ";0020...".
+                        // Np. baseUrlTemplate = "https://www.ceneo.pl/producenci/mova/Male_AGD_do_domu"
+                        url = $"{baseUrlTemplate};0020-30-0-0-{pageIndex}.htm";
+                    }
+                }
+                else
+                {
+                    // Stara logika dla zwykłych sklepów
+                    url = string.Format(baseUrlTemplate, pageIndex);
+                }
+
                 Console.WriteLine($"Processing page: {url}");
 
                 try
                 {
                     await _page.GoToAsync(url, WaitUntilNavigation.Networkidle0);
                     Console.WriteLine("Page loaded successfully.");
-
-                   
 
                     // Wait for products to load
                     var contentLoaded = await _page.WaitForSelectorAsync("div.cat-prod-box", new WaitForSelectorOptions { Timeout = 5000 });
@@ -160,7 +181,7 @@ namespace PriceSafari.Scrapers
                     break;
                 }
 
-                // Get total page count on first page
+                // ... (Pobieranie pageCount pozostaje bez zmian) ...
                 if (pageIndex == 0)
                 {
                     try
@@ -205,14 +226,50 @@ namespace PriceSafari.Scrapers
                     {
                         try
                         {
-                            // Extract product data
-                            var pid = await productElement.EvaluateFunctionAsync<string>("el => el.getAttribute('data-pid')");
-                            var gaCategoryName = await productElement.EvaluateFunctionAsync<string>("el => el.getAttribute('data-gacategoryname')");
-                            var nameNode = await productElement.QuerySelectorAsync("strong.cat-prod-box__name a");
+                            // Wykonujemy jeden szybki skrypt JS bezpośrednio w przeglądarce dla każdego produktu
+                            var extractedData = await productElement.EvaluateFunctionAsync<string[]>(@"el => {
+                            let pid = el.getAttribute('data-pid');
+                            let name = '';
+                            let gaCategory = el.getAttribute('data-gacategoryname');
 
-                            if (nameNode != null && !string.IsNullOrEmpty(pid))
+                            // 1. Szukamy nazwy produktu (obsługa wielu wariantów widoku Ceneo)
+                            let nameNode = el.querySelector('.cat-prod-box__name a, .name a, strong a');
+                            if (nameNode) {
+                                name = nameNode.textContent.trim();
+                            } else {
+                                // Fallback: jeśli nie ma w tekście linku, szukamy w atrybucie title na przycisku lub alt w obrazku
+                                let btn = el.querySelector('a.go-to-product');
+                                if (btn && btn.getAttribute('title')) name = btn.getAttribute('title').trim();
+                
+                                if (!name) {
+                                    let img = el.querySelector('img');
+                                    if (img && img.getAttribute('alt')) name = img.getAttribute('alt').trim();
+                                }
+                            }
+
+                            // 2. Szukamy PID, jeśli brak atrybutu data-pid (szukamy w href przycisku)
+                            let linkNode = el.querySelector('a.go-to-product, a.js_seoUrl');
+                            if (!pid && linkNode) {
+                                let href = linkNode.getAttribute('href');
+                                if (href) {
+                                    // Magia Regex: wyciągamy ciąg cyfr zaraz po '/' (np. z /181110365##;02514?tag=...)
+                                    let match = href.match(/\/(\d+)/);
+                                    if (match && match.length > 1) {
+                                        pid = match[1];
+                                    }
+                                }
+                            }
+
+                            return [pid || '', name || '', gaCategory || ''];
+                        }");
+
+                            var pid = extractedData[0];
+                            var name = extractedData[1];
+                            var gaCategoryName = extractedData[2];
+
+                            // Sprawdzamy, czy udało się skompletować niezbędne minimum
+                            if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(pid))
                             {
-                                var name = await nameNode.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
                                 var offerUrl = "https://www.ceneo.pl/" + pid;
 
                                 if (existingProductUrls.Contains(offerUrl) || newProductUrls.Contains(offerUrl))
@@ -221,7 +278,6 @@ namespace PriceSafari.Scrapers
                                     continue;
                                 }
 
-                                // Use gaCategoryName if available; otherwise, use categoryName
                                 string trimmedCategoryName;
                                 if (!string.IsNullOrEmpty(gaCategoryName))
                                 {
@@ -247,7 +303,7 @@ namespace PriceSafari.Scrapers
                             }
                             else
                             {
-                                Console.WriteLine($"Incomplete product data on page {pageIndex}. PID: {pid}, Category: {gaCategoryName}");
+                                Console.WriteLine($"Incomplete product data on page {pageIndex}. PID: {pid}, Name: {name}");
                             }
                         }
                         catch (Exception ex)
@@ -257,7 +313,7 @@ namespace PriceSafari.Scrapers
                         }
                     }
 
-
+                    // ... (Zapis do bazy i pętla stron pozostają bez zmian) ...
                     try
                     {
                         await _context.SaveChangesAsync();
@@ -266,7 +322,7 @@ namespace PriceSafari.Scrapers
                     catch (Exception ex)
                     {
                         Console.WriteLine($"Error saving product data to database: {ex.Message}");
-                        throw; // Re-throw or handle accordingly
+                        throw;
                     }
                 }
                 else
@@ -286,8 +342,6 @@ namespace PriceSafari.Scrapers
 
             Console.WriteLine("Scraping completed.");
         }
-
- 
 
         public async Task CloseBrowserAsync()
         {
