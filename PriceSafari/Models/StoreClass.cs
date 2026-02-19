@@ -70,6 +70,9 @@ namespace PriceSafari.Models
         public bool OnGoogle { get; set; } = false;
         public bool OnAllegro { get; set; } = false;
 
+        [Display(Name = "Czy jest producentem?")]
+        public bool IsProducer { get; set; } = false;
+
         [Display(Name = "Pobieraj dane z API Allegro")]
         public bool FetchExtendedAllegroData { get; set; } = false;
 

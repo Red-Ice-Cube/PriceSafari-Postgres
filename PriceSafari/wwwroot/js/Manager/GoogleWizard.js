@@ -352,9 +352,7 @@ function renderMappingTable() {
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// ZAPIS / PRZEŁADOWANIE MAPOWAŃ
-// ─────────────────────────────────────────────────────────────
+
 document.getElementById("saveMapping").addEventListener("click", function () {
     const finalMappings = [];
     for (const fieldName in mappingForField) {
@@ -381,30 +379,24 @@ document.getElementById("reloadMappings").addEventListener("click", function () 
         .catch(err => console.error("Błąd getGoogleMappings:", err));
 });
 
-// ─────────────────────────────────────────────────────────────
-// EKSTRAKCJA PRODUKTÓW (działa na pełnym xmlDoc w pamięci)
-// ─────────────────────────────────────────────────────────────
+
 function parsePrice(value) {
     if (!value) return null;
 
-    // 1. Usuń wszystko co nie jest cyfrą, kropką, przecinkiem lub minusem
-    // (usuwa waluty "zł", "$", spacje itp.)
+  
     let clean = value.replace(/[^\d.,-]/g, '');
 
-    // 2. Logika detekcji formatu
-    // Jeśli mamy i kropkę i przecinek (np. 2,599.00 lub 2.599,00)
+
     if (clean.indexOf(',') > -1 && clean.indexOf('.') > -1) {
         if (clean.indexOf(',') < clean.indexOf('.')) {
-            // Format US/UK: 2,599.00 -> usuwamy przecinki (tysiące)
+          
             clean = clean.replace(/,/g, '');
         } else {
-            // Format EU: 2.599,00 -> usuwamy kropki (tysiące), zamieniamy przecinek na kropkę
+          
             clean = clean.replace(/\./g, '').replace(',', '.');
         }
     } else if (clean.indexOf(',') > -1) {
-        // Tylko przecinek? Traktujemy jako separator dziesiętny (np. 150,00 -> 150.00)
-        // Uwaga: Jeśli format to "1,000" (tysiąc) bez groszy, to zostanie zamienione na 1.0. 
-        // W feedach XML jednak przecinek solo to zazwyczaj grosze.
+
         clean = clean.replace(',', '.');
     }
 
@@ -456,7 +448,7 @@ function extractProductsFromXml() {
     let productMaps = [];
     let countUrlsWithParams = 0;
     let idx = 0;
-    const CHUNK = 100; // małe chunki = płynny pasek, brak zamrożenia UI
+    const CHUNK = 100; 
 
     function extractChunk() {
         const end = Math.min(idx + CHUNK, entries.length);

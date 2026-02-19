@@ -241,8 +241,8 @@
                         <th>Odznaki</th>
                         <th>Koszt wysyłki</th>
                         <th>Dostępność</th>
-                        <th>Ilość Ofert</th>
-                        <th></th> @if (hasAnyStoreLinks)
+                        <th>Źródło</th>
+                        @if (hasAnyStoreLinks)
                         {
                             <th></th>
                         }
@@ -418,12 +418,6 @@
                                     {
                                         <span class="BD">Brak danych</span> 
                                     }
-                                }
-                            </td>
-                            <td>
-                                @if (item.IsGoogle && item.GoogleOfferPerStoreCount.HasValue)
-                                {
-                                    @item.GoogleOfferPerStoreCount
                                 }
                             </td>
                             <td class="data-chanel">
