@@ -386,9 +386,29 @@ document.getElementById("reloadMappings").addEventListener("click", function () 
 // ─────────────────────────────────────────────────────────────
 function parsePrice(value) {
     if (!value) return null;
-    const match = value.match(/([\d]+([.,]\d+)?)/);
-    if (!match) return null;
-    const floatVal = parseFloat(match[1].replace(',', '.'));
+
+    // 1. Usuń wszystko co nie jest cyfrą, kropką, przecinkiem lub minusem
+    // (usuwa waluty "zł", "$", spacje itp.)
+    let clean = value.replace(/[^\d.,-]/g, '');
+
+    // 2. Logika detekcji formatu
+    // Jeśli mamy i kropkę i przecinek (np. 2,599.00 lub 2.599,00)
+    if (clean.indexOf(',') > -1 && clean.indexOf('.') > -1) {
+        if (clean.indexOf(',') < clean.indexOf('.')) {
+            // Format US/UK: 2,599.00 -> usuwamy przecinki (tysiące)
+            clean = clean.replace(/,/g, '');
+        } else {
+            // Format EU: 2.599,00 -> usuwamy kropki (tysiące), zamieniamy przecinek na kropkę
+            clean = clean.replace(/\./g, '').replace(',', '.');
+        }
+    } else if (clean.indexOf(',') > -1) {
+        // Tylko przecinek? Traktujemy jako separator dziesiętny (np. 150,00 -> 150.00)
+        // Uwaga: Jeśli format to "1,000" (tysiąc) bez groszy, to zostanie zamienione na 1.0. 
+        // W feedach XML jednak przecinek solo to zazwyczaj grosze.
+        clean = clean.replace(',', '.');
+    }
+
+    const floatVal = parseFloat(clean);
     return isNaN(floatVal) ? null : floatVal.toFixed(2);
 }
 
