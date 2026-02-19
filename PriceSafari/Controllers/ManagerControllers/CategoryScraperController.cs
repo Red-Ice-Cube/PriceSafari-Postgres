@@ -125,8 +125,21 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
 
             var storeProfile = store.StoreProfile;
-            var baseUrl = $"https://www.ceneo.pl/;{storeProfile}-0v.htm";
+            string baseUrl;
 
+            // Sprawdzamy, czy to tryb producenta
+            if (store.IsProducer)
+            {
+                // Tryb Producenta: https://www.ceneo.pl/producenci/mova
+                baseUrl = $"https://www.ceneo.pl/producenci/{storeProfile}";
+            }
+            else
+            {
+                // Tryb Standardowy: https://www.ceneo.pl/;mova-0v.htm
+                baseUrl = $"https://www.ceneo.pl/;{storeProfile}-0v.htm";
+            }
+
+            // Odpalamy rekurencję
             await ScrapeCategories(storeId, baseUrl, 0);
 
             return RedirectToAction("Index", new { storeId = storeId });
