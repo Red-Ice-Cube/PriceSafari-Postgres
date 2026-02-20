@@ -40,11 +40,14 @@
     var apiPriceMismatchCount = Model.Count(p => p.ExternalApiPrice.HasValue &&
     ((p.LastGooglePrice.HasValue && p.LastGooglePrice != p.ExternalApiPrice) ||
      (p.LastCeneoPrice.HasValue && p.LastCeneoPrice != p.ExternalApiPrice)));
+
+    var offerUrlCount = Model.Count(p => !string.IsNullOrEmpty(p.UrlCeneo));
 }
 
 <div class="container-fluid">
     <h2 class="mt-4">Zmapowane Produkty dla sklepu: <span class="text-primary">@storeName</span></h2>
 
+    @* ====== STATYSTYKI ====== *@
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-chart-bar me-1"></i>
@@ -59,6 +62,7 @@
                         <li>Znalezione w Ceneo: @ceneoCount (@(totalCount > 0 ? (ceneoCount * 100.0 / totalCount).ToString("F1") : "0.0")%)</li>
                         <li>Znalezione w obu: @googleCeneoCount (@(totalCount > 0 ? (googleCeneoCount * 100.0 / totalCount).ToString("F1") : "0.0")%)</li>
                         <li>Nie znalezione nigdzie: @notFoundCount (@(totalCount > 0 ? (notFoundCount * 100.0 / totalCount).ToString("F1") : "0.0")%)</li>
+                        <li>Z OfferUrl (Ceneo): <strong>@offerUrlCount</strong></li>
                     </ul>
                 </div>
                 <div class="col-md-6">
@@ -76,6 +80,7 @@
         </div>
     </div>
 
+    @* ====== AKCJE DLA SKLEPU ====== *@
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-cogs me-1"></i>
@@ -121,6 +126,12 @@
                         </button>
                     </form>
                 </div>
+                @* ====== NOWY PRZYCISK: KLONOWANIE GOOGLE → CENEO ====== *@
+                <div class="col-md-4 mb-3">
+                    <button type="button" class="btn btn-outline-primary w-100" id="btn-open-clone-modal">
+                        <i class="fas fa-clone me-1"></i> Klonuj oferty Google → Ceneo
+                    </button>
+                </div>
             </div>
             <div class="row">
                 <div class="col-md-6 mb-3">
@@ -152,6 +163,7 @@
         </div>
     </div>
 
+    @* ====== FILTRY ====== *@
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-filter me-1"></i>
@@ -224,7 +236,6 @@
                             <input class="form-check-input mismatch-filter" type="checkbox" id="show-ean-mismatch">
                             <label class="form-check-label" for="show-ean-mismatch">Pokaż różnice EAN(G) &ne; EAN(C)</label>
                         </div>
-
                         <div class="form-check">
                             <input class="form-check-input mismatch-filter" type="checkbox" id="show-api-mismatch">
                             <label class="form-check-label text-danger fw-bold" for="show-api-mismatch">Pokaż różnice Scrap &ne; API</label>
@@ -241,6 +252,7 @@
         </div>
     </div>
 
+    @* ====== TABELA PRODUKTÓW ====== *@
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-table me-1"></i>
@@ -259,9 +271,8 @@
                         <th>Kod Prod. (gl.) <small>(@producerCodeCount)</small></th>
                         <th>Kod Prod. (C) <small>(@ceneoProducerCodeCount)</small></th>
                         <th>Kod Prod. (G) <small>(@googleProducerCodeCount)</small></th>
-
                         <th>URL Prod <small>(@urlCount)</small></th>
-                        <th>URL Ceneo</th>
+                        <th style="min-width: 260px;">OfferUrl (Ceneo) <small>(<span id="offer-url-count-header">@offerUrlCount</span>)</small></th>
                         <th>URL Google</th>
                         <th>Scrap?</th>
                         <th>Reject?</th>
@@ -279,7 +290,7 @@
                     @if (!Model.Any())
                     {
                         <tr>
-                            <td colspan="18" class="text-center text-muted">Brak zmapowanych produktów dla tego sklepu. Użyj akcji powyżej lub kreatorów importu.</td>
+                            <td colspan="22" class="text-center text-muted">Brak zmapowanych produktów dla tego sklepu. Użyj akcji powyżej lub kreatorów importu.</td>
                         </tr>
                     }
                     @foreach (var productVm in Model)
@@ -292,14 +303,12 @@
 
                         bool gcScrapMismatch = productVm.PriceDifference.HasValue && productVm.PriceDifference != 0;
                         bool googleScrapXmlMismatch = productVm.LastGooglePrice.HasValue && productVm.GoogleXMLPrice.HasValue && productVm.LastGooglePrice.Value != productVm.GoogleXMLPrice.Value;
-
                         bool ceneoScrapXmlMismatch = productVm.LastCeneoPrice.HasValue && productVm.CeneoXMLPrice.HasValue && productVm.LastCeneoPrice.Value != productVm.CeneoXMLPrice.Value;
                         bool xmlPricesMismatch = productVm.GoogleXMLPrice.HasValue && productVm.CeneoXMLPrice.HasValue && productVm.GoogleXMLPrice.Value != productVm.CeneoXMLPrice.Value;
                         bool eanMismatch = !string.IsNullOrEmpty(productVm.EanGoogle) && !string.IsNullOrEmpty(productVm.EanCeneo) && productVm.EanGoogle != productVm.EanCeneo;
                         bool apiMismatch = productVm.ExternalApiPrice.HasValue &&
                         ((productVm.LastGooglePrice.HasValue && productVm.LastGooglePrice != productVm.ExternalApiPrice) ||
                         (productVm.LastCeneoPrice.HasValue && productVm.LastCeneoPrice != productVm.ExternalApiPrice));
-
 
                         string rowClass = "";
                         if (gcScrapMismatch) rowClass += " gc-scrap-mismatch";
@@ -314,12 +323,11 @@
                             data-status="@statusCategory"
                             data-gc-scrap-mismatch="@(gcScrapMismatch.ToString().ToLower())"
                             data-google-scrap-xml-mismatch="@(googleScrapXmlMismatch.ToString().ToLower())"
-                            data-ceneo-scrap-xml-mismatch="@(ceneoScrapXmlMismatch.ToString().ToLower())" @* NOWY atrybut *@
-                            data-xml-prices-mismatch="@(xmlPricesMismatch.ToString().ToLower())" @* NOWY atrybut *@
+                            data-ceneo-scrap-xml-mismatch="@(ceneoScrapXmlMismatch.ToString().ToLower())"
+                            data-xml-prices-mismatch="@(xmlPricesMismatch.ToString().ToLower())"
                             data-ean-mismatch="@(eanMismatch.ToString().ToLower())"
                             data-api-mismatch="@(apiMismatch.ToString().ToLower())"
                             class="@rowClass.Trim()">
-                            @* Trim() usuwa ewentualny wiodący spacja *@
                             <td>
                                 @if (!string.IsNullOrEmpty(productVm.MainUrlCeneo))
                                 {
@@ -342,7 +350,6 @@
                             </td>
                             <td class="name-cell">@(productVm.NameCeneo ?? "(brak)")</td>
                             <td class="name-cell">@(productVm.NameGoogle ?? "(brak)")</td>
-                        
                             <td class="@(eanMismatch ? "ean-mismatch-cell text-danger fw-bold" : "")">@(productVm.EanCeneo ?? "(brak)")</td>
                             <td class="@(eanMismatch ? "ean-mismatch-cell text-danger fw-bold" : "")">@(productVm.EanGoogle ?? "(brak)")</td>
                             <td class="text-primary fw-bold">@(productVm.ProducerCode ?? "(brak)")</td>
@@ -358,16 +365,54 @@
                                     <span>-</span>
                                 }
                             </td>
-                            <td>
-                                @if (!string.IsNullOrEmpty(productVm.UrlCeneo))
-                                {
-                                    <a href="@productVm.UrlCeneo" target="_blank" title="@productVm.UrlCeneo"><i class="fas fa-external-link-alt"></i></a>
-                                }
-                                else
-                                {
-                                    <span>-</span>
-                                }
+
+                            @* ====== KOLUMNA OFFERURL Z INLINE EDIT/DELETE ====== *@
+                            <td class="offer-url-cell" data-product-id="@productVm.ProductId">
+                                <div class="offer-url-display">
+                                    @if (!string.IsNullOrEmpty(productVm.UrlCeneo))
+                                    {
+                                        <div class="d-flex align-items-start gap-1">
+                                            <a href="@productVm.UrlCeneo" target="_blank"
+                                                   class="offer-url-text text-break small" style="word-break: break-all;">
+                                                @productVm.UrlCeneo
+                                            </a>
+                                            <button class="btn btn-outline-primary btn-sm py-0 px-1 offer-url-edit-btn" title="Edytuj"
+                                                    data-product-id="@productVm.ProductId"
+                                                    data-current-url="@productVm.UrlCeneo">
+                                                <i class="fas fa-pen" style="font-size: 0.65rem;"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger btn-sm py-0 px-1 offer-url-delete-btn" title="Usuń OfferUrl"
+                                                    data-product-id="@productVm.ProductId">
+                                                <i class="fas fa-times" style="font-size: 0.65rem;"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span class="text-muted small">— brak —</span>
+                                            <button class="btn btn-outline-success btn-sm py-0 px-1 offer-url-edit-btn" title="Dodaj OfferUrl"
+                                                    data-product-id="@productVm.ProductId"
+                                                    data-current-url="">
+                                                <i class="fas fa-plus" style="font-size: 0.65rem;"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="offer-url-editor" style="display: none;">
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control form-control-sm offer-url-input"
+                                               value="@(productVm.UrlCeneo ?? "")" placeholder="https://ceneo.pl/...">
+                                        <button class="btn btn-success btn-sm offer-url-save-btn" title="Zapisz">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="btn btn-secondary btn-sm offer-url-cancel-btn" title="Anuluj">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </td>
+
                             <td>
                                 @if (!string.IsNullOrEmpty(productVm.UrlGoogle))
                                 {
@@ -384,7 +429,6 @@
                             <td class="price-cell bg-light text-center fw-bold text-secondary">
                                 @(productVm.ExternalApiPrice.HasValue? productVm.ExternalApiPrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")
                             </td>
-                        
                             <td class="price-cell @(gcScrapMismatch ? "text-warning fw-bold" : "") @(productVm.ExternalApiPrice.HasValue && productVm.LastGooglePrice.HasValue && productVm.LastGooglePrice != productVm.ExternalApiPrice ? "text-danger fw-bolder border border-danger" : "")">
                                 @(productVm.LastGooglePrice.HasValue? productVm.LastGooglePrice.Value.ToString("C2", new CultureInfo("pl-PL")) : "-")
                             </td>
@@ -406,18 +450,122 @@
         </div>
     </div>
 </div>
+@* ====== OVERLAY: KLONOWANIE OFERT GOOGLE → CENEO ====== *@
+<div id="cloneOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.5);">
+    <div style="position:absolute; inset:0; background:#fff; display:flex; flex-direction:column; margin:0;">
+        <div class="d-flex align-items-center justify-content-between p-3 bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-clone me-2"></i>Klonowanie Ofert Google → Ceneo</h5>
+            <button type="button" class="btn btn-light btn-sm" id="clone-close-btn">
+                <i class="fas fa-times me-1"></i> Zamknij
+            </button>
+        </div>
+        <div class="flex-grow-1 overflow-auto p-3">
+
+            <div id="clone-loader" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Ładowanie...</span>
+                </div>
+                <p class="mt-3 text-muted">Analizuję dane z ostatniego scrapu...</p>
+            </div>
+
+            <div id="clone-error" class="alert alert-danger" style="display: none;"></div>
+
+            <div id="clone-content" style="display: none;">
+                <div class="alert alert-info py-2 mb-3">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Dane z ostatniego scrapu: <strong id="clone-scrap-date"></strong> (ID: <span id="clone-scrap-id"></span>)
+                </div>
+
+                <div class="row text-center mb-3 g-2">
+                    <div class="col"><div class="border rounded p-2"><div class="fs-4 fw-bold text-primary" id="stat-total">0</div><small class="text-muted">Łącznie</small></div></div>
+                    <div class="col"><div class="border rounded p-2 bg-success bg-opacity-10"><div class="fs-4 fw-bold text-success" id="stat-new">0</div><small class="text-muted">Nowe</small></div></div>
+                    <div class="col"><div class="border rounded p-2 bg-warning bg-opacity-10"><div class="fs-4 fw-bold text-warning" id="stat-update">0</div><small class="text-muted">Aktualizacja</small></div></div>
+                    <div class="col"><div class="border rounded p-2"><div class="fs-4 fw-bold text-secondary" id="stat-same">0</div><small class="text-muted">Bez zmian</small></div></div>
+                    <div class="col"><div class="border rounded p-2"><div class="fs-4 fw-bold text-info" id="stat-keep">0</div><small class="text-muted">Zachowane</small></div></div>
+                    <div class="col"><div class="border rounded p-2"><div class="fs-4 fw-bold text-muted" id="stat-no-match">0</div><small class="text-muted">Brak linku</small></div></div>
+                    <div class="col"><div class="border rounded p-2"><div class="fs-4 fw-bold text-muted" id="stat-no-data">0</div><small class="text-muted">Brak danych</small></div></div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-3 align-items-center mb-3 p-2 bg-light rounded">
+                    <span class="fw-bold">Pokaż:</span>
+                    <div class="form-check form-check-inline mb-0">
+                        <input class="form-check-input clone-status-filter" type="checkbox" id="cloneFilterNew" data-status="new" checked>
+                        <label class="form-check-label text-success fw-bold" for="cloneFilterNew">Nowe</label>
+                    </div>
+                    <div class="form-check form-check-inline mb-0">
+                        <input class="form-check-input clone-status-filter" type="checkbox" id="cloneFilterUpdate" data-status="update" checked>
+                        <label class="form-check-label text-warning fw-bold" for="cloneFilterUpdate">Aktualizacja</label>
+                    </div>
+                    <div class="form-check form-check-inline mb-0">
+                        <input class="form-check-input clone-status-filter" type="checkbox" id="cloneFilterSame" data-status="same">
+                        <label class="form-check-label" for="cloneFilterSame">Bez zmian</label>
+                    </div>
+                    <div class="form-check form-check-inline mb-0">
+                        <input class="form-check-input clone-status-filter" type="checkbox" id="cloneFilterKeep" data-status="keep">
+                        <label class="form-check-label" for="cloneFilterKeep">Zachowane</label>
+                    </div>
+                    <div class="form-check form-check-inline mb-0">
+                        <input class="form-check-input clone-status-filter" type="checkbox" id="cloneFilterNoMatch" data-status="no-match">
+                        <label class="form-check-label" for="cloneFilterNoMatch">Brak linku</label>
+                    </div>
+                    <div class="form-check form-check-inline mb-0">
+                        <input class="form-check-input clone-status-filter" type="checkbox" id="cloneFilterNoData" data-status="no-data">
+                        <label class="form-check-label" for="cloneFilterNoData">Brak danych</label>
+                    </div>
+                    <span class="ms-auto text-muted small">Widocznych: <strong id="clone-visible-count">0</strong></span>
+                </div>
+
+                <div class="table-responsive" style="max-height: calc(100vh - 380px); overflow-y: auto;">
+                    <table class="table table-bordered table-hover table-sm" id="clone-table">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width: 40px;" class="text-center">
+                                    <input type="checkbox" id="clone-check-all" checked title="Zaznacz/Odznacz wszystkie">
+                                </th>
+                                <th style="width: 55px;">ID</th>
+                                <th style="min-width: 180px;">Nazwa produktu</th>
+                                <th style="width: 110px;" class="text-center">Status</th>
+                                <th style="min-width: 250px;">Obecny OfferUrl</th>
+                                <th style="min-width: 250px;">Proponowany OfferUrl</th>
+                                <th style="min-width: 220px;">URL źródłowy (Google)</th>
+                                <th style="width: 100px;">Ceneo ID</th>
+                                <th style="min-width: 180px;">Inne URLe</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clone-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 p-3 border-top bg-light">
+            <button type="button" class="btn btn-outline-secondary" id="clone-select-all-btn">
+                <i class="fas fa-check-double me-1"></i> Zaznacz wszystkie
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="clone-deselect-all-btn">
+                <i class="fas fa-times me-1"></i> Odznacz wszystkie
+            </button>
+            <span class="me-auto text-muted">Zaznaczono: <strong id="clone-selected-count">0</strong></span>
+            <button type="button" class="btn btn-secondary" id="clone-close-btn-footer">Zamknij</button>
+            <button type="button" class="btn btn-primary btn-lg" id="clone-apply-btn" disabled>
+                <i class="fas fa-clone me-1"></i> Zastosuj zaznaczone
+            </button>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script>
-
         document.addEventListener('DOMContentLoaded', () => {
 
             const storeNameForJs = @Json.Serialize(storeName);
             const currentStoreId = @Json.Serialize(storeId);
 
+            // ================================================================
+            // ISTNIEJĄCE FILTRY TABELI GŁÓWNEJ (bez zmian)
+            // ================================================================
             const statusCheckboxes = document.querySelectorAll('.status-filter');
             const platformCheckboxes = document.querySelectorAll('.platform-filter');
-
             const showGcScrapMismatchCheckbox = document.getElementById('show-gc-scrap-mismatch');
             const showGoogleScrapXmlMismatchCheckbox = document.getElementById('show-google-scrap-xml-mismatch');
             const showCeneoScrapXmlMismatchCheckbox = document.getElementById('show-ceneo-scrap-xml-mismatch');
@@ -430,12 +578,10 @@
             const tableVisibleCountSpan = document.getElementById('table-visible-count');
 
             function applyFilters() {
-
                 const selectedStatuses = Array.from(statusCheckboxes)
                     .filter(ch => ch.checked).map(ch => ch.dataset.status);
                 const selectedPlatforms = Array.from(platformCheckboxes)
                     .filter(ch => ch.checked).map(ch => ch.dataset.platform);
-
                 const showGcScrapMismatch = showGcScrapMismatchCheckbox?.checked ?? false;
                 const showGoogleScrapXmlMismatch = showGoogleScrapXmlMismatchCheckbox?.checked ?? false;
                 const showCeneoScrapXmlMismatch = showCeneoScrapXmlMismatchCheckbox?.checked ?? false;
@@ -444,86 +590,44 @@
                 const showApiMismatch = showApiMismatchCheckbox?.checked ?? false;
 
                 let visibleRowCount = 0;
-
                 tableRows.forEach(row => {
                     if (row.children.length < 2) return;
-
                     const rowStatus = row.dataset.status;
                     const rowPlatform = row.dataset.platform;
-                    const gcScrapMismatchStr = row.dataset.gcScrapMismatch;
-                    const googleScrapXmlMismatchStr = row.dataset.googleScrapXmlMismatch;
-                    const ceneoScrapXmlMismatchStr = row.dataset.ceneoScrapXmlMismatch;
-                    const xmlPricesMismatchStr = row.dataset.xmlPricesMismatch;
-                    const eanMismatchStr = row.dataset.eanMismatch;
-                    const apiMismatchStr = row.dataset.apiMismatch;
                     const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(rowStatus);
                     const platformMatch = selectedPlatforms.length === 0 || selectedPlatforms.includes(rowPlatform);
+                    let gcScrapMismatchMatch = !showGcScrapMismatch || row.dataset.gcScrapMismatch === 'true';
+                    let googleScrapXmlMismatchMatch = !showGoogleScrapXmlMismatch || row.dataset.googleScrapXmlMismatch === 'true';
+                    let ceneoScrapXmlMismatchMatch = !showCeneoScrapXmlMismatch || row.dataset.ceneoScrapXmlMismatch === 'true';
+                    let xmlPricesMismatchMatch = !showXmlPricesMismatch || row.dataset.xmlPricesMismatch === 'true';
+                    let eanMismatchMatch = !showEanMismatch || row.dataset.eanMismatch === 'true';
+                    let apiMismatchMatch = !showApiMismatch || row.dataset.apiMismatch === 'true';
 
-                    let gcScrapMismatchMatch = true;
-                    if (showGcScrapMismatch) {
-                        gcScrapMismatchMatch = gcScrapMismatchStr === 'true';
+                    if (statusMatch && platformMatch && gcScrapMismatchMatch && googleScrapXmlMismatchMatch &&
+                        ceneoScrapXmlMismatchMatch && xmlPricesMismatchMatch && eanMismatchMatch && apiMismatchMatch) {
+                        row.style.display = '';
+                        visibleRowCount++;
+                    } else {
+                        row.style.display = 'none';
                     }
-
-                    let googleScrapXmlMismatchMatch = true;
-                    if (showGoogleScrapXmlMismatch) {
-                        googleScrapXmlMismatchMatch = googleScrapXmlMismatchStr === 'true';
-                    }
-
-                    let ceneoScrapXmlMismatchMatch = true;
-                    if (showCeneoScrapXmlMismatch) {
-                        ceneoScrapXmlMismatchMatch = ceneoScrapXmlMismatchStr === 'true';
-                    }
-
-                    let xmlPricesMismatchMatch = true;
-                    if (showXmlPricesMismatch) {
-                        xmlPricesMismatchMatch = xmlPricesMismatchStr === 'true';
-                    }
-
-                    let eanMismatchMatch = true;
-                    if (showEanMismatch) {
-                        eanMismatchMatch = eanMismatchStr === 'true';
-                    }
-
-                    let apiMismatchMatch = true;
-        if (showApiMismatch) {
-            apiMismatchMatch = apiMismatchStr === 'true';
-        }
-
-                    if (statusMatch &&
-            platformMatch &&
-            gcScrapMismatchMatch &&
-            googleScrapXmlMismatchMatch &&
-            ceneoScrapXmlMismatchMatch &&
-            xmlPricesMismatchMatch &&
-            eanMismatchMatch &&
-            apiMismatchMatch) { // 5. Dodaj do warunku końcowego
-
-            row.style.display = '';
-            visibleRowCount++;
-        } else {
-            row.style.display = 'none';
-        }
                 });
-
-                if (visibleCountSpan) {
-                    visibleCountSpan.textContent = `(${visibleRowCount} widocznych)`;
-                }
-                 if (tableVisibleCountSpan) {
-                    tableVisibleCountSpan.textContent = visibleRowCount.toString();
-                }
+                if (visibleCountSpan) visibleCountSpan.textContent = `(${visibleRowCount} widocznych)`;
+                if (tableVisibleCountSpan) tableVisibleCountSpan.textContent = visibleRowCount.toString();
             }
 
             statusCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
             platformCheckboxes.forEach(ch => ch.addEventListener('change', applyFilters));
+            if (showGcScrapMismatchCheckbox) showGcScrapMismatchCheckbox.addEventListener('change', applyFilters);
+            if (showGoogleScrapXmlMismatchCheckbox) showGoogleScrapXmlMismatchCheckbox.addEventListener('change', applyFilters);
+            if (showCeneoScrapXmlMismatchCheckbox) showCeneoScrapXmlMismatchCheckbox.addEventListener('change', applyFilters);
+            if (showXmlPricesMismatchCheckbox) showXmlPricesMismatchCheckbox.addEventListener('change', applyFilters);
+            if (showEanMismatchCheckbox) showEanMismatchCheckbox.addEventListener('change', applyFilters);
+            if (showApiMismatchCheckbox) showApiMismatchCheckbox.addEventListener('change', applyFilters);
 
-            if(showGcScrapMismatchCheckbox) showGcScrapMismatchCheckbox.addEventListener('change', applyFilters);
-            if(showGoogleScrapXmlMismatchCheckbox) showGoogleScrapXmlMismatchCheckbox.addEventListener('change', applyFilters);
-            if(showCeneoScrapXmlMismatchCheckbox) showCeneoScrapXmlMismatchCheckbox.addEventListener('change', applyFilters);
-            if(showXmlPricesMismatchCheckbox) showXmlPricesMismatchCheckbox.addEventListener('change', applyFilters);
-            if(showEanMismatchCheckbox) showEanMismatchCheckbox.addEventListener('change', applyFilters);
-            if(showApiMismatchCheckbox) showApiMismatchCheckbox.addEventListener('change', applyFilters);
-
-         if (removeFilteredBtn) {
+            // ================================================================
+            // USUWANIE WIDOCZNYCH (bez zmian)
+            // ================================================================
+            if (removeFilteredBtn) {
                 removeFilteredBtn.addEventListener('click', () => {
                     const visibleIds = [];
                     tableRows.forEach(row => {
@@ -531,61 +635,400 @@
                             visibleIds.push(parseInt(row.dataset.productId, 10));
                         }
                     });
+                    if (visibleIds.length === 0) { alert("Brak widocznych produktów do usunięcia."); return; }
+                    if (!confirm(`Czy na pewno usunąć ${visibleIds.length} widocznych produktów ze sklepu ${storeNameForJs}? Tej operacji nie można cofnąć.`)) return;
 
-                    if (visibleIds.length === 0) {
-                        alert("Brak widocznych produktów do usunięcia (zastosuj inne filtry lub brak produktów).");
-                        return;
-                    }
-
-                    if (!confirm(`Czy na pewno usunąć ${visibleIds.length} widocznych produktów ze sklepu ${storeNameForJs}? Tej operacji nie można cofnąć.`)) {
-                        return;
-                    }
-
-                    const currentStoreId = @Json.Serialize(storeId);
                     const removeUrl = `@Url.Action("RemoveSelectedProducts", "ProductMapping")?storeId=${currentStoreId}`;
-
-                    console.log("Wysyłanie żądania usunięcia do:", removeUrl);
-                    console.log("ID do usunięcia:", visibleIds);
-
-                    fetch(removeUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-
-                        },
-                        body: JSON.stringify(visibleIds)
-                    })
+                    fetch(removeUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(visibleIds) })
                     .then(async response => {
                         const isJson = response.headers.get('content-type')?.includes('application/json');
                         const data = isJson ? await response.json() : null;
-
-                        if (!response.ok) {
-                            const error = (data && data.message) || response.statusText || "Unknown error";
-                            throw new Error(error);
-                        }
-
+                        if (!response.ok) throw new Error((data && data.message) || response.statusText || "Unknown error");
                         if (data && data.success) {
                             alert(`Usunięto ${visibleIds.length} produktów.`);
-
                             tableRows.forEach(row => {
-                                if (row.dataset.productId && visibleIds.includes(parseInt(row.dataset.productId, 10))) {
-                                    row.remove();
-                                }
+                                if (row.dataset.productId && visibleIds.includes(parseInt(row.dataset.productId, 10))) row.remove();
                             });
-
                             applyFilters();
                         } else {
-                             alert("Błąd podczas usuwania produktów: " + (data ? data.message : "Brak wiadomości o błędzie."));
+                            alert("Błąd: " + (data ? data.message : "Brak wiadomości."));
                         }
                     })
-                    .catch(err => {
-                         console.error("Błąd fetch podczas usuwania:", err);
-                         alert(`Wystąpił błąd komunikacji z serwerem: ${err.message}`);
-                    });
+                    .catch(err => alert(`Błąd: ${err.message}`));
                 });
             }
 
             applyFilters();
-        });
+
+            // ================================================================
+            // INLINE OFFERURL EDIT / DELETE
+            // ================================================================
+            const updateOfferUrlEndpoint = '@Url.Action("UpdateOfferUrl", "ProductMapping")';
+            const deleteOfferUrlEndpoint = '@Url.Action("DeleteOfferUrl", "ProductMapping")';
+
+            const productTable = document.getElementById('product-table');
+            if (productTable) {
+                productTable.addEventListener('click', function (e) {
+                    const target = e.target.closest('button');
+                    if (!target) return;
+                    const cell = target.closest('.offer-url-cell');
+                    if (!cell) return;
+
+                    const productId = cell.dataset.productId;
+                    const displayDiv = cell.querySelector('.offer-url-display');
+                    const editorDiv = cell.querySelector('.offer-url-editor');
+                    const inputField = cell.querySelector('.offer-url-input');
+
+                    // EDIT
+                    if (target.classList.contains('offer-url-edit-btn')) {
+                        inputField.value = target.dataset.currentUrl || '';
+                        displayDiv.style.display = 'none';
+                        editorDiv.style.display = '';
+                        inputField.focus();
+                        inputField.select();
+                    }
+
+                    // SAVE
+                    if (target.classList.contains('offer-url-save-btn')) {
+                        const newUrl = inputField.value.trim();
+                        target.disabled = true;
+                        target.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        fetch(updateOfferUrlEndpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ productId: parseInt(productId), newOfferUrl: newUrl })
+                        })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) { rebuildOfferUrlCell(cell, parseInt(productId), data.offerUrl); }
+                            else { alert('Błąd: ' + data.message); editorDiv.style.display = 'none'; displayDiv.style.display = ''; }
+                        })
+                        .catch(err => { alert('Błąd: ' + err.message); editorDiv.style.display = 'none'; displayDiv.style.display = ''; })
+                        .finally(() => { target.disabled = false; target.innerHTML = '<i class="fas fa-check"></i>'; });
+                    }
+
+                    // CANCEL
+                    if (target.classList.contains('offer-url-cancel-btn')) {
+                        editorDiv.style.display = 'none';
+                        displayDiv.style.display = '';
+                    }
+
+                    // DELETE
+                    if (target.classList.contains('offer-url-delete-btn')) {
+                        if (!confirm('Czy na pewno usunąć OfferUrl dla tego produktu?')) return;
+                        target.disabled = true;
+                        fetch(deleteOfferUrlEndpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ productId: parseInt(productId) })
+                        })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) { rebuildOfferUrlCell(cell, parseInt(productId), ''); }
+                            else { alert('Błąd: ' + data.message); }
+                        })
+                        .catch(err => alert('Błąd: ' + err.message))
+                        .finally(() => { target.disabled = false; });
+                    }
+                });
+
+                // Enter = zapis, Escape = anuluj
+                productTable.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' && e.target.classList.contains('offer-url-input')) {
+                        const cell = e.target.closest('.offer-url-cell');
+                        if (cell) cell.querySelector('.offer-url-save-btn')?.click();
+                    }
+                    if (e.key === 'Escape' && e.target.classList.contains('offer-url-input')) {
+                        const cell = e.target.closest('.offer-url-cell');
+                        if (cell) cell.querySelector('.offer-url-cancel-btn')?.click();
+                    }
+                });
+            }
+
+            function rebuildOfferUrlCell(cell, productId, offerUrl) {
+                const hasUrl = offerUrl && offerUrl.trim() !== '';
+                let displayHtml;
+                if (hasUrl) {
+                    displayHtml = `<div class="d-flex align-items-start gap-1">
+                        <a href="${offerUrl}" target="_blank" class="offer-url-text text-break small" style="word-break: break-all;">${offerUrl}</a>
+                        <button class="btn btn-outline-primary btn-sm py-0 px-1 offer-url-edit-btn" title="Edytuj" data-product-id="${productId}" data-current-url="${offerUrl}"><i class="fas fa-pen" style="font-size: 0.65rem;"></i></button>
+                        <button class="btn btn-outline-danger btn-sm py-0 px-1 offer-url-delete-btn" title="Usuń" data-product-id="${productId}"><i class="fas fa-times" style="font-size: 0.65rem;"></i></button>
+                    </div>`;
+                } else {
+                    displayHtml = `<div class="d-flex align-items-center gap-1">
+                        <span class="text-muted small">— brak —</span>
+                        <button class="btn btn-outline-success btn-sm py-0 px-1 offer-url-edit-btn" title="Dodaj" data-product-id="${productId}" data-current-url=""><i class="fas fa-plus" style="font-size: 0.65rem;"></i></button>
+                    </div>`;
+                }
+                cell.querySelector('.offer-url-display').innerHTML = displayHtml;
+                cell.querySelector('.offer-url-display').style.display = '';
+                cell.querySelector('.offer-url-editor').style.display = 'none';
+                cell.querySelector('.offer-url-input').value = offerUrl || '';
+            }
+
+                  // ================================================================
+        // OVERLAY KLONOWANIA GOOGLE → CENEO
+        // ================================================================
+        const cloneOverlay = document.getElementById('cloneOverlay');
+        const btnOpenClone = document.getElementById('btn-open-clone-modal');
+        const cloneLoader = document.getElementById('clone-loader');
+        const cloneError = document.getElementById('clone-error');
+        const cloneContent = document.getElementById('clone-content');
+        const cloneTableBody = document.getElementById('clone-table-body');
+        const cloneApplyBtn = document.getElementById('clone-apply-btn');
+        const cloneCheckAll = document.getElementById('clone-check-all');
+        const cloneSelectedCount = document.getElementById('clone-selected-count');
+        const cloneVisibleCount = document.getElementById('clone-visible-count');
+        const cloneStatusFilters = document.querySelectorAll('.clone-status-filter');
+
+        const previewUrl = '@Url.Action("CloneGoogleOffersToCeneoPreview", "ProductMapping")' + '?storeId=' + currentStoreId;
+        const applyCloneUrl = '@Url.Action("ApplyCloneOffersToCeneo", "ProductMapping")' + '?storeId=' + currentStoreId;
+
+        let cloneItems = [];
+
+        function openCloneOverlay() {
+            cloneLoader.style.display = '';
+            cloneError.style.display = 'none';
+            cloneContent.style.display = 'none';
+            cloneTableBody.innerHTML = '';
+            cloneOverlay.style.display = '';
+            document.body.style.overflow = 'hidden';
+            loadClonePreview();
+        }
+
+        function closeCloneOverlay() {
+            cloneOverlay.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        if (btnOpenClone) btnOpenClone.addEventListener('click', openCloneOverlay);
+        document.getElementById('clone-close-btn')?.addEventListener('click', closeCloneOverlay);
+        document.getElementById('clone-close-btn-footer')?.addEventListener('click', closeCloneOverlay);
+
+            function loadClonePreview() {
+                fetch(previewUrl)
+                .then(r => r.json())
+                .then(data => {
+                    cloneLoader.style.display = 'none';
+                    if (!data.success) {
+                        cloneError.textContent = data.message;
+                        cloneError.style.display = '';
+                        return;
+                    }
+                    cloneContent.style.display = '';
+                    cloneItems = data.items;
+
+                    // Statystyki
+                    document.getElementById('clone-scrap-date').textContent = data.scrapDate;
+                    document.getElementById('clone-scrap-id').textContent = data.scrapId;
+                    document.getElementById('stat-total').textContent = data.stats.total;
+                    document.getElementById('stat-new').textContent = data.stats.newCount;
+                    document.getElementById('stat-update').textContent = data.stats.updateCount;
+                    document.getElementById('stat-same').textContent = data.stats.sameCount;
+                    document.getElementById('stat-keep').textContent = data.stats.keepCount;
+                    document.getElementById('stat-no-match').textContent = data.stats.noMatchCount;
+                    document.getElementById('stat-no-data').textContent = data.stats.noDataCount;
+
+                    // Aktualizuj labele filtrów
+                    document.querySelector('label[for="cloneFilterNew"]').textContent = `Nowe (${data.stats.newCount})`;
+                    document.querySelector('label[for="cloneFilterUpdate"]').textContent = `Aktualizacja (${data.stats.updateCount})`;
+                    document.querySelector('label[for="cloneFilterSame"]').textContent = `Bez zmian (${data.stats.sameCount})`;
+                    document.querySelector('label[for="cloneFilterKeep"]').textContent = `Zachowane (${data.stats.keepCount})`;
+                    document.querySelector('label[for="cloneFilterNoMatch"]').textContent = `Brak linku (${data.stats.noMatchCount})`;
+                    document.querySelector('label[for="cloneFilterNoData"]').textContent = `Brak danych (${data.stats.noDataCount})`;
+
+                    renderCloneTable(cloneItems);
+                    applyCloneFilters();
+                    updateCloneSelectedCount();
+                })
+                .catch(err => {
+                    cloneLoader.style.display = 'none';
+                    cloneError.textContent = 'Błąd komunikacji: ' + err.message;
+                    cloneError.style.display = '';
+                });
+            }
+
+            const statusBadges = {
+                'new': '<span class="badge bg-success">NOWY</span>',
+                'update': '<span class="badge bg-warning text-dark">AKTUALIZACJA</span>',
+                'same': '<span class="badge bg-secondary">BEZ ZMIAN</span>',
+                'keep': '<span class="badge bg-info">ZACHOWANY</span>',
+                'no-match': '<span class="badge bg-light text-dark border">BRAK LINKU</span>',
+                'no-data': '<span class="badge bg-light text-muted border">BRAK DANYCH</span>'
+            };
+
+            const statusRowClass = {
+                'new': 'table-success',
+                'update': 'table-warning',
+                'same': '',
+                'keep': 'table-info',
+                'no-match': 'table-light',
+                'no-data': 'table-light'
+            };
+
+            function renderCloneTable(items) {
+                let html = '';
+                items.forEach(item => {
+                    const isActionable = item.status === 'new' || item.status === 'update';
+                    const rowCls = statusRowClass[item.status] || '';
+                    const badge = statusBadges[item.status] || '';
+
+                    const checkboxHtml = isActionable
+                        ? `<input type="checkbox" class="form-check-input clone-checkbox" checked data-product-id="${item.productId}" data-proposed-url="${item.proposedOfferUrl || ''}">`
+                        : '';
+
+                    const currentUrlHtml = item.currentOfferUrl
+                        ? `<a href="${item.currentOfferUrl}" target="_blank" class="text-break small" style="word-break:break-all;">${item.currentOfferUrl}</a>`
+                          + (item.status === 'update' ? '<br><small class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Zostanie nadpisany!</small>' : '')
+                        : '<span class="text-muted small">— brak —</span>';
+
+                    const proposedUrlHtml = item.proposedOfferUrl
+                        ? `<a href="${item.proposedOfferUrl}" target="_blank" class="text-break fw-bold" style="word-break:break-all;color:#0d6efd;">${item.proposedOfferUrl}</a>`
+                        : '<span class="text-muted small">—</span>';
+
+                    const sourceUrlHtml = item.sourceUrl
+                        ? `<a href="${item.sourceUrl}" target="_blank" class="text-break small text-secondary" style="word-break:break-all;">${item.sourceUrl}</a>`
+                        : '<span class="text-muted small">—</span>';
+
+                    const ceneoIdHtml = item.extractedCeneoId
+                        ? `<code>${item.extractedCeneoId}</code>`
+                        : '<span class="text-muted">—</span>';
+
+                    // Inne URLe (oprócz sourceUrl)
+                    let otherUrlsHtml = '<span class="text-muted small">—</span>';
+                    if (item.allFoundUrls && item.allFoundUrls.length > 0) {
+                        const others = item.allFoundUrls.filter(u => u !== item.sourceUrl);
+                        if (others.length > 0) {
+                            otherUrlsHtml = `<details><summary class="small text-muted">${others.length} innych</summary><ul class="list-unstyled mb-0 mt-1">`
+                                + others.map(u => `<li><a href="${u}" target="_blank" class="text-break small" style="word-break:break-all;">${u}</a></li>`).join('')
+                                + '</ul></details>';
+                        }
+                    }
+
+                    html += `<tr class="${rowCls} clone-row" data-status="${item.status}" data-product-id="${item.productId}">
+                        <td class="text-center">${checkboxHtml}</td>
+                        <td class="text-muted small">${item.productId}</td>
+                        <td><span title="${escHtml(item.productName)}">${escHtml(item.productName)}</span></td>
+                        <td class="text-center">${badge}</td>
+                        <td>${currentUrlHtml}</td>
+                        <td>${proposedUrlHtml}</td>
+                        <td>${sourceUrlHtml}</td>
+                        <td class="text-center">${ceneoIdHtml}</td>
+                        <td>${otherUrlsHtml}</td>
+                    </tr>`;
+                });
+                cloneTableBody.innerHTML = html;
+            }
+
+            function escHtml(str) {
+                if (!str) return '';
+                const d = document.createElement('div');
+                d.textContent = str;
+                return d.innerHTML;
+            }
+
+            // Filtry w modalu
+            function applyCloneFilters() {
+                const selected = Array.from(cloneStatusFilters).filter(ch => ch.checked).map(ch => ch.dataset.status);
+                let visCount = 0;
+                document.querySelectorAll('#clone-table-body .clone-row').forEach(row => {
+                    if (selected.length === 0 || selected.includes(row.dataset.status)) {
+                        row.style.display = '';
+                        visCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                cloneVisibleCount.textContent = visCount;
+            }
+
+            cloneStatusFilters.forEach(ch => ch.addEventListener('change', () => {
+                applyCloneFilters();
+            }));
+
+            // Zaznaczanie
+            function updateCloneSelectedCount() {
+                const count = document.querySelectorAll('#clone-table-body .clone-checkbox:checked').length;
+                cloneSelectedCount.textContent = count;
+                cloneApplyBtn.disabled = count === 0;
+            }
+
+            cloneTableBody.addEventListener('change', (e) => {
+                if (e.target.classList.contains('clone-checkbox')) updateCloneSelectedCount();
+            });
+
+            if (cloneCheckAll) {
+                cloneCheckAll.addEventListener('change', () => {
+                    const checked = cloneCheckAll.checked;
+                    document.querySelectorAll('#clone-table-body .clone-checkbox').forEach(cb => cb.checked = checked);
+                    updateCloneSelectedCount();
+                });
+            }
+
+            document.getElementById('clone-select-all-btn')?.addEventListener('click', () => {
+                document.querySelectorAll('#clone-table-body .clone-checkbox').forEach(cb => cb.checked = true);
+                if (cloneCheckAll) cloneCheckAll.checked = true;
+                updateCloneSelectedCount();
+            });
+
+            document.getElementById('clone-deselect-all-btn')?.addEventListener('click', () => {
+                document.querySelectorAll('#clone-table-body .clone-checkbox').forEach(cb => cb.checked = false);
+                if (cloneCheckAll) cloneCheckAll.checked = false;
+                updateCloneSelectedCount();
+            });
+
+            // ZASTOSUJ
+            if (cloneApplyBtn) {
+                cloneApplyBtn.addEventListener('click', () => {
+                    const selected = Array.from(document.querySelectorAll('#clone-table-body .clone-checkbox:checked'));
+                    if (selected.length === 0) { alert('Nie zaznaczono żadnych produktów.'); return; }
+
+                    const items = selected.map(cb => ({
+                        productId: parseInt(cb.dataset.productId, 10),
+                        proposedOfferUrl: cb.dataset.proposedUrl
+                    }));
+
+                    // Policz new vs update
+                    let newCnt = 0, updCnt = 0;
+                    selected.forEach(cb => {
+                        const row = cb.closest('tr');
+                        if (row?.dataset.status === 'new') newCnt++;
+                        else updCnt++;
+                    });
+
+                    let msg = `Czy na pewno zastosować klonowanie dla ${items.length} produktów?\n`;
+                    if (newCnt > 0) msg += `• ${newCnt} nowych OfferUrl zostanie dodanych\n`;
+                    if (updCnt > 0) msg += `• ${updCnt} istniejących OfferUrl zostanie NADPISANYCH\n`;
+                    msg += `\nTej operacji nie można cofnąć.`;
+                    if (!confirm(msg)) return;
+
+                    cloneApplyBtn.disabled = true;
+                    cloneApplyBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Zapisywanie...';
+
+                    fetch(applyCloneUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(items)
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(`Sukces! ${data.message}`);
+                            closeCloneOverlay();
+                            location.reload(); // odśwież stronę żeby OfferUrl w tabeli się zaktualizowały
+                        } else {
+                            alert('Błąd: ' + data.message);
+                        }
+                    })
+                    .catch(err => alert('Błąd: ' + err.message))
+                    .finally(() => {
+                        cloneApplyBtn.disabled = false;
+                        cloneApplyBtn.innerHTML = '<i class="fas fa-clone me-1"></i> Zastosuj zaznaczone';
+                        updateCloneSelectedCount();
+                    });
+                });
+            }
+
+        }); // end DOMContentLoaded
     </script>
 }

@@ -931,7 +931,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             });
         }
 
-
+ 
         public class MappedProductAllegroViewModel
         {
             public int AllegroProductId { get; set; }
@@ -946,6 +946,288 @@ namespace PriceSafari.Controllers.ManagerControllers
             // --- NOWE POLA ---
             public string IdOnAllegro { get; set; }
             public bool IsDuplicate { get; set; }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+        public class CloneOfferPreviewItem
+        {
+            public int ProductId { get; set; }
+            public string ProductName { get; set; }
+            public string CurrentOfferUrl { get; set; }
+            public string ProposedOfferUrl { get; set; }
+            public string SourceUrl { get; set; }
+            public string ExtractedCeneoId { get; set; }
+            /// <summary>
+            /// "new" | "update" | "same" | "no-match" | "no-data" | "keep"
+            /// </summary>
+            public string Status { get; set; }
+            public List<string> AllFoundUrls { get; set; } = new();
+        }
+
+        public class CloneApplyItem
+        {
+            public int ProductId { get; set; }
+            public string ProposedOfferUrl { get; set; }
+        }
+
+        public class UpdateOfferUrlRequest
+        {
+            public int ProductId { get; set; }
+            public string NewOfferUrl { get; set; }
+        }
+
+        public class DeleteOfferUrlRequest
+        {
+            public int ProductId { get; set; }
+        }
+
+        // ==================== NOWE METODY KONTROLERA ====================
+
+        /// <summary>
+        /// GET (AJAX → JSON): Podgląd klonowania ofert z Google do Ceneo.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> CloneGoogleOffersToCeneoPreview(int storeId)
+        {
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
+                return Json(new { success = false, message = "Sklep nie znaleziony." });
+
+            var latestScrap = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => new { sh.Id, sh.Date })
+                .FirstOrDefaultAsync();
+
+            if (latestScrap == null)
+                return Json(new { success = false, message = "Brak historii scrapowania dla tego sklepu." });
+
+            var products = await _context.Products
+                .Where(p => p.StoreId == storeId)
+                .Select(p => new
+                {
+                    p.ProductId,
+                    p.ProductName,
+                    p.OfferUrl,
+                    p.ExportedNameCeneo,
+                    p.ProductNameInStoreForGoogle
+                })
+                .ToListAsync();
+
+            var googleOfferUrls = await _context.PriceHistories
+                .Where(ph => ph.ScrapHistoryId == latestScrap.Id
+                          && ph.IsGoogle
+                          && ph.GoogleOfferUrl != null
+                          && ph.GoogleOfferUrl != "")
+                .Select(ph => new { ph.ProductId, ph.GoogleOfferUrl })
+                .ToListAsync();
+
+            var urlsByProduct = googleOfferUrls
+                .GroupBy(ph => ph.ProductId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(ph => ph.GoogleOfferUrl!)
+                          .Where(u => !string.IsNullOrWhiteSpace(u))
+                          .Distinct()
+                          .ToList()
+                );
+
+            var items = new List<CloneOfferPreviewItem>();
+
+            foreach (var product in products)
+            {
+                var item = new CloneOfferPreviewItem
+                {
+                    ProductId = product.ProductId,
+                    ProductName = product.ProductName
+                                  ?? product.ProductNameInStoreForGoogle
+                                  ?? product.ExportedNameCeneo
+                                  ?? "(brak nazwy)",
+                    CurrentOfferUrl = product.OfferUrl
+                };
+
+                if (urlsByProduct.TryGetValue(product.ProductId, out var urls) && urls.Any())
+                {
+                    item.AllFoundUrls = urls;
+                    string ceneoId = null;
+                    string sourceUrl = null;
+
+                    foreach (var url in urls)
+                    {
+                        var match = Regex.Match(url, @"ceneo\.pl/(\d+)", RegexOptions.IgnoreCase);
+                        if (match.Success)
+                        {
+                            ceneoId = match.Groups[1].Value;
+                            sourceUrl = url;
+                            break;
+                        }
+                    }
+
+                    if (ceneoId == null)
+                    {
+                        foreach (var url in urls)
+                        {
+                            var match = Regex.Match(url, @"taniomania\.pl/p/(\d+)", RegexOptions.IgnoreCase);
+                            if (match.Success)
+                            {
+                                ceneoId = match.Groups[1].Value;
+                                sourceUrl = url;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (ceneoId != null)
+                    {
+                        item.ExtractedCeneoId = ceneoId;
+                        item.SourceUrl = sourceUrl;
+                        item.ProposedOfferUrl = $"https://ceneo.pl/{ceneoId}";
+
+                        if (string.IsNullOrEmpty(product.OfferUrl))
+                            item.Status = "new";
+                        else if (NormalizeCeneoUrl(product.OfferUrl) == NormalizeCeneoUrl(item.ProposedOfferUrl))
+                            item.Status = "same";
+                        else
+                            item.Status = "update";
+                    }
+                    else
+                    {
+                        item.Status = !string.IsNullOrEmpty(product.OfferUrl) ? "keep" : "no-match";
+                    }
+                }
+                else
+                {
+                    item.Status = !string.IsNullOrEmpty(product.OfferUrl) ? "keep" : "no-data";
+                }
+
+                items.Add(item);
+            }
+
+            var statusOrder = new Dictionary<string, int>
+    {
+        { "update", 0 }, { "new", 1 }, { "keep", 2 },
+        { "same", 3 }, { "no-match", 4 }, { "no-data", 5 }
+    };
+
+            items = items
+                .OrderBy(v => statusOrder.TryGetValue(v.Status, out var order) ? order : 99)
+                .ThenBy(v => v.ProductName)
+                .ToList();
+
+            return Json(new
+            {
+                success = true,
+                scrapDate = latestScrap.Date.ToString("dd.MM.yyyy HH:mm"),
+                scrapId = latestScrap.Id,
+                stats = new
+                {
+                    total = items.Count,
+                    newCount = items.Count(i => i.Status == "new"),
+                    updateCount = items.Count(i => i.Status == "update"),
+                    sameCount = items.Count(i => i.Status == "same"),
+                    keepCount = items.Count(i => i.Status == "keep"),
+                    noMatchCount = items.Count(i => i.Status == "no-match"),
+                    noDataCount = items.Count(i => i.Status == "no-data")
+                },
+                items
+            });
+        }
+
+        private string NormalizeCeneoUrl(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return "";
+            url = url.Trim().ToLower();
+            url = Regex.Replace(url, @"^https?://(www\.)?", "");
+            url = url.TrimEnd('/');
+            return url;
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ApplyCloneOffersToCeneo(int storeId, [FromBody] List<CloneApplyItem> items)
+        {
+            if (items == null || !items.Any())
+                return Json(new { success = false, message = "Brak elementów do przetworzenia." });
+
+            try
+            {
+                var productIds = items.Select(i => i.ProductId).ToList();
+                var products = await _context.Products
+                    .Where(p => p.StoreId == storeId && productIds.Contains(p.ProductId))
+                    .ToListAsync();
+
+                int updatedCount = 0, newCount = 0;
+
+                foreach (var item in items)
+                {
+                    var product = products.FirstOrDefault(p => p.ProductId == item.ProductId);
+                    if (product == null || string.IsNullOrEmpty(item.ProposedOfferUrl)) continue;
+
+                    bool hadExisting = !string.IsNullOrEmpty(product.OfferUrl);
+                    product.OfferUrl = item.ProposedOfferUrl;
+                    if (hadExisting) updatedCount++; else newCount++;
+                }
+
+                await _context.SaveChangesAsync();
+                return Json(new { success = true, message = $"Zapisano: {newCount} nowych, {updatedCount} zaktualizowanych.", newCount, updatedCount });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = $"Błąd: {ex.Message}" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateOfferUrl([FromBody] UpdateOfferUrlRequest request)
+        {
+            if (request == null || request.ProductId <= 0)
+                return Json(new { success = false, message = "Nieprawidłowe dane." });
+
+            try
+            {
+                var product = await _context.Products.FindAsync(request.ProductId);
+                if (product == null)
+                    return Json(new { success = false, message = "Produkt nie znaleziony." });
+
+                product.OfferUrl = string.IsNullOrWhiteSpace(request.NewOfferUrl) ? null : request.NewOfferUrl.Trim();
+                await _context.SaveChangesAsync();
+                return Json(new { success = true, offerUrl = product.OfferUrl ?? "" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteOfferUrl([FromBody] DeleteOfferUrlRequest request)
+        {
+            if (request == null || request.ProductId <= 0)
+                return Json(new { success = false, message = "Nieprawidłowe dane." });
+
+            try
+            {
+                var product = await _context.Products.FindAsync(request.ProductId);
+                if (product == null)
+                    return Json(new { success = false, message = "Produkt nie znaleziony." });
+
+                product.OfferUrl = null;
+                await _context.SaveChangesAsync();
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
         }
     }
 }
