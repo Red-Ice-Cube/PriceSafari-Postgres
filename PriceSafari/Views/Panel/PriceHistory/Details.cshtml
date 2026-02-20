@@ -429,7 +429,13 @@
                                     @if (!string.IsNullOrEmpty(item.GoogleOfferUrl))
                                     {
                                         <a href="@item.GoogleOfferUrl" target="_blank" class="Button-Page-Small" style="text-decoration:none; padding: 2px 8px; font-size: 11px;">
-                                            Link &gt;
+                                            <i class="fas fa-external-link-alt" style="margin-right: 4px;"></i> Link
+                                        </a>
+                                    }
+                                    else if (!item.IsGoogle && !string.IsNullOrEmpty(url))
+                                    {
+                                        <a href="@url" target="_blank" class="Button-Page-Small" style="text-decoration:none; padding: 2px 8px; font-size: 11px;">
+                                            <i class="fas fa-external-link-alt" style="margin-right: 4px;"></i> Link
                                         </a>
                                     }
                                 </td>
