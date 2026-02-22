@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 using PriceSafari.Attributes;
 using PriceSafari.Data;
 using PriceSafari.Enums;
@@ -713,6 +715,261 @@ namespace PriceSafari.Controllers
                 productIds = productIds,
                 regions = regions
             });
+        }
+
+
+        [HttpGet]
+        [ServiceFilter(typeof(AuthorizeStoreAccessAttribute))]
+        public async Task<IActionResult> ExportToExcel(int reportId, int? regionId = null)
+        {
+            if (reportId == 0) return NotFound("Nieprawidłowy identyfikator raportu.");
+
+            // 1. Pobranie raportu i danych sklepu
+            var report = await _context.PriceSafariReports
+                .AsNoTracking()
+                .Include(r => r.Store)
+                .FirstOrDefaultAsync(r => r.ReportId == reportId);
+
+            if (report == null) return NotFound("Raport nie został znaleziony.");
+
+            var myStoreNameLower = report.Store?.StoreName?.ToLower().Trim() ?? "";
+
+            // 2. Pobranie danych GlobalPriceReports wraz z danymi Produktu i Regionu
+            var globalPriceReports = await _context.GlobalPriceReports
+                .AsNoTracking()
+                .Include(gpr => gpr.Product)
+                .Include(gpr => gpr.Region)
+                .Where(gpr => gpr.PriceSafariReportId == reportId)
+                .ToListAsync();
+
+            if (!globalPriceReports.Any()) return Content("Brak danych do eksportu dla tego raportu.");
+
+            // 3. Grupowanie i obliczanie rankingu (analogicznie do logiki z widoku)
+            var groupedData = globalPriceReports
+                .GroupBy(gpr => new { gpr.Product.ProductId, gpr.Product.ProductName, gpr.Product.Ean, gpr.Product.ExternalId })
+                .Where(group =>
+                {
+                    // Jeśli wybrano region, interesują nas tylko produkty, w których jest konkurencja z tego regionu
+                    if (regionId.HasValue)
+                        return group.Any(gpr => gpr.RegionId == regionId.Value && (gpr.StoreName ?? "").ToLower().Trim() != myStoreNameLower);
+                    return true;
+                })
+                .Select(g =>
+                {
+                    var allOffers = g.Select(x => new
+                    {
+                        Store = x.StoreName ?? "Nieznany",
+                        Country = x.Region?.Name ?? "Brak",
+                        Currency = x.Region?.Currency ?? "N/A",
+                        OriginalPrice = x.Price,
+                        CalculatedPrice = x.CalculatedPrice,
+                        Url = x.OfferUrl ?? x.Product?.GoogleUrl ?? "Brak URL",
+                        IsMe = x.StoreName != null && x.StoreName.ToLower().Trim() == myStoreNameLower,
+                        RegionId = x.RegionId
+                    }).ToList();
+
+                    var myOffer = allOffers.FirstOrDefault(x => x.IsMe);
+                    var competitors = allOffers.Where(x => !x.IsMe);
+
+                    // Filtrowanie konkurencji jeśli wybrano konkretny region
+                    if (regionId.HasValue)
+                    {
+                        competitors = competitors.Where(x => x.RegionId == regionId.Value);
+                    }
+
+                    var sortedCompetitors = competitors.OrderBy(x => x.CalculatedPrice).ToList();
+                    decimal minMarketPrice = allOffers.Any() ? allOffers.Min(x => x.CalculatedPrice) : 0;
+
+                    string positionString = "-";
+                    int statusColorCode = 0;
+                    decimal? diffToLowest = null;
+
+                    if (myOffer != null)
+                    {
+                        int cheaperCount = allOffers.Count(x => x.CalculatedPrice < myOffer.CalculatedPrice);
+                        int myRank = cheaperCount + 1;
+                        int totalOffers = allOffers.Count;
+                        positionString = $"{myRank} z {totalOffers}";
+
+                        if (sortedCompetitors.Any())
+                        {
+                            decimal lowestCompetitor = sortedCompetitors.First().CalculatedPrice;
+                            diffToLowest = myOffer.CalculatedPrice - lowestCompetitor;
+                        }
+
+                        if (allOffers.Any() && myOffer.CalculatedPrice == minMarketPrice)
+                        {
+                            int othersWithSamePrice = allOffers.Count(x => x.CalculatedPrice == minMarketPrice && !x.IsMe);
+                            statusColorCode = othersWithSamePrice == 0 ? 1 : 2;
+                        }
+                        else
+                        {
+                            statusColorCode = 3;
+                        }
+                    }
+
+                    return new
+                    {
+                        Product = g.Key,
+                        MyOffer = myOffer,
+                        DiffToLowest = diffToLowest,
+                        Position = positionString,
+                        ColorCode = statusColorCode,
+                        Competitors = sortedCompetitors
+                    };
+                })
+                .OrderBy(x => x.Product.ProductName)
+                .ToList();
+
+            // 4. Tworzenie Excela (NPOI)
+            using (var workbook = new XSSFWorkbook())
+            {
+                var sheet = workbook.CreateSheet("Eksport Safari");
+
+                // Style NPOI
+                var headerStyle = workbook.CreateCellStyle();
+                var headerFont = workbook.CreateFont();
+                headerFont.IsBold = true;
+                headerStyle.SetFont(headerFont);
+
+                var currencyStyle = workbook.CreateCellStyle();
+                currencyStyle.DataFormat = workbook.CreateDataFormat().GetFormat("#,##0.00");
+
+                var styleGreen = workbook.CreateCellStyle();
+                styleGreen.CloneStyleFrom(currencyStyle);
+                styleGreen.FillForegroundColor = IndexedColors.LightGreen.Index;
+                styleGreen.FillPattern = FillPattern.SolidForeground;
+
+                var styleLightGreen = workbook.CreateCellStyle();
+                styleLightGreen.CloneStyleFrom(currencyStyle);
+                styleLightGreen.FillForegroundColor = IndexedColors.LemonChiffon.Index;
+                styleLightGreen.FillPattern = FillPattern.SolidForeground;
+
+                var styleRed = workbook.CreateCellStyle();
+                styleRed.CloneStyleFrom(currencyStyle);
+                styleRed.FillForegroundColor = IndexedColors.Rose.Index;
+                styleRed.FillPattern = FillPattern.SolidForeground;
+
+                var headerRow = sheet.CreateRow(0);
+                int colIndex = 0;
+
+                // Stałe kolumny naszego sklepu
+                string[] staticHeaders = {
+            "ID Produktu", "Nazwa Produktu", "EAN",
+            "Moja Cena (Przeliczona)", "Moja Cena (Org)", "Moja Waluta", "Mój Kraj",
+            "Pozycja", "Różnica (Przeliczona)"
+        };
+
+                foreach (var h in staticHeaders) headerRow.CreateCell(colIndex++).SetCellValue(h);
+
+                // Dynamiczne generowanie kolumn dla ofert konkurencji (max żeby nie rozbić excela to 60)
+                int maxCompetitors = groupedData.Any() ? groupedData.Max(x => x.Competitors.Count) : 0;
+                
+
+                for (int i = 1; i <= maxCompetitors; i++)
+                {
+                    headerRow.CreateCell(colIndex++).SetCellValue($"Sklep {i}");
+                    headerRow.CreateCell(colIndex++).SetCellValue($"Kraj {i}");
+                    headerRow.CreateCell(colIndex++).SetCellValue($"Waluta {i}");
+                    headerRow.CreateCell(colIndex++).SetCellValue($"Cena Org. {i}");
+                    headerRow.CreateCell(colIndex++).SetCellValue($"Cena Przelicz. {i}");
+                    headerRow.CreateCell(colIndex++).SetCellValue($"URL {i}");
+                }
+
+                for (int i = 0; i < colIndex; i++) headerRow.GetCell(i).CellStyle = headerStyle;
+
+                // Wypełnianie wierszy
+                int rowIndex = 1;
+                foreach (var item in groupedData)
+                {
+                    var row = sheet.CreateRow(rowIndex++);
+                    colIndex = 0;
+
+                    row.CreateCell(colIndex++).SetCellValue(item.Product.ExternalId?.ToString() ?? "");
+                    row.CreateCell(colIndex++).SetCellValue(item.Product.ProductName ?? "");
+                    row.CreateCell(colIndex++).SetCellValue(item.Product.Ean ?? "");
+
+                    var cellMyCalcPrice = row.CreateCell(colIndex++);
+                    var cellMyOrgPrice = row.CreateCell(colIndex++);
+                    var cellMyCurrency = row.CreateCell(colIndex++);
+                    var cellMyCountry = row.CreateCell(colIndex++);
+
+                    if (item.MyOffer != null)
+                    {
+                        cellMyCalcPrice.SetCellValue((double)item.MyOffer.CalculatedPrice);
+                        cellMyOrgPrice.SetCellValue((double)item.MyOffer.OriginalPrice);
+                        cellMyCurrency.SetCellValue(item.MyOffer.Currency);
+                        cellMyCountry.SetCellValue(item.MyOffer.Country);
+
+                        if (item.ColorCode == 1) cellMyCalcPrice.CellStyle = styleGreen;
+                        else if (item.ColorCode == 2) cellMyCalcPrice.CellStyle = styleLightGreen;
+                        else if (item.ColorCode == 3) cellMyCalcPrice.CellStyle = styleRed;
+                        else cellMyCalcPrice.CellStyle = currencyStyle;
+
+                        cellMyOrgPrice.CellStyle = currencyStyle;
+                    }
+                    else
+                    {
+                        cellMyCalcPrice.SetCellValue("-");
+                        cellMyOrgPrice.SetCellValue("-");
+                        cellMyCurrency.SetCellValue("-");
+                        cellMyCountry.SetCellValue("-");
+                    }
+
+                    row.CreateCell(colIndex++).SetCellValue(item.Position);
+
+                    var cellDiff = row.CreateCell(colIndex++);
+                    if (item.DiffToLowest.HasValue)
+                    {
+                        cellDiff.SetCellValue((double)item.DiffToLowest.Value);
+                        cellDiff.CellStyle = currencyStyle;
+                    }
+                    else
+                    {
+                        cellDiff.SetCellValue("");
+                    }
+
+                    // Uzupełnianie ofert konkurencji w pętli dla każdego dynamicznego bloku
+                    for (int i = 0; i < maxCompetitors; i++)
+                    {
+                        if (i < item.Competitors.Count)
+                        {
+                            var comp = item.Competitors[i];
+                            row.CreateCell(colIndex++).SetCellValue(comp.Store);
+                            row.CreateCell(colIndex++).SetCellValue(comp.Country);
+                            row.CreateCell(colIndex++).SetCellValue(comp.Currency);
+
+                            var cellOrgPrice = row.CreateCell(colIndex++);
+                            cellOrgPrice.SetCellValue((double)comp.OriginalPrice);
+                            cellOrgPrice.CellStyle = currencyStyle;
+
+                            var cellCalcPrice = row.CreateCell(colIndex++);
+                            cellCalcPrice.SetCellValue((double)comp.CalculatedPrice);
+                            cellCalcPrice.CellStyle = currencyStyle;
+
+                            row.CreateCell(colIndex++).SetCellValue(comp.Url);
+                        }
+                        else
+                        {
+                            // Zostawiamy puste komórki jeśli brakuje tylu konkurentów u tego produktu
+                            colIndex += 6;
+                        }
+                    }
+                }
+
+                // Auto-sizing kluczowych kolumn (dla płynniejszego działania nie formatujemy wszystkich)
+                sheet.AutoSizeColumn(0);
+                sheet.AutoSizeColumn(1);
+                sheet.AutoSizeColumn(2);
+
+                using (var stream = new MemoryStream())
+                {
+                    workbook.Write(stream);
+                    var content = stream.ToArray();
+                    var fileName = $"Safari_Raport_{report.ReportName}_{DateTime.Now:yyyy-MM-dd_HHmm}.xlsx";
+                    return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+                }
+            }
         }
 
     }
