@@ -116,6 +116,7 @@
         display: flex;
         align-items: flex-start;
         gap: 20px;
+        width: 100%;
     }
 
     .flags-container {
@@ -132,6 +133,7 @@
         overflow-y: auto;
         height: 84vh;
         position: relative;
+        width: 100%;
     }
 
     .virtual-scroll-container .table-orders {
@@ -308,7 +310,7 @@
                     </div>
 
                 </div>
-                <div class="Horizontal" style="gap:0px;">
+                <div class="Horizontal" style="gap:0px; flex-grow: 1; min-width: 0;">
 
                     <div class="order-upper-box">
 
@@ -826,7 +828,7 @@
             var totalCountEl = document.getElementById('batchTotalCount');
             var fillEl = document.getElementById('batchProgressFill');
 
-            titleEl.textContent = turnOn ? 'Zaznaczanie produktów...' : 'Odznaczanie produktów...';
+        titleEl.textContent = turnOn ? 'Aktualizowanie produktów...' : 'Odznaczanie produktów...';
             totalCountEl.textContent = idsToSend.length;
             doneCountEl.textContent = '0';
             fillEl.style.width = '0%';
