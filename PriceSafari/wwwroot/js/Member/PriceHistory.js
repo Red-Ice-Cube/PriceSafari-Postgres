@@ -701,6 +701,8 @@
         const paginationContainer = document.getElementById('paginationContainer');
         paginationContainer.innerHTML = '';
 
+        if (totalPages <= 1) return;
+
         const prevButton = document.createElement('button');
         prevButton.innerHTML = '<i class="fa fa-chevron-circle-left" aria-hidden="true"></i>';
         prevButton.disabled = currentPage === 1;
@@ -710,10 +712,38 @@
                 filterPricesAndUpdateUI(false);
             }
         });
-
         paginationContainer.appendChild(prevButton);
 
-        for (let i = 1; i <= totalPages; i++) {
+        const maxVisibleButtons = 5;
+
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisibleButtons / 2));
+        let endPage = startPage + maxVisibleButtons - 1;
+
+        if (endPage > totalPages) {
+            endPage = totalPages;
+            startPage = Math.max(1, endPage - maxVisibleButtons + 1);
+        }
+
+        if (startPage > 1) {
+            const firstButton = document.createElement('button');
+            firstButton.textContent = '1';
+            firstButton.addEventListener('click', () => {
+                currentPage = 1;
+                filterPricesAndUpdateUI(false);
+            });
+            paginationContainer.appendChild(firstButton);
+
+            if (startPage > 2) {
+                const dots = document.createElement('span');
+                dots.innerHTML = '&hellip;';
+                dots.style.margin = '0 5px';
+                dots.style.display = 'flex';
+                dots.style.alignItems = 'end';
+                paginationContainer.appendChild(dots);
+            }
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
             const pageButton = document.createElement('button');
             pageButton.textContent = i;
             if (i === currentPage) {
@@ -726,6 +756,24 @@
             paginationContainer.appendChild(pageButton);
         }
 
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                const dots = document.createElement('span');
+                dots.innerHTML = '&hellip;';
+                dots.style.margin = '0 5px';
+                dots.style.display = 'flex';
+                dots.style.alignItems = 'end';
+                paginationContainer.appendChild(dots);
+            }
+            const lastButton = document.createElement('button');
+            lastButton.textContent = totalPages;
+            lastButton.addEventListener('click', () => {
+                currentPage = totalPages;
+                filterPricesAndUpdateUI(false);
+            });
+            paginationContainer.appendChild(lastButton);
+        }
+
         const nextButton = document.createElement('button');
         nextButton.innerHTML = '<i class="fa fa-chevron-circle-right" aria-hidden="true"></i>';
         nextButton.disabled = currentPage === totalPages;
@@ -735,7 +783,6 @@
                 filterPricesAndUpdateUI(false);
             }
         });
-
         paginationContainer.appendChild(nextButton);
     }
 
