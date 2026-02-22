@@ -21,12 +21,9 @@
 
     .StatusBoxProduct-1 {
         color: rgba(255, 204, 0, 1);
-    
- 
     }
 
     .StatusBoxProduct-2 {
-
         color: rgba(30, 148, 71, 1);
     }
 
@@ -36,9 +33,7 @@
 
     .StatusBoxProduct-4 {
         color: rgba(45, 45, 45, 1);
-      
     }
-
 
     .scrapable-checkbox {
         appearance: none;
@@ -131,6 +126,104 @@
         gap: 2px;
         padding-right: 2px;
     }
+
+    /* Virtual scroll */
+    .virtual-scroll-container {
+        overflow-y: auto;
+        height: 84vh;
+        position: relative;
+    }
+
+    .virtual-scroll-container .table-orders {
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    .virtual-spacer-top,
+    .virtual-spacer-bottom {
+        width: 100%;
+    }
+
+    .table-orders tbody tr {
+        height: 100px;
+        box-sizing: border-box;
+    }
+
+    /* Batch operation overlay */
+    .batch-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .batch-overlay.active {
+        display: flex;
+    }
+
+    .batch-overlay-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 36px 48px;
+        text-align: center;
+        min-width: 360px;
+        max-width: 440px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    }
+
+    .batch-overlay-title {
+        margin: 16px 0 8px;
+        font-weight: 600;
+        color: #222;
+    }
+
+    .batch-overlay-count {
+        font-size: 22px;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 16px;
+    }
+
+    .batch-progress-bar {
+        height: 10px;
+        background: #e0e0e0;
+        border-radius: 5px;
+        overflow: hidden;
+        margin-bottom: 16px;
+    }
+
+    .batch-progress-fill {
+        height: 100%;
+        background: #1E9447;
+        border-radius: 5px;
+        transition: width 0.3s ease;
+    }
+
+    .batch-overlay-hint {
+        font-size: 13px;
+        color: #888;
+        margin: 0;
+    }
+
+    .batch-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #e0e0e0;
+        border-top: 4px solid #1E9447;
+        border-radius: 50%;
+        animation: batchSpin 0.8s linear infinite;
+        margin: 0 auto;
+    }
+
+    @@keyframes batchSpin {
+        to { transform: rotate(360deg); }
+    }
 </style>
 
 <div class="Vert">
@@ -199,6 +292,9 @@
                             <span class="dot red-dot"></span>Odznacz widoczne prd.
                         </button>
 
+
+
+
                     </div>
 
                     <!-- Flags Filter -->
@@ -207,7 +303,6 @@
                         <div class="store-section" id="flagContainer">
                             <div class="flag-filters">
                                 <div id="flagFilterList">
-                                    <!-- Checkboxy flag zostaną wygenerowane przez JavaScript -->
                                 </div>
                             </div>
                         </div>
@@ -245,19 +340,16 @@
 
                     </div>
 
-                    <div class="Vert-table" style="margin-top:0px; height: 84vh;">
+                    <div class="virtual-scroll-container" id="virtualScrollContainer">
                         <table class="table-orders">
                             <thead>
                                 <tr>
                                     <th>Produkt (<span id="displayed-count"></span>)</th>
                                     <th></th>
-                                 
                                     <th>Cena zakupu</th>
                                     <th>Oferta</th>
                                     <th>Monitoring</th>
-                            
                                     <th>Flagi</th>
-
                                 </tr>
                             </thead>
                             <tbody id="product-list">
@@ -268,6 +360,21 @@
 
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Batch operation overlay -->
+<div class="batch-overlay" id="batchOverlay">
+    <div class="batch-overlay-card">
+        <div class="batch-spinner"></div>
+        <h5 class="batch-overlay-title" id="batchOverlayTitle">Wykonywanie operacji...</h5>
+        <div class="batch-overlay-count">
+            <span id="batchDoneCount">0</span> / <span id="batchTotalCount">0</span> produktów
+        </div>
+        <div class="batch-progress-bar">
+            <div class="batch-progress-fill" id="batchProgressFill" style="width:0%"></div>
+        </div>
+        <p class="batch-overlay-hint">Proszę czekać, nie zamykaj strony.</p>
     </div>
 </div>
 
@@ -313,7 +420,6 @@
                     <p>
                         <strong>Aktualizacja cen zakupu:</strong>
                         Jeśli ceny zakupu są już wgrane i chcesz je zaktualizować, wgraj nowy plik. Spowoduje to nadpisanie cen dla produktów, których kody EAN pasują do wpisów w nowym pliku.
-
                     </p>
 
                     <p style="margin-top:20px;">
@@ -327,7 +433,6 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="Button-Page-Small" data-dismiss="modal">Anuluj</button>
-
                     <button type="button" class="Button-Page-Small-r" id="clearAllMarginsButton" style="margin-right: auto;">Usuń wszystkie ceny zakupu</button>
                     <button type="submit" class="Button-Page-Small-b" id="submitUploadMarginsButton">Wgraj ceny zakupu</button>
                 </div>
@@ -340,530 +445,88 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
+    (function () {
+        'use strict';
+
+        // ============================================================
+        // CONFIG
+        // ============================================================
+        var ROW_HEIGHT = 100;       // px — dopasuj do rzeczywistego wiersza
+        var BUFFER_ROWS = 10;       // wiersze buforowe powyżej/poniżej viewportu
+        var SEARCH_DEBOUNCE = 250;  // ms
+        var BATCH_CHUNK_SIZE = 1000; // ile ID w jednym requeście batch
+
+        // ============================================================
+        // STATE
+        // ============================================================
         var allProducts = [];
-       var flags = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Flags ?? new List<FlagViewModel>()));
+        var filteredProducts = [];
+        var flags = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Flags ?? new List<FlagViewModel>()));
+        var storeId = @ViewBag.StoreId;
 
-
-        document.addEventListener('DOMContentLoaded', function () {
-            var storeId = @ViewBag.StoreId;
-            var selectAllButton = document.getElementById('select-all');
-            var deselectAllButton = document.getElementById('deselect-all');
-            var searchInput = document.getElementById('productSearch');
-            var categoryDropdown = document.getElementById('producerDropdown');
-                   var selectedFlagsInclude = new Set();
+        var selectedFlagsInclude = new Set();
         var selectedFlagsExclude = new Set();
+        var selectedProducer = 'all';
 
-                var lastScrollPosition = 0;
+        var platformStatuses = ['google', 'ceneo', 'google-ceneo', 'not-found'];
 
-            var selectedProducer = 'all';
+        // Lookup map for O(1) access by productId
+        var productMap = {};
 
-            var platformStatuses = ['google', 'ceneo', 'google-ceneo', 'not-found'];
+        // ============================================================
+        // DOM refs
+        // ============================================================
+        var scrollContainer, tbody, searchInput, producerDropdown;
+        var selectAllButton, deselectAllButton;
+        var displayedCountEl;
 
-            const storeNameFromViewBag = '@(ViewBag.StoreName ?? "Oferta Sklepu")';
-           
+        // Lazy image observer
+        var imgObserver;
 
-            function getProductPlatformStatus(product) {
-                var hasGoogle = product.googleUrl && product.googleUrl.trim() !== '';
-                var hasCeneo = product.offerUrl && product.offerUrl.trim() !== '';
-                var hasBoth = hasGoogle && hasCeneo;
-                var notFound = !hasGoogle && !hasCeneo;
-                return {
-                    hasGoogle: hasGoogle,
-                    hasCeneo: hasCeneo,
-                    hasBoth: hasBoth,
-                    notFound: notFound
-                };
+        // ============================================================
+        // INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function () {
+            scrollContainer = document.getElementById('virtualScrollContainer');
+            tbody = document.getElementById('product-list');
+            searchInput = document.getElementById('productSearch');
+            producerDropdown = document.getElementById('producerDropdown');
+            selectAllButton = document.getElementById('select-all');
+            deselectAllButton = document.getElementById('deselect-all');
+            displayedCountEl = document.getElementById('displayed-count');
+
+            // IntersectionObserver for lazy images
+            if ('IntersectionObserver' in window) {
+                imgObserver = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (entry) {
+                        if (entry.isIntersecting) {
+                            var img = entry.target;
+                            if (img.dataset.src) {
+                                img.src = img.dataset.src;
+                                img.removeAttribute('data-src');
+                            }
+                            imgObserver.unobserve(img);
+                        }
+                    });
+                }, { root: scrollContainer, rootMargin: '300px' });
             }
 
-            function formatDate(dateString) {
-                if (!dateString) return "";
-                const d = new Date(dateString);
-                if (isNaN(d.getTime())) return "";
-                const day = String(d.getDate()).padStart(2, '0');
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const year = d.getFullYear();
-                const hours = String(d.getHours()).padStart(2, '0');
-                const minutes = String(d.getMinutes()).padStart(2, '0');
-                return `${day}-${month}-${year} ${hours}:${minutes}`;
-            }
+            // Virtual scroll listener
+            scrollContainer.addEventListener('scroll', onScroll);
 
-                     function createNewGoogleUrl(product) {
-            if (!product.googleUrl || !product.productName) {
-                return product.googleUrl || '';
-            }
+            // Debounced search
+            var searchTimer;
+            searchInput.addEventListener('input', function () {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(filterRows, SEARCH_DEBOUNCE);
+            });
 
-            const match = product.googleUrl.match(/product\/(\d+)/);
-            const productIdCid = match ? match[1] : null;
-
-            if (productIdCid) {
-                const productNameForUrl = encodeURIComponent(product.productName);
-              
-                return `https://www.google.com/shopping/product/${productIdCid}/offers?q=${productNameForUrl}`;
-            }
-
-            return product.googleUrl;
-        }
-
-             function saveState() {
-                lastScrollPosition = window.scrollY;
-
+            producerDropdown.addEventListener('change', function () {
                 selectedProducer = producerDropdown.value;
-
-            }
-
-            function restoreState() {
-
-                if (producerDropdown) {
-                    producerDropdown.value = selectedProducer;
-                }
-
-                window.scrollTo(0, lastScrollPosition);
-            }
-
-            function decodeHTML(html) {
-                var txt = document.createElement("textarea");
-                txt.innerHTML = html;
-                return txt.value;
-            }
-
-            function populateProducerDropdown(producersWithCount) {
-                producersWithCount.sort((a, b) => b.count - a.count);
-                producerDropdown.innerHTML = '<option value="all">Producent - Wszyscy (' + allProducts.length + ')</option>';
-                producersWithCount.forEach(producer => {
-                    var decodedProducerName = decodeHTML(producer.name);
-                    var option = document.createElement('option');
-                    option.value = decodedProducerName;
-                    option.textContent = `${decodedProducerName} (${producer.count})`;
-                    producerDropdown.appendChild(option);
-                });
-                restoreState();
-            }
-
-           function filterProductsByProducer(products, producer) {
-                if (producer === 'all') {
-                    return products;
-                }
-                return products.filter(product => decodeHTML(product.producer || "Brak") === producer);
-            }
-
-           function filterProductsByName(products, name) {
-                 const sanitizedInput = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim().toLowerCase();
-
-         
-                 if (sanitizedInput === '') {
-                     return products;
-                 }
-
-                 return products.filter(product => {
-                  
-                     const sanitizedProductName = product.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
-
-                     const sanitizedEan = (product.ean || '').toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
-
-
-                     return sanitizedProductName.includes(sanitizedInput) || sanitizedEan.includes(sanitizedInput);
-                 });
-             }
-
-            function getProductStatus(product) {
-                if (product.isScrapable && product.isRejected) {
-                    return "active-rejected";
-                } else if (product.isScrapable) {
-                    return "active";
-                } else if (product.isRejected) {
-                    return "inactive-rejected";
-                } else {
-                    return "inactive";
-                }
-            }
-
-
-                 function hexToRgba(hex, alpha) {
-            let r = 0, g = 0, b = 0;
-            if (hex.length == 4) {
-                r = parseInt(hex[1] + hex[1], 16);
-                g = parseInt(hex[2] + hex[2], 16);
-                b = parseInt(hex[3] + hex[3], 16);
-            } else if (hex.length == 7) {
-                r = parseInt(hex[1] + hex[2], 16);
-                g = parseInt(hex[3] + hex[4], 16);
-                b = parseInt(hex[5] + hex[6], 16);
-            }
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        }
-
-
-        function createFlagsContainer(product) {
-            const flagsContainer = document.createElement('div');
-            flagsContainer.className = 'flags-container';
-            if (product.flagIds && product.flagIds.length > 0) {
-                product.flagIds.forEach(function (flagId) {
-                    const flag = flags.find(f => f.FlagId === flagId);
-                    if (flag) {
-                        const flagSpan = document.createElement('span');
-                        flagSpan.className = 'flag';
-                        flagSpan.style.color = flag.FlagColor;
-                        flagSpan.style.border = '2px solid ' + flag.FlagColor;
-                        flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
-                        flagSpan.innerHTML = flag.FlagName;
-                        flagsContainer.appendChild(flagSpan);
-                    }
-                });
-            }
-            return flagsContainer;
-        }
-
-
-        function updateAndRenderFlagFilters(products) {
-            const flagCounts = {};
-            let noFlagCount = 0;
-
-            products.forEach(product => {
-                if (!product.flagIds || product.flagIds.length === 0) {
-                    noFlagCount++;
-                } else {
-                    product.flagIds.forEach(flagId => {
-                        flagCounts[flagId] = (flagCounts[flagId] || 0) + 1;
-                    });
-                }
+                filterRows();
             });
 
-            const flagContainer = document.getElementById('flagFilterList');
-            if (!flagContainer) return;
-            flagContainer.innerHTML = '';
-
-            if (typeof flags !== 'undefined' && flags) {
-                flags.forEach(flag => {
-                    const count = flagCounts[flag.FlagId] || 0;
-                    const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
-                    const excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
-
-                    const flagElementHTML = `
-                        <div class="flag-filter-group">
-                            <div class="form-check form-check-inline check-include" style="margin-right:0px;">
-                                <input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_${flag.FlagId}" value="${flag.FlagId}" ${includeChecked} title="Pokaż wszystkie produkty z tą flagą">
-                            </div>
-                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
-                                <input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_${flag.FlagId}" value="${flag.FlagId}" ${excludeChecked} title="Ukryj wszystkie produkty z tą flagą">
-                            </div>
-                            <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
-                                ${flag.FlagName} (${count})
-                            </span>
-                        </div>`;
-                    flagContainer.insertAdjacentHTML('beforeend', flagElementHTML);
-                });
-            }
-
-           
-            const noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
-            const noFlagExcludeChecked = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
-            const noFlagElementHTML = `
-                <div class="flag-filter-group">
-                    <div class="form-check form-check-inline check-include" style="margin-right:0px;">
-                        <input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_noFlag" value="noFlag" ${noFlagIncludeChecked} title="Pokaż wszystkie produkty bez flagi">
-                    </div>
-                    <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
-                        <input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_noFlag" value="noFlag" ${noFlagExcludeChecked} title="Ukryj wszystkie produkty bez flagi">
-                    </div>
-                    <span class="flag-name-count" style="font-size:14px; font-weight: 400;">
-                        Brak flagi (${noFlagCount})
-                    </span>
-                </div>`;
-            flagContainer.insertAdjacentHTML('beforeend', noFlagElementHTML);
-
-       
-            document.querySelectorAll('.flagFilterInclude, .flagFilterExclude').forEach(checkbox => {
-                checkbox.addEventListener('change', function () {
-                    const flagValue = this.value;
-                    const isInclude = this.classList.contains('flagFilterInclude');
-
-                    if (isInclude) {
-                        if (this.checked) {
-                            document.getElementById(`flagCheckboxExclude_${flagValue}`).checked = false;
-                            selectedFlagsExclude.delete(flagValue);
-                            selectedFlagsInclude.add(flagValue);
-                        } else {
-                            selectedFlagsInclude.delete(flagValue);
-                        }
-                    } else { 
-                        if (this.checked) {
-                            document.getElementById(`flagCheckboxInclude_${flagValue}`).checked = false;
-                            selectedFlagsInclude.delete(flagValue);
-                            selectedFlagsExclude.add(flagValue);
-                        } else {
-                            selectedFlagsExclude.delete(flagValue);
-                        }
-                    }
-                    filterRows();
-                });
-            });
-        }
-
-            function updateCounters(products) {
-                var activeRejectedCount = allProducts.filter(p => p.isScrapable && p.isRejected).length;
-                var activeCount = allProducts.filter(p => p.isScrapable && !p.isRejected).length;
-                var inactiveRejectedCount = allProducts.filter(p => !p.isScrapable && p.isRejected).length;
-                var inactiveCount = allProducts.filter(p => !p.isScrapable && !p.isRejected).length;
-
-                document.getElementById('count-active-rejected').textContent = activeRejectedCount;
-                document.getElementById('count-active').textContent = activeCount;
-                document.getElementById('count-inactive-rejected').textContent = inactiveRejectedCount;
-                document.getElementById('count-inactive').textContent = inactiveCount;
-
-                var scrapableCount = activeRejectedCount + activeCount;
-                document.getElementById('scrapable-count').textContent = scrapableCount;
-                document.getElementById('total-products').textContent = allProducts.length;
-
-                var googleCount = allProducts.filter(p => getProductPlatformStatus(p).hasGoogle).length;
-                var ceneoCount = allProducts.filter(p => getProductPlatformStatus(p).hasCeneo).length;
-                var googleCeneoCount = allProducts.filter(p => getProductPlatformStatus(p).hasBoth).length;
-                var notFoundCount = allProducts.filter(p => getProductPlatformStatus(p).notFound).length;
-
-                document.getElementById('count-google').textContent = googleCount;
-                document.getElementById('count-ceneo').textContent = ceneoCount;
-                document.getElementById('count-google-ceneo').textContent = googleCeneoCount;
-                document.getElementById('count-not-found').textContent = notFoundCount;
-            }
-
-            function highlightMatches(text, searchTerm) {
-                if (!searchTerm) return text;
-                const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
-                const regex = new RegExp(`(${sanitizedSearchTerm})`, 'gi');
-                return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
-            }
-
-                    function renderProducts(products, searchTerm = "") {
-            var tbody = document.getElementById('product-list');
-            tbody.innerHTML = '';
-            products.forEach(function (product) {
-                var row = document.createElement('tr');
-                row.classList.add('product-row');
-                row.setAttribute('data-product-id', product.productId);
-                row.setAttribute('data-scrapable', product.isScrapable);
-                row.setAttribute('data-rejected', product.isRejected);
-
-                var platformStatus = getProductPlatformStatus(product);
-                var isNotFound = platformStatus.notFound;
-                 var highlightedProductName = highlightMatches(product.productName, searchTerm);
-                   var producer = product.producer ? `<b>Producent:</b> ${product.producer}` : '';
-
-             
-                   var ean = '';
-                   if (product.ean) {
-                     
-                       const highlightedEan = highlightMatches(product.ean, searchTerm);
-                       ean = `<b>EAN:</b> ${highlightedEan}`;
-                   }
-
-
-                var newGoogleUrl = createNewGoogleUrl(product);
-
-                var offerUrlButton = product.offerUrl ? `<a href="${product.offerUrl}" class="Button-Page-Small" style="width: 100px;" target="_blank">Ceneo</a>` : '';
-                var googleUrlButton = newGoogleUrl ? `<a href="${newGoogleUrl}" class="Button-Page-Small" style="width: 100px;" target="_blank">Google</a>` : '';
-
-                var storeSpecificOfferButton = product.url ? `<a href="${product.url}" class="Button-Page-Small" style="width: 100px;" target="_blank">Strona</a>` : '';
-              
-                var imageUrl = product.mainUrl || '';
-                var imageCell = imageUrl ? `<img src="${imageUrl}" style="width: 90px; height: 90px; object-fit: contain; background-color: white;" />` : `<div style="width: 90px; height: 90px;"></div>`;
-
-                var hasPrice = product.marginPrice != null && product.marginPrice.toString().trim() !== '';
-                var priceValue = hasPrice ? parseFloat(product.marginPrice).toFixed(2) : '';
-                 var flagsCellContent = createFlagsContainer(product).outerHTML;
-
-                var purchasePriceHtml = `
-                    <div class="price-display-container">
-                        <span class="price-text">${hasPrice ? priceValue + ' PLN' : 'Brak'}</span>
-                        <span class="price-actions">
-                            <i class="fas fa-plus add-price-btn ${hasPrice ? 'hidden' : ''}" title="Dodaj cenę"></i>
-                            <i class="fas fa-pencil-alt edit-price-btn ${!hasPrice ? 'hidden' : ''}" title="Edytuj cenę"></i>
-                            <i class="fas fa-trash-alt delete-price-btn ${!hasPrice ? 'hidden' : ''}" title="Usuń cenę"></i>
-                        </span>
-                    </div>
-                    <div class="price-edit-container hidden">
-                        <input type="number" step="0.01" class="price-edit-input" value="${priceValue}">
-                        <span class="price-actions">
-                            <i class="fas fa-check save-price-btn" title="Zapisz"></i>
-                            <i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>
-                        </span>
-                    </div>
-                `;
-
-               var statusBoxClass = "";
-         var statusText = "";
-
-         var checkboxStatusClass = "";
-
-         if (product.isScrapable && product.isRejected) {
-             statusBoxClass = "StatusBoxProduct-1";
-             statusText = "Odrzucony";
-        
-             checkboxStatusClass = "rejected";
-         } else if (product.isScrapable) {
-             statusBoxClass = "StatusBoxProduct-2";
-             statusText = "Aktywny";
-         } else if (product.isRejected) {
-             statusBoxClass = "StatusBoxProduct-3";
-             statusText = "Wyłączony";
-         } else {
-             statusBoxClass = "StatusBoxProduct-4";
-             statusText = "Nieaktywny";
-         }
-
-         row.innerHTML = `
-             <td>
-              <div style="width:420px;">
-                 <p style="margin-bottom: 8px;">${highlightedProductName}</p>
-                 <p style="font-size: 0.9em; color: #555;">${producer}</p>
-                 <p style="font-size: 0.9em; color: #555;">${ean}</p>
-                    </div>
-             </td>
-             <td>${imageCell}</td>
-             <td>${purchasePriceHtml}</td>
-             <td>
-                 <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 5px;">
-                     ${offerUrlButton}
-                     ${googleUrlButton}
-                     ${storeSpecificOfferButton}
-                 </div>
-             </td>
-             <td>
-                 <div style="position: relative; width: 130px; height: 40px;">
-                     <input type="checkbox" class="scrapable-checkbox ${checkboxStatusClass}" data-product-id="${product.productId}"
-                            style="position: absolute; top: 0; left: 0; z-index: 2;"
-                            ${product.isScrapable ? "checked" : ""}
-                            ${isNotFound ? "disabled" : ""} />
-                     <div class="StatusBoxProduct ${statusBoxClass}" style="position: absolute; top: 0; left: 20px; z-index: 1;">
-                         ${statusText}
-                     </div>
-                 </div>
-             </td>
-             <td>${flagsCellContent}</td>`;
-                if (!isNotFound) {
-                    row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
-                        saveState();
-                        var productId = this.getAttribute('data-product-id');
-                        fetch('@Url.Action("UpdateScrapableProduct", "Product")?storeId=' + storeId, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(productId)
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (!data.success) {
-                                alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu scrapowania.');
-                                this.checked = !this.checked;
-                            } else {
-                                fetchProducts();
-                            }
-                        })
-                        .catch(error => {
-                            console.error('There was a problem with your fetch operation:', error);
-                        });
-                    });
-                }
-                tbody.appendChild(row);
-            });
-            document.getElementById('displayed-count').textContent = products.length;
-            window.scrollTo(0, lastScrollPosition);
-        }
-
-            function filterRows() {
-                var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
-                    .map(checkbox => checkbox.getAttribute('data-status'));
-                var searchTerm = searchInput.value;
-                var filteredProducts = filterProductsByName(allProducts, searchTerm);
-                var existingStatuses = ['active', 'inactive', 'active-rejected', 'inactive-rejected'];
-                var selectedExistingStatuses = selectedStatuses.filter(status => existingStatuses.includes(status));
-                var selectedPlatformStatuses = selectedStatuses.filter(status => platformStatuses.includes(status));
-
-                if (selectedExistingStatuses.length > 0) {
-                    filteredProducts = filteredProducts.filter(product => {
-                        var productStatus = getProductStatus(product);
-                        return selectedExistingStatuses.includes(productStatus);
-                    });
-                }
-
-                if (selectedPlatformStatuses.length > 0) {
-                    filteredProducts = filteredProducts.filter(product => {
-                        var platformStatus = getProductPlatformStatus(product);
-                        if (selectedPlatformStatuses.includes('not-found')) return platformStatus.notFound;
-                        if (selectedPlatformStatuses.includes('google-ceneo')) return platformStatus.hasBoth;
-                        var includeProduct = false;
-                        if (selectedPlatformStatuses.includes('google') && platformStatus.hasGoogle) includeProduct = true;
-                        if (selectedPlatformStatuses.includes('ceneo') && platformStatus.hasCeneo) includeProduct = true;
-                        if (selectedPlatformStatuses.includes('google') && selectedPlatformStatuses.includes('ceneo')) {
-                        } else if (selectedPlatformStatuses.includes('google')) {
-                            return platformStatus.hasGoogle;
-                        } else if (selectedPlatformStatuses.includes('ceneo')) {
-                            return platformStatus.hasCeneo;
-                        }
-                        return includeProduct;
-                    });
-                }
-
-                   let productsBeforeFlagFilter = [...filteredProducts]; 
-
-         if (selectedFlagsExclude.size > 0) {
-             filteredProducts = filteredProducts.filter(item => {
-                 if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
-                     return false;
-                 }
-                 if (item.flagIds) {
-                     for (const excl of selectedFlagsExclude) {
-                         if (excl !== 'noFlag' && item.flagIds.includes(parseInt(excl))) {
-                             return false;
-                         }
-                     }
-                 }
-                 return true;
-             });
-         }
-
-         if (selectedFlagsInclude.size > 0) {
-             filteredProducts = filteredProducts.filter(item => {
-                 if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) {
-                     return true;
-                 }
-                 if (item.flagIds) {
-                     return item.flagIds.some(fid => selectedFlagsInclude.has(fid.toString()));
-                 }
-                 return false;
-             });
-         }
-                filteredProducts = filterProductsByProducer(filteredProducts, selectedProducer);
-
-                renderProducts(filteredProducts, searchTerm);
-                updateCounters(filteredProducts);
-                   updateAndRenderFlagFilters(productsBeforeFlagFilter);
-             }
-
-             function fetchProducts() {
-                fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
-                    .then(response => response.json())
-                    .then(data => {
-                        allProducts = data;
-
-                        const producersWithCount = allProducts.reduce((acc, product) => {
-                            let producer = product.producer || "Brak";
-                            let producerObj = acc.find(p => p.name === producer);
-                            if (producerObj) {
-                                producerObj.count++;
-                            } else {
-                                acc.push({ name: producer, count: 1 });
-                            }
-                            return acc;
-                        }, []);
-
-                        populateProducerDropdown(producersWithCount);
-
-             
-                        filterRows();
-                    })
-                    .catch(error => {
-                        console.error('Error fetching products:', error);
-                    });
-            }
-
+            // Status checkboxes
             document.querySelectorAll('.status-filter').forEach(function (checkbox) {
                 checkbox.addEventListener('change', function () {
                     if ((this.id === 'not-found' || this.id === 'google-ceneo') && this.checked) {
@@ -880,347 +543,958 @@
                 });
             });
 
-            searchInput.addEventListener('input', filterRows);
-           producerDropdown.addEventListener('change', function () {
-                saveState();
-                filterRows();
-            });
+            // Select / Deselect all — optimistic + batched
+            selectAllButton.addEventListener('click', function () { batchToggle(true); });
+            deselectAllButton.addEventListener('click', function () { batchToggle(false); });
 
-            selectAllButton.addEventListener('click', function () {
-                var productIds = [];
-                document.querySelectorAll('.scrapable-checkbox').forEach(function (checkbox) {
-                    if (!checkbox.disabled && !checkbox.checked) {
-                        checkbox.checked = true;
-                        productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
-                    }
+            // Delegated events on tbody for checkboxes & price actions
+            tbody.addEventListener('change', onCheckboxChange);
+            tbody.addEventListener('click', onTableClick);
+
+            // Initial fetch
+            fetchProducts();
+        });
+
+        // ============================================================
+        // VIRTUAL SCROLL RENDERER
+        // ============================================================
+        var lastRenderedStart = -1;
+        var lastRenderedEnd = -1;
+        var rafPending = false;
+
+        function onScroll() {
+            if (!rafPending) {
+                rafPending = true;
+                requestAnimationFrame(function () {
+                    rafPending = false;
+                    renderVirtual();
                 });
-                if (productIds.length > 0) {
-                    fetch('@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=' + storeId, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(productIds)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            fetchProducts();
-                        } else {
-                            alert('Błąd podczas aktualizacji produktów: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Problem z operacją fetch:', error);
-                    });
-                }
-            });
+            }
+        }
 
-            deselectAllButton.addEventListener('click', function () {
-                var productIds = [];
-                document.querySelectorAll('.scrapable-checkbox:checked:not(:disabled)').forEach(function (checkbox) {
-                    checkbox.checked = false;
-                    productIds.push(parseInt(checkbox.getAttribute('data-product-id')));
-                });
-                if (productIds.length > 0) {
-                    fetch('@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=' + storeId, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(productIds)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            fetchProducts();
-                        } else {
-                            alert('Błąd podczas resetowania produktów: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Problem z operacją fetch:', error);
-                    });
-                }
-            });
-
-            const productListBody = document.getElementById('product-list');
-            const formWithToken = document.getElementById('uploadMarginsForm');
-            const requestVerificationToken = formWithToken ? formWithToken.querySelector('input[name="__RequestVerificationToken"]').value : null;
-
-            function toggleEditMode(productId, isEditing) {
-                const row = productListBody.querySelector(`tr[data-product-id='${productId}']`);
-                if (row) {
-                    const displayContainer = row.querySelector('.price-display-container');
-                    const editContainer = row.querySelector('.price-edit-container');
-                    displayContainer.classList.toggle('hidden', isEditing);
-                    editContainer.classList.toggle('hidden', !isEditing);
-                    if (isEditing) {
-                        const input = editContainer.querySelector('.price-edit-input');
-                        input.focus();
-                        input.select();
-                    }
-                }
+        function renderVirtual(force) {
+            var total = filteredProducts.length;
+            if (total === 0) {
+                tbody.innerHTML = '';
+                displayedCountEl.textContent = '0';
+                return;
             }
 
-            productListBody.addEventListener('click', function(e) {
-                const target = e.target;
-                const row = target.closest('tr.product-row');
-                if (!row) return;
-                const productId = row.getAttribute('data-product-id');
+            var scrollTop = scrollContainer.scrollTop;
+            var viewportH = scrollContainer.clientHeight;
 
-                if (target.classList.contains('edit-price-btn') || target.classList.contains('add-price-btn')) {
-                    toggleEditMode(productId, true);
+            // Offset for thead (approximate)
+            var theadHeight = 40;
+            var adjustedScrollTop = Math.max(0, scrollTop - theadHeight);
+
+            var startIdx = Math.max(0, Math.floor(adjustedScrollTop / ROW_HEIGHT) - BUFFER_ROWS);
+            var endIdx = Math.min(total, Math.ceil((adjustedScrollTop + viewportH) / ROW_HEIGHT) + BUFFER_ROWS);
+
+            // Skip re-render if range didn't change
+            if (!force && startIdx === lastRenderedStart && endIdx === lastRenderedEnd) return;
+            lastRenderedStart = startIdx;
+            lastRenderedEnd = endIdx;
+
+            var searchTerm = searchInput ? searchInput.value : '';
+
+            // Build fragment
+            var fragment = document.createDocumentFragment();
+
+            // Top spacer row
+            var spacerTop = document.createElement('tr');
+            spacerTop.style.height = (startIdx * ROW_HEIGHT) + 'px';
+            spacerTop.style.padding = '0';
+            spacerTop.style.border = 'none';
+            spacerTop.innerHTML = '<td colspan="6" style="padding:0;border:none;"></td>';
+            fragment.appendChild(spacerTop);
+
+            for (var i = startIdx; i < endIdx; i++) {
+                fragment.appendChild(createProductRow(filteredProducts[i], searchTerm));
+            }
+
+            // Bottom spacer row
+            var spacerBottom = document.createElement('tr');
+            spacerBottom.style.height = ((total - endIdx) * ROW_HEIGHT) + 'px';
+            spacerBottom.style.padding = '0';
+            spacerBottom.style.border = 'none';
+            spacerBottom.innerHTML = '<td colspan="6" style="padding:0;border:none;"></td>';
+            fragment.appendChild(spacerBottom);
+
+            tbody.innerHTML = '';
+            tbody.appendChild(fragment);
+
+            displayedCountEl.textContent = total;
+
+            // Observe lazy images
+            if (imgObserver) {
+                tbody.querySelectorAll('img[data-src]').forEach(function (img) {
+                    imgObserver.observe(img);
+                });
+            }
+        }
+
+        // ============================================================
+        // CREATE A SINGLE ROW
+        // ============================================================
+        function createProductRow(product, searchTerm) {
+            var row = document.createElement('tr');
+            row.classList.add('product-row');
+            row.setAttribute('data-product-id', product.productId);
+            row.setAttribute('data-scrapable', product.isScrapable);
+            row.setAttribute('data-rejected', product.isRejected);
+
+            var platformStatus = getProductPlatformStatus(product);
+            var isNotFound = platformStatus.notFound;
+
+            var highlightedProductName = highlightMatches(product.productName, searchTerm);
+            var producer = product.producer ? '<b>Producent:</b> ' + product.producer : '';
+            var ean = '';
+            if (product.ean) {
+                ean = '<b>EAN:</b> ' + highlightMatches(product.ean, searchTerm);
+            }
+
+            var newGoogleUrl = createNewGoogleUrl(product);
+            var offerUrlButton = product.offerUrl ? '<a href="' + product.offerUrl + '" class="Button-Page-Small" style="width: 100px;" target="_blank">Ceneo</a>' : '';
+            var googleUrlButton = newGoogleUrl ? '<a href="' + newGoogleUrl + '" class="Button-Page-Small" style="width: 100px;" target="_blank">Google</a>' : '';
+            var storeSpecificOfferButton = product.url ? '<a href="' + product.url + '" class="Button-Page-Small" style="width: 100px;" target="_blank">Strona</a>' : '';
+
+            // Lazy image
+            var imageUrl = product.mainUrl || '';
+            var imageCell = imageUrl
+                ? '<img data-src="' + imageUrl + '" style="width:90px;height:90px;object-fit:contain;background-color:#f0f0f0;" alt="" />'
+                : '<div style="width:90px;height:90px;"></div>';
+
+            var hasPrice = product.marginPrice != null && product.marginPrice.toString().trim() !== '';
+            var priceValue = hasPrice ? parseFloat(product.marginPrice).toFixed(2) : '';
+            var flagsCellContent = createFlagsHTML(product);
+
+            var purchasePriceHtml =
+                '<div class="price-display-container">' +
+                    '<span class="price-text">' + (hasPrice ? priceValue + ' PLN' : 'Brak') + '</span>' +
+                    '<span class="price-actions">' +
+                        '<i class="fas fa-plus add-price-btn ' + (hasPrice ? 'hidden' : '') + '" title="Dodaj cenę"></i>' +
+                        '<i class="fas fa-pencil-alt edit-price-btn ' + (!hasPrice ? 'hidden' : '') + '" title="Edytuj cenę"></i>' +
+                        '<i class="fas fa-trash-alt delete-price-btn ' + (!hasPrice ? 'hidden' : '') + '" title="Usuń cenę"></i>' +
+                    '</span>' +
+                '</div>' +
+                '<div class="price-edit-container hidden">' +
+                    '<input type="number" step="0.01" class="price-edit-input" value="' + priceValue + '">' +
+                    '<span class="price-actions">' +
+                        '<i class="fas fa-check save-price-btn" title="Zapisz"></i>' +
+                        '<i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>' +
+                    '</span>' +
+                '</div>';
+
+            var statusInfo = getStatusInfo(product);
+
+            row.innerHTML =
+                '<td>' +
+                    '<div style="width:420px;">' +
+                        '<p style="margin-bottom: 8px;">' + highlightedProductName + '</p>' +
+                        '<p style="font-size: 0.9em; color: #555;">' + producer + '</p>' +
+                        '<p style="font-size: 0.9em; color: #555;">' + ean + '</p>' +
+                    '</div>' +
+                '</td>' +
+                '<td>' + imageCell + '</td>' +
+                '<td>' + purchasePriceHtml + '</td>' +
+                '<td>' +
+                    '<div style="display: flex; flex-direction: column; align-items: flex-start; gap: 5px;">' +
+                        offerUrlButton + googleUrlButton + storeSpecificOfferButton +
+                    '</div>' +
+                '</td>' +
+                '<td>' +
+                    '<div style="position: relative; width: 130px; height: 40px;">' +
+                        '<input type="checkbox" class="scrapable-checkbox ' + statusInfo.checkboxClass + '" data-product-id="' + product.productId + '"' +
+                            ' style="position: absolute; top: 0; left: 0; z-index: 2;"' +
+                            (product.isScrapable ? ' checked' : '') +
+                            (isNotFound ? ' disabled' : '') + ' />' +
+                        '<div class="StatusBoxProduct ' + statusInfo.boxClass + '" style="position: absolute; top: 0; left: 20px; z-index: 1;">' +
+                            statusInfo.text +
+                        '</div>' +
+                    '</div>' +
+                '</td>' +
+                '<td>' + flagsCellContent + '</td>';
+
+            return row;
+        }
+
+        // ============================================================
+        // CHECKBOX TOGGLE — OPTIMISTIC, SINGLE PRODUCT
+        // ============================================================
+        function onCheckboxChange(e) {
+            var checkbox = e.target;
+            if (!checkbox.classList.contains('scrapable-checkbox')) return;
+            if (checkbox.disabled) return;
+
+            var productId = parseInt(checkbox.getAttribute('data-product-id'));
+            var product = productMap[productId];
+            if (!product) return;
+
+            var wasScrapable = product.isScrapable;
+
+            // Optimistic update
+            product.isScrapable = checkbox.checked;
+            updateRowVisual(checkbox.closest('tr'), product);
+            updateCounters();
+
+            fetch('@Url.Action("UpdateScrapableProduct", "Product")?storeId=' + storeId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(productId)
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.success) {
+                    // Rollback
+                    product.isScrapable = wasScrapable;
+                    checkbox.checked = wasScrapable;
+                    updateRowVisual(checkbox.closest('tr'), product);
+                    updateCounters();
+                    alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu.');
                 }
+            })
+            .catch(function (err) {
+                // Rollback
+                product.isScrapable = wasScrapable;
+                checkbox.checked = wasScrapable;
+                updateRowVisual(checkbox.closest('tr'), product);
+                updateCounters();
+                console.error('Fetch error:', err);
+            });
+        }
 
-                if (target.classList.contains('cancel-edit-btn')) {
-                    toggleEditMode(productId, false);
-                }
+        function updateRowVisual(row, product) {
+            if (!row) return;
+            var statusInfo = getStatusInfo(product);
+            var statusBox = row.querySelector('.StatusBoxProduct');
+            if (statusBox) {
+                statusBox.className = 'StatusBoxProduct ' + statusInfo.boxClass;
+                statusBox.textContent = statusInfo.text;
+            }
+            var cb = row.querySelector('.scrapable-checkbox');
+            if (cb) {
+                cb.className = 'scrapable-checkbox ' + statusInfo.checkboxClass;
+            }
+        }
 
-                if (target.classList.contains('save-price-btn')) {
-                    const input = row.querySelector('.price-edit-input');
-                    const newPrice = input.value.trim().replace(',', '.');
-                    if (newPrice === '' || isNaN(newPrice) || parseFloat(newPrice) < 0) {
-                        alert('Proszę podać poprawną, nieujemną cenę.');
-                        return;
-                    }
-                    updatePurchasePrice(productId, parseFloat(newPrice));
-                }
+        // ============================================================
+        // BATCH SELECT / DESELECT — OPTIMISTIC + CHUNKED
+        // ============================================================
+        function batchToggle(turnOn) {
+            var idsToSend = [];
 
-                if (target.classList.contains('delete-price-btn')) {
-                    if (confirm('Czy na pewno chcesz usunąć cenę zakupu dla tego produktu?')) {
-                        updatePurchasePrice(productId, null);
-                    }
+            filteredProducts.forEach(function (p) {
+                var platformStatus = getProductPlatformStatus(p);
+                if (platformStatus.notFound) return;
+                if (turnOn && !p.isScrapable) {
+                    idsToSend.push(p.productId);
+                } else if (!turnOn && p.isScrapable) {
+                    idsToSend.push(p.productId);
                 }
             });
 
-            function updatePurchasePrice(productId, newPrice) {
-                if (!requestVerificationToken) {
-                    alert('Błąd bezpieczeństwa: Nie znaleziono tokenu weryfikacyjnego.');
+            if (idsToSend.length === 0) return;
+
+            // Optimistic local update
+            var previousStates = {};
+            idsToSend.forEach(function (id) {
+                var p = productMap[id];
+                if (p) {
+                    previousStates[id] = p.isScrapable;
+                    p.isScrapable = turnOn;
+                }
+            });
+            updateCounters();
+            renderVirtual(true);
+
+            var url = turnOn
+                ? '@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=' + storeId
+                : '@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=' + storeId;
+
+            // Chunk into smaller requests
+            var chunks = [];
+            for (var i = 0; i < idsToSend.length; i += BATCH_CHUNK_SIZE) {
+                chunks.push(idsToSend.slice(i, i + BATCH_CHUNK_SIZE));
+            }
+
+            // Show overlay
+            var overlay = document.getElementById('batchOverlay');
+            var titleEl = document.getElementById('batchOverlayTitle');
+            var doneCountEl = document.getElementById('batchDoneCount');
+            var totalCountEl = document.getElementById('batchTotalCount');
+            var fillEl = document.getElementById('batchProgressFill');
+
+            titleEl.textContent = turnOn ? 'Zaznaczanie produktów...' : 'Odznaczanie produktów...';
+            totalCountEl.textContent = idsToSend.length;
+            doneCountEl.textContent = '0';
+            fillEl.style.width = '0%';
+            overlay.classList.add('active');
+
+            var completed = 0;
+            var processedCount = 0;
+            var failed = false;
+
+            // Send chunks sequentially
+            var chain = Promise.resolve();
+            chunks.forEach(function (chunk, idx) {
+                chain = chain.then(function () {
+                    if (failed) return;
+                    return fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(chunk)
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        completed++;
+                        processedCount += chunk.length;
+                        doneCountEl.textContent = Math.min(processedCount, idsToSend.length);
+                        fillEl.style.width = ((processedCount / idsToSend.length) * 100) + '%';
+
+                        if (!data.success) {
+                            failed = true;
+                            alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować produktów.'));
+                        }
+                    });
+                });
+            });
+
+            chain
+                .then(function () {
+                    if (failed) {
+                        // Rollback all
+                        Object.keys(previousStates).forEach(function (id) {
+                            var p = productMap[parseInt(id)];
+                            if (p) p.isScrapable = previousStates[id];
+                        });
+                        updateCounters();
+                        renderVirtual(true);
+                    }
+                })
+                .catch(function (err) {
+                    console.error('Batch error:', err);
+                    Object.keys(previousStates).forEach(function (id) {
+                        var p = productMap[parseInt(id)];
+                        if (p) p.isScrapable = previousStates[id];
+                    });
+                    updateCounters();
+                    renderVirtual(true);
+                })
+                .finally(function () {
+                    // Fill to 100% briefly, then hide
+                    fillEl.style.width = '100%';
+                    doneCountEl.textContent = idsToSend.length;
+                    setTimeout(function () {
+                        overlay.classList.remove('active');
+                    }, 600);
+                });
+        }
+
+        // ============================================================
+        // PRICE ACTIONS (delegated)
+        // ============================================================
+        function onTableClick(e) {
+            var target = e.target;
+            var row = target.closest('tr.product-row');
+            if (!row) return;
+            var productId = row.getAttribute('data-product-id');
+
+            if (target.classList.contains('edit-price-btn') || target.classList.contains('add-price-btn')) {
+                toggleEditMode(row, true);
+            }
+            if (target.classList.contains('cancel-edit-btn')) {
+                toggleEditMode(row, false);
+            }
+            if (target.classList.contains('save-price-btn')) {
+                var input = row.querySelector('.price-edit-input');
+                var newPrice = input.value.trim().replace(',', '.');
+                if (newPrice === '' || isNaN(newPrice) || parseFloat(newPrice) < 0) {
+                    alert('Proszę podać poprawną, nieujemną cenę.');
+                    return;
+                }
+                updatePurchasePrice(productId, parseFloat(newPrice));
+            }
+            if (target.classList.contains('delete-price-btn')) {
+                if (confirm('Czy na pewno chcesz usunąć cenę zakupu dla tego produktu?')) {
+                    updatePurchasePrice(productId, null);
+                }
+            }
+        }
+
+        function toggleEditMode(row, isEditing) {
+            if (!row) return;
+            var displayContainer = row.querySelector('.price-display-container');
+            var editContainer = row.querySelector('.price-edit-container');
+            displayContainer.classList.toggle('hidden', isEditing);
+            editContainer.classList.toggle('hidden', !isEditing);
+            if (isEditing) {
+                var input = editContainer.querySelector('.price-edit-input');
+                input.focus();
+                input.select();
+            }
+        }
+
+        var formWithToken = document.getElementById('uploadMarginsForm');
+        function getToken() {
+            var f = formWithToken || document.getElementById('uploadMarginsForm');
+            if (!f) return null;
+            var inp = f.querySelector('input[name="__RequestVerificationToken"]');
+            return inp ? inp.value : null;
+        }
+
+        function updatePurchasePrice(productId, newPrice) {
+            var token = getToken();
+            if (!token) {
+                alert('Błąd bezpieczeństwa: Nie znaleziono tokenu weryfikacyjnego.');
+                return;
+            }
+
+            fetch('@Url.Action("UpdatePurchasePrice", "Product")?storeId=' + storeId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify({ ProductId: parseInt(productId), NewPrice: newPrice })
+            })
+            .then(function (response) {
+                if (!response.ok) {
+                    return response.json().then(function (err) { throw new Error(err.message || 'Błąd serwera'); });
+                }
+                return response.json();
+            })
+            .then(function (data) {
+                if (data.success) {
+                    // Local update
+                    var product = productMap[parseInt(productId)];
+                    if (product) {
+                        product.marginPrice = newPrice;
+                    }
+                    renderVirtual(true);
+                } else {
+                    alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować ceny.'));
+                }
+            })
+            .catch(function (error) {
+                console.error('Błąd podczas aktualizacji ceny:', error);
+                alert('Wystąpił błąd komunikacji: ' + error.message);
+            });
+        }
+
+        // ============================================================
+        // FILTER / SEARCH PIPELINE
+        // ============================================================
+        function filterRows() {
+            var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
+                .map(function (cb) { return cb.getAttribute('data-status'); });
+            var searchTerm = searchInput.value;
+
+            var result = filterProductsByName(allProducts, searchTerm);
+
+            var existingStatuses = ['active', 'inactive', 'active-rejected', 'inactive-rejected'];
+            var selectedExistingStatuses = selectedStatuses.filter(function (s) { return existingStatuses.includes(s); });
+            var selectedPlatformStatuses = selectedStatuses.filter(function (s) { return platformStatuses.includes(s); });
+
+            if (selectedExistingStatuses.length > 0) {
+                result = result.filter(function (product) {
+                    return selectedExistingStatuses.includes(getProductStatus(product));
+                });
+            }
+
+            if (selectedPlatformStatuses.length > 0) {
+                result = result.filter(function (product) {
+                    var ps = getProductPlatformStatus(product);
+                    if (selectedPlatformStatuses.includes('not-found')) return ps.notFound;
+                    if (selectedPlatformStatuses.includes('google-ceneo')) return ps.hasBoth;
+                    var include = false;
+                    if (selectedPlatformStatuses.includes('google') && ps.hasGoogle) include = true;
+                    if (selectedPlatformStatuses.includes('ceneo') && ps.hasCeneo) include = true;
+                    if (selectedPlatformStatuses.includes('google') && selectedPlatformStatuses.includes('ceneo')) {
+                        // both individual checked
+                    } else if (selectedPlatformStatuses.includes('google')) {
+                        return ps.hasGoogle;
+                    } else if (selectedPlatformStatuses.includes('ceneo')) {
+                        return ps.hasCeneo;
+                    }
+                    return include;
+                });
+            }
+
+            var productsBeforeFlagFilter = result.slice();
+
+            if (selectedFlagsExclude.size > 0) {
+                result = result.filter(function (item) {
+                    if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return false;
+                    if (item.flagIds) {
+                        for (var it = selectedFlagsExclude.values(), val = null; (val = it.next().value) !== undefined;) {
+                            if (val !== 'noFlag' && item.flagIds.includes(parseInt(val))) return false;
+                        }
+                    }
+                    return true;
+                });
+            }
+
+            if (selectedFlagsInclude.size > 0) {
+                result = result.filter(function (item) {
+                    if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return true;
+                    if (item.flagIds) {
+                        return item.flagIds.some(function (fid) { return selectedFlagsInclude.has(fid.toString()); });
+                    }
+                    return false;
+                });
+            }
+
+            result = filterProductsByProducer(result, selectedProducer);
+
+            filteredProducts = result;
+
+            // Reset scroll to top and render
+            lastRenderedStart = -1;
+            lastRenderedEnd = -1;
+            renderVirtual(true);
+            updateCounters();
+            updateAndRenderFlagFilters(productsBeforeFlagFilter);
+        }
+
+        // ============================================================
+        // FETCH PRODUCTS
+        // ============================================================
+        function fetchProducts() {
+            fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    allProducts = data;
+
+                    // Build lookup map
+                    productMap = {};
+                    allProducts.forEach(function (p) {
+                        productMap[p.productId] = p;
+                    });
+
+                    var producersWithCount = allProducts.reduce(function (acc, product) {
+                        var producer = product.producer || "Brak";
+                        var obj = acc.find(function (p) { return p.name === producer; });
+                        if (obj) { obj.count++; } else { acc.push({ name: producer, count: 1 }); }
+                        return acc;
+                    }, []);
+
+                    populateProducerDropdown(producersWithCount);
+                    filterRows();
+                })
+                .catch(function (err) {
+                    console.error('Error fetching products:', err);
+                });
+        }
+
+        // ============================================================
+        // HELPERS
+        // ============================================================
+        function getProductPlatformStatus(product) {
+            var hasGoogle = product.googleUrl && product.googleUrl.trim() !== '';
+            var hasCeneo = product.offerUrl && product.offerUrl.trim() !== '';
+            return {
+                hasGoogle: hasGoogle,
+                hasCeneo: hasCeneo,
+                hasBoth: hasGoogle && hasCeneo,
+                notFound: !hasGoogle && !hasCeneo
+            };
+        }
+
+        function getProductStatus(product) {
+            if (product.isScrapable && product.isRejected) return "active-rejected";
+            if (product.isScrapable) return "active";
+            if (product.isRejected) return "inactive-rejected";
+            return "inactive";
+        }
+
+        function getStatusInfo(product) {
+            if (product.isScrapable && product.isRejected) {
+                return { boxClass: 'StatusBoxProduct-1', text: 'Odrzucony', checkboxClass: 'rejected' };
+            } else if (product.isScrapable) {
+                return { boxClass: 'StatusBoxProduct-2', text: 'Aktywny', checkboxClass: '' };
+            } else if (product.isRejected) {
+                return { boxClass: 'StatusBoxProduct-3', text: 'Wyłączony', checkboxClass: '' };
+            }
+            return { boxClass: 'StatusBoxProduct-4', text: 'Nieaktywny', checkboxClass: '' };
+        }
+
+        function createNewGoogleUrl(product) {
+            if (!product.googleUrl || !product.productName) return product.googleUrl || '';
+            var match = product.googleUrl.match(/product\/(\d+)/);
+            if (match && match[1]) {
+                return 'https://www.google.com/shopping/product/' + match[1] + '/offers?q=' + encodeURIComponent(product.productName);
+            }
+            return product.googleUrl;
+        }
+
+        function decodeHTML(html) {
+            var txt = document.createElement("textarea");
+            txt.innerHTML = html;
+            return txt.value;
+        }
+
+        function highlightMatches(text, searchTerm) {
+            if (!searchTerm) return text;
+            var sanitized = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
+            if (!sanitized) return text;
+            var regex = new RegExp('(' + sanitized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+            return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
+        }
+
+        function filterProductsByProducer(products, producer) {
+            if (producer === 'all') return products;
+            return products.filter(function (p) { return decodeHTML(p.producer || "Brak") === producer; });
+        }
+
+        function filterProductsByName(products, name) {
+            var sanitized = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim().toLowerCase();
+            if (sanitized === '') return products;
+            return products.filter(function (product) {
+                var pName = product.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
+                var pEan = (product.ean || '').toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').trim();
+                return pName.includes(sanitized) || pEan.includes(sanitized);
+            });
+        }
+
+        function hexToRgba(hex, alpha) {
+            var r = 0, g = 0, b = 0;
+            if (hex.length == 4) {
+                r = parseInt(hex[1] + hex[1], 16);
+                g = parseInt(hex[2] + hex[2], 16);
+                b = parseInt(hex[3] + hex[3], 16);
+            } else if (hex.length == 7) {
+                r = parseInt(hex[1] + hex[2], 16);
+                g = parseInt(hex[3] + hex[4], 16);
+                b = parseInt(hex[5] + hex[6], 16);
+            }
+            return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+        }
+
+        function createFlagsHTML(product) {
+            if (!product.flagIds || product.flagIds.length === 0) return '';
+            var html = '<div class="flags-container">';
+            product.flagIds.forEach(function (flagId) {
+                var flag = flags.find(function (f) { return f.FlagId === flagId; });
+                if (flag) {
+                    html += '<span class="flag" style="color:' + flag.FlagColor +
+                        ';border:2px solid ' + flag.FlagColor +
+                        ';background-color:' + hexToRgba(flag.FlagColor, 0.3) + ';">' +
+                        flag.FlagName + '</span>';
+                }
+            });
+            html += '</div>';
+            return html;
+        }
+
+        // ============================================================
+        // COUNTERS
+        // ============================================================
+        function updateCounters() {
+            var activeRejectedCount = 0, activeCount = 0, inactiveRejectedCount = 0, inactiveCount = 0;
+            var googleCount = 0, ceneoCount = 0, googleCeneoCount = 0, notFoundCount = 0;
+
+            for (var i = 0; i < allProducts.length; i++) {
+                var p = allProducts[i];
+                if (p.isScrapable && p.isRejected) activeRejectedCount++;
+                else if (p.isScrapable) activeCount++;
+                else if (p.isRejected) inactiveRejectedCount++;
+                else inactiveCount++;
+
+                var ps = getProductPlatformStatus(p);
+                if (ps.hasBoth) googleCeneoCount++;
+                if (ps.hasGoogle) googleCount++;
+                if (ps.hasCeneo) ceneoCount++;
+                if (ps.notFound) notFoundCount++;
+            }
+
+            document.getElementById('count-active-rejected').textContent = activeRejectedCount;
+            document.getElementById('count-active').textContent = activeCount;
+            document.getElementById('count-inactive-rejected').textContent = inactiveRejectedCount;
+            document.getElementById('count-inactive').textContent = inactiveCount;
+            document.getElementById('scrapable-count').textContent = activeRejectedCount + activeCount;
+            document.getElementById('total-products').textContent = allProducts.length;
+            document.getElementById('count-google').textContent = googleCount;
+            document.getElementById('count-ceneo').textContent = ceneoCount;
+            document.getElementById('count-google-ceneo').textContent = googleCeneoCount;
+            document.getElementById('count-not-found').textContent = notFoundCount;
+        }
+
+        // ============================================================
+        // PRODUCER DROPDOWN
+        // ============================================================
+        function populateProducerDropdown(producersWithCount) {
+            producersWithCount.sort(function (a, b) { return b.count - a.count; });
+            producerDropdown.innerHTML = '<option value="all">Producent - Wszyscy (' + allProducts.length + ')</option>';
+            producersWithCount.forEach(function (prod) {
+                var decoded = decodeHTML(prod.name);
+                var option = document.createElement('option');
+                option.value = decoded;
+                option.textContent = decoded + ' (' + prod.count + ')';
+                producerDropdown.appendChild(option);
+            });
+            producerDropdown.value = selectedProducer;
+        }
+
+        // ============================================================
+        // FLAG FILTERS
+        // ============================================================
+        function updateAndRenderFlagFilters(products) {
+            var flagCounts = {};
+            var noFlagCount = 0;
+
+            products.forEach(function (product) {
+                if (!product.flagIds || product.flagIds.length === 0) {
+                    noFlagCount++;
+                } else {
+                    product.flagIds.forEach(function (flagId) {
+                        flagCounts[flagId] = (flagCounts[flagId] || 0) + 1;
+                    });
+                }
+            });
+
+            var flagContainer = document.getElementById('flagFilterList');
+            if (!flagContainer) return;
+            flagContainer.innerHTML = '';
+
+            if (typeof flags !== 'undefined' && flags) {
+                flags.forEach(function (flag) {
+                    var count = flagCounts[flag.FlagId] || 0;
+                    var includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
+                    var excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
+
+                    flagContainer.insertAdjacentHTML('beforeend',
+                        '<div class="flag-filter-group">' +
+                            '<div class="form-check form-check-inline check-include" style="margin-right:0px;">' +
+                                '<input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_' + flag.FlagId + '" value="' + flag.FlagId + '" ' + includeChecked + ' title="Pokaż wszystkie produkty z tą flagą">' +
+                            '</div>' +
+                            '<div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">' +
+                                '<input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_' + flag.FlagId + '" value="' + flag.FlagId + '" ' + excludeChecked + ' title="Ukryj wszystkie produkty z tą flagą">' +
+                            '</div>' +
+                            '<span class="flag-name-count" style="font-size:14px; font-weight: 400;">' + flag.FlagName + ' (' + count + ')</span>' +
+                        '</div>');
+                });
+            }
+
+            var noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
+            var noFlagExcludeChecked = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
+            flagContainer.insertAdjacentHTML('beforeend',
+                '<div class="flag-filter-group">' +
+                    '<div class="form-check form-check-inline check-include" style="margin-right:0px;">' +
+                        '<input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_noFlag" value="noFlag" ' + noFlagIncludeChecked + ' title="Pokaż wszystkie produkty bez flagi">' +
+                    '</div>' +
+                    '<div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">' +
+                        '<input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_noFlag" value="noFlag" ' + noFlagExcludeChecked + ' title="Ukryj wszystkie produkty bez flagi">' +
+                    '</div>' +
+                    '<span class="flag-name-count" style="font-size:14px; font-weight: 400;">Brak flagi (' + noFlagCount + ')</span>' +
+                '</div>');
+
+            document.querySelectorAll('.flagFilterInclude, .flagFilterExclude').forEach(function (checkbox) {
+                checkbox.addEventListener('change', function () {
+                    var flagValue = this.value;
+                    var isInclude = this.classList.contains('flagFilterInclude');
+
+                    if (isInclude) {
+                        if (this.checked) {
+                            document.getElementById('flagCheckboxExclude_' + flagValue).checked = false;
+                            selectedFlagsExclude.delete(flagValue);
+                            selectedFlagsInclude.add(flagValue);
+                        } else {
+                            selectedFlagsInclude.delete(flagValue);
+                        }
+                    } else {
+                        if (this.checked) {
+                            document.getElementById('flagCheckboxInclude_' + flagValue).checked = false;
+                            selectedFlagsInclude.delete(flagValue);
+                            selectedFlagsExclude.add(flagValue);
+                        } else {
+                            selectedFlagsExclude.delete(flagValue);
+                        }
+                    }
+                    filterRows();
+                });
+            });
+        }
+
+    })();
+    </script>
+
+    <!-- Upload margins modal script (unchanged logic) -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var uploadMarginsModal = document.getElementById('uploadMarginsModal');
+        var uploadMarginsForm = document.getElementById('uploadMarginsForm');
+        var uploadedFileField = document.getElementById('uploadedFile');
+        var submitUploadButton = document.getElementById('submitUploadMarginsButton');
+        var uploadClientError = document.getElementById('uploadClientError');
+        var originalButtonText = submitUploadButton ? submitUploadButton.innerHTML : 'Wgraj ceny zakupu';
+        var clearAllMarginsButton = document.getElementById('clearAllMarginsButton');
+        var storeIdForMargins = @ViewBag.StoreId;
+
+        var uploadMarginsButton = document.getElementById('uploadMarginsButton');
+        if (uploadMarginsButton && uploadMarginsModal) {
+            uploadMarginsButton.addEventListener('click', function () {
+                if (uploadMarginsForm) uploadMarginsForm.reset();
+                if (uploadClientError) {
+                    uploadClientError.style.display = 'none';
+                    uploadClientError.textContent = '';
+                }
+                if (submitUploadButton) {
+                    submitUploadButton.disabled = false;
+                    submitUploadButton.innerHTML = originalButtonText;
+                }
+                updateModalStats();
+                $('#uploadMarginsModal').modal('show');
+            });
+        }
+
+        if (uploadMarginsForm && uploadedFileField && submitUploadButton && uploadClientError) {
+            uploadMarginsForm.addEventListener('submit', function (event) {
+                uploadClientError.style.display = 'none';
+                uploadClientError.textContent = '';
+
+                if (!uploadedFileField.files || uploadedFileField.files.length === 0) {
+                    event.preventDefault();
+                    uploadClientError.textContent = 'Proszę wybrać plik.';
+                    uploadClientError.style.display = 'block';
                     return;
                 }
 
-                fetch(`@Url.Action("UpdatePurchasePrice", "Product")?storeId=${storeId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'RequestVerificationToken': requestVerificationToken
-                    },
-                    body: JSON.stringify({
-                        ProductId: parseInt(productId),
-                        NewPrice: newPrice
-                    })
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => { throw new Error(err.message || 'Błąd serwera'); });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        saveState();
-                        fetchProducts();
-                    } else {
-                        alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować ceny.'));
-                    }
-                })
-                .catch(error => {
-                    console.error('Błąd podczas aktualizacji ceny:', error);
-                    alert('Wystąpił błąd komunikacji: ' + error.message);
-                });
-            }
+                var fileName = uploadedFileField.files[0].name;
+                var fileSize = uploadedFileField.files[0].size;
+                var allowedExtensions = /(\.xls|\.xlsx)$/i;
+                var maxFileSize = 10 * 1024 * 1024;
 
-            fetchProducts();
-        });
-    </script>
+                if (!allowedExtensions.exec(fileName)) {
+                    event.preventDefault();
+                    uploadClientError.textContent = 'Niewspierany format pliku. Proszę wgrać plik Excel (.xls lub .xlsx).';
+                    uploadClientError.style.display = 'block';
+                    uploadedFileField.value = '';
+                    return;
+                }
 
-    <script>
+                if (fileSize > maxFileSize) {
+                    event.preventDefault();
+                    uploadClientError.textContent = 'Wielkość pliku nie może przekraczać 10 MB.';
+                    uploadClientError.style.display = 'block';
+                    uploadedFileField.value = '';
+                    return;
+                }
 
-        document.addEventListener('DOMContentLoaded', function () {
-            const uploadMarginsModal = document.getElementById('uploadMarginsModal');
-            const uploadMarginsForm = document.getElementById('uploadMarginsForm');
-            const uploadedFileField = document.getElementById('uploadedFile');
-            const submitUploadButton = document.getElementById('submitUploadMarginsButton');
-            const uploadClientError = document.getElementById('uploadClientError');
-            const originalButtonText = submitUploadButton ? submitUploadButton.innerHTML : 'Wgraj ceny zakupu';
-            const clearAllMarginsButton = document.getElementById('clearAllMarginsButton');
-            const storeIdForMargins = @ViewBag.StoreId;
-
-            const uploadMarginsButton = document.getElementById('uploadMarginsButton');
-           if (uploadMarginsButton && uploadMarginsModal) {
-                uploadMarginsButton.addEventListener('click', function () {
-                    if (uploadMarginsForm) uploadMarginsForm.reset();
-                    if (uploadClientError) {
-                        uploadClientError.style.display = 'none';
-                        uploadClientError.textContent = '';
-                    }
-                    if (submitUploadButton) {
-                        submitUploadButton.disabled = false;
-
-                        submitUploadButton.innerHTML = originalButtonText;
-                    }
-                    updateModalStats();
-                    $('#uploadMarginsModal').modal('show');
-                });
-            }
-
-            if (uploadMarginsForm && uploadedFileField && submitUploadButton && uploadClientError) {
-                uploadMarginsForm.addEventListener('submit', function (event) {
-                    uploadClientError.style.display = 'none';
-                    uploadClientError.textContent = '';
-
-                    if (!uploadedFileField.files || uploadedFileField.files.length === 0) {
-                        event.preventDefault();
-                        uploadClientError.textContent = 'Proszę wybrać plik.';
-                        uploadClientError.style.display = 'block';
-                        return;
-                    }
-
-                    const fileName = uploadedFileField.files[0].name;
-                    const fileSize = uploadedFileField.files[0].size;
-                    const allowedExtensions = /(\.xls|\.xlsx)$/i;
-                    const maxFileSize = 10 * 1024 * 1024;
-
-                    if (!allowedExtensions.exec(fileName)) {
-                        event.preventDefault();
-                        uploadClientError.textContent = 'Niewspierany format pliku. Proszę wgrać plik Excel (.xls lub .xlsx).';
-                        uploadClientError.style.display = 'block';
-                        uploadedFileField.value = '';
-                        return;
-                    }
-
-                    if (fileSize > maxFileSize) {
-                        event.preventDefault();
-                        uploadClientError.textContent = 'Wielkość pliku nie może przekraczać 10 MB.';
-                        uploadClientError.style.display = 'block';
-                        uploadedFileField.value = '';
-                        return;
-                    }
-
-                    submitUploadButton.disabled = true;
-                    submitUploadButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Wgrywanie...';
-
-                });
-            }
+                submitUploadButton.disabled = true;
+                submitUploadButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Wgrywanie...';
+            });
+        }
 
         if (clearAllMarginsButton) {
-            clearAllMarginsButton.addEventListener('click', function() {
+            clearAllMarginsButton.addEventListener('click', function () {
                 if (!confirm('Jesteś pewien, że chcesz usunąć WSZYSTKIE ceny zakupu dla tego sklepu? Ta operacja jest nieodwracalna.')) {
                     return;
                 }
 
                 this.disabled = true;
-                const originalButtonHTML = this.innerHTML;
+                var originalButtonHTML = this.innerHTML;
                 this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Usuwanie...';
 
-                const formWithToken = document.getElementById('uploadMarginsForm');
-                let requestVerificationToken = null;
+                var formWithToken = document.getElementById('uploadMarginsForm');
+                var requestVerificationToken = null;
                 if (formWithToken) {
-                    const tokenInput = formWithToken.querySelector('input[name="__RequestVerificationToken"]');
-                    if (tokenInput) {
-                        requestVerificationToken = tokenInput.value;
-                    }
+                    var tokenInput = formWithToken.querySelector('input[name="__RequestVerificationToken"]');
+                    if (tokenInput) requestVerificationToken = tokenInput.value;
                 }
 
                 if (!requestVerificationToken) {
-
                     alert('Nie można znaleźć tokenu weryfikacyjnego. Operacja anulowana.');
                     this.disabled = false;
                     this.innerHTML = originalButtonHTML;
-                    console.error('__RequestVerificationToken not found on the page.');
                     return;
                 }
 
-                fetch(`@Url.Action("ClearAllPurchasePrices", "Product")?storeId=${storeIdForMargins}`, {
+                var self = this;
+                fetch('@Url.Action("ClearAllPurchasePrices", "Product")?storeId=' + storeIdForMargins, {
                     method: 'POST',
                     headers: {
                         'Accept': 'application/json',
                         'RequestVerificationToken': requestVerificationToken
                     }
                 })
-                .then(response => {
-
+                .then(function (response) {
                     if (!response.ok) {
-                        const contentType = response.headers.get("content-type");
+                        var contentType = response.headers.get("content-type");
                         if (contentType && contentType.indexOf("application/json") !== -1) {
-                            return response.json().then(errData => {
-                                throw new Error(errData.message || `Błąd serwera (JSON): ${response.status}`);
+                            return response.json().then(function (errData) {
+                                throw new Error(errData.message || 'Błąd serwera (JSON): ' + response.status);
                             });
                         } else {
-                            return response.text().then(textData => {
-                                throw new Error(`Błąd serwera (${response.status}). Odpowiedź nie była w formacie JSON. Treść: ${textData.substring(0, 100)}...`);
+                            return response.text().then(function (textData) {
+                                throw new Error('Błąd serwera (' + response.status + '). Treść: ' + textData.substring(0, 100) + '...');
                             });
                         }
                     }
-                    const contentType = response.headers.get("content-type");
+                    var contentType = response.headers.get("content-type");
                     if (contentType && contentType.indexOf("application/json") !== -1) {
-                         return response.json();
+                        return response.json();
                     } else {
                         throw new Error('Serwer odpowiedział poprawnie, ale odpowiedź nie jest w formacie JSON.');
                     }
                 })
-                .then(data => {
+                .then(function (data) {
                     if (data.success) {
-
                         window.location.reload();
                     } else {
                         alert(data.message || 'Wystąpił błąd podczas usuwania cen zakupu.');
-
-                        this.disabled = false;
-                        this.innerHTML = originalButtonHTML;
+                        self.disabled = false;
+                        self.innerHTML = originalButtonHTML;
                     }
                 })
-                .catch(error => {
+                .catch(function (error) {
                     console.error('Błąd podczas usuwania cen zakupu:', error);
                     alert('Wystąpił błąd komunikacji: ' + error.message);
-
-                    this.disabled = false;
-                    this.innerHTML = originalButtonHTML;
-                })
-
+                    self.disabled = false;
+                    self.innerHTML = originalButtonHTML;
+                });
             });
         }
 
-            function updateModalStats() {
-                const elTotal = document.getElementById('stat-total-products');
-                const elWithPrice = document.getElementById('stat-products-with-purchase-price');
-                const elActiveMon = document.getElementById('stat-active-monitoring-products');
-                const elActiveMonEan = document.getElementById('stat-active-monitoring-with-ean');
-                const elActiveMonPrice = document.getElementById('stat-active-monitoring-with-purchase-price');
+        function updateModalStats() {
+            var elTotal = document.getElementById('stat-total-products');
+            var elWithPrice = document.getElementById('stat-products-with-purchase-price');
+            var elActiveMon = document.getElementById('stat-active-monitoring-products');
+            var elActiveMonEan = document.getElementById('stat-active-monitoring-with-ean');
+            var elActiveMonPrice = document.getElementById('stat-active-monitoring-with-purchase-price');
 
-                if (!allProducts || allProducts.length === 0) {
-                    elTotal.textContent = '0';
-                    elWithPrice.textContent = '0 (0.0%)';
-                    elActiveMon.textContent = '0';
-                    elActiveMonEan.textContent = '0 (0.0%)';
-                    elActiveMonPrice.textContent = '0 (0.0%)';
-                    return;
+            if (typeof allProducts === 'undefined' || !allProducts || allProducts.length === 0) {
+                elTotal.textContent = '0';
+                elWithPrice.textContent = '0 (0.0%)';
+                elActiveMon.textContent = '0';
+                elActiveMonEan.textContent = '0 (0.0%)';
+                elActiveMonPrice.textContent = '0 (0.0%)';
+                return;
+            }
+
+            var totalProducts = allProducts.length;
+            var productsWithPurchasePrice = allProducts.filter(function (p) { return p.marginPrice != null && p.marginPrice.toString().trim() !== ''; }).length;
+            var activeMonitoringProducts = allProducts.filter(function (p) { return p.isScrapable && !p.isRejected; });
+            var activeMonitoringCount = activeMonitoringProducts.length;
+            var activeMonitoringWithEan = activeMonitoringProducts.filter(function (p) { return p.ean && p.ean.trim() !== ''; }).length;
+            var activeMonitoringWithPurchasePrice = activeMonitoringProducts.filter(function (p) { return p.marginPrice != null && p.marginPrice.toString().trim() !== ''; }).length;
+
+            elTotal.textContent = totalProducts;
+            elWithPrice.textContent = productsWithPurchasePrice + ' (' + (totalProducts > 0 ? ((productsWithPurchasePrice / totalProducts) * 100).toFixed(1) : '0.0') + '%)';
+            elActiveMon.textContent = activeMonitoringCount;
+            elActiveMonEan.textContent = activeMonitoringWithEan + ' (' + (activeMonitoringCount > 0 ? ((activeMonitoringWithEan / activeMonitoringCount) * 100).toFixed(1) : '0.0') + '%)';
+            elActiveMonPrice.textContent = activeMonitoringWithPurchasePrice + ' (' + (activeMonitoringCount > 0 ? ((activeMonitoringWithPurchasePrice / activeMonitoringCount) * 100).toFixed(1) : '0.0') + '%)';
+        }
+
+        if (uploadMarginsModal) {
+            $(uploadMarginsModal).on('hidden.bs.modal', function () {
+                if (uploadClientError) uploadClientError.style.display = 'none';
+                if (submitUploadButton) {
+                    submitUploadButton.disabled = false;
+                    submitUploadButton.innerHTML = originalButtonText;
                 }
-
-                const totalProducts = allProducts.length;
-                const productsWithPurchasePrice = allProducts.filter(p => p.marginPrice != null && p.marginPrice.toString().trim() !== '').length;
-
-                const activeMonitoringProducts = allProducts.filter(p => p.isScrapable && !p.isRejected);
-                const activeMonitoringCount = activeMonitoringProducts.length;
-
-                const activeMonitoringWithEan = activeMonitoringProducts.filter(p => p.ean && p.ean.trim() !== '').length;
-                const activeMonitoringWithPurchasePrice = activeMonitoringProducts.filter(p => p.marginPrice != null && p.marginPrice.toString().trim() !== '').length;
-
-                elTotal.textContent = totalProducts;
-                elWithPrice.textContent = `${productsWithPurchasePrice} (${totalProducts > 0 ? ((productsWithPurchasePrice / totalProducts) * 100).toFixed(1) : '0.0'}%)`;
-                elActiveMon.textContent = activeMonitoringCount;
-                elActiveMonEan.textContent = `${activeMonitoringWithEan} (${activeMonitoringCount > 0 ? ((activeMonitoringWithEan / activeMonitoringCount) * 100).toFixed(1) : '0.0'}%)`;
-                elActiveMonPrice.textContent = `${activeMonitoringWithPurchasePrice} (${activeMonitoringCount > 0 ? ((activeMonitoringWithPurchasePrice / activeMonitoringCount) * 100).toFixed(1) : '0.0'}%)`;
-            }
-
-            if (uploadMarginsModal) {
-                $(uploadMarginsModal).on('hidden.bs.modal', function () {
-                    if (uploadClientError) uploadClientError.style.display = 'none';
-                    if (submitUploadButton) {
-                        submitUploadButton.disabled = false;
-                        submitUploadButton.innerHTML = originalButtonText;
-                    }
-
-                });
-            }
-        });
+            });
+        }
+    });
     </script>
 }
