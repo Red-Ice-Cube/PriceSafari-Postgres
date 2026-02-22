@@ -231,8 +231,8 @@ p {
 
 .Page-Box-Category {
     display: flex;
-    min-width: 240px;
-    max-width: 265px;
+    min-width: 268px;
+    max-width: 270px;
     flex-direction: column;
     border-right: 1px solid #EDEDED;
     padding: 0px 20px 0px 0px;
