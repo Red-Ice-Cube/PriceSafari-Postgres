@@ -136,7 +136,6 @@
 
     .virtual-scroll-container .table-orders {
         width: 100%;
-        table-layout: fixed;
     }
 
     .virtual-spacer-top,
@@ -473,6 +472,9 @@
         // Lookup map for O(1) access by productId
         var productMap = {};
 
+        // Expose for modal script
+        window.getAllProducts = function () { return allProducts; };
+
         // ============================================================
         // DOM refs
         // ============================================================
@@ -661,7 +663,7 @@
             // Lazy image
             var imageUrl = product.mainUrl || '';
             var imageCell = imageUrl
-                ? '<img data-src="' + imageUrl + '" style="width:90px;height:90px;object-fit:contain;background-color:#f0f0f0;" alt="" />'
+                ? '<img data-src="' + imageUrl + '" style="width:90px;height:90px;object-fit:contain;background-color:#fff;" alt="" />'
                 : '<div style="width:90px;height:90px;"></div>';
 
             var hasPrice = product.marginPrice != null && product.marginPrice.toString().trim() !== '';
@@ -1463,7 +1465,9 @@
             var elActiveMonEan = document.getElementById('stat-active-monitoring-with-ean');
             var elActiveMonPrice = document.getElementById('stat-active-monitoring-with-purchase-price');
 
-            if (typeof allProducts === 'undefined' || !allProducts || allProducts.length === 0) {
+            var products = typeof window.getAllProducts === 'function' ? window.getAllProducts() : [];
+
+            if (!products || products.length === 0) {
                 elTotal.textContent = '0';
                 elWithPrice.textContent = '0 (0.0%)';
                 elActiveMon.textContent = '0';
@@ -1472,9 +1476,9 @@
                 return;
             }
 
-            var totalProducts = allProducts.length;
-            var productsWithPurchasePrice = allProducts.filter(function (p) { return p.marginPrice != null && p.marginPrice.toString().trim() !== ''; }).length;
-            var activeMonitoringProducts = allProducts.filter(function (p) { return p.isScrapable && !p.isRejected; });
+            var totalProducts = products.length;
+            var productsWithPurchasePrice = products.filter(function (p) { return p.marginPrice != null && p.marginPrice.toString().trim() !== ''; }).length;
+            var activeMonitoringProducts = products.filter(function (p) { return p.isScrapable && !p.isRejected; });
             var activeMonitoringCount = activeMonitoringProducts.length;
             var activeMonitoringWithEan = activeMonitoringProducts.filter(function (p) { return p.ean && p.ean.trim() !== ''; }).length;
             var activeMonitoringWithPurchasePrice = activeMonitoringProducts.filter(function (p) { return p.marginPrice != null && p.marginPrice.toString().trim() !== ''; }).length;

@@ -120,6 +120,99 @@
         gap: 2px;
         padding-right: 2px;
     }
+
+    /* Virtual scroll */
+    .virtual-scroll-container {
+        overflow-y: auto;
+        height: 84vh;
+        position: relative;
+    }
+
+    .virtual-scroll-container .table-orders {
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    .table-orders tbody tr {
+        height: 100px;
+        box-sizing: border-box;
+    }
+
+    /* Batch operation overlay */
+    .batch-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .batch-overlay.active {
+        display: flex;
+    }
+
+    .batch-overlay-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 36px 48px;
+        text-align: center;
+        min-width: 360px;
+        max-width: 440px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    }
+
+    .batch-overlay-title {
+        margin: 16px 0 8px;
+        font-weight: 600;
+        color: #222;
+    }
+
+    .batch-overlay-count {
+        font-size: 22px;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 16px;
+    }
+
+    .batch-progress-bar {
+        height: 10px;
+        background: #e0e0e0;
+        border-radius: 5px;
+        overflow: hidden;
+        margin-bottom: 16px;
+    }
+
+    .batch-progress-fill {
+        height: 100%;
+        background: #1E9447;
+        border-radius: 5px;
+        transition: width 0.3s ease;
+    }
+
+    .batch-overlay-hint {
+        font-size: 13px;
+        color: #888;
+        margin: 0;
+    }
+
+    .batch-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #e0e0e0;
+        border-top: 4px solid #1E9447;
+        border-radius: 50%;
+        animation: batchSpin 0.8s linear infinite;
+        margin: 0 auto;
+    }
+
+    @@keyframes batchSpin {
+        to { transform: rotate(360deg); }
+    }
 </style>
 
 <div class="Vert">
@@ -189,7 +282,7 @@
                         </div>
                     </div>
 
-                    <div class="Vert-table" style="margin-top:0px; height: 84vh;">
+                    <div class="virtual-scroll-container" id="virtualScrollContainer">
                         <table class="table-orders">
                             <thead>
                                 <tr>
@@ -207,6 +300,21 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Batch operation overlay -->
+<div class="batch-overlay" id="batchOverlay">
+    <div class="batch-overlay-card">
+        <div class="batch-spinner"></div>
+        <h5 class="batch-overlay-title" id="batchOverlayTitle">Wykonywanie operacji...</h5>
+        <div class="batch-overlay-count">
+            <span id="batchDoneCount">0</span> / <span id="batchTotalCount">0</span> produktów
+        </div>
+        <div class="batch-progress-bar">
+            <div class="batch-progress-fill" id="batchProgressFill" style="width:0%"></div>
+        </div>
+        <p class="batch-overlay-hint">Proszę czekać, nie zamykaj strony.</p>
     </div>
 </div>
 
@@ -314,612 +422,902 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
+    (function () {
+        'use strict';
+
+        // ============================================================
+        // CONFIG
+        // ============================================================
+        var ROW_HEIGHT = 100;
+        var BUFFER_ROWS = 10;
+        var SEARCH_DEBOUNCE = 250;
+        var BATCH_CHUNK_SIZE = 1000;
+
+        // ============================================================
+        // STATE
+        // ============================================================
         var allProducts = [];
+        var filteredProducts = [];
         var flags = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Flags ?? new List<FlagViewModel>()));
+        var storeId = @ViewBag.StoreId;
 
+        var selectedFlagsInclude = new Set();
+        var selectedFlagsExclude = new Set();
+
+        // Lookup map
+        var productMap = {};
+
+        // Expose for modal script
+        window.getAllProducts = function () { return allProducts; };
+        window.triggerFilterRows = function () { filterRows(); };
+
+        // ============================================================
+        // DOM refs
+        // ============================================================
+        var scrollContainer, tbody, searchInput;
+        var selectAllButton, deselectAllButton;
+        var displayedCountEl;
+
+        // ============================================================
+        // INIT
+        // ============================================================
         document.addEventListener('DOMContentLoaded', function () {
-            var storeId = @ViewBag.StoreId;
-            var selectAllButton = document.getElementById('select-all');
-            var deselectAllButton = document.getElementById('deselect-all');
-            var searchInput = document.getElementById('productSearch');
+            scrollContainer = document.getElementById('virtualScrollContainer');
+            tbody = document.getElementById('product-list');
+            searchInput = document.getElementById('productSearch');
+            selectAllButton = document.getElementById('select-all');
+            deselectAllButton = document.getElementById('deselect-all');
+            displayedCountEl = document.getElementById('displayed-count');
 
-            const formWithToken = document.getElementById('uploadAllegroMarginsForm');
-            const requestVerificationToken = formWithToken ? formWithToken.querySelector('input[name="__RequestVerificationToken"]').value : null;
+            // Virtual scroll
+            scrollContainer.addEventListener('scroll', onScroll);
 
-            var selectedFlagsInclude = new Set();
-            var selectedFlagsExclude = new Set();
+            // Debounced search
+            var searchTimer;
+            searchInput.addEventListener('input', function () {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(filterRows, SEARCH_DEBOUNCE);
+            });
 
-            function getProductStatus(product) {
-                if (product.isScrapable && product.isRejected) return "active-rejected";
-                if (product.isScrapable) return "active";
-                if (product.isRejected) return "inactive-rejected";
-                return "inactive";
-            }
+            // Status checkboxes
+            document.querySelectorAll('.status-filter').forEach(function (cb) {
+                cb.addEventListener('change', filterRows);
+            });
 
-            function updateCounters(products) {
-                const activeRejectedCount = allProducts.filter(p => p.isScrapable && p.isRejected).length;
-                const activeCount = allProducts.filter(p => p.isScrapable && !p.isRejected).length;
-                const inactiveRejectedCount = allProducts.filter(p => !p.isScrapable && p.isRejected).length;
-                const inactiveCount = allProducts.filter(p => !p.isScrapable && !p.isRejected).length;
+            // Batch select/deselect
+            selectAllButton.addEventListener('click', function () { batchToggle(true); });
+            deselectAllButton.addEventListener('click', function () { batchToggle(false); });
 
-                document.getElementById('count-active-rejected').textContent = activeRejectedCount;
-                document.getElementById('count-active').textContent = activeCount;
-                document.getElementById('count-inactive-rejected').textContent = inactiveRejectedCount;
-                document.getElementById('count-inactive').textContent = inactiveCount;
-                document.getElementById('scrapable-count').textContent = activeRejectedCount + activeCount;
-                document.getElementById('total-products').textContent = allProducts.length;
-            }
+            // Delegated events on tbody
+            tbody.addEventListener('change', onCheckboxChange);
+            tbody.addEventListener('click', onTableClick);
 
-            function renderProducts(products, searchTerm = "") {
-                var tbody = document.getElementById('product-list');
-                tbody.innerHTML = '';
+            // Initial fetch
+            fetchProducts();
+        });
 
-                products.forEach(function (product) {
-                    var row = document.createElement('tr');
-                    row.dataset.productId = product.allegroProductId;
+        // ============================================================
+        // VIRTUAL SCROLL
+        // ============================================================
+        var lastRenderedStart = -1;
+        var lastRenderedEnd = -1;
+        var rafPending = false;
 
-                    // Podświetlanie nazwy
-                    var highlightedProductName = searchTerm ? product.allegroProductName.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.allegroProductName;
-
-                    // --- 1. EAN ---
-                    var eanHtml = '';
-                    if (product.allegroEan) {
-                        const highlightedEan = searchTerm ? product.allegroEan.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.allegroEan;
-                        eanHtml = `<b>EAN:</b> ${highlightedEan}`;
-                    } else {
-                        eanHtml = '<b style="color: #777;">EAN:</b> <span style="color: #777;">Brak</span>';
-                    }
-
-                    // --- 2. ID Aukcji (IdOnAllegro) ---
-                    var idHtml = '';
-                    if (product.idOnAllegro) {
-                        const highlightedId = searchTerm ? product.idOnAllegro.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.idOnAllegro;
-                        idHtml = `<b>ID:</b> ${highlightedId}`;
-                    } else {
-                        idHtml = '<b style="color: #777;">ID:</b> <span style="color: #777;">Brak</span>';
-                    }
-
-                    // --- 3. SKU (AllegroSku) ---
-                    var skuHtml = '';
-                    if (product.allegroSku) {
-                        const highlightedSku = searchTerm ? product.allegroSku.replace(new RegExp(searchTerm, 'gi'), '<span style="color: #9400D3; font-weight: 600;">$&</span>') : product.allegroSku;
-                        skuHtml = `<b>SKU:</b> ${highlightedSku}`;
-                    } else {
-                        skuHtml = '<b style="color: #777;">SKU:</b> <span style="color: #777;">Brak</span>';
-                    }
-
-                    var offerUrlButton = product.allegroOfferUrl ? `<a href="${product.allegroOfferUrl}" rel="noopener noreferrer" class="Button-Page-Small" style="width: 150px;" target="_blank">Allegro</a>` : '';
-
-                    // Logika statusów (bez zmian)
-                    var statusBoxClass = "";
-                    var statusText = "";
-                    var checkboxStatusClass = "";
-
-                    var hasPrice = product.allegroMarginPrice != null && product.allegroMarginPrice.toString().trim() !== '';
-                    var priceValue = hasPrice ? parseFloat(product.allegroMarginPrice).toFixed(2) : '';
-
-                    var purchasePriceHtml = `
-                        <div class="price-display-container">
-                            <span class="price-text">${hasPrice ? priceValue.replace('.', ',') + ' PLN' : 'Brak'}</span>
-                            <span class="price-actions">
-                                <i class="fas fa-plus add-price-btn ${hasPrice ? 'hidden' : ''}" title="Dodaj cenę"></i>
-                                <i class="fas fa-pencil-alt edit-price-btn ${!hasPrice ? 'hidden' : ''}" title="Edytuj cenę"></i>
-                                <i class="fas fa-trash-alt delete-price-btn ${!hasPrice ? 'hidden' : ''}" title="Usuń cenę"></i>
-                            </span>
-                        </div>
-                        <div class="price-edit-container hidden">
-                            <input type="number" step="0.01" class="price-edit-input" value="${priceValue}">
-                            <span class="price-actions">
-                                <i class="fas fa-check save-price-btn" title="Zapisz"></i>
-                                <i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>
-                            </span>
-                        </div>
-                    `;
-
-                    if (product.isScrapable && product.isRejected) {
-                        statusBoxClass = "StatusBoxProduct-1";
-                        statusText = "Odrzucony";
-                        checkboxStatusClass = "rejected";
-                    } else if (product.isScrapable) {
-                        statusBoxClass = "StatusBoxProduct-2";
-                        statusText = "Aktywny";
-                    } else if (product.isRejected) {
-                        statusBoxClass = "StatusBoxProduct-3";
-                        statusText = "Wyłączony";
-                    } else {
-                        statusBoxClass = "StatusBoxProduct-4";
-                        statusText = "Nieaktywny";
-                    }
-
-                    var flagsCellContent = createFlagsContainer(product).outerHTML;
-
-                    row.innerHTML = `
-                        <td>
-                            <div style="width:420px;">
-                                <p style="margin-bottom: 6px; font-weight:500;">${highlightedProductName}</p>
-                                <div style="font-size: 0.85em; color: #555; line-height: 1.5em;">
-                                    <div>${eanHtml}</div>
-                                    <div>${idHtml}</div>
-                                    <div>${skuHtml}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>${purchasePriceHtml}</td>
-                        <td>${offerUrlButton}</td>
-
-                        <td>
-                            <div style="position: relative; width: 130px; height: 40px;">
-                                <input type="checkbox" class="scrapable-checkbox ${checkboxStatusClass}" data-product-id="${product.allegroProductId}"
-                                     style="position: absolute; top: 0; left: 0; z-index: 2;"
-                                     ${product.isScrapable ? "checked" : ""}/>
-                                <div class="StatusBoxProduct ${statusBoxClass}" style="position: absolute; top: 0; left: 20px; z-index: 1;">
-                                    ${statusText}
-                                </div>
-                            </div>
-                        </td>
-                        <td>${flagsCellContent}</td>`;
-
-                    // Event listener dla checkboxa (bez zmian)
-                    row.querySelector('.scrapable-checkbox').addEventListener('change', function () {
-                        var productId = this.getAttribute('data-product-id');
-                       fetch('@Url.Action("UpdateScrapableAllegroProduct", "AllegroProduct")?storeId=' + storeId, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(productId)
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (!data.success) {
-                                alert(data.message || 'Error updating status.');
-                                this.checked = !this.checked;
-                            } else {
-                                fetchProducts();
-                            }
-                        });
-                    });
-                    tbody.appendChild(row);
+        function onScroll() {
+            if (!rafPending) {
+                rafPending = true;
+                requestAnimationFrame(function () {
+                    rafPending = false;
+                    renderVirtual();
                 });
-                document.getElementById('displayed-count').textContent = products.length;
-            }
-
-           function filterRows() {
-                var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked')).map(cb => cb.dataset.status);
-                var searchTerm = searchInput.value.toLowerCase();
-
-                var filteredProducts = allProducts.filter(p => {
-                    const nameMatch = p.allegroProductName.toLowerCase().includes(searchTerm);
-                    const eanMatch = (p.allegroEan || '').toLowerCase().includes(searchTerm);
-
-                    // --- NOWE WARUNKI WYSZUKIWANIA ---
-                    const idMatch = (p.idOnAllegro || '').toLowerCase().includes(searchTerm);
-                    const skuMatch = (p.allegroSku || '').toLowerCase().includes(searchTerm);
-                    // ---------------------------------
-
-                    const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(getProductStatus(p));
-
-                    // Szukamy po nazwie LUB eanie LUB id LUB sku
-                    return (nameMatch || eanMatch || idMatch || skuMatch) && statusMatch;
-                });
-
-                let productsBeforeFlagFilter = [...filteredProducts];
-
-                if (selectedFlagsExclude.size > 0) {
-                    filteredProducts = filteredProducts.filter(item => {
-                        if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return false;
-                        if (item.flagIds) {
-                            for (const excl of selectedFlagsExclude) {
-                                if (excl !== 'noFlag' && item.flagIds.includes(parseInt(excl))) return false;
-                            }
-                        }
-                        return true;
-                    });
-                }
-                if (selectedFlagsInclude.size > 0) {
-                    filteredProducts = filteredProducts.filter(item => {
-                        if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return true;
-                        if (item.flagIds) return item.flagIds.some(fid => selectedFlagsInclude.has(fid.toString()));
-                        return false;
-                    });
-                }
-
-                renderProducts(filteredProducts, searchInput.value);
-                updateAndRenderFlagFilters(productsBeforeFlagFilter);
-            }
-
-             const uploadMarginsModal = document.getElementById('uploadAllegroMarginsModal');
-         const uploadMarginsForm = document.getElementById('uploadAllegroMarginsForm');
-         const uploadedFileField = document.getElementById('uploadedAllegroFile');
-         const submitUploadButton = document.getElementById('submitUploadAllegroMarginsButton');
-         const uploadClientError = document.getElementById('uploadAllegroClientError');
-         const originalButtonText = submitUploadButton ? submitUploadButton.innerHTML : 'Wgraj ceny zakupu';
-         const clearAllMarginsButton = document.getElementById('clearAllAllegroMarginsButton');
-         const storeIdForMargins = storeId;
-
-         const uploadMarginsButton = document.getElementById('uploadMarginsButton');
-        if (uploadMarginsButton && uploadMarginsModal) {
-             uploadMarginsButton.addEventListener('click', function () {
-                 if (uploadMarginsForm) uploadMarginsForm.reset();
-                 if (uploadClientError) {
-                     uploadClientError.style.display = 'none';
-                     uploadClientError.textContent = '';
-                 }
-                 if (submitUploadButton) {
-                     submitUploadButton.disabled = false;
-                     submitUploadButton.innerHTML = originalButtonText;
-                 }
-                 updateAllegroModalStats();
-                 $('#uploadAllegroMarginsModal').modal('show');
-             });
-         }
-
-          if (uploadMarginsForm && uploadedFileField && submitUploadButton && uploadClientError) {
-             uploadMarginsForm.addEventListener('submit', function (event) {
-                 uploadClientError.style.display = 'none';
-                 uploadClientError.textContent = '';
-
-                 if (!uploadedFileField.files || uploadedFileField.files.length === 0) {
-                     event.preventDefault();
-                     uploadClientError.textContent = 'Proszę wybrać plik.';
-                     uploadClientError.style.display = 'block';
-                     return;
-                 }
-
-                 const fileName = uploadedFileField.files[0].name;
-                 const fileSize = uploadedFileField.files[0].size;
-                 const allowedExtensions = /(\.xls|\.xlsx)$/i;
-                 const maxFileSize = 10 * 1024 * 1024;
-
-                 if (!allowedExtensions.exec(fileName)) {
-                     event.preventDefault();
-                     uploadClientError.textContent = 'Niewspierany format pliku. Proszę wgrać plik Excel (.xls lub .xlsx).';
-                     uploadClientError.style.display = 'block';
-                     uploadedFileField.value = '';
-                     return;
-                 }
-
-                 if (fileSize > maxFileSize) {
-                     event.preventDefault();
-                     uploadClientError.textContent = 'Wielkość pliku nie może przekraczać 10 MB.';
-                     uploadClientError.style.display = 'block';
-                     uploadedFileField.value = '';
-                     return;
-                 }
-
-                 submitUploadButton.disabled = true;
-                 submitUploadButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Wgrywanie...';
-
-             });
-         }
-
-          if (clearAllMarginsButton) {
-             clearAllMarginsButton.addEventListener('click', function() {
-                 if (!confirm('Jesteś pewien, że chcesz usunąć WSZYSTKIE ceny zakupu dla produktów Allegro w tym sklepie? Ta operacja jest nieodwracalna.')) {
-                     return;
-                 }
-
-                 this.disabled = true;
-                 const originalButtonHTML = this.innerHTML;
-                 this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Usuwanie...';
-
-                  const formWithToken = document.getElementById('uploadAllegroMarginsForm');
-                  let requestVerificationToken = null;
-                  if (formWithToken) {
-                      const tokenInput = formWithToken.querySelector('input[name="__RequestVerificationToken"]');
-                      if (tokenInput) {
-                          requestVerificationToken = tokenInput.value;
-                      }
-                  }
-
-                  if (!requestVerificationToken) {
-                      alert('Nie można znaleźć tokenu weryfikacyjnego. Operacja anulowana.');
-                      this.disabled = false;
-                      this.innerHTML = originalButtonHTML;
-                      console.error('__RequestVerificationToken not found on the page.');
-                      return;
-                  }
-
-                 fetch(`@Url.Action("ClearAllAllegroPurchasePrices", "AllegroProduct")?storeId=${storeIdForMargins}`, {
-                     method: 'POST',
-                     headers: {
-                         'Accept': 'application/json',
-                         'RequestVerificationToken': requestVerificationToken
-                     }
-                 })
-                 .then(response => {
-                      if (!response.ok) {
-
-                          const contentType = response.headers.get("content-type");
-                          if (contentType && contentType.indexOf("application/json") !== -1) {
-                              return response.json().then(errData => {
-                                  throw new Error(errData.message || `Błąd serwera (JSON): ${response.status}`);
-                              });
-                          } else {
-                              return response.text().then(textData => {
-                                  throw new Error(`Błąd serwera (${response.status}). Odpowiedź nie była w formacie JSON.`);
-                              });
-                          }
-                      }
-
-                      const contentType = response.headers.get("content-type");
-                      if (contentType && contentType.indexOf("application/json") !== -1) {
-                          return response.json();
-                      } else {
-                          throw new Error('Serwer odpowiedział poprawnie, ale odpowiedź nie jest w formacie JSON.');
-                      }
-                 })
-                 .then(data => {
-                     if (data.success) {
-
-                          $('#uploadAllegroMarginsModal').modal('hide');
-
-                           fetchProducts();
-                           alert(data.message || 'Ceny zakupu zostały usunięte.');
-                      } else {
-                          alert(data.message || 'Wystąpił błąd podczas usuwania cen zakupu.');
-                          this.disabled = false;
-                          this.innerHTML = originalButtonHTML;
-                      }
-                 })
-                 .catch(error => {
-                     console.error('Błąd podczas usuwania cen zakupu Allegro:', error);
-                     alert('Wystąpił błąd komunikacji: ' + error.message);
-                     this.disabled = false;
-                     this.innerHTML = originalButtonHTML;
-                 });
-             });
-         }
-
-         function updateAllegroModalStats() {
-
-              const elTotal = document.getElementById('stat-allegro-total-products');
-              const elWithPrice = document.getElementById('stat-allegro-products-with-purchase-price');
-              const elActiveMon = document.getElementById('stat-allegro-active-monitoring-products');
-              const elActiveMonEan = document.getElementById('stat-allegro-active-monitoring-with-ean');
-              const elActiveMonPrice = document.getElementById('stat-allegro-active-monitoring-with-purchase-price');
-
-              if (!allProducts || allProducts.length === 0) {
-                  elTotal.textContent = '0';
-                  elWithPrice.textContent = '0 (0.0%)';
-                  elActiveMon.textContent = '0';
-                  elActiveMonEan.textContent = '0 (0.0%)';
-                  elActiveMonPrice.textContent = '0 (0.0%)';
-                  return;
-              }
-
-              const totalProducts = allProducts.length;
-
-              const productsWithPurchasePrice = allProducts.filter(p => p.allegroMarginPrice != null && p.allegroMarginPrice.toString().trim() !== '').length;
-
-              const activeMonitoringProducts = allProducts.filter(p => p.isScrapable && !p.isRejected);
-              const activeMonitoringCount = activeMonitoringProducts.length;
-
-              const activeMonitoringWithEan = activeMonitoringProducts.filter(p => p.allegroEan && p.allegroEan.trim() !== '').length;
-
-              const activeMonitoringWithPurchasePrice = activeMonitoringProducts.filter(p => p.allegroMarginPrice != null && p.allegroMarginPrice.toString().trim() !== '').length;
-
-              elTotal.textContent = totalProducts;
-              elWithPrice.textContent = `${productsWithPurchasePrice} (${totalProducts > 0 ? ((productsWithPurchasePrice / totalProducts) * 100).toFixed(1) : '0.0'}%)`;
-              elActiveMon.textContent = activeMonitoringCount;
-              elActiveMonEan.textContent = `${activeMonitoringWithEan} (${activeMonitoringCount > 0 ? ((activeMonitoringWithEan / activeMonitoringCount) * 100).toFixed(1) : '0.0'}%)`;
-              elActiveMonPrice.textContent = `${activeMonitoringWithPurchasePrice} (${activeMonitoringCount > 0 ? ((activeMonitoringWithPurchasePrice / activeMonitoringCount) * 100).toFixed(1) : '0.0'}%)`;
-          }
-
-          if (uploadMarginsModal) {
-              $(uploadMarginsModal).on('hidden.bs.modal', function () {
-                  if (uploadClientError) uploadClientError.style.display = 'none';
-                  if (submitUploadButton) {
-                      submitUploadButton.disabled = false;
-                      submitUploadButton.innerHTML = originalButtonText;
-                  }
-              });
-          }
-
-            function fetchProducts() {
-                fetch('@Url.Action("GetAllegroProducts", "AllegroProduct")?storeId=' + storeId)
-                    .then(response => response.json())
-                    .then(data => {
-                        allProducts = data;
-                        updateCounters(allProducts);
-                        filterRows();
-                    });
-            }
-
-            document.querySelectorAll('.status-filter').forEach(cb => cb.addEventListener('change', filterRows));
-            searchInput.addEventListener('input', filterRows);
-            selectAllButton.addEventListener('click', () => updateMultiple(true));
-            deselectAllButton.addEventListener('click', () => updateMultiple(false));
-
-                 function updateMultiple(shouldBeScrapable) {
-
-            var productIds = Array.from(document.querySelectorAll('#product-list .scrapable-checkbox'))
-                .filter(cb => !cb.disabled && cb.checked !== shouldBeScrapable)
-                .map(cb => parseInt(cb.dataset.productId));
-
-            if (productIds.length > 0) {
-
-                const action = shouldBeScrapable ? "UpdateMultipleScrapableAllegroProducts" : "ResetMultipleScrapableAllegroProducts";
-
-                const url = `@Url.Action("Index", "AllegroProduct")`.replace("Index", action) + `?storeId=${storeId}`;
-
-                fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(productIds)
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.message) {
-                        alert(data.message);
-                    }
-                    if (data.success) {
-                        fetchProducts();
-                    }
-                });
-
             }
         }
 
-            function hexToRgba(hex, alpha) {
-                let r = 0, g = 0, b = 0;
-                if (hex.length == 4) { r = parseInt(hex[1] + hex[1], 16); g = parseInt(hex[2] + hex[2], 16); b = parseInt(hex[3] + hex[3], 16); }
-                else if (hex.length == 7) { r = parseInt(hex[1] + hex[2], 16); g = parseInt(hex[3] + hex[4], 16); b = parseInt(hex[5] + hex[6], 16); }
-                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-            }
-            function createFlagsContainer(product) {
-                const flagsContainer = document.createElement('div');
-                flagsContainer.className = 'flags-container';
-                if (product.flagIds && product.flagIds.length > 0) {
-                    product.flagIds.forEach(flagId => {
-                        const flag = flags.find(f => f.FlagId === flagId);
-                        if (flag) {
-                            const flagSpan = document.createElement('span');
-                            flagSpan.className = 'flag';
-                            flagSpan.style.color = flag.FlagColor;
-                            flagSpan.style.border = '2px solid ' + flag.FlagColor;
-                            flagSpan.style.backgroundColor = hexToRgba(flag.FlagColor, 0.3);
-                            flagSpan.innerHTML = flag.FlagName;
-                            flagsContainer.appendChild(flagSpan);
-                        }
-                    });
-                }
-                return flagsContainer;
+        function renderVirtual(force) {
+            var total = filteredProducts.length;
+            if (total === 0) {
+                tbody.innerHTML = '';
+                displayedCountEl.textContent = '0';
+                return;
             }
 
-            function updateAndRenderFlagFilters(products) {
-                const flagCounts = {};
-                let noFlagCount = 0;
-                products.forEach(p => {
-                    if (!p.flagIds || p.flagIds.length === 0) noFlagCount++;
-                    else p.flagIds.forEach(id => flagCounts[id] = (flagCounts[id] || 0) + 1);
-                });
+            var scrollTop = scrollContainer.scrollTop;
+            var viewportH = scrollContainer.clientHeight;
+            var theadHeight = 40;
+            var adjustedScrollTop = Math.max(0, scrollTop - theadHeight);
 
-                const flagContainer = document.getElementById('flagFilterList');
-                if (!flagContainer) return;
-                flagContainer.innerHTML = '';
+            var startIdx = Math.max(0, Math.floor(adjustedScrollTop / ROW_HEIGHT) - BUFFER_ROWS);
+            var endIdx = Math.min(total, Math.ceil((adjustedScrollTop + viewportH) / ROW_HEIGHT) + BUFFER_ROWS);
 
-                if (flags) {
-                    flags.forEach(flag => {
-                        const count = flagCounts[flag.FlagId] || 0;
-                        const includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
-                        const excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
-                        const html = `<div class="flag-filter-group">...</div>`;
-                        flagContainer.insertAdjacentHTML('beforeend', `<div class="flag-filter-group"><div class="form-check form-check-inline check-include" style="margin-right:0px;"><input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_${flag.FlagId}" value="${flag.FlagId}" ${includeChecked}></div><div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;"><input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_${flag.FlagId}" value="${flag.FlagId}" ${excludeChecked}></div><span class="flag-name-count" style="font-size:14px; font-weight: 400;">${flag.FlagName} (${count})</span></div>`);
-                    });
-                }
-                const noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
-                const noFlagExcludeChecked = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
-                flagContainer.insertAdjacentHTML('beforeend', `<div class="flag-filter-group"><div class="form-check form-check-inline check-include" style="margin-right:0px;"><input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_noFlag" value="noFlag" ${noFlagIncludeChecked}></div><div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;"><input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_noFlag" value="noFlag" ${noFlagExcludeChecked}></div><span class="flag-name-count" style="font-size:14px; font-weight: 400;">Brak flagi (${noFlagCount})</span></div>`);
+            if (!force && startIdx === lastRenderedStart && endIdx === lastRenderedEnd) return;
+            lastRenderedStart = startIdx;
+            lastRenderedEnd = endIdx;
 
-                document.querySelectorAll('.flagFilterInclude, .flagFilterExclude').forEach(checkbox => {
-                    checkbox.addEventListener('change', function () {
-                        const flagValue = this.value;
-                        const isInclude = this.classList.contains('flagFilterInclude');
-                        if (isInclude) {
-                            if (this.checked) {
-                                document.getElementById(`flagCheckboxExclude_${flagValue}`).checked = false;
-                                selectedFlagsExclude.delete(flagValue);
-                                selectedFlagsInclude.add(flagValue);
-                            } else { selectedFlagsInclude.delete(flagValue); }
-                        } else {
-                            if (this.checked) {
-                                document.getElementById(`flagCheckboxInclude_${flagValue}`).checked = false;
-                                selectedFlagsInclude.delete(flagValue);
-                                selectedFlagsExclude.add(flagValue);
-                            } else { selectedFlagsExclude.delete(flagValue); }
-                        }
-                        filterRows();
-                    });
-                });
+            var searchTerm = searchInput ? searchInput.value : '';
+            var fragment = document.createDocumentFragment();
+
+            // Top spacer
+            var spacerTop = document.createElement('tr');
+            spacerTop.style.height = (startIdx * ROW_HEIGHT) + 'px';
+            spacerTop.style.padding = '0';
+            spacerTop.style.border = 'none';
+            spacerTop.innerHTML = '<td colspan="5" style="padding:0;border:none;"></td>';
+            fragment.appendChild(spacerTop);
+
+            for (var i = startIdx; i < endIdx; i++) {
+                fragment.appendChild(createProductRow(filteredProducts[i], searchTerm));
             }
 
-            function toggleEditMode(productId, isEditing) {
-                const row = document.getElementById('product-list').querySelector(`tr[data-product-id='${productId}']`);
-                if (row) {
-                    const displayContainer = row.querySelector('.price-display-container');
-                    const editContainer = row.querySelector('.price-edit-container');
-                    if(displayContainer && editContainer) {
-                        displayContainer.classList.toggle('hidden', isEditing);
-                        editContainer.classList.toggle('hidden', !isEditing);
-                        if (isEditing) {
-                            const input = editContainer.querySelector('.price-edit-input');
-                            input.focus();
-                            input.select();
-                        }
-                    }
-                }
+            // Bottom spacer
+            var spacerBottom = document.createElement('tr');
+            spacerBottom.style.height = ((total - endIdx) * ROW_HEIGHT) + 'px';
+            spacerBottom.style.padding = '0';
+            spacerBottom.style.border = 'none';
+            spacerBottom.innerHTML = '<td colspan="5" style="padding:0;border:none;"></td>';
+            fragment.appendChild(spacerBottom);
+
+            tbody.innerHTML = '';
+            tbody.appendChild(fragment);
+            displayedCountEl.textContent = total;
+        }
+
+        // ============================================================
+        // CREATE ROW
+        // ============================================================
+        function createProductRow(product, searchTerm) {
+            var row = document.createElement('tr');
+            row.classList.add('product-row');
+            row.setAttribute('data-product-id', product.allegroProductId);
+
+            var highlightedName = highlightMatches(product.allegroProductName, searchTerm);
+
+            // EAN
+            var eanHtml = '';
+            if (product.allegroEan) {
+                eanHtml = '<b>EAN:</b> ' + highlightMatches(product.allegroEan, searchTerm);
+            } else {
+                eanHtml = '<b style="color: #777;">EAN:</b> <span style="color: #777;">Brak</span>';
             }
 
-            function updatePurchasePrice(productId, newPrice) {
-                if (!requestVerificationToken) {
-                    alert('Błąd bezpieczeństwa: Nie znaleziono tokenu weryfikacyjnego.');
-                    return;
-                }
-
-                fetch(`@Url.Action("UpdateAllegroPurchasePrice", "AllegroProduct")?storeId=${storeId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'RequestVerificationToken': requestVerificationToken
-                    },
-                    body: JSON.stringify({
-                        AllegroProductId: parseInt(productId),
-                        NewPrice: newPrice
-                    })
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => { throw new Error(err.message || 'Błąd serwera'); });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        fetchProducts();
-                    } else {
-                        alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować ceny.'));
-                    }
-                })
-                .catch(error => {
-                    console.error('Błąd podczas aktualizacji ceny:', error);
-                    alert('Wystąpił błąd komunikacji: ' + error.message);
-                });
+            // ID
+            var idHtml = '';
+            if (product.idOnAllegro) {
+                idHtml = '<b>ID:</b> ' + highlightMatches(product.idOnAllegro, searchTerm);
+            } else {
+                idHtml = '<b style="color: #777;">ID:</b> <span style="color: #777;">Brak</span>';
             }
 
-            const productListBody = document.getElementById('product-list');
-            productListBody.addEventListener('click', function(e) {
-                const target = e.target;
-                const row = target.closest('tr');
-                if (!row || !row.dataset.productId) return;
+            // SKU
+            var skuHtml = '';
+            if (product.allegroSku) {
+                skuHtml = '<b>SKU:</b> ' + highlightMatches(product.allegroSku, searchTerm);
+            } else {
+                skuHtml = '<b style="color: #777;">SKU:</b> <span style="color: #777;">Brak</span>';
+            }
 
-                const productId = row.dataset.productId;
+            var offerUrlButton = product.allegroOfferUrl
+                ? '<a href="' + product.allegroOfferUrl + '" rel="noopener noreferrer" class="Button-Page-Small" style="width: 150px;" target="_blank">Allegro</a>'
+                : '';
 
-                if (target.classList.contains('edit-price-btn') || target.classList.contains('add-price-btn')) {
-                    toggleEditMode(productId, true);
+            // Price
+            var hasPrice = product.allegroMarginPrice != null && product.allegroMarginPrice.toString().trim() !== '';
+            var priceValue = hasPrice ? parseFloat(product.allegroMarginPrice).toFixed(2) : '';
+
+            var purchasePriceHtml =
+                '<div class="price-display-container">' +
+                    '<span class="price-text">' + (hasPrice ? priceValue.replace('.', ',') + ' PLN' : 'Brak') + '</span>' +
+                    '<span class="price-actions">' +
+                        '<i class="fas fa-plus add-price-btn ' + (hasPrice ? 'hidden' : '') + '" title="Dodaj cenę"></i>' +
+                        '<i class="fas fa-pencil-alt edit-price-btn ' + (!hasPrice ? 'hidden' : '') + '" title="Edytuj cenę"></i>' +
+                        '<i class="fas fa-trash-alt delete-price-btn ' + (!hasPrice ? 'hidden' : '') + '" title="Usuń cenę"></i>' +
+                    '</span>' +
+                '</div>' +
+                '<div class="price-edit-container hidden">' +
+                    '<input type="number" step="0.01" class="price-edit-input" value="' + priceValue + '">' +
+                    '<span class="price-actions">' +
+                        '<i class="fas fa-check save-price-btn" title="Zapisz"></i>' +
+                        '<i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>' +
+                    '</span>' +
+                '</div>';
+
+            var statusInfo = getStatusInfo(product);
+            var flagsCellContent = createFlagsHTML(product);
+
+            row.innerHTML =
+                '<td>' +
+                    '<div style="width:420px;">' +
+                        '<p style="margin-bottom: 6px; font-weight:500;">' + highlightedName + '</p>' +
+                        '<div style="font-size: 0.85em; color: #555; line-height: 1.5em;">' +
+                            '<div>' + eanHtml + '</div>' +
+                            '<div>' + idHtml + '</div>' +
+                            '<div>' + skuHtml + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</td>' +
+                '<td>' + purchasePriceHtml + '</td>' +
+                '<td>' + offerUrlButton + '</td>' +
+                '<td>' +
+                    '<div style="position: relative; width: 130px; height: 40px;">' +
+                        '<input type="checkbox" class="scrapable-checkbox ' + statusInfo.checkboxClass + '" data-product-id="' + product.allegroProductId + '"' +
+                            ' style="position: absolute; top: 0; left: 0; z-index: 2;"' +
+                            (product.isScrapable ? ' checked' : '') + ' />' +
+                        '<div class="StatusBoxProduct ' + statusInfo.boxClass + '" style="position: absolute; top: 0; left: 20px; z-index: 1;">' +
+                            statusInfo.text +
+                        '</div>' +
+                    '</div>' +
+                '</td>' +
+                '<td>' + flagsCellContent + '</td>';
+
+            return row;
+        }
+
+        // ============================================================
+        // CHECKBOX — OPTIMISTIC SINGLE TOGGLE
+        // ============================================================
+        function onCheckboxChange(e) {
+            var checkbox = e.target;
+            if (!checkbox.classList.contains('scrapable-checkbox')) return;
+
+            var productId = parseInt(checkbox.getAttribute('data-product-id'));
+            var product = productMap[productId];
+            if (!product) return;
+
+            var wasScrapable = product.isScrapable;
+
+            // Optimistic
+            product.isScrapable = checkbox.checked;
+            updateRowVisual(checkbox.closest('tr'), product);
+            updateCounters();
+
+            fetch('@Url.Action("UpdateScrapableAllegroProduct", "AllegroProduct")?storeId=' + storeId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(productId)
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.success) {
+                    product.isScrapable = wasScrapable;
+                    checkbox.checked = wasScrapable;
+                    updateRowVisual(checkbox.closest('tr'), product);
+                    updateCounters();
+                    alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu.');
                 }
+            })
+            .catch(function (err) {
+                product.isScrapable = wasScrapable;
+                checkbox.checked = wasScrapable;
+                updateRowVisual(checkbox.closest('tr'), product);
+                updateCounters();
+                console.error('Fetch error:', err);
+            });
+        }
 
-                if (target.classList.contains('cancel-edit-btn')) {
-                    toggleEditMode(productId, false);
-                }
+        function updateRowVisual(row, product) {
+            if (!row) return;
+            var statusInfo = getStatusInfo(product);
+            var statusBox = row.querySelector('.StatusBoxProduct');
+            if (statusBox) {
+                statusBox.className = 'StatusBoxProduct ' + statusInfo.boxClass;
+                statusBox.textContent = statusInfo.text;
+            }
+            var cb = row.querySelector('.scrapable-checkbox');
+            if (cb) {
+                cb.className = 'scrapable-checkbox ' + statusInfo.checkboxClass;
+            }
+        }
 
-                if (target.classList.contains('save-price-btn')) {
-                    const input = row.querySelector('.price-edit-input');
-                    const newPrice = input.value.trim().replace(',', '.');
-                    if (newPrice === '' || isNaN(newPrice) || parseFloat(newPrice) < 0) {
-                        alert('Proszę podać poprawną, nieujemną cenę.');
-                        return;
-                    }
-                    updatePurchasePrice(productId, parseFloat(newPrice));
-                }
+        // ============================================================
+        // BATCH TOGGLE WITH OVERLAY
+        // ============================================================
+        function batchToggle(turnOn) {
+            var idsToSend = [];
 
-                if (target.classList.contains('delete-price-btn')) {
-                    if (confirm('Czy na pewno chcesz usunąć cenę zakupu dla tego produktu?')) {
-                        updatePurchasePrice(productId, null);
-                    }
+            filteredProducts.forEach(function (p) {
+                if (turnOn && !p.isScrapable) {
+                    idsToSend.push(p.allegroProductId);
+                } else if (!turnOn && p.isScrapable) {
+                    idsToSend.push(p.allegroProductId);
                 }
             });
 
-            fetchProducts();
-        });
+            if (idsToSend.length === 0) return;
+
+            // Optimistic
+            var previousStates = {};
+            idsToSend.forEach(function (id) {
+                var p = productMap[id];
+                if (p) {
+                    previousStates[id] = p.isScrapable;
+                    p.isScrapable = turnOn;
+                }
+            });
+            updateCounters();
+            renderVirtual(true);
+
+            var url = turnOn
+                ? '@Url.Action("UpdateMultipleScrapableAllegroProducts", "AllegroProduct")?storeId=' + storeId
+                : '@Url.Action("ResetMultipleScrapableAllegroProducts", "AllegroProduct")?storeId=' + storeId;
+
+            var chunks = [];
+            for (var i = 0; i < idsToSend.length; i += BATCH_CHUNK_SIZE) {
+                chunks.push(idsToSend.slice(i, i + BATCH_CHUNK_SIZE));
+            }
+
+            // Show overlay
+            var overlay = document.getElementById('batchOverlay');
+            var titleEl = document.getElementById('batchOverlayTitle');
+            var doneCountEl = document.getElementById('batchDoneCount');
+            var totalCountEl = document.getElementById('batchTotalCount');
+            var fillEl = document.getElementById('batchProgressFill');
+
+            titleEl.textContent = turnOn ? 'Zaznaczanie produktów...' : 'Odznaczanie produktów...';
+            totalCountEl.textContent = idsToSend.length;
+            doneCountEl.textContent = '0';
+            fillEl.style.width = '0%';
+            overlay.classList.add('active');
+
+            var processedCount = 0;
+            var failed = false;
+
+            var chain = Promise.resolve();
+            chunks.forEach(function (chunk) {
+                chain = chain.then(function () {
+                    if (failed) return;
+                    return fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(chunk)
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        processedCount += chunk.length;
+                        doneCountEl.textContent = Math.min(processedCount, idsToSend.length);
+                        fillEl.style.width = ((processedCount / idsToSend.length) * 100) + '%';
+                        if (!data.success) {
+                            failed = true;
+                            alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować produktów.'));
+                        }
+                    });
+                });
+            });
+
+            chain
+                .then(function () {
+                    if (failed) {
+                        Object.keys(previousStates).forEach(function (id) {
+                            var p = productMap[parseInt(id)];
+                            if (p) p.isScrapable = previousStates[id];
+                        });
+                        updateCounters();
+                        renderVirtual(true);
+                    }
+                })
+                .catch(function (err) {
+                    console.error('Batch error:', err);
+                    Object.keys(previousStates).forEach(function (id) {
+                        var p = productMap[parseInt(id)];
+                        if (p) p.isScrapable = previousStates[id];
+                    });
+                    updateCounters();
+                    renderVirtual(true);
+                })
+                .finally(function () {
+                    fillEl.style.width = '100%';
+                    doneCountEl.textContent = idsToSend.length;
+                    setTimeout(function () {
+                        overlay.classList.remove('active');
+                    }, 600);
+                });
+        }
+
+        // ============================================================
+        // PRICE ACTIONS (delegated)
+        // ============================================================
+        function onTableClick(e) {
+            var target = e.target;
+            var row = target.closest('tr.product-row');
+            if (!row) return;
+            var productId = row.getAttribute('data-product-id');
+
+            if (target.classList.contains('edit-price-btn') || target.classList.contains('add-price-btn')) {
+                toggleEditMode(row, true);
+            }
+            if (target.classList.contains('cancel-edit-btn')) {
+                toggleEditMode(row, false);
+            }
+            if (target.classList.contains('save-price-btn')) {
+                var input = row.querySelector('.price-edit-input');
+                var newPrice = input.value.trim().replace(',', '.');
+                if (newPrice === '' || isNaN(newPrice) || parseFloat(newPrice) < 0) {
+                    alert('Proszę podać poprawną, nieujemną cenę.');
+                    return;
+                }
+                updatePurchasePrice(productId, parseFloat(newPrice));
+            }
+            if (target.classList.contains('delete-price-btn')) {
+                if (confirm('Czy na pewno chcesz usunąć cenę zakupu dla tego produktu?')) {
+                    updatePurchasePrice(productId, null);
+                }
+            }
+        }
+
+        function toggleEditMode(row, isEditing) {
+            if (!row) return;
+            var displayContainer = row.querySelector('.price-display-container');
+            var editContainer = row.querySelector('.price-edit-container');
+            displayContainer.classList.toggle('hidden', isEditing);
+            editContainer.classList.toggle('hidden', !isEditing);
+            if (isEditing) {
+                var input = editContainer.querySelector('.price-edit-input');
+                input.focus();
+                input.select();
+            }
+        }
+
+        function getToken() {
+            var f = document.getElementById('uploadAllegroMarginsForm');
+            if (!f) return null;
+            var inp = f.querySelector('input[name="__RequestVerificationToken"]');
+            return inp ? inp.value : null;
+        }
+
+        function updatePurchasePrice(productId, newPrice) {
+            var token = getToken();
+            if (!token) {
+                alert('Błąd bezpieczeństwa: Nie znaleziono tokenu weryfikacyjnego.');
+                return;
+            }
+
+            fetch('@Url.Action("UpdateAllegroPurchasePrice", "AllegroProduct")?storeId=' + storeId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify({ AllegroProductId: parseInt(productId), NewPrice: newPrice })
+            })
+            .then(function (response) {
+                if (!response.ok) {
+                    return response.json().then(function (err) { throw new Error(err.message || 'Błąd serwera'); });
+                }
+                return response.json();
+            })
+            .then(function (data) {
+                if (data.success) {
+                    var product = productMap[parseInt(productId)];
+                    if (product) {
+                        product.allegroMarginPrice = newPrice;
+                    }
+                    renderVirtual(true);
+                } else {
+                    alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować ceny.'));
+                }
+            })
+            .catch(function (error) {
+                console.error('Błąd podczas aktualizacji ceny:', error);
+                alert('Wystąpił błąd komunikacji: ' + error.message);
+            });
+        }
+
+        // ============================================================
+        // FILTER PIPELINE
+        // ============================================================
+        function filterRows() {
+            var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
+                .map(function (cb) { return cb.getAttribute('data-status'); });
+            var searchTerm = searchInput.value.toLowerCase();
+
+            var result = allProducts.filter(function (p) {
+                var nameMatch = p.allegroProductName.toLowerCase().includes(searchTerm);
+                var eanMatch = (p.allegroEan || '').toLowerCase().includes(searchTerm);
+                var idMatch = (p.idOnAllegro || '').toLowerCase().includes(searchTerm);
+                var skuMatch = (p.allegroSku || '').toLowerCase().includes(searchTerm);
+                var statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(getProductStatus(p));
+                return (nameMatch || eanMatch || idMatch || skuMatch) && statusMatch;
+            });
+
+            var productsBeforeFlagFilter = result.slice();
+
+            if (selectedFlagsExclude.size > 0) {
+                result = result.filter(function (item) {
+                    if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return false;
+                    if (item.flagIds) {
+                        for (var it = selectedFlagsExclude.values(), val = null; (val = it.next().value) !== undefined;) {
+                            if (val !== 'noFlag' && item.flagIds.includes(parseInt(val))) return false;
+                        }
+                    }
+                    return true;
+                });
+            }
+
+            if (selectedFlagsInclude.size > 0) {
+                result = result.filter(function (item) {
+                    if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return true;
+                    if (item.flagIds) {
+                        return item.flagIds.some(function (fid) { return selectedFlagsInclude.has(fid.toString()); });
+                    }
+                    return false;
+                });
+            }
+
+            filteredProducts = result;
+
+            lastRenderedStart = -1;
+            lastRenderedEnd = -1;
+            renderVirtual(true);
+            updateCounters();
+            updateAndRenderFlagFilters(productsBeforeFlagFilter);
+        }
+
+        // ============================================================
+        // FETCH
+        // ============================================================
+        function fetchProducts() {
+            fetch('@Url.Action("GetAllegroProducts", "AllegroProduct")?storeId=' + storeId)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    allProducts = data;
+                    productMap = {};
+                    allProducts.forEach(function (p) {
+                        productMap[p.allegroProductId] = p;
+                    });
+                    filterRows();
+                })
+                .catch(function (err) {
+                    console.error('Error fetching products:', err);
+                });
+        }
+
+        // ============================================================
+        // HELPERS
+        // ============================================================
+        function getProductStatus(product) {
+            if (product.isScrapable && product.isRejected) return "active-rejected";
+            if (product.isScrapable) return "active";
+            if (product.isRejected) return "inactive-rejected";
+            return "inactive";
+        }
+
+        function getStatusInfo(product) {
+            if (product.isScrapable && product.isRejected) {
+                return { boxClass: 'StatusBoxProduct-1', text: 'Odrzucony', checkboxClass: 'rejected' };
+            } else if (product.isScrapable) {
+                return { boxClass: 'StatusBoxProduct-2', text: 'Aktywny', checkboxClass: '' };
+            } else if (product.isRejected) {
+                return { boxClass: 'StatusBoxProduct-3', text: 'Wyłączony', checkboxClass: '' };
+            }
+            return { boxClass: 'StatusBoxProduct-4', text: 'Nieaktywny', checkboxClass: '' };
+        }
+
+        function highlightMatches(text, searchTerm) {
+            if (!searchTerm || !text) return text || '';
+            var sanitized = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
+            if (!sanitized) return text;
+            var regex = new RegExp('(' + sanitized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+            return text.replace(regex, '<span style="color: #9400D3; font-weight: 600;">$1</span>');
+        }
+
+        function hexToRgba(hex, alpha) {
+            var r = 0, g = 0, b = 0;
+            if (hex.length == 4) {
+                r = parseInt(hex[1] + hex[1], 16);
+                g = parseInt(hex[2] + hex[2], 16);
+                b = parseInt(hex[3] + hex[3], 16);
+            } else if (hex.length == 7) {
+                r = parseInt(hex[1] + hex[2], 16);
+                g = parseInt(hex[3] + hex[4], 16);
+                b = parseInt(hex[5] + hex[6], 16);
+            }
+            return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+        }
+
+        function createFlagsHTML(product) {
+            if (!product.flagIds || product.flagIds.length === 0) return '';
+            var html = '<div class="flags-container">';
+            product.flagIds.forEach(function (flagId) {
+                var flag = flags.find(function (f) { return f.FlagId === flagId; });
+                if (flag) {
+                    html += '<span class="flag" style="color:' + flag.FlagColor +
+                        ';border:2px solid ' + flag.FlagColor +
+                        ';background-color:' + hexToRgba(flag.FlagColor, 0.3) + ';">' +
+                        flag.FlagName + '</span>';
+                }
+            });
+            html += '</div>';
+            return html;
+        }
+
+        // ============================================================
+        // COUNTERS
+        // ============================================================
+        function updateCounters() {
+            var activeRejectedCount = 0, activeCount = 0, inactiveRejectedCount = 0, inactiveCount = 0;
+
+            for (var i = 0; i < allProducts.length; i++) {
+                var p = allProducts[i];
+                if (p.isScrapable && p.isRejected) activeRejectedCount++;
+                else if (p.isScrapable) activeCount++;
+                else if (p.isRejected) inactiveRejectedCount++;
+                else inactiveCount++;
+            }
+
+            document.getElementById('count-active-rejected').textContent = activeRejectedCount;
+            document.getElementById('count-active').textContent = activeCount;
+            document.getElementById('count-inactive-rejected').textContent = inactiveRejectedCount;
+            document.getElementById('count-inactive').textContent = inactiveCount;
+            document.getElementById('scrapable-count').textContent = activeRejectedCount + activeCount;
+            document.getElementById('total-products').textContent = allProducts.length;
+        }
+
+        // ============================================================
+        // FLAG FILTERS
+        // ============================================================
+        function updateAndRenderFlagFilters(products) {
+            var flagCounts = {};
+            var noFlagCount = 0;
+
+            products.forEach(function (p) {
+                if (!p.flagIds || p.flagIds.length === 0) {
+                    noFlagCount++;
+                } else {
+                    p.flagIds.forEach(function (id) {
+                        flagCounts[id] = (flagCounts[id] || 0) + 1;
+                    });
+                }
+            });
+
+            var flagContainer = document.getElementById('flagFilterList');
+            if (!flagContainer) return;
+            flagContainer.innerHTML = '';
+
+            if (typeof flags !== 'undefined' && flags) {
+                flags.forEach(function (flag) {
+                    var count = flagCounts[flag.FlagId] || 0;
+                    var includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
+                    var excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
+
+                    flagContainer.insertAdjacentHTML('beforeend',
+                        '<div class="flag-filter-group">' +
+                            '<div class="form-check form-check-inline check-include" style="margin-right:0px;">' +
+                                '<input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_' + flag.FlagId + '" value="' + flag.FlagId + '" ' + includeChecked + ' title="Pokaż wszystkie produkty z tą flagą">' +
+                            '</div>' +
+                            '<div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">' +
+                                '<input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_' + flag.FlagId + '" value="' + flag.FlagId + '" ' + excludeChecked + ' title="Ukryj wszystkie produkty z tą flagą">' +
+                            '</div>' +
+                            '<span class="flag-name-count" style="font-size:14px; font-weight: 400;">' + flag.FlagName + ' (' + count + ')</span>' +
+                        '</div>');
+                });
+            }
+
+            var noFlagIncludeChecked = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
+            var noFlagExcludeChecked = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
+            flagContainer.insertAdjacentHTML('beforeend',
+                '<div class="flag-filter-group">' +
+                    '<div class="form-check form-check-inline check-include" style="margin-right:0px;">' +
+                        '<input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_noFlag" value="noFlag" ' + noFlagIncludeChecked + ' title="Pokaż wszystkie produkty bez flagi">' +
+                    '</div>' +
+                    '<div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">' +
+                        '<input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_noFlag" value="noFlag" ' + noFlagExcludeChecked + ' title="Ukryj wszystkie produkty bez flagi">' +
+                    '</div>' +
+                    '<span class="flag-name-count" style="font-size:14px; font-weight: 400;">Brak flagi (' + noFlagCount + ')</span>' +
+                '</div>');
+
+            document.querySelectorAll('.flagFilterInclude, .flagFilterExclude').forEach(function (checkbox) {
+                checkbox.addEventListener('change', function () {
+                    var flagValue = this.value;
+                    var isInclude = this.classList.contains('flagFilterInclude');
+                    if (isInclude) {
+                        if (this.checked) {
+                            document.getElementById('flagCheckboxExclude_' + flagValue).checked = false;
+                            selectedFlagsExclude.delete(flagValue);
+                            selectedFlagsInclude.add(flagValue);
+                        } else {
+                            selectedFlagsInclude.delete(flagValue);
+                        }
+                    } else {
+                        if (this.checked) {
+                            document.getElementById('flagCheckboxInclude_' + flagValue).checked = false;
+                            selectedFlagsInclude.delete(flagValue);
+                            selectedFlagsExclude.add(flagValue);
+                        } else {
+                            selectedFlagsExclude.delete(flagValue);
+                        }
+                    }
+                    filterRows();
+                });
+            });
+        }
+
+    })();
+    </script>
+
+    <!-- Upload margins modal script -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var uploadMarginsModal = document.getElementById('uploadAllegroMarginsModal');
+        var uploadMarginsForm = document.getElementById('uploadAllegroMarginsForm');
+        var uploadedFileField = document.getElementById('uploadedAllegroFile');
+        var submitUploadButton = document.getElementById('submitUploadAllegroMarginsButton');
+        var uploadClientError = document.getElementById('uploadAllegroClientError');
+        var originalButtonText = submitUploadButton ? submitUploadButton.innerHTML : 'Wgraj ceny zakupu';
+        var clearAllMarginsButton = document.getElementById('clearAllAllegroMarginsButton');
+        var storeIdForMargins = @ViewBag.StoreId;
+
+        var uploadMarginsButton = document.getElementById('uploadMarginsButton');
+        if (uploadMarginsButton && uploadMarginsModal) {
+            uploadMarginsButton.addEventListener('click', function () {
+                if (uploadMarginsForm) uploadMarginsForm.reset();
+                if (uploadClientError) {
+                    uploadClientError.style.display = 'none';
+                    uploadClientError.textContent = '';
+                }
+                if (submitUploadButton) {
+                    submitUploadButton.disabled = false;
+                    submitUploadButton.innerHTML = originalButtonText;
+                }
+                updateAllegroModalStats();
+                $('#uploadAllegroMarginsModal').modal('show');
+            });
+        }
+
+        if (uploadMarginsForm && uploadedFileField && submitUploadButton && uploadClientError) {
+            uploadMarginsForm.addEventListener('submit', function (event) {
+                uploadClientError.style.display = 'none';
+                uploadClientError.textContent = '';
+
+                if (!uploadedFileField.files || uploadedFileField.files.length === 0) {
+                    event.preventDefault();
+                    uploadClientError.textContent = 'Proszę wybrać plik.';
+                    uploadClientError.style.display = 'block';
+                    return;
+                }
+
+                var fileName = uploadedFileField.files[0].name;
+                var fileSize = uploadedFileField.files[0].size;
+                var allowedExtensions = /(\.xls|\.xlsx)$/i;
+                var maxFileSize = 10 * 1024 * 1024;
+
+                if (!allowedExtensions.exec(fileName)) {
+                    event.preventDefault();
+                    uploadClientError.textContent = 'Niewspierany format pliku. Proszę wgrać plik Excel (.xls lub .xlsx).';
+                    uploadClientError.style.display = 'block';
+                    uploadedFileField.value = '';
+                    return;
+                }
+
+                if (fileSize > maxFileSize) {
+                    event.preventDefault();
+                    uploadClientError.textContent = 'Wielkość pliku nie może przekraczać 10 MB.';
+                    uploadClientError.style.display = 'block';
+                    uploadedFileField.value = '';
+                    return;
+                }
+
+                submitUploadButton.disabled = true;
+                submitUploadButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Wgrywanie...';
+            });
+        }
+
+        if (clearAllMarginsButton) {
+            clearAllMarginsButton.addEventListener('click', function () {
+                if (!confirm('Jesteś pewien, że chcesz usunąć WSZYSTKIE ceny zakupu dla produktów Allegro w tym sklepie? Ta operacja jest nieodwracalna.')) {
+                    return;
+                }
+
+                this.disabled = true;
+                var originalButtonHTML = this.innerHTML;
+                this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Usuwanie...';
+
+                var token = null;
+                var formWithToken = document.getElementById('uploadAllegroMarginsForm');
+                if (formWithToken) {
+                    var tokenInput = formWithToken.querySelector('input[name="__RequestVerificationToken"]');
+                    if (tokenInput) token = tokenInput.value;
+                }
+
+                if (!token) {
+                    alert('Nie można znaleźć tokenu weryfikacyjnego. Operacja anulowana.');
+                    this.disabled = false;
+                    this.innerHTML = originalButtonHTML;
+                    return;
+                }
+
+                var self = this;
+                fetch('@Url.Action("ClearAllAllegroPurchasePrices", "AllegroProduct")?storeId=' + storeIdForMargins, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'RequestVerificationToken': token
+                    }
+                })
+                .then(function (response) {
+                    if (!response.ok) {
+                        var contentType = response.headers.get("content-type");
+                        if (contentType && contentType.indexOf("application/json") !== -1) {
+                            return response.json().then(function (errData) {
+                                throw new Error(errData.message || 'Błąd serwera (JSON): ' + response.status);
+                            });
+                        } else {
+                            return response.text().then(function (textData) {
+                                throw new Error('Błąd serwera (' + response.status + '). Odpowiedź nie była w formacie JSON.');
+                            });
+                        }
+                    }
+                    var contentType = response.headers.get("content-type");
+                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                        return response.json();
+                    } else {
+                        throw new Error('Serwer odpowiedział poprawnie, ale odpowiedź nie jest w formacie JSON.');
+                    }
+                })
+                .then(function (data) {
+                    if (data.success) {
+                        $('#uploadAllegroMarginsModal').modal('hide');
+                        // Local clear
+                        var products = typeof window.getAllProducts === 'function' ? window.getAllProducts() : [];
+                        products.forEach(function (p) {
+                            p.allegroMarginPrice = null;
+                        });
+                        if (typeof window.triggerFilterRows === 'function') window.triggerFilterRows();
+                        alert(data.message || 'Ceny zakupu zostały usunięte.');
+                    } else {
+                        alert(data.message || 'Wystąpił błąd podczas usuwania cen zakupu.');
+                        self.disabled = false;
+                        self.innerHTML = originalButtonHTML;
+                    }
+                })
+                .catch(function (error) {
+                    console.error('Błąd podczas usuwania cen zakupu Allegro:', error);
+                    alert('Wystąpił błąd komunikacji: ' + error.message);
+                    self.disabled = false;
+                    self.innerHTML = originalButtonHTML;
+                });
+            });
+        }
+
+        function updateAllegroModalStats() {
+            var elTotal = document.getElementById('stat-allegro-total-products');
+            var elWithPrice = document.getElementById('stat-allegro-products-with-purchase-price');
+            var elActiveMon = document.getElementById('stat-allegro-active-monitoring-products');
+            var elActiveMonEan = document.getElementById('stat-allegro-active-monitoring-with-ean');
+            var elActiveMonPrice = document.getElementById('stat-allegro-active-monitoring-with-purchase-price');
+
+            var products = typeof window.getAllProducts === 'function' ? window.getAllProducts() : [];
+
+            if (!products || products.length === 0) {
+                elTotal.textContent = '0';
+                elWithPrice.textContent = '0 (0.0%)';
+                elActiveMon.textContent = '0';
+                elActiveMonEan.textContent = '0 (0.0%)';
+                elActiveMonPrice.textContent = '0 (0.0%)';
+                return;
+            }
+
+            var totalProducts = products.length;
+            var productsWithPurchasePrice = products.filter(function (p) { return p.allegroMarginPrice != null && p.allegroMarginPrice.toString().trim() !== ''; }).length;
+            var activeMonitoringProducts = products.filter(function (p) { return p.isScrapable && !p.isRejected; });
+            var activeMonitoringCount = activeMonitoringProducts.length;
+            var activeMonitoringWithEan = activeMonitoringProducts.filter(function (p) { return p.allegroEan && p.allegroEan.trim() !== ''; }).length;
+            var activeMonitoringWithPurchasePrice = activeMonitoringProducts.filter(function (p) { return p.allegroMarginPrice != null && p.allegroMarginPrice.toString().trim() !== ''; }).length;
+
+            elTotal.textContent = totalProducts;
+            elWithPrice.textContent = productsWithPurchasePrice + ' (' + (totalProducts > 0 ? ((productsWithPurchasePrice / totalProducts) * 100).toFixed(1) : '0.0') + '%)';
+            elActiveMon.textContent = activeMonitoringCount;
+            elActiveMonEan.textContent = activeMonitoringWithEan + ' (' + (activeMonitoringCount > 0 ? ((activeMonitoringWithEan / activeMonitoringCount) * 100).toFixed(1) : '0.0') + '%)';
+            elActiveMonPrice.textContent = activeMonitoringWithPurchasePrice + ' (' + (activeMonitoringCount > 0 ? ((activeMonitoringWithPurchasePrice / activeMonitoringCount) * 100).toFixed(1) : '0.0') + '%)';
+        }
+
+        if (uploadMarginsModal) {
+            $(uploadMarginsModal).on('hidden.bs.modal', function () {
+                if (uploadClientError) uploadClientError.style.display = 'none';
+                if (submitUploadButton) {
+                    submitUploadButton.disabled = false;
+                    submitUploadButton.innerHTML = originalButtonText;
+                }
+            });
+        }
+    });
     </script>
 }
