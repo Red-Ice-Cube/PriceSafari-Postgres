@@ -589,20 +589,22 @@
                 const includeChecked = selectedAutomationsInclude.has(ruleId.toString()) ? 'checked' : '';
                 const excludeChecked = selectedAutomationsExclude.has(ruleId.toString()) ? 'checked' : '';
 
-                const colorRectStyle = `display:inline-block; width:4px; height:14px; background-color:${meta.color}; vertical-align:middle; margin-right:6px; border-radius:2px; margin-bottom: 2px;`;
+                
+                const colorRectStyle = `display:inline-block; width:4px; height:14px; background-color:${meta.color}; vertical-align:middle; margin-right:6px; border-radius:2px; margin-bottom: 2px; flex-shrink: 0;`;
 
                 const html = `
-            <div class="flag-filter-group">
-                <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
                     <input class="form-check-input automationFilterInclude flagFilterInclude" type="checkbox" id="autoCheckInclude_${ruleId}" value="${ruleId}" ${includeChecked} title="Pokaż tylko produkty w tym automacie">
                 </div>
-                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
                     <input class="form-check-input automationFilterExclude flagFilterExclude" type="checkbox" id="autoCheckExclude_${ruleId}" value="${ruleId}" ${excludeChecked} title="Ukryj produkty w tym automacie">
                 </div>
 
-                <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center;">
+                <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0;">
                     <span style="${colorRectStyle}"></span>
-                    ${meta.name} <span style="color:#888; margin-left:4px;">(${count})</span>
+                    <span title="${meta.name}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${meta.name}</span>
+                    <span style="color:#888; margin-left:4px; flex-shrink: 0;">(${count})</span>
                 </span>
             </div>`;
 
@@ -615,16 +617,17 @@
             const noRuleCountDisplay = currentNoRuleCount;
 
             const noRuleHtml = `
-        <div class="flag-filter-group">
-            <div class="form-check form-check-inline check-include" style="margin-right:0px;">
+        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
                 <input class="form-check-input automationFilterInclude flagFilterInclude" type="checkbox" id="autoCheckInclude_noRule" value="noRule" ${noRuleIncludeChecked} title="Pokaż produkty bez automatu">
             </div>
-            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px;">
+            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
                 <input class="form-check-input automationFilterExclude flagFilterExclude" type="checkbox" id="autoCheckExclude_noRule" value="noRule" ${noRuleExcludeChecked} title="Ukryj produkty bez automatu">
             </div>
-            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center;">
-                <span style="display:inline-block; width:4px; height:14px; background-color:#ccc; vertical-align:middle; margin-right:6px; border-radius:2px; margin-bottom: 2px;"></span>
-                Brak automatu <span style="color:#888; margin-left:4px;">(${noRuleCountDisplay})</span>
+            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0;">
+                <span style="display:inline-block; width:4px; height:14px; background-color:#ccc; vertical-align:middle; margin-right:6px; border-radius:2px; margin-bottom: 2px; flex-shrink: 0;"></span>
+                <span title="Brak automatu" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Brak automatu</span>
+                <span style="color:#888; margin-left:4px; flex-shrink: 0;">(${noRuleCountDisplay})</span>
             </span>
         </div>`;
 

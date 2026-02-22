@@ -232,6 +232,7 @@ p {
 .Page-Box-Category {
     display: flex;
     min-width: 240px;
+    max-width: 265px;
     flex-direction: column;
     border-right: 1px solid #EDEDED;
     padding: 0px 20px 0px 0px;
@@ -2879,7 +2880,7 @@ tr:last-child .sub-line {
 .mode-switch-btn {
     border: none;
     background: transparent;
-    padding: 6px 16px;
+    padding: 6px 14px;
     border-radius: 16px;
     font-size: 14px;
     font-weight: 600;
