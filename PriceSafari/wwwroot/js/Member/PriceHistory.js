@@ -1007,6 +1007,12 @@
     });
 
     function convertPriceValue(price, usePriceDifference) {
+        
+        const myPriceCheck = price.myPrice != null ? parseFloat(price.myPrice) : 0;
+        if (price.isRejected || myPriceCheck <= 0.01) {
+            return { valueToUse: null, colorClass: 'prNoOffer' };
+        }
+
         if (price.onlyMe) {
             return { valueToUse: null, colorClass: 'prOnlyMe' };
         } else {
@@ -1014,19 +1020,14 @@
             let displayValueToUse;
 
             if (usePriceDifference) {
-             
                 valueForColorCalculation = (price.savings !== null ? price.savings : price.priceDifference);
                 displayValueToUse = valueForColorCalculation;
             } else {
-              
                 displayValueToUse = price.percentageDifference;
 
-         
                 if (price.myPrice && price.lowestPrice && parseFloat(price.myPrice) > parseFloat(price.lowestPrice) && !price.isUniqueBestPrice && !price.isSharedBestPrice) {
                     valueForColorCalculation = ((parseFloat(price.myPrice) - parseFloat(price.lowestPrice)) / parseFloat(price.myPrice)) * 100;
                 } else {
-                
-              
                     if (price.isUniqueBestPrice && price.savings && price.myPrice) {
                         valueForColorCalculation = (parseFloat(price.savings) / parseFloat(price.myPrice)) * 100;
                     } else {
