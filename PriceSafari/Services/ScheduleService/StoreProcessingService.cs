@@ -1,11 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
+using PriceSafari.Models.DTOs; // <--- Dodaj to
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO; // <--- Dodaj to
 using System.Linq;
+using System.Text.Json; // <--- Dodaj to
 using System.Threading.Tasks;
+using System.Xml.Serialization; // <--- Dodaj to
 
 public class StoreProcessingService
 {
@@ -231,5 +235,85 @@ public class StoreProcessingService
             _context.Entry(prod).State = EntityState.Modified;
         }
         await _context.SaveChangesAsync();
+
+        // ========================================================
+        // NOWOŚĆ: GENEROWANIE PLIKU PO ZAKOŃCZENIU ZAPISÓW BAZY
+        // ========================================================
+        if (store.IsApiExportEnabled && !string.IsNullOrEmpty(store.ApiExportToken))
+        {
+            await GenerateExportFilesAsync(store, products, priceHistoriesAll, canonicalStoreName);
+        }
+    }
+
+
+    private async Task GenerateExportFilesAsync(StoreClass store, List<ProductClass> products, List<PriceHistoryClass> priceHistories, string canonicalStoreName)
+    {
+        var myStoreNameLower = canonicalStoreName.ToLower().Trim();
+
+        // 1. Budujemy strukturę DTO z surowych danych, które właśnie zeskrobaliśmy
+        var feed = new ExportFeedDto
+        {
+            StoreId = store.StoreId,
+            StoreName = canonicalStoreName,
+            GeneratedAt = DateTime.Now
+        };
+
+        // Grupujemy historie po ID produktu
+        var historiesByProduct = priceHistories.GroupBy(p => p.ProductId).ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var product in products)
+        {
+            if (!historiesByProduct.TryGetValue(product.ProductId, out var productHistories))
+                continue;
+
+            // Szukamy naszej oferty (nieważne czy z Google czy Ceneo, bierzemy pierwszą napotkaną jako naszą)
+            var myOffer = productHistories.FirstOrDefault(ph => ph.StoreName != null && ph.StoreName.ToLower().Trim() == myStoreNameLower);
+
+            // Szukamy ofert konkurencji
+            var competitors = productHistories
+                .Where(ph => ph.StoreName != null && ph.StoreName.ToLower().Trim() != myStoreNameLower && ph.Price > 0)
+                .Select(ph => new ExportCompetitorDto
+                {
+                    StoreName = ph.StoreName,
+                    Price = ph.Price,
+                    ShippingCost = ph.ShippingCostNum,
+                    Source = ph.IsGoogle == true ? "Google" : "Ceneo"
+                }).ToList();
+
+            feed.Products.Add(new ExportProductDto
+            {
+                ProductId = product.ProductId,
+                ExternalId = product.ExternalId?.ToString(),
+                ProducerCode = product.ProducerCode,
+                Ean = product.Ean,
+                ProductName = product.ProductName,
+                MyPrice = myOffer?.Price,
+                MyShippingCost = myOffer?.ShippingCostNum,
+                Competitors = competitors
+            });
+        }
+
+        // 2. Przygotowujemy folder na pliki (np. w App_Data, żeby IIS nie serwował tego publicznie)
+        var exportFolder = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "PriceExports");
+        if (!Directory.Exists(exportFolder))
+        {
+            Directory.CreateDirectory(exportFolder);
+        }
+
+        // 3. Ścieżki do plików
+        var jsonPath = Path.Combine(exportFolder, $"feed_{store.StoreId}.json");
+        var xmlPath = Path.Combine(exportFolder, $"feed_{store.StoreId}.xml");
+
+        // 4. Zapis do JSON (Nadpisuje stary plik)
+        var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
+        var jsonString = JsonSerializer.Serialize(feed, jsonOptions);
+        await File.WriteAllTextAsync(jsonPath, jsonString);
+
+        // 5. Zapis do XML (Nadpisuje stary plik)
+        var xmlSerializer = new XmlSerializer(typeof(ExportFeedDto));
+        using (var stream = new FileStream(xmlPath, FileMode.Create))
+        {
+            xmlSerializer.Serialize(stream, feed);
+        }
     }
 }

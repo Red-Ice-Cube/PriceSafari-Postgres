@@ -114,6 +114,17 @@ namespace PriceSafari.Models
 
         public bool CollectGoogleStoreLinks { get; set; } = false;
 
+
+        // W pliku StoreClass.cs
+
+        [Display(Name = "Eksport XML/JSON dla API włączony")]
+        public bool IsApiExportEnabled { get; set; } = false;
+
+        [Display(Name = "Token dostępu do API (JSON/XML)")]
+        [MaxLength(100)]
+        public string? ApiExportToken { get; set; }
+        // Sugeruję wygenerować tu Guid w momencie tworzenia sklepu/włączania opcji, np. Guid.NewGuid().ToString("N")
+
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
         public ICollection<ProductClass> Products { get; set; } = new List<ProductClass>();
         public ICollection<AllegroProductClass> AllegroProducts { get; set; } = new List<AllegroProductClass>();
