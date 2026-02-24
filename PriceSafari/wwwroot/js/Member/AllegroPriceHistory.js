@@ -2707,8 +2707,11 @@
                  
                     const myPriceVal = item.myPrice != null ? parseFloat(item.myPrice) : 0;
                     let priceMatch = false;
-                  
-                    if (myPriceVal > 0.01) {
+
+                    if (item.isRejected || myPriceVal <= 0.01) {
+                        priceMatch = true;
+                    } else {
+
                         priceMatch = myPriceVal >= priceMin && myPriceVal <= priceMax;
                     }
 
