@@ -1652,43 +1652,50 @@
 
 
                 <div class="price-box-column">
-                    ${myPrice != null ?
-                                    `<div class="price-box-column-text">
+                ${(myPrice != null && !item.isRejected) ?
+                                `<div class="price-box-column-text">
+                        <div>
+                            ${item.committed && item.committed.newPrice ?
+                                    `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                    <s style="color: #999; font-size: 17px; font-weight: 500;">${formatPricePL(myPrice)}</s>
+                                    ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
+                                </div>` :
+                                    `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                    <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${formatPricePL(myPrice)}</span>
+                                    ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
+                                </div>`
+                                }
                             <div>
-                                ${item.committed && item.committed.newPrice ?
-                                        `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                                        <s style="color: #999; font-size: 17px; font-weight: 500;">${formatPricePL(myPrice)}</s>
-                                        ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
-                                    </div>` :
-                                        `<div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                                        <span style="font-weight: 500; font-size: 17px; ${myPriceStyle}">${formatPricePL(myPrice)}</span>
-                                        ${myPriceIcon}${mySuperPriceBadge}${myTopOfferBadge}
-                                    </div>`
-                                    }
-                                <div>
-                                    ${highlightedMyStoreName}
-                                    ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
-                                    ${myPromoInfoText}
-                                </div>
+                                ${highlightedMyStoreName}
+                                ${item.myIsSuperSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">` : ''}
+                                ${myPromoInfoText}
                             </div>
-                            ${marginHtml}${commissionHtml}${createApiInfoHtml(item)}
                         </div>
+                        ${marginHtml}${commissionHtml}${createApiInfoHtml(item)}
+                    </div>
+                    <div class="price-box-column-text">
+                        <div class="data-channel">
+                            ${item.myIsSmart ? `<div class="Smart-Allegro"><img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;"></div>` : ''}
+                            ${renderDeliveryInfo(item.myDeliveryTime)}
+                        </div>
+                    </div>`
+                                :
+                                `<div class="price-box-column-text">
+                        <span style="font-weight: 500; font-size: 17px;">Brak Twojej oferty</span>
+                        <div>${highlightedMyStoreName}</div>
+                        ${marginHtml}
+                    </div>
+                    <div class="price-box-column-text">
+                        <div class="data-channel">
+                            <span class="Position" style="background-color: #9C9C9C; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; display: inline-block;">
+                                Brak oferty lub poza zakresem (TOP 60)
+                            </span>
+                        </div>
+                    </div>`
+                }
+            </div>
 
-                        <div class="price-box-column-text">
-                            <div class="data-channel">
-                                ${item.myIsSmart ? `<div class="Smart-Allegro"><img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;"></div>` : ''}
-                                ${renderDeliveryInfo(item.myDeliveryTime)}
-                            </div>
-                        </div>`
-                                    :
-                                    `<div class="price-box-column-text">
-                            <div><span style="font-weight: 500;">Brak Twojej oferty</span></div>
-                            ${marginHtml}
-                        </div>`
-                    }
-                </div>
-
-              <div class="price-box-column-action"></div>
+              ${!(item.isRejected || myPrice === null) ? '<div class="price-box-column-action"></div>' : ''}
           </div>
           `;
 
@@ -1764,129 +1771,127 @@
             });
 
             const infoCol = box.querySelector('.price-box-column-action');
-            infoCol.innerHTML = '';
 
-            if (item.committed) {
+            if (infoCol) {
+                infoCol.innerHTML = '';
 
-                const newPrice = item.committed.newPrice;
-                const oldPrice = item.apiAllegroPriceFromUser != null ? parseFloat(item.apiAllegroPriceFromUser) : (myPrice != null ? parseFloat(myPrice) : null);
+                if (item.committed) {
+                    const newPrice = item.committed.newPrice;
+                    const oldPrice = item.apiAllegroPriceFromUser != null ? parseFloat(item.apiAllegroPriceFromUser) : (myPrice != null ? parseFloat(myPrice) : null);
 
-                let priceDiffHtml = '';
-                if (oldPrice != null && newPrice != null) {
-                    const diffAmount = newPrice - oldPrice;
-                    const diffPercent = (oldPrice > 0) ? (diffAmount / oldPrice) * 100 : 0;
-                    let badgeText = diffAmount > 0 ? 'Podwyżka ceny' : (diffAmount < 0 ? 'Obniżka ceny' : 'Brak zmiany ceny');
+                    let priceDiffHtml = '';
+                    if (oldPrice != null && newPrice != null) {
+                        const diffAmount = newPrice - oldPrice;
+                        const diffPercent = (oldPrice > 0) ? (diffAmount / oldPrice) * 100 : 0;
+                        let badgeText = diffAmount > 0 ? 'Podwyżka ceny' : (diffAmount < 0 ? 'Obniżka ceny' : 'Brak zmiany ceny');
 
-                    priceDiffHtml = `
-         <div class="price-diff-stack" style="text-align: left; margin-top: 3px;">
-             <div class="price-diff-stack-badge">${badgeText}</div>
-             <span class="diff-amount small-font">${diffAmount >= 0 ? '+' : ''}${formatPricePL(diffAmount, false)} PLN</span>
-             <span class="diff-percentage small-font" style="margin-left: 6px;">(${diffPercent >= 0 ? '+' : ''}${diffPercent.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>
-         </div>`;
+                        priceDiffHtml = `
+                            <div class="price-diff-stack" style="text-align: left; margin-top: 3px;">
+                                <div class="price-diff-stack-badge">${badgeText}</div>
+                                <span class="diff-amount small-font">${diffAmount >= 0 ? '+' : ''}${formatPricePL(diffAmount, false)} PLN</span>
+                                <span class="diff-percentage small-font" style="margin-left: 6px;">(${diffPercent >= 0 ? '+' : ''}${diffPercent.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</span>
+                            </div>`;
+                    }
+
+                    let newMarginHtml = '';
+                    if (item.marginPrice != null && newPrice != null) {
+                        const marginPriceVal = parseFloat(item.marginPrice);
+                        const commissionVal = item.committed.newCommission != null ? item.committed.newCommission : (allegroMarginSettings.includeCommissionInPriceChange && item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : 0);
+                        const commissionToDeduct = allegroMarginSettings.includeCommissionInPriceChange ? commissionVal : 0;
+                        const netPriceForMargin = newPrice - commissionToDeduct;
+                        const newMarginAmount = netPriceForMargin - marginPriceVal;
+                        const newMarginPercent = (marginPriceVal !== 0) ? (newMarginAmount / marginPriceVal) * 100 : 0;
+
+                        const marginSign = newMarginAmount >= 0 ? '+' : '';
+                        const marginClass = newMarginAmount > 0 ? 'priceBox-diff-margin-ins' : (newMarginAmount < 0 ? 'priceBox-diff-margin-minus-ins' : 'priceBox-diff-margin-neutral-ins');
+                        const badgeClass = getMarginBadgeClass(marginClass);
+                        let bgMarginClass = 'price-box-diff-margin-ib-neutral';
+                        if (marginClass === 'priceBox-diff-margin-ins') bgMarginClass = 'price-box-diff-margin-ib-positive';
+                        else if (marginClass === 'priceBox-diff-margin-minus-ins') bgMarginClass = 'price-box-diff-margin-ib-negative';
+
+                        newMarginHtml = `
+                            <div class="price-box-diff-margin-ib ${bgMarginClass}" style="margin-top: 3px;">
+                                <span class="price-badge ${badgeClass}">Nowy narzut</span>
+                                <p>${marginSign}${formatPricePL(Math.abs(newMarginAmount), false)} PLN (${marginSign}${Math.abs(newMarginPercent).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</p>
+                            </div>`;
+                    }
+
+                    let newCommissionHtml = '';
+                    const commissionToShow = item.committed.newCommission != null ? item.committed.newCommission : (item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : null);
+
+                    if (commissionToShow != null) {
+                        const formattedComm = formatPricePL(commissionToShow, false);
+                        const commStatus = allegroMarginSettings.includeCommissionInPriceChange ?
+                            '<span style="font-weight: 400; color: #555;"> | uwzględniony</span>' :
+                            '<span style="font-weight: 400; color: #999;"> | nieuwzględniony</span>';
+                        newCommissionHtml = `
+                            <div class="Commission-stack" style="text-align: left; margin-top: 3px;">
+                                <span class="commission-stack-badge">Koszt Allegro</span>
+                                <p>${formattedComm} PLN${commStatus}</p>
+                            </div>`;
+                    }
+
+                    infoCol.innerHTML = `
+                        <div class="price-box-column">
+                            <div class="price-box-column-text" style="padding: 0;">
+                                <div style="display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 600; color: #212529;">
+                                    <i class="fas fa-check-circle" style="color: #198754;"></i> ${formatPricePL(newPrice)}
+                                </div>
+                                <div style="font-size: 14px; color: #212529;">Zaktualizowane dane Twojej oferty</div>
+                                ${priceDiffHtml}
+                                ${newMarginHtml}
+                                ${newCommissionHtml}
+                            </div>
+                            <div style="color: #198754; font-weight: 600; display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 14px;">
+                                <i class="fas fa-check-circle"></i> Aktualizacja ceny wprowadzona
+                            </div>
+                        </div>`;
+
+                    const automationCol = createAutomationColumn(item);
+                    if (automationCol) {
+                        const priceBoxData = box.querySelector('.price-box-data');
+                        if (priceBoxData) priceBoxData.appendChild(automationCol);
+                    }
+                    return;
+
                 }
 
-                let newMarginHtml = '';
-                if (item.marginPrice != null && newPrice != null) {
-                    const marginPriceVal = parseFloat(item.marginPrice);
-                    const commissionVal = item.committed.newCommission != null ? item.committed.newCommission : (allegroMarginSettings.includeCommissionInPriceChange && item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : 0);
-                    const commissionToDeduct = allegroMarginSettings.includeCommissionInPriceChange ? commissionVal : 0;
-                    const netPriceForMargin = newPrice - commissionToDeduct;
-                    const newMarginAmount = netPriceForMargin - marginPriceVal;
-                    const newMarginPercent = (marginPriceVal !== 0) ? (newMarginAmount / marginPriceVal) * 100 : 0;
+                const existingChange = currentActiveChangesMap.get(String(item.productId));
+                const defaultSuggestionData = calculateCurrentSuggestion(item);
 
-                    const marginSign = newMarginAmount >= 0 ? '+' : '';
-                    const marginClass = newMarginAmount > 0 ? 'priceBox-diff-margin-ins' : (newMarginAmount < 0 ? 'priceBox-diff-margin-minus-ins' : 'priceBox-diff-margin-neutral-ins');
-                    const badgeClass = getMarginBadgeClass(marginClass);
-                    let bgMarginClass = 'price-box-diff-margin-ib-neutral';
-                    if (marginClass === 'priceBox-diff-margin-ins') bgMarginClass = 'price-box-diff-margin-ib-positive';
-                    else if (marginClass === 'priceBox-diff-margin-minus-ins') bgMarginClass = 'price-box-diff-margin-ib-negative';
+                if (defaultSuggestionData) {
+                    let finalSuggestionData;
+                    if (existingChange) {
+                        const basePriceForChangeCalc = item.apiAllegroPriceFromUser != null ?
+                            parseFloat(item.apiAllegroPriceFromUser) :
+                            (item.myPrice != null ? parseFloat(item.myPrice) : 0);
 
-                    newMarginHtml = `
-         <div class="price-box-diff-margin-ib ${bgMarginClass}" style="margin-top: 3px;">
-             <span class="price-badge ${badgeClass}">Nowy narzut</span>
-             <p>${marginSign}${formatPricePL(Math.abs(newMarginAmount), false)} PLN (${marginSign}${Math.abs(newMarginPercent).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)</p>
-         </div>`;
-                }
+                        const totalChangeAmount = existingChange.newPrice - basePriceForChangeCalc;
+                        const percentageChange = (basePriceForChangeCalc > 0) ? (totalChangeAmount / basePriceForChangeCalc) * 100 : 0;
 
-                let newCommissionHtml = '';
-                const commissionToShow = item.committed.newCommission != null ? item.committed.newCommission : (item.apiAllegroCommission != null ? parseFloat(item.apiAllegroCommission) : null);
+                        finalSuggestionData = {
+                            ...defaultSuggestionData,
+                            suggestedPrice: existingChange.newPrice,
+                            totalChangeAmount: totalChangeAmount,
+                            percentageChange: percentageChange
+                        };
+                    } else {
+                        finalSuggestionData = defaultSuggestionData;
+                    }
 
-                if (commissionToShow != null) {
-                    const formattedComm = formatPricePL(commissionToShow, false);
-                    const commStatus = allegroMarginSettings.includeCommissionInPriceChange ?
-                        '<span style="font-weight: 400; color: #555;"> | uwzględniony</span>' :
-                        '<span style="font-weight: 400; color: #999;"> | nieuwzględniony</span>';
-                    newCommissionHtml = `
-         <div class="Commission-stack" style="text-align: left; margin-top: 3px;">
-             <span class="commission-stack-badge">Koszt Allegro</span>
-             <p>${formattedComm} PLN${commStatus}</p>
-         </div>`;
-                }
+                    const suggestionRenderResult = renderSuggestionBlockHTML(item, finalSuggestionData);
+                    infoCol.innerHTML = suggestionRenderResult.html;
 
-                infoCol.innerHTML = `
-     <div class="price-box-column">
-         <div class="price-box-column-text" style="padding: 0;">
-             <div style="display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 600; color: #212529;">
-                 <i class="fas fa-check-circle" style="color: #198754;"></i> ${formatPricePL(newPrice)}
-             </div>
-             <div style="font-size: 14px; color: #212529;">Zaktualizowane dane Twojej oferty</div>
-             ${priceDiffHtml}
-             ${newMarginHtml}
-             ${newCommissionHtml}
-         </div>
-         <div style="color: #198754; font-weight: 600; display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 14px;">
-             <i class="fas fa-check-circle"></i> Aktualizacja ceny wprowadzona
-         </div>
-     </div>`;
-                const automationCol = createAutomationColumn(item);
-                if (automationCol) {
-                    // Musimy pobrać element z DOM, bo box został dodany przez container.appendChild(box) wcześniej
-                    const priceBoxData = box.querySelector('.price-box-data');
-                    if (priceBoxData) priceBoxData.appendChild(automationCol);
-                }
-                return;
-            }
-            const existingChange = currentActiveChangesMap.get(String(item.productId));
-
-            const defaultSuggestionData = calculateCurrentSuggestion(item);
-
-            if (defaultSuggestionData) {
-
-                let finalSuggestionData;
-
-                if (existingChange) {
-
-                    const basePriceForChangeCalc = item.apiAllegroPriceFromUser != null ?
-                        parseFloat(item.apiAllegroPriceFromUser) :
-                        (item.myPrice != null ? parseFloat(item.myPrice) : 0);
-
-                    const totalChangeAmount = existingChange.newPrice - basePriceForChangeCalc;
-                    const percentageChange = (basePriceForChangeCalc > 0) ? (totalChangeAmount / basePriceForChangeCalc) * 100 : 0;
-
-                    finalSuggestionData = {
-                        ...defaultSuggestionData,
-                        suggestedPrice: existingChange.newPrice,
-                        totalChangeAmount: totalChangeAmount,
-                        percentageChange: percentageChange
-                    };
-
+                    const newActionLine = infoCol.querySelector(suggestionRenderResult.actionLineSelector);
+                    if (newActionLine) {
+                        const myPriceVal = item.myPrice != null ? parseFloat(item.myPrice) : null;
+                        attachPriceChangeListener(newActionLine, defaultSuggestionData.suggestedPrice, box, item.productId, item.productName, myPriceVal, item);
+                    }
                 } else {
-
-                    finalSuggestionData = defaultSuggestionData;
+                    infoCol.innerHTML = '<div class="price-box-column">Brak danych do sugestii</div>';
                 }
-
-                const suggestionRenderResult = renderSuggestionBlockHTML(item, finalSuggestionData);
-                infoCol.innerHTML = suggestionRenderResult.html;
-
-                const newActionLine = infoCol.querySelector(suggestionRenderResult.actionLineSelector);
-                if (newActionLine) {
-                    const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-
-                    attachPriceChangeListener(newActionLine, defaultSuggestionData.suggestedPrice, box, item.productId, item.productName, myPrice, item);
-                }
-            } else {
-                infoCol.innerHTML = '<div class="price-box-column">Brak danych do sugestii</div>';
             }
+
             const automationColBot = createAutomationColumn(item);
             if (automationColBot) {
                 const priceBoxData = box.querySelector('.price-box-data');
