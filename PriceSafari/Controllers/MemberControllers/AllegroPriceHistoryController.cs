@@ -406,7 +406,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyIsSuperPrice = myOffer?.SuperPrice ?? false,
                         MyIsPromoted = myOffer?.Promoted ?? false,
                         MyIsSponsored = myOffer?.Sponsored ?? false,
-                        IsRejected = false,
+                        IsRejected = (myOffer == null),
                         OnlyMe = (myOffer != null && !filteredCompetitors.Any()),
                         Savings = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price) ? bestCompetitor.Price - myOffer.Price : (decimal?)null,
                         PriceDifference = (myOffer != null && bestCompetitor != null) ? myOffer.Price - bestCompetitor.Price : (decimal?)null,

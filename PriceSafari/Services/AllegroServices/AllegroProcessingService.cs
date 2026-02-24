@@ -213,22 +213,30 @@ namespace PriceSafari.Services.AllegroServices
 
                 foreach (var productId in productIdsForThisStore)
                 {
-                    // Jeśli produkt jest na liście do odrzucenia (z aktualnego przebiegu), pomijamy go
-                    if (allProductIdsToReject.Contains(productId))
+                    // 1. ZATRZYMUJEMY ZAPIS TYLKO DLA TWARDYCH BŁĘDÓW SKRAPERA (np. strona usunięta, błąd 404)
+                    if (productIdsToRejectFromUpstream.Contains(productId))
                     {
                         continue;
                     }
 
-                    // ZMIANA 2: "Przywracanie do życia" (Un-reject)
-                    // Jeśli produkt przeszedł walidację (nie ma go w allProductIdsToReject),
-                    // ale w bazie wciąż jest odrzucony - ustawiamy IsRejected na false.
+                    // 2. AKTUALIZUJEMY FLAGĘ IsRejected W BAZIE DANYCH
+                    // Sprawdzamy, czy produkt jest na pełnej liście odrzuconych (np. brakuje Twojej oferty)
+                    bool shouldBeRejected = allProductIdsToReject.Contains(productId);
+
                     var productEntity = storeProducts.FirstOrDefault(p => p.AllegroProductId == productId);
-                    if (productEntity != null && productEntity.IsRejected)
+                    if (productEntity != null)
                     {
-                        productEntity.IsRejected = false;
-                        // Entity Framework śledzi tę zmianę i zapisze ją przy SaveChangesAsync na końcu
+                        // Aktualizujemy status tylko, jeśli się zmienił
+                        if (productEntity.IsRejected != shouldBeRejected)
+                        {
+                            productEntity.IsRejected = shouldBeRejected;
+                            // Entity Framework śledzi tę zmianę i zapisze ją przy ostatecznym SaveChangesAsync
+                        }
                     }
 
+                    // 3. ZAPISUJEMY DANE KONKURENCJI (nawet jeśli shouldBeRejected jest true)
+                    // Skoro doszliśmy tutaj, to znaczy, że scraper pobrał jakieś oferty z rynku. 
+                    // Zapisujemy je do bazy, by pokazać klientowi na froncie, jak wygląda rynek (nawet pod jego nieobecność).
                     newPriceHistories.Add(new AllegroPriceHistory
                     {
                         AllegroProductId = productId,
@@ -248,6 +256,7 @@ namespace PriceSafari.Services.AllegroServices
                         IdAllegro = scrapedOffer.IdAllegro
                     });
 
+                    // 4. ZACHOWUJEMY TWOJĄ LOGIKĘ DLA ROZSZERZONYCH DANYCH API (jeśli oferta należy do nas)
                     if (sourceOfferToScrape.IsApiProcessed == true && scrapedOffer.SellerName.Equals(userAllegroStoreName, StringComparison.OrdinalIgnoreCase))
                     {
                         var finalApiAllegroPrice = sourceOfferToScrape.ApiAllegroPrice;
