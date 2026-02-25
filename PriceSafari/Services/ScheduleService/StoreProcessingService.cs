@@ -245,12 +245,11 @@ public class StoreProcessingService
         }
     }
 
-
     private async Task GenerateExportFilesAsync(StoreClass store, List<ProductClass> products, List<PriceHistoryClass> priceHistories, string canonicalStoreName)
     {
         var myStoreNameLower = canonicalStoreName.ToLower().Trim();
 
-        // 1. Budujemy strukturę DTO z surowych danych, które właśnie zeskrobaliśmy
+        // 1. Budujemy strukturę DTO z surowych danych
         var feed = new ExportFeedDto
         {
             StoreId = store.StoreId,
@@ -258,7 +257,7 @@ public class StoreProcessingService
             GeneratedAt = DateTime.Now
         };
 
-        // Grupujemy historie po ID produktu
+        // Grupujemy historie po ID produktu dla szybkiego dostępu
         var historiesByProduct = priceHistories.GroupBy(p => p.ProductId).ToDictionary(g => g.Key, g => g.ToList());
 
         foreach (var product in products)
@@ -266,18 +265,42 @@ public class StoreProcessingService
             if (!historiesByProduct.TryGetValue(product.ProductId, out var productHistories))
                 continue;
 
-            // Szukamy naszej oferty (nieważne czy z Google czy Ceneo, bierzemy pierwszą napotkaną jako naszą)
+            // Szukamy naszej oferty
             var myOffer = productHistories.FirstOrDefault(ph => ph.StoreName != null && ph.StoreName.ToLower().Trim() == myStoreNameLower);
 
-            // Szukamy ofert konkurencji
+            // Szukamy ofert konkurencji i mapujemy je do DTO
             var competitors = productHistories
                 .Where(ph => ph.StoreName != null && ph.StoreName.ToLower().Trim() != myStoreNameLower && ph.Price > 0)
-                .Select(ph => new ExportCompetitorDto
+                .Select(ph =>
                 {
-                    StoreName = ph.StoreName,
-                    Price = ph.Price,
-                    ShippingCost = ph.ShippingCostNum,
-                    Source = ph.IsGoogle == true ? "Google" : "Ceneo"
+                    // Ustalenie statusu magazynowego (Stock) zależnie od źródła
+                    bool? inStock = ph.IsGoogle == true ? ph.GoogleInStock : ph.CeneoInStock;
+
+                    // Ustalenie URLa oferty, jeśli klient ma włączoną opcję zbierania linków
+                    string? finalOfferUrl = null;
+                    if (store.CollectGoogleStoreLinks)
+                    {
+                        if (ph.IsGoogle == true)
+                        {
+                            // Używamy zeskrobanego linku prosto do sklepu konkurencji z Google
+                            finalOfferUrl = ph.GoogleOfferUrl;
+                        }
+                        else
+                        {
+                            // Dla Ceneo używamy "sztucznego" linku do ogólnego katalogu produktu
+                            finalOfferUrl = product.OfferUrl;
+                        }
+                    }
+
+                    return new ExportCompetitorDto
+                    {
+                        StoreName = ph.StoreName,
+                        Price = ph.Price, // Tu poprawialiśmy wcześniej błąd
+                        ShippingCost = ph.ShippingCostNum,
+                        Source = ph.IsGoogle == true ? "Google" : "Ceneo",
+                        InStock = inStock, // <--- Nowe
+                        OfferUrl = finalOfferUrl // <--- Nowe
+                    };
                 }).ToList();
 
             feed.Products.Add(new ExportProductDto
@@ -293,7 +316,7 @@ public class StoreProcessingService
             });
         }
 
-        // 2. Przygotowujemy folder na pliki (np. w App_Data, żeby IIS nie serwował tego publicznie)
+        // 2. Przygotowujemy folder na pliki
         var exportFolder = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "PriceExports");
         if (!Directory.Exists(exportFolder))
         {
@@ -304,12 +327,12 @@ public class StoreProcessingService
         var jsonPath = Path.Combine(exportFolder, $"feed_{store.StoreId}.json");
         var xmlPath = Path.Combine(exportFolder, $"feed_{store.StoreId}.xml");
 
-        // 4. Zapis do JSON (Nadpisuje stary plik)
+        // 4. Zapis do JSON
         var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
         var jsonString = JsonSerializer.Serialize(feed, jsonOptions);
         await File.WriteAllTextAsync(jsonPath, jsonString);
 
-        // 5. Zapis do XML (Nadpisuje stary plik)
+        // 5. Zapis do XML
         var xmlSerializer = new XmlSerializer(typeof(ExportFeedDto));
         using (var stream = new FileStream(xmlPath, FileMode.Create))
         {

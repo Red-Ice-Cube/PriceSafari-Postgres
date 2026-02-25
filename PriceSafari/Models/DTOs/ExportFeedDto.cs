@@ -36,5 +36,7 @@ namespace PriceSafari.Models.DTOs
         public decimal Price { get; set; }
         public decimal? ShippingCost { get; set; }
         public string Source { get; set; } // "Google" lub "Ceneo"
+        public bool? InStock { get; set; }
+        public string? OfferUrl { get; set; }
     }
 }
