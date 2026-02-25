@@ -116,7 +116,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 return BadRequest(ex.Message);
             }
         }
-
+        //tt
 
         [HttpPost]
         public async Task<IActionResult> GetAutomationSalesHistory([FromBody] HistoryRequest request)
