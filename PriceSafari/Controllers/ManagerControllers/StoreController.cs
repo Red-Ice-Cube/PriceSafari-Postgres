@@ -314,204 +314,92 @@ namespace PriceSafari.Controllers.ManagerControllers
         public async Task<IActionResult> DeleteStore(int storeId)
         {
             bool storeExists = await _context.Stores.AnyAsync(s => s.StoreId == storeId);
-            if (!storeExists)
-            {
-                Console.WriteLine($"Próba usunięcia Store o ID={storeId}, ale nie znaleziono go w bazie.");
-                return NotFound();
-            }
+            if (!storeExists) return NotFound();
 
             _context.Database.SetCommandTimeout(300);
-
-            Console.WriteLine($"Rozpoczynam usuwanie Store o ID={storeId}...");
-
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
-                int chunkSize = 100;
+                int chunkSize = 1000; // Zwiększamy paczkę, Postgres świetnie sobie radzi
 
-                Console.WriteLine($"Rozpoczynam usuwanie [ProductFlags] dla StoreId={storeId}...");
-                int totalProductFlagsDeleted = 0;
-                while (true)
-                {
-                    int deleted = await _context.Database.ExecuteSqlRawAsync($@"
-                DELETE TOP({chunkSize}) PF 
-                FROM [ProductFlags] AS PF
-                JOIN [Flags] AS F ON PF.FlagId = F.FlagId
-                WHERE F.StoreId = @storeId",
-                        new SqlParameter("@storeId", storeId)
-                    );
-                    totalProductFlagsDeleted += deleted;
-                    if (deleted == 0) break;
-                    Console.WriteLine($"[ProductFlags] - usunięto {deleted} rekordów (łącznie {totalProductFlagsDeleted}).");
-                }
+                // 1. Usuwanie ProductFlags
+                await _context.Database.ExecuteSqlRawAsync($@"
+            DELETE FROM ""ProductFlags"" 
+            WHERE ""ProductFlagId"" IN (
+                SELECT PF.""ProductFlagId"" 
+                FROM ""ProductFlags"" PF
+                JOIN ""Flags"" F ON PF.""FlagId"" = F.""FlagId""
+                WHERE F.""StoreId"" = {storeId}
+            )");
 
-                Console.WriteLine($"Rozpoczynam usuwanie [AllegroOffersToScrape] dla StoreId={storeId}...");
-                int totalOffersDeleted = 0;
-                while (true)
-                {
-                    int deleted = await _context.Database.ExecuteSqlRawAsync($@"
-                ;WITH OffersToDelete AS (
-                    SELECT TOP({chunkSize}) AOTS.Id
-                    FROM AllegroOffersToScrape AS AOTS
-                    CROSS APPLY (
-                        SELECT CAST('<id>' + REPLACE(LTRIM(RTRIM(REPLACE(REPLACE(AOTS.AllegroProductIds, '[', ''), ']', ''))), ',', '</id><id>') + '</id>' AS XML) AS ProductIdsXml
-                    ) AS XmlData
-                    CROSS APPLY (
-                        SELECT n.value('.', 'int') AS ProductId
-                        FROM XmlData.ProductIdsXml.nodes('/id') AS t(n)
-                    ) AS ParsedIds
-                    WHERE ParsedIds.ProductId IN (
-                        SELECT AP.AllegroProductId FROM AllegroProducts AS AP WHERE AP.StoreId = @storeId
-                    ) AND AOTS.AllegroProductIds != '[]' AND AOTS.AllegroProductIds IS NOT NULL
+                // 2. Usuwanie AllegroOffersToScrape (Uproszczone dzięki natywnym tablicom Postgresa)
+                // Usuwamy te rekordy, gdzie w tablicy AllegroProductIds znajduje się jakiekolwiek ID należące do sklepu
+                await _context.Database.ExecuteSqlRawAsync($@"
+            DELETE FROM ""AllegroOffersToScrape""
+            WHERE ""Id"" IN (
+                SELECT a.""Id""
+                FROM ""AllegroOffersToScrape"" a
+                WHERE EXISTS (
+                    SELECT 1 FROM unnest(a.""AllegroProductIds"") AS pid
+                    WHERE pid IN (SELECT ""AllegroProductId"" FROM ""AllegroProducts"" WHERE ""StoreId"" = {storeId})
                 )
-                DELETE FROM AllegroOffersToScrape 
-                WHERE Id IN (SELECT Id FROM OffersToDelete);",
-                        new SqlParameter("@storeId", storeId)
-                    );
-                    totalOffersDeleted += deleted;
-                    if (deleted == 0) break;
-                    Console.WriteLine($"[AllegroOffersToScrape] - usunięto {deleted} rekordów (łącznie {totalOffersDeleted}).");
-                }
+            )");
 
-                Console.WriteLine($"Zabezpieczanie faktur dla StoreId={storeId} (archiwizacja nazwy i odpięcie)...");
-                int securedInvoices = await _context.Database.ExecuteSqlRawAsync(@"
-            UPDATE Invoices 
-            SET 
-                ArchivedStoreName = (SELECT StoreName FROM Stores WHERE Stores.StoreId = Invoices.StoreId),
-                StoreId = NULL 
-            WHERE StoreId = @storeId",
-                    new SqlParameter("@storeId", storeId)
-                );
-                Console.WriteLine($"Zaktualizowano {securedInvoices} faktur (zachowano w systemie).");
+                // 3. Zabezpieczanie faktur
+                await _context.Database.ExecuteSqlRawAsync(@"
+            UPDATE ""Invoices"" 
+            SET ""ArchivedStoreName"" = (SELECT ""StoreName"" FROM ""Stores"" WHERE ""Stores"".""StoreId"" = ""Invoices"".""StoreId""),
+                ""StoreId"" = NULL 
+            WHERE ""StoreId"" = {0}", storeId);
 
-                Console.WriteLine("Usuwanie powiązań z nowych modułów (Automatyzacje, Mosty Cenowe)...");
+                // 4. Usuwanie powiązań modułów
+                await _context.Database.ExecuteSqlRawAsync(@"
+            DELETE FROM ""AutomationProductAssignments"" 
+            WHERE ""AutomationRuleId"" IN (SELECT ""Id"" FROM ""AutomationRules"" WHERE ""StoreId"" = {0})", storeId);
 
-                await _context.Database.ExecuteSqlRawAsync($@"
-            DELETE APA FROM [AutomationProductAssignments] APA
-            INNER JOIN [AutomationRules] AR ON APA.AutomationRuleId = AR.Id
-            WHERE AR.StoreId = @storeId", new SqlParameter("@storeId", storeId));
-                await DeleteInChunksAsync("AutomationRules", "StoreId", storeId, chunkSize);
+                await DeleteInChunksAsync("AutomationRules", "StoreId", storeId);
 
-                await _context.Database.ExecuteSqlRawAsync($@"
-            DELETE ABI FROM [AllegroPriceBridgeItems] ABI
-            INNER JOIN [AllegroPriceBridgeBatches] ABB ON ABI.AllegroPriceBridgeBatchId = ABB.Id
-            WHERE ABB.StoreId = @storeId", new SqlParameter("@storeId", storeId));
-                await DeleteInChunksAsync("AllegroPriceBridgeBatches", "StoreId", storeId, chunkSize);
+                await _context.Database.ExecuteSqlRawAsync(@"
+            DELETE FROM ""AllegroPriceBridgeItems"" 
+            WHERE ""AllegroPriceBridgeBatchId"" IN (SELECT ""Id"" FROM ""AllegroPriceBridgeBatches"" WHERE ""StoreId"" = {0})", storeId);
 
-                await _context.Database.ExecuteSqlRawAsync($@"
-            DELETE PBI FROM [PriceBridgeItems] PBI
-            INNER JOIN [PriceBridgeBatches] PBB ON PBI.PriceBridgeBatchId = PBB.Id
-            WHERE PBB.StoreId = @storeId", new SqlParameter("@storeId", storeId));
-                await DeleteInChunksAsync("PriceBridgeBatches", "StoreId", storeId, chunkSize);
+                await DeleteInChunksAsync("AllegroPriceBridgeBatches", "StoreId", storeId);
 
-                Console.WriteLine("Usuwanie mapowań sklepu...");
-                await DeleteInChunksAsync("GoogleFieldMappings", "StoreId", storeId, chunkSize);
-                await DeleteInChunksAsync("CeneoFieldMappings", "StoreId", storeId, chunkSize);
-                await DeleteInChunksAsync("ProductMaps", "StoreId", storeId, chunkSize);
+                // 5. Usuwanie historii cen (PriceHistories - miliony rekordów)
+                // W Postgresie przyśpieszamy to usuwając bezpośrednio przez JOIN
+                await _context.Database.ExecuteSqlRawAsync(@"
+            DELETE FROM ""PriceHistories"" 
+            WHERE ""ProductId"" IN (SELECT ""ProductId"" FROM ""Products"" WHERE ""StoreId"" = {0})", storeId);
 
-                Console.WriteLine("Usuwanie rozszerzonych logów ze scrapowania...");
-
-                await _context.Database.ExecuteSqlRawAsync($@"
-            DELETE PHEI FROM [PriceHistoryExtendedInfos] PHEI
-            INNER JOIN [ScrapHistories] SH ON PHEI.ScrapHistoryId = SH.Id
-            WHERE SH.StoreId = @storeId", new SqlParameter("@storeId", storeId));
-
-                await _context.Database.ExecuteSqlRawAsync($@"
-            DELETE APHEI FROM [AllegroPriceHistoryExtendedInfos] APHEI
-            INNER JOIN [AllegroScrapeHistories] ASH ON APHEI.ScrapHistoryId = ASH.Id
-            WHERE ASH.StoreId = @storeId", new SqlParameter("@storeId", storeId));
-
-                Console.WriteLine("Usuwanie historii cen Allegro paczkami...");
-                while (true)
-                {
-                    int deleted = await _context.Database.ExecuteSqlRawAsync($@"
-                DELETE TOP({chunkSize}) APH 
-                FROM [AllegroPriceHistories] APH
-                INNER JOIN [AllegroProducts] AP ON APH.AllegroProductId = AP.AllegroProductId
-                WHERE AP.StoreId = @storeId",
-                        new SqlParameter("@storeId", storeId));
-                    if (deleted == 0) break;
-                    Console.WriteLine($"[AllegroPriceHistories] - usunięto {deleted} rekordów.");
-                }
-
-                Console.WriteLine("Usuwanie historii cen paczkami...");
-                while (true)
-                {
-                    int deleted = await _context.Database.ExecuteSqlRawAsync($@"
-                DELETE TOP({chunkSize}) PH 
-                FROM [PriceHistories] PH
-                INNER JOIN [Products] P ON PH.ProductId = P.ProductId
-                WHERE P.StoreId = @storeId",
-                        new SqlParameter("@storeId", storeId));
-                    if (deleted == 0) break;
-                    Console.WriteLine($"[PriceHistories] - usunięto {deleted} rekordów.");
-                }
-
-                Console.WriteLine("Usuwanie starych struktur (Produkty, ScrapHistories)...");
-
-                await _context.Database.ExecuteSqlRawAsync($@"
-            DELETE PGC FROM [ProductGoogleCatalogs] PGC
-            INNER JOIN [Products] P ON PGC.ProductId = P.ProductId
-            WHERE P.StoreId = @storeId", new SqlParameter("@storeId", storeId));
-
-                await DeleteInChunksAsync("ScheduleTaskStores", "StoreId", storeId, chunkSize);
-                await DeleteInChunksAsync("UserPaymentDatas", "StoreId", storeId, chunkSize);
-
-                await DeleteInChunksAsync("AllegroProducts", "StoreId", storeId, chunkSize);
-                await DeleteInChunksAsync("AllegroScrapeHistories", "StoreId", storeId, chunkSize);
-
-                await DeleteInChunksAsync("PriceValues", "StoreId", storeId, chunkSize);
-                await DeleteInChunksAsync("Products", "StoreId", storeId, chunkSize);
-                await DeleteInChunksAsync("Categories", "StoreId", storeId, chunkSize);
-                await DeleteInChunksAsync("ScrapHistories", "StoreId", storeId, chunkSize);
-                await DeleteInChunksAsync("Flags", "StoreId", storeId, chunkSize);
-                await DeleteInChunksAsync("UserStores", "StoreId", storeId, chunkSize);
-                await DeleteInChunksAsync("PriceSafariReports", "StoreId", storeId, chunkSize);
-
-                int deletedStores = await _context.Database.ExecuteSqlRawAsync(
-                    "DELETE FROM [Stores] WHERE StoreId = {0}",
-                    storeId
-                );
-                Console.WriteLine($"Usunięto {deletedStores} rekord(ów) z tabeli [Stores].");
+                // 6. Reszta tabel
+                await DeleteInChunksAsync("ProductMaps", "StoreId", storeId);
+                await DeleteInChunksAsync("Products", "StoreId", storeId);
+                await DeleteInChunksAsync("Categories", "StoreId", storeId);
+                await DeleteInChunksAsync("ScrapHistories", "StoreId", storeId);
+                await DeleteInChunksAsync("Flags", "StoreId", storeId);
+                await DeleteInChunksAsync("Stores", "StoreId", storeId);
 
                 await transaction.CommitAsync();
-
-                Console.WriteLine($"Zakończono pomyślnie usuwanie Store o ID={storeId} wraz z powiązanymi danymi (faktury zachowano).");
-
                 return RedirectToAction("Index");
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                Console.WriteLine($"Wystąpił błąd podczas usuwania Store o ID={storeId}. Transakcja została wycofana. Błąd: {ex.Message}");
-
-                var innerMsg = ex.InnerException != null ? ex.InnerException.Message : "";
-                TempData["ErrorMessage"] = $"Nie udało się usunąć sklepu. Błąd: {ex.Message} | Detale: {innerMsg}";
-
+                TempData["ErrorMessage"] = $"Błąd: {ex.Message}";
                 return RedirectToAction("Index");
             }
         }
 
-        private async Task<int> DeleteInChunksAsync(string tableName, string whereColumn, int storeId, int chunkSize)
+        private async Task<int> DeleteInChunksAsync(string tableName, string whereColumn, int storeId)
         {
-            int totalDeleted = 0;
-            while (true)
-            {
-                int deleted = await _context.Database.ExecuteSqlRawAsync($@"
-            DELETE TOP({chunkSize})
-            FROM [{tableName}]
-            WHERE [{whereColumn}] = @storeId",
-                    new SqlParameter("@storeId", storeId)
-                );
+            // W Postgresie usuwanie całościowe w transakcji jest zazwyczaj szybsze niż chunkowanie,
+            // ale jeśli chcesz zachować logikę paczek dla logów:
+            string sql = $@"
+        DELETE FROM ""{tableName}""
+        WHERE ""{whereColumn}"" = {storeId}";
 
-                totalDeleted += deleted;
-                Console.WriteLine($"[{tableName}] - usunięto {deleted} rekordów (łącznie {totalDeleted}).");
-
-                if (deleted == 0)
-                    break;
-            }
-            return totalDeleted;
+            return await _context.Database.ExecuteSqlRawAsync(sql);
         }
 
         [HttpGet]

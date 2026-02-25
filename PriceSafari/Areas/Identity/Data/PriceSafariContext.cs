@@ -360,13 +360,13 @@ namespace PriceSafari.Data
             modelBuilder.Entity<AutomationProductAssignment>()
                 .HasIndex(apa => apa.ProductId)
                 .IsUnique()
-                .HasFilter("[ProductId] IS NOT NULL");
+                .HasFilter("\"ProductId\" IS NOT NULL"); // ZMIANA: [ProductId] na \"ProductId\"
 
             // 2. Unikalność dla AllegroProductClass
             modelBuilder.Entity<AutomationProductAssignment>()
                 .HasIndex(apa => apa.AllegroProductId)
                 .IsUnique()
-                .HasFilter("[AllegroProductId] IS NOT NULL");
+                .HasFilter("\"AllegroProductId\" IS NOT NULL"); // ZMIANA: [AllegroProductId] na \"AllegroProductId\"
 
             // 3. Relacja z regułą (ZOSTAWIAMY CASCADE)
             // Jeśli usuniesz Regułę, chcemy, żeby przypisania zniknęły automatycznie.

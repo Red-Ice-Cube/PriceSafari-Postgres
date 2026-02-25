@@ -28,7 +28,7 @@ public class Program
         var root = Directory.GetCurrentDirectory();
         var dotenv = Path.Combine(root, ".env");
         DotEnv.Load(dotenv);
-
+        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
         var builder = WebApplication.CreateBuilder(args);
 
         builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
@@ -39,18 +39,32 @@ public class Program
         var dbUser = Environment.GetEnvironmentVariable("DB_USER");
         var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
 
-        var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";
+        //var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";
+
+        // Zmieniamy 'Data Source' na 'Host' oraz 'Uid' na 'Username'
+        var connectionString = $"Host={dbServer};Database={dbName};Username={dbUser};Password={dbPassword};Include Error Detail=true";
+
+        //builder.Services.AddDbContext<PriceSafariContext>(options =>
+        //   options.UseSqlServer(connectionString, sqlServerOptions =>
+        //   {
+        //       sqlServerOptions.EnableRetryOnFailure(
+        //           maxRetryCount: 5,
+        //           maxRetryDelay: TimeSpan.FromSeconds(30),
+        //           errorNumbersToAdd: null);
+
+        //       sqlServerOptions.UseCompatibilityLevel(110);
+        //   }));
+
 
         builder.Services.AddDbContext<PriceSafariContext>(options =>
-           options.UseSqlServer(connectionString, sqlServerOptions =>
-           {
-               sqlServerOptions.EnableRetryOnFailure(
-                   maxRetryCount: 5,
-                   maxRetryDelay: TimeSpan.FromSeconds(30),
-                   errorNumbersToAdd: null);
-
-               sqlServerOptions.UseCompatibilityLevel(110);
-           }));
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+            {
+                // W Npgsql używamy errorCodesToAdd (lista stringów) lub po prostu pomijamy ten parametr
+                npgsqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorCodesToAdd: null);
+            }));
 
         builder.Services.AddDefaultIdentity<PriceSafariUser>(options => options.SignIn.RequireConfirmedAccount = true)
        .AddRoles<IdentityRole>()

@@ -1460,11 +1460,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var inClause = string.Join(",", subset);
 
-                // DODANO "Producer" DO LISTY PÓL W SELECT
+                // POPRAWKA: Dodano "" wokół nazw tabeli i kolumn
                 string sql = $@"
-            SELECT ProductId, Ean, MarginPrice, ExternalId, ProducerCode, Producer
-            FROM Products
-            WHERE ProductId IN ({inClause})
+            SELECT ""ProductId"", ""Ean"", ""MarginPrice"", ""ExternalId"", ""ProducerCode"", ""Producer""
+            FROM ""Products""
+            WHERE ""ProductId"" IN ({inClause})
         ";
 
                 var partial = await _context.Products
@@ -1476,13 +1476,12 @@ namespace PriceSafari.Controllers.MemberControllers
                         MarginPrice = p.MarginPrice,
                         ExternalId = p.ExternalId,
                         ProducerCode = p.ProducerCode,
-                        Producer = p.Producer // <--- DODAJ TĘ LINIJKĘ
+                        Producer = p.Producer
                     })
                     .ToListAsync();
 
                 result.AddRange(partial);
             }
-
             return result;
         }
 
@@ -1497,23 +1496,23 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         private async Task<List<(int ProductId, decimal Price, bool IsGoogle, string StoreName, decimal? ShippingCostNum)>>
-        GetPriceHistoriesInChunksAsync(List<int> productIds, int scrapId)
+ GetPriceHistoriesInChunksAsync(List<int> productIds, int scrapId)
         {
             var result = new List<(int, decimal, bool, string, decimal?)>();
 
             for (int i = 0; i < productIds.Count; i += CHUNK_SIZE)
             {
                 var subset = productIds.Skip(i).Take(CHUNK_SIZE).ToList();
-                if (subset.Count == 0)
-                    continue;
+                if (subset.Count == 0) continue;
 
                 var inClause = string.Join(",", subset);
 
+                // POPRAWKA: Dodano "" wokół nazw tabeli i kolumn
                 string sql = $@"
-            SELECT ProductId, Price, IsGoogle, StoreName, ShippingCostNum -- Dodajemy ShippingCostNum do SELECT
-            FROM PriceHistories
-            WHERE ScrapHistoryId = {scrapId}
-              AND ProductId IN ({inClause})
+            SELECT ""ProductId"", ""Price"", ""IsGoogle"", ""StoreName"", ""ShippingCostNum""
+            FROM ""PriceHistories""
+            WHERE ""ScrapHistoryId"" = {scrapId}
+              AND ""ProductId"" IN ({inClause})
         ";
 
                 var partial = await _context.PriceHistories
@@ -1528,12 +1527,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     })
                     .ToListAsync();
 
-                result.AddRange(
-
-                    partial.Select(x => (x.ProductId, x.Price, x.IsGoogle, x.StoreName, x.ShippingCostNum))
-                );
+                result.AddRange(partial.Select(x => (x.ProductId, x.Price, x.IsGoogle, x.StoreName, x.ShippingCostNum)));
             }
-
             return result;
         }
 
