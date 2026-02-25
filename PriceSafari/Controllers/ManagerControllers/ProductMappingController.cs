@@ -875,54 +875,20 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return View("~/Views/ManagerPanel/ProductMapping/MappedProductsAllegro.cshtml", vmList);
         }
-
         [HttpPost]
         public async Task<IActionResult> RemoveSelectedAllegroProducts(int storeId, [FromBody] List<int> productIds)
         {
-            if (productIds == null || !productIds.Any())
-                return BadRequest(new { success = false, message = "Brak produktów do usunięcia." });
+            // Jedno atomowe zapytanie dla każdej tabeli, w pełni zoptymalizowane pod Postgresa
+            await _context.AllegroPriceBridgeItems.Where(i => productIds.Contains(i.AllegroProductId)).ExecuteDeleteAsync();
+            await _context.ProductFlags.Where(pf => productIds.Contains(pf.AllegroProductId.Value)).ExecuteDeleteAsync();
+            await _context.AllegroPriceHistoryExtendedInfos.Where(e => productIds.Contains(e.AllegroProductId)).ExecuteDeleteAsync();
+            await _context.AllegroPriceHistories.Where(ph => productIds.Contains(ph.AllegroProductId)).ExecuteDeleteAsync();
 
-            var strategy = _context.Database.CreateExecutionStrategy();
+            var deletedCount = await _context.AllegroProducts
+                .Where(p => p.StoreId == storeId && productIds.Contains(p.AllegroProductId))
+                .ExecuteDeleteAsync();
 
-            return await strategy.ExecuteAsync(async () =>
-            {
-                using var transaction = await _context.Database.BeginTransactionAsync();
-                try
-                {
-                    var idsString = string.Join(",", productIds);
-
-                    // POPRAWKA: Wszystkie nazwy tabel i kolumn w cudzysłowach ""
-
-                    // 1. Usuń z tabeli blokującej (BridgeItems)
-                    await _context.Database.ExecuteSqlRawAsync(
-                        $"DELETE FROM \"AllegroPriceBridgeItems\" WHERE \"AllegroProductId\" IN ({idsString})");
-
-                    // 2. Usuń Flagi produktów
-                    await _context.Database.ExecuteSqlRawAsync(
-                        $"DELETE FROM \"ProductFlags\" WHERE \"AllegroProductId\" IN ({idsString})");
-
-                    // 3. Usuń Extended Info
-                    await _context.Database.ExecuteSqlRawAsync(
-                        $"DELETE FROM \"AllegroPriceHistoryExtendedInfos\" WHERE \"AllegroProductId\" IN ({idsString})");
-
-                    // 4. Usuń Historię Cen
-                    await _context.Database.ExecuteSqlRawAsync(
-                        $"DELETE FROM \"AllegroPriceHistories\" WHERE \"AllegroProductId\" IN ({idsString})");
-
-                    // 5. Usuń same produkty Allegro
-                    var deletedCount = await _context.Database.ExecuteSqlRawAsync(
-                        $"DELETE FROM \"AllegroProducts\" WHERE \"StoreId\" = {storeId} AND \"AllegroProductId\" IN ({idsString})");
-
-                    await transaction.CommitAsync();
-                    return Json(new { success = true, count = deletedCount, message = $"Pomyślnie usunięto {deletedCount} produktów." });
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    var msg = ex.InnerException?.Message ?? ex.Message;
-                    return Json(new { success = false, message = $"Błąd bazy danych: {msg}" });
-                }
-            });
+            return Json(new { success = true, count = deletedCount });
         }
 
 

@@ -34,12 +34,11 @@ namespace PriceSafari.Controllers.MemberControllers
         }
         private async Task<bool> UserHasAccessToStore(int storeId)
         {
+            // Sprawdzamy role bezpośrednio z Tokena/Cookie (bez zapytania do DB)
+            if (User.IsInRole("Admin") || User.IsInRole("Manager")) return true;
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var user = await _userManager.FindByIdAsync(userId);
-            if (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "Manager"))
-            {
-                return true;
-            }
+            // Tylko jedno szybkie zapytanie typu EXISTS
             return await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
         }
 
