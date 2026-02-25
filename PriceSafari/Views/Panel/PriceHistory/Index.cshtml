@@ -344,8 +344,9 @@
                     </button>
 
                     <button class="Button-Page-Small" style="white-space: nowrap;" id="exportToExcelButton"><i class="fa-solid fa-floppy-disk" style="margin-top:2px;"></i>Eksport</button>
-                    <button type="button" class="Button-Page-Small" style="white-space: nowrap; background-color: #41C7C7; color: white;" id="apiExportSettingsBtn" data-toggle="modal" data-target="#apiExportModal">
-                        <i class="fa-solid fa-code" style="margin-top:2px;"></i> API Feed
+
+                    <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="apiExportSettingsBtn" data-toggle="modal" data-target="#apiExportModal">
+                        <i class="fa-solid fa-code" style="margin-top:2px;"></i>Export Feed
                     </button>
 
                     <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px;" data-toggle="modal" data-target="#infoModal">
@@ -731,43 +732,77 @@
 </div>
 <div class="modal fade" id="apiExportModal" tabindex="-1" role="dialog" aria-labelledby="apiExportModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
-        <div class="modal-content" style="width:550px;">
-            <div class="modal-header">
-                <div class="price-box-column-name" id="apiExportModalLabel"><i class="fa-solid fa-code"></i> Dostęp do danych przez API</div>
+        <div class="modal-content" style="width:620px;"> <div class="modal-header">
+                <div class="price-box-column-name" id="apiExportModalLabel">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> Zewnętrzny Feed Danych (JSON / XML)
+                </div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom: 20px; font-size: 14px; color: #666; line-height: 1.5;">
-                    Udostępnij najświeższe dane ze scrapowania bezpośrednio do swojego systemu ERP lub sklepu. Po włączeniu tej opcji, system po każdym skanowaniu wygeneruje statyczny plik z danymi, dostępny pod zabezpieczonym linkiem.
+                <p style="margin-bottom: 15px; font-size: 14px; color: #666; line-height: 1.5;">
+                    Udostępnij najświeższe dane ze scrapowania bezpośrednio do swojego systemu ERP lub sklepu. Po włączeniu tej opcji, system utworzy statyczny plik z danymi, dostępny pod zabezpieczonym linkiem.
                 </p>
 
-                <div class="form-check" style="margin-bottom: 20px; padding-left: 0;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="enableApiExportCheckbox" style="width: 18px; height: 18px; cursor: pointer;">
-                        <label for="enableApiExportCheckbox" style="font-weight: bold; margin-bottom: 0; cursor: pointer;">
-                            Włącz eksport danych (JSON / XML)
-                        </label>
+                <div style="background-color: #e8f4fd; border-left: 4px solid #41C7C7; padding: 12px 15px; margin-bottom: 25px; border-radius: 4px; font-size: 13px; color: #333;">
+                    <i class="fa-solid fa-circle-info" style="color: #41C7C7; margin-right: 5px;"></i>
+                    <strong>Ważne:</strong> Plik z danymi zostanie wygenerowany (lub zaktualizowany) <b>dopiero po zakończeniu najbliższego procesu pobierania i analizy cen</b>. Jeśli włączasz tę opcję po raz pierwszy, linki zaczną działać po najbliższym scrapowaniu.
+                </div>
+
+                <style>
+                    .export-input-group { display: flex; gap: 8px; margin-bottom: 15px; align-items: center; }
+                    .export-input { flex-grow: 1; height: 36px; background-color: #f8f9fa; font-family: monospace; font-size: 13px; border: 1px solid #ced4da; border-radius: 4px; padding: 0 10px; margin: 0; box-sizing: border-box; }
+                    .export-btn { height: 36px; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 15px; border-radius: 4px; border: none; cursor: pointer; transition: 0.2s; font-size: 13px; font-weight: 500; margin: 0; box-sizing: border-box;}
+                    .export-btn-primary { background-color: #41C7C7; color: white; }
+                    .export-btn-primary:hover { background-color: #36a8a8; }
+                    .export-btn-secondary { background-color: #6c757d; color: white; }
+                    .export-btn-secondary:hover { background-color: #5a6268; }
+                    
+                   
+                    .custom-switch-wrapper { display: flex; align-items: center; margin-bottom: 25px; }
+                    .custom-switch-label { font-weight: bold; margin-bottom: 0; cursor: pointer; font-size: 15px; margin-left: 10px; }
+                    .switch-ui { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0;}
+                    .switch-ui input { opacity: 0; width: 0; height: 0; }
+                    .switch-ui .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+                    .switch-ui .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+                    .switch-ui input:checked + .slider { background-color: #41C7C7; }
+                    .switch-ui input:checked + .slider:before { transform: translateX(20px); }
+                </style>
+
+                <div class="custom-switch-wrapper">
+                    <label class="switch-ui" style="margin-bottom: 0;">
+                        <input type="checkbox" id="enableApiExportCheckbox">
+                        <span class="slider"></span>
+                    </label>
+                    <label for="enableApiExportCheckbox" class="custom-switch-label">
+                        Włącz generowanie pliku feed (JSON / XML)
+                    </label>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">Twój unikalny token dostępu</label>
+                    <div class="export-input-group">
+                        <input type="text" id="apiTokenInput" class="export-input" readonly>
+                        <button type="button" id="generateTokenBtn" class="export-btn export-btn-primary"><i class="fa-solid fa-arrows-rotate"></i> Generuj nowy</button>
+                        <button type="button" class="export-btn export-btn-secondary copy-btn" data-target="apiTokenInput" title="Kopiuj token"><i class="fa-regular fa-copy"></i></button>
                     </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="font-size: 13px; font-weight: bold;">Twój unikalny token dostępu</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="apiTokenInput" class="form-control" readonly style="background-color: #f4f4f4; font-family: monospace;">
-                        <button type="button" id="generateTokenBtn" class="Button-Page-Small-bl" style="white-space: nowrap;">Generuj nowy</button>
+                    <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">Link dostępowy (Format JSON)</label>
+                    <div class="export-input-group">
+                        <input type="text" id="apiUrlJsonInput" class="export-input" readonly>
+                        <button type="button" class="export-btn export-btn-secondary copy-btn" data-target="apiUrlJsonInput"><i class="fa-regular fa-copy"></i> Kopiuj</button>
                     </div>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="font-size: 13px; font-weight: bold;">Link dostępowy (Format JSON)</label>
-                    <input type="text" id="apiUrlJsonInput" class="form-control" readonly style="background-color: #f4f4f4; font-size: 12px; color: #333;">
                 </div>
                 
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="font-size: 13px; font-weight: bold;">Link dostępowy (Format XML)</label>
-                    <input type="text" id="apiUrlXmlInput" class="form-control" readonly style="background-color: #f4f4f4; font-size: 12px; color: #333;">
+                    <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">Link dostępowy (Format XML)</label>
+                    <div class="export-input-group">
+                        <input type="text" id="apiUrlXmlInput" class="export-input" readonly>
+                        <button type="button" class="export-btn export-btn-secondary copy-btn" data-target="apiUrlXmlInput"><i class="fa-regular fa-copy"></i> Kopiuj</button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer" style="justify-content:space-between;">

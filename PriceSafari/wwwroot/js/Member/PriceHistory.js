@@ -4908,6 +4908,125 @@
     loadPrices();
     updateSelectionUI();
 
+
+    function generateSecureToken() {
+        return 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    function updateApiUrls(token) {
+        if (!token) {
+            $('#apiUrlJsonInput').val("Wygeneruj token, aby zobaczyć link.");
+            $('#apiUrlXmlInput').val("Wygeneruj token, aby zobaczyć link.");
+            return;
+        }
+
+        const baseUrl = window.location.origin;
+        const baseApiRoute = `${baseUrl}/DataTree/export/${storeId}?token=${token}`;
+
+        $('#apiUrlJsonInput').val(`${baseApiRoute}&format=json`);
+        $('#apiUrlXmlInput').val(`${baseApiRoute}&format=xml`);
+    }
+
+    $('#apiExportModal').on('show.bs.modal', function () {
+        $('#apiTokenInput').val('Ładowanie...');
+        $('#apiUrlJsonInput').val('');
+        $('#apiUrlXmlInput').val('');
+
+        $.ajax({
+            url: `/PriceHistory/GetApiExportSettings?storeId=${storeId}`,
+            type: 'GET',
+            success: function (data) {
+                $('#enableApiExportCheckbox').prop('checked', data.isApiExportEnabled);
+
+                if (data.apiExportToken) {
+                    $('#apiTokenInput').val(data.apiExportToken);
+                    updateApiUrls(data.apiExportToken);
+                } else {
+                    $('#apiTokenInput').val('');
+                    updateApiUrls('');
+                }
+            },
+            error: function () {
+                alert('Błąd pobierania ustawień API.');
+            }
+        });
+    });
+
+    $('#generateTokenBtn').click(function () {
+        const newToken = generateSecureToken();
+        $('#apiTokenInput').val(newToken);
+        updateApiUrls(newToken);
+    });
+
+    $('#saveApiExportBtn').click(function () {
+        const isEnabled = $('#enableApiExportCheckbox').is(':checked');
+        const token = $('#apiTokenInput').val();
+
+        if (isEnabled && (!token || token.trim() === '')) {
+            alert('Jeśli włączasz API, musisz wygenerować token!');
+            return;
+        }
+
+        showLoading();
+
+        $.ajax({
+            url: `/PriceHistory/SaveApiExportSettings?storeId=${storeId}`,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                isEnabled: isEnabled,
+                token: token
+            }),
+            success: function (response) {
+                hideLoading();
+                $('#apiExportModal').modal('hide');
+                showGlobalUpdate(response.message);
+
+            },
+            error: function () {
+                hideLoading();
+                showGlobalNotification('Błąd podczas zapisywania ustawień.');
+            }
+        });
+    });
+    $('.copy-btn').click(function () {
+        const targetId = $(this).data('target');
+        const inputElement = document.getElementById(targetId);
+
+        if (!inputElement.value || inputElement.value.includes("Wygeneruj token")) {
+            return;
+        }
+
+        inputElement.select();
+        inputElement.setSelectionRange(0, 99999);
+
+        navigator.clipboard.writeText(inputElement.value).then(() => {
+
+            const $btn = $(this);
+            const originalHtml = $btn.html();
+            const isJustIcon = originalHtml.indexOf('Kopiuj') === -1;
+
+            if (isJustIcon) {
+                $btn.html('<i class="fa-solid fa-check"></i>');
+            } else {
+                $btn.html('<i class="fa-solid fa-check"></i> Skopiowano');
+                $btn.css('background-color', '#198754');
+
+            }
+
+            setTimeout(() => {
+                $btn.html(originalHtml);
+                $btn.css('background-color', '');
+
+            }, 2000);
+
+        }).catch(err => {
+            console.error("Błąd kopiowania do schowka: ", err);
+        });
+    });
     function showLoading() {
         document.getElementById("loadingOverlay").style.display = "flex";
     }
