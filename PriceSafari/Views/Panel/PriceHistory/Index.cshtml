@@ -344,6 +344,9 @@
                     </button>
 
                     <button class="Button-Page-Small" style="white-space: nowrap;" id="exportToExcelButton"><i class="fa-solid fa-floppy-disk" style="margin-top:2px;"></i>Eksport</button>
+                    <button type="button" class="Button-Page-Small" style="white-space: nowrap; background-color: #41C7C7; color: white;" id="apiExportSettingsBtn" data-toggle="modal" data-target="#apiExportModal">
+                        <i class="fa-solid fa-code" style="margin-top:2px;"></i> API Feed
+                    </button>
 
                     <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px;" data-toggle="modal" data-target="#infoModal">
                         <i class="fa fa-info-circle"></i>
@@ -726,7 +729,54 @@
         </div>
     </div>
 </div>
+<div class="modal fade" id="apiExportModal" tabindex="-1" role="dialog" aria-labelledby="apiExportModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content" style="width:550px;">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="apiExportModalLabel"><i class="fa-solid fa-code"></i> Dostęp do danych przez API</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 20px; font-size: 14px; color: #666; line-height: 1.5;">
+                    Udostępnij najświeższe dane ze scrapowania bezpośrednio do swojego systemu ERP lub sklepu. Po włączeniu tej opcji, system po każdym skanowaniu wygeneruje statyczny plik z danymi, dostępny pod zabezpieczonym linkiem.
+                </p>
 
+                <div class="form-check" style="margin-bottom: 20px; padding-left: 0;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="enableApiExportCheckbox" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="enableApiExportCheckbox" style="font-weight: bold; margin-bottom: 0; cursor: pointer;">
+                            Włącz eksport danych (JSON / XML)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; font-weight: bold;">Twój unikalny token dostępu</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="apiTokenInput" class="form-control" readonly style="background-color: #f4f4f4; font-family: monospace;">
+                        <button type="button" id="generateTokenBtn" class="Button-Page-Small-bl" style="white-space: nowrap;">Generuj nowy</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; font-weight: bold;">Link dostępowy (Format JSON)</label>
+                    <input type="text" id="apiUrlJsonInput" class="form-control" readonly style="background-color: #f4f4f4; font-size: 12px; color: #333;">
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; font-weight: bold;">Link dostępowy (Format XML)</label>
+                    <input type="text" id="apiUrlXmlInput" class="form-control" readonly style="background-color: #f4f4f4; font-size: 12px; color: #333;">
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content:space-between;">
+                <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Zamknij</button>
+                <button type="button" class="Button-Page-Small-bl" id="saveApiExportBtn">Zapisz ustawienia</button>
+            </div>
+        </div>
+    </div>
+</div>
 @await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
 
 <div id="globalNotification" style="
