@@ -788,17 +788,13 @@ namespace PriceSafari.Services.PriceAutomationService
             {
                 if (row.BestCompetitorPrice.HasValue)
                 {
-                    decimal targetVisiblePrice;
+                    decimal targetSuggestedPrice;
                     if (rule.IsPriceStepPercent)
-                        targetVisiblePrice = row.BestCompetitorPrice.Value + (row.BestCompetitorPrice.Value * (rule.PriceStep / 100));
+                        targetSuggestedPrice = row.BestCompetitorPrice.Value + (row.BestCompetitorPrice.Value * (rule.PriceStep / 100));
                     else
-                        targetVisiblePrice = row.BestCompetitorPrice.Value + rule.PriceStep;
+                        targetSuggestedPrice = row.BestCompetitorPrice.Value + rule.PriceStep;
 
-                    decimal subsidyAmount = (row.ApiAllegroPriceFromUser.HasValue && row.CurrentPrice.HasValue)
-                                            ? row.ApiAllegroPriceFromUser.Value - row.CurrentPrice.Value
-                                            : 0;
-
-                    suggested = targetVisiblePrice + subsidyAmount;
+                    suggested = targetSuggestedPrice;
                     calculationPossible = true;
                 }
             }
@@ -806,18 +802,30 @@ namespace PriceSafari.Services.PriceAutomationService
             {
                 if (row.MarketAveragePrice.HasValue && row.MarketAveragePrice.Value > 0)
                 {
-                    decimal targetVisiblePrice = row.MarketAveragePrice.Value * (rule.PriceIndexTargetPercent / 100);
-                    decimal subsidyAmount = (row.ApiAllegroPriceFromUser.HasValue && row.CurrentPrice.HasValue)
-                                            ? row.ApiAllegroPriceFromUser.Value - row.CurrentPrice.Value
-                                            : 0;
+                    decimal targetSuggestedPrice = row.MarketAveragePrice.Value * (rule.PriceIndexTargetPercent / 100);
 
-                    suggested = targetVisiblePrice + subsidyAmount;
+                    suggested = targetSuggestedPrice;
                     calculationPossible = true;
                 }
             }
 
+            // POPRAWIONY KOD:
             if (!calculationPossible)
             {
+                // Ochrona ceny — brak konkurencji, ale nasza cena jest poniżej minimum
+                if (row.MinPriceLimit.HasValue && basePrice < row.MinPriceLimit.Value)
+                {
+                    suggested = row.MinPriceLimit.Value;
+                    row.SuggestedPrice = Math.Round(suggested, 2);
+                    row.PriceChange = Math.Round(row.SuggestedPrice.Value - Math.Round(basePrice, 2), 2);
+                    row.Status = AutomationCalculationStatus.PriceLimited;
+                    row.BlockReason = "Ochrona Ceny";
+                    row.IsMarginWarning = true;
+                    CalculateMarkup(row);
+                    return;
+                }
+
+                // Brak konkurencji i cena OK — nic nie robimy
                 row.SuggestedPrice = null;
                 row.Status = AutomationCalculationStatus.Blocked;
                 row.BlockReason = "Brak Konkurencji";
@@ -852,20 +860,22 @@ namespace PriceSafari.Services.PriceAutomationService
 
                     bool isPriceImprovement = suggested > basePrice;
 
-                    if (isPriceImprovement)
+                    // POPRAWIONY KOD:
+                    if (isPriceImprovement && rule.SkipIfMarkupLimited)
                     {
-
+                        // Ratowanie marży — cena rośnie, ale nie osiąga minimum.
+                        // Przepuszczamy tylko gdy SkipIfMarkupLimited = true.
                         row.IsMarginWarning = true;
+                    }
+                    else if (rule.SkipIfMarkupLimited)
+                    {
+                        // Cena spada poniżej minimum — blokujemy
+                        ApplyBlock(row, "Blokada Narzutu");
+                        return;
                     }
                     else
                     {
-
-                        if (rule.SkipIfMarkupLimited)
-                        {
-                            ApplyBlock(row, "Blokada Narzutu");
-                            return;
-                        }
-
+                        // SkipIfMarkupLimited = false — minimum to twardy floor
                         suggested = row.MinPriceLimit.Value;
                         row.IsMarginWarning = true;
                         wasLimited = true;
