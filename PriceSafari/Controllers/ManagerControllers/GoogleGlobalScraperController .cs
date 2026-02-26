@@ -225,10 +225,8 @@ namespace PriceSafari.Controllers
             int rowsAffectedThisBatch;
             do
             {
-
-                string sql = $"DELETE TOP ({batchSize}) FROM [{tableName}]";
+                string sql = $"DELETE FROM \"{tableName}\" WHERE ctid IN (SELECT ctid FROM \"{tableName}\" LIMIT {batchSize})";
                 rowsAffectedThisBatch = await _context.Database.ExecuteSqlRawAsync(sql);
-
             } while (rowsAffectedThisBatch == batchSize);
         }
 

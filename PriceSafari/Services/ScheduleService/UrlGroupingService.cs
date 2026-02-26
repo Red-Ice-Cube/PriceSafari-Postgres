@@ -123,10 +123,9 @@ namespace PriceSafari.Services.ScheduleService
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // Czyszczenie tabel przed nowym zrzutem zadań
-                    await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrStoreDatas]");
-                    await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrPriceHistories]");
-                    await _context.Database.ExecuteSqlRawAsync("DELETE FROM [CoOfrs]");
+                    await _context.Database.ExecuteSqlRawAsync("DELETE FROM \"CoOfrStoreDatas\"");
+                    await _context.Database.ExecuteSqlRawAsync("DELETE FROM \"CoOfrPriceHistories\"");
+                    await _context.Database.ExecuteSqlRawAsync("DELETE FROM \"CoOfrs\"");
 
                     const int batchSize = 1000;
                     for (int i = 0; i < coOfrs.Count; i += batchSize)
