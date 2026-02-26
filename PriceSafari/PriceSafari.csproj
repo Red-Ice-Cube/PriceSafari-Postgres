@@ -37,6 +37,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<Folder Include="App_Data\PriceExports\" />
 		<Folder Include="Migrations\" />
 		<Folder Include="wwwroot\js\Home\" />
 		<Folder Include="wwwroot\icon\" />
