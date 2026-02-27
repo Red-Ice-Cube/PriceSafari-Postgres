@@ -135,7 +135,9 @@ namespace PriceSafari.Models.ViewModels
 
         public bool IsSuggestedDifferentFromUpdated { get; set; }
 
-
+        public bool IsProductRejected { get; set; } = false;
+        public bool IsProductScrapable { get; set; } = true;
+        public bool HasScrapedPrice { get; set; } = true;
 
 
 

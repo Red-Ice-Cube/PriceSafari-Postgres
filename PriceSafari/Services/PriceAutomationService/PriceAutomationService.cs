@@ -302,6 +302,8 @@ namespace PriceSafari.Services.PriceAutomationService
                 var myGoogle = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle == true);
                 var myCeneo = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle != true);
 
+               
+
                 var rawCompetitors = histories
                     .Where(h => h.Price > 0 && h != myHistory && (h.StoreName == null || !h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase)))
                     .ToList();
@@ -352,7 +354,10 @@ namespace PriceSafari.Services.PriceAutomationService
                     MarketAveragePrice = marketAvg,
                     IsInStock = true,
                     IsCommissionIncluded = false,
-                    PurchasePriceUpdatedDate = p.MarginPriceUpdatedDate
+                    PurchasePriceUpdatedDate = p.MarginPriceUpdatedDate,
+                    IsProductRejected = p.IsRejected,
+                    IsProductScrapable = p.IsScrapable,
+                    HasScrapedPrice = myHistory != null && myHistory.Price > 0
                 };
 
                 bool bestRivalIsCeneo = bestCompetitor != null && bestCompetitor.IsGoogle != true;
@@ -512,6 +517,8 @@ namespace PriceSafari.Services.PriceAutomationService
 
                 var extInfo = extendedInfos.FirstOrDefault(x => x.AllegroProductId == p.AllegroProductId);
 
+        
+
                 var rawCompetitors = histories
                     .Where(h =>
                     {
@@ -608,6 +615,9 @@ namespace PriceSafari.Services.PriceAutomationService
                     IsCommissionIncluded = rule.MarketplaceIncludeCommission,
                     HasCheaperOwnOffer = hasCheaperOwnOffer,
                     PurchasePriceUpdatedDate = p.AllegroMarginPriceUpdatedDate,
+                    IsProductRejected = p.IsRejected,
+                    IsProductScrapable = p.IsScrapable,
+                    HasScrapedPrice = myHistory != null && myHistory.Price > 0
                 };
 
                 CalculateSuggestedPrice(rule, row);
@@ -692,6 +702,14 @@ namespace PriceSafari.Services.PriceAutomationService
         {
 
             decimal basePrice = row.ApiAllegroPriceFromUser ?? row.CurrentPrice ?? 0;
+
+            if (!row.IsProductScrapable || row.IsProductRejected || !row.HasScrapedPrice)
+            {
+                row.SuggestedPrice = null;
+                row.Status = AutomationCalculationStatus.Blocked;
+                row.BlockReason = "Brak Twojej Oferty";
+                return;
+            }
 
             if (basePrice == 0)
             {
