@@ -1905,18 +1905,47 @@
 
     function groupAndFilterByCatalog(data) {
         const catalogGroups = new Map();
-        for (const item of data) {
-            if (item.myOffersGroupKey) {
-                const existingItem = catalogGroups.get(item.myOffersGroupKey);
 
-                if (!existingItem || (item.myPrice !== null && item.myPrice < existingItem.myPrice)) {
-                    catalogGroups.set(item.myOffersGroupKey, item);
+        for (const item of data) {
+            if (!item.myOffersGroupKey) {
+                catalogGroups.set(`no-group-${item.productId}`, item);
+                continue;
+            }
+
+            const itemIds = new Set(item.myOffersGroupKey.split(','));
+
+            let matchedKey = null;
+            for (const [existingKey] of catalogGroups) {
+                if (existingKey.startsWith('no-group-')) continue;
+
+                const existingIds = new Set(existingKey.split(','));
+                const hasOverlap = [...itemIds].some(id => existingIds.has(id));
+
+                if (hasOverlap) {
+                    matchedKey = existingKey;
+                    break;
                 }
+            }
+
+            if (matchedKey) {
+
+                const existingItem = catalogGroups.get(matchedKey);
+                const existingIds = new Set(matchedKey.split(','));
+                const mergedKey = [...new Set([...existingIds, ...itemIds])].sort().join(',');
+
+                const betterItem = (item.myPrice !== null && (existingItem.myPrice === null || item.myPrice < existingItem.myPrice))
+                    ? item
+                    : existingItem;
+
+                catalogGroups.delete(matchedKey);
+                catalogGroups.set(mergedKey, betterItem);
             } else {
 
-                catalogGroups.set(`no-group-${item.productId}`, item);
+                const canonicalKey = [...itemIds].sort().join(',');
+                catalogGroups.set(canonicalKey, item);
             }
         }
+
         return Array.from(catalogGroups.values());
     }
     function updateSelectionUI() {

@@ -334,7 +334,14 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
 
                     var allMyOffersInGroup = g.Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
-                    var myOffersGroupKey = string.Join(",", allMyOffersInGroup.Select(o => o.IdAllegro).OrderBy(id => id));
+                    var myOfferIdsList = allMyOffersInGroup.Select(o => o.IdAllegro).ToList();
+
+                    if (targetOfferId.HasValue && !myOfferIdsList.Contains(targetOfferId.Value))
+                    {
+                        myOfferIdsList.Add(targetOfferId.Value);
+                    }
+
+                    var myOffersGroupKey = string.Join(",", myOfferIdsList.OrderBy(id => id));
 
                     var totalPopularity = g.Sum(p => p.Popularity ?? 0);
                     var myPopularity = g.Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
@@ -395,7 +402,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         IsSuperPrice = bestCompetitor?.SuperPrice ?? false,
                         IsPromoted = bestCompetitor?.Promoted ?? false,
                         IsSponsored = bestCompetitor?.Sponsored ?? false,
-                        MyIdAllegro = myOffer?.IdAllegro,
+                        MyIdAllegro = myOffer?.IdAllegro ?? (targetOfferId.HasValue ? targetOfferId : null),
                         MyOffersGroupKey = myOffersGroupKey,
                         MyDeliveryTime = myOffer?.DeliveryTime,
                         MyIsSuperSeller = myOffer?.SuperSeller ?? false,
