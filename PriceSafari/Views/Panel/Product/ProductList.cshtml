@@ -1,7 +1,4 @@
-﻿
-
-
-@using PriceSafari.Models.ViewModels
+﻿@using PriceSafari.Models.ViewModels
 @{
     ViewData["Title"] = "Lista Produktów";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
@@ -312,6 +309,11 @@
         color: #e65100;
     }
 
+    .bm-chip-skipped {
+        background: #fce4ec;
+        color: #880e4f;
+    }
+
     .bm-badge {
         display: inline-block;
         padding: 2px 9px;
@@ -331,6 +333,11 @@
         color: #721c24;
     }
 
+    .bm-badge-notfound {
+        background: #e0e0e0;
+        color: #616161;
+    }
+
     .bm-change-enable {
         color: #1E9447;
         font-weight: 600;
@@ -346,6 +353,25 @@
     .bm-tr-missing {
         background: #fffaf5;
     }
+
+    .bm-tr-notfound {
+        background: #f5f5f5;
+    }
+
+    .bm-limit-warning {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 6px;
+        padding: 10px 16px;
+        font-size: 13px;
+        color: #856404;
+        margin-bottom: 16px;
+        display: none;
+    }
+
+        .bm-limit-warning i {
+            margin-right: 6px;
+        }
 </style>
 
 <div class="Vert">
@@ -470,7 +496,6 @@
     </div>
 </div>
 
-<!-- Batch overlay -->
 <div class="batch-overlay" id="batchOverlay">
     <div class="batch-overlay-card">
         <div class="batch-spinner"></div>
@@ -518,6 +543,10 @@
 
                 <div id="bmStep2" style="display:none;">
                     <div id="bmSummaryBar" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;"></div>
+                    <div id="bmLimitWarning" class="bm-limit-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span id="bmLimitWarningText"></span>
+                    </div>
                     <div style="display:flex; gap:12px; margin-bottom:20px;">
                         <button type="button" class="bm-action-btn" id="bmBtnEnable">
                             <i class="fas fa-toggle-on"></i> Włącz monitoring dla dopasowanych
@@ -653,9 +682,6 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
-    <!-- ============================================================
-         GŁÓWNY SKRYPT — virtual scroll, filtry, produkty
-         ============================================================ -->
     <script>
         (function () {
             'use strict';
@@ -664,6 +690,7 @@
             var BUFFER_ROWS      = 10;
             var SEARCH_DEBOUNCE  = 250;
             var BATCH_CHUNK_SIZE = 1000;
+            var STORE_PRODUCT_LIMIT = parseInt('@ViewBag.ProductCount') || 0;
 
             var allProducts      = [];
             var filteredProducts = [];
@@ -676,9 +703,10 @@
             var platformStatuses     = ['google', 'ceneo', 'google-ceneo', 'not-found'];
             var productMap           = {};
 
-            // Expose for other scripts
-            window.getAllProducts      = function () { return allProducts; };
-            window.triggerFilterRows  = function () { filterRows(); };
+            window.getAllProducts          = function () { return allProducts; };
+            window.triggerFilterRows       = function () { filterRows(); };
+            window.getProductPlatformStatus = getProductPlatformStatus;
+            window.STORE_PRODUCT_LIMIT     = STORE_PRODUCT_LIMIT;
 
             var scrollContainer, tbody, searchInput, producerDropdown;
             var selectAllButton, deselectAllButton, displayedCountEl;
@@ -742,7 +770,6 @@
                 fetchProducts();
             });
 
-            // ---- Virtual scroll ----
             var lastRenderedStart = -1, lastRenderedEnd = -1, rafPending = false;
 
             function onScroll() {
@@ -794,7 +821,6 @@
                 }
             }
 
-            // ---- Row builder ----
             function createProductRow(product, searchTerm) {
                 var row = document.createElement('tr');
                 row.classList.add('product-row');
@@ -805,7 +831,15 @@
 
                 var highlightedProductName = highlightMatches(product.productName, searchTerm);
                 var producer = product.producer ? '<b>Producent:</b> ' + product.producer : '';
-                var ean      = product.ean ? '<b>EAN:</b> ' + highlightMatches(product.ean, searchTerm) : '';
+                var ean      = '<b>EAN:</b> ' + (product.ean ? highlightMatches(product.ean, searchTerm) : '<span style="color:#bbb;">Brak</span>');
+
+                var externalIdDisplay = '<b>ID:</b> ' + (product.externalId != null && String(product.externalId).trim() !== ''
+                    ? highlightMatches(String(product.externalId), searchTerm)
+                    : '<span style="color:#bbb;">Brak</span>');
+
+                var skuDisplay = '<b>SKU:</b> ' + (product.catalogNumber != null && String(product.catalogNumber).trim() !== ''
+                    ? highlightMatches(product.catalogNumber, searchTerm)
+                    : '<span style="color:#bbb;">Brak</span>');
 
                 var newGoogleUrl          = createNewGoogleUrl(product);
                 var offerUrlButton        = product.offerUrl ? '<a href="' + product.offerUrl + '" class="Button-Page-Small" style="width:100px;" target="_blank">Ceneo</a>' : '';
@@ -840,9 +874,11 @@
 
                 row.innerHTML =
                     '<td><div style="width:420px;">' +
-                        '<p style="margin-bottom:8px;">' + highlightedProductName + '</p>' +
-                        '<p style="font-size:0.9em;color:#555;">' + producer + '</p>' +
-                        '<p style="font-size:0.9em;color:#555;">' + ean + '</p>' +
+                        '<p style="margin-bottom:4px;">' + highlightedProductName + '</p>' +
+                        '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + producer + '</p>' +
+                        '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + ean + '</p>' +
+                        '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + externalIdDisplay + '</p>' +
+                        '<p style="font-size:0.85em;color:#555;margin-bottom:0;">' + skuDisplay + '</p>' +
                     '</div></td>' +
                     '<td>' + imageCell + '</td>' +
                     '<td>' + purchasePriceHtml + '</td>' +
@@ -861,7 +897,6 @@
                 return row;
             }
 
-            // ---- Single checkbox toggle ----
             function onCheckboxChange(e) {
                 var checkbox = e.target;
                 if (!checkbox.classList.contains('scrapable-checkbox') || checkbox.disabled) return;
@@ -908,7 +943,6 @@
                 if (cb) cb.className = 'scrapable-checkbox ' + statusInfo.checkboxClass;
             }
 
-            // ---- Batch toggle ----
             function batchToggle(turnOn) {
                 var idsToSend = [];
                 filteredProducts.forEach(function (p) {
@@ -917,6 +951,18 @@
                     else if (!turnOn && p.isScrapable) idsToSend.push(p.productId);
                 });
                 if (!idsToSend.length) return;
+
+                if (turnOn) {
+                    var currentScrapable = allProducts.filter(function (p) { return p.isScrapable; }).length;
+                    var available = STORE_PRODUCT_LIMIT - currentScrapable;
+                    if (available <= 0) {
+                        alert('Osiągnięto limit monitorowanych produktów (' + STORE_PRODUCT_LIMIT + ').');
+                        return;
+                    }
+                    if (idsToSend.length > available) {
+                        idsToSend = idsToSend.slice(0, available);
+                    }
+                }
 
                 var previousStates = {};
                 idsToSend.forEach(function (id) {
@@ -986,7 +1032,6 @@
                     });
             }
 
-            // ---- Price actions ----
             function onTableClick(e) {
                 var target = e.target;
                 var row = target.closest('tr.product-row');
@@ -1047,7 +1092,6 @@
                 .catch(function (error) { console.error('Błąd aktualizacji ceny:', error); alert('Błąd komunikacji: ' + error.message); });
             }
 
-            // ---- Filter pipeline ----
             function filterRows() {
                 var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
                     .map(function (cb) { return cb.getAttribute('data-status'); });
@@ -1100,7 +1144,6 @@
                 updateAndRenderFlagFilters(productsBeforeFlagFilter);
             }
 
-            // ---- Fetch ----
             function fetchProducts() {
                 fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
                     .then(function (r) { return r.json(); })
@@ -1122,7 +1165,6 @@
                     .catch(function (err) { console.error('Error fetching products:', err); });
             }
 
-            // ---- Helpers ----
             function getProductPlatformStatus(product) {
                 var hasGoogle = !!(product.googleUrl && product.googleUrl.trim());
                 var hasCeneo  = !!(product.offerUrl  && product.offerUrl.trim());
@@ -1171,7 +1213,9 @@
                 if (!s) return products;
                 return products.filter(function (p) {
                     return p.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').includes(s) ||
-                           (p.ean || '').toLowerCase().includes(s);
+                           (p.ean || '').toLowerCase().includes(s) ||
+                           (p.externalId != null && String(p.externalId).toLowerCase().includes(s)) ||
+                           (p.catalogNumber || '').toLowerCase().includes(s);
                 });
             }
 
@@ -1304,9 +1348,6 @@
         })();
     </script>
 
-    <!-- ============================================================
-         SKRYPT MODALA CEN ZAKUPU
-         ============================================================ -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var uploadMarginsModal  = document.getElementById('uploadMarginsModal');
@@ -1318,7 +1359,6 @@
             var clearAllMarginsButton = document.getElementById('clearAllMarginsButton');
             var storeIdForMargins   = @ViewBag.StoreId;
 
-            // Otwórz modal
             var uploadMarginsButton = document.getElementById('uploadMarginsButton');
             if (uploadMarginsButton && uploadMarginsModal) {
                 uploadMarginsButton.addEventListener('click', function () {
@@ -1330,7 +1370,6 @@
                 });
             }
 
-            // Walidacja i submit
             if (uploadMarginsForm && uploadedFileField && submitUploadButton && uploadClientError) {
                 uploadMarginsForm.addEventListener('submit', function (event) {
                     uploadClientError.style.display = 'none';
@@ -1366,7 +1405,6 @@
                 });
             }
 
-            // Usuń wszystkie ceny — lokalna aktualizacja stanu (bez reload)
             if (clearAllMarginsButton) {
                 clearAllMarginsButton.addEventListener('click', function () {
                     if (!confirm('Jesteś pewien, że chcesz usunąć WSZYSTKIE ceny zakupu dla tego sklepu? Ta operacja jest nieodwracalna.'))
@@ -1401,7 +1439,6 @@
                     })
                     .then(function (data) {
                         if (data.success) {
-                            // Lokalna aktualizacja — brak reload strony
                             var products = typeof window.getAllProducts === 'function' ? window.getAllProducts() : [];
                             products.forEach(function (p) { p.marginPrice = null; });
                             if (typeof window.triggerFilterRows === 'function') window.triggerFilterRows();
@@ -1422,7 +1459,6 @@
                 });
             }
 
-            // Statystyki w modalu
             function updateModalStats() {
                 var elTotal     = document.getElementById('stat-total-products');
                 var elWithPrice = document.getElementById('stat-products-with-purchase-price');
@@ -1433,17 +1469,32 @@
                 var products = typeof window.getAllProducts === 'function' ? window.getAllProducts() : [];
 
                 if (!products || !products.length) {
-                    elTotal.textContent = elActiveMon.textContent = '0';
-                    elWithPrice.textContent = elActiveMonEan.textContent = elActiveMonPrice.textContent = '0 (0.0%)';
+                    elTotal.textContent = '0';
+                    elActiveMon.textContent = '0';
+                    elWithPrice.textContent = '0 (0.0%)';
+                    elActiveMonEan.textContent = '0 (0.0%)';
+                    elActiveMonPrice.textContent = '0 (0.0%)';
                     return;
                 }
 
-                var total      = products.length;
-                var withPrice  = products.filter(function (p) { return p.marginPrice != null && String(p.marginPrice).trim() !== ''; }).length;
-                var activeMon  = products.filter(function (p) { return p.isScrapable && !p.isRejected; });
-                var activeCnt  = activeMon.length;
-                var activeEan  = activeMon.filter(function (p) { return p.ean && p.ean.trim(); }).length;
-                var activePrice= activeMon.filter(function (p) { return p.marginPrice != null && String(p.marginPrice).trim() !== ''; }).length;
+                var total = products.length;
+
+                var withPrice = products.filter(function (p) {
+                    return p.marginPrice != null && String(p.marginPrice).trim() !== '';
+                }).length;
+
+                var activeMon = products.filter(function (p) { return p.isScrapable; });
+                var activeCnt = activeMon.length;
+
+                var activeEan = activeMon.filter(function (p) {
+                    if (p.ean == null) return false;
+                    var eanStr = String(p.ean).trim();
+                    return eanStr.length > 0;
+                }).length;
+
+                var activePrice = activeMon.filter(function (p) {
+                    return p.marginPrice != null && String(p.marginPrice).trim() !== '';
+                }).length;
 
                 function pct(n, d) { return d > 0 ? (n / d * 100).toFixed(1) : '0.0'; }
 
@@ -1463,9 +1514,7 @@
         });
     </script>
 
-    <!-- ============================================================
-         SKRYPT BULK MONITORING
-         ============================================================ -->
+
     <script>
         (function () {
             'use strict';
@@ -1475,7 +1524,7 @@
             var openBtn, dropZone, fileInput, fileError;
             var step1, step2, summaryBar, previewBody;
             var backBtn, confirmBtn, changeCountEl;
-            var btnEnable, btnDisable;
+            var btnEnable, btnDisable, limitWarning, limitWarningText;
 
             var parsedIdentifiers = [], matchedRows = [], selectedAction = null;
 
@@ -1493,6 +1542,8 @@
                 changeCountEl = document.getElementById('bmChangeCount');
                 btnEnable     = document.getElementById('bmBtnEnable');
                 btnDisable    = document.getElementById('bmBtnDisable');
+                limitWarning  = document.getElementById('bmLimitWarning');
+                limitWarningText = document.getElementById('bmLimitWarningText');
 
                 if (!openBtn) return;
 
@@ -1520,6 +1571,7 @@
             function resetToStep1() {
                 step1.style.display = ''; step2.style.display = 'none';
                 confirmBtn.style.display = 'none'; fileError.style.display = 'none';
+                limitWarning.style.display = 'none';
                 selectedAction = null; parsedIdentifiers = []; matchedRows = [];
                 clearActionBtns(); resetDropZoneUI();
             }
@@ -1569,6 +1621,7 @@
                         renderSummary();
                         renderTable(null);
                         clearActionBtns();
+                        limitWarning.style.display = 'none';
                         confirmBtn.style.display = 'none';
                         showStep2();
                     } catch (err) { resetDropZoneUI(); showErr('Błąd odczytu pliku: ' + err.message); }
@@ -1616,10 +1669,18 @@
                 var total   = matchedRows.length;
                 var matched = matchedRows.filter(function (r) { return r.product; }).length;
                 var missing = total - matched;
+
+                var notFoundCount = matchedRows.filter(function (r) {
+                    if (!r.product) return false;
+                    var ps = window.getProductPlatformStatus(r.product);
+                    return ps.notFound;
+                }).length;
+
                 summaryBar.innerHTML =
                     chip('bm-chip-total',   'fa-file-alt',          total   + ' wierszy w pliku') +
                     chip('bm-chip-matched', 'fa-check-circle',      matched + ' dopasowanych') +
-                    (missing > 0 ? chip('bm-chip-missing', 'fa-exclamation-circle', missing + ' nie znaleziono') : '');
+                    (missing > 0 ? chip('bm-chip-missing', 'fa-exclamation-circle', missing + ' nie znaleziono') : '') +
+                    (notFoundCount > 0 ? chip('bm-chip-skipped', 'fa-ban', notFoundCount + ' bez platformy (nie można włączyć)') : '');
             }
 
             function chip(cls, icon, text) {
@@ -1629,7 +1690,9 @@
             function renderTable(action) {
                 var sorted = matchedRows.slice().sort(function (a, b) {
                     function score(r) {
-                        if (!r.product) return 2;
+                        if (!r.product) return 3;
+                        var ps = window.getProductPlatformStatus(r.product);
+                        if (ps.notFound) return 2;
                         if (!action) return 0;
                         return (action === 'enable' ? !r.product.isScrapable : r.product.isScrapable) ? 0 : 1;
                     }
@@ -1639,6 +1702,7 @@
                 var html = '';
                 sorted.forEach(function (row) {
                     var p = row.product, ident = row.ident;
+
                     if (!p) {
                         html += '<tr class="bm-tr-missing">' +
                             '<td style="padding:9px 14px;font-family:monospace;font-size:12px;color:#e65100;">' + esc(ident.label) + '</td>' +
@@ -1646,26 +1710,43 @@
                             '<td colspan="2"></td></tr>';
                         return;
                     }
-                    var nowBadge  = p.isScrapable
+
+                    var ps = window.getProductPlatformStatus(p);
+                    var isNotFound = ps.notFound;
+
+                    var nowBadge = p.isScrapable
                         ? '<span class="bm-badge bm-badge-on">Aktywny</span>'
                         : '<span class="bm-badge bm-badge-off">Nieaktywny</span>';
+
+                    if (isNotFound) {
+                        nowBadge += ' <span class="bm-badge bm-badge-notfound" style="margin-left:4px;">Brak platformy</span>';
+                    }
+
                     var afterCell = '<span style="color:#ddd;">—</span>';
-                    if (action === 'enable') {
+
+                    if (isNotFound && action === 'enable') {
+
+                        afterCell = '<span style="color:#999;font-size:11px;font-style:italic;" title="Produkt nie został znaleziony na Google ani Ceneo">Nie można włączyć</span>';
+                    } else if (action === 'enable') {
                         afterCell = p.isScrapable ? nowBadge
                             : '<span class="bm-change-enable"><i class="fas fa-arrow-right" style="font-size:10px;margin-right:4px;"></i>Aktywny</span>';
                     } else if (action === 'disable') {
                         afterCell = !p.isScrapable ? nowBadge
                             : '<span class="bm-change-disable"><i class="fas fa-arrow-right" style="font-size:10px;margin-right:4px;"></i>Nieaktywny</span>';
                     }
+
                     var info =
                         '<div style="font-weight:500;color:#222;">' + esc(p.productName) + '</div>' +
                         '<div style="font-size:11px;color:#999;margin-top:2px;">' +
                         (p.ean ? 'EAN: ' + esc(p.ean) : '') +
                         (p.ean && p.externalId ? ' &nbsp;·&nbsp; ' : '') +
-                        (p.externalId ? 'ID: ' + esc(String(p.externalId)) : '') +
-                        (p.catalogNumber ? ' &nbsp;·&nbsp; SKU: ' + esc(p.catalogNumber) : '') +
+                        (p.externalId != null ? 'ID: ' + esc(String(p.externalId)) : '') +
+                        ((p.ean || p.externalId) && p.catalogNumber ? ' &nbsp;·&nbsp; ' : '') +
+                        (p.catalogNumber ? 'SKU: ' + esc(p.catalogNumber) : '') +
                         '</div>';
-                    html += '<tr>' +
+
+                    var trClass = isNotFound ? ' class="bm-tr-notfound"' : '';
+                    html += '<tr' + trClass + '>' +
                         '<td style="padding:9px 14px;font-family:monospace;font-size:12px;color:#666;">' + esc(ident.label) + '</td>' +
                         '<td style="padding:9px 14px;">' + info + '</td>' +
                         '<td style="padding:9px 14px;text-align:center;">' + nowBadge  + '</td>' +
@@ -1680,11 +1761,44 @@
                 clearActionBtns();
                 if (action === 'enable')  btnEnable.classList.add('bm-selected-enable');
                 if (action === 'disable') btnDisable.classList.add('bm-selected-disable');
+
                 renderTable(action);
-                var toChange = matchedRows.filter(function (r) {
+
+                var toChangeRows = matchedRows.filter(function (r) {
                     if (!r.product) return false;
-                    return action === 'enable' ? !r.product.isScrapable : r.product.isScrapable;
-                }).length;
+                    if (action === 'enable') {
+                        var ps = window.getProductPlatformStatus(r.product);
+                        if (ps.notFound) return false;
+                        return !r.product.isScrapable;
+                    }
+                    return r.product.isScrapable;
+                });
+
+                var toChange = toChangeRows.length;
+                var limitExceeded = false;
+
+                if (action === 'enable' && toChange > 0) {
+                    var products = window.getAllProducts ? window.getAllProducts() : [];
+                    var currentScrapable = products.filter(function (p) { return p.isScrapable; }).length;
+                    var limit = window.STORE_PRODUCT_LIMIT || 0;
+                    var available = limit - currentScrapable;
+
+                    if (available <= 0) {
+                        limitWarningText.textContent = 'Osiągnięto limit monitorowanych produktów (' + limit + '). Nie można włączyć więcej produktów.';
+                        limitWarning.style.display = 'block';
+                        toChange = 0;
+                        limitExceeded = true;
+                    } else if (toChange > available) {
+                        limitWarningText.textContent = 'Limit monitorowanych produktów: ' + limit + '. Aktualnie monitorowanych: ' + currentScrapable + '. Dostępne miejsca: ' + available + '. Zostanie włączonych tylko ' + available + ' z ' + toChange + ' produktów.';
+                        limitWarning.style.display = 'block';
+                        toChange = available;
+                    } else {
+                        limitWarning.style.display = 'none';
+                    }
+                } else {
+                    limitWarning.style.display = 'none';
+                }
+
                 confirmBtn.disabled = (toChange === 0);
                 confirmBtn.style.display = '';
                 confirmBtn.innerHTML = 'Zastosuj zmiany (<span id="bmChangeCount">' + toChange + '</span>)';
@@ -1699,9 +1813,33 @@
             function applyChanges() {
                 if (!selectedAction) return;
                 var turnOn = selectedAction === 'enable';
+
                 var ids = matchedRows
-                    .filter(function (r) { return r.product && (turnOn ? !r.product.isScrapable : r.product.isScrapable); })
+                    .filter(function (r) {
+                        if (!r.product) return false;
+                        if (turnOn) {
+                            var ps = window.getProductPlatformStatus(r.product);
+                            if (ps.notFound) return false;
+                            return !r.product.isScrapable;
+                        }
+                        return r.product.isScrapable;
+                    })
                     .map(function (r) { return r.product.productId; });
+
+                if (turnOn && ids.length > 0) {
+                    var products = window.getAllProducts ? window.getAllProducts() : [];
+                    var currentScrapable = products.filter(function (p) { return p.isScrapable; }).length;
+                    var limit = window.STORE_PRODUCT_LIMIT || 0;
+                    var available = limit - currentScrapable;
+                    if (available <= 0) {
+                        alert('Osiągnięto limit monitorowanych produktów (' + limit + ').');
+                        return;
+                    }
+                    if (ids.length > available) {
+                        ids = ids.slice(0, available);
+                    }
+                }
+
                 if (!ids.length) return;
 
                 confirmBtn.disabled = true;
@@ -1720,12 +1858,27 @@
                 .then(function (data) {
                     if (data.success) {
                         var products = window.getAllProducts ? window.getAllProducts() : [];
-                        ids.forEach(function (id) {
+
+                        var updatedIds = ids;
+                        if (data.message && data.message.indexOf('Zaktualizowano') !== -1) {
+                            var match = data.message.match(/Zaktualizowano (\d+) z/);
+                            if (match) {
+                                var actualCount = parseInt(match[1]);
+                                updatedIds = ids.slice(0, actualCount);
+                            }
+                        }
+
+                        updatedIds.forEach(function (id) {
                             var p = products.find(function (x) { return x.productId === id; });
                             if (p) p.isScrapable = turnOn;
                         });
+
                         if (window.triggerFilterRows) window.triggerFilterRows();
                         $('#bulkMonitoringModal').modal('hide');
+
+                        if (data.message && updatedIds.length < ids.length) {
+                            alert(data.message);
+                        }
                     } else {
                         alert(data.message || 'Wystąpił błąd podczas zapisu.');
                         confirmBtn.disabled = false;
@@ -1762,3 +1915,4 @@
         })();
     </script>
 }
+
