@@ -1,13 +1,15 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AngleSharp.Dom;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using PriceSafari.Data;
-using System.Security.Claims;
-using PriceSafari.Models.ViewModels;
 using NPOI.HSSF.UserModel;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
+using PriceSafari.Data;
+using PriceSafari.Models;
+using PriceSafari.Models.ViewModels;
 using System.Globalization;
+using System.Security.Claims;
 
 namespace PriceSafari.Controllers
 {
@@ -129,6 +131,8 @@ namespace PriceSafari.Controllers
                       p.IsRejected,
                       p.Url,
                       p.Ean,
+                      p.ExternalId,        
+                      p.CatalogNumber, 
                       p.MarginPrice,
                       p.MainUrl,
                       p.GoogleUrl,
@@ -274,95 +278,178 @@ namespace PriceSafari.Controllers
             return Json(new { success = true });
         }
 
+        private class ProductImportRow
+        {
+            public string Ean { get; set; }
+            public string ExternalId { get; set; }
+            public decimal? Price { get; set; }
+            public string CatalogNumber { get; set; }
+            public List<string> FlagNames { get; set; } = new List<string>();
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetMargins(int storeId, IFormFile uploadedFile)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            _logger.LogInformation("Wywołanie SetMargins: StoreId={StoreId}, UserId={UserId}, FileName={FileName}, FileSize={FileSize}",
-                                    storeId, userId, uploadedFile?.FileName, uploadedFile?.Length);
+            _logger.LogInformation("SetMargins: StoreId={StoreId}, UserId={UserId}, File={File}", storeId, userId, uploadedFile?.FileName);
 
             var userStore = await _context.UserStores
                 .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
-            if (userStore == null)
-            {
-                _logger.LogWarning("Brak dostępu użytkownika {UserId} do sklepu {StoreId}", userId, storeId);
-                return Forbid();
-            }
-
-            var store = await _context.Stores.FindAsync(storeId);
-            if (store == null)
-            {
-                _logger.LogWarning("Nie znaleziono sklepu o ID {StoreId}", storeId);
-                return NotFound();
-            }
+            if (userStore == null) return Forbid();
 
             if (uploadedFile == null || uploadedFile.Length == 0)
             {
-                _logger.LogWarning("Brak pliku w requestcie lub plik pusty");
                 TempData["ErrorMessage"] = "Proszę wgrać poprawny plik Excel.";
                 return RedirectToAction("ProductList", new { storeId });
             }
             if (uploadedFile.Length > 10 * 1024 * 1024)
             {
-                _logger.LogWarning("Przekroczony rozmiar pliku: {Size} bajtów", uploadedFile.Length);
                 TempData["ErrorMessage"] = "Wielkość pliku nie może przekraczać 10 MB.";
                 return RedirectToAction("ProductList", new { storeId });
             }
             var ext = Path.GetExtension(uploadedFile.FileName).ToLowerInvariant();
             if (ext != ".xls" && ext != ".xlsx")
             {
-                _logger.LogWarning("Niewspierane rozszerzenie pliku: {Ext}", ext);
-                TempData["ErrorMessage"] = "Niewspierany format pliku. Proszę .xls lub .xlsx.";
+                TempData["ErrorMessage"] = "Niewspierany format pliku.";
                 return RedirectToAction("ProductList", new { storeId });
             }
             var mime = uploadedFile.ContentType;
             if (mime != "application/vnd.ms-excel" &&
                 mime != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             {
-                _logger.LogWarning("Niewspierany typ MIME: {Mime}", mime);
-                TempData["ErrorMessage"] = "Niewspierany typ pliku. Proszę Excel.";
+                TempData["ErrorMessage"] = "Niewspierany typ MIME.";
                 return RedirectToAction("ProductList", new { storeId });
             }
 
             try
             {
-                _logger.LogInformation("Rozpoczynam parsowanie pliku Excel");
-                var marginData = await ParseExcelFile(uploadedFile);
-                if (marginData == null || !marginData.Any())
+                var importRows = await ParseProductExcelFile(uploadedFile);
+
+                if (importRows == null || !importRows.Any())
                 {
-                    _logger.LogWarning("Plik nie zawiera poprawnych danych o cenach zakupu.");
                     TempData["ErrorMessage"] = "Plik nie zawiera poprawnych danych.";
                     return RedirectToAction("ProductList", new { storeId });
                 }
-                _logger.LogInformation("Pobrano {Count} wpisów cen zakupu z pliku", marginData.Count);
 
-                var products = await _context.Products
-                    .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.Ean))
+                // --- LOGIKA FLAG ---
+                var distinctFlagNames = importRows
+                    .SelectMany(r => r.FlagNames)
+                    .Select(f => f.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Where(f => !string.IsNullOrEmpty(f))
+                    .ToList();
+
+                var existingFlags = await _context.Flags
+                    .Where(f => f.StoreId == storeId && !f.IsMarketplace)
                     .ToListAsync();
-                _logger.LogInformation("Znaleziono {Count} produktów do potencjalnej aktualizacji", products.Count);
+
+                var flagsToCreate = new List<FlagsClass>();
+                foreach (var flagName in distinctFlagNames)
+                {
+                    if (!existingFlags.Any(f => f.FlagName.Equals(flagName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        flagsToCreate.Add(new FlagsClass
+                        {
+                            StoreId = storeId,
+                            FlagName = flagName,
+                            FlagColor = GenerateRandomColorProduct(),
+                            IsMarketplace = false
+                        });
+                    }
+                }
+
+                if (flagsToCreate.Any())
+                {
+                    _context.Flags.AddRange(flagsToCreate);
+                    await _context.SaveChangesAsync();
+                    existingFlags.AddRange(flagsToCreate);
+                }
+
+                var flagMap = existingFlags.ToDictionary(f => f.FlagName.ToUpperInvariant(), f => f.FlagId);
+
+                // --- AKTUALIZACJA PRODUKTÓW ---
+                var products = await _context.Products
+                    .Include(p => p.ProductFlags)
+                    .Where(p => p.StoreId == storeId)
+                    .ToListAsync();
 
                 int updatedCount = 0;
-                foreach (var prod in products)
-                {
-                    if (marginData.TryGetValue(prod.Ean, out var m))
-                    {
-                        // Jeśli cena jest inna niż obecna -> aktualizujemy cenę i datę
-                        if (prod.MarginPrice != m)
-                        {
-                            _logger.LogInformation("Aktualizuję produkt EAN={Ean}. Stara cena: {Old}, Nowa: {New}", prod.Ean, prod.MarginPrice, m);
 
-                            prod.MarginPrice = m;
-                            prod.MarginPriceUpdatedDate = DateTime.UtcNow; // Data aktualizacji
-                            updatedCount++;
+                foreach (var row in importRows)
+                {
+                    var targets = new List<ProductClass>();
+
+                    // Priorytet 1: ExternalId
+                    if (!string.IsNullOrEmpty(row.ExternalId) &&
+                        int.TryParse(row.ExternalId, out var extIdInt))
+                    {
+                        var found = products.FirstOrDefault(p => p.ExternalId == extIdInt);
+                        if (found != null) targets.Add(found);
+                    }
+
+                    // Priorytet 2: EAN
+                    if (!targets.Any() && !string.IsNullOrEmpty(row.Ean))
+                    {
+                        var byEan = products.Where(p => p.Ean == row.Ean).ToList();
+                        targets.AddRange(byEan);
+                    }
+
+                    foreach (var product in targets)
+                    {
+                        bool isModified = false;
+
+                        if (row.Price.HasValue && product.MarginPrice != row.Price.Value)
+                        {
+                            product.MarginPrice = row.Price.Value;
+                            product.MarginPriceUpdatedDate = DateTime.UtcNow;
+                            isModified = true;
                         }
+
+                        if (!string.IsNullOrEmpty(row.CatalogNumber) && product.CatalogNumber != row.CatalogNumber)
+                        {
+                            product.CatalogNumber = row.CatalogNumber;
+                            isModified = true;
+                        }
+
+                        if (row.FlagNames != null && row.FlagNames.Any())
+                        {
+                            var targetFlagIds = row.FlagNames
+                                .Select(fn => fn.Trim().ToUpperInvariant())
+                                .Where(fn => flagMap.ContainsKey(fn))
+                                .Select(fn => flagMap[fn])
+                                .ToList();
+
+                            var currentFlagIds = product.ProductFlags
+                                .Where(pf => pf.ProductId.HasValue)
+                                .Select(pf => pf.FlagId)
+                                .ToList();
+
+                            if (!new HashSet<int>(currentFlagIds).SetEquals(targetFlagIds))
+                            {
+                                var toRemove = product.ProductFlags
+                                    .Where(pf => pf.ProductId.HasValue)
+                                    .ToList();
+                                foreach (var f in toRemove) _context.ProductFlags.Remove(f);
+
+                                foreach (var flagId in targetFlagIds)
+                                {
+                                    _context.ProductFlags.Add(new ProductFlag
+                                    {
+                                        ProductId = product.ProductId,
+                                        FlagId = flagId
+                                    });
+                                }
+                                isModified = true;
+                            }
+                        }
+
+                        if (isModified) updatedCount++;
                     }
                 }
 
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Zaktualizowano ceny zakupu dla {UpdatedCount} produktów", updatedCount);
-
-                TempData["SuccessMessage"] = $"Ceny zakupu zostały zaktualizowane dla {updatedCount} produktów.";
+                TempData["SuccessMessage"] = $"Zaktualizowano {updatedCount} produktów (Ceny, SKU, Flagi).";
                 return RedirectToAction("ProductList", new { storeId });
             }
             catch (Exception ex)
@@ -373,9 +460,9 @@ namespace PriceSafari.Controllers
             }
         }
 
-        private async Task<Dictionary<string, decimal>> ParseExcelFile(IFormFile file)
+        private async Task<List<ProductImportRow>> ParseProductExcelFile(IFormFile file)
         {
-            var marginData = new Dictionary<string, decimal>();
+            var list = new List<ProductImportRow>();
 
             using (var stream = new MemoryStream())
             {
@@ -383,56 +470,34 @@ namespace PriceSafari.Controllers
                 stream.Position = 0;
 
                 var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-                _logger.LogInformation("Ładowanie skoroszytu, rozszerzenie: {Ext}", extension);
-
-                IWorkbook workbook = extension switch
-                {
-                    ".xls" => new HSSFWorkbook(stream),
-                    ".xlsx" => new XSSFWorkbook(stream),
-                    _ => null
-                };
-                if (workbook == null)
-                {
-                    _logger.LogError("Nie udało się załadować skoroszytu");
-                    return null;
-                }
-                _logger.LogInformation("Skoroszyt załadowany: {Type}", workbook.GetType().Name);
+                IWorkbook workbook = extension == ".xls"
+                    ? (IWorkbook)new HSSFWorkbook(stream)
+                    : new XSSFWorkbook(stream);
 
                 var evaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
                 var sheet = workbook.GetSheetAt(0);
-                if (sheet == null)
-                {
-                    _logger.LogError("Brak arkusza w skoroszycie");
-                    return null;
-                }
-                _logger.LogInformation("Odczyt arkusza: {SheetName}", sheet.SheetName);
-
-                var eanHeaders = new[] { "EAN", "KODEAN" };
-                var priceHeaders = new[] { "CENA", "PRICE" };
-                int eanCol = -1, priceCol = -1;
+                if (sheet == null) return null;
 
                 var headerRow = sheet.GetRow(0);
-                if (headerRow == null)
-                {
-                    _logger.LogError("Brak wiersza nagłówkowego");
-                    return null;
-                }
+                if (headerRow == null) return null;
+
+                int eanCol = -1, priceCol = -1, externalIdCol = -1, catalogNumberCol = -1, flagCol = -1;
 
                 for (int c = headerRow.FirstCellNum; c < headerRow.LastCellNum; c++)
                 {
-                    var cell = headerRow.GetCell(c);
-                    var txt = GetCellValue(cell, evaluator)?
-                                 .Trim()
-                                 .ToUpperInvariant()
-                                 .Replace(" ", "");
-                    if (eanHeaders.Contains(txt)) eanCol = c;
-                    if (priceHeaders.Contains(txt)) priceCol = c;
-                }
-                _logger.LogInformation("Znalezione kolumny — EAN: {EanCol}, CENA: {PriceCol}", eanCol, priceCol);
+                    var txt = GetCellValue(headerRow.GetCell(c), evaluator)?.Trim().ToUpperInvariant().Replace(" ", "");
+                    if (string.IsNullOrEmpty(txt)) continue;
 
-                if (eanCol < 0 || priceCol < 0)
+                    if (txt == "EAN" || txt == "KODEAN") eanCol = c;
+                    else if (txt == "CENA" || txt == "PRICE" || txt == "CENAZAKUPU") priceCol = c;
+                    else if (txt == "ID" || txt == "EXTERNALID" || txt == "ZEWNETRZNE_ID") externalIdCol = c;
+                    else if (txt == "SKU" || txt == "SYGNATURA" || txt == "CATALOGNUMBER") catalogNumberCol = c;
+                    else if (txt == "FLAGA" || txt == "FLAGI" || txt == "FLAGS") flagCol = c;
+                }
+
+                if (eanCol < 0 && externalIdCol < 0)
                 {
-                    _logger.LogError("Nie znaleziono wymaganych kolumn w nagłówku");
+                    _logger.LogError("Brak kolumn identyfikacyjnych (EAN lub ID)");
                     return null;
                 }
 
@@ -441,39 +506,122 @@ namespace PriceSafari.Controllers
                     var row = sheet.GetRow(r);
                     if (row == null) continue;
 
-                    var eCell = row.GetCell(eanCol);
-                    var pCell = row.GetCell(priceCol);
+                    var item = new ProductImportRow();
 
-                    var ean = GetCellValue(eCell, evaluator)?.Trim();
-                    var priceText = GetCellValue(pCell, evaluator)?.Trim();
+                    if (eanCol >= 0) item.Ean = GetCellValue(row.GetCell(eanCol), evaluator)?.Trim();
+                    if (externalIdCol >= 0) item.ExternalId = GetCellValue(row.GetCell(externalIdCol), evaluator)?.Trim();
 
-                    if (string.IsNullOrWhiteSpace(ean) || string.IsNullOrWhiteSpace(priceText))
-                        continue;
+                    if (string.IsNullOrEmpty(item.Ean) && string.IsNullOrEmpty(item.ExternalId)) continue;
 
-                    _logger.LogDebug("Wiersz {Row}: EAN={Ean}, Cena surowa='{PriceText}'", r, ean, priceText);
-
-                    priceText = priceText.Replace(",", ".");
-                    if (decimal.TryParse(priceText,
-                                         NumberStyles.Any,
-                                         CultureInfo.InvariantCulture,
-                                         out var mVal))
+                    if (priceCol >= 0)
                     {
-                        _logger.LogDebug("Parsowanie OK: marża={Margin} dla EAN={Ean}", mVal, ean);
-                        if (!marginData.ContainsKey(ean))
-                            marginData.Add(ean, mVal);
-                        else
-                            _logger.LogWarning("Duplikat EAN: {Ean}, pomijam drugi wpis", ean);
+                        var priceTxt = GetCellValue(row.GetCell(priceCol), evaluator)?.Trim().Replace(",", ".");
+                        if (decimal.TryParse(priceTxt, NumberStyles.Any, CultureInfo.InvariantCulture, out var p))
+                            item.Price = p;
                     }
-                    else
+
+                    if (catalogNumberCol >= 0)
+                        item.CatalogNumber = GetCellValue(row.GetCell(catalogNumberCol), evaluator)?.Trim();
+
+                    if (flagCol >= 0)
                     {
-                        _logger.LogWarning("Nie udało się sparsować ceny '{PriceText}' w wierszu {Row}", priceText, r);
+                        var flagsRaw = GetCellValue(row.GetCell(flagCol), evaluator)?.Trim();
+                        if (!string.IsNullOrEmpty(flagsRaw))
+                        {
+                            foreach (var part in flagsRaw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                                item.FlagNames.Add(part.Trim());
+                        }
                     }
+
+                    list.Add(item);
                 }
             }
 
-            _logger.LogInformation("Zakończono parsowanie, znaleziono {Count} marż", marginData.Count);
-            return marginData.Count > 0 ? marginData : null;
+            return list;
         }
+
+        [HttpGet]
+        public async Task<IActionResult> DownloadProductSkeleton(int storeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userStore = await _context.UserStores.FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
+            if (userStore == null) return Forbid();
+
+            var products = await _context.Products
+                .Include(p => p.ProductFlags)
+                    .ThenInclude(pf => pf.Flag)
+                .Where(p => p.StoreId == storeId)
+                .ToListAsync();
+
+            using (var workbook = new XSSFWorkbook())
+            {
+                var sheet = workbook.CreateSheet("Produkty");
+
+                var headerRow = sheet.CreateRow(0);
+                headerRow.CreateCell(0).SetCellValue("ID");           // ExternalId
+                headerRow.CreateCell(1).SetCellValue("EAN");          // EAN
+                headerRow.CreateCell(2).SetCellValue("SKU");          // CatalogNumber
+                headerRow.CreateCell(3).SetCellValue("CENA");         // MarginPrice
+                headerRow.CreateCell(4).SetCellValue("FLAGI");        // Flagi po przecinku
+
+                var headerStyle = workbook.CreateCellStyle();
+                var font = workbook.CreateFont();
+                font.IsBold = true;
+                headerStyle.SetFont(font);
+                for (int i = 0; i < 5; i++) headerRow.GetCell(i).CellStyle = headerStyle;
+
+                int rowIndex = 1;
+                foreach (var product in products)
+                {
+                    var row = sheet.CreateRow(rowIndex++);
+
+                    // ID — ExternalId jako liczba lub pusty string
+                    if (product.ExternalId.HasValue)
+                        row.CreateCell(0).SetCellValue(product.ExternalId.Value);
+                    else
+                        row.CreateCell(0).SetCellValue("");
+
+                    row.CreateCell(1).SetCellValue(product.Ean ?? "");
+                    row.CreateCell(2).SetCellValue(product.CatalogNumber ?? "");
+
+                    if (product.MarginPrice.HasValue)
+                        row.CreateCell(3).SetCellValue((double)product.MarginPrice.Value);
+                    else
+                        row.CreateCell(3).SetCellValue("");
+
+                    if (product.ProductFlags != null && product.ProductFlags.Any(pf => pf.ProductId.HasValue))
+                    {
+                        var flagNames = product.ProductFlags
+                            .Where(pf => pf.ProductId.HasValue && pf.Flag != null)
+                            .Select(pf => pf.Flag.FlagName)
+                            .Where(n => !string.IsNullOrEmpty(n));
+                        row.CreateCell(4).SetCellValue(string.Join(", ", flagNames));
+                    }
+                    else
+                    {
+                        row.CreateCell(4).SetCellValue("");
+                    }
+                }
+
+                for (int i = 0; i < 5; i++) sheet.AutoSizeColumn(i);
+
+                using (var stream = new MemoryStream())
+                {
+                    workbook.Write(stream);
+                    var content = stream.ToArray();
+                    var fileName = $"Produkty_Szkielet_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+                    return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+                }
+            }
+        }
+
+
+        private string GenerateRandomColorProduct()
+        {
+            var random = new Random();
+            return String.Format("#{0:X6}", random.Next(0x1000000));
+        }
+
 
         private string GetCellValue(ICell cell, IFormulaEvaluator evaluator)
         {
