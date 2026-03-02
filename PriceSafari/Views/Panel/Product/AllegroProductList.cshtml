@@ -213,6 +213,136 @@
     @@keyframes batchSpin {
         to { transform: rotate(360deg); }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+    .bm-dropzone {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 40px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color .2s, background .2s;
+        background: #fafafa;
+        user-select: none;
+    }
+
+        .bm-dropzone:hover, .bm-dropzone.bm-dragover {
+            border-color: #1E9447;
+            background: #f0fdf4;
+        }
+
+    .bm-action-btn {
+        flex: 1;
+        padding: 11px 18px;
+        border-radius: 6px;
+        border: 2px solid #ddd;
+        background: #fff;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        transition: border-color .2s, background .2s, color .2s;
+        color: #444;
+    }
+
+        .bm-action-btn i {
+            margin-right: 6px;
+        }
+
+        .bm-action-btn:hover {
+            border-color: #1E9447;
+            color: #1E9447;
+            background: #f0fdf4;
+        }
+
+        .bm-action-btn.bm-action-danger:hover {
+            border-color: #bd2113;
+            color: #bd2113;
+            background: #fff5f5;
+        }
+
+        .bm-action-btn.bm-selected-enable {
+            border-color: #1E9447;
+            background: #e8f5e9;
+            color: #1E9447;
+        }
+
+        .bm-action-btn.bm-selected-disable {
+            border-color: #bd2113;
+            background: #fdecea;
+            color: #bd2113;
+        }
+
+    .bm-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 13px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .bm-chip-total {
+        background: #e3f2fd;
+        color: #0d47a1;
+    }
+
+    .bm-chip-matched {
+        background: #e8f5e9;
+        color: #1b5e20;
+    }
+
+    .bm-chip-missing {
+        background: #fff3e0;
+        color: #e65100;
+    }
+
+    .bm-badge {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .bm-badge-on {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .bm-badge-off {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .bm-change-enable {
+        color: #1E9447;
+        font-weight: 600;
+        font-size: 12px;
+    }
+
+    .bm-change-disable {
+        color: #bd2113;
+        font-weight: 600;
+        font-size: 12px;
+    }
+
+    .bm-tr-missing {
+        background: #fffaf5;
+    }
+
 </style>
 
 <div class="Vert">
@@ -280,6 +410,10 @@
                                 Ceny zakupu
                             </button>
                         </div>
+                        <button type="button" class="Button-Page-Small" id="openBulkMonitoringBtn">
+                            <i class="fas fa-list-check"></i> Monitoring
+                        </button>
+
                     </div>
 
                     <div class="virtual-scroll-container" id="virtualScrollContainer">
@@ -317,6 +451,92 @@
         <p class="batch-overlay-hint">Proszę czekać, nie zamykaj strony.</p>
     </div>
 </div>
+
+
+
+<div class="modal fade" id="bulkMonitoringModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" style="max-width:880px;" role="document">
+        <div class="modal-content" style="margin:3% auto; width:840px;">
+
+            <div class="modal-header" style="border-bottom:1px solid #e8e8e8;">
+                <h5 class="modal-title" style="font-weight:600;">
+                    <i class="fas fa-file-import" style="margin-right:8px; color:#555;"></i>
+                    Masowe zaznaczanie produktów monitorowanych (EAN/ID)
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span>&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body" style="padding:28px 32px;">
+
+                @* ======= KROK 1: UPLOAD ======= *@
+                <div id="bmStep1">
+                    <p style="color:#666; margin-bottom:20px; font-size:14px;">
+                        Wgraj plik Excel zawierający kolumnę <code>EAN</code> lub <code>ID</code> (ID aukcji Allegro).
+                        System dopasuje produkty i pokaże podgląd zmian przed zapisem.
+                    </p>
+
+                    <div id="bmDropZone" class="bm-dropzone">
+                        <i class="fas fa-file-excel" style="font-size:36px; color:#1d6f42; margin-bottom:12px; display:block;"></i>
+                        <div style="font-weight:600; font-size:15px; margin-bottom:4px;">Przeciągnij plik tutaj lub kliknij aby wybrać</div>
+                        <div style="font-size:12px; color:#999;">.xls lub .xlsx &nbsp;·&nbsp; maks. 10 MB</div>
+                        <input type="file" id="bmFileInput" accept=".xls,.xlsx" style="display:none;">
+                    </div>
+
+                    <div id="bmFileError" class="alert alert-danger" style="display:none; margin-top:14px;"></div>
+                </div>
+
+                @* ======= KROK 2: PODGLĄD ======= *@
+                <div id="bmStep2" style="display:none;">
+
+                    @* Summary chips *@
+                    <div id="bmSummaryBar" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;"></div>
+
+                    @* Wybór akcji *@
+                    <div style="display:flex; gap:12px; margin-bottom:20px;">
+                        <button type="button" class="bm-action-btn" id="bmBtnEnable">
+                            <i class="fas fa-toggle-on"></i> Włącz monitoring dla dopasowanych
+                        </button>
+                        <button type="button" class="bm-action-btn bm-action-danger" id="bmBtnDisable">
+                            <i class="fas fa-toggle-off"></i> Wyłącz monitoring dla dopasowanych
+                        </button>
+                    </div>
+
+                    @* Tabela podglądu *@
+                    <div style="max-height:360px; overflow-y:auto; border:1px solid #e4e4e4; border-radius:6px;">
+                        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                            <thead>
+                                <tr style="background:#f7f7f7; position:sticky; top:0; z-index:1;">
+                                    <th style="padding:9px 14px; text-align:left; border-bottom:1px solid #e0e0e0; font-weight:600; color:#333;">Identyfikator z pliku</th>
+                                    <th style="padding:9px 14px; text-align:left; border-bottom:1px solid #e0e0e0; font-weight:600; color:#333;">Produkt w systemie</th>
+                                    <th style="padding:9px 14px; text-align:center; border-bottom:1px solid #e0e0e0; font-weight:600; color:#333; width:100px;">Teraz</th>
+                                    <th style="padding:9px 14px; text-align:center; border-bottom:1px solid #e0e0e0; font-weight:600; color:#333; width:130px;">Po zmianie</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bmPreviewBody"></tbody>
+                        </table>
+                    </div>
+
+                    <button type="button" id="bmBackBtn" class="Button-Page-Small" style="margin-top:16px;">
+                        <i class="fas fa-arrow-left"></i> Wróć
+                    </button>
+
+                </div>
+            </div>
+
+            <div class="modal-footer" style="border-top:1px solid #e8e8e8;">
+                <button type="button" class="Button-Page-Small" data-dismiss="modal">Zamknij</button>
+                <button type="button" id="bmConfirmBtn" class="Button-Page-Small-b" style="display:none; min-width:200px;">
+                    Zastosuj zmiany (<span id="bmChangeCount">0</span>)
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
 
 <div class="modal fade" id="uploadAllegroMarginsModal" tabindex="-1" role="dialog" aria-labelledby="uploadAllegroMarginsModalLabel" aria-hidden="true">
     <div class="modal-dialog" style="max-width:1050px" role="document">
@@ -421,6 +641,7 @@
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
     (function () {
         'use strict';
@@ -1320,4 +1541,354 @@
         }
     });
     </script>
+
+    <script>
+        (function () {
+            'use strict';
+
+            var storeId = @ViewBag.StoreId;
+
+            var openBtn, dropZone, fileInput, fileError;
+            var step1, step2, summaryBar, previewBody;
+            var backBtn, confirmBtn, changeCountEl;
+            var btnEnable, btnDisable;
+
+            var parsedIdentifiers = [];
+            var matchedRows       = [];
+            var selectedAction    = null;
+
+            document.addEventListener('DOMContentLoaded', function () {
+                openBtn       = document.getElementById('openBulkMonitoringBtn');
+                dropZone      = document.getElementById('bmDropZone');
+                fileInput     = document.getElementById('bmFileInput');
+                fileError     = document.getElementById('bmFileError');
+                step1         = document.getElementById('bmStep1');
+                step2         = document.getElementById('bmStep2');
+                summaryBar    = document.getElementById('bmSummaryBar');
+                previewBody   = document.getElementById('bmPreviewBody');
+                backBtn       = document.getElementById('bmBackBtn');
+                confirmBtn    = document.getElementById('bmConfirmBtn');
+                changeCountEl = document.getElementById('bmChangeCount');
+                btnEnable     = document.getElementById('bmBtnEnable');
+                btnDisable    = document.getElementById('bmBtnDisable');
+
+                if (!openBtn) return;
+
+                openBtn.addEventListener('click', function () {
+                    resetToStep1();
+                    $('#bulkMonitoringModal').modal('show');
+                });
+
+                // Drop zone
+                dropZone.addEventListener('click', function () { fileInput.click(); });
+                dropZone.addEventListener('dragover', function (e) {
+                    e.preventDefault();
+                    dropZone.classList.add('bm-dragover');
+                });
+                dropZone.addEventListener('dragleave', function () {
+                    dropZone.classList.remove('bm-dragover');
+                });
+                dropZone.addEventListener('drop', function (e) {
+                    e.preventDefault();
+                    dropZone.classList.remove('bm-dragover');
+                    if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+                });
+                fileInput.addEventListener('change', function () {
+                    if (fileInput.files[0]) processFile(fileInput.files[0]);
+                    fileInput.value = '';
+                });
+
+                btnEnable.addEventListener('click',  function () { selectAction('enable'); });
+                btnDisable.addEventListener('click', function () { selectAction('disable'); });
+                backBtn.addEventListener('click', resetToStep1);
+                confirmBtn.addEventListener('click', applyChanges);
+
+                $('#bulkMonitoringModal').on('hidden.bs.modal', function () { resetToStep1(); });
+            });
+
+            // ============================================================
+            function resetToStep1() {
+                step1.style.display      = '';
+                step2.style.display      = 'none';
+                confirmBtn.style.display = 'none';
+                fileError.style.display  = 'none';
+                selectedAction           = null;
+                parsedIdentifiers        = [];
+                matchedRows              = [];
+                clearActionBtns();
+                resetDropZoneUI();
+            }
+
+            function showStep2() {
+                step1.style.display = 'none';
+                step2.style.display = '';
+            }
+
+            // ============================================================
+            // FILE
+            // ============================================================
+            function processFile(file) {
+                fileError.style.display = 'none';
+
+                var ext = file.name.split('.').pop().toLowerCase();
+                if (ext !== 'xls' && ext !== 'xlsx') {
+                    return showErr('Nieobsługiwany format. Wgraj plik .xls lub .xlsx.');
+                }
+                if (file.size > 10 * 1024 * 1024) {
+                    return showErr('Plik jest za duży. Maksymalna wielkość to 10 MB.');
+                }
+
+                // Spinner
+                dropZone.innerHTML =
+                    '<i class="fas fa-spinner fa-spin" style="font-size:32px;color:#aaa;display:block;margin-bottom:12px;"></i>' +
+                    '<div style="font-weight:500;color:#666;">Wczytywanie...</div>';
+
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    try {
+                        var wb   = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                        var ws   = wb.Sheets[wb.SheetNames[0]];
+                        var rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+                        parsedIdentifiers = extractIdentifiers(rows);
+
+                        if (parsedIdentifiers.length === 0) {
+                            resetDropZoneUI();
+                            return showErr('Nie znaleziono kolumn EAN lub ID w pliku. Upewnij się, że nagłówki zawierają jedną z tych nazw.');
+                        }
+
+                        buildMatchedRows();
+                        renderSummary();
+                        renderTable(null);
+                        clearActionBtns();
+                        confirmBtn.style.display = 'none';
+                        showStep2();
+
+                    } catch (err) {
+                        resetDropZoneUI();
+                        showErr('Błąd odczytu pliku: ' + err.message);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            function extractIdentifiers(rows) {
+                if (!rows.length) return [];
+                var keys   = Object.keys(rows[0]);
+                var eanKey = findHeader(keys, ['EAN', 'KODEAN']);
+                var idKey  = findHeader(keys, ['ID', 'IDONALLEGRO', 'OFFERID']);
+                if (!eanKey && !idKey) return [];
+
+                var result = [];
+                rows.forEach(function (row) {
+                    var ean = eanKey ? String(row[eanKey] || '').trim() : '';
+                    var id  = idKey  ? String(row[idKey]  || '').trim() : '';
+                    if (ean || id) result.push({ ean: ean, id: id, label: id || ean });
+                });
+                return result;
+            }
+
+            function findHeader(keys, candidates) {
+                return keys.find(function (k) {
+                    return candidates.indexOf(k.trim().toUpperCase().replace(/\s+/g, '')) !== -1;
+                }) || null;
+            }
+
+            // ============================================================
+            // MATCHING
+            // ============================================================
+            function buildMatchedRows() {
+                var products = window.getAllProducts ? window.getAllProducts() : [];
+                matchedRows = parsedIdentifiers.map(function (ident) {
+                    var product = null;
+                    if (ident.id)  product = products.find(function (p) { return p.idOnAllegro === ident.id; })   || null;
+                    if (!product && ident.ean) product = products.find(function (p) { return p.allegroEan === ident.ean; }) || null;
+                    return { ident: ident, product: product };
+                });
+            }
+
+            // ============================================================
+            // RENDER
+            // ============================================================
+            function renderSummary() {
+                var total   = matchedRows.length;
+                var matched = matchedRows.filter(function (r) { return r.product !== null; }).length;
+                var missing = total - matched;
+                summaryBar.innerHTML =
+                    chip('bm-chip-total',   'fa-file-alt',         total   + ' wierszy w pliku')         +
+                    chip('bm-chip-matched', 'fa-check-circle',     matched + ' dopasowanych produktów')   +
+                    (missing > 0 ? chip('bm-chip-missing', 'fa-exclamation-circle', missing + ' nie znaleziono') : '');
+            }
+
+            function chip(cls, icon, text) {
+                return '<span class="bm-chip ' + cls + '"><i class="fas ' + icon + '"></i> ' + text + '</span>';
+            }
+
+            function renderTable(action) {
+                var html = '';
+
+                // Sortuj: dopasowane zmieniające się → dopasowane bez zmian → nieznalezione
+                var sorted = matchedRows.slice().sort(function (a, b) {
+                    function score(r) {
+                        if (!r.product) return 2;
+                        if (!action)    return 0;
+                        var willChange = action === 'enable' ? !r.product.isScrapable : r.product.isScrapable;
+                        return willChange ? 0 : 1;
+                    }
+                    return score(a) - score(b);
+                });
+
+                sorted.forEach(function (row) {
+                    var p     = row.product;
+                    var ident = row.ident;
+
+                    if (!p) {
+                        html +=
+                            '<tr class="bm-tr-missing">' +
+                            '<td style="padding:9px 14px;font-family:monospace;font-size:12px;color:#e65100;">' + esc(ident.label) + '</td>' +
+                            '<td style="padding:9px 14px;color:#bbb;font-style:italic;">— nie znaleziono w systemie —</td>' +
+                            '<td colspan="2" style="padding:9px 14px;"></td>' +
+                            '</tr>';
+                        return;
+                    }
+
+                    var nowBadge = p.isScrapable
+                        ? '<span class="bm-badge bm-badge-on">Aktywny</span>'
+                        : '<span class="bm-badge bm-badge-off">Nieaktywny</span>';
+
+                    var afterCell = '<span style="color:#ddd;">—</span>';
+                    if (action === 'enable') {
+                        afterCell = p.isScrapable
+                            ? '<span class="bm-badge bm-badge-on">Aktywny</span>'
+                            : '<span class="bm-change-enable"><i class="fas fa-arrow-right" style="font-size:10px;margin-right:4px;"></i>Aktywny</span>';
+                    } else if (action === 'disable') {
+                        afterCell = !p.isScrapable
+                            ? '<span class="bm-badge bm-badge-off">Nieaktywny</span>'
+                            : '<span class="bm-change-disable"><i class="fas fa-arrow-right" style="font-size:10px;margin-right:4px;"></i>Nieaktywny</span>';
+                    }
+
+                    var productInfo =
+                        '<div style="font-weight:500;color:#222;">' + esc(p.allegroProductName) + '</div>' +
+                        '<div style="font-size:11px;color:#999;margin-top:2px;">' +
+                        (p.allegroEan    ? 'EAN: ' + esc(p.allegroEan)    : '') +
+                        (p.allegroEan && p.idOnAllegro ? ' &nbsp;·&nbsp; ' : '') +
+                        (p.idOnAllegro   ? 'ID: '  + esc(p.idOnAllegro)   : '') +
+                        '</div>';
+
+                    html +=
+                        '<tr>' +
+                        '<td style="padding:9px 14px;font-family:monospace;font-size:12px;color:#666;">' + esc(ident.label) + '</td>' +
+                        '<td style="padding:9px 14px;">' + productInfo + '</td>' +
+                        '<td style="padding:9px 14px;text-align:center;">' + nowBadge + '</td>' +
+                        '<td style="padding:9px 14px;text-align:center;">' + afterCell + '</td>' +
+                        '</tr>';
+                });
+
+                previewBody.innerHTML = html || '<tr><td colspan="4" style="padding:20px;text-align:center;color:#999;">Brak wyników</td></tr>';
+            }
+
+            // ============================================================
+            // ACTION SELECT
+            // ============================================================
+            function selectAction(action) {
+                selectedAction = action;
+                clearActionBtns();
+                if (action === 'enable')  btnEnable.classList.add('bm-selected-enable');
+                if (action === 'disable') btnDisable.classList.add('bm-selected-disable');
+
+                renderTable(action);
+
+                var toChange = matchedRows.filter(function (r) {
+                    if (!r.product) return false;
+                    return action === 'enable' ? !r.product.isScrapable : r.product.isScrapable;
+                }).length;
+
+                confirmBtn.disabled = (toChange === 0);
+                confirmBtn.style.display = '';
+                confirmBtn.innerHTML = 'Zastosuj zmiany (<span id="bmChangeCount">' + toChange + '</span>)';
+                changeCountEl = document.getElementById('bmChangeCount');
+            }
+
+            function clearActionBtns() {
+                btnEnable.classList.remove('bm-selected-enable');
+                btnDisable.classList.remove('bm-selected-disable');
+            }
+
+            // ============================================================
+            // APPLY
+            // ============================================================
+            function applyChanges() {
+                if (!selectedAction) return;
+
+                var turnOn = selectedAction === 'enable';
+                var ids = matchedRows
+                    .filter(function (r) { return r.product && (turnOn ? !r.product.isScrapable : r.product.isScrapable); })
+                    .map(function (r) { return r.product.allegroProductId; });
+
+                if (!ids.length) return;
+
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Zapisywanie...';
+
+                var url = turnOn
+                    ? '@Url.Action("UpdateMultipleScrapableAllegroProducts", "AllegroProduct")?storeId=' + storeId
+                    : '@Url.Action("ResetMultipleScrapableAllegroProducts", "AllegroProduct")?storeId=' + storeId;
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(ids)
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        var products = window.getAllProducts ? window.getAllProducts() : [];
+                        ids.forEach(function (id) {
+                            var p = products.find(function (x) { return x.allegroProductId === id; });
+                            if (p) p.isScrapable = turnOn;
+                        });
+                        if (window.triggerFilterRows) window.triggerFilterRows();
+                        $('#bulkMonitoringModal').modal('hide');
+                    } else {
+                        alert(data.message || 'Wystąpił błąd podczas zapisu.');
+                        confirmBtn.disabled = false;
+                        selectAction(selectedAction);
+                    }
+                })
+                .catch(function (err) {
+                    alert('Błąd komunikacji: ' + err.message);
+                    confirmBtn.disabled = false;
+                    selectAction(selectedAction);
+                });
+            }
+
+            // ============================================================
+            // UTILS
+            // ============================================================
+            function showErr(msg) {
+                fileError.textContent = msg;
+                fileError.style.display = 'block';
+            }
+
+            function resetDropZoneUI() {
+                if (!dropZone) return;
+                dropZone.innerHTML =
+                    '<i class="fas fa-file-excel" style="font-size:36px;color:#1d6f42;margin-bottom:12px;display:block;"></i>' +
+                    '<div style="font-weight:600;font-size:15px;margin-bottom:4px;">Przeciągnij plik tutaj lub kliknij aby wybrać</div>' +
+                    '<div style="font-size:12px;color:#999;">.xls lub .xlsx &nbsp;·&nbsp; maks. 10 MB</div>' +
+                    '<input type="file" id="bmFileInput" accept=".xls,.xlsx" style="display:none;">';
+                fileInput = document.getElementById('bmFileInput');
+                fileInput.addEventListener('change', function () {
+                    if (fileInput.files[0]) processFile(fileInput.files[0]);
+                    fileInput.value = '';
+                });
+            }
+
+            function esc(s) {
+                return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            }
+
+        })();
+    </script>
+
 }
