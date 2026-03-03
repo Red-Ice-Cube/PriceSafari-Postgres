@@ -34,11 +34,11 @@ namespace PriceSafari.Controllers.MemberControllers
         }
         private async Task<bool> UserHasAccessToStore(int storeId)
         {
-            // Sprawdzamy role bezpośrednio z Tokena/Cookie (bez zapytania do DB)
+           
             if (User.IsInRole("Admin") || User.IsInRole("Manager")) return true;
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            // Tylko jedno szybkie zapytanie typu EXISTS
+    
             return await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
         }
 
@@ -902,6 +902,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 aph.Promoted,
                 aph.Sponsored,
                 aph.IdAllegro,
+                aph.RatingCount,
+                aph.RatingPositivePercent,
                 TargetProductId = navigationMap.ContainsKey(aph.IdAllegro) ? navigationMap[aph.IdAllegro] : (int?)null
             }).ToList();
 

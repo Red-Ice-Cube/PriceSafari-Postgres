@@ -724,7 +724,7 @@ function createRow(item) {
     tr.dataset.dataSource = item.dataSource;
 
     const tdStore = document.createElement("td");
-    tdStore.textContent = item.storeName;
+    tdStore.innerHTML = item.storeName + (item.superSeller ? ` <img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle; margin-left: 3px;">` : '');
     tr.appendChild(tdStore);
 
     const tdCommon = document.createElement("td");
@@ -739,6 +739,20 @@ function createRow(item) {
         if (item.dataSource === "Ceneo" && !window.currentPreset.sourceCeneo) {
             sourceActive = false;
         }
+    }
+
+    if (presetTypeContext === 1) {
+        const tdRecommend = document.createElement("td");
+        if (item.ratingPositivePercent != null) {
+            tdRecommend.innerHTML = `${item.ratingPositivePercent}%`;
+        } else {
+            tdRecommend.textContent = "-";
+        }
+        tr.appendChild(tdRecommend);
+
+        const tdRatingCount = document.createElement("td");
+        tdRatingCount.textContent = item.ratingCount != null ? item.ratingCount.toLocaleString('pl-PL') : "-";
+        tr.appendChild(tdRatingCount);
     }
 
     const tdAction = document.createElement("td");
