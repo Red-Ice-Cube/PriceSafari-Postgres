@@ -88,8 +88,8 @@
         font-size: 11px;
         font-weight: 600;
         color: #ffffff !important;
-        width: 124px;
-        min-width: 120px;
+        width: 144px;
+        min-width: 140px;
         height: 24px;
         gap: 4px;
     }
@@ -104,6 +104,11 @@
 
     .status-limited {
         background-color: #f6c23e;
+        color: #fff !important;
+    }
+
+    .status-limited-max {
+        background-color: #4d6b3a;
         color: #fff !important;
     }
 
@@ -701,14 +706,14 @@
         }
 
     .filter-btn[data-filter-key="LimitFloor"].active {
-        background: #e74a3b;
-        border-color: #e74a3b;
-    }
-
-    .filter-btn[data-filter-key="LimitCeiling"].active {
         background: #f6c23e;
         border-color: #f6c23e;
         color: #333;
+    }
+
+    .filter-btn[data-filter-key="LimitCeiling"].active {
+        background: #4d6b3a;
+        border-color: #4d6b3a;
     }
 
     tr.filter-hidden {
@@ -1078,9 +1083,9 @@
                                 }
                             }
 
-                            else if (item.Status == AutomationCalculationStatus.Blocked && item.BlockReason == "Blokada Narzutu")
+                            else if (item.Status == AutomationCalculationStatus.Blocked && item.BlockReason != null && item.BlockReason.StartsWith("Blokada Narzutu"))
                             {
-                                limitType = "floor";
+                                limitType = item.BlockReason.Contains("Max") ? "ceiling" : "floor";
                             }
 
                             bool isMissingOwnOffer = item.IsMissingPlatformWarning ||
@@ -1112,21 +1117,19 @@
                                     bool isBelowLimit = false;
 
                                     if (Model.IsMinimalMarkupPercent)
-                                    {
-                                   
-                                        if (currentMarginPercent < Model.MinimalMarkupValue)
                                         {
-                                            isBelowLimit = true;
+                                            if (Math.Round(currentMarginPercent, 2) < Model.MinimalMarkupValue)
+                                            {
+                                                isBelowLimit = true;
+                                            }
                                         }
-                                    }
-                                    else
-                                    {
-                                   
-                                        if (currentMarginAmount < Model.MinimalMarkupValue)
+                                        else
                                         {
-                                            isBelowLimit = true;
+                                            if (Math.Round(currentMarginAmount, 2) < Model.MinimalMarkupValue)
+                                            {
+                                                isBelowLimit = true;
+                                            }
                                         }
-                                    }
 
                                     if (isBelowLimit)
                                     {
@@ -1561,14 +1564,38 @@
                                                     </div>
                                                     break;
                                                 case AutomationCalculationStatus.PriceLimited:
-                                                    <div class="status-badge status-limited">
-                                                        <i class="fas fa-filter mr-2"></i> Limit Ceny
-                                                    </div>
+                                                    @if (item.BlockReason != null && item.BlockReason.Contains("Max"))
+                                                    {
+                                                        <div class="status-badge status-limited-max">
+                                                            <i class="fas fa-filter mr-2"></i> @item.BlockReason
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="status-badge status-limited">
+                                                            <i class="fas fa-filter mr-2"></i> @(item.BlockReason ?? "Limit Ceny")
+                                                        </div>
+                                                    }
                                                     break;
                                                 case AutomationCalculationStatus.Blocked:
-                                                    <div class="status-badge status-blocked">
-                                                        <i class="fas fa-times mr-2"></i> @item.BlockReason
-                                                    </div>
+                                                    @if (item.BlockReason != null && item.BlockReason.Contains("Narzutu") && item.BlockReason.Contains("Min"))
+                                                    {
+                                                        <div class="status-badge status-limited">
+                                                            <i class="fas fa-ban mr-2"></i> @item.BlockReason
+                                                        </div>
+                                                    }
+                                                    else if (item.BlockReason != null && item.BlockReason.Contains("Narzutu") && item.BlockReason.Contains("Max"))
+                                                    {
+                                                        <div class="status-badge status-limited-max">
+                                                            <i class="fas fa-ban mr-2"></i> @item.BlockReason
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="status-badge status-blocked">
+                                                            <i class="fas fa-times mr-2"></i> @item.BlockReason
+                                                        </div>
+                                                    }
                                                     break;
                                                 default:
                                                     <span class="badge badge-light border px-3 py-2">Brak danych</span>
@@ -1611,11 +1638,11 @@
                                                     bool isBelowFinalLimit = false;
                                                     if (Model.IsMinimalMarkupPercent)
                                                     {
-                                                        if (finalMarkupPercent.Value < Model.MinimalMarkupValue) isBelowFinalLimit = true;
+                                                        if (Math.Round(finalMarkupPercent.Value, 2) < Model.MinimalMarkupValue) isBelowFinalLimit = true;
                                                     }
                                                     else
                                                     {
-                                                        if (finalMarkupAmount.Value < Model.MinimalMarkupValue) isBelowFinalLimit = true;
+                                                        if (Math.Round(finalMarkupAmount.Value, 2) < Model.MinimalMarkupValue) isBelowFinalLimit = true;
                                                     }
 
                                                     if (isBelowFinalLimit)
@@ -3188,8 +3215,8 @@
                     filters: [
                         { key: 'TargetMet', label: 'Cel osiągnięty', icon: 'fa-check', attr: 'data-status', value: 'TargetMet' },
                         { key: 'TargetMaintained', label: 'Cel utrzymany', icon: 'fa-check-circle', attr: 'data-status', value: 'TargetMaintained' },
-                        { key: 'LimitFloor', label: 'Limit (podłoga)', icon: 'fa-arrow-down', attr: 'data-limit-type', value: 'floor' },
-                        { key: 'LimitCeiling', label: 'Limit (sufit)', icon: 'fa-arrow-up', attr: 'data-limit-type', value: 'ceiling' },
+                        { key: 'LimitFloor', label: 'Limit / Blokada (Min)', icon: 'fa-arrow-down', attr: 'data-limit-type', value: 'floor' },
+                        { key: 'LimitCeiling', label: 'Limit / Blokada (Max)', icon: 'fa-arrow-up', attr: 'data-limit-type', value: 'ceiling' },
                         { key: 'Blocked', label: 'Blokada', icon: 'fa-times', attr: 'data-status', value: 'Blocked' }
                     ]
                 },
