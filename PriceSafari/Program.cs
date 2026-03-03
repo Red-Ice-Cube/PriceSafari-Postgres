@@ -38,11 +38,12 @@ public class Program
         var dbName = Environment.GetEnvironmentVariable("DB_NAME");
         var dbUser = Environment.GetEnvironmentVariable("DB_USER");
         var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+        var dbPort = Environment.GetEnvironmentVariable("DB_PORT");
 
         //var connectionString = $"Data Source={dbServer};Database={dbName};Uid={dbUser};Password={dbPassword};TrustServerCertificate=True";
 
         // Zmieniamy 'Data Source' na 'Host' oraz 'Uid' na 'Username'
-        var connectionString = $"Host={dbServer};Database={dbName};Username={dbUser};Password={dbPassword};Include Error Detail=true";
+        var connectionString = $"Host={dbServer};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};Include Error Detail=true";
 
         //builder.Services.AddDbContext<PriceSafariContext>(options =>
         //   options.UseSqlServer(connectionString, sqlServerOptions =>
