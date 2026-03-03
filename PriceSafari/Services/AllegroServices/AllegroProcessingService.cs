@@ -41,19 +41,13 @@ namespace PriceSafari.Services.AllegroServices
 
      
             var storeProducts = await _context.AllegroProducts
-                .Where(p => p.StoreId == storeId) // Usunięto: && !p.IsRejected
+                .Where(p => p.StoreId == storeId) 
                 .ToListAsync();
 
             if (!storeProducts.Any())
             {
                 return (0, 0);
             }
-
-
-
-
-
-
 
             var storeProductIds = new HashSet<int>(storeProducts.Select(p => p.AllegroProductId));
 
@@ -71,7 +65,7 @@ namespace PriceSafari.Services.AllegroServices
 
             var rejectedOffers = relevantOffersForStore.Where(o => o.IsRejected).ToList();
 
-            // 1. Odrzucenia z poziomu Pythona (błędy 404, błędy sieci)
+            
             var productIdsToRejectFromUpstream = rejectedOffers.Any()
                 ? rejectedOffers.SelectMany(o => o.AllegroProductIds).Intersect(storeProductIds).Distinct().ToList()
                 : new List<int>();
@@ -80,7 +74,7 @@ namespace PriceSafari.Services.AllegroServices
 
             if (!validOfferIds.Any())
             {
-                // Jeśli nie ma żadnych poprawnych zadań, przetwarzamy tylko odrzucenia upstream
+                
                 if (productIdsToRejectFromUpstream.Any())
                 {
                     await _context.AllegroProducts
@@ -96,42 +90,35 @@ namespace PriceSafari.Services.AllegroServices
                 .AsNoTracking()
                 .ToListAsync();
 
-            // --- ZMIANA 1: USUNIĘTO BLOKADĘ (EARLY RETURN) ---
-            // Wcześniej tutaj był 'if (!scrapedOffersData.Any()) return...', który chronił przed pustą listą.
-            // Teraz usuwamy go, aby kod przeszedł dalej i odrzucił produkty bez ofert.
 
             var offersGroupedByUrl = scrapedOffersData.GroupBy(o => o.AllegroOfferToScrapeId);
 
-            // Znajdujemy URL-e, które zwróciły oferty, ale nie ma tam nas
+          
             var urlsWithoutUserStore = offersGroupedByUrl
                 .Where(group => !group.Any(offer => offer.SellerName == userAllegroStoreName))
                 .Select(group => group.Key)
                 .ToHashSet();
 
-            // --- ZMIANA 2: OBSŁUGA CAŁKOWITEGO BRAKU OFERT ---
-            // Znajdujemy ID zadań, które były "valid" (scraper wszedł i nie zgłosił błędu),
-            // ale nie ma ich w scrapedOffersData (czyli Allegro zwróciło 0 ofert).
+            
             var tasksWithResults = scrapedOffersData.Select(x => x.AllegroOfferToScrapeId).Distinct().ToHashSet();
             var tasksWithZeroResults = validOfferIds.Where(id => !tasksWithResults.Contains(id)).ToList();
 
-            // Dodajemy je do zbioru "brak naszego sklepu" - bo skoro ofert jest 0, to nas też tam nie ma.
+            
             foreach (var zeroResultId in tasksWithZeroResults)
             {
                 urlsWithoutUserStore.Add(zeroResultId);
             }
-            // -----------------------------------------------------
+           
 
             var productIdsToRejectForSellerMismatch = urlsWithoutUserStore.Any()
                 ? relevantOffersForStore.Where(o => urlsWithoutUserStore.Contains(o.Id))
                     .SelectMany(o => o.AllegroProductIds).Intersect(storeProductIds).Distinct().ToList()
                 : new List<int>();
 
-            // 3. Logika brakującej konkretnej oferty (po ID)
+           
             var productIdsToRejectForMissingMainOffer = new List<int>();
 
-            // Iterujemy tylko po grupach, które MAJĄ wyniki i MAJĄ naszą ofertę (reszta i tak odpadnie wyżej)
-            // Ale musimy też uważać na tasksWithZeroResults - dla nich pętla po offersGroupedByUrl się nie wykona,
-            // co jest poprawne, bo one i tak wpadły już do SellerMismatch.
+
             var urlsToCheckForMainOffer = offersGroupedByUrl.Where(g => !urlsWithoutUserStore.Contains(g.Key));
 
             foreach (var group in urlsToCheckForMainOffer)
@@ -180,6 +167,13 @@ namespace PriceSafari.Services.AllegroServices
 
             var newPriceHistories = new List<AllegroPriceHistory>();
             var newExtendedInfos = new List<AllegroPriceHistoryExtendedInfoClass>();
+
+            var sellersNeedingDisambiguation = scrapedOffersData
+                .Where(o => o.StoreIdOnAllegro.HasValue)
+                .GroupBy(o => o.SellerName, StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Select(o => o.StoreIdOnAllegro.Value).Distinct().Count() > 1)
+                .Select(g => g.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             foreach (var scrapedOffer in scrapedOffersData)
             {
@@ -234,14 +228,15 @@ namespace PriceSafari.Services.AllegroServices
                         }
                     }
 
-                    // 3. ZAPISUJEMY DANE KONKURENCJI (nawet jeśli shouldBeRejected jest true)
-                    // Skoro doszliśmy tutaj, to znaczy, że scraper pobrał jakieś oferty z rynku. 
-                    // Zapisujemy je do bazy, by pokazać klientowi na froncie, jak wygląda rynek (nawet pod jego nieobecność).
+                    
                     newPriceHistories.Add(new AllegroPriceHistory
                     {
                         AllegroProductId = productId,
                         AllegroScrapeHistory = scrapeHistory,
-                        SellerName = scrapedOffer.SellerName,
+                        SellerName = sellersNeedingDisambiguation.Contains(scrapedOffer.SellerName)
+                            && scrapedOffer.StoreIdOnAllegro.HasValue
+                            ? $"{scrapedOffer.SellerName}-{scrapedOffer.StoreIdOnAllegro.Value}"
+                            : scrapedOffer.SellerName,
                         Price = scrapedOffer.Price,
                         DeliveryCost = scrapedOffer.DeliveryCost,
                         DeliveryTime = scrapedOffer.DeliveryTime,
@@ -253,10 +248,13 @@ namespace PriceSafari.Services.AllegroServices
                         SuperPrice = scrapedOffer.SuperPrice,
                         Promoted = scrapedOffer.Promoted,
                         Sponsored = scrapedOffer.Sponsored,
-                        IdAllegro = scrapedOffer.IdAllegro
+                        IdAllegro = scrapedOffer.IdAllegro,
+                        StoreIdOnAllegro = scrapedOffer.StoreIdOnAllegro,
+                        RatingCount = scrapedOffer.RatingCount,
+                        RatingPositivePercent = scrapedOffer.RatingPositivePercent,
                     });
 
-                    // 4. ZACHOWUJEMY TWOJĄ LOGIKĘ DLA ROZSZERZONYCH DANYCH API (jeśli oferta należy do nas)
+                    
                     if (sourceOfferToScrape.IsApiProcessed == true && scrapedOffer.SellerName.Equals(userAllegroStoreName, StringComparison.OrdinalIgnoreCase))
                     {
                         var finalApiAllegroPrice = sourceOfferToScrape.ApiAllegroPrice;
