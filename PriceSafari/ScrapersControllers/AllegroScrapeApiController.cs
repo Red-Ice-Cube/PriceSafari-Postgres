@@ -269,6 +269,9 @@ namespace PriceSafari.ScrapersControllers
                             Promoted = scraped.Promoted,
                             Sponsored = scraped.Sponsored,
                             IdAllegro = scraped.IdAllegro,
+                            StoreIdOnAllegro = scraped.StoreIdOnAllegro,
+                            RatingCount = scraped.RatingCount,
+                            RatingPositivePercent = scraped.RatingPositivePercent,
                         });
                     }
                 }
@@ -498,6 +501,15 @@ namespace PriceSafari.ScrapersControllers
 
         [JsonPropertyName("idAllegro")]
         public long IdAllegro { get; set; }
+
+        [JsonPropertyName("storeIdOnAllegro")]
+        public long? StoreIdOnAllegro { get; set; }
+
+        [JsonPropertyName("ratingCount")]
+        public int? RatingCount { get; set; }
+
+        [JsonPropertyName("ratingPositivePercent")]
+        public double? RatingPositivePercent { get; set; }
     }
 
     public class HeartbeatDto
