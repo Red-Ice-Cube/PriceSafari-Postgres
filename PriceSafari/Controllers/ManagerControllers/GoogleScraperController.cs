@@ -2698,7 +2698,34 @@ int udmValue = 3)
         }
     }
 
+    [HttpPost]
+    public async Task<IActionResult> BulkRemoveTextFromUrls(int storeId, string textToRemove)
+    {
+        if (string.IsNullOrWhiteSpace(textToRemove))
+        {
+            TempData["ErrorMessage"] = "Musisz wpisać fragment tekstu do wycięcia.";
+            return RedirectToAction("ProductList", new { storeId });
+        }
 
+        try
+        {
+            // Używamy ExecuteUpdateAsync dla maksymalnej wydajności - to wykona się prosto na bazie danych
+            // jako: UPDATE Products SET Url = REPLACE(Url, 'textToRemove', '') WHERE ...
+            int updatedRowsCount = await _context.Products
+                .Where(p => p.StoreId == storeId && p.Url != null && p.Url.Contains(textToRemove))
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.Url, p => p.Url.Replace(textToRemove, "")));
+
+            TempData["SuccessMessage"] = $"Pomyślnie usunięto '{textToRemove}' z {updatedRowsCount} linków ofert.";
+        }
+        catch (Exception ex)
+        {
+            // W razie błędów logujemy i wysyłamy info do widoku
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] BŁĄD BulkRemoveTextFromUrls: {ex.Message}");
+            TempData["ErrorMessage"] = $"Wystąpił błąd podczas masowej aktualizacji: {ex.Message}";
+        }
+
+        return RedirectToAction("ProductList", new { storeId });
+    }
 
 
     #region ============== ZEWNĘTRZNE SCRAPERY API ==============

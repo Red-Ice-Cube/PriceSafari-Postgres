@@ -63,6 +63,45 @@
     </form>
 </div>
 
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["SuccessMessage"]
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["ErrorMessage"]
+    </div>
+}
+
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-light">
+        <strong>Masowe czyszczenie adresów URL (Oferty)</strong>
+    </div>
+    <div class="card-body">
+        <form asp-action="BulkRemoveTextFromUrls" asp-controller="GoogleScraper" method="post" class="d-flex align-items-center">
+            <input type="hidden" name="storeId" value="@ViewBag.StoreId" />
+            
+            <label for="textToRemove" class="form-label me-3 mb-0 text-nowrap">Fragment do usunięcia:</label>
+            <input type="text"
+                   id="textToRemove"
+                   name="textToRemove"
+                   class="form-control me-3"
+                   placeholder="np. .googleshoppingpl"
+                   required
+                   style="max-width: 300px;" />
+            
+            <button type="submit"
+                    class="btn btn-warning text-nowrap"
+                    onclick="return confirm('UWAGA! Czy na pewno chcesz wyciąć ten tekst ze WSZYSTKICH pasujących adresów URL w tym sklepie? Tej operacji nie można łatwo cofnąć.');">
+                <i class="fas fa-cut"></i> Wytnij tekst z URL
+            </button>
+        </form>
+    </div>
+</div>
+
 <table class="table">
     <thead>
         <tr>
