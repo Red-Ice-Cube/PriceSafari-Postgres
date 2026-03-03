@@ -47,5 +47,9 @@ namespace PriceSafari.Models
         public bool Sponsored { get; set; }
 
         public long IdAllegro { get; set; }
+
+        public long? StoreIdOnAllegro { get; set; }
+        public int? RatingCount { get; set; }
+        public double? RatingPositivePercent { get; set; }
     }
 }
