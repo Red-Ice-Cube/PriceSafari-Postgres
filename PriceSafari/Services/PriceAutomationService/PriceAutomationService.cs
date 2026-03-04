@@ -39,6 +39,11 @@ namespace PriceSafari.Services.PriceAutomationService
 
             if (rule == null) throw new Exception("Reguła nie istnieje.");
 
+            if (rule.Store == null || !rule.Store.IsActive)
+            {
+                throw new Exception($"Sklep '{rule.Store?.StoreName ?? "?"}' jest nieaktywny (brak aktywnej subskrypcji). Automatyzacja zablokowana.");
+            }
+
             if (!rule.CanExecute)
             {
                 string reason = rule.EffectiveStatus switch

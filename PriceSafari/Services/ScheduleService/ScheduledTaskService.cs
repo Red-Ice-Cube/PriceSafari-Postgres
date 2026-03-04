@@ -880,18 +880,21 @@ public class ScheduledTaskService : BackgroundService
             // 2. Pobieramy ID sklepów z tego zadania
             var storeIds = task.TaskStores.Select(x => x.StoreId).ToList();
 
-            // 3. Pobieramy TYLKO AKTYWNE reguły dla typu Marketplace przypisane do tych sklepów
             var rules = await context.AutomationRules
-                .Where(r => storeIds.Contains(r.StoreId)
-                         && r.IsActive == true
-                         && r.SourceType == AutomationSourceType.Marketplace)
-                .ToListAsync(ct);
+            .Include(r => r.Store)
+            .Where(r => storeIds.Contains(r.StoreId)
+                     && r.IsActive == true
+                     && r.Store.RemainingDays > 0
+                     && r.SourceType == AutomationSourceType.Marketplace)
+            .ToListAsync(ct);
+
+            var executableRules = rules.Where(r => r.CanExecute).ToList();
 
             int processedRules = 0;
             int totalChanges = 0;
             var sb = new StringBuilder();
 
-            foreach (var rule in rules)
+            foreach (var rule in executableRules)
             {
                 try
                 {
@@ -968,18 +971,21 @@ public class ScheduledTaskService : BackgroundService
             // 2. Sklepy
             var storeIds = task.TaskStores.Select(x => x.StoreId).ToList();
 
-            // 3. Reguły AKTYWNE i typu PriceComparison
             var rules = await context.AutomationRules
+                .Include(r => r.Store)
                 .Where(r => storeIds.Contains(r.StoreId)
                          && r.IsActive == true
+                         && r.Store.RemainingDays > 0
                          && r.SourceType == AutomationSourceType.PriceComparison)
                 .ToListAsync(ct);
+
+            var executableRules = rules.Where(r => r.CanExecute).ToList();
 
             int processedRules = 0;
             int totalChanges = 0;
             var sb = new StringBuilder();
 
-            foreach (var rule in rules)
+            foreach (var rule in executableRules)
             {
                 try
                 {
