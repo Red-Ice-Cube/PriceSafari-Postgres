@@ -38,10 +38,14 @@ namespace PriceSafari.Models
         public bool Promoted { get; set; }
         public bool Sponsored { get; set; }
         
-        //.nowe pole 
+      
         public long IdAllegro {  get; set; }
 
         public int AllegroOfferToScrapeId { get; set; }
+
+        public long? StoreIdOnAllegro { get; set; }
+        public int? RatingCount { get; set; }
+        public double? RatingPositivePercent { get; set; }
 
         [ForeignKey("AllegroOfferToScrapeId")]
         public virtual AllegroOfferToScrape AllegroOfferToScrape { get; set; }

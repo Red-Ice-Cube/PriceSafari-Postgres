@@ -228,7 +228,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var allOffers = await _context.AllegroPriceHistories
                 .Where(aph => aph.AllegroScrapeHistoryId == latestScrap)
-                .Select(aph => new { aph.SellerName, aph.AllegroProductId })
+                .Select(aph => new { aph.SellerName, aph.AllegroProductId, aph.SuperSeller, aph.RatingCount, aph.RatingPositivePercent })
                 .ToListAsync();
 
             var myProductIds = allOffers
@@ -239,11 +239,18 @@ namespace PriceSafari.Controllers.MemberControllers
             var competitors = allOffers
                 .Where(o => !o.SellerName.Equals(storeAllegroName, StringComparison.OrdinalIgnoreCase))
                 .GroupBy(o => o.SellerName)
-                .Select(g => new
+                .Select(g =>
                 {
-                    StoreName = g.Key,
-                    DataSource = "Allegro",
-                    CommonProductsCount = g.Select(o => o.AllegroProductId).Distinct().Count(pid => myProductIds.Contains(pid))
+                    var first = g.First();
+                    return new
+                    {
+                        StoreName = g.Key,
+                        DataSource = "Allegro",
+                        CommonProductsCount = g.Select(o => o.AllegroProductId).Distinct().Count(pid => myProductIds.Contains(pid)),
+                        SuperSeller = first.SuperSeller,
+                        RatingCount = first.RatingCount,
+                        RatingPositivePercent = first.RatingPositivePercent
+                    };
                 })
                 .Where(c => c.CommonProductsCount > 0)
                 .OrderByDescending(c => c.CommonProductsCount)

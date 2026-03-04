@@ -869,7 +869,8 @@ namespace PriceSafari.Services.PriceAutomationService
                 }
             }
 
-            bool wasLimited = false;
+            bool wasLimitedByMin = false;
+            bool wasLimitedByMax = false;
 
             if (row.MinPriceLimit.HasValue)
             {
@@ -888,15 +889,22 @@ namespace PriceSafari.Services.PriceAutomationService
                     else if (rule.SkipIfMarkupLimited)
                     {
                         // Cena spada poniżej minimum — blokujemy
-                        ApplyBlock(row, "Blokada Narzutu");
+                        ApplyBlock(row, "Blokada Narzutu (Min)");
                         return;
                     }
                     else
                     {
                         // SkipIfMarkupLimited = false — minimum to twardy floor
+                        // Jeśli cena już jest na minimum i cel nadal nieosiągalny — blokada
+                        if (Math.Abs(Math.Round(basePrice, 2) - Math.Round(row.MinPriceLimit.Value, 2)) < 0.01m)
+                        {
+                            ApplyBlock(row, "Blokada Narzutu (Min)");
+                            return;
+                        }
+
                         suggested = row.MinPriceLimit.Value;
                         row.IsMarginWarning = true;
-                        wasLimited = true;
+                        wasLimitedByMin = true;
                     }
                 }
             }
@@ -906,7 +914,7 @@ namespace PriceSafari.Services.PriceAutomationService
                 if (suggested > row.MaxPriceLimit.Value)
                 {
                     suggested = row.MaxPriceLimit.Value;
-                    wasLimited = true;
+                    wasLimitedByMax = true;
                 }
             }
 
@@ -915,9 +923,10 @@ namespace PriceSafari.Services.PriceAutomationService
             decimal finalBase = Math.Round(basePrice, 2);
             row.PriceChange = Math.Round(finalSuggested - finalBase, 2);
 
-            if (wasLimited)
+            if (wasLimitedByMin || wasLimitedByMax)
             {
                 row.Status = AutomationCalculationStatus.PriceLimited;
+                row.BlockReason = wasLimitedByMin ? "Limit Ceny (Min)" : "Limit Ceny (Max)";
             }
             else if (row.PriceChange == 0)
             {
