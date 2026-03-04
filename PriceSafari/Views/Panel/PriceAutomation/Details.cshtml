@@ -29,6 +29,147 @@
     int successCount = Model.CountMet + Model.CountMaintained + Model.CountLimited;
     int blockedCount = Model.CountBlocked;
     int percentSuccess = Model.SuccessRate;
+    // ── Time scheduling ──
+    bool isTimeLimited = Model.IsTimeLimited;
+    DateTime? schedStart = Model.ScheduledStartDate;
+    DateTime? schedEnd = Model.ScheduledEndDate;
+    DateTime now = DateTime.Now;
+    bool isDisabled = !Model.IsActive;
+
+    string timeStatusLabel;
+    string timeStatusClass;
+    string timeStatusIcon;
+    double timeProgressPercent = -1;
+    string timeExtraLabel = "";
+    string timeMarkerClass = "marker-hidden";
+    double timeMarkerPos = 0;
+
+    if (isDisabled && isTimeLimited)
+    {
+        timeStatusLabel = "Automat wyłączony";
+        timeStatusClass = "time-status-disabled";
+        timeStatusIcon = "fa-power-off";
+    }
+    else if (!isTimeLimited)
+    {
+        timeStatusLabel = "Bez ograniczenia";
+        timeStatusClass = "time-status-unlimited";
+        timeStatusIcon = "fa-infinity";
+    }
+    else if (schedStart.HasValue && schedEnd.HasValue)
+    {
+        // Data końcowa WŁĄCZNIE — porównujemy daty (nie DateTime)
+        bool beforeStart = now.Date < schedStart.Value.Date;
+        bool afterEnd = now.Date > schedEnd.Value.Date;
+
+        if (beforeStart)
+        {
+            timeStatusLabel = "Oczekuje";
+            timeStatusClass = "time-status-waiting";
+            timeStatusIcon = "fa-hourglass-start";
+            timeProgressPercent = 0;
+            timeMarkerClass = "marker-waiting";
+            timeMarkerPos = 0;
+            int daysToStart = (int)(schedStart.Value.Date - now.Date).TotalDays;
+            timeExtraLabel = $"Start za {daysToStart} {DniLabel(daysToStart)}";
+
+            statusClass = "status-waiting-color";
+            statusLabel = "Oczekuje";
+        }
+        else if (afterEnd)
+        {
+            timeStatusLabel = "Zakończony";
+            timeStatusClass = "time-status-expired";
+            timeStatusIcon = "fa-hourglass-end";
+            timeProgressPercent = 100;
+            timeMarkerClass = "marker-expired";
+            timeMarkerPos = 100;
+            int daysAgo = (int)(now.Date - schedEnd.Value.Date).TotalDays;
+            timeExtraLabel = $"Zakończono {daysAgo} {DniLabel(daysAgo)} temu";
+
+            statusClass = "status-waiting-color";
+            statusLabel = "Zatrzymany";
+        }
+        else
+        {
+            // Aktywny — end date inclusive, więc +1 dzień do totalDays
+            double totalDays = (schedEnd.Value.Date - schedStart.Value.Date).TotalDays + 1;
+            double elapsedDays = (now.Date - schedStart.Value.Date).TotalDays;
+            timeProgressPercent = totalDays > 0 ? Math.Round((elapsedDays / totalDays) * 100, 1) : 0;
+            timeProgressPercent = Math.Min(timeProgressPercent, 100);
+            int daysLeft = (int)(schedEnd.Value.Date - now.Date).TotalDays + 1;
+
+            timeStatusLabel = "Aktywny";
+            timeStatusClass = "time-status-active";
+            timeStatusIcon = "fa-hourglass-half";
+            timeMarkerClass = "marker-active";
+            timeMarkerPos = timeProgressPercent;
+            timeExtraLabel = $"Pozostało {daysLeft} {DniLabel(daysLeft)}";
+        }
+    }
+    else if (schedStart.HasValue && !schedEnd.HasValue)
+    {
+        bool beforeStart = now.Date < schedStart.Value.Date;
+        if (beforeStart)
+        {
+            timeStatusLabel = "Oczekuje";
+            timeStatusClass = "time-status-waiting";
+            timeStatusIcon = "fa-hourglass-start";
+            int daysToStart = (int)(schedStart.Value.Date - now.Date).TotalDays;
+            timeExtraLabel = $"Start za {daysToStart} {DniLabel(daysToStart)}";
+            timeMarkerClass = "marker-waiting";
+            timeMarkerPos = 0;
+            timeProgressPercent = 0;
+
+            statusClass = "status-waiting-color";
+            statusLabel = "Oczekuje";
+        }
+        else
+        {
+            timeStatusLabel = "Aktywny";
+            timeStatusClass = "time-status-active";
+            timeStatusIcon = "fa-play";
+            timeExtraLabel = "Bez daty końcowej";
+        }
+    }
+    else if (!schedStart.HasValue && schedEnd.HasValue)
+    {
+        bool afterEnd = now.Date > schedEnd.Value.Date;
+        if (afterEnd)
+        {
+            timeStatusLabel = "Zakończony";
+            timeStatusClass = "time-status-expired";
+            timeStatusIcon = "fa-hourglass-end";
+            int daysAgo = (int)(now.Date - schedEnd.Value.Date).TotalDays;
+            timeExtraLabel = $"Zakończono {daysAgo} {DniLabel(daysAgo)} temu";
+            timeMarkerClass = "marker-expired";
+            timeMarkerPos = 100;
+            timeProgressPercent = 100;
+
+            statusClass = "status-waiting-color";
+            statusLabel = "Zatrzymany";
+        }
+        else
+        {
+            timeStatusLabel = "Aktywny";
+            timeStatusClass = "time-status-active";
+            timeStatusIcon = "fa-play";
+            int daysLeft = (int)(schedEnd.Value.Date - now.Date).TotalDays + 1;
+            timeExtraLabel = $"Do {schedEnd.Value.ToString("dd.MM.yyyy")} ({daysLeft} {DniLabel(daysLeft)})";
+        }
+    }
+    else
+    {
+        timeStatusLabel = "Brak dat";
+        timeStatusClass = "time-status-waiting";
+        timeStatusIcon = "fa-question-circle";
+    }
+
+    string DniLabel(int n)
+    {
+        if (n == 1) return "dzień";
+        return "dni";
+    }
 }
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
@@ -719,6 +860,154 @@
     tr.filter-hidden {
         display: none !important;
     }
+
+    .status-waiting-color {
+        color: #f6c23e;
+    }
+
+    /* ── Time schedule box (inline) ── */
+    .time-schedule-box {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 14px;
+        border-radius: 4px;
+        border: 2px dashed #e3e6f0;
+        min-height: 34px;
+        gap: 10px;
+        margin-left: 10px;
+        white-space: nowrap;
+    }
+
+    .time-status-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+    }
+
+    .time-status-unlimited {
+        color: #1cc88a;
+    }
+
+    .time-status-waiting {
+        color: #f6c23e;
+    }
+
+    .time-status-active {
+        color: #1cc88a;
+    }
+
+    .time-status-expired {
+        color: #e74a3b;
+    }
+
+    .time-status-disabled {
+        color: #858796;
+    }
+
+    .time-separator {
+        color: #ddd;
+        font-weight: 300;
+        font-size: 14px;
+    }
+
+    .time-date-badge {
+        padding: 2px 6px;
+        border-radius: 3px;
+        background: #f8f9fc;
+        border: 1px solid #e3e6f0;
+        font-family: monospace;
+        font-size: 11px;
+        color: #5a5c69;
+    }
+
+    .time-dates-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        color: #858796;
+    }
+
+    /* ── Progress bar with triangle marker ── */
+    .time-progress-wrapper {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: stretch;
+        position: relative;
+        width: 140px;
+    }
+
+    .time-progress-track {
+        position: relative;
+        width: 100%;
+        height: 5px;
+        background: #e3e3e3;
+        border-radius: 3px;
+        overflow: visible;
+    }
+
+    .time-progress-fill {
+        height: 100%;
+        border-radius: 3px;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+        .time-progress-fill.fill-waiting {
+            width: 0%;
+            background: #f6c23e;
+        }
+
+        .time-progress-fill.fill-active {
+            background: linear-gradient(90deg, #1cc88a, #17a673);
+        }
+
+        .time-progress-fill.fill-expired {
+            width: 100%;
+            background: #e74a3b;
+        }
+
+    /* Triangle marker */
+    .time-marker {
+        position: absolute;
+        top: 8px;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-bottom: 7px solid transparent;
+        transition: left 0.3s ease;
+    }
+
+    .marker-waiting {
+        border-bottom-color: #f6c23e;
+        left: 0%;
+    }
+
+    .marker-active {
+        border-bottom-color: #1cc88a;
+    }
+
+    .marker-expired {
+        border-bottom-color: #e74a3b;
+        left: 100%;
+    }
+
+    .marker-hidden {
+        display: none;
+    }
+
+    .time-extra-label {
+        font-size: 10px;
+        color: #a0a0a0;
+        font-weight: 600;
+    }
 </style>
 
 <div class="View">
@@ -749,6 +1038,85 @@
                     <div class="status-indicator-text @statusClass">
                         <i class="fa-solid fa-circle" style="font-size: 6px;"></i> @statusLabel
                     </div>
+                </div>
+                
+                <!-- Time scheduling info -->
+                <div class="time-schedule-box">
+                    @* ─── Status label ─── *@
+                    <div class="time-status-label @timeStatusClass">
+                        <i class="fa-solid @timeStatusIcon" style="font-size: 10px;"></i>
+                        @timeStatusLabel
+                    </div>
+
+                    @if (!isTimeLimited)
+                    {
+                        @* Brak ograniczenia — tylko tekst *@
+                        <span class="time-extra-label" style="color: #1cc88a;">Automat działa bez limitu czasu</span>
+                    }
+                    else if (isDisabled)
+                    {
+                        @* Wyłączony — daty nieistotne *@
+                        <span class="time-extra-label">Włącz automat, aby harmonogram zaczął działać</span>
+                    }
+                    else
+                    {
+                        @* ─── Daty ─── *@
+                        @if (schedStart.HasValue || schedEnd.HasValue)
+                        {
+                            <span class="time-separator">|</span>
+                            <div class="time-dates-inline">
+                                @if (schedStart.HasValue)
+                                {
+                                    <span class="time-date-badge">@schedStart.Value.ToString("dd.MM.yyyy")</span>
+                                }
+                                else
+                                {
+                                    <span class="time-date-badge" style="color:#ccc;">—</span>
+                                }
+                                <i class="fa-solid fa-arrow-right" style="font-size: 7px; color: #ccc;"></i>
+                                @if (schedEnd.HasValue)
+                                {
+                                    <span class="time-date-badge">@schedEnd.Value.ToString("dd.MM.yyyy")</span>
+                                }
+                                else
+                                {
+                                    <span class="time-date-badge" style="color:#ccc;">∞</span>
+                                }
+                            </div>
+                        }
+
+                        @* ─── Pasek + trójkąt (tylko gdy obie daty) ─── *@
+                        @if (schedStart.HasValue && schedEnd.HasValue)
+                        {
+                            <span class="time-separator">|</span>
+                            <div class="time-progress-wrapper">
+                                <div class="time-progress-track">
+                                    @if (timeProgressPercent == 0)
+                                    {
+                                        <div class="time-progress-fill fill-waiting"></div>
+                                    }
+                                    else if (timeProgressPercent >= 100)
+                                    {
+                                        <div class="time-progress-fill fill-expired"></div>
+                                    }
+                                    else
+                                    {
+                                        <div class="time-progress-fill fill-active" style="width: @timeProgressPercent%"></div>
+                                    }
+
+                                    @* Trójkąt-marker *@
+                                    <div class="time-marker @timeMarkerClass" style="left: @(timeMarkerPos)%"></div>
+                                </div>
+                            </div>
+                        }
+
+                        @* ─── Extra label ─── *@
+                        @if (!string.IsNullOrEmpty(timeExtraLabel))
+                        {
+                            <span class="time-separator">|</span>
+                            <span class="time-extra-label">@timeExtraLabel</span>
+                        }
+                    }
                 </div>
                 @if (canEdit)
                 {

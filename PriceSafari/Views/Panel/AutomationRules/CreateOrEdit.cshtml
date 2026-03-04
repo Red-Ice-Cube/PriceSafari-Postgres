@@ -439,11 +439,20 @@
                                 <i class="fas fa-play-circle" style="margin-right: 6px;"></i>
                                 DATA ROZPOCZĘCIA (opcjonalna)
                             </label>
-                            <input asp-for="ScheduledStartDate"
-                                   type="date"
-                                   class="form-control-custom"
-                                   id="ScheduledStartDateInput"
-                                   style="font-size: 16px; text-align: center;" />
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <input asp-for="ScheduledStartDate"
+                                       type="date"
+                                       class="form-control-custom"
+                                       id="ScheduledStartDateInput"
+                                       style="font-size: 16px; text-align: center; flex: 1;" />
+                                <button type="button"
+                                        class="btn btn-outline-secondary"
+                                        onclick="clearDateInput('ScheduledStartDateInput')"
+                                        title="Wyczyść datę"
+                                        style="height: 45px; width: 45px; min-width: 45px; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #d1d3e2; background: #fff; color: #858796; font-size: 14px; cursor: pointer; transition: all 0.2s;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
                             <div style="font-size: 12px; color: #858796; margin-top: 8px;">
                                 Automat zacznie działać od tego dnia (włącznie).
                                 Jeśli puste — działa od razu po włączeniu.
@@ -461,11 +470,20 @@
                                 <i class="fas fa-stop-circle" style="margin-right: 6px;"></i>
                                 DATA ZAKOŃCZENIA (opcjonalna)
                             </label>
-                            <input asp-for="ScheduledEndDate"
-                                   type="date"
-                                   class="form-control-custom"
-                                   id="ScheduledEndDateInput"
-                                   style="font-size: 16px; text-align: center;" />
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <input asp-for="ScheduledEndDate"
+                                       type="date"
+                                       class="form-control-custom"
+                                       id="ScheduledEndDateInput"
+                                       style="font-size: 16px; text-align: center; flex: 1;" />
+                                <button type="button"
+                                        class="btn btn-outline-secondary"
+                                        onclick="clearDateInput('ScheduledEndDateInput')"
+                                        title="Wyczyść datę"
+                                        style="height: 45px; width: 45px; min-width: 45px; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #d1d3e2; background: #fff; color: #858796; font-size: 14px; cursor: pointer; transition: all 0.2s;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
                             <div style="font-size: 12px; color: #858796; margin-top: 8px;">
                                 Automat przestanie działać po tym dniu (włącznie).
                                 Jeśli puste — działa bez daty końcowej.
@@ -1249,6 +1267,14 @@
             if (!dateStr) return '';
             var parts = dateStr.split('-');
             return parts[2] + '.' + parts[1] + '.' + parts[0];
+        }
+
+                function clearDateInput(inputId) {
+            var input = document.getElementById(inputId);
+            if (input) {
+                input.value = '';
+                updateSchedulePreview();
+            }
         }
 
         document.addEventListener('DOMContentLoaded', function() {

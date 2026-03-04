@@ -55,7 +55,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 StrategyMode = rule.StrategyMode,
                 IsActive = rule.IsActive,
                 StoreId = rule.StoreId,
-                StoreName = rule.Store?.StoreName ?? "Nieznany sklep"
+                StoreName = rule.Store?.StoreName ?? "Nieznany sklep",
+                IsTimeLimited = rule.IsTimeLimited,
+                ScheduledStartDate = rule.ScheduledStartDate,
+                ScheduledEndDate = rule.ScheduledEndDate
             };
 
             if (rule.SourceType == AutomationSourceType.PriceComparison)
