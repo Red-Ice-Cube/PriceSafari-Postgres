@@ -22,6 +22,21 @@ namespace PriceSafari.Models
         Profit = 1
     }
 
+    public enum AutomationEffectiveStatus
+    {
+        /// <summary>Wyłączony (IsActive = false)</summary>
+        Disabled = 0,
+
+        /// <summary>Aktywny — działa normalnie</summary>
+        Active = 1,
+
+        /// <summary>Oczekuje — zaplanowany, ale jeszcze nie rozpoczęty</summary>
+        Scheduled = 2,
+
+        /// <summary>Zakończony — przekroczono EndDate</summary>
+        Expired = 3
+    }
+
     public class AutomationRule
     {
         [Key]
@@ -42,6 +57,30 @@ namespace PriceSafari.Models
         public AutomationSourceType SourceType { get; set; }
 
         public bool IsActive { get; set; } = false;
+
+        /// <summary>
+        /// Czy automat ma ograniczenie czasowe (zaplanowany zakres działania).
+        /// Jeśli false — automat działa normalnie wg IsActive.
+        /// Jeśli true — automat działa tylko w zakresie ScheduledStartDate–ScheduledEndDate.
+        /// </summary>
+        public bool IsTimeLimited { get; set; } = false;
+
+        /// <summary>
+        /// Data rozpoczęcia działania automatu (opcjonalna).
+        /// Jeśli podana i IsTimeLimited=true, automat nie wykona się przed tą datą.
+        /// Zakres inkluzywny — w tym dniu automat już działa.
+        /// </summary>
+        [Column(TypeName = "date")]
+        public DateTime? ScheduledStartDate { get; set; }
+
+        /// <summary>
+        /// Data zakończenia działania automatu (opcjonalna).
+        /// Jeśli podana i IsTimeLimited=true, automat nie wykona się po tej dacie.
+        /// Zakres inkluzywny — w tym dniu automat jeszcze działa.
+        /// </summary>
+        [Column(TypeName = "date")]
+        public DateTime? ScheduledEndDate { get; set; }
+
 
         [Required]
         public AutomationStrategyMode StrategyMode { get; set; } = AutomationStrategyMode.Competitiveness;
@@ -200,5 +239,51 @@ namespace PriceSafari.Models
         [Column(TypeName = "decimal(18,2)")]
         [Display(Name = "Wartość progu Smart")]
         public decimal SkipIfValueGoBelow { get; set; } = 35.00m;
+
+
+
+
+
+
+        // =================================================================================
+        // HELPER: Efektywny status automatu
+        // =================================================================================
+
+        /// <summary>
+        /// Oblicza efektywny status automatu uwzględniając planowanie czasowe.
+        /// </summary>
+        [NotMapped]
+        public AutomationEffectiveStatus EffectiveStatus
+        {
+            get
+            {
+                if (!IsActive)
+                    return AutomationEffectiveStatus.Disabled;
+
+                if (!IsTimeLimited)
+                    return AutomationEffectiveStatus.Active;
+
+                var today = DateTime.Today;
+
+                // Sprawdź czy jeszcze nie rozpoczęty
+                if (ScheduledStartDate.HasValue && today < ScheduledStartDate.Value.Date)
+                    return AutomationEffectiveStatus.Scheduled;
+
+                // Sprawdź czy już zakończony (EndDate jest inkluzywne, więc >)
+                if (ScheduledEndDate.HasValue && today > ScheduledEndDate.Value.Date)
+                    return AutomationEffectiveStatus.Expired;
+
+                // W zakresie lub brak ograniczenia z danej strony
+                return AutomationEffectiveStatus.Active;
+            }
+        }
+
+        /// <summary>
+        /// Czy automat powinien się wykonać w danym momencie.
+        /// </summary>
+        [NotMapped]
+        public bool CanExecute => EffectiveStatus == AutomationEffectiveStatus.Active;
     }
+
+
 }
