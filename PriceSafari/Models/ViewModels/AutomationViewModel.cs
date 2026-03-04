@@ -59,6 +59,11 @@ namespace PriceSafari.Models.ViewModels
         public bool IsMinimalMarkupPercent { get; set; }    // true = %, false = kwota (PLN)
         public decimal MinimalMarkupValue { get; set; }
 
+
+        public bool IsTimeLimited { get; set; }
+        public DateTime? ScheduledStartDate { get; set; }
+        public DateTime? ScheduledEndDate { get; set; }
+
     }
 
     public class AutomationProductRowViewModel

@@ -39,6 +39,18 @@ namespace PriceSafari.Services.PriceAutomationService
 
             if (rule == null) throw new Exception("Reguła nie istnieje.");
 
+            if (!rule.CanExecute)
+            {
+                string reason = rule.EffectiveStatus switch
+                {
+                    AutomationEffectiveStatus.Disabled => "Automat jest wyłączony.",
+                    AutomationEffectiveStatus.Scheduled => $"Automat oczekuje na rozpoczęcie ({rule.ScheduledStartDate?.ToString("dd.MM.yyyy")}).",
+                    AutomationEffectiveStatus.Expired => $"Automat zakończył działanie ({rule.ScheduledEndDate?.ToString("dd.MM.yyyy")}).",
+                    _ => "Automat nie może zostać wykonany."
+                };
+                throw new Exception(reason);
+            }
+
             if (rule.SourceType == AutomationSourceType.PriceComparison)
             {
                 var calcResult = await GetCalculatedComparisonData(rule);

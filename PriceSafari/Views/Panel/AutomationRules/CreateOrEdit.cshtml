@@ -169,6 +169,14 @@
             border-bottom: none;
         }
 
+    .clean-row-option {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+      
+    }
+
     .option-title {
         font-size: 15px;
         font-weight: 500;
@@ -274,6 +282,7 @@
     <input type="hidden" asp-for="StoreId" />
     <input type="hidden" asp-for="CompetitorPresetId" id="CompetitorPresetId" />
     <input type="hidden" asp-for="StrategyMode" id="StrategyModeInput" />
+ 
 
     <div class="Vert">
         <div class="Date" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -389,7 +398,89 @@
             </div>
         </div>
     </div>
+    <div class="Vert">
+        <div class="Chart-Box-a">
+            <div class="box-title">
+                 Planowanie Czasowe
+            </div>
 
+            <div class="clean-row-option">
+                <div class="option-desc">
+                    <div class="option-title">Przedział czasu działania automatu</div>
+                    <div class="option-subtitle">
+                        Jeśli włączone, automat będzie działał tylko w wybranym zakresie dat.
+                        Poza tym zakresem automat nie będzie zmieniał cen, nawet jeśli jest włączony.
+                    </div>
+                </div>
+                <div class="switch-container switch-status @(Model.IsTimeLimited ? "state-right" : "state-left")"
+                     onclick="toggleSwitch(this); toggleTimeLimited(this.querySelector('input'))">
+                    <input type="checkbox" asp-for="IsTimeLimited" id="IsTimeLimitedSwitch" />
+                    <div class="switch-slider-bg"></div>
+                    <div class="switch-labels">
+                        <span class="switch-label-text label-left">NIE</span>
+                        <span class="switch-label-text label-right">TAK</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="timeLimitedContainer"
+                 style="opacity: @(Model.IsTimeLimited ? "1" : "0.5");
+                    pointer-events: @(Model.IsTimeLimited ? "auto" : "none");
+                    transition: opacity 0.3s;
+                    margin-top: 20px;
+                    padding-top: 20px;
+                    border-top: 1px dashed #d1d3e2;">
+
+                <div style="display: flex; gap: 40px; flex-wrap: wrap; justify-content: center;">
+
+                    <div style="flex: 1; min-width: 250px; max-width: 350px;">
+                        <div class="form-group">
+                            <label style="color: #1cc88a;">
+                                <i class="fas fa-play-circle" style="margin-right: 6px;"></i>
+                                DATA ROZPOCZĘCIA (opcjonalna)
+                            </label>
+                            <input asp-for="ScheduledStartDate"
+                                   type="date"
+                                   class="form-control-custom"
+                                   id="ScheduledStartDateInput"
+                                   style="font-size: 16px; text-align: center;" />
+                            <div style="font-size: 12px; color: #858796; margin-top: 8px;">
+                                Automat zacznie działać od tego dnia (włącznie).
+                                Jeśli puste — działa od razu po włączeniu.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; color: #d1d3e2; font-size: 24px;">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+
+                    <div style="flex: 1; min-width: 250px; max-width: 350px;">
+                        <div class="form-group">
+                            <label style="color: #e74a3b;">
+                                <i class="fas fa-stop-circle" style="margin-right: 6px;"></i>
+                                DATA ZAKOŃCZENIA (opcjonalna)
+                            </label>
+                            <input asp-for="ScheduledEndDate"
+                                   type="date"
+                                   class="form-control-custom"
+                                   id="ScheduledEndDateInput"
+                                   style="font-size: 16px; text-align: center;" />
+                            <div style="font-size: 12px; color: #858796; margin-top: 8px;">
+                                Automat przestanie działać po tym dniu (włącznie).
+                                Jeśli puste — działa bez daty końcowej.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="schedulePreview"
+                     style="margin-top: 20px; padding: 15px; border-radius: 8px; background: #f8f9fc; border: 1px solid #eaecf4; text-align: center; display: none;">
+                    <span id="schedulePreviewText" style="font-size: 14px; font-weight: 500; color: #5a5c69;"></span>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="Vert">
         <div class="Chart-Box-a">
             <div class="box-title">
@@ -1030,6 +1121,8 @@
             }
         }
 
+
+
         window.setStrategyMode = function(modeValue) {
             const input = document.getElementById('StrategyModeInput');
             if(input) input.value = modeValue;
@@ -1090,5 +1183,98 @@
                 document.getElementById('deleteRuleForm').submit();
             }
         }
+
+        window.toggleTimeLimited = function(switchEl) {
+            const container = document.getElementById('timeLimitedContainer');
+            if (!container) return;
+            if (switchEl.checked) {
+                container.style.opacity = '1';
+                container.style.pointerEvents = 'auto';
+            } else {
+                container.style.opacity = '0.5';
+                container.style.pointerEvents = 'none';
+            }
+            updateSchedulePreview();
+        };
+
+        function updateSchedulePreview() {
+            const isTimeLimited = document.getElementById('IsTimeLimitedSwitch')?.checked;
+            const startInput = document.getElementById('ScheduledStartDateInput');
+            const endInput = document.getElementById('ScheduledEndDateInput');
+            const preview = document.getElementById('schedulePreview');
+            const previewText = document.getElementById('schedulePreviewText');
+
+            if (!preview || !previewText) return;
+
+            if (!isTimeLimited) {
+                preview.style.display = 'none';
+                return;
+            }
+
+            const startDate = startInput?.value;
+            const endDate = endInput?.value;
+
+            if (!startDate && !endDate) {
+                preview.style.display = 'none';
+                return;
+            }
+
+            preview.style.display = 'block';
+
+            let text = '<i class="fas fa-info-circle" style="margin-right: 8px; color: #4e73df;"></i>';
+
+            if (startDate && endDate) {
+                text += 'Automat będzie aktywny od <strong>' + formatDatePL(startDate) + '</strong> do <strong>' + formatDatePL(endDate) + '</strong> (włącznie).';
+            } else if (startDate) {
+                text += 'Automat będzie aktywny od <strong>' + formatDatePL(startDate) + '</strong> (bez daty końcowej).';
+            } else if (endDate) {
+                text += 'Automat będzie aktywny do <strong>' + formatDatePL(endDate) + '</strong> (włącznie).';
+            }
+
+            // Walidacja: end < start
+            if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+                text = '<i class="fas fa-exclamation-triangle" style="margin-right: 8px; color: #e74a3b;"></i>';
+                text += '<span style="color: #e74a3b;">Data zakończenia nie może być wcześniejsza niż data rozpoczęcia!</span>';
+                preview.style.borderColor = '#e74a3b';
+                preview.style.background = '#fff5f5';
+            } else {
+                preview.style.borderColor = '#eaecf4';
+                preview.style.background = '#f8f9fc';
+            }
+
+            previewText.innerHTML = text;
+        }
+
+        function formatDatePL(dateStr) {
+            if (!dateStr) return '';
+            var parts = dateStr.split('-');
+            return parts[2] + '.' + parts[1] + '.' + parts[0];
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var startInput = document.getElementById('ScheduledStartDateInput');
+            var endInput = document.getElementById('ScheduledEndDateInput');
+            if (startInput) startInput.addEventListener('change', updateSchedulePreview);
+            if (endInput) endInput.addEventListener('change', updateSchedulePreview);
+            updateSchedulePreview();
+
+            // ===== PRZENIESIONE TUTAJ =====
+            var form = document.getElementById('automationRuleForm');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    var isTimeLimited = document.getElementById('IsTimeLimitedSwitch')?.checked;
+                    if (isTimeLimited) {
+                        var startVal = document.getElementById('ScheduledStartDateInput')?.value;
+                        var endVal = document.getElementById('ScheduledEndDateInput')?.value;
+
+                        if (startVal && endVal && new Date(endVal) < new Date(startVal)) {
+                            e.preventDefault();
+                            alert('Data zakończenia nie może być wcześniejsza niż data rozpoczęcia!');
+                            return false;
+                        }
+                    }
+                });
+            }
+        });
     </script>
 }

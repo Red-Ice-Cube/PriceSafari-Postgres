@@ -226,6 +226,20 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (rule.CompetitorPresetId == 0) rule.CompetitorPresetId = null;
 
+            // ===== NOWE: Walidacja planowania czasowego =====
+            if (!rule.IsTimeLimited)
+            {
+                rule.ScheduledStartDate = null;
+                rule.ScheduledEndDate = null;
+            }
+            else if (rule.ScheduledStartDate.HasValue && rule.ScheduledEndDate.HasValue
+                     && rule.ScheduledEndDate.Value.Date < rule.ScheduledStartDate.Value.Date)
+            {
+                ModelState.AddModelError("ScheduledEndDate",
+                    "Data zakończenia nie może być wcześniejsza niż data rozpoczęcia.");
+            }
+            // ===== KONIEC =====
+
             if (ModelState.IsValid)
             {
                 _context.AutomationRules.Add(rule);
@@ -257,6 +271,18 @@ namespace PriceSafari.Controllers.MemberControllers
             if (id != rule.Id) return NotFound();
 
             if (rule.CompetitorPresetId == 0) rule.CompetitorPresetId = null;
+
+            if (!rule.IsTimeLimited)
+            {
+                rule.ScheduledStartDate = null;
+                rule.ScheduledEndDate = null;
+            }
+            else if (rule.ScheduledStartDate.HasValue && rule.ScheduledEndDate.HasValue
+                     && rule.ScheduledEndDate.Value.Date < rule.ScheduledStartDate.Value.Date)
+            {
+                ModelState.AddModelError("ScheduledEndDate",
+                    "Data zakończenia nie może być wcześniejsza niż data rozpoczęcia.");
+            }
 
             if (ModelState.IsValid)
             {
