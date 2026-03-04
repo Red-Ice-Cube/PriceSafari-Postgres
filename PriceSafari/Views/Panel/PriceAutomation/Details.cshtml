@@ -93,11 +93,11 @@
         else
         {
             // Aktywny — end date inclusive, więc +1 dzień do totalDays
-            double totalDays = (schedEnd.Value.Date - schedStart.Value.Date).TotalDays + 1;
-            double elapsedDays = (now.Date - schedStart.Value.Date).TotalDays;
-            timeProgressPercent = totalDays > 0 ? Math.Round((elapsedDays / totalDays) * 100, 1) : 0;
-            timeProgressPercent = Math.Min(timeProgressPercent, 100);
-            int daysLeft = (int)(schedEnd.Value.Date - now.Date).TotalDays + 1;
+            double totalSpan = (schedEnd.Value.Date - schedStart.Value.Date).TotalDays + 1; // 3
+            double elapsedFull = (now.Date - schedStart.Value.Date).TotalDays;               // na 04.03 = 1
+            timeProgressPercent = totalSpan > 0 ? Math.Round((elapsedFull / totalSpan) * 100, 1) : 0; // 33.3%
+            timeProgressPercent = Math.Max(0, Math.Min(timeProgressPercent, 99.9)); // nigdy 100 gdy jeszcze aktywny
+            int daysLeft = (int)(schedEnd.Value.Date - now.Date).TotalDays + 1;     // na 04.03 → 2 (4 i 5)
 
             timeStatusLabel = "Aktywny";
             timeStatusClass = "time-status-active";
@@ -871,10 +871,9 @@
         align-items: center;
         padding: 4px 14px;
         border-radius: 4px;
-        border: 2px dashed #e3e6f0;
-        min-height: 34px;
+        border: 2px dashed #f1f3f9;
+        min-height: 36px;
         gap: 10px;
-        margin-left: 10px;
         white-space: nowrap;
     }
 
@@ -1101,11 +1100,10 @@
                                     }
                                     else
                                     {
-                                        <div class="time-progress-fill fill-active" style="width: @timeProgressPercent%"></div>
+                                        <div class="time-progress-fill fill-active" style="width: @(timeProgressPercent.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
                                     }
 
-                                    @* Trójkąt-marker *@
-                                    <div class="time-marker @timeMarkerClass" style="left: @(timeMarkerPos)%"></div>
+                                    <div class="time-marker @timeMarkerClass" style="left: @(timeMarkerPos.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
                                 </div>
                             </div>
                         }

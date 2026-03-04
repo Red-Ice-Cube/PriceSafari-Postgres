@@ -140,8 +140,9 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     // Pobieramy nazwę presetu (np. "Top 3 Allegro")
                     CompetitorPresetName = r.CompetitorPreset != null ? r.CompetitorPreset.PresetName : "Domyślny",
-
-                    // Liczenie produktów
+                    IsTimeLimited = r.IsTimeLimited,
+                    ScheduledStartDate = r.ScheduledStartDate,
+                    ScheduledEndDate = r.ScheduledEndDate,
                     AssignedProductsCount = _context.AutomationProductAssignments.Count(a => a.AutomationRuleId == r.Id)
                 })
                 .OrderByDescending(r => r.Id)
@@ -167,6 +168,10 @@ namespace PriceSafari.Controllers.MemberControllers
 
             // Nazwa presetu konkurencji (opcjonalnie, dla kontekstu "Lider Rynku" itp.)
             public string CompetitorPresetName { get; set; }
+
+            public bool IsTimeLimited { get; set; }
+            public DateTime? ScheduledStartDate { get; set; }
+            public DateTime? ScheduledEndDate { get; set; }
         }
 
         [HttpGet]
