@@ -906,7 +906,7 @@ namespace PriceSafari.Services.PriceAutomationService
                     else if (rule.SkipIfMarkupLimited)
                     {
                         // Cena spada poniżej minimum — blokujemy
-                        ApplyBlock(row, "Blokada Narzutu (Min)");
+                        ApplyBlock(row, "Blokada Ceny (Min)");
                         return;
                     }
                     else
@@ -915,7 +915,7 @@ namespace PriceSafari.Services.PriceAutomationService
                         // Jeśli cena już jest na minimum i cel nadal nieosiągalny — blokada
                         if (Math.Abs(Math.Round(basePrice, 2) - Math.Round(row.MinPriceLimit.Value, 2)) < 0.01m)
                         {
-                            ApplyBlock(row, "Blokada Narzutu (Min)");
+                            ApplyBlock(row, "Blokada Ceny (Min)");
                             return;
                         }
 

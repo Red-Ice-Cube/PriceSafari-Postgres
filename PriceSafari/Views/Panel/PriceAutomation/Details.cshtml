@@ -229,8 +229,8 @@
         font-size: 11px;
         font-weight: 600;
         color: #ffffff !important;
-        width: 144px;
-        min-width: 140px;
+        width: 132px;
+        min-width: 132px;
         height: 24px;
         gap: 4px;
     }
@@ -389,7 +389,7 @@
     .product-name-wrap {
         white-space: normal !important;
         word-wrap: break-word;
-        width: 250px;
+        width: 220px;
         line-height: 1.3;
     }
 
@@ -418,8 +418,8 @@
         border-radius: 4px;
         font-size: 11px;
         font-weight: 700;
-        width: 124px;
-        min-width: 120px;
+        width: 106px;
+        min-width: 106px;
         height: 24px;
         gap: 4px;
         background-color: transparent;
@@ -1378,7 +1378,7 @@
                             {
                                 <th style="width: 50px;"></th>
                             }
-                            <th style="width: 250px;">Produkt</th>
+                            <th style="max-width: 230px;">Produkt</th>
                             <th style="width: 200px; min-width: 195px;">Limity Cenowe</th>
                             <th style="min-width: 225px;">Dane z rynku - Twoja oferta</th>
                             @if (Model.StrategyMode == AutomationStrategyMode.Competitiveness)
@@ -1390,7 +1390,7 @@
                                 <th style="min-width: 225px;">Mediana Rynku</th>
                             }
                             <th style="min-width: 150px; width: 150px;">Zmiana</th>
-                            <th class="bg-gradient-light border-left-primary" style="min-width: 225px;">Wyznaczona Cena</th>
+                            <th class="bg-gradient-light border-left-primary" style="min-width: 260px;">Wyznaczona Cena</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -1449,7 +1449,7 @@
                                 }
                             }
 
-                            else if (item.Status == AutomationCalculationStatus.Blocked && item.BlockReason != null && item.BlockReason.StartsWith("Blokada Narzutu"))
+                            else if (item.Status == AutomationCalculationStatus.Blocked && item.BlockReason != null && item.BlockReason.StartsWith("Blokada Ceny"))
                             {
                                 limitType = item.BlockReason.Contains("Max") ? "ceiling" : "floor";
                             }
