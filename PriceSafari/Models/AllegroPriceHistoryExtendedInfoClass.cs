@@ -31,6 +31,8 @@ namespace PriceSafari.Models
 
         public bool? IsSubsidyActive { get; set; }
 
+        public int? AllegroVisitsCount { get; set; }
+
 
     }
 }
