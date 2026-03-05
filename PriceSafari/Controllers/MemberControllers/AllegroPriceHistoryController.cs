@@ -945,8 +945,11 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // ZMIENIONA METODA: GetPriceTrendData - dodano dane wyświetleń
+        // ═══════════════════════════════════════════════════════════════
         [HttpGet]
-        public async Task<IActionResult> GetPriceTrendData(int productId, int limit = 30) // 1. Dodano parametr limit z domyślną wartością
+        public async Task<IActionResult> GetPriceTrendData(int productId, int limit = 30)
         {
             var product = await _context.AllegroProducts.FindAsync(productId);
             if (product == null)
@@ -973,13 +976,12 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(ci => ci.DataSource == DataSourceType.Allegro)
                 .ToDictionary(ci => ci.StoreName.ToLower().Trim(), ci => ci.UseCompetitor);
 
-            // 2. Walidacja limitu (zabezpieczenie)
             if (limit <= 0) limit = 30;
 
             var lastScraps = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
-                .Take(limit) // 3. Użycie zmiennej limit zamiast sztywnej 30
+                .Take(limit)
                 .OrderBy(sh => sh.Date)
                 .ToListAsync();
 
@@ -999,6 +1001,16 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(aph => aph.AllegroProductId == productId && scrapIds.Contains(aph.AllegroScrapeHistoryId))
                 .Where(aph => aph.Price > 0)
                 .ToListAsync();
+
+            // ═══ NOWE: Pobieramy dane o wyświetleniach z ExtendedInfo ═══
+            var visitsData = await _context.AllegroPriceHistoryExtendedInfos
+                .Where(e => scrapIds.Contains(e.ScrapHistoryId) && e.AllegroProductId == productId)
+                .Select(e => new { e.ScrapHistoryId, e.AllegroVisitsCount })
+                .ToListAsync();
+
+            var visitsByScrapId = visitsData.ToDictionary(v => v.ScrapHistoryId, v => v.AllegroVisitsCount);
+            // ═════════════════════════════════════════════════════════════
+
             bool includeNoDelivery = activePreset?.IncludeNoDeliveryInfo ?? true;
             int minDelivery = activePreset?.MinDeliveryDays ?? 0;
             int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
@@ -1064,14 +1076,22 @@ namespace PriceSafari.Controllers.MemberControllers
                 };
             }).ToList();
 
-            var viewModel = new AllegroTrendDataViewModel
+            // ═══ NOWE: Budujemy timeline wyświetleń ═══
+            var visitsTimeline = lastScraps.Select(scrap => new
             {
-                ProductName = product.AllegroProductName,
-                TimelineData = timelineData,
-                MainOfferId = mainOfferId
-            };
+                scrapDate = scrap.Date.ToString("yyyy-MM-dd HH:00"),
+                visits = visitsByScrapId.GetValueOrDefault(scrap.Id)
+            }).ToList();
+            // ═══════════════════════════════════════════
 
-            return Json(viewModel);
+            return Json(new
+            {
+                productName = product.AllegroProductName,
+                timelineData = timelineData,
+                mainOfferId = mainOfferId,
+                // ═══ NOWE POLE ═══
+                visitsTimeline = visitsTimeline
+            });
         }
 
         [HttpPost]

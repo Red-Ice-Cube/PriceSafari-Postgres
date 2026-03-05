@@ -1,4 +1,4 @@
-﻿@{
+﻿@* @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     ViewData["Title"] = "Szczegóły Cen Allegro";
     var storeId = ViewBag.StoreId;
@@ -1340,6 +1340,1626 @@
         alert("Błąd tworzenia pliku Excel: " + e.message);
         }
         }
+        });
+    </script>
+} *@
+
+
+
+        @{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    ViewData["Title"] = "Szczegóły Cen Allegro";
+    var storeId = ViewBag.StoreId;
+    var productId = ViewBag.ProductId;
+    var productName = ViewBag.ProductName as string;
+    var offerId = ViewBag.OfferId as string;
+    var ean = ViewBag.Ean as string;
+    var storeName = ViewBag.StoreName as string;
+    var allegroOfferUrl = ViewBag.AllegroOfferUrl as string;
+}
+
+<style>
+    .price-trend-section {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+     
+    }
+
+    #customTrendTooltip {
+        width: 450px;
+    }
+
+    .price-trend__main-panel {
+        flex: 1;
+        min-width: 480px;
+        display: flex;
+        flex-direction: column;
+        height: 68vh;
+    }
+
+    .price-trend__chart-area {
+        width: 100%;
+        flex-grow: 1;
+        min-height: 300px;
+        position: relative;
+        margin-bottom: 10px;
+    }
+
+    .price-trend__controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 5px;
+        align-self: center;
+        justify-self: center;
+        width: 93%;
+        box-sizing: border-box;
+        flex-shrink: 0;
+    }
+
+    .price-trend__alpha-slider-wrapper {
+        flex-grow: 1;
+        margin-right: 20px;
+        display: flex;
+        align-items: center;
+        max-width: 300px;
+    }
+
+        .price-trend__alpha-slider-wrapper input[type=range] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+    #exportExcelBtn {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .price-trend__tooltip-panel {
+        flex-basis: 370px;
+        flex-shrink: 0;
+        border-left: 1px solid #e0e0e0;
+        padding-left: 20px;
+        overflow-y: auto;
+    }
+
+    .offer-badge {
+        display: inline-block;
+        padding: 2px 5px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        color: white;
+        border-radius: 4px;
+        margin-left: 4px;
+        vertical-align: middle;
+    }
+
+    .badge-bpg {
+        background-color: #169A23;
+    }
+
+    .badge-top {
+        background-color: #9c27b0;
+    }
+
+    .badge-super {
+        background-color: #ff9800;
+    }
+
+
+    
+</style>
+
+<div class="Vert" data-store-name="@storeName">
+    <div class="Page-Box">
+        <div style="display:flex; width:100%; justify-content:space-between;">
+            <div style="font-weight: 300; font-size: 22px;">
+                @productName
+            </div>
+            <div style="margin-top:4px;">
+                <button type="button" id="showTableBtn" class="button-active">
+                    Ranking
+                </button>
+                <button type="button" id="showChartBtn" class="button-inactive">
+                    Wykres
+                </button>
+            </div>
+        </div>
+
+       
+
+
+
+        
+        <div style="display: flex; width: 100%; gap: 48px;  align-items: flex-end; justify-content:space-between;">
+            <div style="display:flex; flex-direction:column; height:100%; justify-content:space-between;">
+                <div class="form-check-orders" style="margin-bottom:6px;">
+                    <div id="lastScrapeInfo"></div>
+
+                    @if (!string.IsNullOrEmpty(offerId))
+                    {
+                        <p><strong>ID oferty:</strong> @offerId</p>
+                    }
+
+                    @if (!string.IsNullOrEmpty(ean))
+                    {
+                        <p><strong>EAN:</strong> @ean</p>
+                    }
+                </div>
+                <div style="display:flex;  gap:10px;">
+                    @if (!string.IsNullOrEmpty(allegroOfferUrl))
+                    {
+                        <a href="@allegroOfferUrl" class="Button-Page-Small" style="width:169.5px;" target="_blank" rel="noopener noreferrer">
+                            <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:18px; height:18px; margin-right: 5px;" />Oferta Allegro
+                        </a>
+                    }
+                    <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="presetButton" onclick="openCompetitorsModal()">
+                        <span id="activePresetDisplay">
+                            @if (!string.IsNullOrEmpty(ViewBag.ActivePresetName as string))
+                            {
+                                @:Presety - @ViewBag.ActivePresetName
+                            }
+                            else
+                            {
+                                @:Presety - Widok PriceSafari
+                            }
+                        </span>
+                    </button>
+                
+                </div>
+               
+
+            </div>
+           
+
+            <div id="chartContainer" style="flex-shrink: 0; width: 50%; height: 130px;">
+                <canvas id="priceBarChart"></canvas>
+            </div>
+        </div>
+
+
+        <div id="priceTableContainer" class="Vert-table">
+            <table class="table-orders" id="priceTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th id="storeHeader">Sklep</th>
+                        <th>Cena</th>
+                        <th>Różnica</th>
+                        <th>Ads</th>
+                        <th>Koszt wysyłki</th>
+                        <th>Dostawa</th>
+                        <th>Smart</th>
+                        <th id="popularityHeader">Sprzedaż</th>
+                        <th>Oferta w katalogu</th>
+                        <th>Źródło</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="trendChartContainer" class="price-trend-section" style="display: none;">
+            <div class="price-trend__main-panel">
+                <div style="display: flex; justify-content: flex-start; align-items: center; margin-bottom: 10px;">
+                    <div class="period-selector-group">
+                        <button type="button" id="switchToPriceChartBtn" class="period-btn-custom active">
+                            <i class="fas fa-dollar-sign" style="margin-right: 4px;"></i> Cena
+                        </button>
+                        <button type="button" id="switchToSalesChartBtn" class="period-btn-custom">
+                            <i class="fas fa-chart-line" style="margin-right: 4px;"></i> Sprzedaż
+                        </button>
+                        <!-- ═══ NOWY PRZYCISK: Wyświetlenia ═══ -->
+                        <button type="button" id="switchToVisitsChartBtn" class="period-btn-custom">
+                            <i class="fas fa-eye" style="margin-right: 4px;"></i> Wyświetlenia
+                        </button>
+                    </div>
+
+                    <div class="period-selector-group" style="margin-left: 10px;">
+                        <button type="button" class="period-btn-custom history-btn" data-days="7">7 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="14">14 Analiz</button>
+                        <button type="button" class="period-btn-custom active history-btn" data-days="30">30 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="60">60 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="90">90 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="120">120 Analiz</button>
+                    </div>
+                </div>
+
+                <div class="price-trend__chart-area">
+                    <div id="trendChart" style="width: 100%; height: 100%;"></div>
+                </div>
+                <div class="price-trend__controls">
+                    <div class="price-trend__alpha-slider-wrapper">
+                        <input type="range" id="grayAlphaRange" min="0" max="0.6" step="0.01" value="0.3">
+                    </div>
+                    <button type="button" id="exportExcelBtn" class="Button-Page-Small" title="Eksportuj dane historii cen do pliku Excel">
+                        <i class="fas fa-file-excel" style="margin-right: 5px;"></i> Excel
+                    </button>
+                </div>
+            </div>
+            <div id="customTrendTooltip" class="price-trend__tooltip-panel">
+            </div>
+        </div>
+    </div>
+</div>
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_PresetyMarketPlace.cshtml")
+
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loader"></div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+
+    <script>
+         var priceHistoryPageContext = 'details';
+        var storeId = @storeId;
+
+        const presetTypeContext = 1;
+    </script>
+    <script src="~/js/member/Presets.js"></script>
+
+    <script>
+
+        let echartsTrendChart = null;
+        let currentTimelineData = null;
+        let originalChartData = null;
+        let currentChartOptions = null;
+        let lastHoverParams = null;
+        let showOnlyCheapest = false;
+        let highlightedStores = [];
+        let storeColorMap = {};
+        let lastHighlightedStore = null;
+        let hiddenStores = [];
+        let salesChartMode = 'offers';
+        let currentHistoryLimit = 30;
+        function toggleStoreHighlight(storeName) {
+            if (!echartsTrendChart || !currentTimelineData) return;
+            let sLower = storeName.toLowerCase().trim();
+            let idx = highlightedStores.indexOf(sLower);
+
+            const highlightColors = [
+                'rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)',
+                'rgba(255, 99, 132, 1)', 'rgba(0, 150, 136, 1)', 'rgba(201, 203, 207, 1)',
+                'rgba(121, 85, 72, 1)', 'rgba(139, 195, 74, 1)', 'rgba(0, 188, 212, 1)',
+                'rgba(233, 30, 99, 1)'
+            ];
+
+            function findNextFreeColorIndex() {
+                for (let i = 0; i < highlightColors.length; i++) {
+                    if (!Object.values(storeColorMap).includes(i)) return i;
+                }
+                return null;
+            }
+
+            if (idx >= 0) {
+                highlightedStores.splice(idx, 1);
+                delete storeColorMap[sLower];
+                if (lastHighlightedStore === sLower) {
+                    lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null;
+                }
+            } else {
+                if (sLower === "@storeName".toLowerCase().trim()) {
+                    lastHighlightedStore = sLower;
+                } else if (highlightedStores.length >= highlightColors.length) {
+                    alert(`Możesz zaznaczyć maks. ${highlightColors.length} sklepów do porównania `);
+                    return;
+                } else {
+                    let cIndex = findNextFreeColorIndex();
+                    if (cIndex === null) {
+                        alert("Brak wolnych kolorów do podświetlenia!");
+                        return;
+                    }
+                    if (!highlightedStores.includes(sLower)) {
+                        highlightedStores.push(sLower);
+                    }
+                    storeColorMap[sLower] = cIndex;
+                    lastHighlightedStore = sLower;
+                }
+            }
+
+            updateEchartsStylesAndZ();
+            if (lastHoverParams) {
+                const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
+                if (updatedPanelHtml) {
+                    updateCustomTooltipPanel(updatedPanelHtml);
+                }
+            }
+        }
+
+        function setCheapestMode(mode) {
+     
+        const currentChartType = document.getElementById('switchToPriceChartBtn').classList.contains('active') ? 'price' : 'sales';
+    
+        if (showOnlyCheapest === mode && currentChartType === 'price') return;
+    
+        showOnlyCheapest = mode;
+
+        if (originalChartData) {
+        displayCurrentTrendChart();
+        if (echartsTrendChart && lastHoverParams) {
+        setTimeout(() => {
+        const opt = echartsTrendChart.getOption();
+        if (opt && opt.xAxis && opt.xAxis[0].data) {
+        const idx = opt.xAxis[0].data.indexOf(lastHoverParams[0].axisValue);
+        if (idx > -1) {
+        echartsTrendChart.dispatchAction({ type: 'showTip', xAxisIndex: 0, dataIndex: idx });
+        }
+        }
+        }, 100);
+        }
+        }
+        }
+
+        function hideStoreFromChart(storeName) {
+            if (!echartsTrendChart || !currentTimelineData) return;
+            const storeLower = storeName.toLowerCase().trim();
+            if (!hiddenStores.includes(storeLower)) {
+                hiddenStores.push(storeLower);
+            }
+
+            const highlightedIndex = highlightedStores.indexOf(storeLower);
+            if (highlightedIndex > -1) {
+                highlightedStores.splice(highlightedIndex, 1);
+                delete storeColorMap[storeLower];
+                if (lastHighlightedStore === storeLower) {
+                    lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null;
+                }
+            }
+
+            updateEchartsStylesAndZ();
+            const newYAxisRange = recalculateYAxisRange();
+            if (newYAxisRange && currentChartOptions && currentChartOptions.yAxis) {
+                currentChartOptions.yAxis.min = newYAxisRange.min;
+                currentChartOptions.yAxis.max = newYAxisRange.max;
+                echartsTrendChart.setOption({
+                    yAxis: { min: newYAxisRange.min, max: newYAxisRange.max }
+                });
+            }
+
+            if (lastHoverParams) {
+                const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
+                updateCustomTooltipPanel(updatedPanelHtml || 'Najedź na punkt na wykresie...');
+            }
+        }
+        function setSalesChartMode(mode) {
+                  if (salesChartMode === mode) return;
+                  salesChartMode = mode;
+
+                  if (originalChartData) {
+                      displayCurrentTrendChart();
+
+                     if (echartsTrendChart && lastHoverParams) {
+                         setTimeout(() => {
+                             const opt = echartsTrendChart.getOption();
+                             if (opt && opt.xAxis && opt.xAxis[0].data) {
+                                 const idx = opt.xAxis[0].data.indexOf(lastHoverParams[0].axisValue);
+                                 if (idx > -1) {
+                                     echartsTrendChart.dispatchAction({ type: 'showTip', xAxisIndex: 0, dataIndex: idx });
+                                 }
+                             }
+                         }, 100);
+                     }
+                  }
+              }
+        document.addEventListener("DOMContentLoaded", function () {
+
+            const myStoreName = "@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(storeName))";
+            const storeId = @storeId;
+            const productId = @productId;
+            let chartInstance = null;
+            const myStoreLower = myStoreName ? myStoreName.toLowerCase().trim() : '';
+            const loadingOverlay = document.getElementById('loadingOverlay');
+
+            function renderDeliveryInfo(deliveryTime) {
+                
+                if (deliveryTime === null || deliveryTime === undefined) {
+                    return '<div class="Delivery3">Brak danych</div>';
+                }
+
+                let text = '';
+                let className = '';
+
+                if (deliveryTime === 0) {
+                    text = 'Wysyłka natychmiast';
+                    className = 'Delivery1'; 
+                }
+                else if (deliveryTime === 1) {
+                    text = 'Jutro';
+                    className = 'Delivery1';
+                }
+                else if (deliveryTime === 2) {
+                    text = 'Pojutrze';
+                    className = 'Delivery2'; 
+                }
+                else {
+                   
+                    text = `Dostawa za ${deliveryTime} dni`;
+                    className = 'Delivery3';
+                }
+
+                return `<div class="${className}">${text}</div>`;
+            }
+        function renderShippingCost(cost) {
+        if (cost === null || cost === undefined) return '<span>-</span>';
+        if (cost === 0) return `<div class="FreeShipping">Darmowa</div>`;
+        return `<div class="PaidShipping">${cost.toFixed(2)} PLN</div>`;
+        }
+
+        function getColorClass(item, allOffers, myOffer, setPrice1, setPrice2) {
+        const myPrice = myOffer ? myOffer.price : null;
+        const minPrice = Math.min(...allOffers.map(o => o.price));
+        const offersWithMinPrice = allOffers.filter(o => o.price === minPrice);
+        const isUniqueBestPrice = item.price === minPrice && offersWithMinPrice.length === 1;
+        const isSharedBestPrice = item.price === minPrice && offersWithMinPrice.length > 1;
+        if (isSharedBestPrice) return "prGood";
+        if (isUniqueBestPrice) {
+        const secondMinPriceOffer = [...allOffers].filter(o => o.price > minPrice).sort((a, b) => a.price - b.price)[0];
+        const savings = secondMinPriceOffer ? secondMinPriceOffer.price - item.price : null;
+        return (savings != null && savings >= 0.01 && savings <= setPrice1) ? "prIdeal" : "prToLow";
+        }
+        if (myPrice && item.price > minPrice) {
+        const priceDifference = item.price - myPrice;
+        return priceDifference < setPrice2 ? "prMid" : "prToHigh";
+        }
+        return "prToHigh";
+        }
+
+        function renderTable(offersData, totalPopularity, setPrice1, setPrice2) {
+        const tbody = document.querySelector("#priceTable tbody");
+        tbody.innerHTML = '';
+
+        document.getElementById('storeHeader').textContent = `Sklep (${offersData.length})`;
+        document.getElementById('popularityHeader').textContent = `Kupiło ${totalPopularity} osb.`;
+
+        const myCurrentOfferForDiff = offersData.find(o => o.targetProductId === productId);
+        const basePrice = myCurrentOfferForDiff ? myCurrentOfferForDiff.price : 0;
+
+        offersData.forEach(item => {
+        const isMyStore = item.sellerName.toLowerCase().trim() === myStoreLower;
+        const priceDifference = basePrice > 0 ? item.price - basePrice : 0;
+        const percentageDifference = basePrice > 0 ? (priceDifference / basePrice) * 100 : 0;
+        const colorClass = getColorClass(item, offersData, myCurrentOfferForDiff, setPrice1, setPrice2);
+        const tr = document.createElement('tr');
+        tr.className = `price-row ${colorClass}`;
+        let diffHtml = '<div class="priceBox-diff-neutral">0,00 PLN (0,00 %)</div>';
+        if (basePrice > 0 && priceDifference !== 0) {
+        const diffClass = priceDifference < 0 ? 'priceBox-diff-up' : 'priceBox-diff-down';
+        const sign = priceDifference > 0 ? '+' : '';
+        diffHtml = `<div class="${diffClass}">${sign}${priceDifference.toFixed(2)} PLN (${sign}${percentageDifference.toFixed(2)}%)</div>`;
+        }
+        const storeNameStyle = isMyStore ? 'font-weight: bold;' : '';
+        const marketShare = (totalPopularity > 0 && item.popularity) ? (item.popularity / totalPopularity) * 100 : 0;
+        let popularityHtml = item.popularity > 0 ? `<div style="${storeNameStyle}">${item.popularity} osb. <span style="font-size: 12px; color: #666;">(${marketShare.toFixed(2)}%)</span></div>` : '<span>-</span>';
+        const priceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
+        const bestPriceIcon = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px;">` : '';
+        const topOfferBadge = item.topOffer ? `<div class="TopOffer" style="display: inline-block; margin-left: 5px; vertical-align: middle;">Top oferta</div>` : '';
+        const superPriceBadge = item.superPrice ? `<div class="SuperPrice" style="display: inline-block; margin-left: 5px; vertical-align: middle;">SUPERCENA</div>` : '';
+        let boostHtml = (item.promoted ? '<div class="PromoInfo">Promowana</div>' : (item.sponsored ? '<div class="PromoInfo">Sponsorowana</div>' : '<span>-</span>'));
+        let navigationHtml = '';
+        if (isMyStore) {
+        if (item.targetProductId === productId) {
+        navigationHtml = `<strong>Oglądana</strong>`;
+        } else if (item.targetProductId) {
+        const detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.targetProductId}`;
+        navigationHtml = `<a href="${detailsUrl}" class="Button-Page-Small">Przejdź</a>`;
+        }
+        }
+        tr.innerHTML = `<td><div class="color-bar ${colorClass}"></div></td><td class="store-name" style="${storeNameStyle}">${item.sellerName} ${item.superSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px;">` : ''}${(item.ratingPositivePercent != null || item.ratingCount != null) ? `<div style="font-size: 11px; color: #888; font-weight: normal; margin-top: 2px;">${item.ratingPositivePercent != null ? `Poleca: ${item.ratingPositivePercent}%` : ''}${item.ratingPositivePercent != null && item.ratingCount != null ? ' · ' : ''}${item.ratingCount != null ? `Ocen: ${item.ratingCount.toLocaleString('pl-PL')}` : ''}</div>` : ''}</td><td class="store-price" style="${storeNameStyle} ${priceStyle}">${item.price.toFixed(2)} PLN ${bestPriceIcon} ${topOfferBadge} ${superPriceBadge}</td><td>${diffHtml}</td><td>${boostHtml}</td><td>${renderShippingCost(item.deliveryCost)}</td><td>${renderDeliveryInfo(item.deliveryTime)}</td><td>${item.smart ? `<div class="Smart-Allegro"><img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto;"></div>` : '<span>-</span>'}</td><td>${popularityHtml}</td><td>${navigationHtml}</td><td class="data-chanel"><img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:24px; height:24px;" /></td>`;
+        tbody.appendChild(tr);
+        });
+        }
+
+        function drawBarChart(allOffersData) {
+        const ctx = document.getElementById('priceBarChart');
+        if (!ctx) return;
+        if (chartInstance) chartInstance.destroy();
+        const reversedData = [...allOffersData].reverse();
+        chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+        labels: reversedData.map(item => item.sellerName),
+        datasets: [{
+        label: 'Cena PLN',
+        data: reversedData.map(item => item.price),
+        backgroundColor: reversedData.map(item => {
+        if (item.targetProductId === productId) return 'rgba(255, 100, 0, 0.8)';
+        if (item.sellerName.toLowerCase().trim() === myStoreLower) return 'rgba(255, 159, 64, 0.5)';
+        return 'rgba(34, 34, 34, 0.4)';
+        }),
+        borderColor: reversedData.map(item => {
+        if (item.targetProductId === productId) return 'rgba(255, 100, 0, 1)';
+        if (item.sellerName.toLowerCase().trim() === myStoreLower) return 'rgba(255, 159, 64, 1)';
+        return 'rgba(34, 34, 34, 1)';
+        }),
+        borderWidth: 2,
+        borderRadius: 2
+        }]
+        },
+        options: { maintainAspectRatio: false, scales: { y: { beginAtZero: false, ticks: { callback: value => value + ' PLN' } }, x: { display: false } }, plugins: { legend: { display: false } } }
+        });
+        }
+
+        function updateLastScrapeDate(dateStr) {
+        const info = document.getElementById('lastScrapeInfo');
+        if (info && dateStr) {
+        const date = new Date(dateStr);
+        info.innerHTML = `<p><strong>Wykonano:</strong> ${date.toLocaleDateString('pl-PL', { year: 'numeric', month: '2-digit', day: '2-digit' })}</p>`;
+        }
+        }
+
+        function showLoadingState() {
+        if (loadingOverlay) loadingOverlay.style.display = 'flex';
+        const tbody = document.querySelector("#priceTable tbody");
+        if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 40px;">Ładowanie danych...</td></tr>';
+        }
+
+        function showEmptyState() {
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+        const tbody = document.querySelector("#priceTable tbody");
+        if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 40px;">Brak ofert do wyświetlenia.</td></tr>';
+        const chartParent = document.getElementById('chartContainer');
+        if (chartParent) chartParent.innerHTML = '<div style="text-align:center; padding: 40px;">Brak danych do wykresu.</div>';
+        }
+
+        showLoadingState();
+        fetch(`/AllegroPriceHistory/GetProductPriceDetails?storeId=${storeId}&productId=${productId}`)
+        .then(response => response.ok ? response.json() : Promise.reject('Błąd sieci'))
+        .then(result => {
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+        let offers = result?.data ?? [];
+
+        const presetDisplay = document.getElementById('activePresetDisplay');
+        if (presetDisplay) {
+        if (result.activePresetName) {
+        presetDisplay.textContent = 'Presety - ' + result.activePresetName;
+        } else {
+        presetDisplay.textContent = 'Presety - Widok PriceSafari';
+        }
+        }
+
+        if (offers.length > 0) {
+        offers.sort((a, b) => {
+        if (a.price !== b.price) return a.price - b.price;
+        const scoreA = (a.topOffer || a.superPrice || a.isBestPriceGuarantee) ? 0 : 1;
+        const scoreB = (b.topOffer || b.superPrice || b.isBestPriceGuarantee) ? 0 : 1;
+        if (scoreA !== scoreB) return scoreA - scoreB;
+        const totalA = a.price + (a.deliveryCost || 0);
+        const totalB = b.price + (b.deliveryCost || 0);
+        if (totalA !== totalB) return totalA - totalB;
+        return a.sellerName.localeCompare(b.sellerName);
+        });
+        renderTable(offers, result.totalProductPopularity, result.setPrice1, result.setPrice2);
+        drawBarChart(offers);
+        updateLastScrapeDate(result.lastScrapeDate);
+        } else {
+        showEmptyState();
+        }
+        });
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+        const myStoreLower = "@storeName".toLowerCase().trim();
+        const productId = @ViewBag.ProductId;
+
+        const highlightColors = [
+        'rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)',
+        'rgba(255, 99, 132, 1)', 'rgba(0, 150, 136, 1)', 'rgba(201, 203, 207, 1)',
+        'rgba(121, 85, 72, 1)', 'rgba(139, 195, 74, 1)', 'rgba(0, 188, 212, 1)',
+        'rgba(233, 30, 99, 1)'
+        ];
+
+        const myMainOfferColor = 'rgba(255, 100, 0, 1)';
+        const myOtherOfferColor = 'rgba(255, 159, 64, 0.7)';
+        const defaultGrayColor = 'rgba(128, 128, 128, {alpha})';
+        // ═══ NOWE: Kolor dla wykresu wyświetleń ═══
+        const visitsLineColor = 'rgba(124, 77, 255, 1)';
+        const visitsAreaColor = 'rgba(124, 77, 255, 0.15)';
+        // ═══════════════════════════════════════════
+        let mainOfferId = null;
+
+        const UNIFORM_LINE_WIDTH = 2.3;
+        const UNIFORM_EMPHASIS_LINE_WIDTH = 2.3;
+        let defaultGrayAlpha = 0.3;
+        const defaultCustomTooltipContent = 'Najedź na punkt na wykresie...';
+        let currentChartType = 'price';
+        window.updateEchartsStylesAndZ = updateEchartsStylesAndZ;
+        window.recalculateYAxisRange = recalculateYAxisRange;
+        window.generateTooltipPanelHtml = generateTooltipPanelHtml;
+        window.updateCustomTooltipPanel = updateCustomTooltipPanel;
+        window.displayCurrentTrendChart = displayCurrentTrendChart;
+
+        function updateCustomTooltipPanel(htmlContent) {
+        const panelDiv = document.getElementById('customTrendTooltip');
+        if (panelDiv) {
+        panelDiv.innerHTML = htmlContent || defaultCustomTooltipContent;
+        }
+        }
+
+        function recalculateYAxisRange() {
+        if (!currentChartOptions || !currentChartOptions.series) return null;
+        let minVal = Infinity, maxVal = -Infinity;
+        const dataType = currentChartType;
+        currentChartOptions.series.forEach(series => {
+        if (dataType === 'sales' && series.name === 'Sprzedaż w katalogu') return;
+        if (!hiddenStores.includes(series.name.toLowerCase().trim())) {
+        series.data.forEach(dp => {
+        if (dp.value != null) {
+        minVal = Math.min(minVal, dp.value);
+        maxVal = Math.max(maxVal, dp.value);
+        }
+        });
+        }
+        });
+        if (!isFinite(minVal)) return { min: 0, max: dataType === 'sales' ? 10 : 100 };
+        const padding = (maxVal - minVal) * 0.05 || (dataType === 'sales' ? 2 : 5);
+        return { min: dataType === 'sales' ? 0 : Math.max(0, minVal - padding), max: maxVal + padding };
+        }
+
+        function getSeriesStyleAndZ(storeNameLower, offerId) {
+        if (hiddenStores.includes(storeNameLower)) return { lineStyle: { color: 'transparent', width: 0 }, itemStyle: { color: 'transparent' }, z: 0 };
+
+        const isMyStore = storeNameLower === myStoreLower;
+        const isHighlighted = highlightedStores.includes(storeNameLower);
+
+        const isMainOffer = isMyStore && (
+        (salesChartMode === 'combined' && currentChartType === 'sales') ||
+        (offerId && offerId === mainOfferId)
+        );
+
+        let style = {
+        lineStyle: { width: UNIFORM_LINE_WIDTH },
+        itemStyle: {},
+        areaStyle: null,
+        z: 1
+        };
+
+        if (isMainOffer) {
+        style.lineStyle.color = myMainOfferColor;
+        style.itemStyle.color = myMainOfferColor;
+        style.z = 5;
+        } else if (isMyStore) {
+        style.lineStyle.color = myOtherOfferColor;
+        style.itemStyle.color = myOtherOfferColor;
+        style.z = 4;
+        } else if (isHighlighted) {
+        const colorIndex = storeColorMap[storeNameLower];
+        if (colorIndex != null) {
+        const color = highlightColors[colorIndex];
+        style.lineStyle.color = color;
+        style.itemStyle.color = color;
+        style.z = storeNameLower === lastHighlightedStore ? 3 : 2;
+        }
+        } else {
+        const gray = defaultGrayColor.replace('{alpha}', defaultGrayAlpha);
+        style.lineStyle.color = gray;
+        style.itemStyle.color = gray;
+        }
+
+        if (currentChartType === 'sales' && (isMyStore || isHighlighted)) {
+        style.areaStyle = {
+        color: style.lineStyle.color,
+        opacity: 0.2
+        };
+        }
+
+        return style;
+        }
+        function generateTooltipPanelHtml(params) {
+        if (!params || params.length === 0 || !params[0].axisValue) return defaultCustomTooltipContent;
+        // ═══ NOWE: Obsługa tooltipa dla wyświetleń ═══
+        if (currentChartType === 'visits') return generateVisitsTooltipHtml(params);
+        // ══════════════════════════════════════════════
+        return currentChartType === 'price' ? generatePriceTooltipHtml(params) : generateSalesTooltipHtml(params);
+        }
+        function generatePriceTooltipHtml(params) {
+        const date = params[0].axisValue;
+
+        const formattedDate = new Date(date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        let items = [];
+        params.forEach(p => { if (p.data.originalOffer && !hiddenStores.includes(p.seriesName.toLowerCase().trim())) items.push({ ...p.data.originalOffer, _markerColor: p.color }) });
+        items.sort((a, b) => a.price - b.price);
+        let html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div style="font-weight:bold;">${formattedDate}</div>
+        <div class="period-selector-group">
+        <button class="period-btn-custom ${!showOnlyCheapest ? 'active' : ''}" onclick="setCheapestMode(false)" style="font-size: 10px; padding: 4px 8px;">Wszystkie</button>
+        <button class="period-btn-custom ${showOnlyCheapest ? 'active' : ''}" onclick="setCheapestMode(true)" style="font-size: 10px; padding: 4px 8px;">Najtańsze</button>
+        </div>
+        </div>`;
+        if (items.length > 0) {
+        html += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
+        items.forEach(item => {
+        const sLower = item.storeName.toLowerCase().trim();
+        let cText = 'rgba(50,50,50,1)', fWeight = 'normal';
+        if (sLower === myStoreLower) { cText = item.idAllegro === mainOfferId ? myMainOfferColor : myOtherOfferColor; fWeight = 'bold'; }
+        else if (highlightedStores.includes(sLower) && storeColorMap[sLower] != null) { cText = highlightColors[storeColorMap[sLower]]; fWeight = 'bold'; }
+
+        let badges = '';
+        if (item.isBestPriceGuarantee) badges += ` <img src="/images/TopPrice.png" title="GNC" style="height: 16px; vertical-align: middle;">`;
+        if (item.topOffer) badges += ` <div class="TopOffer" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Top</div>`;
+        if (item.superPrice) badges += ` <div class="SuperPrice" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Super</div>`;
+
+        const escName = item.storeName.replace(/'/g, "\\'");
+
+        html += `<tr style="border-bottom:1px solid #eee; cursor:pointer;" onclick="event.stopPropagation(); toggleStoreHighlight('${escName}');"><td style="padding:3px 2px;color:${cText};font-weight:${fWeight};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${item.storeName}"><span style="display:inline-block;margin-right:5px;width:10px;height:10px;border-radius:50%;background-color:${item._markerColor};vertical-align:middle;"></span><img src="/images/AllegroIcon.png" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"/>${item.storeName.length > 23 ? item.storeName.substring(0,20)+'...' : item.storeName}</td><td style="padding:3px 2px;text-align:right;color:${cText};font-weight:${fWeight};white-space:nowrap;">${badges}<span style="vertical-align:middle; margin-left: 4px;">${item.price.toFixed(2)} PLN</span><span title="Ukryj sklep '${escName}'" style="cursor:pointer;color:#aaa;margin-left:8px;font-weight:bold;" onmouseover="this.style.color='red'" onmouseout="this.style.color='#aaa'" onclick="event.stopPropagation();hideStoreFromChart('${escName}');">&times;</span></td></tr>`;
+        });
+        html += `</table>`;
+        } else html += `<div style="color: #666; font-style: italic;">Brak danych do wyświetlenia.</div>`;
+        return html;
+        }
+
+        function generateSalesTooltipHtml(params) {
+        const date = params[0].axisValue;
+        const formattedDate = new Date(date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        let items = [], totalSales = 0;
+
+        params.forEach(p => {
+        if (p.seriesName === 'Sprzedaż w katalogu') {
+        totalSales = p.value;
+        }
+        else if (p.data.originalOffer && !hiddenStores.includes(p.seriesName.toLowerCase().trim())) {
+        items.push({ ...p.data.originalOffer, _markerColor: p.color });
+        }
+        });
+
+        items.sort((a, b) => {
+        if(b.sales !== a.sales) return b.sales - a.sales;
+        const scoreA = (a.topOffer || a.superPrice || a.isBestPriceGuarantee) ? 0 : 1;
+        const scoreB = (b.topOffer || b.superPrice || b.isBestPriceGuarantee) ? 0 : 1;
+        if (scoreA !== scoreB) return scoreA - scoreB;
+        return a.storeName.localeCompare(b.storeName);
+        });
+
+        let html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div style="font-weight:bold;">${formattedDate}</div>
+        <div class="period-selector-group">
+        <button class="period-btn-custom ${salesChartMode === 'offers' ? 'active' : ''}" onclick="setSalesChartMode('offers')" style="font-size: 10px; padding: 4px 8px;">Oferty</button>
+        <button class="period-btn-custom ${salesChartMode === 'combined' ? 'active' : ''}" onclick="setSalesChartMode('combined')" style="font-size: 10px; padding: 4px 8px;">Łącznie</button>
+        </div>
+        </div>`;
+
+        html += `<div style="padding:4px 0;margin-bottom:8px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;"><strong>Sprzedaż w katalogu:</strong><strong>${totalSales} szt.</strong></div>`;
+        if (items.length > 0) {
+        html += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
+        items.forEach(item => {
+        const sLower = item.storeName.toLowerCase().trim();
+        let cText = 'rgba(50,50,50,1)', fWeight = 'normal';
+        if (sLower === myStoreLower) { cText = item.idAllegro === mainOfferId ? myMainOfferColor : myOtherOfferColor; fWeight = 'bold'; }
+        else if (highlightedStores.includes(sLower) && storeColorMap[sLower] != null) { cText = highlightColors[storeColorMap[sLower]]; fWeight = 'bold'; }
+
+        let badges = '';
+        if (item.isBestPriceGuarantee) badges += ` <img src="/images/TopPrice.png" title="GNC" style="height: 16px; vertical-align: middle;">`;
+        if (item.topOffer) badges += ` <div class="TopOffer" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Top</div>`;
+        if (item.superPrice) badges += ` <div class="SuperPrice" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Super</div>`;
+
+        const escName = item.storeName.replace(/'/g, "\\'");
+
+        html += `<tr style="border-bottom:1px solid #eee; cursor:pointer;" onclick="event.stopPropagation(); toggleStoreHighlight('${escName}');"><td style="padding:3px 2px;color:${cText};font-weight:${fWeight};" title="${item.storeName}"><span style="display:inline-block;margin-right:5px;width:10px;height:10px;border-radius:50%;background-color:${item._markerColor};vertical-align:middle;"></span><img src="/images/AllegroIcon.png" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"/>${item.storeName.substring(0,25)}</td><td style="padding:3px 2px;text-align:right;color:${cText};font-weight:${fWeight};white-space:nowrap;">${badges}<span style="vertical-align:middle; margin-left:4px;">${item.sales} szt.</span><span title="Ukryj sklep '${escName}'" style="cursor:pointer;color:#aaa;margin-left:8px;font-weight:bold;" onmouseover="this.style.color='red'" onmouseout="this.style.color='#aaa'" onclick="event.stopPropagation();hideStoreFromChart('${escName}');">&times;</span></td></tr>`;
+        });
+        html += `</table>`;
+        } else html += `<div style="color:#666;font-style:italic;">Brak danych o sprzedaży indywidualnej.</div>`;
+        return html;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // NOWE: Tooltip dla wykresu wyświetleń
+        // ═══════════════════════════════════════════════════════════════
+        function generateVisitsTooltipHtml(params) {
+            const date = params[0].axisValue;
+            const formattedDate = new Date(date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            let visits = null;
+            params.forEach(p => {
+                if (p.seriesName === 'Wyświetlenia oferty' && p.value != null) {
+                    visits = p.value;
+                }
+            });
+
+            let html = `<div style="font-weight:bold; margin-bottom: 12px;">${formattedDate}</div>`;
+            html += `<div style="display:flex; align-items:center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eee;">`;
+            html += `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background-color:${visitsLineColor};"></span>`;
+            html += `<span style="font-size: 0.95rem;">Wyświetlenia oferty (30 dni):</span>`;
+            html += `<strong style="margin-left:auto; font-size: 1.1rem; color: ${visitsLineColor};">${visits != null ? visits.toLocaleString('pl-PL') : 'Brak danych'}</strong>`;
+            html += `</div>`;
+
+            // Pokaż zmianę vs. poprzedni punkt jeśli mamy dane
+            if (visits != null && originalChartData?.visitsTimeline) {
+                const timeline = originalChartData.visitsTimeline;
+                const currentIndex = timeline.findIndex(t => t.scrapDate === date);
+                if (currentIndex > 0) {
+                    const prevVisits = timeline[currentIndex - 1].visits;
+                    if (prevVisits != null && prevVisits > 0) {
+                        const diff = visits - prevVisits;
+                        const pct = ((diff / prevVisits) * 100).toFixed(1);
+                        const sign = diff > 0 ? '+' : '';
+                        const color = diff > 0 ? '#4CAF50' : (diff < 0 ? '#F44336' : '#888');
+                        html += `<div style="margin-top: 8px; font-size: 0.85rem; color: ${color};">`;
+                        html += `Zmiana vs. poprzednia analiza: <strong>${sign}${diff.toLocaleString('pl-PL')} (${sign}${pct}%)</strong>`;
+                        html += `</div>`;
+                    }
+                }
+            }
+
+            return html;
+        }
+        // ═══════════════════════════════════════════════════════════════
+
+        function filterTimelineData(timelineData) {
+        if (!showOnlyCheapest) return timelineData;
+        return timelineData.map(day => {
+        const cheapest = new Map();
+        const offers = day.offers || day.pricesByStore || [];
+        offers.forEach(offer => {
+        const existing = cheapest.get(offer.storeName);
+        if (!existing || offer.price < existing.price) cheapest.set(offer.storeName, offer);
+        });
+        return { ...day, offers: Array.from(cheapest.values()) };
+        });
+        }
+
+        function displayCurrentTrendChart() {
+        if (!originalChartData) return;
+        if (echartsTrendChart) echartsTrendChart.dispose();
+        echartsTrendChart = echarts.init(document.getElementById('trendChart'));
+
+        // ═══ ZMIANA: Obsługa trybu 'visits' ═══
+        if (currentChartType === 'visits') {
+            drawVisitsChart();
+        } else {
+            currentTimelineData = currentChartType === 'price' ? filterTimelineData(originalChartData.timelineData) : originalChartData.timelineData;
+            drawChart(currentTimelineData, currentChartType);
+        }
+        // ═══════════════════════════════════════
+
+        echartsTrendChart.on('click', p => { if (p.seriesName && p.seriesName !== 'Sprzedaż w katalogu' && p.seriesName !== 'Wyświetlenia oferty') toggleStoreHighlight(p.seriesName) });
+        window.addEventListener('resize', () => echartsTrendChart?.resize());
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // NOWE: Rysowanie wykresu wyświetleń
+        // ═══════════════════════════════════════════════════════════════
+        function drawVisitsChart() {
+            const visitsTimeline = originalChartData.visitsTimeline;
+            if (!visitsTimeline || visitsTimeline.length === 0) {
+                updateCustomTooltipPanel('<div style="color:#666;font-style:italic;">Brak danych o wyświetleniach.</div>');
+                return;
+            }
+
+            const dates = visitsTimeline.map(v => v.scrapDate);
+            const values = visitsTimeline.map(v => ({ value: v.visits }));
+
+            // Oblicz zakres osi Y
+            let minVal = Infinity, maxVal = -Infinity;
+            visitsTimeline.forEach(v => {
+                if (v.visits != null) {
+                    minVal = Math.min(minVal, v.visits);
+                    maxVal = Math.max(maxVal, v.visits);
+                }
+            });
+            if (!isFinite(minVal)) { minVal = 0; maxVal = 100; }
+            const padding = (maxVal - minVal) * 0.1 || 10;
+            const yMin = Math.max(0, minVal - padding);
+            const yMax = maxVal + padding;
+
+            const polishMonths = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+
+            const series = [{
+                name: 'Wyświetlenia oferty',
+                type: 'line',
+                data: values,
+                smooth: 0.3,
+                symbol: 'circle',
+                symbolSize: 6,
+                showSymbol: values.length <= 1,
+                lineStyle: {
+                    color: visitsLineColor,
+                    width: 2.5
+                },
+                itemStyle: {
+                    color: visitsLineColor
+                },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(124, 77, 255, 0.25)' },
+                        { offset: 1, color: 'rgba(124, 77, 255, 0.02)' }
+                    ])
+                },
+                emphasis: {
+                    focus: 'series',
+                    lineStyle: { width: 3 }
+                },
+                z: 5
+            }];
+
+            currentChartOptions = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross', snap: true, label: { backgroundColor: '#6a7985' } },
+                    formatter: p => { lastHoverParams = p; updateCustomTooltipPanel(generateTooltipPanelHtml(p)); return ''; }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dates,
+                    boundaryGap: false,
+                    axisLabel: {
+                        formatter: (function () {
+                            let lastDate = null;
+                            return function (value) {
+                                try {
+                                    const [datePart, timePart] = value.split(' ');
+                                    const [year, month, day] = datePart.split('-');
+                                    if (datePart !== lastDate) {
+                                        lastDate = datePart;
+                                        return `${parseInt(day)} ${polishMonths[parseInt(month)-1]}\n${timePart}`;
+                                    } else {
+                                        return timePart;
+                                    }
+                                } catch (e) { return value; }
+                            };
+                        })()
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    min: yMin,
+                    max: yMax,
+                    scale: true,
+                    axisLabel: { show: true, formatter: v => v.toLocaleString('pl-PL') },
+                    splitLine: { lineStyle: { color: '#E8E8E8', type: 'dashed' } }
+                },
+                grid: { left: '3%', right: '4%', bottom: '80px', containLabel: true },
+                series: series,
+                dataZoom: [
+                    {
+                        type: 'slider',
+                        xAxisIndex: 0,
+                        start: 0,
+                        end: 100,
+                        bottom: '10px',
+                        height: 25,
+                        showDetail: true,
+                        realtime: true,
+                        filterMode: 'filter',
+                        backgroundColor: 'rgba(240, 240, 240, 0.6)',
+                        borderColor: '#cccccc',
+                        fillerColor: 'rgba(180, 180, 180, 0.4)',
+                        handleStyle: { color: '#a7a7a7', borderColor: '#747474', borderWidth: 1 },
+                        dataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#ebebeb' } },
+                        selectedDataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#dcdcdc' } },
+                        showMoveHandle: false,
+                        moveHandleIcon: 'none',
+                        moveHandleStyle: { color: 'transparent', opacity: 0 },
+                        emphasis: { fillerColor: 'rgba(180, 180, 180, 0.6)', handleStyle: { color: '#747474', borderColor: '#505050' }, moveHandleStyle: { color: 'transparent', opacity: 0 } }
+                    },
+                    {
+                        type: 'inside',
+                        xAxisIndex: 0,
+                        start: 0,
+                        end: 100,
+                        zoomOnMouseWheel: true,
+                        moveOnMouseMove: true,
+                        preventDefaultMouseMove: true
+                    }
+                ]
+            };
+
+            echartsTrendChart.setOption(currentChartOptions, true);
+            updateCustomTooltipPanel(null);
+        }
+        // ═══════════════════════════════════════════════════════════════
+
+        function drawChart(timelineData, dataType) {
+        const { allDates, dataByInstance, allInstances } = processData(timelineData, dataType);
+        let seriesData = prepareSeries(dataByInstance, allDates, allInstances, dataType);
+
+        if (dataType === 'sales') {
+        seriesData.unshift({
+        name: 'Sprzedaż w katalogu',
+        type: 'line',
+        data: timelineData.map(d => ({ value: d.totalSales })),
+        smooth: 0.3,
+
+        lineStyle: { color: 'rgba(34, 34, 34, 0.9)', width: 3, type: 'dashed' },
+        itemStyle: { color: '#222' },
+        symbol: 'none',
+        z: 10,
+
+        silent: true
+        });
+        }
+
+        const { min, max } = recalculateYAxisRangeFromData(seriesData, dataType);
+
+        currentChartOptions = getBaseChartOptions(allDates, min, max, seriesData);
+        echartsTrendChart.setOption(currentChartOptions, true);
+        updateCustomTooltipPanel(null);
+        }
+
+        function recalculateYAxisRangeFromData(seriesData, dataType) {
+        let minVal = Infinity, maxVal = -Infinity;
+        seriesData.forEach(s => s.data.forEach(d => { if (d.value != null) { minVal = Math.min(minVal, d.value); maxVal = Math.max(maxVal, d.value); } }));
+        if (!isFinite(minVal)) return { min: 0, max: dataType === 'sales' ? 10 : 100 };
+        const padding = (maxVal - minVal) * 0.05 || (dataType === 'sales' ? 2 : 5);
+        return { min: dataType === 'sales' ? 0 : Math.max(0, minVal - padding), max: maxVal + padding };
+        }
+
+        function recalculateYAxisRange() {
+        if (!currentChartOptions || !currentChartOptions.series) return null;
+        let minVal = Infinity, maxVal = -Infinity;
+        const dataType = currentChartType;
+        currentChartOptions.series.forEach(series => {
+
+        if (!hiddenStores.includes(series.name.toLowerCase().trim())) {
+        series.data.forEach(dp => {
+        if (dp.value != null) {
+        minVal = Math.min(minVal, dp.value);
+        maxVal = Math.max(maxVal, dp.value);
+        }
+        });
+        }
+        });
+        if (!isFinite(minVal)) return { min: 0, max: dataType === 'sales' ? 10 : 100 };
+        const padding = (maxVal - minVal) * 0.05 || (dataType === 'sales' ? 2 : 5);
+        return { min: dataType === 'sales' ? 0 : Math.max(0, minVal - padding), max: maxVal + padding };
+        }
+
+        function processData(timelineData, dataType) {
+        let dates = new Set(), instances = new Set(), dataMap = {};
+
+        timelineData.forEach(entry => {
+        dates.add(entry.scrapDate);
+        const offersForDay = entry.offers || [];
+
+        if (dataType === 'sales' && salesChartMode === 'combined') {
+        const aggregatedSales = new Map();
+
+        offersForDay.forEach(offer => {
+        const storeName = offer.storeName;
+        if (!aggregatedSales.has(storeName)) {
+        aggregatedSales.set(storeName, {
+        ...offer,
+        sales: 0
+        });
+        }
+        aggregatedSales.get(storeName).sales += (offer.sales || 0);
+        });
+
+        aggregatedSales.forEach((aggregatedOffer, storeName) => {
+        const id = storeName;
+        instances.add(id);
+        if (!dataMap[id]) dataMap[id] = {};
+        dataMap[id][entry.scrapDate] = aggregatedOffer;
+        });
+
+        } else {
+
+        offersForDay.forEach(offer => {
+        const val = offer[dataType] ?? offer['price'];
+        if (val == null) return;
+
+        const id = `${offer.storeName}|${offer.idAllegro}|${offer.source}`;
+        instances.add(id);
+        if (!dataMap[id]) dataMap[id] = {};
+        dataMap[id][entry.scrapDate] = offer;
+        });
+        }
+        });
+
+        const sortedInstances = Array.from(instances).sort((a, b) => {
+        const nameA = a.split('|')[0].toLowerCase(), nameB = b.split('|')[0].toLowerCase();
+        if (nameA === myStoreLower && nameB !== myStoreLower) return -1;
+        if (nameB === myStoreLower && nameA !== myStoreLower) return 1;
+        return a.localeCompare(b);
+        });
+        return { allDates: Array.from(dates).sort(), dataByInstance: dataMap, allInstances: sortedInstances };
+        }
+
+        function prepareSeries(dataByInstance, allDates, allInstances, dataType) {
+        return allInstances.map(id => {
+
+        const hasOfferId = id.includes('|');
+        const [store, offerIdStr] = hasOfferId ? id.split('|') : [id, null];
+
+        const offerId = offerIdStr ? parseInt(offerIdStr, 10) : null;
+        const style = getSeriesStyleAndZ(store.toLowerCase().trim(), offerId);
+        let validPoints = 0;
+
+        const data = allDates.map(date => {
+        const pData = dataByInstance[id]?.[date];
+        const val = pData ? (pData[dataType] ?? pData.price) : null;
+        if (val != null) validPoints++;
+        return { value: val, originalOffer: pData };
+        });
+
+        const isSingle = validPoints === 1;
+        return { name: store, _instanceId: id, type: 'line', data, connectNulls: false, smooth: 0.3, showSymbol: isSingle, symbol: 'circle', symbolSize: isSingle ? 10 : 6, emphasis: { focus: 'series', lineStyle: { width: UNIFORM_EMPHASIS_LINE_WIDTH } }, ...style };
+        });
+        }
+
+        function getBaseChartOptions(allDates, yMin, yMax, series) {
+        const polishMonths = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+        return {
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross', snap: true, label: { backgroundColor: '#6a7985' } }, formatter: p => { lastHoverParams = p; updateCustomTooltipPanel(generateTooltipPanelHtml(p)); return ''; } },
+        xAxis: {
+        type: 'category',
+        data: allDates,
+        boundaryGap: false,
+        axisLabel: {
+        formatter: (function () {
+        let lastDate = null;
+        const polishMonths = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+
+        return function (value, index) {
+        try {
+        const [datePart, timePart] = value.split(' ');
+        const [year, month, day] = datePart.split('-');
+
+        if (datePart !== lastDate) {
+        lastDate = datePart;
+        return `${parseInt(day)} ${polishMonths[parseInt(month)-1]}\n${timePart}`;
+        } else {
+
+        return timePart;
+        }
+        } catch (e) {
+        return value;
+        }
+        };
+        })()
+        }
+        },
+        yAxis: { type: 'value', min: yMin, max: yMax, scale: true, axisLabel: { show: false }, splitLine: { lineStyle: { color: '#E8E8E8', type: 'dashed' } } },
+        grid: { left: '3%', right: '4%', bottom: '80px', containLabel: true },
+        series: series,
+        dataZoom: [
+        {
+        type: 'slider',
+        xAxisIndex: 0,
+        start: 0,
+        end: 100,
+        bottom: '10px',
+        height: 25,
+        showDetail: true,
+        realtime: true,
+        filterMode: 'filter',
+
+        backgroundColor: 'rgba(240, 240, 240, 0.6)',
+        borderColor: '#cccccc',
+        fillerColor: 'rgba(180, 180, 180, 0.4)',
+        handleStyle: {
+        color: '#a7a7a7',
+        borderColor: '#747474',
+        borderWidth: 1
+        },
+        dataBackground: {
+        lineStyle: { color: 'transparent' },
+        areaStyle: { color: '#ebebeb' }
+        },
+        selectedDataBackground: {
+        lineStyle: { color: 'transparent' },
+        areaStyle: { color: '#dcdcdc' }
+        },
+
+        showMoveHandle: false,
+
+        moveHandleIcon: 'none',
+        moveHandleStyle: {
+        color: 'transparent',
+        opacity: 0
+        },
+
+        emphasis: {
+        fillerColor: 'rgba(180, 180, 180, 0.6)',
+        handleStyle: {
+        color: '#747474',
+        borderColor: '#505050'
+        },
+        moveHandleStyle: {
+        color: 'transparent',
+        opacity: 0
+        }
+        },
+
+        },
+        {
+        type: 'inside',
+        xAxisIndex: 0,
+        start: 0,
+        end: 100,
+        zoomOnMouseWheel: true,
+        moveOnMouseMove: true,
+        preventDefaultMouseMove: true
+        }
+        ]
+        };
+        }
+
+        function updateEchartsStylesAndZ() {
+        if (!echartsTrendChart || !currentChartOptions) return;
+        // ═══ ZMIANA: Pomiń aktualizację stylów dla wykresu wyświetleń ═══
+        if (currentChartType === 'visits') return;
+        // ═════════════════════════════════════════════════════════════════
+        const updatedSeries = currentChartOptions.series.map(s => {
+        if (s.name === 'Sprzedaż w katalogu') return s;
+        const [store, offerIdStr] = (s._instanceId || '').split('|');
+        const style = getSeriesStyleAndZ(store.toLowerCase().trim(), parseInt(offerIdStr, 10));
+        const newEmphasis = { ...s.emphasis, itemStyle: { ...s.emphasis?.itemStyle, color: style.itemStyle.color, opacity: 1 } };
+        return { ...s, ...style, emphasis: newEmphasis };
+        });
+        currentChartOptions.series = updatedSeries;
+        echartsTrendChart.setOption({ series: updatedSeries });
+        }
+
+        const $exportExcelBtn = $('#exportExcelBtn'), $showTableBtn = $('#showTableBtn'), $showChartBtn = $('#showChartBtn');
+        const $tableContainer = $('#priceTableContainer'), $chartContainer = $('#trendChartContainer'), $customTooltipPanel = $('#customTrendTooltip');
+
+        $('.history-btn').on('click', function() {
+
+        $('.history-btn').removeClass('active');
+        $(this).addClass('active');
+
+        var newLimit = $(this).data('days');
+
+        if (currentHistoryLimit !== newLimit) {
+        currentHistoryLimit = newLimit;
+
+        originalChartData = null;
+
+        if ($('#trendChartContainer').is(':visible')) {
+        loadTrendDataAndDrawEcharts();
+        }
+        }
+        });
+
+        function toggleMainView(showTable) {
+        $tableContainer.toggle(showTable);
+        $chartContainer.toggle(!showTable);
+        $customTooltipPanel.toggle(!showTable);
+        $showTableBtn.toggleClass('button-active', showTable).toggleClass('button-inactive', !showTable);
+        $showChartBtn.toggleClass('button-active', !showTable).toggleClass('button-inactive', showTable);
+
+        if ($chartContainer.is(':visible')) {
+
+        if (echartsTrendChart && originalChartData) {
+        echartsTrendChart.resize();
+        } else {
+        loadTrendDataAndDrawEcharts();
+        }
+        }
+        }
+
+        // ═══ ZMIANA: Rozszerzony switchChartType o 'visits' ═══
+        function switchChartType(type) {
+        if (currentChartType === type) return;
+        currentChartType = type;
+
+        $('#switchToPriceChartBtn').toggleClass('active', type === 'price');
+        $('#switchToSalesChartBtn').toggleClass('active', type === 'sales');
+        $('#switchToVisitsChartBtn').toggleClass('active', type === 'visits');
+
+        if (originalChartData) displayCurrentTrendChart();
+        }
+        // ══════════════════════════════════════════════════════
+
+        $showTableBtn.on('click', () => toggleMainView(true));
+        $showChartBtn.on('click', () => toggleMainView(false));
+        $('#switchToPriceChartBtn').on('click', () => switchChartType('price'));
+        $('#switchToSalesChartBtn').on('click', () => switchChartType('sales'));
+        // ═══ NOWE: Handler kliknięcia przycisku wyświetleń ═══
+        $('#switchToVisitsChartBtn').on('click', () => switchChartType('visits'));
+        // ═════════════════════════════════════════════════════
+        if ($exportExcelBtn.length) $exportExcelBtn.on('click', () => originalChartData ? exportChartDataToExcel() : alert("Dane nie są załadowane."));
+        $('#grayAlphaRange')?.on('input', e => { defaultGrayAlpha = parseFloat(e.target.value); updateEchartsStylesAndZ(); if (lastHoverParams) updateCustomTooltipPanel(generateTooltipPanelHtml(lastHoverParams)); });
+
+        toggleMainView(true);
+
+        function loadTrendDataAndDrawEcharts() {
+
+        $('#loadingOverlay').show();
+        $.ajax({
+        url: '@Url.Action("GetPriceTrendData", "AllegroPriceHistory")',
+        type: 'GET',
+
+        data: { productId: productId, limit: currentHistoryLimit },
+        success: function (res) {
+        if (res && res.timelineData) {
+        originalChartData = res;
+        mainOfferId = res.mainOfferId;
+        originalChartData.timelineData.forEach(d => { d.offers = d.offers || d.pricesByStore; });
+        displayCurrentTrendChart();
+        } else {
+        updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania.</div>');
+        }
+        },
+        error: (jqXHR, status, err) => { updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania.</div>'); },
+        complete: () => { $('#loadingOverlay').hide(); }
+        });
+        }
+
+        function rgbaToHex(rgba) {
+        if (typeof rgba !== 'string' || !rgba.toLowerCase().startsWith('rgba')) {
+
+        if (rgba.startsWith('#')) return rgba;
+        return null;
+        }
+        const parts = rgba.substring(rgba.indexOf('(') + 1, rgba.lastIndexOf(')')).split(/,\s*/);
+        if (parts.length < 3) return null;
+
+        try {
+        const r = parseInt(parts[0], 10);
+        const g = parseInt(parts[1], 10);
+        const b = parseInt(parts[2], 10);
+
+        const toHex = c => ('0' + c.toString(16)).slice(-2);
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
+        } catch (e) {
+        return null;
+        }
+        }
+
+        function getExcelColorForAllegroRow(storeName) {
+        if (!storeName) return null;
+        const sLower = storeName.toLowerCase().trim();
+
+        if (typeof myStoreLower !== 'undefined' && sLower === myStoreLower) {
+
+        return rgbaToHex(myMainOfferColor) || '#FF6400';
+        }
+
+        if (typeof highlightedStores !== 'undefined' && highlightedStores.includes(sLower)) {
+        if (typeof storeColorMap !== 'undefined' && typeof highlightColors !== 'undefined') {
+        const colorIndex = storeColorMap[sLower];
+        if (colorIndex != null && highlightColors[colorIndex]) {
+        return rgbaToHex(highlightColors[colorIndex]);
+        }
+        }
+        }
+
+        return null;
+        }
+
+        async function exportChartDataToExcel() {
+        console.log("Rozpoczynanie eksportu Allegro do Excel...");
+
+        if (!originalChartData || !echartsTrendChart) {
+        alert("Brak danych do wyeksportowania.");
+        return;
+        }
+
+        try {
+        const workbook = new ExcelJS.Workbook();
+        const dataType = currentChartType;
+
+        // ═══ ZMIANA: Obsługa eksportu wyświetleń ═══
+        if (dataType === 'visits') {
+            await exportVisitsToExcel(workbook);
+            return;
+        }
+        // ═════════════════════════════════════════════
+
+        const ws = workbook.addWorksheet(`Historia ${dataType === 'price' ? 'Cen' : 'Sprzedaży'}`);
+
+        const option = echartsTrendChart.getOption();
+        const allDates = option.xAxis[0].data;
+
+        let startPct = 0;
+        let endPct = 100;
+
+        if (option.dataZoom && option.dataZoom.length > 0) {
+        const sliderZoom = option.dataZoom.find(dz => dz.type === 'slider' || dz.type === 'inside');
+        if (sliderZoom) {
+
+        startPct = sliderZoom.start !== undefined ? sliderZoom.start : 0;
+        endPct = sliderZoom.end !== undefined ? sliderZoom.end : 100;
+        }
+        }
+
+        const startIndex = Math.floor(allDates.length * (startPct / 100));
+        const endIndex = Math.ceil(allDates.length * (endPct / 100));
+
+        const visDates = allDates.slice(startIndex, endIndex);
+
+        if (visDates.length === 0) {
+        alert("Wybrany zakres dat jest pusty.");
+        return;
+        }
+
+        const { dataByInstance, allInstances } = processData(originalChartData.timelineData, dataType);
+
+        const columns = [
+        { header: 'Sklep', key: 's', width: 35 },
+        { header: 'ID Oferty / Info', key: 'o', width: 20 }
+        ];
+
+        visDates.forEach(date => {
+        columns.push({
+        header: date,
+        key: date,
+        width: 12,
+        style: {
+        numFmt: dataType === 'price' ? '#,##0.00 "PLN"' : '#,##0',
+        alignment: { horizontal: 'right' }
+        }
+        });
+        });
+
+        ws.columns = columns;
+
+        ws.getRow(1).font = { bold: true };
+        ws.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+        };
+
+        let rowsAdded = 0;
+
+        allInstances.forEach(id => {
+
+        const parts = id.split('|');
+        const storeName = parts[0];
+        const offerId = parts.length > 1 ? parts[1] : '';
+        const source = parts.length > 2 ? parts[2] : '';
+
+        if (typeof hiddenStores !== 'undefined' && hiddenStores.includes(storeName.toLowerCase().trim())) {
+        return;
+        }
+
+        const rowData = {
+        s: storeName,
+        o: offerId + (source ? ` (${source})` : '')
+        };
+
+        let hasDataInRange = false;
+        visDates.forEach(date => {
+        const val = dataByInstance[id]?.[date]?.[dataType] ?? dataByInstance[id]?.[date];
+
+        let cellValue = null;
+        const dataPoint = dataByInstance[id]?.[date];
+
+        if (dataPoint) {
+
+        if (typeof dataPoint === 'object') {
+        cellValue = dataPoint[dataType] ?? dataPoint.price;
+        } else {
+
+        cellValue = dataPoint;
+        }
+        }
+
+        if (cellValue !== null && cellValue !== undefined) {
+        rowData[date] = cellValue;
+        hasDataInRange = true;
+        }
+        });
+
+        if (hasDataInRange) {
+        const row = ws.addRow(rowData);
+        rowsAdded++;
+
+        const hexColor = getExcelColorForAllegroRow(storeName);
+        if (hexColor) {
+
+        const argbColor = 'FF' + hexColor.replace('#', '');
+        row.eachCell({ includeEmpty: true }, function(cell) {
+        cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: argbColor }
+        };
+        });
+        }
+        }
+        });
+
+        if (dataType === 'sales') {
+        ws.addRow({});
+
+        const totalsRowData = { s: 'SUMA SPRZEDAŻY CAŁKOWITEJ (KATALOG)' };
+
+        visDates.forEach(date => {
+
+        const dayData = originalChartData.timelineData.find(x => x.scrapDate === date);
+        if (dayData) {
+        totalsRowData[date] = dayData.totalSales;
+        }
+        });
+
+        const r = ws.addRow(totalsRowData);
+        r.font = { bold: true, color: { argb: 'FF000000' } };
+        r.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCCCCC' } };
+        }
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+        const prodNameSafe = (originalChartData.productName || "Produkt").replace(/[^a-z0-9_ -]/gi, '_').substring(0, 50);
+        const fileName = `PriceSafari_${prodNameSafe}_${dataType}_${visDates[0]}_do_${visDates[visDates.length - 1]}.xlsx`;
+
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => { URL.revokeObjectURL(link.href); }, 100);
+
+        } catch (e) {
+        console.error("Błąd Excel:", e);
+        alert("Błąd tworzenia pliku Excel: " + e.message);
+        }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // NOWE: Eksport wyświetleń do Excel
+        // ═══════════════════════════════════════════════════════════════
+        async function exportVisitsToExcel(workbook) {
+            try {
+                const ws = workbook.addWorksheet('Historia Wyświetleń');
+                const visitsTimeline = originalChartData.visitsTimeline || [];
+
+                // Pobierz widoczny zakres z dataZoom
+                const option = echartsTrendChart.getOption();
+                const allDates = option.xAxis[0].data;
+                let startPct = 0, endPct = 100;
+                if (option.dataZoom && option.dataZoom.length > 0) {
+                    const zoom = option.dataZoom.find(dz => dz.type === 'slider' || dz.type === 'inside');
+                    if (zoom) {
+                        startPct = zoom.start !== undefined ? zoom.start : 0;
+                        endPct = zoom.end !== undefined ? zoom.end : 100;
+                    }
+                }
+                const startIdx = Math.floor(allDates.length * (startPct / 100));
+                const endIdx = Math.ceil(allDates.length * (endPct / 100));
+                const visDates = allDates.slice(startIdx, endIdx);
+
+                if (visDates.length === 0) {
+                    alert("Wybrany zakres dat jest pusty.");
+                    return;
+                }
+
+                const columns = [{ header: 'Data', key: 'date', width: 22 }, { header: 'Wyświetlenia (30 dni)', key: 'visits', width: 22, style: { numFmt: '#,##0', alignment: { horizontal: 'right' } } }];
+                ws.columns = columns;
+                ws.getRow(1).font = { bold: true };
+                ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+
+                const visitsMap = {};
+                visitsTimeline.forEach(v => { visitsMap[v.scrapDate] = v.visits; });
+
+                visDates.forEach(date => {
+                    const row = ws.addRow({ date: date, visits: visitsMap[date] ?? null });
+                    row.getCell('date').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7C4DFF' } };
+                    row.getCell('date').font = { color: { argb: 'FFFFFFFF' } };
+                });
+
+                const buffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                const prodNameSafe = (originalChartData.productName || "Produkt").replace(/[^a-z0-9_ -]/gi, '_').substring(0, 50);
+                const fileName = `PriceSafari_${prodNameSafe}_wyswietlenia_${visDates[0]}_do_${visDates[visDates.length - 1]}.xlsx`;
+
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => { URL.revokeObjectURL(link.href); }, 100);
+            } catch (e) {
+                console.error("Błąd Excel (visits):", e);
+                alert("Błąd tworzenia pliku Excel: " + e.message);
+            }
+        }
+        // ═══════════════════════════════════════════════════════════════
+
         });
     </script>
 }
