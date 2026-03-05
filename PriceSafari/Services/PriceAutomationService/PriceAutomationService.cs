@@ -844,10 +844,9 @@ namespace PriceSafari.Services.PriceAutomationService
                 }
             }
 
-            // POPRAWIONY KOD:
             if (!calculationPossible)
             {
-                // Ochrona ceny — brak konkurencji, ale nasza cena jest poniżej minimum
+
                 if (row.MinPriceLimit.HasValue && basePrice < row.MinPriceLimit.Value)
                 {
                     suggested = row.MinPriceLimit.Value;
@@ -860,7 +859,6 @@ namespace PriceSafari.Services.PriceAutomationService
                     return;
                 }
 
-                // Brak konkurencji i cena OK — nic nie robimy
                 row.SuggestedPrice = null;
                 row.Status = AutomationCalculationStatus.Blocked;
                 row.BlockReason = "Brak Konkurencji";
@@ -896,23 +894,20 @@ namespace PriceSafari.Services.PriceAutomationService
 
                     bool isPriceImprovement = suggested > basePrice;
 
-                    // POPRAWIONY KOD:
                     if (isPriceImprovement && rule.SkipIfMarkupLimited)
                     {
-                        // Ratowanie marży — cena rośnie, ale nie osiąga minimum.
-                        // Przepuszczamy tylko gdy SkipIfMarkupLimited = true.
+
                         row.IsMarginWarning = true;
                     }
                     else if (rule.SkipIfMarkupLimited)
                     {
-                        // Cena spada poniżej minimum — blokujemy
+
                         ApplyBlock(row, "Blokada Ceny (Min)");
                         return;
                     }
                     else
                     {
-                        // SkipIfMarkupLimited = false — minimum to twardy floor
-                        // Jeśli cena już jest na minimum i cel nadal nieosiągalny — blokada
+
                         if (Math.Abs(Math.Round(basePrice, 2) - Math.Round(row.MinPriceLimit.Value, 2)) < 0.01m)
                         {
                             ApplyBlock(row, "Blokada Ceny (Min)");
@@ -925,6 +920,7 @@ namespace PriceSafari.Services.PriceAutomationService
                     }
                 }
             }
+
 
             if (row.MaxPriceLimit.HasValue)
             {

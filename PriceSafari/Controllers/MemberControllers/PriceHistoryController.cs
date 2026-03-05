@@ -74,7 +74,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Content("Nie ma takiego sklepu");
             }
 
-            // 1. Pobieramy najnowszy scrap (bez zmian)
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -85,24 +84,21 @@ namespace PriceSafari.Controllers.MemberControllers
                 return View(new List<FlagsClass>());
             }
 
-            // 2. OPTYMALIZACJA: Pobieramy dane sklepu (Nazwę, Logo i Boola) w JEDNYM zapytaniu
-            // Zamiast robić 3 oddzielne zapytania do tabeli Stores, robimy jedno.
             var storeDetails = await _context.Stores
                 .Where(s => s.StoreId == storeId)
                 .Select(s => new
                 {
                     s.StoreName,
                     s.StoreLogoUrl,
-                    s.IsStorePriceBridgeActive // <--- Zakładam, że tak nazywa się kolumna w bazie
+                    s.IsStorePriceBridgeActive
+
                 })
                 .FirstOrDefaultAsync();
 
-            // 3. Liczymy produkty (bez zmian)
             var scrapedproducts = await _context.Products
                 .Where(p => p.StoreId == storeId && p.IsScrapable)
                 .CountAsync();
 
-            // 4. Pobieramy flagi (bez zmian)
             var flags = await _context.Flags
                 .Where(f => f.StoreId == storeId.Value && f.IsMarketplace == false)
                 .Select(f => new FlagViewModel
@@ -114,12 +110,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 })
                 .ToListAsync();
 
-            // 5. Przypisanie do ViewBag
             ViewBag.LatestScrap = latestScrap;
             ViewBag.StoreId = storeId;
 
-            // Tutaj bierzemy wartość z pobranego obiektu storeDetails. 
-            // Jeśli storeDetails byłby null (mało prawdopodobne, bo sprawdzaliśmy dostęp), dajemy false.
             ViewBag.IsStorePriceBridgeActive = storeDetails?.IsStorePriceBridgeActive ?? false;
 
             ViewBag.StoreName = storeDetails?.StoreName;
@@ -174,14 +167,12 @@ namespace PriceSafari.Controllers.MemberControllers
                 });
             }
 
-
             var bridgeItems = await _context.PriceBridgeItems
         .Include(i => i.Batch)
         .Where(i => i.Batch.StoreId == storeId.Value &&
                     i.Batch.ScrapHistoryId == latestScrap.Id)
         .ToListAsync();
 
- 
             var committedLookup = bridgeItems
                 .GroupBy(i => i.ProductId)
                 .ToDictionary(
@@ -326,11 +317,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 );
             }
 
-
             var automationLookup = await _context.AutomationProductAssignments
                 .Include(a => a.AutomationRule)
                 .Where(a => a.AutomationRule.StoreId == storeId.Value
-                         && a.ProductId != null // Tylko produkty sklepowe (nie Allegro)
+                         && a.ProductId != null
+
                          && a.AutomationRule.SourceType == AutomationSourceType.PriceComparison)
                 .Select(a => new
                 {
@@ -338,7 +329,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     RuleName = a.AutomationRule.Name,
                     RuleColor = a.AutomationRule.ColorHex,
                     IsActive = a.AutomationRule.IsActive,
-                    RuleId = a.AutomationRule.Id
+                    RuleId = a.AutomationRule.Id,
+                    IsTimeLimited = a.AutomationRule.IsTimeLimited,
+                    StartDate = a.AutomationRule.ScheduledStartDate,
+                    EndDate = a.AutomationRule.ScheduledEndDate
                 })
         .ToDictionaryAsync(a => a.ProductId);
             var allPrices = rawPrices
@@ -353,11 +347,23 @@ namespace PriceSafari.Controllers.MemberControllers
                        var myPriceEntry = myPriceEntries.OrderByDescending(x => x.IsGoogle == false).FirstOrDefault();
                        var myPrice = myPriceEntry?.Price;
 
-                       // Filtrowanie cen konkurencji (Zastosowanie presetu)
                        var allCompetitorEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower() != storeNameLower).ToList();
                        var presetFilteredCompetitorPrices = new List<PriceRowDto>();
                        var committedItem = committedLookup.GetValueOrDefault(g.Key);
                        var autoRule = automationLookup.GetValueOrDefault(g.Key);
+                       bool isAutomationPaused = false;
+                       if (autoRule != null && autoRule.IsActive && autoRule.IsTimeLimited)
+                       {
+                           var today = DateTime.Today; // Porównujemy z dzisiejszą datą, tak jak w modelu
+
+                           bool isScheduledForFuture = autoRule.StartDate.HasValue && today < autoRule.StartDate.Value.Date;
+                           bool isExpiredInPast = autoRule.EndDate.HasValue && today > autoRule.EndDate.Value.Date;
+
+                           if (isScheduledForFuture || isExpiredInPast)
+                           {
+                               isAutomationPaused = true;
+                           }
+                       }
                        if (competitorItemsDict != null)
                        {
                            foreach (var row in allCompetitorEntries)
@@ -380,7 +386,6 @@ namespace PriceSafari.Controllers.MemberControllers
                            presetFilteredCompetitorPrices = allCompetitorEntries;
                        }
 
-                       // --- LOGIKA ISTNIEJĄCA (Najlepsza cena) ---
                        var presetFilteredValidPrices = new List<PriceRowDto>(presetFilteredCompetitorPrices);
                        if (myPriceEntry != null) presetFilteredValidPrices.Add(myPriceEntry);
 
@@ -396,12 +401,12 @@ namespace PriceSafari.Controllers.MemberControllers
                        PriceRowDto finalBestPriceEntry = bestCompetitorPriceEntry;
                        decimal? finalBestPrice = bestCompetitorPrice;
 
-                       // --- NOWA LOGIKA: OBLICZANIE ŚREDNIEJ RYNKOWEJ (MEDIANY) ---
-                       decimal? marketAveragePrice = null; // To będzie nasza Mediana
-                       decimal? marketPriceIndex = null;   // Odchylenie w %
-                       string marketBucket = "market-neutral"; // Domyślny kubełek
+                       decimal? marketAveragePrice = null;
 
-                       // Pobieramy same ceny konkurencji do listy decimal
+                       decimal? marketPriceIndex = null;
+
+                       string marketBucket = "market-neutral";
+
                        var competitorPricesOnly = presetFilteredCompetitorPrices
                            .Where(x => x.Price.HasValue && x.Price.Value > 0)
                            .Select(x => x.Price.Value)
@@ -409,39 +414,38 @@ namespace PriceSafari.Controllers.MemberControllers
 
                        if (competitorPricesOnly.Count > 0)
                        {
-                           // 1. Obliczamy Medianę
+
                            marketAveragePrice = CalculateMedian(competitorPricesOnly);
 
-                           // 2. Obliczamy Index i Bucket jeśli mamy swoją cenę i medianę
                            if (marketAveragePrice.HasValue && myPrice.HasValue && myPrice.Value > 0 && marketAveragePrice.Value > 0)
                            {
-                               // Różnica w %: (Nasza - Rynek) / Rynek * 100
-                               // Wynik dodatni = jesteśmy drożsi. Wynik ujemny = jesteśmy tańsi.
+
                                decimal diff = myPrice.Value - marketAveragePrice.Value;
                                marketPriceIndex = Math.Round((diff / marketAveragePrice.Value) * 100, 2);
 
-                               // Przypisanie do kubełka (logika z czatu)
                                if (marketPriceIndex < -15)
-                                   marketBucket = "market-deep-discount"; // Bardzo tanio (Ciemna Zieleń)
+                                   marketBucket = "market-deep-discount";
+
                                else if (marketPriceIndex >= -15 && marketPriceIndex < -2)
-                                   marketBucket = "market-below-average"; // Poniżej średniej (Jasna Zieleń)
+                                   marketBucket = "market-below-average";
+
                                else if (marketPriceIndex >= -2 && marketPriceIndex <= 2)
-                                   marketBucket = "market-average"; // Poziom Rynku (Szary/Niebieski)
+                                   marketBucket = "market-average";
+
                                else if (marketPriceIndex > 2 && marketPriceIndex <= 15)
-                                   marketBucket = "market-above-average"; // Powyżej średniej (Pomarańcz)
+                                   marketBucket = "market-above-average";
+
                                else
-                                   marketBucket = "market-overpriced"; // Przeszacowane (Czerwony)
+                                   marketBucket = "market-overpriced";
+
                            }
                        }
                        else if (onlyMe)
                        {
-                           marketBucket = "market-solo"; // Nowy kubełek dla solo w trybie Profit
+                           marketBucket = "market-solo";
+
                        }
-                       // --- KONIEC NOWEJ LOGIKI ---
 
-
-                       // Reszta starej logiki (Rankingu, różnic itp.) pozostaje bez zmian, 
-                       // bo potrzebujemy jej do trybu "Konkurencyjność"
                        bool iAmEffectivelyTheBest = false;
                        if (myPrice.HasValue)
                        {
@@ -566,7 +570,6 @@ namespace PriceSafari.Controllers.MemberControllers
                            }
                        }
 
-                       // --- ZWRACANIE OBIEKTU (DODANO NOWE POLA) ---
                        return new
                        {
                            ProductId = product.ProductId,
@@ -620,14 +623,16 @@ namespace PriceSafari.Controllers.MemberControllers
                                NewCeneoRanking = committedItem.RankingCeneoAfterSimulated
                            },
 
-                           // NOWE POLA DLA PROFIT MODE
-                           MarketAveragePrice = marketAveragePrice, // Mediana
-                           MarketPriceIndex = marketPriceIndex,     // Odchylenie % od mediany
+                           MarketAveragePrice = marketAveragePrice,
+
+                           MarketPriceIndex = marketPriceIndex,
+
                            MarketBucket = marketBucket,
                            AutomationRuleName = autoRule?.RuleName,
                            AutomationRuleColor = autoRule?.RuleColor,
                            IsAutomationActive = autoRule?.IsActive,
                            AutomationRuleId = autoRule?.RuleId,
+                           IsAutomationPaused = isAutomationPaused
                        };
                    })
                    .Where(p => p != null)
@@ -656,6 +661,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 latestScrapId = latestScrap?.Id
             });
         }
+
 
         public class PriceRowDto
         {
@@ -1438,7 +1444,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 latestScrapId
             });
         }
-
         public class SimulationItem
         {
             public int ProductId { get; set; }
@@ -1460,7 +1465,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var inClause = string.Join(",", subset);
 
-                // POPRAWKA: Dodano "" wokół nazw tabeli i kolumn
                 string sql = $@"
             SELECT ""ProductId"", ""Ean"", ""MarginPrice"", ""ExternalId"", ""ProducerCode"", ""Producer""
             FROM ""Products""
@@ -1507,7 +1511,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var inClause = string.Join(",", subset);
 
-                // POPRAWKA: Dodano "" wokół nazw tabeli i kolumn
                 string sql = $@"
             SELECT ""ProductId"", ""Price"", ""IsGoogle"", ""StoreName"", ""ShippingCostNum""
             FROM ""PriceHistories""
@@ -1591,27 +1594,22 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool Source { get; set; }
         }
 
-
-
         [HttpPost]
         public async Task<IActionResult> ExecuteStorePriceChange(int storeId, [FromBody] List<PriceBridgeItemRequest> items)
         {
-            // 1. Walidacja danych wejściowych
+
             if (items == null || !items.Any()) return BadRequest("Brak danych.");
 
-            // Walidacja uprawnień
             if (!await UserHasAccessToStore(storeId)) return Forbid();
 
             var store = await _context.Stores.AsNoTracking().FirstOrDefaultAsync(s => s.StoreId == storeId);
             if (store == null) return NotFound("Sklep nie istnieje.");
 
-            // 2. Walidacja ustawień sklepu
             if (!store.IsStorePriceBridgeActive)
             {
                 return BadRequest("Zmiana cen przez API jest wyłączona w ustawieniach sklepu.");
             }
 
-            // 3. Pobranie danych kontekstowych
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -1623,7 +1621,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             try
             {
-                // 4. Wywołanie serwisu
+
                 var result = await _priceBridgeService.ExecuteStorePriceChangesAsync(storeId, scrapHistoryId, userId, items);
 
                 return Json(result);
@@ -1634,7 +1632,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return StatusCode(500, "Wystąpił błąd podczas komunikacji ze sklepem.");
             }
         }
-
 
         [HttpGet]
         public async Task<IActionResult> GetApiExportSettings(int storeId)
@@ -1683,7 +1680,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Content("Brak dostępu do sklepu");
             }
 
-            // 1. Pobieramy ID ostatniego scrapu
             var latestScrap = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
@@ -1704,15 +1700,13 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(pv => new { pv.UsePriceWithDelivery })
                 .FirstOrDefaultAsync() ?? new { UsePriceWithDelivery = false };
 
-            // 2. Pobieramy aktywny preset
             var activePreset = await _context.CompetitorPresets
                 .Include(x => x.CompetitorItems)
                 .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
 
-            // 3. Budujemy zapytanie bazowe
             var query = from p in _context.Products
                         join ph in _context.PriceHistories on p.ProductId equals ph.ProductId
-                        // Tylko aktywne produkty (IsScrapable)
+
                         where p.StoreId == storeId && p.IsScrapable && ph.ScrapHistoryId == latestScrap.Id
                         select new
                         {
@@ -1727,18 +1721,14 @@ namespace PriceSafari.Controllers.MemberControllers
                             ph.ShippingCostNum
                         };
 
-            // 4. Filtrowanie źródeł (Google/Ceneo) na poziomie SQL
             if (activePreset != null)
             {
                 if (!activePreset.SourceGoogle) query = query.Where(x => x.IsGoogle != true);
                 if (!activePreset.SourceCeneo) query = query.Where(x => x.IsGoogle == true);
             }
 
-            // Pobieramy dane z bazy (Lista typów anonimowych)
             var rawData = await query.ToListAsync();
 
-            // 5. POPRAWKA: Filtrowanie konkretnych sklepów konkurencji (LINQ w pamięci)
-            // Używamy .Where() zamiast pętli i rzutowania, aby zachować typ anonimowy.
             if (activePreset != null && activePreset.Type == PresetType.PriceComparison)
             {
                 var competitorItemsDict = activePreset.CompetitorItems.ToDictionary(
@@ -1746,32 +1736,30 @@ namespace PriceSafari.Controllers.MemberControllers
                     ci => ci.UseCompetitor
                 );
 
-                // Nadpisujemy listę rawData przefiltrowaną wersją
                 rawData = rawData.Where(row =>
                 {
-                    // A. Zawsze zostawiamy nasz sklep
+
                     if (row.StoreName != null && row.StoreName.ToLower().Trim() == myStoreNameLower)
                     {
                         return true;
                     }
 
-                    // B. Sprawdzamy konkurencję
                     DataSourceType currentSource = row.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
                     var key = (Store: (row.StoreName ?? "").ToLower().Trim(), Source: currentSource);
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
                     {
-                        return useCompetitor; // Zwracamy true/false w zależności od ustawień presetu
+                        return useCompetitor;
+
                     }
                     else
                     {
-                        // C. Jeśli sklepu nie ma na liście, decyduje flaga UseUnmarkedStores
+
                         return activePreset.UseUnmarkedStores;
                     }
                 }).ToList();
             }
 
-            // 6. Grupowanie i obliczenia
             var groupedData = rawData
                 .GroupBy(x => new { x.ProductName, x.Producer, x.Ean, x.ExternalId, x.MarginPrice })
                 .Select(g =>
@@ -1832,7 +1820,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .OrderBy(x => x.Product.ProductName)
                 .ToList();
 
-            // 7. Generowanie Excela (Reszta kodu bez zmian)
             using (var workbook = new XSSFWorkbook())
             {
                 var sheet = workbook.CreateSheet("Monitoring Cen");
@@ -1961,7 +1948,6 @@ namespace PriceSafari.Controllers.MemberControllers
             }
         }
 
-
         [HttpGet]
         public async Task<IActionResult> GetScrapPriceChangeHistory(int storeId, int scrapHistoryId)
         {
@@ -1973,7 +1959,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .AsNoTracking()
                 .Where(b => b.StoreId == storeId && b.ScrapHistoryId == scrapHistoryId)
                 .Include(b => b.User)
-                // --- NOWOŚĆ: Dołączamy regułę automatyzacji ---
+
                 .Include(b => b.AutomationRule)
                 .Include(b => b.BridgeItems)
                     .ThenInclude(i => i.Product)
@@ -1983,10 +1969,9 @@ namespace PriceSafari.Controllers.MemberControllers
             var result = batches.Select(b => new
             {
                 executionDate = b.ExecutionDate,
-                // --- ZMIANA LOGIKI NAZWY UŻYTKOWNIKA ---
+
                 userName = b.User?.UserName ?? (b.IsAutomation ? "Automat Cenowy" : "System/Nieznany"),
 
-                // --- NOWE POLA DLA AUTOMATYZACJI ---
                 isAutomation = b.IsAutomation,
                 automationRuleName = b.AutomationRule?.Name,
                 automationRuleColor = b.AutomationRule?.ColorHex,
