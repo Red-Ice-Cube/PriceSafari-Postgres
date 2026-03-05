@@ -1417,9 +1417,24 @@
         const ruleId = item.automationRuleId;
         const ruleColor = item.automationRuleColor || '#3d85c6';
         const isActive = item.isAutomationActive;
+        const isPaused = item.isAutomationPaused;
 
-        const statusColor = isActive ? '#1cc88a' : '#e74a3b';
-        const statusText = isActive ? 'Aktywny' : 'Wyłączony';
+        let statusColor = '';
+        let statusText = '';
+
+        if (!isActive) {
+            statusColor = '#e74a3b';
+
+            statusText = 'Wyłączony';
+        } else if (isPaused) {
+            statusColor = '#f6c23e';
+
+            statusText = 'Zatrzymany';
+        } else {
+            statusColor = '#1cc88a';
+
+            statusText = 'Aktywny';
+        }
 
         const detailsUrl = `/PriceAutomation/Details/${ruleId}`;
 

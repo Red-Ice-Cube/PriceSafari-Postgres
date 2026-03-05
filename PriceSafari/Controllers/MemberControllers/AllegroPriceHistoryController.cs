@@ -216,7 +216,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     RuleName = a.AutomationRule.Name,
                     RuleColor = a.AutomationRule.ColorHex,
                     IsActive = a.AutomationRule.IsActive,
-                    RuleId = a.AutomationRule.Id
+                    RuleId = a.AutomationRule.Id,
+                    IsTimeLimited = a.AutomationRule.IsTimeLimited,
+                    StartDate = a.AutomationRule.ScheduledStartDate,
+                    EndDate = a.AutomationRule.ScheduledEndDate
                 })
                 .ToDictionaryAsync(a => a.AllegroProductId);
 
@@ -380,6 +383,20 @@ namespace PriceSafari.Controllers.MemberControllers
                     var extendedInfo = extendedInfoDictionary.GetValueOrDefault(product.AllegroProductId);
                     var committed = committedLookup.GetValueOrDefault(product.AllegroProductId);
                     var autoRule = automationLookup.GetValueOrDefault(product.AllegroProductId);
+
+                    bool isAutomationPaused = false;
+                    if (autoRule != null && autoRule.IsActive && autoRule.IsTimeLimited)
+                    {
+                        var today = DateTime.Today;
+
+                        bool isScheduledForFuture = autoRule.StartDate.HasValue && today < autoRule.StartDate.Value.Date;
+                        bool isExpiredInPast = autoRule.EndDate.HasValue && today > autoRule.EndDate.Value.Date;
+
+                        if (isScheduledForFuture || isExpiredInPast)
+                        {
+                            isAutomationPaused = true;
+                        }
+                    }
                     return new
                     {
                         ProductId = product.AllegroProductId,
@@ -443,7 +460,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         AutomationRuleColor = autoRule?.RuleColor,
                         IsAutomationActive = autoRule?.IsActive,
                         AutomationRuleId = autoRule?.RuleId,
-
+                        IsAutomationPaused = isAutomationPaused,
                         Committed = committed == null ? null : new
                         {
 
