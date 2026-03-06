@@ -944,6 +944,14 @@ namespace PriceSafari.Controllers.MemberControllers
                 activePresetName = activePresetName
             });
         }
+
+
+
+
+
+
+
+
         [HttpGet]
         public async Task<IActionResult> GetPriceTrendData(int productId, int limit = 30)
         {
@@ -998,26 +1006,86 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(aph => aph.Price > 0)
                 .ToListAsync();
 
-            // ═══ NOWE: Pobieramy WSZYSTKIE rekordy extended info (z IdAllegro) ═══
-            var visitsData = await _context.AllegroPriceHistoryExtendedInfos
-                .Where(e => scrapIds.Contains(e.ScrapHistoryId) && e.AllegroProductId == productId)
-                .Select(e => new { e.ScrapHistoryId, e.AllegroVisitsCount, e.IdAllegro })
+            // ═══ FIX: Znajdź TYLKO nasze oferty (IdAllegro) które występują w tym katalogu ═══
+            var ourOfferIdsInCatalog = priceHistories
+                .Where(ph => ph.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+                .Select(ph => ph.IdAllegro)
+                .Distinct()
+                .ToList();
+
+            // Dodaj mainOfferId jeśli nie było w cenówkach (np. oferta tymczasowo nieaktywna)
+            if (mainOfferId.HasValue && !ourOfferIdsInCatalog.Contains(mainOfferId.Value))
+            {
+                ourOfferIdsInCatalog.Add(mainOfferId.Value);
+            }
+
+            // Dla każdej naszej oferty w katalogu, znajdź produkt-właściciela (przez IdOnAllegro)
+            var ourProducts = await _context.AllegroProducts
+                .Where(p => p.StoreId == storeId && p.IdOnAllegro != null)
+                .Select(p => new { p.AllegroProductId, p.IdOnAllegro })
                 .ToListAsync();
 
-            // Grupujemy po ScrapHistoryId -> lista ofert z wyświetleniami
+            var offerOwnerMap = new Dictionary<long, int>(); // IdAllegro -> AllegroProductId
+            foreach (var p in ourProducts)
+            {
+                if (long.TryParse(p.IdOnAllegro, out var parsedOfferId) && !offerOwnerMap.ContainsKey(parsedOfferId))
+                {
+                    offerOwnerMap[parsedOfferId] = p.AllegroProductId;
+                }
+            }
+
+            // Zbierz productId tylko tych ofert, które faktycznie są w katalogu
+            var relevantProductIds = ourOfferIdsInCatalog
+                .Where(offerId => offerOwnerMap.ContainsKey(offerId))
+                .Select(offerId => offerOwnerMap[offerId])
+                .Distinct()
+                .ToList();
+
+            // Upewnij się, że aktualny produkt też jest na liście
+            if (!relevantProductIds.Contains(productId))
+                relevantProductIds.Add(productId);
+
+            // Pobieramy extended info TYLKO dla powiązanych produktów
+            var visitsData = await _context.AllegroPriceHistoryExtendedInfos
+                .Where(e => scrapIds.Contains(e.ScrapHistoryId)
+                         && relevantProductIds.Contains(e.AllegroProductId))
+                .Select(e => new { e.ScrapHistoryId, e.AllegroVisitsCount, e.IdAllegro, e.AllegroProductId })
+                .ToListAsync();
+
+            // Grupujemy po ScrapHistoryId, deduplikujemy per IdAllegro,
+            // biorąc visits z produktu-właściciela oferty
+            // i FILTRUJEMY tylko oferty które faktycznie są w katalogu
             var visitsByScrapId = visitsData
+                .Where(v => v.IdAllegro.HasValue && ourOfferIdsInCatalog.Contains(v.IdAllegro.Value))
                 .GroupBy(v => v.ScrapHistoryId)
                 .ToDictionary(
                     g => g.Key,
-                    g => g.Select(v => new { v.IdAllegro, v.AllegroVisitsCount }).ToList()
+                    g =>
+                    {
+                        return g
+                            .GroupBy(v => v.IdAllegro.Value)
+                            .Select(offerGroup =>
+                            {
+                                var offerId = offerGroup.Key;
+                                // Preferuj rekord z produktu-właściciela tej oferty
+                                var bestRecord = offerOwnerMap.TryGetValue(offerId, out var ownerId)
+                                    ? offerGroup.FirstOrDefault(r => r.AllegroProductId == ownerId)
+                                      ?? offerGroup.First()
+                                    : offerGroup.First();
+
+                                return new { bestRecord.IdAllegro, bestRecord.AllegroVisitsCount };
+                            })
+                            .ToList();
+                    }
                 );
-            // ═════════════════════════════════════════════════════════════════════
+            // ═══════════════════════════════════════════════════════════════════
 
             bool includeNoDelivery = activePreset?.IncludeNoDeliveryInfo ?? true;
             int minDelivery = activePreset?.MinDeliveryDays ?? 0;
             int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
 
-            var timelineData = lastScraps.Select(scrap => {
+            var timelineData = lastScraps.Select(scrap =>
+            {
                 var allDailyOffers = priceHistories
                     .Where(ph => ph.AllegroScrapeHistoryId == scrap.Id);
 
@@ -1073,7 +1141,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 };
             }).ToList();
 
-            // ═══ NOWE: Visits timeline z danymi per-oferta ═══
+            // ═══ Visits timeline — tylko nasze oferty z katalogu, z poprawnymi danymi ═══
             var visitsTimeline = lastScraps.Select(scrap =>
             {
                 var offersForScrap = visitsByScrapId.GetValueOrDefault(scrap.Id);
@@ -1085,7 +1153,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 int? totalVisits = offerVisits.Any(o => o.visits.HasValue)
                     ? offerVisits.Sum(o => o.visits ?? 0)
-                    : (offersForScrap?.FirstOrDefault()?.AllegroVisitsCount);
+                    : null;
 
                 return new
                 {
@@ -1094,7 +1162,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     offers = offerVisits
                 };
             }).ToList();
-            // ══════════════════════════════════════════════════
+            // ══════════════════════════════════════════════════════════════════
 
             return Json(new
             {
@@ -1104,6 +1172,12 @@ namespace PriceSafari.Controllers.MemberControllers
                 visitsTimeline = visitsTimeline
             });
         }
+
+
+
+
+
+
 
         [HttpPost]
         public async Task<IActionResult> ExecutePriceChange(int storeId, [FromBody] List<AllegroPriceBridgeItemRequest> items)
