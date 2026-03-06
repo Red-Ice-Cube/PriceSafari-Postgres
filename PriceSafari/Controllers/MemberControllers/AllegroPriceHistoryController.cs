@@ -944,9 +944,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 activePresetName = activePresetName
             });
         }
-
         // ═══════════════════════════════════════════════════════════════
-        // ZMIENIONA METODA: GetPriceTrendData - dodano dane wyświetleń
+        // ZMIENIONA METODA: GetPriceTrendData
+        // Zastąp CAŁĄ metodę GetPriceTrendData tą wersją
         // ═══════════════════════════════════════════════════════════════
         [HttpGet]
         public async Task<IActionResult> GetPriceTrendData(int productId, int limit = 30)
@@ -1002,14 +1002,18 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(aph => aph.Price > 0)
                 .ToListAsync();
 
-            // ═══ NOWE: Pobieramy dane o wyświetleniach z ExtendedInfo ═══
+            // ═══ NOWE: Pobieramy wyświetlenia z ExtendedInfo ═══
+            // GroupBy + First() bo może być kilka rekordów na ten sam scrapId
+            // (gdy produkt powiązany z kilkoma ofertami)
             var visitsData = await _context.AllegroPriceHistoryExtendedInfos
                 .Where(e => scrapIds.Contains(e.ScrapHistoryId) && e.AllegroProductId == productId)
                 .Select(e => new { e.ScrapHistoryId, e.AllegroVisitsCount })
                 .ToListAsync();
 
-            var visitsByScrapId = visitsData.ToDictionary(v => v.ScrapHistoryId, v => v.AllegroVisitsCount);
-            // ═════════════════════════════════════════════════════════════
+            var visitsByScrapId = visitsData
+                .GroupBy(v => v.ScrapHistoryId)
+                .ToDictionary(g => g.Key, g => g.First().AllegroVisitsCount);
+            // ════════════════════════════════════════════════════
 
             bool includeNoDelivery = activePreset?.IncludeNoDeliveryInfo ?? true;
             int minDelivery = activePreset?.MinDeliveryDays ?? 0;
@@ -1076,20 +1080,19 @@ namespace PriceSafari.Controllers.MemberControllers
                 };
             }).ToList();
 
-            // ═══ NOWE: Budujemy timeline wyświetleń ═══
+            // ═══ NOWE: Prosty timeline wyświetleń ═══
             var visitsTimeline = lastScraps.Select(scrap => new
             {
                 scrapDate = scrap.Date.ToString("yyyy-MM-dd HH:00"),
                 visits = visitsByScrapId.GetValueOrDefault(scrap.Id)
             }).ToList();
-            // ═══════════════════════════════════════════
+            // ═════════════════════════════════════════
 
             return Json(new
             {
                 productName = product.AllegroProductName,
                 timelineData = timelineData,
                 mainOfferId = mainOfferId,
-                // ═══ NOWE POLE ═══
                 visitsTimeline = visitsTimeline
             });
         }

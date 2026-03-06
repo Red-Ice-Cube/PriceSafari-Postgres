@@ -2150,12 +2150,11 @@
         return html;
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // NOWE: Tooltip dla wykresu wyświetleń
-        // ═══════════════════════════════════════════════════════════════
         function generateVisitsTooltipHtml(params) {
             const date = params[0].axisValue;
             const formattedDate = new Date(date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            const visitsLineColor = 'rgba(124, 77, 255, 1)';
 
             let visits = null;
             params.forEach(p => {
@@ -2171,7 +2170,7 @@
             html += `<strong style="margin-left:auto; font-size: 1.1rem; color: ${visitsLineColor};">${visits != null ? visits.toLocaleString('pl-PL') : 'Brak danych'}</strong>`;
             html += `</div>`;
 
-            // Pokaż zmianę vs. poprzedni punkt jeśli mamy dane
+            // Zmiana vs. poprzednia analiza
             if (visits != null && originalChartData?.visitsTimeline) {
                 const timeline = originalChartData.visitsTimeline;
                 const currentIndex = timeline.findIndex(t => t.scrapDate === date);
@@ -2191,7 +2190,6 @@
 
             return html;
         }
-        // ═══════════════════════════════════════════════════════════════
 
         function filterTimelineData(timelineData) {
         if (!showOnlyCheapest) return timelineData;
@@ -2224,138 +2222,117 @@
         window.addEventListener('resize', () => echartsTrendChart?.resize());
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // NOWE: Rysowanie wykresu wyświetleń
-        // ═══════════════════════════════════════════════════════════════
         function drawVisitsChart() {
-            const visitsTimeline = originalChartData.visitsTimeline;
-            if (!visitsTimeline || visitsTimeline.length === 0) {
-                updateCustomTooltipPanel('<div style="color:#666;font-style:italic;">Brak danych o wyświetleniach.</div>');
-                return;
-            }
+    const visitsTimeline = originalChartData.visitsTimeline;
+    if (!visitsTimeline || visitsTimeline.length === 0) {
+        updateCustomTooltipPanel('<div style="color:#666;font-style:italic;">Brak danych o wyświetleniach.</div>');
+        return;
+    }
 
-            const dates = visitsTimeline.map(v => v.scrapDate);
-            const values = visitsTimeline.map(v => ({ value: v.visits }));
+    const dates = visitsTimeline.map(v => v.scrapDate);
+    const values = visitsTimeline.map(v => ({ value: v.visits }));
 
-            // Oblicz zakres osi Y
-            let minVal = Infinity, maxVal = -Infinity;
-            visitsTimeline.forEach(v => {
-                if (v.visits != null) {
-                    minVal = Math.min(minVal, v.visits);
-                    maxVal = Math.max(maxVal, v.visits);
-                }
-            });
-            if (!isFinite(minVal)) { minVal = 0; maxVal = 100; }
-            const padding = (maxVal - minVal) * 0.1 || 10;
-            const yMin = Math.max(0, minVal - padding);
-            const yMax = maxVal + padding;
+    const polishMonths = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
 
-            const polishMonths = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
-
-            const series = [{
-                name: 'Wyświetlenia oferty',
-                type: 'line',
-                data: values,
-                smooth: 0.3,
-                symbol: 'circle',
-                symbolSize: 6,
-                showSymbol: values.length <= 1,
-                lineStyle: {
-                    color: visitsLineColor,
-                    width: 2.5
-                },
-                itemStyle: {
-                    color: visitsLineColor
-                },
-                areaStyle: {
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: 'rgba(124, 77, 255, 0.25)' },
-                        { offset: 1, color: 'rgba(124, 77, 255, 0.02)' }
-                    ])
-                },
-                emphasis: {
-                    focus: 'series',
-                    lineStyle: { width: 3 }
-                },
-                z: 5
-            }];
-
-            currentChartOptions = {
-                tooltip: {
-                    trigger: 'axis',
-                    axisPointer: { type: 'cross', snap: true, label: { backgroundColor: '#6a7985' } },
-                    formatter: p => { lastHoverParams = p; updateCustomTooltipPanel(generateTooltipPanelHtml(p)); return ''; }
-                },
-                xAxis: {
-                    type: 'category',
-                    data: dates,
-                    boundaryGap: false,
-                    axisLabel: {
-                        formatter: (function () {
-                            let lastDate = null;
-                            return function (value) {
-                                try {
-                                    const [datePart, timePart] = value.split(' ');
-                                    const [year, month, day] = datePart.split('-');
-                                    if (datePart !== lastDate) {
-                                        lastDate = datePart;
-                                        return `${parseInt(day)} ${polishMonths[parseInt(month)-1]}\n${timePart}`;
-                                    } else {
-                                        return timePart;
-                                    }
-                                } catch (e) { return value; }
-                            };
-                        })()
-                    }
-                },
-                yAxis: {
-                    type: 'value',
-                    min: yMin,
-                    max: yMax,
-                    scale: true,
-                    axisLabel: { show: true, formatter: v => v.toLocaleString('pl-PL') },
-                    splitLine: { lineStyle: { color: '#E8E8E8', type: 'dashed' } }
-                },
-                grid: { left: '3%', right: '4%', bottom: '80px', containLabel: true },
-                series: series,
-                dataZoom: [
-                    {
-                        type: 'slider',
-                        xAxisIndex: 0,
-                        start: 0,
-                        end: 100,
-                        bottom: '10px',
-                        height: 25,
-                        showDetail: true,
-                        realtime: true,
-                        filterMode: 'filter',
-                        backgroundColor: 'rgba(240, 240, 240, 0.6)',
-                        borderColor: '#cccccc',
-                        fillerColor: 'rgba(180, 180, 180, 0.4)',
-                        handleStyle: { color: '#a7a7a7', borderColor: '#747474', borderWidth: 1 },
-                        dataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#ebebeb' } },
-                        selectedDataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#dcdcdc' } },
-                        showMoveHandle: false,
-                        moveHandleIcon: 'none',
-                        moveHandleStyle: { color: 'transparent', opacity: 0 },
-                        emphasis: { fillerColor: 'rgba(180, 180, 180, 0.6)', handleStyle: { color: '#747474', borderColor: '#505050' }, moveHandleStyle: { color: 'transparent', opacity: 0 } }
-                    },
-                    {
-                        type: 'inside',
-                        xAxisIndex: 0,
-                        start: 0,
-                        end: 100,
-                        zoomOnMouseWheel: true,
-                        moveOnMouseMove: true,
-                        preventDefaultMouseMove: true
-                    }
-                ]
-            };
-
-            echartsTrendChart.setOption(currentChartOptions, true);
-            updateCustomTooltipPanel(null);
+    // Oblicz zakres osi Y
+    let minVal = Infinity, maxVal = -Infinity;
+    visitsTimeline.forEach(v => {
+        if (v.visits != null) {
+            minVal = Math.min(minVal, v.visits);
+            maxVal = Math.max(maxVal, v.visits);
         }
-        // ═══════════════════════════════════════════════════════════════
+    });
+    if (!isFinite(minVal)) { minVal = 0; maxVal = 100; }
+    const padding = (maxVal - minVal) * 0.1 || 10;
+    const yMin = Math.max(0, minVal - padding);
+    const yMax = maxVal + padding;
+
+    const visitsLineColor = 'rgba(124, 77, 255, 1)';
+
+    const series = [{
+        name: 'Wyświetlenia oferty',
+        type: 'line',
+        data: values,
+        smooth: 0.3,
+        symbol: 'circle',
+        symbolSize: 6,
+        showSymbol: values.filter(d => d.value != null).length <= 1,
+        connectNulls: false,
+        lineStyle: { color: visitsLineColor, width: 2.5 },
+        itemStyle: { color: visitsLineColor },
+        areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(124, 77, 255, 0.25)' },
+                { offset: 1, color: 'rgba(124, 77, 255, 0.02)' }
+            ])
+        },
+        emphasis: { focus: 'series', lineStyle: { width: 3 } },
+        z: 5
+    }];
+
+    currentChartOptions = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'cross', snap: true, label: { backgroundColor: '#6a7985' } },
+            formatter: p => { lastHoverParams = p; updateCustomTooltipPanel(generateTooltipPanelHtml(p)); return ''; }
+        },
+        xAxis: {
+            type: 'category',
+            data: dates,
+            boundaryGap: false,
+            axisLabel: {
+                formatter: (function () {
+                    let lastDate = null;
+                    return function (value) {
+                        try {
+                            const [datePart, timePart] = value.split(' ');
+                            const [year, month, day] = datePart.split('-');
+                            if (datePart !== lastDate) {
+                                lastDate = datePart;
+                                return `${parseInt(day)} ${polishMonths[parseInt(month)-1]}\n${timePart}`;
+                            } else {
+                                return timePart;
+                            }
+                        } catch (e) { return value; }
+                    };
+                })()
+            }
+        },
+        yAxis: {
+            type: 'value', min: yMin, max: yMax, scale: true,
+            axisLabel: { show: true, formatter: v => v.toLocaleString('pl-PL') },
+            splitLine: { lineStyle: { color: '#E8E8E8', type: 'dashed' } }
+        },
+        grid: { left: '3%', right: '4%', bottom: '80px', containLabel: true },
+        series: series,
+        dataZoom: [
+            {
+                type: 'slider', xAxisIndex: 0, start: 0, end: 100, bottom: '10px', height: 25,
+                showDetail: true, realtime: true, filterMode: 'filter',
+                backgroundColor: 'rgba(240,240,240,0.6)', borderColor: '#ccc',
+                fillerColor: 'rgba(180,180,180,0.4)',
+                handleStyle: { color: '#a7a7a7', borderColor: '#747474', borderWidth: 1 },
+                dataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#ebebeb' } },
+                selectedDataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#dcdcdc' } },
+                showMoveHandle: false, moveHandleIcon: 'none',
+                moveHandleStyle: { color: 'transparent', opacity: 0 },
+                emphasis: {
+                    fillerColor: 'rgba(180,180,180,0.6)',
+                    handleStyle: { color: '#747474', borderColor: '#505050' },
+                    moveHandleStyle: { color: 'transparent', opacity: 0 }
+                }
+            },
+            {
+                type: 'inside', xAxisIndex: 0, start: 0, end: 100,
+                zoomOnMouseWheel: true, moveOnMouseMove: true, preventDefaultMouseMove: true
+            }
+        ]
+    };
+
+    echartsTrendChart.setOption(currentChartOptions, true);
+    updateCustomTooltipPanel(null);
+}
+
 
         function drawChart(timelineData, dataType) {
         const { allDates, dataByInstance, allInstances } = processData(timelineData, dataType);
@@ -2899,15 +2876,11 @@
         }
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // NOWE: Eksport wyświetleń do Excel
-        // ═══════════════════════════════════════════════════════════════
         async function exportVisitsToExcel(workbook) {
             try {
                 const ws = workbook.addWorksheet('Historia Wyświetleń');
                 const visitsTimeline = originalChartData.visitsTimeline || [];
 
-                // Pobierz widoczny zakres z dataZoom
                 const option = echartsTrendChart.getOption();
                 const allDates = option.xAxis[0].data;
                 let startPct = 0, endPct = 100;
@@ -2927,8 +2900,10 @@
                     return;
                 }
 
-                const columns = [{ header: 'Data', key: 'date', width: 22 }, { header: 'Wyświetlenia (30 dni)', key: 'visits', width: 22, style: { numFmt: '#,##0', alignment: { horizontal: 'right' } } }];
-                ws.columns = columns;
+                ws.columns = [
+                    { header: 'Data', key: 'date', width: 22 },
+                    { header: 'Wyświetlenia (30 dni)', key: 'visits', width: 22, style: { numFmt: '#,##0', alignment: { horizontal: 'right' } } }
+                ];
                 ws.getRow(1).font = { bold: true };
                 ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
 
@@ -2958,8 +2933,6 @@
                 alert("Błąd tworzenia pliku Excel: " + e.message);
             }
         }
-        // ═══════════════════════════════════════════════════════════════
-
         });
     </script>
 }
