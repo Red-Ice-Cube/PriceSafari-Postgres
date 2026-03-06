@@ -401,7 +401,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     {
                         ProductId = product.AllegroProductId,
                         ProductName = product.AllegroProductName,
-                        Producer = (string)null,
+                        Producer = product.Producer,
                         MyPrice = myOffer?.Price,
                         LowestPrice = bestCompetitor?.Price,
                         StoreName = bestCompetitor?.SellerName,
@@ -944,10 +944,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 activePresetName = activePresetName
             });
         }
-        // ═══════════════════════════════════════════════════════════════
-        // ZMIENIONA METODA: GetPriceTrendData
-        // Zastąp CAŁĄ metodę GetPriceTrendData tą wersją
-        // ═══════════════════════════════════════════════════════════════
         [HttpGet]
         public async Task<IActionResult> GetPriceTrendData(int productId, int limit = 30)
         {
@@ -1002,18 +998,20 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(aph => aph.Price > 0)
                 .ToListAsync();
 
-            // ═══ NOWE: Pobieramy wyświetlenia z ExtendedInfo ═══
-            // GroupBy + First() bo może być kilka rekordów na ten sam scrapId
-            // (gdy produkt powiązany z kilkoma ofertami)
+            // ═══ NOWE: Pobieramy WSZYSTKIE rekordy extended info (z IdAllegro) ═══
             var visitsData = await _context.AllegroPriceHistoryExtendedInfos
                 .Where(e => scrapIds.Contains(e.ScrapHistoryId) && e.AllegroProductId == productId)
-                .Select(e => new { e.ScrapHistoryId, e.AllegroVisitsCount })
+                .Select(e => new { e.ScrapHistoryId, e.AllegroVisitsCount, e.IdAllegro })
                 .ToListAsync();
 
+            // Grupujemy po ScrapHistoryId -> lista ofert z wyświetleniami
             var visitsByScrapId = visitsData
                 .GroupBy(v => v.ScrapHistoryId)
-                .ToDictionary(g => g.Key, g => g.First().AllegroVisitsCount);
-            // ════════════════════════════════════════════════════
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(v => new { v.IdAllegro, v.AllegroVisitsCount }).ToList()
+                );
+            // ═════════════════════════════════════════════════════════════════════
 
             bool includeNoDelivery = activePreset?.IncludeNoDeliveryInfo ?? true;
             int minDelivery = activePreset?.MinDeliveryDays ?? 0;
@@ -1034,16 +1032,11 @@ namespace PriceSafari.Controllers.MemberControllers
                         if (p.DeliveryTime.HasValue)
                         {
                             if (p.DeliveryTime.Value < minDelivery || p.DeliveryTime.Value > maxDelivery)
-                            {
                                 return false;
-                            }
                         }
                         else
                         {
-                            if (!includeNoDelivery)
-                            {
-                                return false;
-                            }
+                            if (!includeNoDelivery) return false;
                         }
 
                         var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
@@ -1080,13 +1073,28 @@ namespace PriceSafari.Controllers.MemberControllers
                 };
             }).ToList();
 
-            // ═══ NOWE: Prosty timeline wyświetleń ═══
-            var visitsTimeline = lastScraps.Select(scrap => new
+            // ═══ NOWE: Visits timeline z danymi per-oferta ═══
+            var visitsTimeline = lastScraps.Select(scrap =>
             {
-                scrapDate = scrap.Date.ToString("yyyy-MM-dd HH:00"),
-                visits = visitsByScrapId.GetValueOrDefault(scrap.Id)
+                var offersForScrap = visitsByScrapId.GetValueOrDefault(scrap.Id);
+
+                var offerVisits = offersForScrap?
+                    .Where(o => o.IdAllegro.HasValue)
+                    .Select(o => new { offerId = o.IdAllegro.Value, visits = o.AllegroVisitsCount })
+                    .ToList() ?? new();
+
+                int? totalVisits = offerVisits.Any(o => o.visits.HasValue)
+                    ? offerVisits.Sum(o => o.visits ?? 0)
+                    : (offersForScrap?.FirstOrDefault()?.AllegroVisitsCount);
+
+                return new
+                {
+                    scrapDate = scrap.Date.ToString("yyyy-MM-dd HH:00"),
+                    totalVisits,
+                    offers = offerVisits
+                };
             }).ToList();
-            // ═════════════════════════════════════════
+            // ══════════════════════════════════════════════════
 
             return Json(new
             {

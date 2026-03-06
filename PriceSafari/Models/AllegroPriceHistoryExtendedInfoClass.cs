@@ -33,6 +33,6 @@ namespace PriceSafari.Models
 
         public int? AllegroVisitsCount { get; set; }
 
-
+        public long? IdAllegro { get; set; }
     }
 }
