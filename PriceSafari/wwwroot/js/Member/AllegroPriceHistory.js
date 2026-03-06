@@ -3581,9 +3581,25 @@
                 }
 
                 const producerDropdown = document.getElementById('producerFilterDropdown');
-                while (producerDropdown.options.length > 1) producerDropdown.remove(1);
-                const producers = [...new Set(allPrices.map(p => p.producer).filter(Boolean))].sort();
-                producers.forEach(p => producerDropdown.add(new Option(p, p)));
+
+                const producerCounts = allPrices.reduce((map, item) => {
+                    if (item.producer) {
+                        map[item.producer] = (map[item.producer] || 0) + 1;
+                    }
+                    return map;
+                }, {});
+
+                const sortedProducers = Object.keys(producerCounts).sort((a, b) => a.localeCompare(b));
+
+                producerDropdown.innerHTML = '<option value="">Wszystkie marki</option>';
+
+                sortedProducers.forEach(prod => {
+                    const opt = document.createElement('option');
+                    opt.value = prod;
+                    opt.textContent = `${prod} (${producerCounts[prod]})`;
+
+                    producerDropdown.appendChild(opt);
+                });
 
                 document.getElementById('totalProductCount').textContent = allPrices.length;
                 document.getElementById('totalPriceCount').textContent = data.priceCount || 0;
