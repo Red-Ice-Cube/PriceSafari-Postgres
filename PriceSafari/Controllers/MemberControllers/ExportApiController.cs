@@ -47,7 +47,7 @@ public class ExportApiController : ControllerBase
 
         // 3. Ustalenie żądanego formatu i ścieżki do pliku
         var extension = format.ToLower() == "xml" ? "xml" : "json";
-        var exportFolder = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "PriceExports");
+        var exportFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "PriceSafari", "PriceExports");
         var filePath = Path.Combine(exportFolder, $"feed_{storeId}.{extension}");
 
         // 4. Sprawdzenie, czy plik zdążył się już wygenerować

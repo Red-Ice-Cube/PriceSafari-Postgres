@@ -316,8 +316,7 @@ public class StoreProcessingService
             });
         }
 
-        // 2. Przygotowujemy folder na pliki
-        var exportFolder = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "PriceExports");
+        var exportFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "PriceSafari", "PriceExports");
         if (!Directory.Exists(exportFolder))
         {
             Directory.CreateDirectory(exportFolder);
