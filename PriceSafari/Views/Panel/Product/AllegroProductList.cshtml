@@ -385,6 +385,14 @@
                             <label class="form-check-label" for="inactive-rejected">Wyłączony (<span id="count-inactive-rejected">0</span>)</label>
                         </div>
 
+                        <hr style="margin: 8px 0; border-color: #ddd;" />
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="filter-new" value="new">
+                            <label class="form-check-label" for="filter-new">
+                                Nowy 7 dni (<span id="count-new">0</span>)
+                            </label>
+                        </div>
+
                         <button id="select-all" class="Button-Page-Small" style="height:33px; margin-top:16px;">
                             <span class="dot green-dot"></span>Zaznacz widoczne
                         </button>
@@ -634,7 +642,12 @@
         var SEARCH_DEBOUNCE  = 250;
         var BATCH_CHUNK_SIZE = 1000;
         var STORE_PRODUCT_LIMIT = parseInt('@ViewBag.ProductCount') || 0;
-
+        var SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+        function isNewProduct(product) {
+                if (!product.addedDate) return false;
+                var added = new Date(product.addedDate);
+                return (Date.now() - added.getTime()) <= SEVEN_DAYS_MS;
+        }
         var allProducts      = [];
         var filteredProducts = [];
         var flags = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Flags ?? new List<FlagViewModel>()));
@@ -671,7 +684,7 @@
             document.querySelectorAll('.status-filter').forEach(function (cb) {
                 cb.addEventListener('change', filterRows);
             });
-
+                document.getElementById('filter-new').addEventListener('change', filterRows);
             selectAllButton.addEventListener('click',   function () { batchToggle(true); });
             deselectAllButton.addEventListener('click', function () { batchToggle(false); });
 
@@ -754,6 +767,7 @@
 
             var hasPrice   = product.allegroMarginPrice != null && product.allegroMarginPrice.toString().trim() !== '';
             var priceValue = hasPrice ? parseFloat(product.allegroMarginPrice).toFixed(2) : '';
+            var newBadgeHtml = isNewProduct(product) ? '<span class="badge-new">Nowy</span>' : '';
 
             var purchasePriceHtml =
                 '<div class="price-display-container">' +
@@ -781,6 +795,9 @@
                         '<div>' + eanHtml + '</div>' +
                         '<div>' + idHtml + '</div>' +
                         '<div>' + skuHtml + '</div>' +
+                     
+                        newBadgeHtml +
+
                     '</div>' +
                 '</div></td>' +
                 '<td>' + purchasePriceHtml + '</td>' +
@@ -991,19 +1008,21 @@
             .catch(function (error) { console.error('Błąd aktualizacji ceny:', error); alert('Błąd komunikacji: ' + error.message); });
         }
 
-        function filterRows() {
-            var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
-                .map(function (cb) { return cb.getAttribute('data-status'); });
-            var searchTerm = searchInput.value.toLowerCase();
+         function filterRows() {
+                var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
+                    .map(function (cb) { return cb.getAttribute('data-status'); });
+                var searchTerm = searchInput.value.toLowerCase();
+                var filterNewOnly = document.getElementById('filter-new').checked;
 
-            var result = allProducts.filter(function (p) {
-                var nameMatch = p.allegroProductName.toLowerCase().includes(searchTerm);
-                var eanMatch  = (p.allegroEan || '').toLowerCase().includes(searchTerm);
-                var idMatch   = (p.idOnAllegro || '').toLowerCase().includes(searchTerm);
-                var skuMatch  = (p.allegroSku || '').toLowerCase().includes(searchTerm);
-                var statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(getProductStatus(p));
-                return (nameMatch || eanMatch || idMatch || skuMatch) && statusMatch;
-            });
+                var result = allProducts.filter(function (p) {
+                    var nameMatch = p.allegroProductName.toLowerCase().includes(searchTerm);
+                    var eanMatch  = (p.allegroEan || '').toLowerCase().includes(searchTerm);
+                    var idMatch   = (p.idOnAllegro || '').toLowerCase().includes(searchTerm);
+                    var skuMatch  = (p.allegroSku || '').toLowerCase().includes(searchTerm);
+                    var statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(getProductStatus(p));
+                    var newMatch = !filterNewOnly || isNewProduct(p);
+                    return (nameMatch || eanMatch || idMatch || skuMatch) && statusMatch && newMatch;
+                });
 
             var productsBeforeFlagFilter = result.slice();
 
@@ -1104,6 +1123,8 @@
             document.getElementById('count-inactive').textContent          = ic;
             document.getElementById('scrapable-count').textContent         = ar + ac;
             document.getElementById('total-products').textContent          = allProducts.length;
+            var newCount = allProducts.filter(function (p) { return isNewProduct(p); }).length;
+            document.getElementById('count-new').textContent = newCount;
         }
 
         function updateAndRenderFlagFilters(products) {

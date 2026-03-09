@@ -1956,6 +1956,18 @@ img.lazy-load-flex {
     align-self: stretch;
 }
 
+.badge-new {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background-color: #e0f2fe;
+    color: #0284c7;
+    border: 1px solid #7dd3fc;
+    margin-top: 3px;
+}
+
 .Column-Form {
     display: flex;
     padding: 36px;
