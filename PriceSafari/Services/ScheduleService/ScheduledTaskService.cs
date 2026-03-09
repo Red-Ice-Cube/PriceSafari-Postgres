@@ -1081,22 +1081,59 @@ public class ScheduledTaskService : BackgroundService
 
                 var sb = new System.Text.StringBuilder();
 
-                if (result.Success)
-                    sb.Append(" | Sukces.");
-                else
-                    sb.Append(" | Zakończono z błędami.");
-
+                sb.Append(result.Success ? " | Sukces." : " | Zakończono z błędami.");
                 sb.Append($" {result.Message}");
                 sb.Append($" Czas: {stopwatch.Elapsed.TotalSeconds:F0}s.");
 
-                if (result.Details.Any())
+                // Szczegóły per sklep
+                if (result.StoreStats.Any())
                 {
-                    string details = string.Join("; ", result.Details);
-                    if (details.Length > 500) details = details[..500] + "...";
-                    sb.Append($" Szczegóły: {details}");
+                    sb.Append(" Szczegóły:");
+                    foreach (var stats in result.StoreStats)
+                    {
+                        sb.Append($" [{stats.StoreName}:");
+
+                        if (stats.WasCancelled)
+                        {
+                            sb.Append(" anulowano]");
+                            continue;
+                        }
+
+                        // Nowe produkty
+                        if (stats.NewProductsFound > 0)
+                        {
+                            sb.Append($" +{stats.NewProductsFound} nowych");
+                        }
+                        else
+                        {
+                            sb.Append(" 0 nowych");
+                        }
+
+                        // Auto-aktywacja
+                        if (stats.AutoActivated > 0)
+                        {
+                            sb.Append($", auto-aktywowano {stats.AutoActivated}");
+                        }
+
+                        // Status aktywnych vs limit
+                        if (stats.Limit < int.MaxValue)
+                        {
+                            sb.Append($", aktywne: {stats.ActiveAfter}/{stats.Limit}");
+                        }
+                        else
+                        {
+                            sb.Append($", aktywne: {stats.ActiveAfter} (bez limitu)");
+                        }
+
+                        sb.Append(']');
+                    }
                 }
 
-                finishedLog.Comment += sb.ToString();
+                // Obcinamy jeśli za długie
+                string comment = sb.ToString();
+                if (comment.Length > 900) comment = comment[..900] + "...";
+
+                finishedLog.Comment += comment;
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }

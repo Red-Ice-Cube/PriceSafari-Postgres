@@ -23,8 +23,23 @@ namespace PriceSafari.Services.AllegroServices
         }
 
         // =====================================================================
-        // REZULTAT DLA SCHEDULERA
+        // REZULTATY
         // =====================================================================
+
+        public class StoreGatherStats
+        {
+            public string StoreName { get; set; } = "";
+            public string AllegroName { get; set; } = "";
+            public int ProductsBefore { get; set; }
+            public int ProductsAfter { get; set; }
+            public int NewProductsFound => ProductsAfter - ProductsBefore;
+            public int ActiveBefore { get; set; }
+            public int ActiveAfter { get; set; }
+            public int AutoActivated => ActiveAfter - ActiveBefore;
+            public int Limit { get; set; }
+            public bool Completed { get; set; }
+            public bool WasCancelled { get; set; }
+        }
 
         public class GatherResult
         {
@@ -33,7 +48,7 @@ namespace PriceSafari.Services.AllegroServices
             public int StoresQueued { get; set; }
             public int StoresCompleted { get; set; }
             public int StoresCancelled { get; set; }
-            public List<string> Details { get; set; } = new();
+            public List<StoreGatherStats> StoreStats { get; set; } = new();
         }
 
         // =====================================================================
@@ -61,13 +76,12 @@ namespace PriceSafari.Services.AllegroServices
         }
 
         // =====================================================================
-        // ZLECANIE SCRAPOWANIA DLA WIELU SKLEPÓW + OCZEKIWANIE (scheduler)
+        // ZLECANIE + OCZEKIWANIE + AUTO-AKTYWACJA (scheduler)
         // =====================================================================
 
         /// <summary>
-        /// Zleca zbieranie ofert dla wielu sklepów i czeka na zakończenie wszystkich.
-        /// Zadanie jest "zakończone" gdy scraper wywoła finish-task (co usuwa klucz z ActiveTasks)
-        /// lub gdy status zmieni się na Cancelled (i scraper potwierdzi acknowledge-cancel → też TryRemove).
+        /// Zleca zbieranie ofert, czeka na zakończenie, a następnie automatycznie
+        /// aktywuje nowe produkty (IsScrapable = true) do limitu sklepu.
         /// </summary>
         public async Task<GatherResult> StartAndWaitForStoresAsync(List<int> storeIds, CancellationToken ct)
         {
@@ -84,8 +98,21 @@ namespace PriceSafari.Services.AllegroServices
                 return result;
             }
 
-            // 2. Zlecaj zadania
+            // 2. SNAPSHOT PRZED — zliczamy produkty i aktywne produkty przed rozpoczęciem
+            var snapshotBefore = new Dictionary<int, (int TotalProducts, int ActiveProducts, int Limit, string StoreName, string AllegroName)>();
+
+            foreach (var store in stores)
+            {
+                var totalProducts = await _context.AllegroProducts.CountAsync(p => p.StoreId == store.StoreId, ct);
+                var activeProducts = await _context.AllegroProducts.CountAsync(p => p.StoreId == store.StoreId && p.IsScrapable, ct);
+                var limit = store.ProductsToScrapAllegro ?? int.MaxValue;
+
+                snapshotBefore[store.StoreId] = (totalProducts, activeProducts, limit, store.StoreName, store.StoreNameAllegro);
+            }
+
+            // 3. Zlecaj zadania
             var queuedAllegroNames = new List<string>();
+            var storeIdByAllegroName = new Dictionary<string, int>();
 
             foreach (var store in stores)
             {
@@ -93,13 +120,13 @@ namespace PriceSafari.Services.AllegroServices
                 if (AllegroGatherManager.ActiveTasks.TryAdd(store.StoreNameAllegro, newTask))
                 {
                     queuedAllegroNames.Add(store.StoreNameAllegro);
+                    storeIdByAllegroName[store.StoreNameAllegro] = store.StoreId;
                     await _hubContext.Clients.All.SendAsync("UpdateTaskProgress", store.StoreNameAllegro, newTask, ct);
                     _logger.LogInformation("[GATHER] Zlecono: {AllegroName}", store.StoreNameAllegro);
                 }
                 else
                 {
                     _logger.LogWarning("[GATHER] Zadanie już istnieje dla: {AllegroName}. Pomijam.", store.StoreNameAllegro);
-                    result.Details.Add($"{store.StoreNameAllegro}: już w kolejce/trakcie");
                 }
             }
 
@@ -111,9 +138,7 @@ namespace PriceSafari.Services.AllegroServices
                 return result;
             }
 
-            // 3. Czekaj na zakończenie wszystkich zleconych zadań
-            // Scraper po zakończeniu wywołuje finish-task → TryRemove z ActiveTasks
-            // Więc zadanie jest "gotowe" gdy klucz ZNIKNIE z dictionary
+            // 4. Czekaj na zakończenie
             _logger.LogInformation("[GATHER] Oczekiwanie na zakończenie {Count} zadań...", queuedAllegroNames.Count);
 
             while (!ct.IsCancellationRequested)
@@ -122,22 +147,10 @@ namespace PriceSafari.Services.AllegroServices
 
                 foreach (var allegroName in queuedAllegroNames)
                 {
-                    if (AllegroGatherManager.ActiveTasks.TryGetValue(allegroName, out var taskState))
+                    if (AllegroGatherManager.ActiveTasks.ContainsKey(allegroName))
                     {
-                        // Klucz wciąż istnieje
-                        if (taskState.Status == ScrapingStatus.Pending ||
-                            taskState.Status == ScrapingStatus.Running)
-                        {
-                            stillActive++;
-                        }
-                        // Cancelled — scraper niedługo wywołuje acknowledge-cancel → usunie klucz
-                        // Ale liczymy jako jeszcze aktywne, bo klucz istnieje
-                        else if (taskState.Status == ScrapingStatus.Cancelled)
-                        {
-                            stillActive++; // Czekamy aż scraper potwierdzi i usunie
-                        }
+                        stillActive++;
                     }
-                    // Klucz nie istnieje → finish-task lub acknowledge-cancel → zakończone
                 }
 
                 if (stillActive == 0)
@@ -146,21 +159,71 @@ namespace PriceSafari.Services.AllegroServices
                 await Task.Delay(TimeSpan.FromSeconds(15), ct);
             }
 
-            // 4. Zbierz statystyki — w tym momencie wszystkie klucze powinny być usunięte
+            // 5. SNAPSHOT PO + AUTO-AKTYWACJA + STATYSTYKI
             foreach (var allegroName in queuedAllegroNames)
             {
-                if (AllegroGatherManager.ActiveTasks.TryGetValue(allegroName, out var finalState))
+                var storeId = storeIdByAllegroName[allegroName];
+                var before = snapshotBefore[storeId];
+
+                var stats = new StoreGatherStats
                 {
-                    // Klucz wciąż istnieje — coś poszło nie tak (timeout/preempcja)
+                    StoreName = before.StoreName,
+                    AllegroName = before.AllegroName,
+                    ProductsBefore = before.TotalProducts,
+                    ActiveBefore = before.ActiveProducts,
+                    Limit = before.Limit
+                };
+
+                // Sprawdź czy zadanie się zakończyło (klucz usunięty) czy anulowano
+                bool wasCancelled = AllegroGatherManager.ActiveTasks.ContainsKey(allegroName);
+                stats.WasCancelled = wasCancelled;
+                stats.Completed = !wasCancelled;
+
+                if (wasCancelled)
+                {
                     result.StoresCancelled++;
-                    result.Details.Add($"{allegroName}: nie zakończono (status={finalState.Status}, zebrano {finalState.CollectedOffersCount} ofert)");
                 }
                 else
                 {
-                    // Klucz usunięty = zakończone (finish-task lub acknowledge-cancel)
                     result.StoresCompleted++;
-                    result.Details.Add($"{allegroName}: zakończono");
                 }
+
+                // Policz produkty po zakończeniu
+                stats.ProductsAfter = await _context.AllegroProducts.CountAsync(p => p.StoreId == storeId, ct);
+
+                // AUTO-AKTYWACJA: aktywuj nowe produkty do limitu
+                if (stats.NewProductsFound > 0 && stats.Completed)
+                {
+                    var currentActive = await _context.AllegroProducts.CountAsync(p => p.StoreId == storeId && p.IsScrapable, ct);
+                    var remainingSlots = Math.Max(0, before.Limit - currentActive);
+
+                    if (remainingSlots > 0)
+                    {
+                        // Pobieramy nowe, nieaktywne, nieodrzucone produkty (najnowsze pierwsze)
+                        var productsToActivate = await _context.AllegroProducts
+                            .Where(p => p.StoreId == storeId && !p.IsScrapable && !p.IsRejected)
+                            .OrderByDescending(p => p.AddedDate)
+                            .Take(remainingSlots)
+                            .ToListAsync(ct);
+
+                        foreach (var product in productsToActivate)
+                        {
+                            product.IsScrapable = true;
+                        }
+
+                        if (productsToActivate.Any())
+                        {
+                            await _context.SaveChangesAsync(ct);
+                            _logger.LogInformation("[GATHER] Auto-aktywowano {Count} produktów dla sklepu '{Store}' ({Active}/{Limit}).",
+                                productsToActivate.Count, before.StoreName, currentActive + productsToActivate.Count, before.Limit);
+                        }
+                    }
+                }
+
+                // Finalne zliczenie aktywnych
+                stats.ActiveAfter = await _context.AllegroProducts.CountAsync(p => p.StoreId == storeId && p.IsScrapable, ct);
+
+                result.StoreStats.Add(stats);
             }
 
             result.Success = result.StoresCancelled == 0;
