@@ -101,7 +101,22 @@ public class StoreProcessingService
                 int? position = int.TryParse(coOfrPrice.Position, out var pos) ? pos : null;
 
                 if (position > maxCeneoPosition) maxCeneoPosition = position.Value;
-                if (isOurStore) foundOurStoreCeneo = true;
+                if (isOurStore)
+                {
+                    foundOurStoreCeneo = true;
+
+                    if (!string.IsNullOrEmpty(coOfrPrice.ExportedName))
+                    {
+                        lock (product)
+                        {
+                            if (product.ExportedNameCeneo != coOfrPrice.ExportedName)
+                            {
+                                product.ExportedNameCeneo = coOfrPrice.ExportedName;
+                                updatedProductsBag.Add(product);
+                            }
+                        }
+                    }
+                }
 
                 priceHistoriesBag.Add(new PriceHistoryClass
                 {

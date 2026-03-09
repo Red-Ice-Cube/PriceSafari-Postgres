@@ -262,6 +262,7 @@
             <table class="table table-bordered table-striped table-hover" id="product-table" style="width: 100%;">
                 <thead class="table-light">
                     <tr>
+                        <th class="id-cell">ID</th>
                         <th>Zdj.(C) <small>(@ceneoImgCount)</small></th>
                         <th>Zdj.(G) <small>(@googleImgCount)</small></th>
                         <th>Nazwa (Ceneo) <small>(@ceneoNameCount)</small></th>
@@ -290,7 +291,7 @@
                     @if (!Model.Any())
                     {
                         <tr>
-                            <td colspan="22" class="text-center text-muted">Brak zmapowanych produktów dla tego sklepu. Użyj akcji powyżej lub kreatorów importu.</td>
+                            <td colspan="23" class="text-center text-muted">Brak zmapowanych produktów dla tego sklepu. Użyj akcji powyżej lub kreatorów importu.</td>
                         </tr>
                     }
                     @foreach (var productVm in Model)
@@ -328,6 +329,7 @@
                             data-ean-mismatch="@(eanMismatch.ToString().ToLower())"
                             data-api-mismatch="@(apiMismatch.ToString().ToLower())"
                             class="@rowClass.Trim()">
+                            <td class="id-cell"><strong>@productVm.ProductId</strong></td>
                             <td>
                                 @if (!string.IsNullOrEmpty(productVm.MainUrlCeneo))
                                 {
