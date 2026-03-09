@@ -436,6 +436,14 @@
                         <button id="deselect-all" class="Button-Page-Small" style="height:33px; margin-top:4px;">
                             <span class="dot red-dot"></span>Odznacz widoczne prd.
                         </button>
+
+                        <hr style="margin: 8px 0; border-color: #ddd;" />
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="filter-new" value="new">
+                            <label class="form-check-label" for="filter-new">
+                                Nowy 7 dni (<span id="count-new">0</span>)
+                            </label>
+                        </div>
                     </div>
 
                     <div class="filterBox">
@@ -691,7 +699,13 @@
             var SEARCH_DEBOUNCE  = 250;
             var BATCH_CHUNK_SIZE = 1000;
             var STORE_PRODUCT_LIMIT = parseInt('@ViewBag.ProductCount') || 0;
+        var SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
+        function isNewProduct(product) {
+        if (!product.addedDate) return false;
+        var added = new Date(product.addedDate);
+        return (Date.now() - added.getTime()) <= SEVEN_DAYS_MS;
+        }
             var allProducts      = [];
             var filteredProducts = [];
             var flags = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Flags ?? new List<FlagViewModel>()));
@@ -760,7 +774,7 @@
                         filterRows();
                     });
                 });
-
+        document.getElementById('filter-new').addEventListener('change', filterRows);
                 selectAllButton.addEventListener('click',   function () { batchToggle(true); });
                 deselectAllButton.addEventListener('click', function () { batchToggle(false); });
 
@@ -854,7 +868,7 @@
                 var hasPrice   = product.marginPrice != null && product.marginPrice.toString().trim() !== '';
                 var priceValue = hasPrice ? parseFloat(product.marginPrice).toFixed(2) : '';
                 var statusInfo = getStatusInfo(product);
-
+        var newBadgeHtml = isNewProduct(product) ? '<span class="badge-new">Nowy</span>' : '';
                 var purchasePriceHtml =
                     '<div class="price-display-container">' +
                         '<span class="price-text">' + (hasPrice ? priceValue + ' PLN' : 'Brak') + '</span>' +
@@ -879,6 +893,7 @@
                         '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + ean + '</p>' +
                         '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + externalIdDisplay + '</p>' +
                         '<p style="font-size:0.85em;color:#555;margin-bottom:0;">' + skuDisplay + '</p>' +
+        newBadgeHtml +
                     '</div></td>' +
                     '<td>' + imageCell + '</td>' +
                     '<td>' + purchasePriceHtml + '</td>' +
@@ -1096,9 +1111,12 @@
                 var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
                     .map(function (cb) { return cb.getAttribute('data-status'); });
                 var searchTerm = searchInput.value;
-                var result     = filterProductsByName(allProducts, searchTerm);
-
-                var existingStatuses        = ['active', 'inactive', 'active-rejected', 'inactive-rejected'];
+                var result = filterProductsByName(allProducts, searchTerm);
+                var filterNewOnly = document.getElementById('filter-new').checked;
+                if (filterNewOnly) {
+                    result = result.filter(function (p) { return isNewProduct(p); });
+                }
+                var existingStatuses = ['active', 'inactive', 'active-rejected', 'inactive-rejected'];
                 var selectedExistingStatuses = selectedStatuses.filter(function (s) { return existingStatuses.includes(s); });
                 var selectedPlatformStatuses = selectedStatuses.filter(function (s) { return platformStatuses.includes(s); });
 
@@ -1266,6 +1284,8 @@
                 document.getElementById('count-ceneo').textContent             = cc;
                 document.getElementById('count-google-ceneo').textContent      = gcc;
                 document.getElementById('count-not-found').textContent         = nf;
+                var newCount = allProducts.filter(function (p) { return isNewProduct(p); }).length;
+                document.getElementById('count-new').textContent = newCount;
             }
 
             function populateProducerDropdown(producersWithCount) {
