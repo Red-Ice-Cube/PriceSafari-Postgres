@@ -47,7 +47,7 @@ public class ScheduledTaskService : BackgroundService
         var deviceName = Environment.GetEnvironmentVariable("DEVICE_NAME") ?? "UnknownDevice";
         var marketAutoKey = Environment.GetEnvironmentVariable("MARKET_AUTO"); 
         var compAutoKey = Environment.GetEnvironmentVariable("COMP_AUTO");
-
+        var aleGatherKey = Environment.GetEnvironmentVariable("ALE_GATHER");
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -130,7 +130,8 @@ public class ScheduledTaskService : BackgroundService
                                 (t.AleBaseEnabled && aleBaseScalKey == "64920067") ||
                                 (t.AleApiBotEnabled && aleApiBotKey == "00937384") ||
                                 (t.MarketPlaceAutomationEnabled && marketAutoKey == "99112233") ||
-                                (t.PriceComparisonAutomationEnabled && compAutoKey == "88776655");
+                                (t.PriceComparisonAutomationEnabled && compAutoKey == "88776655") ||
+                                (t.AllegroGatherEnabled && aleGatherKey == "77553311");
 
                                 if (!canRunAnything)
                                 {
@@ -216,6 +217,11 @@ public class ScheduledTaskService : BackgroundService
                                         await Task.Delay(TimeSpan.FromSeconds(30), taskToken);
                                         await RunPriceComparisonAutomationAsync(context, deviceName, t, taskToken);
                                     }
+
+                                    if (t.AllegroGatherEnabled && aleGatherKey == "77553311")
+                                    {
+                                        await RunAllegroGatherAsync(context, deviceName, t, taskToken);
+                                    }
                                 }
                                 catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
                                 {
@@ -278,7 +284,7 @@ public class ScheduledTaskService : BackgroundService
                           apiBotKey,
 
                           aleBaseScalKey, urlScalAleKey, aleCrawKey, aleApiBotKey,
-                          subKey, payKey, emailKey, marketAutoKey, compAutoKey,
+                          subKey, payKey, emailKey, marketAutoKey, compAutoKey, aleGatherKey,
                           stoppingToken);
                 }
             }
@@ -1039,6 +1045,79 @@ public class ScheduledTaskService : BackgroundService
         }
     }
 
+
+    private async Task RunAllegroGatherAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
+    {
+        var storeNames = string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName));
+
+        var log = new TaskExecutionLog
+        {
+            DeviceName = deviceName,
+            OperationName = "ALE_GATHER",
+            StartTime = DateTime.Now,
+            Comment = $"Zbieranie ofert Allegro (Gather) | SessionName={task.SessionName}; Sklepy: {storeNames}"
+        };
+
+        context.TaskExecutionLogs.Add(log);
+        await context.SaveChangesAsync(ct);
+        int logId = log.Id;
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        try
+        {
+            var gatherService = context.GetService<AllegroGatherService>();
+
+            var storeIds = task.TaskStores.Select(ts => ts.StoreId).ToList();
+
+            var result = await gatherService.StartAndWaitForStoresAsync(storeIds, ct);
+
+            stopwatch.Stop();
+
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            if (finishedLog != null)
+            {
+                finishedLog.EndTime = DateTime.Now;
+
+                var sb = new System.Text.StringBuilder();
+
+                if (result.Success)
+                    sb.Append(" | Sukces.");
+                else
+                    sb.Append(" | Zakończono z błędami.");
+
+                sb.Append($" {result.Message}");
+                sb.Append($" Czas: {stopwatch.Elapsed.TotalSeconds:F0}s.");
+
+                if (result.Details.Any())
+                {
+                    string details = string.Join("; ", result.Details);
+                    if (details.Length > 500) details = details[..500] + "...";
+                    sb.Append($" Szczegóły: {details}");
+                }
+
+                finishedLog.Comment += sb.ToString();
+                context.TaskExecutionLogs.Update(finishedLog);
+                await context.SaveChangesAsync(ct);
+            }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw; // Preempcja — niech obsłuży ją blok wyżej
+        }
+        catch (Exception ex)
+        {
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            if (finishedLog != null)
+            {
+                finishedLog.EndTime = DateTime.Now;
+                finishedLog.Comment += $" | Krytyczny błąd (ALE_GATHER): {ex.Message}";
+                context.TaskExecutionLogs.Update(finishedLog);
+                await context.SaveChangesAsync(ct);
+            }
+        }
+    }
+
     private async Task UpdateDeviceStatusAsync(
              PriceSafariContext context,
              string deviceName,
@@ -1057,6 +1136,7 @@ public class ScheduledTaskService : BackgroundService
              string emailKey,
              string marketAutoKey,
              string compAutoKey,
+             string aleGatherKey,
              CancellationToken ct)
     {
         const string BASE_SCAL_EXPECTED = "55380981";
@@ -1076,6 +1156,8 @@ public class ScheduledTaskService : BackgroundService
         const string MARKET_AUTO_EXPECTED = "99112233";
         const string COMP_AUTO_EXPECTED = "88776655";
 
+        const string ALE_GATHER_EXPECTED = "77553311";
+
         bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
         bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
         bool hasGooCraw = (gooCrawKey == GOO_CRAW_EXPECTED);
@@ -1092,6 +1174,8 @@ public class ScheduledTaskService : BackgroundService
         bool hasEmailSender = (emailKey == EMAIL_KEY_EXPECTED);
         bool hasMarketAuto = (marketAutoKey == MARKET_AUTO_EXPECTED);
         bool hasCompAuto = (compAutoKey == COMP_AUTO_EXPECTED);
+
+        bool hasAleGather = (aleGatherKey == ALE_GATHER_EXPECTED);
 
         var newStatus = new DeviceStatus
         {
@@ -1114,7 +1198,9 @@ public class ScheduledTaskService : BackgroundService
             PaymentProcessorEnabled = hasPaymentProc,
             EmailSenderEnabled = hasEmailSender,
             MarketPlaceAutomationEnabled = hasMarketAuto,
-            PriceComparisonAutomationEnabled = hasCompAuto
+            PriceComparisonAutomationEnabled = hasCompAuto,
+
+            AleGatherEnabled = hasAleGather,
         };
 
         await context.DeviceStatuses.AddAsync(newStatus, ct);

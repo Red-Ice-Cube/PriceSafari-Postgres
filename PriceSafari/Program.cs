@@ -105,7 +105,7 @@ public class Program
         builder.Services.AddHttpClient<AllegroAuthTokenService>();
         builder.Services.AddScoped<AllegroAuthTokenService>();
         builder.Services.AddScoped<PriceAutomationService>();
-
+        builder.Services.AddScoped<AllegroGatherService>();
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 
         builder.Services.AddMemoryCache();

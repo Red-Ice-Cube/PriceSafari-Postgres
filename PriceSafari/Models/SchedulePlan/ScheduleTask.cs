@@ -34,6 +34,8 @@ namespace PriceSafari.Models.SchedulePlan
 
         public bool MarketPlaceAutomationEnabled { get; set; }
         public bool PriceComparisonAutomationEnabled { get; set; }
+
+        public bool AllegroGatherEnabled { get; set; }
         public int DayDetailId { get; set; }
         public DayDetail DayDetail { get; set; }
 

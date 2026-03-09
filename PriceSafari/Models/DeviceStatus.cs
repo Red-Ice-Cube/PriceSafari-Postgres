@@ -28,5 +28,6 @@
 
         public bool MarketPlaceAutomationEnabled { get; set; }
         public bool PriceComparisonAutomationEnabled { get; set; }
+        public bool AleGatherEnabled { get; set; }
     }
 }
