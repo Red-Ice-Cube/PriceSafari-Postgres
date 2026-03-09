@@ -284,9 +284,8 @@ namespace PriceSafari.Controllers.ManagerControllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> MapProducts(int storeId)
+        public async Task<IActionResult> MapProducts(int storeId, bool mergeExisting = false)
         {
-
             var storeProducts = await _context.Products
                 .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.ExportedNameCeneo))
                 .ToListAsync();
@@ -301,24 +300,18 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 if (productsInGroup.Count > 1)
                 {
-
                     var mainProduct = productsInGroup.First();
 
                     for (int i = 1; i < productsInGroup.Count; i++)
                     {
                         var duplicateProduct = productsInGroup[i];
 
-                        MergeProductData(mainProduct, duplicateProduct);
+                        MergeProductData(mainProduct, duplicateProduct, mergeExisting);
 
                         _context.Products.Remove(duplicateProduct);
                     }
 
                     _context.Products.Update(mainProduct);
-                }
-                else
-                {
-
-                    continue;
                 }
             }
 
@@ -335,8 +328,17 @@ namespace PriceSafari.Controllers.ManagerControllers
             var simplifiedName = Regex.Replace(name, @"[^\w]", "").ToUpperInvariant();
             return simplifiedName;
         }
-        private void MergeProductData(ProductClass mainProduct, ProductClass duplicateProduct)
+        private void MergeProductData(ProductClass mainProduct, ProductClass duplicateProduct, bool mergeExisting = false)
         {
+            // --- NOWE: Nadpisywanie OfferUrl gdy mergeExisting ---
+            if (mergeExisting && !string.IsNullOrEmpty(duplicateProduct.OfferUrl))
+            {
+                mainProduct.OfferUrl = duplicateProduct.OfferUrl;
+            }
+            else if (string.IsNullOrEmpty(mainProduct.OfferUrl) && !string.IsNullOrEmpty(duplicateProduct.OfferUrl))
+            {
+                mainProduct.OfferUrl = duplicateProduct.OfferUrl;
+            }
 
             if (string.IsNullOrEmpty(mainProduct.ProductName) && !string.IsNullOrEmpty(duplicateProduct.ProductName))
                 mainProduct.ProductName = duplicateProduct.ProductName;
@@ -344,8 +346,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (string.IsNullOrEmpty(mainProduct.Category) && !string.IsNullOrEmpty(duplicateProduct.Category))
                 mainProduct.Category = duplicateProduct.Category;
 
-            if (string.IsNullOrEmpty(mainProduct.OfferUrl) && !string.IsNullOrEmpty(duplicateProduct.OfferUrl))
-                mainProduct.OfferUrl = duplicateProduct.OfferUrl;
 
             if (!mainProduct.ExternalId.HasValue && duplicateProduct.ExternalId.HasValue)
                 mainProduct.ExternalId = duplicateProduct.ExternalId;

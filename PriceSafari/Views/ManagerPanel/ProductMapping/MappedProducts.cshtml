@@ -104,6 +104,12 @@
                 </div>
                 <div class="col-md-4 mb-3">
                     <form method="post" action="@Url.Action("MapProducts", "ProductMapping", new { storeId })">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="mergeExisting" value="true" id="mergeExistingCheck" />
+                            <label class="form-check-label" for="mergeExistingCheck">
+                                Nadpisz OfferUrl (Ceneo) z duplikatów na główny produkt
+                            </label>
+                        </div>
                         <button type="submit" class="btn btn-info w-100">
                             <i class="fas fa-link me-1"></i> Mapuj Produkty (połącz istniejące)
                         </button>

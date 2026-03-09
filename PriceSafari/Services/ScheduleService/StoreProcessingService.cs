@@ -180,6 +180,23 @@ public class StoreProcessingService
                 });
             }
 
+            // --- Czyszczenie ExportedNameCeneo gdy brak nazwy z ostatniego scrapu ---
+            if (!string.IsNullOrEmpty(product.ExportedNameCeneo))
+            {
+                bool foundExportedName = ceneoPrices
+                    .Any(cp => storeNameVariants.Contains(cp.StoreName.ToLower())
+                                && !string.IsNullOrEmpty(cp.ExportedName));
+
+                if (!foundExportedName)
+                {
+                    lock (product)
+                    {
+                        product.ExportedNameCeneo = null;
+                        updatedProductsBag.Add(product);
+                    }
+                }
+            }
+
             // --- Ceny z XML Feed (Ostrzykiwanie) ---
             if (store.UseCeneoXMLFeedPrice && !foundOurStoreCeneo && (product.GoogleXMLPrice ?? 0) > 0)
             {
