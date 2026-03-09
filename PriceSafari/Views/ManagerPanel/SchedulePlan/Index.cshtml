@@ -103,6 +103,10 @@
     .flag-auto-true {
         background-color: #6f42c1; 
     }
+
+    .flag-gather-true {
+        background-color: #0d6efd;
+    }
 </style>
 
 <table class="excel-table">
@@ -238,6 +242,12 @@
                                     <div class="flag" title="Automatyzacja Marketplace">
                                         BOT CENOWY Allegro:<span class="flag-box @(task.MarketPlaceAutomationEnabled ? "flag-auto-true" : "flag-false")">@(task.MarketPlaceAutomationEnabled ? "T" : "F")</span>
                                     </div>
+
+
+                                    <div class="flag" title="Wyszukiwanie Produktów Allegro">
+                                        Allegro Gather: <span class="flag-box @(task.AllegroGatherEnabled ? "flag-gather-true" : "flag-false")">@(task.AllegroGatherEnabled ? "T" : "F")</span>
+                                    </div>
+
                                 </div>
 
                                 <hr />
