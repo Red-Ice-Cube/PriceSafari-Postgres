@@ -581,7 +581,6 @@ namespace PriceSafari.Controllers.ManagerControllers
         [HttpPost]
         public async Task<IActionResult> CreateOrUpdateProductsFromProductMap(int storeId, bool addGooglePrices)
         {
-
             var mappedProducts = await _context.ProductMaps
                 .Where(p => p.StoreId == storeId)
                 .ToListAsync();
@@ -595,18 +594,75 @@ namespace PriceSafari.Controllers.ManagerControllers
                 int? externalId = int.TryParse(mappedProduct.ExternalId, out var extId) ? extId : (int?)null;
                 string url = mappedProduct.Url;
 
+                // 1. Szukaj po ExternalId + Url
                 var existingProduct = existingProducts
                     .FirstOrDefault(p => p.ExternalId == externalId && p.Url == url);
 
+                // 2. Fallback: szukaj po ExportedNameCeneo
+                if (existingProduct == null && !string.IsNullOrEmpty(mappedProduct.ExportedName))
+                {
+                    var candidatesByName = existingProducts
+                        .Where(p => !string.IsNullOrEmpty(p.ExportedNameCeneo)
+                                    && SimplifyName(p.ExportedNameCeneo) == SimplifyName(mappedProduct.ExportedName))
+                        .ToList();
+
+                    if (candidatesByName.Count == 1)
+                    {
+                        existingProduct = candidatesByName.First();
+                    }
+                }
+
+                // 3. Fallback: szukaj po samym Url
+                if (existingProduct == null && !string.IsNullOrWhiteSpace(url))
+                {
+                    var candidatesByUrl = existingProducts
+                        .Where(p => p.Url == url)
+                        .ToList();
+
+                    if (candidatesByUrl.Count == 1)
+                    {
+                        existingProduct = candidatesByUrl.First();
+                    }
+                }
+
                 if (existingProduct != null)
                 {
-
                     MapProductFields(existingProduct, mappedProduct, addGooglePrices);
                     _context.Products.Update(existingProduct);
+
+                    // --- NOWE: Szukaj sierot z pasującą nazwą Ceneo i scalaj ---
+                    if (!string.IsNullOrEmpty(mappedProduct.ExportedName))
+                    {
+                        var simplifiedXmlName = SimplifyName(mappedProduct.ExportedName);
+
+                        var orphans = existingProducts
+                            .Where(p => p.ProductId != existingProduct.ProductId
+                                        && !string.IsNullOrEmpty(p.ExportedNameCeneo)
+                                        && SimplifyName(p.ExportedNameCeneo) == simplifiedXmlName)
+                            .ToList();
+
+                        foreach (var orphan in orphans)
+                        {
+                            // Sierota ma nowszy OfferUrl → nadpisujemy
+                            if (!string.IsNullOrEmpty(orphan.OfferUrl))
+                            {
+                                existingProduct.OfferUrl = orphan.OfferUrl;
+                            }
+
+                            // Przenosimy ExportedNameCeneo jeśli główny nie ma
+                            if (string.IsNullOrEmpty(existingProduct.ExportedNameCeneo)
+                                && !string.IsNullOrEmpty(orphan.ExportedNameCeneo))
+                            {
+                                existingProduct.ExportedNameCeneo = orphan.ExportedNameCeneo;
+                            }
+
+                            _context.Products.Remove(orphan);
+                            existingProducts.Remove(orphan); // żeby nie matchował ponownie
+                        }
+                    }
                 }
                 else
                 {
-
                     var newProduct = new ProductClass
                     {
                         StoreId = storeId,
@@ -615,7 +671,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                     };
 
                     MapProductFields(newProduct, mappedProduct, addGooglePrices);
-
                     _context.Products.Add(newProduct);
                 }
             }

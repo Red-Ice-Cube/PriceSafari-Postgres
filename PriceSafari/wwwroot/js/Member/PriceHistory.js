@@ -1243,7 +1243,8 @@
                         marginAmount: marginAmount,
                         marginPercentage: marginPercentage,
                         marginSign: marginSign,
-                        marginClass: marginClass
+                        marginClass: marginClass,
+                        isNew: price.isNew
                     };
                 });
 
@@ -1314,6 +1315,7 @@
 
                 updateFlagCounts(allPrices);
                 updateAutomationFilterUI(allPrices);
+                updateNewProductCount(allPrices);
                 const currentSearchTerm = document.getElementById('productSearch').value;
                 let filteredPrices = allPrices;
 
@@ -2472,6 +2474,9 @@
             const priceBoxColumnName = document.createElement('div');
             priceBoxColumnName.className = 'price-box-column-name';
             priceBoxColumnName.innerHTML = highlightedProductName;
+            if (item.isNew) {
+                priceBoxColumnName.insertAdjacentHTML('beforeend', '<div><span class="badge-new">NEW</span></div>');
+            }
             const flagsContainer = createFlagsContainer(item);
 
             leftColumn.appendChild(priceBoxColumnName);
@@ -3622,6 +3627,11 @@
     }
 
 
+    function updateNewProductCount(prices) {
+        const newCount = prices.filter(p => p.isNew).length;
+        const countEl = document.getElementById('count-new');
+        if (countEl) countEl.textContent = `(${newCount})`;
+    }
 
     function filterPricesAndUpdateUI(resetPageFlag = true) {
         if (resetPageFlag) {
@@ -3824,6 +3834,11 @@
                 );
             }
 
+            const filterNewCheckboxEl = document.getElementById('filter-new');
+            if (filterNewCheckboxEl && filterNewCheckboxEl.checked) {
+                filteredPrices = filteredPrices.filter(item => item.isNew === true);
+            }
+
             currentlyFilteredPrices = [...filteredPrices];
 
             renderPrices(filteredPrices);
@@ -3831,6 +3846,7 @@
             updateColorCounts(filteredPrices);
             updateFlagCounts(filteredPrices);
             updateAutomationFilterUI(filteredPrices);
+            updateNewProductCount(filteredPrices);
             hideLoading();
         }, 0);
     }
@@ -3935,6 +3951,14 @@
     document.getElementById('suspiciouslyLowFilter').addEventListener('change', function () {
         filterPricesAndUpdateUI();
     });
+
+    const filterNewCheckbox = document.getElementById('filter-new');
+    if (filterNewCheckbox) {
+        filterNewCheckbox.addEventListener('change', function () {
+            showLoading();
+            filterPricesAndUpdateUI();
+        });
+    }
 
     document.getElementById('sortName').addEventListener('click', function () {
         if (sortingState.sortName === null) {

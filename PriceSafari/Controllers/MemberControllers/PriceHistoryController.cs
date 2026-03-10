@@ -241,7 +241,8 @@ namespace PriceSafari.Controllers.MemberControllers
                                 CeneoInStock = (ph != null ? ph.CeneoInStock : (bool?)null),
                                 GoogleInStock = (ph != null ? ph.GoogleInStock : (bool?)null),
                                 IsRejected = p.IsRejected,
-                                ShippingCostNum = (ph != null ? ph.ShippingCostNum : (decimal?)null)
+                                ShippingCostNum = (ph != null ? ph.ShippingCostNum : (decimal?)null),
+                                AddedDate = p.AddedDate
                             };
 
             var activePreset = await _context.CompetitorPresets
@@ -334,7 +335,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     StartDate = a.AutomationRule.ScheduledStartDate,
                     EndDate = a.AutomationRule.ScheduledEndDate
                 })
-        .ToDictionaryAsync(a => a.ProductId);
+            .ToDictionaryAsync(a => a.ProductId);
+            var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
             var allPrices = rawPrices
                    .GroupBy(p => p.ProductId)
                    .Select(g =>
@@ -632,7 +634,8 @@ namespace PriceSafari.Controllers.MemberControllers
                            AutomationRuleColor = autoRule?.RuleColor,
                            IsAutomationActive = autoRule?.IsActive,
                            AutomationRuleId = autoRule?.RuleId,
-                           IsAutomationPaused = isAutomationPaused
+                           IsAutomationPaused = isAutomationPaused,
+                           IsNew = product.AddedDate >= sevenDaysAgo
                        };
                    })
                    .Where(p => p != null)
@@ -678,6 +681,7 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool? GoogleInStock { get; set; }
             public bool IsRejected { get; set; }
             public decimal? ShippingCostNum { get; set; }
+            public DateTime AddedDate { get; set; }
         }
 
 
