@@ -433,7 +433,7 @@
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="filter-new" value="new">
                             <label class="form-check-label" for="filter-new">
-                                Nowy 7 dni (<span id="count-new">0</span>)
+                                Nowy - 7 dni (<span id="count-new">0</span>)
                             </label>
                         </div>
                         <button id="select-all" class="Button-Page-Small" style="height:33px; margin-top:16px;">
@@ -868,7 +868,7 @@
                 var hasPrice   = product.marginPrice != null && product.marginPrice.toString().trim() !== '';
                 var priceValue = hasPrice ? parseFloat(product.marginPrice).toFixed(2) : '';
                 var statusInfo = getStatusInfo(product);
-        var newBadgeHtml = isNewProduct(product) ? '<span class="badge-new">Nowy</span>' : '';
+        var newBadgeHtml = isNewProduct(product) ? '<span class="badge-new">NEW</span>' : '';
                 var purchasePriceHtml =
                     '<div class="price-display-container">' +
                         '<span class="price-text">' + (hasPrice ? priceValue + ' PLN' : 'Brak') + '</span>' +

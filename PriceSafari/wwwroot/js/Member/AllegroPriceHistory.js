@@ -764,7 +764,11 @@
             label.textContent = `Wprowadzone zmiany cen (${committedCount})`;
         }
     }
-
+    function updateNewProductCount(prices) {
+        const newCount = prices.filter(p => p.isNew).length;
+        const countEl = document.getElementById('count-new');
+        if (countEl) countEl.textContent = `(${newCount})`;
+    }
     function hexToRgba(hex, alpha) {
         let r = 0,
             g = 0,
@@ -1726,9 +1730,14 @@
             rightColumn.className = 'price-box-right-column';
 
             const flagsContainer = createFlagsContainer(item);
+
+            
+            if (item.isNew) {
+                priceBoxColumnName.insertAdjacentHTML('beforeend', '<div><span class="badge-new">NEW</span></div>');
+            }
+
             leftColumn.appendChild(priceBoxColumnName);
             leftColumn.appendChild(flagsContainer);
-
             const selectProductButton = document.createElement('button');
             selectProductButton.className = 'select-product-btn';
             selectProductButton.dataset.productId = item.productId;
@@ -2625,7 +2634,10 @@
             if (showCommittedOnly) {
                 filtered = filtered.filter(item => item.committed);
             }
-
+            const filterNewCheckboxEl = document.getElementById('filter-new');
+            if (filterNewCheckboxEl && filterNewCheckboxEl.checked) {
+                filtered = filtered.filter(item => item.isNew === true);
+            }
             filtered.forEach(item => {
                 const suggestionData = calculateCurrentSuggestion(item);
                 if (suggestionData) {
@@ -2774,6 +2786,7 @@
             updateBadgeCounts(filtered);
             updateStatusCounts(filtered);
             updateAutomationFilterUI(filtered);
+            updateNewProductCount(filtered);
             hideLoading();
         }, 10);
     }
@@ -3171,7 +3184,10 @@
             showCommittedOnly = this.checked;
             filterAndSortPrices();
         });
-
+        const filterNewCheckbox = document.getElementById('filter-new');
+        if (filterNewCheckbox) {
+            filterNewCheckbox.addEventListener('change', () => filterAndSortPrices());
+        }
         document.getElementById('linkOffers').addEventListener('click', function () {
             isCatalogViewActive = !isCatalogViewActive;
             this.classList.toggle('active', isCatalogViewActive);

@@ -1958,9 +1958,9 @@ img.lazy-load-flex {
 
 .badge-new {
     display: inline-block;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 11px;
+    padding: 2px 12px;
+    border-radius: 16px;
+    font-size: 14px;
     font-weight: 600;
     background-color: #e0f2fe;
     color: #0284c7;

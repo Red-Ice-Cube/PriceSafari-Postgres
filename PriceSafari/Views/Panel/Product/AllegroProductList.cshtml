@@ -389,7 +389,7 @@
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="filter-new" value="new">
                             <label class="form-check-label" for="filter-new">
-                                Nowy 7 dni (<span id="count-new">0</span>)
+                                Nowy - 7 dni (<span id="count-new">0</span>)
                             </label>
                         </div>
 
@@ -767,7 +767,7 @@
 
             var hasPrice   = product.allegroMarginPrice != null && product.allegroMarginPrice.toString().trim() !== '';
             var priceValue = hasPrice ? parseFloat(product.allegroMarginPrice).toFixed(2) : '';
-            var newBadgeHtml = isNewProduct(product) ? '<span class="badge-new">Nowy</span>' : '';
+            var newBadgeHtml = isNewProduct(product) ? '<span class="badge-new">NEW</span>' : '';
 
             var purchasePriceHtml =
                 '<div class="price-display-container">' +

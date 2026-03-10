@@ -230,7 +230,7 @@ namespace PriceSafari.Controllers.MemberControllers
             var extendedInfoDictionary = allExtendedInfo
                 .GroupBy(e => e.AllegroProductId)
                 .ToDictionary(g => g.Key, g => g.First());
-
+            var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
             var groupedData = priceData
                 .GroupBy(aph => aph.AllegroProduct)
                 .Select(g =>
@@ -423,6 +423,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         MyOffersGroupKey = myOffersGroupKey,
                         MyDeliveryTime = myOffer?.DeliveryTime,
                         MyIsSuperSeller = myOffer?.SuperSeller ?? false,
+                        IsNew = product.AddedDate >= sevenDaysAgo,
                         MyIsSmart = myOffer?.Smart ?? false,
                         MyIsBestPriceGuarantee = myOffer?.IsBestPriceGuarantee ?? false,
                         MyIsTopOffer = myOffer?.TopOffer ?? false,
