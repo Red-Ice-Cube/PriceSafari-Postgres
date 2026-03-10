@@ -287,36 +287,84 @@ namespace PriceSafari.Controllers.ManagerControllers
         public async Task<IActionResult> MapProducts(int storeId, bool mergeExisting = false)
         {
             var storeProducts = await _context.Products
-                .Where(p => p.StoreId == storeId && !string.IsNullOrEmpty(p.ExportedNameCeneo))
+                .Where(p => p.StoreId == storeId)
                 .ToListAsync();
 
-            var groupedProducts = storeProducts
-                .GroupBy(p => SimplifyName(p.ExportedNameCeneo))
+            // Zbiór ID produktów już scalonych (żeby nie wchodzić w nie ponownie)
+            var mergedProductIds = new HashSet<int>();
+
+            // --- KROK 1: Grupowanie po ExternalId ---
+            var groupsByExternalId = storeProducts
+                .Where(p => p.ExternalId.HasValue && !mergedProductIds.Contains(p.ProductId))
+                .GroupBy(p => p.ExternalId.Value)
+                .Where(g => g.Count() > 1)
                 .ToList();
 
-            foreach (var group in groupedProducts)
+            foreach (var group in groupsByExternalId)
             {
                 var productsInGroup = group.ToList();
+                var mainProduct = productsInGroup.First();
 
-                if (productsInGroup.Count > 1)
+                for (int i = 1; i < productsInGroup.Count; i++)
                 {
-                    var mainProduct = productsInGroup.First();
-
-                    for (int i = 1; i < productsInGroup.Count; i++)
-                    {
-                        var duplicateProduct = productsInGroup[i];
-
-                        MergeProductData(mainProduct, duplicateProduct, mergeExisting);
-
-                        _context.Products.Remove(duplicateProduct);
-                    }
-
-                    _context.Products.Update(mainProduct);
+                    MergeProductData(mainProduct, productsInGroup[i], mergeExisting);
+                    _context.Products.Remove(productsInGroup[i]);
+                    mergedProductIds.Add(productsInGroup[i].ProductId);
                 }
+
+                _context.Products.Update(mainProduct);
+                mergedProductIds.Add(mainProduct.ProductId);
+            }
+
+            // --- KROK 2: Grupowanie po EAN ---
+            var groupsByEan = storeProducts
+                .Where(p => !string.IsNullOrEmpty(p.Ean) && !mergedProductIds.Contains(p.ProductId))
+                .GroupBy(p => p.Ean.Trim())
+                .Where(g => g.Count() > 1)
+                .ToList();
+
+            foreach (var group in groupsByEan)
+            {
+                var productsInGroup = group.ToList();
+                var mainProduct = productsInGroup.First();
+
+                for (int i = 1; i < productsInGroup.Count; i++)
+                {
+                    MergeProductData(mainProduct, productsInGroup[i], mergeExisting);
+                    _context.Products.Remove(productsInGroup[i]);
+                    mergedProductIds.Add(productsInGroup[i].ProductId);
+                }
+
+                _context.Products.Update(mainProduct);
+                mergedProductIds.Add(mainProduct.ProductId);
+            }
+
+            // --- KROK 3: Grupowanie po nazwie Ceneo (jak dotychczas) ---
+            var groupsByName = storeProducts
+                .Where(p => !string.IsNullOrEmpty(p.ExportedNameCeneo) && !mergedProductIds.Contains(p.ProductId))
+                .GroupBy(p => SimplifyName(p.ExportedNameCeneo))
+                .Where(g => g.Count() > 1)
+                .ToList();
+
+            foreach (var group in groupsByName)
+            {
+                var productsInGroup = group.ToList();
+                var mainProduct = productsInGroup.First();
+
+                for (int i = 1; i < productsInGroup.Count; i++)
+                {
+                    MergeProductData(mainProduct, productsInGroup[i], mergeExisting);
+                    _context.Products.Remove(productsInGroup[i]);
+                    mergedProductIds.Add(productsInGroup[i].ProductId);
+                }
+
+                _context.Products.Update(mainProduct);
+                mergedProductIds.Add(mainProduct.ProductId);
             }
 
             await _context.SaveChangesAsync();
 
+            TempData["SuccessMessage"] = $"Scalono produkty. Przetworzono {mergedProductIds.Count} produktów w {groupsByExternalId.Count + groupsByEan.Count + groupsByName.Count} grupach.";
             return RedirectToAction("MappedProducts", new { storeId });
         }
 
