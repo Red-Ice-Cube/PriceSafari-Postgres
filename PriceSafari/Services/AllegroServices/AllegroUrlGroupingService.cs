@@ -137,6 +137,7 @@ namespace PriceSafari.Services.AllegroServices
             _logger.LogInformation("Znaleziono {UrlCount} unikalnych URL-i z {ProductCount} produktów.", offersToSave.Count, allProducts.Count);
 
             _logger.LogInformation("Czyszczenie istniejących danych w tabeli pośredniej...");
+            await _context.AllegroScrapedOffers.ExecuteDeleteAsync();
             await _context.AllegroOffersToScrape.ExecuteDeleteAsync();
 
             _logger.LogInformation("Zapisywanie nowych, zgrupowanych danych...");
