@@ -316,7 +316,7 @@
                             <td class="store-name">
                                 @item.StoreName
                             </td>
-                            <td class="store-price">@item.Price PLN</td>
+                            <td class="store-price">@item.Price.ToString("0.00") PLN</td>
                             <td>
                                 @if (item.StoreName != storeName && priceDifferencePLN != 0)
                                 {

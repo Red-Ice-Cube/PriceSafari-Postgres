@@ -1162,8 +1162,6 @@ namespace PriceSafari.Services.PriceAutomationService
 
             if (!currentProductIds.Any()) return new AutomationSalesHistoryViewModel();
 
-            var currentProductIdSet = currentProductIds.ToHashSet();
-
             var scrapHistories = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == rule.StoreId)
                 .OrderByDescending(sh => sh.Date)
@@ -1174,6 +1172,7 @@ namespace PriceSafari.Services.PriceAutomationService
 
             var scrapIds = scrapHistories.Select(s => s.Id).ToList();
 
+            // ZMIANA 1: Pobieramy dodatkowo IdAllegro, aby wiedzieć, jaka to dokładnie aukcja
             var allRecords = await _context.AllegroPriceHistories
                 .Where(h => scrapIds.Contains(h.AllegroScrapeHistoryId)
                          && currentProductIds.Contains(h.AllegroProductId))
@@ -1181,6 +1180,7 @@ namespace PriceSafari.Services.PriceAutomationService
                 {
                     h.AllegroScrapeHistoryId,
                     h.AllegroProductId,
+                    h.IdAllegro, // <-- Kluczowe pole do deduplikacji
                     h.SellerName,
                     h.Popularity
                 })
@@ -1196,22 +1196,31 @@ namespace PriceSafari.Services.PriceAutomationService
                     .Where(h => h.AllegroScrapeHistoryId == scrap.Id)
                     .ToList();
 
+                // Liczba Twoich wew. produktów z bazy, dla których pobraliśmy jakieś dane (zostaje bez zmian)
                 int productsWithAnyData = recordsForScrap
                     .Select(r => r.AllegroProductId)
                     .Distinct()
                     .Count();
 
-                int productsWithMyOffer = recordsForScrap
+                // ZMIANA 2: Tworzymy unikalną listę fizycznych ofert (aukcji) z tego scrapu
+                var uniqueOffersForScrap = recordsForScrap
+                    .GroupBy(x => x.IdAllegro)
+                    .Select(g => g.First())
+                    .ToList();
+
+                // ZMIANA 3: Liczymy aktywne oferty używając już zdeduplikowanej listy (żeby zliczyć unikalne aukcje, a nie powielone produkty)
+                int productsWithMyOffer = uniqueOffersForScrap
                     .Where(r => r.SellerName == myStoreName)
-                    .Select(r => r.AllegroProductId)
+                    .Select(r => r.IdAllegro)
                     .Distinct()
                     .Count();
 
-                long mySales = recordsForScrap
+                // ZMIANA 4: Sumujemy sprzedaż bazując na liście unikalnych aukcji
+                long mySales = uniqueOffersForScrap
                     .Where(x => x.SellerName == myStoreName)
                     .Sum(x => x.Popularity ?? 0);
 
-                long marketSales = recordsForScrap
+                long marketSales = uniqueOffersForScrap
                     .Sum(x => x.Popularity ?? 0);
 
                 model.MySales.Add(mySales);
