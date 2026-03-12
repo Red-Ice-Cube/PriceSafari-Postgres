@@ -2788,6 +2788,9 @@ int udmValue = 3)
         [JsonPropertyName("captchaCountBeforeNetworkReset")]
         public int CaptchaCountBeforeNetworkReset { get; set; } = 5;
 
+        [JsonPropertyName("useGpid")]
+        public bool UseGpid { get; set; } = false;
+
         [JsonPropertyName("mullvadPath")]
         public string MullvadPath { get; set; } = @"C:\Program Files\Mullvad VPN\resources\mullvad.exe";
 
@@ -2850,6 +2853,10 @@ int udmValue = 3)
 
         [JsonPropertyName("originalUrl")]
         public string OriginalUrl { get; set; }
+
+        [JsonPropertyName("useGpid")]
+        public bool UseGpid { get; set; } = false;
+
 
         [JsonPropertyName("ean")]
         public string Ean { get; set; }
@@ -3170,7 +3177,8 @@ int udmValue = 3)
                     googleGid = task.GoogleGid,
                     googleHid = task.GoogleHid,
                     targetCode = task.TargetCode,
-                    eligibleProductsMap = task.EligibleProductsMap
+                    eligibleProductsMap = task.EligibleProductsMap,
+                    useGpid = task.UseGpid,
                 }
             });
         }
@@ -3406,7 +3414,8 @@ int udmValue = 3)
                 UdmValue = udm,
                 StoreId = storeId,
                 EligibleProductsMap = eligibleProductsMap,
-                TargetCode = product.ProducerCode
+                TargetCode = product.ProducerCode,
+                UseGpid = _externalScraperSettings.UseGpid,
             };
 
             _externalTaskQueue.Enqueue(task);
@@ -3723,7 +3732,8 @@ int udmValue = 3)
                     StoreId = storeId,
                     EligibleProductsMap = eligibleProductsMap,
 
-                    TargetCode = product.ProducerCode
+                    TargetCode = product.ProducerCode,
+                    UseGpid = _externalScraperSettings.UseGpid,
                 };
 
                 _externalTaskQueue.Enqueue(task);

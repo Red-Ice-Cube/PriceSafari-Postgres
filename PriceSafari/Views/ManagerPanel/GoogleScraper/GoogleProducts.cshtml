@@ -239,6 +239,10 @@
                     <input type="checkbox" class="form-check-input" id="extAppendProducerCode" />
                     <label class="form-check-label small">Doklej kod producenta do zapytania</label>
                 </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="extUseGpid" />
+                    <label class="form-check-label small">Użyj CID + GID (tryb GPID)</label>
+                </div>
             </div>
         </div>
 
@@ -513,6 +517,7 @@
                     $('#extNukeThreshold').val(data.nukeThreshold || 7);
                     $('#extAutoNuke').prop('checked', data.autoNetworkResetOnCaptcha !== false);
                     $('#extMullvadCountry').val(data.mullvadCountryCode || 'pl');
+                    $('#extUseGpid').prop('checked', data.useGpid === true);
                     $('#extMullvadCity').val(data.mullvadCityCode || 'waw');
                     $('#extModemUrl').val(data.modemUrl || 'http://192.168.1.1');
                     $('#extModemWait').val(data.modemRestartWaitSeconds || 50);
@@ -539,6 +544,7 @@
             mullvadCountryCode: $('#extMullvadCountry').val(),
             mullvadCityCode: $('#extMullvadCity').val(),
             modemUrl: $('#extModemUrl').val(),
+            useGpid: $('#extUseGpid').is(':checked'),
             modemPassword: $('#extModemPassword').val() || null,
             modemRestartWaitSeconds: parseInt($('#extModemWait').val()) || 50 // Tutaj był główny błąd
         };
