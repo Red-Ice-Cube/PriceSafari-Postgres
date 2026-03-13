@@ -2128,6 +2128,7 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap4.min.js"></script>
+    <script src="~/js/member/MassActions.js"></script>
     <script>
         if (sessionStorage.getItem('automation_scrollToProduct')) {
         document.documentElement.style.visibility = 'hidden';
@@ -2212,9 +2213,57 @@
                 const isAllegroContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
                 const sourceTypeInt = isAllegroContext ? 1 : 0;
 
-                let selectedProductIds = new Set();
-                let selectedProductNames = new Map();
-                let selectedProductIdentifiers = new Map();
+                // let selectedProductIds = new Set();
+                // let selectedProductNames = new Map();
+                // let selectedProductIdentifiers = new Map();
+                const massActions = new window.MassActions({
+                    storeId: storeId,
+                    isAllegro: isAllegroContext, // Korzystamy ze zmiennej, którą już masz w widoku
+                    storageKey: `automationDetails_selected_${currentRuleId}_${storeId}`, // Unikalny klucz dla tego widoku
+                    flags: typeof flags !== 'undefined' ? flags : [], 
+                    // W tym widoku nie filtrujemy asynchronicznie po API, tylko chowamy wiersze w DOM, 
+                    // więc getAllPrices i getFilteredPrices zwrócą obiekty symulujące z DOM
+                    getAllPrices: function() {
+                        return Array.from(document.querySelectorAll('#automationTable tbody tr')).map(row => {
+                            const btn = row.querySelector('.select-product-btn');
+                            if(!btn) return null;
+                            return {
+                                productId: btn.dataset.productId,
+                                productName: btn.dataset.productName,
+                                // Tutaj wkładamy surowy tekst z tabeli jako ID, żeby modal sobie to zjadł
+                                identifierText: btn.dataset.identifier 
+                            };
+                        }).filter(Boolean);
+                    },
+                    getFilteredPrices: function() {
+                        return Array.from(document.querySelectorAll('#automationTable tbody tr'))
+                            .filter(row => row.style.display !== 'none' && !row.classList.contains('filter-hidden'))
+                            .map(row => {
+                                const btn = row.querySelector('.select-product-btn');
+                                if(!btn) return null;
+                                return {
+                                    productId: btn.dataset.productId,
+                                    productName: btn.dataset.productName,
+                                    identifierText: btn.dataset.identifier
+                                };
+                            }).filter(Boolean);
+                    },
+                    getProductIdentifier: function(product) {
+                        return { label: 'ID/EAN', value: product.identifierText };
+                    },
+                    showLoading: showLoading,
+                    hideLoading: hideLoading,
+                    // W tym widoku alerty są inne, ale użyjemy alert() lub prostej modyfikacji, 
+                    // ponieważ brakuje divów #globalUpdate z poprzednich widoków
+                    showGlobalUpdate: function(msg) { alert("Sukces: Zaktualizowano pomyślnie."); },
+                    showGlobalNotification: function(msg) { alert("Powiadomienie: " + msg); },
+                    onFlagsUpdated: () => location.reload(), // Przeładuj stronę
+                    onAutomationsUpdated: () => location.reload() // Przeładuj stronę
+                });
+
+                document.addEventListener("DOMContentLoaded", function () {
+                massActions.init();
+                });
 
                 function showNoAccessAlert() {
                     alert('@Html.Raw(noAccessMessage)');
@@ -2223,361 +2272,393 @@
                 function showLoading() { $('#loadingOverlay').css('display', 'flex'); }
                 function hideLoading() { $('#loadingOverlay').hide(); }
 
-                function updateCounter() {
+                // function updateCounter() {
 
-                    const count = selectedProductIds.size;
-                    $('#selectedProductsCounter').text(`Wybrano: ${count}`);
+                //     const count = selectedProductIds.size;
+                //     $('#selectedProductsCounter').text(`Wybrano: ${count}`);
 
-                    const modalCounter = document.getElementById('selectedProductsModalCounter');
-                    if (modalCounter) modalCounter.textContent = count;
+                //     const modalCounter = document.getElementById('selectedProductsModalCounter');
+                //     if (modalCounter) modalCounter.textContent = count;
 
-                    const automationCount = document.getElementById('automationProductCountDisplay');
-                    if (automationCount) automationCount.textContent = count;
-                }
+                //     const automationCount = document.getElementById('automationProductCountDisplay');
+                //     if (automationCount) automationCount.textContent = count;
+                // }
 
-                      function updateBtnState(btn, isSelected) {
-                    if (isSelected) {
-                        btn.text('Wybrano');
-                        btn.addClass('selected');
-                    } else {
-                        btn.text('Zaznacz');
-                        btn.removeClass('selected');
-                    }
-                }
+                //       function updateBtnState(btn, isSelected) {
+                //     if (isSelected) {
+                //         btn.text('Wybrano');
+                //         btn.addClass('selected');
+                //     } else {
+                //         btn.text('Zaznacz');
+                //         btn.removeClass('selected');
+                //     }
+                // }
 
-                function updateVisibleProductSelectionButtons() {
-                    $('.select-product-btn').each(function() {
-                        const btn = $(this);
-                        const pid = btn.data('product-id').toString();
-                        if (selectedProductIds.has(pid)) {
-                            updateBtnState(btn, true);
-                        } else {
-                            updateBtnState(btn, false);
-                        }
-                    });
-                }
+                // function updateVisibleProductSelectionButtons() {
+                //     $('.select-product-btn').each(function() {
+                //         const btn = $(this);
+                //         const pid = btn.data('product-id').toString();
+                //         if (selectedProductIds.has(pid)) {
+                //             updateBtnState(btn, true);
+                //         } else {
+                //             updateBtnState(btn, false);
+                //         }
+                //     });
+                // }
 
-                function renderSelectedList() {
-                     const container = document.getElementById('selectedProductsList');
-                     container.innerHTML = '';
+                // function renderSelectedList() {
+                //      const container = document.getElementById('selectedProductsList');
+                //      container.innerHTML = '';
 
-                     if (selectedProductIds.size === 0) {
-                         container.innerHTML = '<div class="alert alert-info text-center">Nie zaznaczono żadnych produktów.</div>';
-                         return;
-                     }
+                //      if (selectedProductIds.size === 0) {
+                //          container.innerHTML = '<div class="alert alert-info text-center">Nie zaznaczono żadnych produktów.</div>';
+                //          return;
+                //      }
 
-                     const table = document.createElement('table');
-                     table.className = 'table-orders';
+                //      const table = document.createElement('table');
+                //      table.className = 'table-orders';
 
-                     table.innerHTML = `<thead><tr><th style="width: 60%;">Nazwa Produktu</th><th style="width: 30%;">Identyfikator</th><th class="text-center">Akcja</th></tr></thead>`;
-                     const tbody = document.createElement('tbody');
+                //      table.innerHTML = `<thead><tr><th style="width: 60%;">Nazwa Produktu</th><th style="width: 30%;">Identyfikator</th><th class="text-center">Akcja</th></tr></thead>`;
+                //      const tbody = document.createElement('tbody');
 
-                     selectedProductIds.forEach(productId => {
-                         const name = selectedProductNames.get(productId) || '---';
-                         const identifier = selectedProductIdentifiers.get(productId) || '-';
+                //      selectedProductIds.forEach(productId => {
+                //          const name = selectedProductNames.get(productId) || '---';
+                //          const identifier = selectedProductIdentifiers.get(productId) || '-';
 
-                         const tr = document.createElement('tr');
+                //          const tr = document.createElement('tr');
 
-                         tr.innerHTML = `
-                           <td class="align-middle">
-                               <div style="line-height:1.2; font-weight:600;">${name}</div>
-                           </td>
-                           <td class="align-middle">
-                               <div style="display:flex; flex-direction:column;">
-                                   <span style="font-size:10px; color:#858796; text-transform:uppercase;">ID:</span>
-                                   <span style="font-family:monospace; font-size:12px; color:#333;">${identifier}</span>
-                               </div>
-                           </td>
-                           <td class="text-center align-middle">
-                               <button class="btn btn-danger btn-sm remove-selection-btn" data-product-id="${productId}" title="Usuń z zaznaczonych" style="padding: 2px 6px;">
-                                   <i class="fa-solid fa-trash-can"></i>
-                               </button>
-                           </td>`;
-                         tbody.appendChild(tr);
-                     });
+                //          tr.innerHTML = `
+                //            <td class="align-middle">
+                //                <div style="line-height:1.2; font-weight:600;">${name}</div>
+                //            </td>
+                //            <td class="align-middle">
+                //                <div style="display:flex; flex-direction:column;">
+                //                    <span style="font-size:10px; color:#858796; text-transform:uppercase;">ID:</span>
+                //                    <span style="font-family:monospace; font-size:12px; color:#333;">${identifier}</span>
+                //                </div>
+                //            </td>
+                //            <td class="text-center align-middle">
+                //                <button class="btn btn-danger btn-sm remove-selection-btn" data-product-id="${productId}" title="Usuń z zaznaczonych" style="padding: 2px 6px;">
+                //                    <i class="fa-solid fa-trash-can"></i>
+                //                </button>
+                //            </td>`;
+                //          tbody.appendChild(tr);
+                //      });
 
-                     table.appendChild(tbody);
-                     container.appendChild(table);
-                 }
+                //      table.appendChild(tbody);
+                //      container.appendChild(table);
+                //  }
 
-                function renderAutomationRulesInModal(rules, totalSelected) {
-                    console.log("Renderowanie reguł...", rules);
-                    const container = document.getElementById('automationRulesListContainer');
-                    if (!container) return;
+                // function renderAutomationRulesInModal(rules, totalSelected) {
+                //     console.log("Renderowanie reguł...", rules);
+                //     const container = document.getElementById('automationRulesListContainer');
+                //     if (!container) return;
 
-                    container.innerHTML = '';
+                //     container.innerHTML = '';
 
-                    const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
-                    const totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
+                //     const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
+                //     const totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
 
-                    const statsHeader = document.createElement('div');
-                    statsHeader.style.cssText = `
-                        background-color: #f8f9fa; border: 1px solid #e3e6f0; border-radius: 8px;
-                        padding: 15px; margin-bottom: 20px; display: flex;
-                        justify-content: space-around; align-items: center; text-align: center;
-                    `;
+                //     const statsHeader = document.createElement('div');
+                //     statsHeader.style.cssText = `
+                //         background-color: #f8f9fa; border: 1px solid #e3e6f0; border-radius: 8px;
+                //         padding: 15px; margin-bottom: 20px; display: flex;
+                //         justify-content: space-around; align-items: center; text-align: center;
+                //     `;
 
-                    statsHeader.innerHTML = `
-                        <div>
-                            <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Łącznie zaznaczone</div>
-                            <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalSelected}</div>
-                        </div>
-                        <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
-                        <div>
-                            <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Przypisane do reguły</div>
-                            <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalAssignedInSelection}</div>
-                        </div>
-                        <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
-                        <div>
-                            <div style="font-size: 11px; color: #e74a3b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Nieprzypisane</div>
-                            <div style="font-size: 20px; font-weight: 700; color: #e74a3b;">${Math.max(0, totalUnassignedInSelection)}</div>
-                        </div>
-                    `;
-                    container.appendChild(statsHeader);
+                //     statsHeader.innerHTML = `
+                //         <div>
+                //             <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Łącznie zaznaczone</div>
+                //             <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalSelected}</div>
+                //         </div>
+                //         <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
+                //         <div>
+                //             <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Przypisane do reguły</div>
+                //             <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalAssignedInSelection}</div>
+                //         </div>
+                //         <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
+                //         <div>
+                //             <div style="font-size: 11px; color: #e74a3b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Nieprzypisane</div>
+                //             <div style="font-size: 20px; font-weight: 700; color: #e74a3b;">${Math.max(0, totalUnassignedInSelection)}</div>
+                //         </div>
+                //     `;
+                //     container.appendChild(statsHeader);
 
-                    const unassignDiv = document.createElement('div');
-                    const hasAssignments = totalAssignedInSelection > 0;
+                //     const unassignDiv = document.createElement('div');
+                //     const hasAssignments = totalAssignedInSelection > 0;
 
-                    unassignDiv.className = 'automation-rule-item';
-                    unassignDiv.style.cssText = `
-                        border: 1px dashed ${hasAssignments ? '#e74a3b' : '#ccc'};
-                        border-radius: 8px; padding: 10px 15px;
-                        cursor: ${hasAssignments ? 'pointer' : 'default'};
-                        background-color: #fff;
-                        display: flex; justify-content: space-between; align-items: center;
-                        transition: background-color 0.2s; margin-bottom: 20px; opacity: ${hasAssignments ? '1' : '0.6'};
-                    `;
+                //     unassignDiv.className = 'automation-rule-item';
+                //     unassignDiv.style.cssText = `
+                //         border: 1px dashed ${hasAssignments ? '#e74a3b' : '#ccc'};
+                //         border-radius: 8px; padding: 10px 15px;
+                //         cursor: ${hasAssignments ? 'pointer' : 'default'};
+                //         background-color: #fff;
+                //         display: flex; justify-content: space-between; align-items: center;
+                //         transition: background-color 0.2s; margin-bottom: 20px; opacity: ${hasAssignments ? '1' : '0.6'};
+                //     `;
 
-                    if (hasAssignments) {
-                        unassignDiv.onmouseover = () => { unassignDiv.style.backgroundColor = '#fff5f5'; };
-                        unassignDiv.onmouseout = () => { unassignDiv.style.backgroundColor = '#fff'; };
-                        unassignDiv.addEventListener('click', () => {
-                            confirmAndUnassignRules();
-                        });
-                    }
+                //     if (hasAssignments) {
+                //         unassignDiv.onmouseover = () => { unassignDiv.style.backgroundColor = '#fff5f5'; };
+                //         unassignDiv.onmouseout = () => { unassignDiv.style.backgroundColor = '#fff'; };
+                //         unassignDiv.addEventListener('click', () => {
+                //             confirmAndUnassignRules();
+                //         });
+                //     }
 
-                    unassignDiv.innerHTML = `
-                        <div style="display:flex; align-items:center; gap:15px;">
-                            <div style="width:6px; height:45px; background-color:${hasAssignments ? '#e74a3b' : '#ccc'}; border-radius:3px;"></div>
-                            <div>
-                                <div style="font-weight:600; font-size:15px; color:${hasAssignments ? '#e74a3b' : '#888'};">Brak Automatyzacji (Odepnij)</div>
-                                <div style="font-size:13px; color:#666; margin-top:2px;">
-                                    ${hasAssignments ? `Odepnij <strong>${totalAssignedInSelection}</strong> zaznaczonych produktów od ich obecnych reguł.` : 'Żaden z zaznaczonych produktów nie jest przypisany do reguły.'}
-                                </div>
-                            </div>
-                        </div>
-                          <button class="Button-Page-Small-r" type="button" style="pointer-events:none; ${!hasAssignments ? 'background-color:#ccc; border-color:#ccc;' : ''}">Odepnij</button>
-                    `;
-                    container.appendChild(unassignDiv);
+                //     unassignDiv.innerHTML = `
+                //         <div style="display:flex; align-items:center; gap:15px;">
+                //             <div style="width:6px; height:45px; background-color:${hasAssignments ? '#e74a3b' : '#ccc'}; border-radius:3px;"></div>
+                //             <div>
+                //                 <div style="font-weight:600; font-size:15px; color:${hasAssignments ? '#e74a3b' : '#888'};">Brak Automatyzacji (Odepnij)</div>
+                //                 <div style="font-size:13px; color:#666; margin-top:2px;">
+                //                     ${hasAssignments ? `Odepnij <strong>${totalAssignedInSelection}</strong> zaznaczonych produktów od ich obecnych reguł.` : 'Żaden z zaznaczonych produktów nie jest przypisany do reguły.'}
+                //                 </div>
+                //             </div>
+                //         </div>
+                //           <button class="Button-Page-Small-r" type="button" style="pointer-events:none; ${!hasAssignments ? 'background-color:#ccc; border-color:#ccc;' : ''}">Odepnij</button>
+                //     `;
+                //     container.appendChild(unassignDiv);
 
-                    if (!rules || rules.length === 0) {
-                        const emptyDiv = document.createElement('div');
-                        emptyDiv.innerHTML = `<div class="alert alert-warning" style="text-align:center;">Brak zdefiniowanych innych reguł.</div>`;
-                        container.appendChild(emptyDiv);
-                        return;
-                    }
+                //     if (!rules || rules.length === 0) {
+                //         const emptyDiv = document.createElement('div');
+                //         emptyDiv.innerHTML = `<div class="alert alert-warning" style="text-align:center;">Brak zdefiniowanych innych reguł.</div>`;
+                //         container.appendChild(emptyDiv);
+                //         return;
+                //     }
 
-                    rules.sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }));
+                //     rules.sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }));
 
-                    rules.forEach(rule => {
+                //     rules.forEach(rule => {
 
-                        const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b';
-                        const statusText = rule.isActive ? 'Aktywna' : 'Nieaktywna';
+                //         const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b';
+                //         const statusText = rule.isActive ? 'Aktywna' : 'Nieaktywna';
 
-                        const isCompetitiveness = rule.strategyMode === 0;
-                        const strategyIcon = isCompetitiveness ? '<i class="fa-solid fa-bolt" style="color:#888;"></i>' : '<i class="fa-solid fa-dollar-sign" style="color:#888;"></i>';
-                        const strategyName = isCompetitiveness ? "Lider Rynku" : "Rentowność";
+                //         const isCompetitiveness = rule.strategyMode === 0;
+                //         const strategyIcon = isCompetitiveness ? '<i class="fa-solid fa-bolt" style="color:#888;"></i>' : '<i class="fa-solid fa-dollar-sign" style="color:#888;"></i>';
+                //         const strategyName = isCompetitiveness ? "Lider Rynku" : "Rentowność";
 
-                        const globalTotalInRule = rule.totalCount;
-                        const selectedAlreadyInRule = rule.matchingCount;
-                        const toBeAdded = totalSelected - selectedAlreadyInRule;
+                //         const globalTotalInRule = rule.totalCount;
+                //         const selectedAlreadyInRule = rule.matchingCount;
+                //         const toBeAdded = totalSelected - selectedAlreadyInRule;
 
-                        let backgroundStyle = selectedAlreadyInRule > 0 ? '#fcfcfc' : '#fff';
-                        let borderStyle = '#e3e6f0';
+                //         let backgroundStyle = selectedAlreadyInRule > 0 ? '#fcfcfc' : '#fff';
+                //         let borderStyle = '#e3e6f0';
 
-                        const div = document.createElement('div');
-                        div.className = 'automation-rule-item';
-                        div.style.cssText = `
-                            border: 1px solid ${borderStyle}; border-radius: 8px; padding: 12px 15px;
-                            cursor: pointer; background: ${backgroundStyle};
-                            display: flex; justify-content: space-between; align-items: center;
-                            transition: background-color 0.2s, border-color 0.2s; margin-bottom: 10px;
-                        `;
+                //         const div = document.createElement('div');
+                //         div.className = 'automation-rule-item';
+                //         div.style.cssText = `
+                //             border: 1px solid ${borderStyle}; border-radius: 8px; padding: 12px 15px;
+                //             cursor: pointer; background: ${backgroundStyle};
+                //             display: flex; justify-content: space-between; align-items: center;
+                //             transition: background-color 0.2s, border-color 0.2s; margin-bottom: 10px;
+                //         `;
 
-                        div.innerHTML = `
-                            <div style="display:flex; align-items:center; gap:15px; flex-grow: 1;">
-                                <div style="width:6px; height:45px; background-color:${rule.colorHex}; border-radius:3px; flex-shrink: 0;"></div>
-                                <div style="flex-grow: 1;">
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <div style="font-weight:600; font-size:16px; color:#333;">${rule.name}</div>
-                                        <div style="font-size:12px; color:#888; display:flex; align-items:center; gap:8px;">
-                                            <span style="display:flex; align-items:center; gap:4px;">${strategyIcon} ${strategyName}</span>
-                                            <span style="color:#e3e6f0;">|</span>
-                                            <span style="color:${statusColor}; font-weight:500; display:flex; align-items:center; gap:4px;"><i class="fa-solid fa-circle" style="font-size:6px;"></i> ${statusText}</span>
-                                        </div>
-                                    </div>
-                                    <div style="display:flex; gap: 15px; margin-top:6px; font-size:13px; color:#666; align-items: center; flex-wrap: wrap;">
-                                        <span title="Całkowita liczba produktów w tej regule"><i class="fa-solid fa-database" style="color:#999; margin-right:4px;"></i> Razem: <strong>${globalTotalInRule}</strong></span>
-                                        <span style="color:#e3e6f0;">|</span>
-                                        <span title="Ile z zaznaczonych jest tutaj"><i class="fa-solid fa-check-double" style="color:#999; margin-right:4px;"></i> Wybranych: <strong>${selectedAlreadyInRule}</strong></span>
-                                        <span style="color:#e3e6f0;">|</span>
-                                        <span title="Ile zostanie dodanych">Zostanie dodanych: <strong style="color:#1cc88a;">+${toBeAdded}</strong></span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div style="margin-left: 20px;">
-                                <button class="Button-Page-Small-bl assign-rule-btn" type="button" style="pointer-events:none; white-space:nowrap; padding: 5px 15px;">Wybierz</button>
-                            </div>
-                        `;
+                //         div.innerHTML = `
+                //             <div style="display:flex; align-items:center; gap:15px; flex-grow: 1;">
+                //                 <div style="width:6px; height:45px; background-color:${rule.colorHex}; border-radius:3px; flex-shrink: 0;"></div>
+                //                 <div style="flex-grow: 1;">
+                //                     <div style="display:flex; justify-content:space-between; align-items:center;">
+                //                         <div style="font-weight:600; font-size:16px; color:#333;">${rule.name}</div>
+                //                         <div style="font-size:12px; color:#888; display:flex; align-items:center; gap:8px;">
+                //                             <span style="display:flex; align-items:center; gap:4px;">${strategyIcon} ${strategyName}</span>
+                //                             <span style="color:#e3e6f0;">|</span>
+                //                             <span style="color:${statusColor}; font-weight:500; display:flex; align-items:center; gap:4px;"><i class="fa-solid fa-circle" style="font-size:6px;"></i> ${statusText}</span>
+                //                         </div>
+                //                     </div>
+                //                     <div style="display:flex; gap: 15px; margin-top:6px; font-size:13px; color:#666; align-items: center; flex-wrap: wrap;">
+                //                         <span title="Całkowita liczba produktów w tej regule"><i class="fa-solid fa-database" style="color:#999; margin-right:4px;"></i> Razem: <strong>${globalTotalInRule}</strong></span>
+                //                         <span style="color:#e3e6f0;">|</span>
+                //                         <span title="Ile z zaznaczonych jest tutaj"><i class="fa-solid fa-check-double" style="color:#999; margin-right:4px;"></i> Wybranych: <strong>${selectedAlreadyInRule}</strong></span>
+                //                         <span style="color:#e3e6f0;">|</span>
+                //                         <span title="Ile zostanie dodanych">Zostanie dodanych: <strong style="color:#1cc88a;">+${toBeAdded}</strong></span>
+                //                     </div>
+                //                 </div>
+                //             </div>
+                //             <div style="margin-left: 20px;">
+                //                 <button class="Button-Page-Small-bl assign-rule-btn" type="button" style="pointer-events:none; white-space:nowrap; padding: 5px 15px;">Wybierz</button>
+                //             </div>
+                //         `;
 
-                        div.addEventListener('click', () => {
-                            confirmAndAssignRule(rule.id, rule.name);
-                        });
+                //         div.addEventListener('click', () => {
+                //             confirmAndAssignRule(rule.id, rule.name);
+                //         });
 
-                        container.appendChild(div);
-                    });
-                }
+                //         container.appendChild(div);
+                //     });
+                // }
 
-                function confirmAndAssignRule(targetRuleId, ruleName) {
-                    if (!confirm(`Czy na pewno chcesz przypisać ${selectedProductIds.size} produktów do grupy "${ruleName}"?\n\nJeśli produkty były w innych grupach, zostaną przeniesione.`)) {
-                        return;
-                    }
-                    executeAutomationAction('/AutomationRules/AssignProducts', { RuleId: targetRuleId });
-                }
+                // function confirmAndAssignRule(targetRuleId, ruleName) {
+                //     if (!confirm(`Czy na pewno chcesz przypisać ${selectedProductIds.size} produktów do grupy "${ruleName}"?\n\nJeśli produkty były w innych grupach, zostaną przeniesione.`)) {
+                //         return;
+                //     }
+                //     executeAutomationAction('/AutomationRules/AssignProducts', { RuleId: targetRuleId });
+                // }
 
-                function confirmAndUnassignRules() {
-                    if (!confirm(`Czy na pewno chcesz usunąć przypisanie do reguł automatyzacji dla ${selectedProductIds.size} produktów?`)) {
-                        return;
-                    }
-                    executeAutomationAction('/AutomationRules/UnassignProducts', {});
-                }
+                // function confirmAndUnassignRules() {
+                //     if (!confirm(`Czy na pewno chcesz usunąć przypisanie do reguł automatyzacji dla ${selectedProductIds.size} produktów?`)) {
+                //         return;
+                //     }
+                //     executeAutomationAction('/AutomationRules/UnassignProducts', {});
+                // }
 
-                function executeAutomationAction(url, extraData) {
-                    $('#automationSelectionModal').modal('hide');
-                    showLoading();
+                // function executeAutomationAction(url, extraData) {
+                //     $('#automationSelectionModal').modal('hide');
+                //     showLoading();
 
-                    const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
+                //     const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
 
-                    const payload = {
-                        ProductIds: productIdsArray,
-                        IsAllegro: isAllegroContext,
-                        ...extraData
-                    };
+                //     const payload = {
+                //         ProductIds: productIdsArray,
+                //         IsAllegro: isAllegroContext,
+                //         ...extraData
+                //     };
 
-                    $.ajax({
-                        url: url,
-                        type: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify(payload),
-                        success: function(res) {
-                            hideLoading();
-                            alert(res.message || 'Operacja zakończona sukcesem.');
+                //     $.ajax({
+                //         url: url,
+                //         type: 'POST',
+                //         contentType: 'application/json',
+                //         data: JSON.stringify(payload),
+                //         success: function(res) {
+                //             hideLoading();
+                //             alert(res.message || 'Operacja zakończona sukcesem.');
 
-                            location.reload();
-                        },
-                        error: function(xhr) {
-                            hideLoading();
-                            alert('Błąd: ' + (xhr.responseJSON ? xhr.responseJSON.message : xhr.statusText));
+                //             location.reload();
+                //         },
+                //         error: function(xhr) {
+                //             hideLoading();
+                //             alert('Błąd: ' + (xhr.responseJSON ? xhr.responseJSON.message : xhr.statusText));
 
-                            setTimeout(() => $('#automationSelectionModal').modal('show'), 500);
-                        }
-                    });
-                }
+                //             setTimeout(() => $('#automationSelectionModal').modal('show'), 500);
+                //         }
+                //     });
+                // }
 
                 $(document).ready(function() {
 
-                 $(document).on('click', '.select-product-btn', function(e) {
-                        e.stopPropagation();
-                        const btn = $(this);
-                        const pid = btn.data('product-id').toString();
-                        const pname = btn.data('product-name');
+            //      $(document).on('click', '.select-product-btn', function(e) {
+            //             e.stopPropagation();
+            //             const btn = $(this);
+            //             const pid = btn.data('product-id').toString();
+            //             const pname = btn.data('product-name');
 
 
 
-                        const identifierText = btn.data('identifier');
+            //             const identifierText = btn.data('identifier');
 
-                        if (selectedProductIds.has(pid)) {
-                            selectedProductIds.delete(pid);
-                            selectedProductNames.delete(pid);
-                            selectedProductIdentifiers.delete(pid);
-                            updateBtnState(btn, false);
-                        } else {
-                            selectedProductIds.add(pid);
-                            selectedProductNames.set(pid, pname);
-                            selectedProductIdentifiers.set(pid, identifierText);
-                            updateBtnState(btn, true);
-                        }
-                        updateCounter();
-                    });
+            //             if (selectedProductIds.has(pid)) {
+            //                 selectedProductIds.delete(pid);
+            //                 selectedProductNames.delete(pid);
+            //                 selectedProductIdentifiers.delete(pid);
+            //                 updateBtnState(btn, false);
+            //             } else {
+            //                 selectedProductIds.add(pid);
+            //                 selectedProductNames.set(pid, pname);
+            //                 selectedProductIdentifiers.set(pid, identifierText);
+            //                 updateBtnState(btn, true);
+            //             }
+            //             updateCounter();
+            //         });
 
-                           $('#selectAllVisibleBtn').on('click', function() {
-                            $('.select-product-btn').each(function() {
-                                const btn = $(this);
-                                const row = btn.closest('tr');
+            //                $('#selectAllVisibleBtn').on('click', function() {
+            //                 $('.select-product-btn').each(function() {
+            //                     const btn = $(this);
+            //                     const row = btn.closest('tr');
 
                               
-                                const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
+            //                     const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
 
-                                if (isVisible) {
-                                    const pid = btn.data('product-id').toString();
-                                    const pname = btn.data('product-name');
+            //                     if (isVisible) {
+            //                         const pid = btn.data('product-id').toString();
+            //                         const pname = btn.data('product-name');
 
-                                    const identifierText = btn.data('identifier');
+            //                         const identifierText = btn.data('identifier');
                                   
-                                    if (!selectedProductIds.has(pid)) {
-                                        selectedProductIds.add(pid);
-                                        selectedProductNames.set(pid, pname);
-                                        selectedProductIdentifiers.set(pid, identifierText);
-                                        updateBtnState(btn, true);
-                                    }
-                                }
-                            });
-                            updateCounter();
-                        });
+            //                         if (!selectedProductIds.has(pid)) {
+            //                             selectedProductIds.add(pid);
+            //                             selectedProductNames.set(pid, pname);
+            //                             selectedProductIdentifiers.set(pid, identifierText);
+            //                             updateBtnState(btn, true);
+            //                         }
+            //                     }
+            //                 });
+            //                 updateCounter();
+            //             });
 
-                     $('#deselectAllVisibleBtn').on('click', function() {
-                         $('.select-product-btn').each(function() {
-                             const btn = $(this);
-                             const row = btn.closest('tr');
+            //          $('#deselectAllVisibleBtn').on('click', function() {
+            //              $('.select-product-btn').each(function() {
+            //                  const btn = $(this);
+            //                  const row = btn.closest('tr');
 
-                             const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
+            //                  const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
 
-                             if (isVisible) {
-                                 const pid = btn.data('product-id').toString();
+            //                  if (isVisible) {
+            //                      const pid = btn.data('product-id').toString();
 
-                                 if (selectedProductIds.has(pid)) {
-                                     selectedProductIds.delete(pid);
-                                     selectedProductNames.delete(pid);
-                                     selectedProductIdentifiers.delete(pid);
-                                     updateBtnState(btn, false);
-                                 }
-                             }
-                         });
-                         updateCounter();
+            //                      if (selectedProductIds.has(pid)) {
+            //                          selectedProductIds.delete(pid);
+            //                          selectedProductNames.delete(pid);
+            //                          selectedProductIdentifiers.delete(pid);
+            //                          updateBtnState(btn, false);
+            //                      }
+            //                  }
+            //              });
+            //              updateCounter();
 
-             });
-            $('#showSelectedProductsBtn').on('click', function() {
-                if (selectedProductIds.size === 0) {
-                    alert('Nie zaznaczono żadnych produktów.');
-                    return;
-                }
-                renderSelectedList();
-                $('#selectedProductsModal').modal('show');
-            });
+            //  });
+            // $('#showSelectedProductsBtn').on('click', function() {
+            //     if (selectedProductIds.size === 0) {
+            //         alert('Nie zaznaczono żadnych produktów.');
+            //         return;
+            //     }
+            //     renderSelectedList();
+            //     $('#selectedProductsModal').modal('show');
+            // });
 
-            $(document).on('click', '.remove-selection-btn', function(e) {
-                e.stopPropagation();
-                const pid = $(this).data('product-id').toString();
-                selectedProductIds.delete(pid);
-                selectedProductNames.delete(pid);
-                selectedProductIdentifiers.delete(pid);
+            // $(document).on('click', '.remove-selection-btn', function(e) {
+            //     e.stopPropagation();
+            //     const pid = $(this).data('product-id').toString();
+            //     selectedProductIds.delete(pid);
+            //     selectedProductNames.delete(pid);
+            //     selectedProductIdentifiers.delete(pid);
 
-                const mainBtn = $(`.select-product-btn[data-product-id="${pid}"]`);
-                if(mainBtn.length) updateBtnState(mainBtn, false);
+            //     const mainBtn = $(`.select-product-btn[data-product-id="${pid}"]`);
+            //     if(mainBtn.length) updateBtnState(mainBtn, false);
 
-                updateCounter();
-                renderSelectedList();
-            });
+            //     updateCounter();
+            //     renderSelectedList();
+            // });
+
+
+
+
+
+
+
+        // Kliknięcie w pojedynczy przycisk "Zaznacz"
+        $(document).on('click', '.select-product-btn', function(e) {
+        e.stopPropagation();
+        const btn = $(this);
+        const pid = btn.data('product-id').toString();
+                    
+        massActions.toggleProduct(pid);
+
+        if (massActions.isSelected(pid)) {
+        btn.text('Wybrano').addClass('selected');
+        } else {
+        btn.text('Zaznacz').removeClass('selected');
+        }
+        });
+
+        // Update przycisków po przeładowaniu filtrów JS w tabeli
+        // function syncButtonsWithMassActions() {
+        // massActions.updateVisibleButtons();
+        // }
+
+
+
+
+
+
 
             $(document).on('click', '#openBulkAutomationModalBtn', function() {
                 if (selectedProductIds.size === 0) {
@@ -2652,6 +2733,15 @@
         StateManager.restoreFiltersAndSearch();
         StateManager.scrollToProduct();
         });
+
+
+
+
+
+
+
+
+
 
         function sendPriceUpdate(wrapper, priceValue, btnElement) {
             var productId = wrapper.data('id');
@@ -3551,6 +3641,9 @@
                         .filter(row => row.style.display !== 'none' && !row.classList.contains('filter-hidden')).length;
                     visibleEl.textContent = visible;
                 }
+        if (typeof massActions !== 'undefined') {
+        massActions.updateVisibleButtons();
+        }
             }
 
             if (tableBody) {
@@ -3776,8 +3869,8 @@
 
                 updateTotalCount();
 
-                if (typeof updateVisibleProductSelectionButtons === 'function') {
-                    updateVisibleProductSelectionButtons();
+                if (typeof massActions !== 'undefined') {
+                    massActions.updateVisibleButtons();
                 }
             }
 
@@ -3910,6 +4003,9 @@
                         .filter(row => row.style.display !== 'none' && !row.classList.contains('filter-hidden')).length;
                     visibleEl.textContent = visible;
                 }
+        if(typeof syncButtonsWithMassActions === 'function') {
+        syncButtonsWithMassActions();
+        }
             }
 
             if (tableBody) {
