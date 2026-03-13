@@ -25,6 +25,28 @@
         allegroChangePriceForBagdeInCampaign: false
     };
 
+    const massActions = new window.MassActions({
+        storeId: storeId,
+        isAllegro: true,
+        storageKey: `selectedAllegroProducts_${storeId}`,
+        flags: flags,
+        getAllPrices: () => allPrices,
+        getFilteredPrices: () => currentlyFilteredPrices,
+        getProductIdentifier: (product) => {
+            if (allegroMarginSettings.identifierForSimulation === 'EAN') {
+                return { label: 'EAN', value: product.ean || null };
+            }
+            return { label: 'ID', value: product.myIdAllegro ? product.myIdAllegro.toString() : null };
+        },
+        showLoading: showLoading,
+        hideLoading: hideLoading,
+        showGlobalUpdate: showGlobalUpdate,
+        showGlobalNotification: showGlobalNotification,
+        onFlagsUpdated: () => loadPrices(),
+        onAutomationsUpdated: () => loadPrices()
+    });
+    massActions.init();
+
     let selectedProductId = null;
     let selectedFlagsInclude = new Set();
     let selectedFlagsExclude = new Set();
@@ -36,7 +58,7 @@
     let offerSlider;
     let myPriceSlider;
     let myPriceRangeInput;
-    const selectionStorageKey = `selectedAllegroProducts_${storeId}`;
+    //const selectionStorageKey = `selectedAllegroProducts_${storeId}`;
 
     let currentScrapId = null;
     let selectedPriceChanges = [];
@@ -250,52 +272,52 @@
     }
 
 
-    function saveSelectionToStorage(selectionSet) {
-        localStorage.setItem(selectionStorageKey, JSON.stringify(Array.from(selectionSet)));
-    }
+    //function saveSelectionToStorage(selectionSet) {
+    //    localStorage.setItem(selectionStorageKey, JSON.stringify(Array.from(selectionSet)));
+    //}
 
-    function loadSelectionFromStorage() {
-        const storedSelection = localStorage.getItem(selectionStorageKey);
-        return storedSelection ? new Set(JSON.parse(storedSelection)) : new Set();
-    }
+    //function loadSelectionFromStorage() {
+    //    const storedSelection = localStorage.getItem(selectionStorageKey);
+    //    return storedSelection ? new Set(JSON.parse(storedSelection)) : new Set();
+    //}
 
-    function clearSelectionFromStorage() {
-        localStorage.removeItem(selectionStorageKey);
-    }
+    //function clearSelectionFromStorage() {
+    //    localStorage.removeItem(selectionStorageKey);
+    //}
 
-    let selectedProductIds = loadSelectionFromStorage();
+    //let selectedProductIds = loadSelectionFromStorage();
 
-    const selectAllVisibleBtn = document.getElementById('selectAllVisibleBtn');
-    const deselectAllVisibleBtn = document.getElementById('deselectAllVisibleBtn');
+    //const selectAllVisibleBtn = document.getElementById('selectAllVisibleBtn');
+    //const deselectAllVisibleBtn = document.getElementById('deselectAllVisibleBtn');
 
-    selectAllVisibleBtn.addEventListener('click', function() {
-            if (currentlyFilteredPrices.length === 0) return;
-            currentlyFilteredPrices.forEach(product => selectedProductIds.add(product.productId.toString()));
-            saveSelectionToStorage(selectedProductIds);
-            updateSelectionUI();
-            updateVisibleProductSelectionButtons();
-        });
+    //selectAllVisibleBtn.addEventListener('click', function() {
+    //        if (currentlyFilteredPrices.length === 0) return;
+    //        currentlyFilteredPrices.forEach(product => selectedProductIds.add(product.productId.toString()));
+    //        saveSelectionToStorage(selectedProductIds);
+    //        updateSelectionUI();
+    //        updateVisibleProductSelectionButtons();
+    //    });
 
-    deselectAllVisibleBtn.addEventListener('click', function() {
-            if (currentlyFilteredPrices.length === 0) return;
-            currentlyFilteredPrices.forEach(product => selectedProductIds.delete(product.productId.toString()));
-            saveSelectionToStorage(selectedProductIds);
-            updateSelectionUI();
-            updateVisibleProductSelectionButtons();
-        });
+    //deselectAllVisibleBtn.addEventListener('click', function() {
+    //        if (currentlyFilteredPrices.length === 0) return;
+    //        currentlyFilteredPrices.forEach(product => selectedProductIds.delete(product.productId.toString()));
+    //        saveSelectionToStorage(selectedProductIds);
+    //        updateSelectionUI();
+    //        updateVisibleProductSelectionButtons();
+    //    });
 
-    function updateVisibleProductSelectionButtons() {
-        document.querySelectorAll('#priceContainer .select-product-btn').forEach(btn => {
-            const productId = btn.dataset.productId;
-            if (selectedProductIds.has(productId)) {
-                btn.textContent = 'Wybrano';
-                btn.classList.add('selected');
-            } else {
-                btn.textContent = 'Zaznacz';
-                btn.classList.remove('selected');
-            }
-        });
-    }
+    //function updateVisibleProductSelectionButtons() {
+    //    document.querySelectorAll('#priceContainer .select-product-btn').forEach(btn => {
+    //        const productId = btn.dataset.productId;
+    //        if (selectedProductIds.has(productId)) {
+    //            btn.textContent = 'Wybrano';
+    //            btn.classList.add('selected');
+    //        } else {
+    //            btn.textContent = 'Zaznacz';
+    //            btn.classList.remove('selected');
+    //        }
+    //    });
+    //}
 
     let sortingState = {
         sortName: null,
@@ -1742,27 +1764,26 @@
             selectProductButton.className = 'select-product-btn';
             selectProductButton.dataset.productId = item.productId;
             selectProductButton.style.pointerEvents = 'auto';
-            if (selectedProductIds.has(item.productId.toString())) {
+            if (massActions.isSelected(item.productId.toString())) {
                 selectProductButton.textContent = 'Wybrano';
                 selectProductButton.classList.add('selected');
             } else {
                 selectProductButton.textContent = 'Zaznacz';
                 selectProductButton.classList.remove('selected');
             }
+
             selectProductButton.addEventListener('click', function (event) {
                 event.stopPropagation();
                 const productId = this.dataset.productId;
-                if (selectedProductIds.has(productId)) {
-                    selectedProductIds.delete(productId);
-                    this.textContent = 'Zaznacz';
-                    this.classList.remove('selected');
-                } else {
-                    selectedProductIds.add(productId);
+                massActions.toggleProduct(productId);
+
+                if (massActions.isSelected(productId)) {
                     this.textContent = 'Wybrano';
                     this.classList.add('selected');
+                } else {
+                    this.textContent = 'Zaznacz';
+                    this.classList.remove('selected');
                 }
-                saveSelectionToStorage(selectedProductIds);
-                updateSelectionUI();
             });
 
             const apiBox = document.createElement('span');
@@ -1972,451 +1993,451 @@
 
         return Array.from(catalogGroups.values());
     }
-    function updateSelectionUI() {
-        const counter = document.getElementById('selectedProductsCounter');
-        const modalCounter = document.getElementById('selectedProductsModalCounter');
-        const modalList = document.getElementById('selectedProductsList');
-        const count = selectedProductIds.size;
+    //function updateSelectionUI() {
+    //    const counter = document.getElementById('selectedProductsCounter');
+    //    const modalCounter = document.getElementById('selectedProductsModalCounter');
+    //    const modalList = document.getElementById('selectedProductsList');
+    //    const count = selectedProductIds.size;
 
-        if (counter) counter.textContent = `Wybrano: ${count}`;
-        if (modalCounter) modalCounter.textContent = count;
+    //    if (counter) counter.textContent = `Wybrano: ${count}`;
+    //    if (modalCounter) modalCounter.textContent = count;
 
-        modalList.innerHTML = '';
-        if (count === 0) {
-            modalList.innerHTML = '<div class="alert alert-info text-center">Nie zaznaczono żadnych produktów.</div>';
-            return;
-        }
+    //    modalList.innerHTML = '';
+    //    if (count === 0) {
+    //        modalList.innerHTML = '<div class="alert alert-info text-center">Nie zaznaczono żadnych produktów.</div>';
+    //        return;
+    //    }
 
-        const table = document.createElement('table');
-        table.className = 'table-orders';
-        table.innerHTML = `<thead><tr><th style="width: 70%;">Nazwa Produktu</th><th>ID/EAN</th><th class="text-center">Akcja</th></tr></thead>`;
-        const tbody = document.createElement('tbody');
+    //    const table = document.createElement('table');
+    //    table.className = 'table-orders';
+    //    table.innerHTML = `<thead><tr><th style="width: 70%;">Nazwa Produktu</th><th>ID/EAN</th><th class="text-center">Akcja</th></tr></thead>`;
+    //    const tbody = document.createElement('tbody');
 
-        selectedProductIds.forEach(productId => {
-            const product = allPrices.find(p => p.productId.toString() === productId);
-            if (product) {
-                const tr = document.createElement('tr');
+    //    selectedProductIds.forEach(productId => {
+    //        const product = allPrices.find(p => p.productId.toString() === productId);
+    //        if (product) {
+    //            const tr = document.createElement('tr');
 
-                let identifierText = '';
-                if (allegroMarginSettings.identifierForSimulation === 'EAN') {
-                    identifierText = product.ean ? `EAN ${product.ean}` : 'Brak EAN';
-                } else {
+    //            let identifierText = '';
+    //            if (allegroMarginSettings.identifierForSimulation === 'EAN') {
+    //                identifierText = product.ean ? `EAN ${product.ean}` : 'Brak EAN';
+    //            } else {
 
-                    identifierText = product.myIdAllegro ? `ID ${product.myIdAllegro}` : 'Brak ID';
-                }
+    //                identifierText = product.myIdAllegro ? `ID ${product.myIdAllegro}` : 'Brak ID';
+    //            }
 
-                tr.innerHTML = `
-                 <td>${product.productName}</td>
-                 <td>${identifierText}</td>
-                 <td class="text-center align-middle">
-                     <button class="btn btn-danger btn-sm remove-selection-btn" data-product-id="${productId}" title="Usuń z zaznaczonych">
-                         <i class="fa-solid fa-trash-can"></i>
-                     </button>
-                 </td>`;
-                tbody.appendChild(tr);
-            }
-        });
-        table.appendChild(tbody);
-        modalList.appendChild(table);
-    }
+    //            tr.innerHTML = `
+    //             <td>${product.productName}</td>
+    //             <td>${identifierText}</td>
+    //             <td class="text-center align-middle">
+    //                 <button class="btn btn-danger btn-sm remove-selection-btn" data-product-id="${productId}" title="Usuń z zaznaczonych">
+    //                     <i class="fa-solid fa-trash-can"></i>
+    //                 </button>
+    //             </td>`;
+    //            tbody.appendChild(tr);
+    //        }
+    //    });
+    //    table.appendChild(tbody);
+    //    modalList.appendChild(table);
+    //}
 
-    document.getElementById('selectedProductsList').addEventListener('click', function (event) {
-        const removeButton = event.target.closest('.remove-selection-btn');
-        if (removeButton) {
-            const productId = removeButton.dataset.productId;
-            selectedProductIds.delete(productId);
-            saveSelectionToStorage(selectedProductIds);
-            const mainButton = document.querySelector(`.select-product-btn[data-product-id='${productId}']`);
-            if (mainButton) {
-                mainButton.textContent = 'Zaznacz';
-                mainButton.classList.remove('selected');
-            }
-            updateSelectionUI();
-        }
-    });
+    //document.getElementById('selectedProductsList').addEventListener('click', function (event) {
+    //    const removeButton = event.target.closest('.remove-selection-btn');
+    //    if (removeButton) {
+    //        const productId = removeButton.dataset.productId;
+    //        selectedProductIds.delete(productId);
+    //        saveSelectionToStorage(selectedProductIds);
+    //        const mainButton = document.querySelector(`.select-product-btn[data-product-id='${productId}']`);
+    //        if (mainButton) {
+    //            mainButton.textContent = 'Zaznacz';
+    //            mainButton.classList.remove('selected');
+    //        }
+    //        updateSelectionUI();
+    //    }
+    //});
 
-    document.getElementById('showSelectedProductsBtn').addEventListener('click', function () {
-        updateSelectionUI();
-        $('#selectedProductsModal').modal('show');
-    });
+    //document.getElementById('showSelectedProductsBtn').addEventListener('click', function () {
+    //    updateSelectionUI();
+    //    $('#selectedProductsModal').modal('show');
+    //});
 
-    document.getElementById('openBulkFlagModalBtn').addEventListener('click', function () {
-        if (selectedProductIds.size === 0) {
-            alert('Nie zaznaczono żadnych produktów.');
-            return;
-        }
-        $('#selectedProductsModal').modal('hide');
-        showLoading();
+    //document.getElementById('openBulkFlagModalBtn').addEventListener('click', function () {
+    //    if (selectedProductIds.size === 0) {
+    //        alert('Nie zaznaczono żadnych produktów.');
+    //        return;
+    //    }
+    //    $('#selectedProductsModal').modal('hide');
+    //    showLoading();
 
-        fetch('/ProductFlags/GetFlagCountsForProducts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                allegroProductIds: Array.from(selectedProductIds, id => parseInt(id))
-            })
-        })
-            .then(response => response.json())
-            .then(counts => {
-                populateBulkFlagModal(counts);
-                hideLoading();
-                $('#flagModal').modal('show');
-            })
-            .catch(error => {
-                console.error('Błąd pobierania liczników flag:', error);
-                hideLoading();
-                alert('Nie udało się pobrać danych o flagach.');
-            });
-    });
+    //    fetch('/ProductFlags/GetFlagCountsForProducts', {
+    //        method: 'POST',
+    //        headers: {
+    //            'Content-Type': 'application/json'
+    //        },
+    //        body: JSON.stringify({
+    //            allegroProductIds: Array.from(selectedProductIds, id => parseInt(id))
+    //        })
+    //    })
+    //        .then(response => response.json())
+    //        .then(counts => {
+    //            populateBulkFlagModal(counts);
+    //            hideLoading();
+    //            $('#flagModal').modal('show');
+    //        })
+    //        .catch(error => {
+    //            console.error('Błąd pobierania liczników flag:', error);
+    //            hideLoading();
+    //            alert('Nie udało się pobrać danych o flagach.');
+    //        });
+    //});
 
-    document.body.addEventListener('click', function (event) {
-        const targetBtn = event.target.closest('#openBulkAutomationModalBtn');
+    //document.body.addEventListener('click', function (event) {
+    //    const targetBtn = event.target.closest('#openBulkAutomationModalBtn');
 
-        if (targetBtn) {
-            console.log("Kliknięto przycisk automatyzacji (Allegro).");
+    //    if (targetBtn) {
+    //        console.log("Kliknięto przycisk automatyzacji (Allegro).");
 
-            if (selectedProductIds.size === 0) {
-                alert('Nie zaznaczono żadnych produktów.');
-                return;
-            }
+    //        if (selectedProductIds.size === 0) {
+    //            alert('Nie zaznaczono żadnych produktów.');
+    //            return;
+    //        }
 
-            const isAllegro = true;
-            const sourceType = 1;
-            const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
+    //        const isAllegro = true;
+    //        const sourceType = 1;
+    //        const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
 
-            const countDisplay = document.getElementById('automationProductCountDisplay');
-            if (countDisplay) countDisplay.textContent = selectedProductIds.size;
+    //        const countDisplay = document.getElementById('automationProductCountDisplay');
+    //        if (countDisplay) countDisplay.textContent = selectedProductIds.size;
 
-            $('#selectedProductsModal').modal('hide');
-            showLoading();
+    //        $('#selectedProductsModal').modal('hide');
+    //        showLoading();
 
-            fetch(`/AutomationRules/GetRulesStatusForProducts`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    StoreId: storeId,
-                    SourceType: sourceType,
-                    IsAllegro: isAllegro,
-                    ProductIds: productIdsArray
-                })
-            })
-                .then(response => {
-                    if (!response.ok) throw new Error("Błąd sieci: " + response.statusText);
-                    return response.json();
-                })
-                .then(rules => {
-                    if (typeof window.renderAutomationRulesInModal === 'function') {
-                        window.renderAutomationRulesInModal(rules, selectedProductIds.size);
-                        hideLoading();
-                        $('#automationSelectionModal').modal('show');
-                    } else {
-                        console.error("CRITICAL: Funkcja renderAutomationRulesInModal nie znaleziona!");
-                        hideLoading();
-                    }
-                })
-                .catch(error => {
-                    console.error('Błąd pobierania reguł:', error);
-                    hideLoading();
-                    alert('Błąd komunikacji z serwerem. Sprawdź konsolę.');
-                    $('#selectedProductsModal').modal('show');
-                });
-        }
-    });
+    //        fetch(`/AutomationRules/GetRulesStatusForProducts`, {
+    //            method: 'POST',
+    //            headers: { 'Content-Type': 'application/json' },
+    //            body: JSON.stringify({
+    //                StoreId: storeId,
+    //                SourceType: sourceType,
+    //                IsAllegro: isAllegro,
+    //                ProductIds: productIdsArray
+    //            })
+    //        })
+    //            .then(response => {
+    //                if (!response.ok) throw new Error("Błąd sieci: " + response.statusText);
+    //                return response.json();
+    //            })
+    //            .then(rules => {
+    //                if (typeof window.renderAutomationRulesInModal === 'function') {
+    //                    window.renderAutomationRulesInModal(rules, selectedProductIds.size);
+    //                    hideLoading();
+    //                    $('#automationSelectionModal').modal('show');
+    //                } else {
+    //                    console.error("CRITICAL: Funkcja renderAutomationRulesInModal nie znaleziona!");
+    //                    hideLoading();
+    //                }
+    //            })
+    //            .catch(error => {
+    //                console.error('Błąd pobierania reguł:', error);
+    //                hideLoading();
+    //                alert('Błąd komunikacji z serwerem. Sprawdź konsolę.');
+    //                $('#selectedProductsModal').modal('show');
+    //            });
+    //    }
+    //});
 
-    window.renderAutomationRulesInModal = function (rules, totalSelected) {
-        console.log("Renderowanie reguł dla Allegro...", rules);
+    //window.renderAutomationRulesInModal = function (rules, totalSelected) {
+    //    console.log("Renderowanie reguł dla Allegro...", rules);
 
-        const container = document.getElementById('automationRulesListContainer');
-        if (!container) {
-            console.error("BŁĄD: Nie znaleziono kontenera 'automationRulesListContainer' w modalu!");
-            return;
-        }
+    //    const container = document.getElementById('automationRulesListContainer');
+    //    if (!container) {
+    //        console.error("BŁĄD: Nie znaleziono kontenera 'automationRulesListContainer' w modalu!");
+    //        return;
+    //    }
 
-        container.innerHTML = '';
+    //    container.innerHTML = '';
 
-        const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
-        const totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
+    //    const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
+    //    const totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
 
-        const statsHeader = document.createElement('div');
-        statsHeader.style.cssText = `
-            background-color: #f8f9fa; border: 1px solid #e3e6f0; border-radius: 8px;
-            padding: 15px; margin-bottom: 20px; display: flex;
-            justify-content: space-around; align-items: center; text-align: center;
-        `;
+    //    const statsHeader = document.createElement('div');
+    //    statsHeader.style.cssText = `
+    //        background-color: #f8f9fa; border: 1px solid #e3e6f0; border-radius: 8px;
+    //        padding: 15px; margin-bottom: 20px; display: flex;
+    //        justify-content: space-around; align-items: center; text-align: center;
+    //    `;
 
-        statsHeader.innerHTML = `
-            <div>
-                <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Łącznie zaznaczone</div>
-                <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalSelected}</div>
-            </div>
-            <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
-            <div>
-                <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Przypisane do reguły</div>
-                <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalAssignedInSelection}</div>
-            </div>
-            <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
-            <div>
-                <div style="font-size: 11px; color: #e74a3b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Nieprzypisane</div>
-                <div style="font-size: 20px; font-weight: 700; color: #e74a3b;">${Math.max(0, totalUnassignedInSelection)}</div>
-            </div>
-        `;
-        container.appendChild(statsHeader);
+    //    statsHeader.innerHTML = `
+    //        <div>
+    //            <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Łącznie zaznaczone</div>
+    //            <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalSelected}</div>
+    //        </div>
+    //        <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
+    //        <div>
+    //            <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Przypisane do reguły</div>
+    //            <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalAssignedInSelection}</div>
+    //        </div>
+    //        <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
+    //        <div>
+    //            <div style="font-size: 11px; color: #e74a3b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Nieprzypisane</div>
+    //            <div style="font-size: 20px; font-weight: 700; color: #e74a3b;">${Math.max(0, totalUnassignedInSelection)}</div>
+    //        </div>
+    //    `;
+    //    container.appendChild(statsHeader);
 
-        const unassignDiv = document.createElement('div');
-        const hasAssignments = totalAssignedInSelection > 0;
+    //    const unassignDiv = document.createElement('div');
+    //    const hasAssignments = totalAssignedInSelection > 0;
 
-        unassignDiv.className = 'automation-rule-item';
-        unassignDiv.style.cssText = `
-            border: 1px dashed ${hasAssignments ? '#e74a3b' : '#ccc'}; 
-            border-radius: 8px; padding: 10px 15px; 
-            cursor: ${hasAssignments ? 'pointer' : 'default'}; 
-            background-color: #fff; 
-            display: flex; justify-content: space-between; align-items: center; 
-            transition: background-color 0.2s; margin-bottom: 20px; opacity: ${hasAssignments ? '1' : '0.6'};
-        `;
+    //    unassignDiv.className = 'automation-rule-item';
+    //    unassignDiv.style.cssText = `
+    //        border: 1px dashed ${hasAssignments ? '#e74a3b' : '#ccc'}; 
+    //        border-radius: 8px; padding: 10px 15px; 
+    //        cursor: ${hasAssignments ? 'pointer' : 'default'}; 
+    //        background-color: #fff; 
+    //        display: flex; justify-content: space-between; align-items: center; 
+    //        transition: background-color 0.2s; margin-bottom: 20px; opacity: ${hasAssignments ? '1' : '0.6'};
+    //    `;
 
-        if (hasAssignments) {
-            unassignDiv.onmouseover = () => { unassignDiv.style.backgroundColor = '#fff5f5'; };
-            unassignDiv.onmouseout = () => { unassignDiv.style.backgroundColor = '#fff'; };
-            unassignDiv.addEventListener('click', () => {
-                window.confirmAndUnassignRules();
-            });
-        }
+    //    if (hasAssignments) {
+    //        unassignDiv.onmouseover = () => { unassignDiv.style.backgroundColor = '#fff5f5'; };
+    //        unassignDiv.onmouseout = () => { unassignDiv.style.backgroundColor = '#fff'; };
+    //        unassignDiv.addEventListener('click', () => {
+    //            window.confirmAndUnassignRules();
+    //        });
+    //    }
 
-        unassignDiv.innerHTML = `
-            <div style="display:flex; align-items:center; gap:15px;">
-                <div style="width:6px; height:45px; background-color:${hasAssignments ? '#e74a3b' : '#ccc'}; border-radius:3px;"></div>
-                <div>
-                    <div style="font-weight:600; font-size:15px; color:${hasAssignments ? '#e74a3b' : '#888'};">Brak Automatyzacji (Odepnij)</div>
-                    <div style="font-size:13px; color:#666; margin-top:2px;">
-                        ${hasAssignments ? `Odepnij <strong>${totalAssignedInSelection}</strong> zaznaczonych produktów od ich obecnych reguł.` : 'Żaden z zaznaczonych produktów nie jest przypisany do reguły.'}
-                    </div>
-                </div>
-            </div>
-            <button class="Button-Page-Small-r" type="button" style="pointer-events:none; ${!hasAssignments ? 'background-color:#ccc; border-color:#ccc;' : ''}">Odepnij</button>
-        `;
-        container.appendChild(unassignDiv);
+    //    unassignDiv.innerHTML = `
+    //        <div style="display:flex; align-items:center; gap:15px;">
+    //            <div style="width:6px; height:45px; background-color:${hasAssignments ? '#e74a3b' : '#ccc'}; border-radius:3px;"></div>
+    //            <div>
+    //                <div style="font-weight:600; font-size:15px; color:${hasAssignments ? '#e74a3b' : '#888'};">Brak Automatyzacji (Odepnij)</div>
+    //                <div style="font-size:13px; color:#666; margin-top:2px;">
+    //                    ${hasAssignments ? `Odepnij <strong>${totalAssignedInSelection}</strong> zaznaczonych produktów od ich obecnych reguł.` : 'Żaden z zaznaczonych produktów nie jest przypisany do reguły.'}
+    //                </div>
+    //            </div>
+    //        </div>
+    //        <button class="Button-Page-Small-r" type="button" style="pointer-events:none; ${!hasAssignments ? 'background-color:#ccc; border-color:#ccc;' : ''}">Odepnij</button>
+    //    `;
+    //    container.appendChild(unassignDiv);
 
-        if (!rules || rules.length === 0) {
-            const emptyDiv = document.createElement('div');
-            emptyDiv.innerHTML = `<div class="alert alert-warning" style="text-align:center;">Brak zdefiniowanych reguł dla Allegro. <a href="/AutomationRules/Index?storeId=${storeId}&filterType=1" target="_blank">Utwórz nową</a>.</div>`;
-            container.appendChild(emptyDiv);
-            return;
-        }
+    //    if (!rules || rules.length === 0) {
+    //        const emptyDiv = document.createElement('div');
+    //        emptyDiv.innerHTML = `<div class="alert alert-warning" style="text-align:center;">Brak zdefiniowanych reguł dla Allegro. <a href="/AutomationRules/Index?storeId=${storeId}&filterType=1" target="_blank">Utwórz nową</a>.</div>`;
+    //        container.appendChild(emptyDiv);
+    //        return;
+    //    }
 
-        rules.sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }));
+    //    rules.sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }));
 
-        rules.forEach(rule => {
-            const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b';
-            const statusText = rule.isActive ? 'Aktywna' : 'Nieaktywna';
+    //    rules.forEach(rule => {
+    //        const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b';
+    //        const statusText = rule.isActive ? 'Aktywna' : 'Nieaktywna';
 
-            const strategyIcon = rule.strategyMode === 0 ? '<i class="fa-solid fa-bolt" style="color:#888;"></i>' : '<i class="fa-solid fa-dollar-sign" style="color:#888;"></i>';
-            const strategyName = rule.strategyMode === 0 ? "Lider Rynku" : "Rentowność";
+    //        const strategyIcon = rule.strategyMode === 0 ? '<i class="fa-solid fa-bolt" style="color:#888;"></i>' : '<i class="fa-solid fa-dollar-sign" style="color:#888;"></i>';
+    //        const strategyName = rule.strategyMode === 0 ? "Lider Rynku" : "Rentowność";
 
-            const globalTotalInRule = rule.totalCount;
-            const selectedAlreadyInRule = rule.matchingCount;
-            const toBeAdded = totalSelected - selectedAlreadyInRule;
+    //        const globalTotalInRule = rule.totalCount;
+    //        const selectedAlreadyInRule = rule.matchingCount;
+    //        const toBeAdded = totalSelected - selectedAlreadyInRule;
 
-            let backgroundStyle = selectedAlreadyInRule > 0 ? '#fcfcfc' : '#fff';
-            let borderStyle = '#e3e6f0';
+    //        let backgroundStyle = selectedAlreadyInRule > 0 ? '#fcfcfc' : '#fff';
+    //        let borderStyle = '#e3e6f0';
 
-            const div = document.createElement('div');
-            div.className = 'automation-rule-item';
-            div.style.cssText = `
-                border: 1px solid ${borderStyle}; border-radius: 8px; padding: 12px 15px; 
-                cursor: pointer; background: ${backgroundStyle}; 
-                display: flex; justify-content: space-between; align-items: center; 
-                transition: background-color 0.2s, border-color 0.2s; margin-bottom: 10px;
-            `;
+    //        const div = document.createElement('div');
+    //        div.className = 'automation-rule-item';
+    //        div.style.cssText = `
+    //            border: 1px solid ${borderStyle}; border-radius: 8px; padding: 12px 15px; 
+    //            cursor: pointer; background: ${backgroundStyle}; 
+    //            display: flex; justify-content: space-between; align-items: center; 
+    //            transition: background-color 0.2s, border-color 0.2s; margin-bottom: 10px;
+    //        `;
 
-            div.onmouseover = () => { div.style.backgroundColor = '#f8f9fc'; div.style.borderColor = '#b7b9cc'; };
-            div.onmouseout = () => { div.style.background = backgroundStyle; div.style.borderColor = borderStyle; };
+    //        div.onmouseover = () => { div.style.backgroundColor = '#f8f9fc'; div.style.borderColor = '#b7b9cc'; };
+    //        div.onmouseout = () => { div.style.background = backgroundStyle; div.style.borderColor = borderStyle; };
 
-            div.innerHTML = `
-                <div style="display:flex; align-items:center; gap:15px; flex-grow: 1;">
-                    <div style="width:6px; height:45px; background-color:${rule.colorHex}; border-radius:3px; flex-shrink: 0;"></div>
-                    <div style="flex-grow: 1;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="font-weight:600; font-size:16px; color:#333;">${rule.name}</div>
-                            <div style="font-size:12px; color:#888; display:flex; align-items:center; gap:8px;">
-                                <span style="display:flex; align-items:center; gap:4px;">${strategyIcon} ${strategyName}</span>
-                                <span style="color:#e3e6f0;">|</span>
-                                <span style="color:${statusColor}; font-weight:500; display:flex; align-items:center; gap:4px;"><i class="fa-solid fa-circle" style="font-size:6px;"></i> ${statusText}</span>
-                            </div>
-                        </div>
-                        <div style="display:flex; gap: 15px; margin-top:6px; font-size:13px; color:#666; align-items: center; flex-wrap: wrap;">
-                            <span title="Całkowita liczba produktów w tej regule"><i class="fa-solid fa-database" style="color:#999; margin-right:4px;"></i> Razem: <strong>${globalTotalInRule}</strong></span>
-                            <span style="color:#e3e6f0;">|</span>
-                            <span title="Ile z zaznaczonych jest tutaj"><i class="fa-solid fa-check-double" style="color:#999; margin-right:4px;"></i> Wybranych: <strong>${selectedAlreadyInRule}</strong></span>
-                            <span style="color:#e3e6f0;">|</span>
-                            <span title="Ile zostanie dodanych">Zostanie dodanych: <strong style="color:#1cc88a;">+${toBeAdded}</strong></span>
-                        </div>
-                    </div>
-                </div>
-                <div style="margin-left: 20px;">
-                    <button class="Button-Page-Small-bl assign-rule-btn" type="button" style="pointer-events:none; white-space:nowrap; padding: 5px 15px;">Wybierz</button>
-                </div>
-            `;
+    //        div.innerHTML = `
+    //            <div style="display:flex; align-items:center; gap:15px; flex-grow: 1;">
+    //                <div style="width:6px; height:45px; background-color:${rule.colorHex}; border-radius:3px; flex-shrink: 0;"></div>
+    //                <div style="flex-grow: 1;">
+    //                    <div style="display:flex; justify-content:space-between; align-items:center;">
+    //                        <div style="font-weight:600; font-size:16px; color:#333;">${rule.name}</div>
+    //                        <div style="font-size:12px; color:#888; display:flex; align-items:center; gap:8px;">
+    //                            <span style="display:flex; align-items:center; gap:4px;">${strategyIcon} ${strategyName}</span>
+    //                            <span style="color:#e3e6f0;">|</span>
+    //                            <span style="color:${statusColor}; font-weight:500; display:flex; align-items:center; gap:4px;"><i class="fa-solid fa-circle" style="font-size:6px;"></i> ${statusText}</span>
+    //                        </div>
+    //                    </div>
+    //                    <div style="display:flex; gap: 15px; margin-top:6px; font-size:13px; color:#666; align-items: center; flex-wrap: wrap;">
+    //                        <span title="Całkowita liczba produktów w tej regule"><i class="fa-solid fa-database" style="color:#999; margin-right:4px;"></i> Razem: <strong>${globalTotalInRule}</strong></span>
+    //                        <span style="color:#e3e6f0;">|</span>
+    //                        <span title="Ile z zaznaczonych jest tutaj"><i class="fa-solid fa-check-double" style="color:#999; margin-right:4px;"></i> Wybranych: <strong>${selectedAlreadyInRule}</strong></span>
+    //                        <span style="color:#e3e6f0;">|</span>
+    //                        <span title="Ile zostanie dodanych">Zostanie dodanych: <strong style="color:#1cc88a;">+${toBeAdded}</strong></span>
+    //                    </div>
+    //                </div>
+    //            </div>
+    //            <div style="margin-left: 20px;">
+    //                <button class="Button-Page-Small-bl assign-rule-btn" type="button" style="pointer-events:none; white-space:nowrap; padding: 5px 15px;">Wybierz</button>
+    //            </div>
+    //        `;
 
-            div.addEventListener('click', () => {
-                window.confirmAndAssignRule(rule.id, rule.name);
-            });
+    //        div.addEventListener('click', () => {
+    //            window.confirmAndAssignRule(rule.id, rule.name);
+    //        });
 
-            container.appendChild(div);
-        });
-    };
+    //        container.appendChild(div);
+    //    });
+    //};
 
-    window.confirmAndAssignRule = function (ruleId, ruleName) {
-        if (!confirm(`Czy na pewno chcesz przypisać ${selectedProductIds.size} produktów Allegro do grupy "${ruleName}"?\n\nJeśli produkty były w innych grupach, zostaną przeniesione.`)) {
-            return;
-        }
-        executeAutomationAction('/AutomationRules/AssignProducts', { RuleId: ruleId });
-    };
+    //window.confirmAndAssignRule = function (ruleId, ruleName) {
+    //    if (!confirm(`Czy na pewno chcesz przypisać ${selectedProductIds.size} produktów Allegro do grupy "${ruleName}"?\n\nJeśli produkty były w innych grupach, zostaną przeniesione.`)) {
+    //        return;
+    //    }
+    //    executeAutomationAction('/AutomationRules/AssignProducts', { RuleId: ruleId });
+    //};
 
-    window.confirmAndUnassignRules = function () {
-        if (!confirm(`Czy na pewno chcesz usunąć przypisanie do reguł automatyzacji dla ${selectedProductIds.size} produktów Allegro?`)) {
-            return;
-        }
-        executeAutomationAction('/AutomationRules/UnassignProducts', {});
-    };
+    //window.confirmAndUnassignRules = function () {
+    //    if (!confirm(`Czy na pewno chcesz usunąć przypisanie do reguł automatyzacji dla ${selectedProductIds.size} produktów Allegro?`)) {
+    //        return;
+    //    }
+    //    executeAutomationAction('/AutomationRules/UnassignProducts', {});
+    //};
 
-    function executeAutomationAction(url, extraData) {
-        const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
+    //function executeAutomationAction(url, extraData) {
+    //    const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
 
-        $('#automationSelectionModal').modal('hide');
-        showLoading();
+    //    $('#automationSelectionModal').modal('hide');
+    //    showLoading();
 
-        const payload = {
-            ProductIds: productIdsArray,
-            IsAllegro: true,
+    //    const payload = {
+    //        ProductIds: productIdsArray,
+    //        IsAllegro: true,
 
-            ...extraData
-        };
+    //        ...extraData
+    //    };
 
-        fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-            .then(response => {
-                if (response.ok) return response.json();
-                else return response.text().then(text => { throw new Error(text) });
-            })
-            .then(data => {
-                showGlobalUpdate(`<p style="font-weight:bold;">Sukces!</p><p>${data.message}</p>`);
+    //    fetch(url, {
+    //        method: 'POST',
+    //        headers: { 'Content-Type': 'application/json' },
+    //        body: JSON.stringify(payload)
+    //    })
+    //        .then(response => {
+    //            if (response.ok) return response.json();
+    //            else return response.text().then(text => { throw new Error(text) });
+    //        })
+    //        .then(data => {
+    //            showGlobalUpdate(`<p style="font-weight:bold;">Sukces!</p><p>${data.message}</p>`);
 
-                selectedProductIds.clear();
-                clearSelectionFromStorage();
-                updateSelectionUI();
+    //            selectedProductIds.clear();
+    //            clearSelectionFromStorage();
+    //            updateSelectionUI();
 
-                if (typeof updateVisibleProductSelectionButtons === 'function') {
-                    updateVisibleProductSelectionButtons();
-                }
+    //            if (typeof updateVisibleProductSelectionButtons === 'function') {
+    //                updateVisibleProductSelectionButtons();
+    //            }
 
-            })
-            .catch(error => {
-                console.error('Błąd:', error);
-                showGlobalNotification(`<p style="font-weight:bold;">Błąd</p><p>${error.message}</p>`);
+    //        })
+    //        .catch(error => {
+    //            console.error('Błąd:', error);
+    //            showGlobalNotification(`<p style="font-weight:bold;">Błąd</p><p>${error.message}</p>`);
 
-                setTimeout(() => $('#automationSelectionModal').modal('show'), 500);
-            })
-            .finally(() => {
-                hideLoading();
-            });
-    }
+    //            setTimeout(() => $('#automationSelectionModal').modal('show'), 500);
+    //        })
+    //        .finally(() => {
+    //            hideLoading();
+    //        });
+    //}
 
-    function populateBulkFlagModal(flagCounts) {
-        const modalBody = document.getElementById('flagModalBody');
-        const flagModalTitle = document.querySelector('#flagModal .price-box-column-name');
-        const totalSelected = selectedProductIds.size;
+    //function populateBulkFlagModal(flagCounts) {
+    //    const modalBody = document.getElementById('flagModalBody');
+    //    const flagModalTitle = document.querySelector('#flagModal .price-box-column-name');
+    //    const totalSelected = selectedProductIds.size;
 
-        flagModalTitle.textContent = `Zarządzaj flagami dla ${totalSelected} produktów`;
-        modalBody.innerHTML = '';
+    //    flagModalTitle.textContent = `Zarządzaj flagami dla ${totalSelected} produktów`;
+    //    modalBody.innerHTML = '';
 
-        flags.forEach(flag => {
-            const currentCount = flagCounts[flag.flagId] || 0;
-            const flagItem = document.createElement('div');
-            flagItem.className = 'bulk-flag-item';
-            flagItem.dataset.flagId = flag.flagId;
+    //    flags.forEach(flag => {
+    //        const currentCount = flagCounts[flag.flagId] || 0;
+    //        const flagItem = document.createElement('div');
+    //        flagItem.className = 'bulk-flag-item';
+    //        flagItem.dataset.flagId = flag.flagId;
 
-            flagItem.innerHTML = `
-                <div class="flag-label">
-                    <span class="flag-name" style="border-color: ${flag.flagColor}; color: ${flag.flagColor}; background-color: ${hexToRgba(flag.flagColor, 0.3)};">${flag.flagName}</span>
-                    <span class="flag-count">(${currentCount} / ${totalSelected})</span>
-                </div>
-                <div class="flag-actions">
-                    <div class="action-group">
-                        <label><input type="checkbox" class="bulk-flag-action" data-action="add" ${currentCount === totalSelected ? 'disabled' : ''}> Dodaj</label>
-                        <span class="change-indicator add-indicator">${currentCount} → ${totalSelected}</span>
-                    </div>
-                    <div class="action-group">
-                        <label><input type="checkbox" class="bulk-flag-action" data-action="remove" ${currentCount === 0 ? 'disabled' : ''}> Odepnij</label>
-                        <span class="change-indicator remove-indicator">${currentCount} → 0</span>
-                    </div>
-                </div>`;
-            modalBody.appendChild(flagItem);
-        });
+    //        flagItem.innerHTML = `
+    //            <div class="flag-label">
+    //                <span class="flag-name" style="border-color: ${flag.flagColor}; color: ${flag.flagColor}; background-color: ${hexToRgba(flag.flagColor, 0.3)};">${flag.flagName}</span>
+    //                <span class="flag-count">(${currentCount} / ${totalSelected})</span>
+    //            </div>
+    //            <div class="flag-actions">
+    //                <div class="action-group">
+    //                    <label><input type="checkbox" class="bulk-flag-action" data-action="add" ${currentCount === totalSelected ? 'disabled' : ''}> Dodaj</label>
+    //                    <span class="change-indicator add-indicator">${currentCount} → ${totalSelected}</span>
+    //                </div>
+    //                <div class="action-group">
+    //                    <label><input type="checkbox" class="bulk-flag-action" data-action="remove" ${currentCount === 0 ? 'disabled' : ''}> Odepnij</label>
+    //                    <span class="change-indicator remove-indicator">${currentCount} → 0</span>
+    //                </div>
+    //            </div>`;
+    //        modalBody.appendChild(flagItem);
+    //    });
 
-        modalBody.querySelectorAll('.bulk-flag-action').forEach(checkbox => {
-            checkbox.addEventListener('change', function () {
-                const parentItem = this.closest('.bulk-flag-item');
-                if (this.checked) {
-                    if (this.dataset.action === 'add') {
-                        parentItem.querySelector('[data-action="remove"]').checked = false;
-                    } else {
-                        parentItem.querySelector('[data-action="add"]').checked = false;
-                    }
-                }
-                parentItem.querySelector('.add-indicator').style.display = parentItem.querySelector('[data-action="add"]').checked ? 'inline' : 'none';
-                parentItem.querySelector('.remove-indicator').style.display = parentItem.querySelector('[data-action="remove"]').checked ? 'inline' : 'none';
-            });
-        });
-    }
+    //    modalBody.querySelectorAll('.bulk-flag-action').forEach(checkbox => {
+    //        checkbox.addEventListener('change', function () {
+    //            const parentItem = this.closest('.bulk-flag-item');
+    //            if (this.checked) {
+    //                if (this.dataset.action === 'add') {
+    //                    parentItem.querySelector('[data-action="remove"]').checked = false;
+    //                } else {
+    //                    parentItem.querySelector('[data-action="add"]').checked = false;
+    //                }
+    //            }
+    //            parentItem.querySelector('.add-indicator').style.display = parentItem.querySelector('[data-action="add"]').checked ? 'inline' : 'none';
+    //            parentItem.querySelector('.remove-indicator').style.display = parentItem.querySelector('[data-action="remove"]').checked ? 'inline' : 'none';
+    //        });
+    //    });
+    //}
 
-    document.getElementById('saveFlagsButton').addEventListener('click', function () {
-        const flagsToAdd = [];
-        const flagsToRemove = [];
-        document.querySelectorAll('#flagModalBody .bulk-flag-item').forEach(item => {
-            const flagId = parseInt(item.dataset.flagId, 10);
-            if (item.querySelector('[data-action="add"]').checked) flagsToAdd.push(flagId);
-            if (item.querySelector('[data-action="remove"]').checked) flagsToRemove.push(flagId);
-        });
+    //document.getElementById('saveFlagsButton').addEventListener('click', function () {
+    //    const flagsToAdd = [];
+    //    const flagsToRemove = [];
+    //    document.querySelectorAll('#flagModalBody .bulk-flag-item').forEach(item => {
+    //        const flagId = parseInt(item.dataset.flagId, 10);
+    //        if (item.querySelector('[data-action="add"]').checked) flagsToAdd.push(flagId);
+    //        if (item.querySelector('[data-action="remove"]').checked) flagsToRemove.push(flagId);
+    //    });
 
-        if (flagsToAdd.length === 0 && flagsToRemove.length === 0) {
-            return;
-        }
+    //    if (flagsToAdd.length === 0 && flagsToRemove.length === 0) {
+    //        return;
+    //    }
 
-        const data = {
-            allegroProductIds: Array.from(selectedProductIds).map(id => parseInt(id)),
-            flagsToAdd: flagsToAdd,
-            flagsToRemove: flagsToRemove
-        };
+    //    const data = {
+    //        allegroProductIds: Array.from(selectedProductIds).map(id => parseInt(id)),
+    //        flagsToAdd: flagsToAdd,
+    //        flagsToRemove: flagsToRemove
+    //    };
 
-        showLoading();
-        fetch('/ProductFlags/UpdateFlagsForMultipleProducts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        })
-            .then(response => response.json())
-            .then(response => {
-                if (response.success) {
-                    $('#flagModal').modal('hide');
-                    showGlobalUpdate(`<p>Pomyślnie zaktualizowano flagi dla ${data.allegroProductIds.length} produktów.</p>`);
-                    selectedProductIds.clear();
-                    clearSelectionFromStorage();
-                    updateSelectionUI();
-                    loadPrices();
-                } else {
-                    alert('Błąd: ' + response.message);
-                }
-            })
-            .catch(error => console.error('Błąd masowej aktualizacji flag:', error))
-            .finally(() => hideLoading());
-    });
+    //    showLoading();
+    //    fetch('/ProductFlags/UpdateFlagsForMultipleProducts', {
+    //        method: 'POST',
+    //        headers: {
+    //            'Content-Type': 'application/json'
+    //        },
+    //        body: JSON.stringify(data)
+    //    })
+    //        .then(response => response.json())
+    //        .then(response => {
+    //            if (response.success) {
+    //                $('#flagModal').modal('hide');
+    //                showGlobalUpdate(`<p>Pomyślnie zaktualizowano flagi dla ${data.allegroProductIds.length} produktów.</p>`);
+    //                selectedProductIds.clear();
+    //                clearSelectionFromStorage();
+    //                updateSelectionUI();
+    //                loadPrices();
+    //            } else {
+    //                alert('Błąd: ' + response.message);
+    //            }
+    //        })
+    //        .catch(error => console.error('Błąd masowej aktualizacji flag:', error))
+    //        .finally(() => hideLoading());
+    //});
 
     function renderPaginationControls(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -3623,7 +3644,7 @@
                 filterAndSortPrices();
                 updateFlagCounts(allPrices);
                 updateBadgeCounts(allPrices);
-                updateSelectionUI();
+                massActions.updateSelectionUI();
                 updateMarginSortButtonsVisibility();
                 updateAutomationFilterUI(allPrices);
                 refreshPriceBoxStates();
@@ -3664,5 +3685,5 @@
     setupEventListeners();
     restoreAllegroState();
     loadPrices();
-    updateSelectionUI();
+    massActions.updateSelectionUI();
 }); 
