@@ -205,7 +205,7 @@
 
     .limit-price-text {
         font-weight: 500;
-        font-size: 13px;
+        font-size: 12px;
     }
 
     .rank-icon {
@@ -224,7 +224,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 2px  8px;
+        padding: 4px  8px;
         border-radius: 4px;
         font-size: 11px;
         font-weight: 500;
@@ -387,12 +387,12 @@
 
     .product-name-wrap {
         display: -webkit-box;
-        -webkit-line-clamp: 3; 
+        -webkit-line-clamp: 2; 
         -webkit-box-orient: vertical;
         overflow: hidden;
         text-overflow: ellipsis;
         word-break: break-word;
-        width: 205px; 
+        min-width: 230px; 
         line-height: 1.3;
     }
 
@@ -418,7 +418,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 2px 5px;
+        padding: 4px 8px;
         border-radius: 4px;
         font-size: 11px;
         font-weight: 600;
@@ -960,6 +960,11 @@
         left: 0;
     }
 
+    .select-product-btn {
+        width:60px;
+        height:25px;
+    }
+
         .time-progress-fill.fill-waiting {
             width: 0%;
             background: #f6c23e;
@@ -1021,7 +1026,6 @@
         border-style: solid;
         font-size: 11px;
         font-weight: 500;
-        white-space: nowrap;
     }
 
     .table-orders td, .table-orders th {
@@ -1401,21 +1405,22 @@
                     <thead>
                         <tr>
                            
-                            <th style="max-width: 210px;">Produkt</th>
-                            <th style="max-width: 190px; min-width: 185px;">Limity Cenowe</th>
-                            <th style="min-width: 230px;">Dane z rynku - Twoja oferta</th>
+                            <th style="min-width: 240px;">Produkt</th>
+                            
+                            <th style="max-width: 170px; min-width: 165px;">Limity Cenowe</th>
+                            <th style="min-width: 235px;">Dane z rynku - Twoja oferta</th>
                             @if (Model.StrategyMode == AutomationStrategyMode.Competitiveness)
                             {
-                                <th style="min-width: 230px;">Najlepszy Rywal</th>
+                                <th style="min-width: 235px;">Najlepszy Rywal</th>
                             }
                             else
                             {
-                                <th style="min-width: 230px;">Mediana Rynku</th>
+                                <th style="min-width: 235px;">Mediana Rynku</th>
                             }
-                            <th style="min-width: 150px; width: 150px;">Zmiana</th>
-                            <th class="bg-gradient-light border-left-primary" style="min-width: 245px;">Wyznaczona Cena</th>
+                            <th style="min-width: 155px; width: 160px;">Zmiana</th>
+                            <th class="bg-gradient-light border-left-primary" style="min-width: 250px;">Wyznaczona Cena</th>
                             <th>Status</th>
-                            <th style="min-width: 120px; max-width: 140px;">Flagi</th>
+                          
                         </tr>
                     </thead>
                     <tbody>
@@ -1588,28 +1593,44 @@
                                                     @item.Name
                                                 }
                                             </div>
-            
-                                            <div class="small text-muted mb-1 mt-1">
-                                                ID: @item.Identifier
-                                                @if (item.ApiAllegroPriceFromUser.HasValue)
-                                                {
-                                                    <span class="text-xs ml-1 text-gray-500" title="Cena bazowa w API (przed dopłatami)"> | API: @item.ApiAllegroPriceFromUser</span>
-                                                }
-                                            </div>
-            
-                                            <div class="mt-2">
+    
+                                            @if (item.FlagIds != null && item.FlagIds.Any())
+                                            {
+                                                <div class="flags-container d-flex flex-wrap mt-1" style="gap: 4px; justify-content:flex-start;">
+                                                    @foreach (var flagId in item.FlagIds)
+                                                    {
+                                                        var flag = Model.AvailableStoreFlags?.FirstOrDefault(f => f.FlagId == flagId);
+                                                        if (flag != null)
+                                                        {
+                                                            <span class="flag-badge" style="color: @flag.FlagColor; border-color: @flag.FlagColor; background-color: @(flag.FlagColor)4D;">
+                                                                @flag.FlagName
+                                                            </span>
+                                                        }
+                                                    }
+                                                </div>
+                                            }
+
+                                            <div class="d-flex align-items-center mt-2" style="gap: 6px; flex-wrap: wrap;">
                                                 <button class="select-product-btn"
                                                         data-product-id="@item.ProductId"
                                                         data-product-name="@item.Name"
                                                         data-identifier="@item.Identifier"
-                                                        style="font-size: 11px; padding: 2px 8px; width: 100px; pointer-events: auto;">
+                                                        style="font-size: 11px; padding: 2px 8px; pointer-events: auto;">
                                                     Zaznacz
                                                 </button>
+
+                                                <div class="small text-muted" style="line-height: 1;">
+                                                    ID: @item.Identifier
+                                                    @if (item.ApiAllegroPriceFromUser.HasValue)
+                                                    {
+                                                        <span class="text-xs ml-1 text-gray-500" title="Cena bazowa w API (przed dopłatami)"> | API: @item.ApiAllegroPriceFromUser</span>
+                                                    }
+                                                </div>
                                             </div>
                                         </div>
-
                                     </div>
                                 </td>
+                               
                                 <td class="align-middle">
                                     <div class="purchase-wrapper"
                                          data-id="@item.ProductId"
@@ -2145,28 +2166,7 @@
                                         }
                                     </div>
                                 </td>
-                            <td class="align-middle">
-                                <div class="flags-container d-flex flex-wrap" style="gap: 4px; justify-content:flex-start; max-width:140px;">
-        
-                                    @if (item.FlagIds != null && item.FlagIds.Any())
-                                    {
-                                        foreach (var flagId in item.FlagIds)
-                                        {
-                                            var flag = Model.AvailableStoreFlags?.FirstOrDefault(f => f.FlagId == flagId);
-                                            if (flag != null)
-                                            {
-                                                <span class="flag-badge" style="color: @flag.FlagColor; border-color: @flag.FlagColor; background-color: @(flag.FlagColor)4D;">
-                                                    @flag.FlagName
-                                                </span>
-                                            }
-                                        }
-                                    }
-                                    else
-                                    {
-                                      
-                                    }
-                                </div>
-                            </td>
+                            
                         </tr>
                     }
                 </tbody>
