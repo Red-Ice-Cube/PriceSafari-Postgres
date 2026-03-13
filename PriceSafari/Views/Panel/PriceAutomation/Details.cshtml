@@ -1550,7 +1550,8 @@
                                 data-is-commission-included="@(item.IsCommissionIncluded.ToString().ToLower())"
                                 data-has-margin-warning="@isMarginIssue.ToString().ToLower()"
                                 data-missing-own-offer="@isMissingOwnOffer.ToString().ToLower()"
-                                data-no-competition="@isNoCompetition.ToString().ToLower()">
+                                data-no-competition="@isNoCompetition.ToString().ToLower()"
+                                data-flag-ids="@(item.FlagIds != null ? string.Join(",", item.FlagIds) : "")">
                           
                                 <td class="align-middle">
                                     <div style="display: flex; gap: 10px; align-items: flex-start;">
@@ -3391,7 +3392,7 @@
                     ]
                 }
             ];
-
+           
             let activeFilters = new Map();
             let allRows = [];
 
@@ -3400,6 +3401,49 @@
                 if (!tableBody) return;
 
                 allRows = Array.from(tableBody.querySelectorAll('tr'));
+
+                // ── Dynamic flag filters ──
+                const flagMap = new Map();
+                allRows.forEach(row => {
+                    const ids = row.getAttribute('data-flag-ids');
+                    if (!ids) return;
+                    ids.split(',').forEach(id => {
+                        const trimmed = id.trim();
+                        if (trimmed) flagMap.set(trimmed, (flagMap.get(trimmed) || 0) + 1);
+                    });
+                });
+
+                if (flagMap.size > 0) {
+                    const flagLookup = {};
+                    flags.forEach(f => {
+                        const id = (f.flagId ?? f.FlagId ?? '').toString();
+                        const name = f.flagName ?? f.FlagName ?? '';
+                        const color = f.flagColor ?? f.FlagColor ?? '#858796';
+                        if (id) flagLookup[id] = { name: name, color: color };
+                    });
+
+                    const flagFilters = [];
+                    flagMap.forEach((count, flagId) => {
+                        const info = flagLookup[flagId];
+                        if (!info) return;
+                        flagFilters.push({
+                            key: 'flag-' + flagId,
+                            label: info.name,
+                            icon: 'fa-flag',
+                            attr: 'data-flag-ids',
+                            value: flagId,
+                            color: info.color
+                        });
+                    });
+
+                    if (flagFilters.length > 0) {
+                        filterGroups.push({
+                            id: 'flags',
+                            label: 'Flagi',
+                            filters: flagFilters
+                        });
+                    }
+                }
 
                 buildFilterUI();
                 updateCounts();
@@ -3445,6 +3489,10 @@
                             <span class="filter-count">${count}</span>
                         `;
 
+                        if (filter.color) {
+                            btn.dataset.filterColor = filter.color;
+                        }
+
                         if (count === 0) {
                             btn.disabled = true;
                             btn.style.opacity = '0.5';
@@ -3461,6 +3509,12 @@
             }
 
             function countMatching(attr, value) {
+                if (attr === 'data-flag-ids') {
+                    return allRows.filter(row => {
+                        const ids = (row.getAttribute(attr) || '').split(',').map(s => s.trim());
+                        return ids.includes(value);
+                    }).length;
+                }
                 return allRows.filter(row => row.getAttribute(attr) === value).length;
             }
 
@@ -3504,9 +3558,21 @@
                 if (activeFilters.has(key)) {
                     activeFilters.delete(key);
                     btn.classList.remove('active');
+                  
+                    if (btn.dataset.filterColor) {
+                        btn.style.backgroundColor = '';
+                        btn.style.borderColor = '';
+                        btn.style.color = '';
+                    }
                 } else {
                     activeFilters.set(key, { attr, value });
                     btn.classList.add('active');
+                  
+                    if (btn.dataset.filterColor) {
+                        btn.style.backgroundColor = btn.dataset.filterColor + 'CC';
+                        btn.style.borderColor = btn.dataset.filterColor + 'AA';
+                        btn.style.color = '#fff';
+                    }
                 }
 
                 applyFilters();
@@ -3531,9 +3597,16 @@
                         let visible = true;
 
                         filtersByAttr.forEach((values, attr) => {
-                            const rowValue = row.getAttribute(attr);
-                            if (!values.includes(rowValue)) {
-                                visible = false;
+                            if (attr === 'data-flag-ids') {
+                            
+                                const rowFlags = (row.getAttribute(attr) || '').split(',').map(s => s.trim());
+                                const hasAny = values.some(v => rowFlags.includes(v));
+                                if (!hasAny) visible = false;
+                            } else {
+                                const rowValue = row.getAttribute(attr);
+                                if (!values.includes(rowValue)) {
+                                    visible = false;
+                                }
                             }
                         });
 

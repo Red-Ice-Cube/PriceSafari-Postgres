@@ -108,7 +108,7 @@
         }
 
         function updateVisibleButtons() {
-            document.querySelectorAll('#priceContainer .select-product-btn').forEach(function (btn) {
+            document.querySelectorAll('.select-product-btn').forEach(function (btn) {
                 var productId = btn.dataset.productId;
                 if (selectedProductIds.has(productId)) {
                     btn.textContent = 'Wybrano';
