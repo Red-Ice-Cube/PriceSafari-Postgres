@@ -1,7 +1,7 @@
 ﻿(function () {
     'use strict';
     function MassActions(config) {
-        // ─── Config ───
+
         const storeId = config.storeId;
         const isAllegro = config.isAllegro || false;
         const storageKey = config.storageKey;
@@ -19,12 +19,7 @@
         const onAutomationsUpdated = config.onAutomationsUpdated;
         const onSelectionChanged = config.onSelectionChanged || function () { };
 
-        // ─── State ───
         let selectedProductIds = _loadFromStorage();
-
-        // ═══════════════════════════════════════════
-        //  STORAGE
-        // ═══════════════════════════════════════════
 
         function _loadFromStorage() {
             const stored = localStorage.getItem(storageKey);
@@ -38,10 +33,6 @@
         function _clearStorage() {
             localStorage.removeItem(storageKey);
         }
-
-        // ═══════════════════════════════════════════
-        //  SELECTION API
-        // ═══════════════════════════════════════════
 
         function isSelected(id) {
             return selectedProductIds.has(id.toString());
@@ -58,14 +49,16 @@
         function addProduct(id) {
             selectedProductIds.add(id.toString());
             _saveToStorage();
-            updateCounters(); // <--- DODANE
+            updateCounters();
+
             onSelectionChanged(selectedProductIds);
         }
 
         function removeProduct(id) {
             selectedProductIds.delete(id.toString());
             _saveToStorage();
-            updateCounters(); // <--- DODANE
+            updateCounters();
+
             onSelectionChanged(selectedProductIds);
         }
 
@@ -77,7 +70,8 @@
                 selectedProductIds.add(idStr);
             }
             _saveToStorage();
-            updateCounters(); // <--- DODANE
+            updateCounters();
+
             onSelectionChanged(selectedProductIds);
         }
 
@@ -113,10 +107,6 @@
             onSelectionChanged(selectedProductIds);
         }
 
-        // ═══════════════════════════════════════════
-        //  UI — VISIBLE BUTTONS
-        // ═══════════════════════════════════════════
-
         function updateVisibleButtons() {
             document.querySelectorAll('#priceContainer .select-product-btn').forEach(function (btn) {
                 var productId = btn.dataset.productId;
@@ -130,14 +120,6 @@
             });
         }
 
-        // ═══════════════════════════════════════════
-        //  UI — SELECTION MODAL
-        // ═══════════════════════════════════════════
-        // ═══════════════════════════════════════════
-        //  UI — SELECTION MODAL & COUNTERS
-        // ═══════════════════════════════════════════
-
-        // Nowa funkcja: odświeża tylko same liczniki (lekka)
         function updateCounters() {
             var counter = document.getElementById('selectedProductsCounter');
             var modalCounter = document.getElementById('selectedProductsModalCounter');
@@ -147,9 +129,8 @@
             if (modalCounter) modalCounter.textContent = count;
         }
 
-        // Stara funkcja: odświeża liczniki ORAZ buduje tabelę HTML
         function updateSelectionUI() {
-            updateCounters(); // <-- wywołujemy odświeżenie liczników
+            updateCounters();
 
             var count = selectedProductIds.size;
             var selectionContainer = document.getElementById('selectionContainer');
@@ -200,10 +181,6 @@
             modalList.appendChild(table);
         }
 
-        // ═══════════════════════════════════════════
-        //  UTILITY
-        // ═══════════════════════════════════════════
-
         function _hexToRgba(hex, alpha) {
             var r = 0, g = 0, b = 0;
             if (hex.length === 4) {
@@ -225,10 +202,6 @@
                 maximumFractionDigits: 2
             }) + ' PLN';
         }
-
-        // ═══════════════════════════════════════════
-        //  FLAG MODAL — BUILD PAYLOAD
-        // ═══════════════════════════════════════════
 
         function _buildFlagGetPayload(productIdsArray) {
             if (isAllegro) {
@@ -252,10 +225,6 @@
                 isAllegro: false
             };
         }
-
-        // ═══════════════════════════════════════════
-        //  FLAG MODAL — LOGIC
-        // ═══════════════════════════════════════════
 
         function _openFlagModal() {
             if (selectedProductIds.size === 0) {
@@ -391,10 +360,6 @@
                 .finally(function () { hideLoading(); });
         }
 
-        // ═══════════════════════════════════════════
-        //  AUTOMATION MODAL — LOGIC
-        // ═══════════════════════════════════════════
-
         function _openAutomationModal() {
             if (selectedProductIds.size === 0) {
                 alert('Nie zaznaczono żadnych produktów.');
@@ -448,7 +413,6 @@
             var totalAssignedInSelection = rules ? rules.reduce(function (sum, r) { return sum + r.matchingCount; }, 0) : 0;
             var totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
 
-            // ── Stats header ──
             var statsHeader = document.createElement('div');
             statsHeader.style.cssText = 'background-color:#f8f9fa; border:1px solid #e3e6f0; border-radius:8px; padding:15px; margin-bottom:20px; display:flex; justify-content:space-around; align-items:center; text-align:center;';
             statsHeader.innerHTML =
@@ -468,7 +432,6 @@
                 '</div>';
             container.appendChild(statsHeader);
 
-            // ── Unassign row ──
             var hasAssignments = totalAssignedInSelection > 0;
             var unassignDiv = document.createElement('div');
             unassignDiv.className = 'automation-rule-item';
@@ -498,7 +461,6 @@
                 '<button class="Button-Page-Small-r" type="button" style="pointer-events:none;' + (!hasAssignments ? ' background-color:#ccc; border-color:#ccc;' : '') + '">Odepnij</button>';
             container.appendChild(unassignDiv);
 
-            // ── Empty state ──
             if (!rules || rules.length === 0) {
                 var filterTypeParam = isAllegro ? '&filterType=1' : '';
                 var emptyDiv = document.createElement('div');
@@ -510,7 +472,6 @@
                 return;
             }
 
-            // ── Rules list ──
             rules.sort(function (a, b) { return a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }); });
 
             rules.forEach(function (rule) {
@@ -623,18 +584,13 @@
                 .finally(function () { hideLoading(); });
         }
 
-        // ═══════════════════════════════════════════
-        //  EVENT BINDING
-        // ═══════════════════════════════════════════
-
         function init() {
-            // ── Select All / Deselect All ──
+
             var selectAllBtn = document.getElementById('selectAllVisibleBtn');
             var deselectAllBtn = document.getElementById('deselectAllVisibleBtn');
             if (selectAllBtn) selectAllBtn.addEventListener('click', selectAllVisible);
             if (deselectAllBtn) deselectAllBtn.addEventListener('click', deselectAllVisible);
 
-            // ── Show selected modal ──
             var showSelectedBtn = document.getElementById('showSelectedProductsBtn');
             if (showSelectedBtn) {
                 showSelectedBtn.addEventListener('click', function () {
@@ -643,7 +599,6 @@
                 });
             }
 
-            // ── Remove from selection (delegated) ──
             var selectedList = document.getElementById('selectedProductsList');
             if (selectedList) {
                 selectedList.addEventListener('click', function (event) {
@@ -665,19 +620,16 @@
                 });
             }
 
-            // ── Open flag modal ──
             var flagBtn = document.getElementById('openBulkFlagModalBtn');
             if (flagBtn) {
                 flagBtn.addEventListener('click', function () { _openFlagModal(); });
             }
 
-            // ── Save flags ──
             var saveFlagsBtn = document.getElementById('saveFlagsButton');
             if (saveFlagsBtn) {
                 saveFlagsBtn.addEventListener('click', function () { _saveFlags(); });
             }
 
-            // ── Open automation modal (delegated on body) ──
             document.body.addEventListener('click', function (event) {
                 var targetBtn = event.target.closest('#openBulkAutomationModalBtn');
                 if (targetBtn) {
@@ -685,18 +637,12 @@
                 }
             });
 
-            // ── Initial UI ──
             updateSelectionUI();
         }
-
-        // ═══════════════════════════════════════════
-        //  PUBLIC API
-        // ═══════════════════════════════════════════
 
         return {
             init: init,
 
-            // Selection
             isSelected: isSelected,
             getSelected: getSelected,
             getCount: getCount,
@@ -707,7 +653,6 @@
             deselectAllVisible: deselectAllVisible,
             clearSelection: clearSelection,
 
-            // UI
             updateCounters: updateCounters,
             updateSelectionUI: updateSelectionUI,
             updateVisibleButtons: updateVisibleButtons
