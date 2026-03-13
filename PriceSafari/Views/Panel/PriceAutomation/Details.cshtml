@@ -180,14 +180,14 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 2px 8px;
+        padding: 2px 5px;
         border-radius: 4px;
         font-size: 11px;
         font-weight: 600;
         color: #ffffff !important;
         margin-right: 6px;
-        min-width: 55px;
-        height: 22px;
+        min-width: 51px;
+        height: 20.5px;
         gap: 4px;
     }
 
@@ -224,14 +224,13 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 4px;
+        padding: 2px  8px;
         border-radius: 4px;
         font-size: 11px;
-        font-weight: 600;
+        font-weight: 500;
         color: #ffffff !important;
-        width: 132px;
-        min-width: 132px;
-        height: 24px;
+        
+        height: 20.5px;
         gap: 4px;
     }
 
@@ -283,7 +282,7 @@
 
     .price-main-style {
         font-weight: 500;
-        font-size: 17px;
+        font-size: 16px;
         color: #000;
     }
 
@@ -319,12 +318,12 @@
 
     .purchase-wrapper {
         position: relative;
-        min-width: 190px;
+        min-width: 184px;
     }
 
     .price-actions-display {
         display: inline-flex;
-        margin-right: 6px;
+        margin-right: 3px;
         vertical-align: middle;
         opacity: 0.4;
         transition: opacity 0.2s;
@@ -387,9 +386,13 @@
     }
 
     .product-name-wrap {
-        white-space: normal !important;
-        word-wrap: break-word;
-        width: 220px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3; 
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        word-break: break-word;
+        width: 205px; 
         line-height: 1.3;
     }
 
@@ -397,6 +400,7 @@
         text-decoration: none;
         color: inherit;
         transition: color 0.2s ease-in-out;
+        font-size:13px;
     }
 
         .simulationProductTitle:hover {
@@ -414,17 +418,16 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0 4px;
+        padding: 2px 5px;
         border-radius: 4px;
         font-size: 11px;
-        font-weight: 700;
-        width: 106px;
-        min-width: 106px;
-        height: 24px;
+        font-weight: 600;
+       
+        height: 20.5px;
         gap: 4px;
         background-color: transparent;
         border-style: dashed;
-        border-width: 2px;
+        border-width: 1px;
         text-transform: uppercase;
     }
 
@@ -658,7 +661,7 @@
     .filter-toolbar-wrapper {
         background: #fff;
         border-radius: 8px;
-        padding: 16px;
+        padding: 24px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         margin-bottom: 0;
     }
@@ -1007,6 +1010,28 @@
         color: #a0a0a0;
         font-weight: 600;
     }
+
+
+    .flag-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 5px;
+        border-radius: 4px;
+        border-width: 1px;
+        border-style: solid;
+        font-size: 11px;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .table-orders td, .table-orders th {
+        padding: 10px 12px;
+        text-align: left;
+        color: #222222;
+        font-size: 14px;
+        font-weight: 400;
+    }
+
 </style>
 
 <div class="View">
@@ -1371,28 +1396,26 @@
             </div>
         </div>
         <div class="Vert-full">
-            <div class="Vert-table" style="height: 90vh;">
+            <div class="Vert-table" style="height: 90vh; margin-top:0px;">
                 <table class="table-orders" id="automationTable" width="100%">
                     <thead>
                         <tr>
-                            @if (!isMarketplace)
-                            {
-                                <th style="width: 50px;"></th>
-                            }
-                            <th style="max-width: 230px;">Produkt</th>
-                            <th style="width: 200px; min-width: 195px;">Limity Cenowe</th>
-                            <th style="min-width: 225px;">Dane z rynku - Twoja oferta</th>
+                           
+                            <th style="max-width: 210px;">Produkt</th>
+                            <th style="max-width: 190px; min-width: 185px;">Limity Cenowe</th>
+                            <th style="min-width: 230px;">Dane z rynku - Twoja oferta</th>
                             @if (Model.StrategyMode == AutomationStrategyMode.Competitiveness)
                             {
-                                <th style="min-width: 225px;">Najlepszy Rywal</th>
+                                <th style="min-width: 230px;">Najlepszy Rywal</th>
                             }
                             else
                             {
-                                <th style="min-width: 225px;">Mediana Rynku</th>
+                                <th style="min-width: 230px;">Mediana Rynku</th>
                             }
                             <th style="min-width: 150px; width: 150px;">Zmiana</th>
-                            <th class="bg-gradient-light border-left-primary" style="min-width: 260px;">Wyznaczona Cena</th>
+                            <th class="bg-gradient-light border-left-primary" style="min-width: 245px;">Wyznaczona Cena</th>
                             <th>Status</th>
+                            <th style="min-width: 120px; max-width: 140px;">Flagi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1523,60 +1546,68 @@
                                 data-has-margin-warning="@isMarginIssue.ToString().ToLower()"
                                 data-missing-own-offer="@isMissingOwnOffer.ToString().ToLower()"
                                 data-no-competition="@isNoCompetition.ToString().ToLower()">
-                                @if (!isMarketplace)
-                                {
-                                    <td class="text-center align-middle">
-                                        @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                        {
-                                            <img src="@item.ImageUrl" alt="img" style="max-height: 40px; max-width: 40px;" />
-                                        }
-                                        else
-                                        {
-                                            <i class="fas fa-image text-gray-400"></i>
-                                        }
-                                    </td>
-                                }
-
+                          
                                 <td class="align-middle">
-                                    <div class="font-weight-bold product-name-wrap" title="@item.Name">
-                                        @{
-                                            string linkUrl = null;
-                                            if (isMarketplace)
-                                            {
-                                                linkUrl = $"/AllegroPriceHistory/Details?storeId={Model.StoreId}&productId={item.ProductId}";
-                                            }
-                                            else if (Model.LatestScrapId.HasValue)
-                                            {
-                                                linkUrl = $"/PriceHistory/Details?scrapId={Model.LatestScrapId}&productId={item.ProductId}";
-                                            }
-                                        }
-                                        @if (!string.IsNullOrEmpty(linkUrl))
+                                    <div style="display: flex; gap: 10px; align-items: flex-start;">
+        
+                                        @if (!isMarketplace)
                                         {
-                                            <a href="@linkUrl" target="_blank" rel="noopener noreferrer" class="simulationProductTitle">
-                                                @item.Name
-                                            </a>
+                                            <div style="flex-shrink: 0; width: 40px; text-align: center; margin-top: 2px;">
+                                                @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                                {
+                                                    <img src="@item.ImageUrl" alt="img" style="max-height: 40px; max-width: 40px; object-fit: contain; border-radius: 4px;" />
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-image text-gray-400" style="font-size: 24px;"></i>
+                                                }
+                                            </div>
                                         }
-                                        else
-                                        {
-                                            @item.Name
-                                        }
-                                    </div>
-                                    <div class="small text-muted mb-1 mt-1">
-                                        ID: @item.Identifier
-                                        @if (item.ApiAllegroPriceFromUser.HasValue)
-                                        {
-                                            <span class="text-xs ml-1 text-gray-500" title="Cena bazowa w API (przed dopłatami)"> | API: @item.ApiAllegroPriceFromUser</span>
-                                        }
-                                    </div>
-                                    <div class="mt-2">
 
-                                        <button class="select-product-btn"
-                                                data-product-id="@item.ProductId"
-                                                data-product-name="@item.Name"
-                                                data-identifier="@item.Identifier"
-                                                style="font-size: 11px; padding: 2px 8px; width: 100px; pointer-events: auto;">
-                                            Zaznacz
-                                        </button>
+                                        <div style="flex-grow: 1; min-width: 0;">
+                                            <div class="font-weight-bold product-name-wrap" title="@item.Name">
+                                                @{
+                                                    string linkUrl = null;
+                                                    if (isMarketplace)
+                                                    {
+                                                        linkUrl = $"/AllegroPriceHistory/Details?storeId={Model.StoreId}&productId={item.ProductId}";
+                                                    }
+                                                    else if (Model.LatestScrapId.HasValue)
+                                                    {
+                                                        linkUrl = $"/PriceHistory/Details?scrapId={Model.LatestScrapId}&productId={item.ProductId}";
+                                                    }
+                                                }
+                                                @if (!string.IsNullOrEmpty(linkUrl))
+                                                {
+                                                    <a href="@linkUrl" target="_blank" rel="noopener noreferrer" class="simulationProductTitle">
+                                                        @item.Name
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    @item.Name
+                                                }
+                                            </div>
+            
+                                            <div class="small text-muted mb-1 mt-1">
+                                                ID: @item.Identifier
+                                                @if (item.ApiAllegroPriceFromUser.HasValue)
+                                                {
+                                                    <span class="text-xs ml-1 text-gray-500" title="Cena bazowa w API (przed dopłatami)"> | API: @item.ApiAllegroPriceFromUser</span>
+                                                }
+                                            </div>
+            
+                                            <div class="mt-2">
+                                                <button class="select-product-btn"
+                                                        data-product-id="@item.ProductId"
+                                                        data-product-name="@item.Name"
+                                                        data-identifier="@item.Identifier"
+                                                        style="font-size: 11px; padding: 2px 8px; width: 100px; pointer-events: auto;">
+                                                    Zaznacz
+                                                </button>
+                                            </div>
+                                        </div>
+
                                     </div>
                                 </td>
                                 <td class="align-middle">
@@ -2114,9 +2145,31 @@
                                         }
                                     </div>
                                 </td>
-                            </tr>
-                        }
-                    </tbody>
+                            <td class="align-middle">
+                                <div class="flags-container d-flex flex-wrap" style="gap: 4px; justify-content:flex-start; max-width:140px;">
+        
+                                    @if (item.FlagIds != null && item.FlagIds.Any())
+                                    {
+                                        foreach (var flagId in item.FlagIds)
+                                        {
+                                            var flag = Model.AvailableStoreFlags?.FirstOrDefault(f => f.FlagId == flagId);
+                                            if (flag != null)
+                                            {
+                                                <span class="flag-badge" style="color: @flag.FlagColor; border-color: @flag.FlagColor; background-color: @(flag.FlagColor)4D;">
+                                                    @flag.FlagName
+                                                </span>
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                      
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
                 </table>
             </div>
         </div>
@@ -2212,17 +2265,15 @@
 
                 const isAllegroContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
                 const sourceTypeInt = isAllegroContext ? 1 : 0;
-
-                // let selectedProductIds = new Set();
-                // let selectedProductNames = new Map();
-                // let selectedProductIdentifiers = new Map();
+        const flags = @Html.Raw(Json.Serialize(Model.AvailableStoreFlags ?? new List<FlagViewModel>()));
                 const massActions = new window.MassActions({
                     storeId: storeId,
-                    isAllegro: isAllegroContext, // Korzystamy ze zmiennej, którą już masz w widoku
-                    storageKey: `automationDetails_selected_${currentRuleId}_${storeId}`, // Unikalny klucz dla tego widoku
+                    isAllegro: isAllegroContext, 
+
+                    storageKey: `automationDetails_selected_${currentRuleId}_${storeId}`, 
+
                     flags: typeof flags !== 'undefined' ? flags : [], 
-                    // W tym widoku nie filtrujemy asynchronicznie po API, tylko chowamy wiersze w DOM, 
-                    // więc getAllPrices i getFilteredPrices zwrócą obiekty symulujące z DOM
+
                     getAllPrices: function() {
                         return Array.from(document.querySelectorAll('#automationTable tbody tr')).map(row => {
                             const btn = row.querySelector('.select-product-btn');
@@ -2230,7 +2281,7 @@
                             return {
                                 productId: btn.dataset.productId,
                                 productName: btn.dataset.productName,
-                                // Tutaj wkładamy surowy tekst z tabeli jako ID, żeby modal sobie to zjadł
+
                                 identifierText: btn.dataset.identifier 
                             };
                         }).filter(Boolean);
@@ -2253,12 +2304,13 @@
                     },
                     showLoading: showLoading,
                     hideLoading: hideLoading,
-                    // W tym widoku alerty są inne, ale użyjemy alert() lub prostej modyfikacji, 
-                    // ponieważ brakuje divów #globalUpdate z poprzednich widoków
+
                     showGlobalUpdate: function(msg) { alert("Sukces: Zaktualizowano pomyślnie."); },
                     showGlobalNotification: function(msg) { alert("Powiadomienie: " + msg); },
-                    onFlagsUpdated: () => location.reload(), // Przeładuj stronę
-                    onAutomationsUpdated: () => location.reload() // Przeładuj stronę
+                    onFlagsUpdated: () => location.reload(), 
+
+                    onAutomationsUpdated: () => location.reload() 
+
                 });
 
                 document.addEventListener("DOMContentLoaded", function () {
@@ -2272,374 +2324,13 @@
                 function showLoading() { $('#loadingOverlay').css('display', 'flex'); }
                 function hideLoading() { $('#loadingOverlay').hide(); }
 
-                // function updateCounter() {
-
-                //     const count = selectedProductIds.size;
-                //     $('#selectedProductsCounter').text(`Wybrano: ${count}`);
-
-                //     const modalCounter = document.getElementById('selectedProductsModalCounter');
-                //     if (modalCounter) modalCounter.textContent = count;
-
-                //     const automationCount = document.getElementById('automationProductCountDisplay');
-                //     if (automationCount) automationCount.textContent = count;
-                // }
-
-                //       function updateBtnState(btn, isSelected) {
-                //     if (isSelected) {
-                //         btn.text('Wybrano');
-                //         btn.addClass('selected');
-                //     } else {
-                //         btn.text('Zaznacz');
-                //         btn.removeClass('selected');
-                //     }
-                // }
-
-                // function updateVisibleProductSelectionButtons() {
-                //     $('.select-product-btn').each(function() {
-                //         const btn = $(this);
-                //         const pid = btn.data('product-id').toString();
-                //         if (selectedProductIds.has(pid)) {
-                //             updateBtnState(btn, true);
-                //         } else {
-                //             updateBtnState(btn, false);
-                //         }
-                //     });
-                // }
-
-                // function renderSelectedList() {
-                //      const container = document.getElementById('selectedProductsList');
-                //      container.innerHTML = '';
-
-                //      if (selectedProductIds.size === 0) {
-                //          container.innerHTML = '<div class="alert alert-info text-center">Nie zaznaczono żadnych produktów.</div>';
-                //          return;
-                //      }
-
-                //      const table = document.createElement('table');
-                //      table.className = 'table-orders';
-
-                //      table.innerHTML = `<thead><tr><th style="width: 60%;">Nazwa Produktu</th><th style="width: 30%;">Identyfikator</th><th class="text-center">Akcja</th></tr></thead>`;
-                //      const tbody = document.createElement('tbody');
-
-                //      selectedProductIds.forEach(productId => {
-                //          const name = selectedProductNames.get(productId) || '---';
-                //          const identifier = selectedProductIdentifiers.get(productId) || '-';
-
-                //          const tr = document.createElement('tr');
-
-                //          tr.innerHTML = `
-                //            <td class="align-middle">
-                //                <div style="line-height:1.2; font-weight:600;">${name}</div>
-                //            </td>
-                //            <td class="align-middle">
-                //                <div style="display:flex; flex-direction:column;">
-                //                    <span style="font-size:10px; color:#858796; text-transform:uppercase;">ID:</span>
-                //                    <span style="font-family:monospace; font-size:12px; color:#333;">${identifier}</span>
-                //                </div>
-                //            </td>
-                //            <td class="text-center align-middle">
-                //                <button class="btn btn-danger btn-sm remove-selection-btn" data-product-id="${productId}" title="Usuń z zaznaczonych" style="padding: 2px 6px;">
-                //                    <i class="fa-solid fa-trash-can"></i>
-                //                </button>
-                //            </td>`;
-                //          tbody.appendChild(tr);
-                //      });
-
-                //      table.appendChild(tbody);
-                //      container.appendChild(table);
-                //  }
-
-                // function renderAutomationRulesInModal(rules, totalSelected) {
-                //     console.log("Renderowanie reguł...", rules);
-                //     const container = document.getElementById('automationRulesListContainer');
-                //     if (!container) return;
-
-                //     container.innerHTML = '';
-
-                //     const totalAssignedInSelection = rules ? rules.reduce((sum, r) => sum + r.matchingCount, 0) : 0;
-                //     const totalUnassignedInSelection = totalSelected - totalAssignedInSelection;
-
-                //     const statsHeader = document.createElement('div');
-                //     statsHeader.style.cssText = `
-                //         background-color: #f8f9fa; border: 1px solid #e3e6f0; border-radius: 8px;
-                //         padding: 15px; margin-bottom: 20px; display: flex;
-                //         justify-content: space-around; align-items: center; text-align: center;
-                //     `;
-
-                //     statsHeader.innerHTML = `
-                //         <div>
-                //             <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Łącznie zaznaczone</div>
-                //             <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalSelected}</div>
-                //         </div>
-                //         <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
-                //         <div>
-                //             <div style="font-size: 11px; color: #858796; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Przypisane do reguły</div>
-                //             <div style="font-size: 20px; font-weight: 700; color: #5a5c69;">${totalAssignedInSelection}</div>
-                //         </div>
-                //         <div style="border-left: 1px solid #e3e6f0; height: 30px;"></div>
-                //         <div>
-                //             <div style="font-size: 11px; color: #e74a3b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Nieprzypisane</div>
-                //             <div style="font-size: 20px; font-weight: 700; color: #e74a3b;">${Math.max(0, totalUnassignedInSelection)}</div>
-                //         </div>
-                //     `;
-                //     container.appendChild(statsHeader);
-
-                //     const unassignDiv = document.createElement('div');
-                //     const hasAssignments = totalAssignedInSelection > 0;
-
-                //     unassignDiv.className = 'automation-rule-item';
-                //     unassignDiv.style.cssText = `
-                //         border: 1px dashed ${hasAssignments ? '#e74a3b' : '#ccc'};
-                //         border-radius: 8px; padding: 10px 15px;
-                //         cursor: ${hasAssignments ? 'pointer' : 'default'};
-                //         background-color: #fff;
-                //         display: flex; justify-content: space-between; align-items: center;
-                //         transition: background-color 0.2s; margin-bottom: 20px; opacity: ${hasAssignments ? '1' : '0.6'};
-                //     `;
-
-                //     if (hasAssignments) {
-                //         unassignDiv.onmouseover = () => { unassignDiv.style.backgroundColor = '#fff5f5'; };
-                //         unassignDiv.onmouseout = () => { unassignDiv.style.backgroundColor = '#fff'; };
-                //         unassignDiv.addEventListener('click', () => {
-                //             confirmAndUnassignRules();
-                //         });
-                //     }
-
-                //     unassignDiv.innerHTML = `
-                //         <div style="display:flex; align-items:center; gap:15px;">
-                //             <div style="width:6px; height:45px; background-color:${hasAssignments ? '#e74a3b' : '#ccc'}; border-radius:3px;"></div>
-                //             <div>
-                //                 <div style="font-weight:600; font-size:15px; color:${hasAssignments ? '#e74a3b' : '#888'};">Brak Automatyzacji (Odepnij)</div>
-                //                 <div style="font-size:13px; color:#666; margin-top:2px;">
-                //                     ${hasAssignments ? `Odepnij <strong>${totalAssignedInSelection}</strong> zaznaczonych produktów od ich obecnych reguł.` : 'Żaden z zaznaczonych produktów nie jest przypisany do reguły.'}
-                //                 </div>
-                //             </div>
-                //         </div>
-                //           <button class="Button-Page-Small-r" type="button" style="pointer-events:none; ${!hasAssignments ? 'background-color:#ccc; border-color:#ccc;' : ''}">Odepnij</button>
-                //     `;
-                //     container.appendChild(unassignDiv);
-
-                //     if (!rules || rules.length === 0) {
-                //         const emptyDiv = document.createElement('div');
-                //         emptyDiv.innerHTML = `<div class="alert alert-warning" style="text-align:center;">Brak zdefiniowanych innych reguł.</div>`;
-                //         container.appendChild(emptyDiv);
-                //         return;
-                //     }
-
-                //     rules.sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }));
-
-                //     rules.forEach(rule => {
-
-                //         const statusColor = rule.isActive ? '#1cc88a' : '#e74a3b';
-                //         const statusText = rule.isActive ? 'Aktywna' : 'Nieaktywna';
-
-                //         const isCompetitiveness = rule.strategyMode === 0;
-                //         const strategyIcon = isCompetitiveness ? '<i class="fa-solid fa-bolt" style="color:#888;"></i>' : '<i class="fa-solid fa-dollar-sign" style="color:#888;"></i>';
-                //         const strategyName = isCompetitiveness ? "Lider Rynku" : "Rentowność";
-
-                //         const globalTotalInRule = rule.totalCount;
-                //         const selectedAlreadyInRule = rule.matchingCount;
-                //         const toBeAdded = totalSelected - selectedAlreadyInRule;
-
-                //         let backgroundStyle = selectedAlreadyInRule > 0 ? '#fcfcfc' : '#fff';
-                //         let borderStyle = '#e3e6f0';
-
-                //         const div = document.createElement('div');
-                //         div.className = 'automation-rule-item';
-                //         div.style.cssText = `
-                //             border: 1px solid ${borderStyle}; border-radius: 8px; padding: 12px 15px;
-                //             cursor: pointer; background: ${backgroundStyle};
-                //             display: flex; justify-content: space-between; align-items: center;
-                //             transition: background-color 0.2s, border-color 0.2s; margin-bottom: 10px;
-                //         `;
-
-                //         div.innerHTML = `
-                //             <div style="display:flex; align-items:center; gap:15px; flex-grow: 1;">
-                //                 <div style="width:6px; height:45px; background-color:${rule.colorHex}; border-radius:3px; flex-shrink: 0;"></div>
-                //                 <div style="flex-grow: 1;">
-                //                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                //                         <div style="font-weight:600; font-size:16px; color:#333;">${rule.name}</div>
-                //                         <div style="font-size:12px; color:#888; display:flex; align-items:center; gap:8px;">
-                //                             <span style="display:flex; align-items:center; gap:4px;">${strategyIcon} ${strategyName}</span>
-                //                             <span style="color:#e3e6f0;">|</span>
-                //                             <span style="color:${statusColor}; font-weight:500; display:flex; align-items:center; gap:4px;"><i class="fa-solid fa-circle" style="font-size:6px;"></i> ${statusText}</span>
-                //                         </div>
-                //                     </div>
-                //                     <div style="display:flex; gap: 15px; margin-top:6px; font-size:13px; color:#666; align-items: center; flex-wrap: wrap;">
-                //                         <span title="Całkowita liczba produktów w tej regule"><i class="fa-solid fa-database" style="color:#999; margin-right:4px;"></i> Razem: <strong>${globalTotalInRule}</strong></span>
-                //                         <span style="color:#e3e6f0;">|</span>
-                //                         <span title="Ile z zaznaczonych jest tutaj"><i class="fa-solid fa-check-double" style="color:#999; margin-right:4px;"></i> Wybranych: <strong>${selectedAlreadyInRule}</strong></span>
-                //                         <span style="color:#e3e6f0;">|</span>
-                //                         <span title="Ile zostanie dodanych">Zostanie dodanych: <strong style="color:#1cc88a;">+${toBeAdded}</strong></span>
-                //                     </div>
-                //                 </div>
-                //             </div>
-                //             <div style="margin-left: 20px;">
-                //                 <button class="Button-Page-Small-bl assign-rule-btn" type="button" style="pointer-events:none; white-space:nowrap; padding: 5px 15px;">Wybierz</button>
-                //             </div>
-                //         `;
-
-                //         div.addEventListener('click', () => {
-                //             confirmAndAssignRule(rule.id, rule.name);
-                //         });
-
-                //         container.appendChild(div);
-                //     });
-                // }
-
-                // function confirmAndAssignRule(targetRuleId, ruleName) {
-                //     if (!confirm(`Czy na pewno chcesz przypisać ${selectedProductIds.size} produktów do grupy "${ruleName}"?\n\nJeśli produkty były w innych grupach, zostaną przeniesione.`)) {
-                //         return;
-                //     }
-                //     executeAutomationAction('/AutomationRules/AssignProducts', { RuleId: targetRuleId });
-                // }
-
-                // function confirmAndUnassignRules() {
-                //     if (!confirm(`Czy na pewno chcesz usunąć przypisanie do reguł automatyzacji dla ${selectedProductIds.size} produktów?`)) {
-                //         return;
-                //     }
-                //     executeAutomationAction('/AutomationRules/UnassignProducts', {});
-                // }
-
-                // function executeAutomationAction(url, extraData) {
-                //     $('#automationSelectionModal').modal('hide');
-                //     showLoading();
-
-                //     const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
-
-                //     const payload = {
-                //         ProductIds: productIdsArray,
-                //         IsAllegro: isAllegroContext,
-                //         ...extraData
-                //     };
-
-                //     $.ajax({
-                //         url: url,
-                //         type: 'POST',
-                //         contentType: 'application/json',
-                //         data: JSON.stringify(payload),
-                //         success: function(res) {
-                //             hideLoading();
-                //             alert(res.message || 'Operacja zakończona sukcesem.');
-
-                //             location.reload();
-                //         },
-                //         error: function(xhr) {
-                //             hideLoading();
-                //             alert('Błąd: ' + (xhr.responseJSON ? xhr.responseJSON.message : xhr.statusText));
-
-                //             setTimeout(() => $('#automationSelectionModal').modal('show'), 500);
-                //         }
-                //     });
-                // }
-
                 $(document).ready(function() {
 
-            //      $(document).on('click', '.select-product-btn', function(e) {
-            //             e.stopPropagation();
-            //             const btn = $(this);
-            //             const pid = btn.data('product-id').toString();
-            //             const pname = btn.data('product-name');
-
-
-
-            //             const identifierText = btn.data('identifier');
-
-            //             if (selectedProductIds.has(pid)) {
-            //                 selectedProductIds.delete(pid);
-            //                 selectedProductNames.delete(pid);
-            //                 selectedProductIdentifiers.delete(pid);
-            //                 updateBtnState(btn, false);
-            //             } else {
-            //                 selectedProductIds.add(pid);
-            //                 selectedProductNames.set(pid, pname);
-            //                 selectedProductIdentifiers.set(pid, identifierText);
-            //                 updateBtnState(btn, true);
-            //             }
-            //             updateCounter();
-            //         });
-
-            //                $('#selectAllVisibleBtn').on('click', function() {
-            //                 $('.select-product-btn').each(function() {
-            //                     const btn = $(this);
-            //                     const row = btn.closest('tr');
-
-                              
-            //                     const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
-
-            //                     if (isVisible) {
-            //                         const pid = btn.data('product-id').toString();
-            //                         const pname = btn.data('product-name');
-
-            //                         const identifierText = btn.data('identifier');
-                                  
-            //                         if (!selectedProductIds.has(pid)) {
-            //                             selectedProductIds.add(pid);
-            //                             selectedProductNames.set(pid, pname);
-            //                             selectedProductIdentifiers.set(pid, identifierText);
-            //                             updateBtnState(btn, true);
-            //                         }
-            //                     }
-            //                 });
-            //                 updateCounter();
-            //             });
-
-            //          $('#deselectAllVisibleBtn').on('click', function() {
-            //              $('.select-product-btn').each(function() {
-            //                  const btn = $(this);
-            //                  const row = btn.closest('tr');
-
-            //                  const isVisible = row.css('display') !== 'none' && !row.hasClass('filter-hidden');
-
-            //                  if (isVisible) {
-            //                      const pid = btn.data('product-id').toString();
-
-            //                      if (selectedProductIds.has(pid)) {
-            //                          selectedProductIds.delete(pid);
-            //                          selectedProductNames.delete(pid);
-            //                          selectedProductIdentifiers.delete(pid);
-            //                          updateBtnState(btn, false);
-            //                      }
-            //                  }
-            //              });
-            //              updateCounter();
-
-            //  });
-            // $('#showSelectedProductsBtn').on('click', function() {
-            //     if (selectedProductIds.size === 0) {
-            //         alert('Nie zaznaczono żadnych produktów.');
-            //         return;
-            //     }
-            //     renderSelectedList();
-            //     $('#selectedProductsModal').modal('show');
-            // });
-
-            // $(document).on('click', '.remove-selection-btn', function(e) {
-            //     e.stopPropagation();
-            //     const pid = $(this).data('product-id').toString();
-            //     selectedProductIds.delete(pid);
-            //     selectedProductNames.delete(pid);
-            //     selectedProductIdentifiers.delete(pid);
-
-            //     const mainBtn = $(`.select-product-btn[data-product-id="${pid}"]`);
-            //     if(mainBtn.length) updateBtnState(mainBtn, false);
-
-            //     updateCounter();
-            //     renderSelectedList();
-            // });
-
-
-
-
-
-
-
-        // Kliknięcie w pojedynczy przycisk "Zaznacz"
         $(document).on('click', '.select-product-btn', function(e) {
         e.stopPropagation();
         const btn = $(this);
         const pid = btn.data('product-id').toString();
-                    
+
         massActions.toggleProduct(pid);
 
         if (massActions.isSelected(pid)) {
@@ -2648,16 +2339,6 @@
         btn.text('Zaznacz').removeClass('selected');
         }
         });
-
-        // Update przycisków po przeładowaniu filtrów JS w tabeli
-        // function syncButtonsWithMassActions() {
-        // massActions.updateVisibleButtons();
-        // }
-
-
-
-
-
 
 
             $(document).on('click', '#openBulkAutomationModalBtn', function() {
@@ -3675,8 +3356,8 @@
                     filters: [
                         { key: 'TargetMet', label: 'Cel osiągnięty', icon: 'fa-check', attr: 'data-status', value: 'TargetMet' },
                         { key: 'TargetMaintained', label: 'Cel utrzymany', icon: 'fa-check-circle', attr: 'data-status', value: 'TargetMaintained' },
-                        { key: 'LimitFloor', label: 'Limit / Blokada (Min)', icon: 'fa-arrow-down', attr: 'data-limit-type', value: 'floor' },
-                        { key: 'LimitCeiling', label: 'Limit / Blokada (Max)', icon: 'fa-arrow-up', attr: 'data-limit-type', value: 'ceiling' },
+                        { key: 'LimitFloor', label: 'Limit (Min)', icon: 'fa-arrow-down', attr: 'data-limit-type', value: 'floor' },
+                        { key: 'LimitCeiling', label: 'Limit (Max)', icon: 'fa-arrow-up', attr: 'data-limit-type', value: 'ceiling' },
                         { key: 'Blocked', label: 'Blokada', icon: 'fa-times', attr: 'data-status', value: 'Blocked' }
                     ]
                 },

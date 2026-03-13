@@ -64,6 +64,9 @@ namespace PriceSafari.Models.ViewModels
         public DateTime? ScheduledStartDate { get; set; }
         public DateTime? ScheduledEndDate { get; set; }
 
+
+        public List<FlagViewModel> AvailableStoreFlags { get; set; } = new List<FlagViewModel>();
+
     }
 
     public class AutomationProductRowViewModel
@@ -158,6 +161,8 @@ namespace PriceSafari.Models.ViewModels
         public string MissingPlatformName { get; set; }
 
         public bool IsSmartPriceAdjusted { get; set; } = false;
+
+        public List<int> FlagIds { get; set; } = new List<int>();
     }
 
     public class AutomationExecutionRequest
@@ -210,4 +215,6 @@ namespace PriceSafari.Models.ViewModels
 
         public List<int> TotalProducts { get; set; } = new List<int>();
     }
+
+  
 }

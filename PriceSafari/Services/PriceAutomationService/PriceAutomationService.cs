@@ -306,6 +306,18 @@ namespace PriceSafari.Services.PriceAutomationService
             bool includeGoogle = rule.CompetitorPreset == null || rule.CompetitorPreset.SourceGoogle;
             bool includeCeneo = rule.CompetitorPreset == null || rule.CompetitorPreset.SourceCeneo;
 
+            // POBIERAMY FLAGI HURTOWO DLA WSZYSTKICH PRODUKTÓW (TYLKO ID)
+            var productFlagsLookup = await _context.ProductFlags
+                .Where(pf => pf.ProductId.HasValue
+                          && productIds.Contains(pf.ProductId.Value)
+                          && pf.Flag != null
+                          && !pf.Flag.IsMarketplace)
+                .GroupBy(pf => pf.ProductId.Value)
+                .ToDictionaryAsync(
+                    g => g.Key,
+                    g => g.Select(pf => pf.FlagId).ToList()
+                );
+
             foreach (var item in assignments)
             {
                 var p = item.Product;
@@ -374,7 +386,10 @@ namespace PriceSafari.Services.PriceAutomationService
                     PurchasePriceUpdatedDate = p.MarginPriceUpdatedDate,
                     IsProductRejected = p.IsRejected,
                     IsProductScrapable = p.IsScrapable,
-                    HasScrapedPrice = myHistory != null && myHistory.Price > 0
+                    HasScrapedPrice = myHistory != null && myHistory.Price > 0,
+                    FlagIds = productFlagsLookup.ContainsKey(p.ProductId)
+                      ? productFlagsLookup[p.ProductId]
+                      : new List<int>()
                 };
 
                 bool bestRivalIsCeneo = bestCompetitor != null && bestCompetitor.IsGoogle != true;
@@ -507,7 +522,17 @@ namespace PriceSafari.Services.PriceAutomationService
             bool includeNoDelivery = rule.CompetitorPreset?.IncludeNoDeliveryInfo ?? true;
             int minDelivery = rule.CompetitorPreset?.MinDeliveryDays ?? 0;
             int maxDelivery = rule.CompetitorPreset?.MaxDeliveryDays ?? 31;
-
+            // POBIERAMY FLAGI HURTOWO (Allegro) - TYLKO ID
+            var productFlagsLookup = await _context.ProductFlags
+                .Where(pf => pf.AllegroProductId.HasValue
+                          && productIds.Contains(pf.AllegroProductId.Value)
+                          && pf.Flag != null
+                          && pf.Flag.IsMarketplace)
+                .GroupBy(pf => pf.AllegroProductId.Value)
+                .ToDictionaryAsync(
+                    g => g.Key,
+                    g => g.Select(pf => pf.FlagId).ToList()
+                );
             foreach (var item in assignments)
             {
                 var p = item.AllegroProduct;
@@ -634,7 +659,10 @@ namespace PriceSafari.Services.PriceAutomationService
                     PurchasePriceUpdatedDate = p.AllegroMarginPriceUpdatedDate,
                     IsProductRejected = p.IsRejected,
                     IsProductScrapable = p.IsScrapable,
-                    HasScrapedPrice = myHistory != null && myHistory.Price > 0
+                    HasScrapedPrice = myHistory != null && myHistory.Price > 0,
+                    FlagIds = productFlagsLookup.ContainsKey(p.AllegroProductId)
+                      ? productFlagsLookup[p.AllegroProductId]
+                      : new List<int>()
                 };
 
                 CalculateSuggestedPrice(rule, row);
@@ -683,6 +711,7 @@ namespace PriceSafari.Services.PriceAutomationService
             model.TotalProducts = calculationResult.Products.Count;
             model.LastScrapDate = calculationResult.ScrapDate;
             model.LatestScrapId = calculationResult.ScrapId;
+            model.AvailableStoreFlags = await GetStoreFlagsAsync(rule.StoreId, false);
         }
 
         public async Task PrepareMarketplaceData(AutomationRule rule, AutomationDetailsViewModel model)
@@ -697,6 +726,7 @@ namespace PriceSafari.Services.PriceAutomationService
             model.TotalProducts = result.Products.Count;
             model.LastScrapDate = result.ScrapDate;
             model.LatestScrapId = result.ScrapId;
+            model.AvailableStoreFlags = await GetStoreFlagsAsync(rule.StoreId, true);
         }
 
         private string CalculateRanking(List<decimal> competitors, decimal myPrice)
@@ -902,7 +932,7 @@ namespace PriceSafari.Services.PriceAutomationService
                     else if (rule.SkipIfMarkupLimited)
                     {
 
-                        ApplyBlock(row, "Blokada Ceny (Min)");
+                        ApplyBlock(row, "Limit Ceny (Min)");
                         return;
                     }
                     else
@@ -910,7 +940,7 @@ namespace PriceSafari.Services.PriceAutomationService
 
                         if (Math.Abs(Math.Round(basePrice, 2) - Math.Round(row.MinPriceLimit.Value, 2)) < 0.01m)
                         {
-                            ApplyBlock(row, "Blokada Ceny (Min)");
+                            ApplyBlock(row, "Limit Ceny (Min)");
                             return;
                         }
 
@@ -1449,7 +1479,23 @@ namespace PriceSafari.Services.PriceAutomationService
 
             return model;
         }
+
+        private async Task<List<FlagViewModel>> GetStoreFlagsAsync(int storeId, bool isMarketplace)
+        {
+            return await _context.Flags
+                .Where(f => f.StoreId == storeId && f.IsMarketplace == isMarketplace)
+                .Select(f => new FlagViewModel
+                {
+                    FlagId = f.FlagId, // Zależnie jak nazywa się klucz główny encji FlagsClass (Id czy FlagId)
+                    FlagName = f.FlagName,
+                    FlagColor = f.FlagColor,
+                    IsMarketplace = f.IsMarketplace
+                })
+                .ToListAsync();
+        }
     }
+
+
     public class AutomationTriggerRequest
     {
         public int RuleId { get; set; }
