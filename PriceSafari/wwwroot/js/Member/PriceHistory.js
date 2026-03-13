@@ -4788,60 +4788,7 @@
             .finally(() => hideLoading());
     });
 
-    document.getElementById('saveFlagsButton').addEventListener('click', function () {
-
-        const flagsToAdd = [];
-        const flagsToRemove = [];
-
-        document.querySelectorAll('#flagModalBody .bulk-flag-item').forEach(item => {
-            const flagId = parseInt(item.dataset.flagId, 10);
-            const addCheckbox = item.querySelector('.bulk-flag-action[data-action="add"]');
-            const removeCheckbox = item.querySelector('.bulk-flag-action[data-action="remove"]');
-
-            if (addCheckbox && addCheckbox.checked) {
-                flagsToAdd.push(flagId);
-            }
-            if (removeCheckbox && removeCheckbox.checked) {
-                flagsToRemove.push(flagId);
-            }
-        });
-
-        if (flagsToAdd.length === 0 && flagsToRemove.length === 0) {
-            alert("Nie wybrano żadnych akcji do wykonania.");
-            return;
-        }
-
-        const data = {
-            productIds: Array.from(selectedProductIds).map(id => parseInt(id)),
-            flagsToAdd: flagsToAdd,
-            flagsToRemove: flagsToRemove
-        };
-
-        showLoading();
-        fetch('/ProductFlags/UpdateFlagsForMultipleProducts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        })
-            .then(response => response.json())
-            .then(response => {
-                if (response.success) {
-                    $('#flagModal').modal('hide');
-                    showGlobalUpdate(`<p>Pomyślnie zaktualizowano flagi dla ${data.productIds.length} produktów.</p>`);
-
-                    selectedProductIds.clear();
-                    clearSelectionFromStorage();
-                    updateSelectionUI();
-
-                    loadPrices();
-                } else {
-                    alert('Błąd: ' + response.message);
-                }
-            })
-            .catch(error => console.error('Błąd masowej aktualizacji flag:', error))
-            .finally(() => hideLoading());
-    });
-
+  
     function updateSelectionUI() {
         const selectionContainer = document.getElementById('selectionContainer');
         const counter = document.getElementById('selectedProductsCounter');
