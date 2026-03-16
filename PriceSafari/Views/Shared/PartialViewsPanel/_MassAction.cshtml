@@ -8,6 +8,7 @@
     string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen. Skontaktuj sie z nami biuro@pricesafari.pl";
 }
 <style>
+    /* ═══════════════ MASS ACTION BAR ═══════════════ */
     .mass-action-bar {
         background: #f8f9fa;
         border: 1px solid #e3e6f0;
@@ -51,8 +52,8 @@
         gap: 8px;
         padding: 9px 18px;
         border-radius: 8px;
-        font-size: 13.5px;
-        font-weight: 600;
+        font-size: 14px;
+        font-weight: 500;
         border: none;
         cursor: pointer;
         transition: background-color 0.2s ease, color 0.2s ease;
@@ -63,7 +64,7 @@
     .mass-btn-flags {
         background-color: #fff;
         color: #222;
-        border: 1.5px solid #222;
+        border: 1px solid #222;
     }
 
         .mass-btn-flags:hover {
@@ -74,10 +75,12 @@
     .mass-btn-automation {
         background-color: #2d2d2d;
         color: #fff;
+        border: 1px solid #2d2d2d;
     }
 
         .mass-btn-automation:hover {
             background-color: #1a1a1a;
+            border: 1px solid #1a1a1a;
         }
 
         .mass-btn-automation img {
@@ -128,7 +131,7 @@
             color: #fff;
         }
 
-    /* Continue modal */
+    /* ═══════════════ CONTINUE MODAL ═══════════════ */
     #continueActionsModal .modal-content {
         border-radius: 12px;
         overflow: hidden;
@@ -186,7 +189,6 @@
             background-color: #1a1a1a;
         }
 
-
     .continue-btn-no {
         display: inline-flex;
         align-items: center;
@@ -206,6 +208,140 @@
             background-color: #f8f9fa;
             border-color: #b7b9cc;
         }
+
+    /* ═══════════════ FLAG MODAL ═══════════════ */
+    .bulk-flag-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 18px;
+        border: 1px solid #e3e6f0;
+        border-radius: 10px;
+        background-color: #fff;
+        margin-bottom: 10px;
+        transition: background-color 0.15s ease;
+    }
+
+        .bulk-flag-item:hover {
+            background-color: #fafbfc;
+        }
+
+    .flag-label {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 1;
+        min-width: 0;
+    }
+
+    .flag-name {
+        display: inline-block;
+        padding: 5px 14px;
+        border-radius: 6px;
+        font-size: 13.5px;
+        font-weight: 600;
+        border: 1.5px solid;
+        white-space: nowrap;
+    }
+
+    .flag-count {
+        font-size: 13px;
+        color: #858796;
+        white-space: nowrap;
+    }
+
+    .flag-actions {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-shrink: 0;
+    }
+
+    .action-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .action-group label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin: 0;
+            font-size: 13.5px;
+            font-weight: 500;
+            color: #444;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+    /* Custom checkbox */
+    .bulk-flag-action {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #c0c4cc;
+        border-radius: 5px;
+        background-color: #fff;
+        cursor: pointer;
+        position: relative;
+        flex-shrink: 0;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+        .bulk-flag-action:hover:not(:disabled) {
+            border-color: #888;
+        }
+
+        .bulk-flag-action:checked {
+            background-color: #2d2d2d;
+            border-color: #2d2d2d;
+        }
+
+            .bulk-flag-action:checked::after {
+                content: '';
+                position: absolute;
+                top: 2px;
+                left: 6px;
+                width: 5px;
+                height: 10px;
+                border: solid #fff;
+                border-width: 0 2px 2px 0;
+                transform: rotate(45deg);
+            }
+
+        .bulk-flag-action:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            background-color: #f0f0f0;
+        }
+
+            .bulk-flag-action:disabled:checked {
+                background-color: #aaa;
+                border-color: #aaa;
+            }
+
+    .change-indicator {
+        display: none;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+    }
+
+    .add-indicator {
+        color: #0a7c42;
+        background-color: rgba(28, 200, 138, 0.12);
+    }
+
+    .remove-indicator {
+        color: #c0392b;
+        background-color: rgba(231, 74, 59, 0.1);
+    }
 </style>
 
 <!-- ═══════════════ MAIN SELECTED PRODUCTS MODAL ═══════════════ -->
@@ -251,7 +387,7 @@
                     </div>
                 </div>
 
-                <!-- Product list (no trash column) -->
+                <!-- Product list -->
                 <div id="selectedProductsList" class="table-scroll" style="max-height: 50vh; min-height: 35vh; overflow-y: auto;"></div>
             </div>
 
