@@ -20,6 +20,7 @@
         const onSelectionChanged = config.onSelectionChanged || function () { };
 
         let selectedProductIds = _loadFromStorage();
+        let _pendingRefreshCallbacks = [];
 
         function _loadFromStorage() {
             const stored = localStorage.getItem(storageKey);
@@ -50,7 +51,6 @@
             selectedProductIds.add(id.toString());
             _saveToStorage();
             updateCounters();
-
             onSelectionChanged(selectedProductIds);
         }
 
@@ -58,7 +58,6 @@
             selectedProductIds.delete(id.toString());
             _saveToStorage();
             updateCounters();
-
             onSelectionChanged(selectedProductIds);
         }
 
@@ -71,7 +70,6 @@
             }
             _saveToStorage();
             updateCounters();
-
             onSelectionChanged(selectedProductIds);
         }
 
@@ -151,29 +149,27 @@
             table.className = 'table-orders';
             table.innerHTML =
                 '<thead><tr>' +
-                '<th style="width: 65%;">Nazwa Produktu</th>' +
+                '<th style="width: 5%; text-align: center;">#</th>' +
+                '<th style="width: 70%;">Nazwa Produktu</th>' +
                 '<th>ID/EAN</th>' +
-                '<th class="text-center">Akcja</th>' +
                 '</tr></thead>';
 
             var tbody = document.createElement('tbody');
+            var index = 0;
 
             selectedProductIds.forEach(function (productId) {
                 var product = allPrices.find(function (p) { return p.productId.toString() === productId; });
                 if (!product) return;
 
+                index++;
                 var idInfo = getProductIdentifier(product);
                 var identifierText = idInfo.value ? (idInfo.label + ' ' + idInfo.value) : ('Brak ' + idInfo.label);
 
                 var tr = document.createElement('tr');
                 tr.innerHTML =
+                    '<td class="align-middle text-center" style="color: #858796; font-size: 13px;">' + index + '</td>' +
                     '<td class="align-middle">' + product.productName + '</td>' +
-                    '<td class="align-middle">' + identifierText + '</td>' +
-                    '<td class="text-center align-middle">' +
-                    '<button class="btn btn-danger btn-sm remove-selection-btn" data-product-id="' + productId + '" title="Usuń z zaznaczonych">' +
-                    '<i class="fa-solid fa-trash-can"></i>' +
-                    '</button>' +
-                    '</td>';
+                    '<td class="align-middle">' + identifierText + '</td>';
                 tbody.appendChild(tr);
             });
 
@@ -224,6 +220,38 @@
                 flagsToRemove: flagsToRemove,
                 isAllegro: false
             };
+        }
+
+        // ── Post-action continuation flow ──
+        function _askContinueOrFinish(refreshCallback) {
+            if (refreshCallback) {
+                _pendingRefreshCallbacks.push(refreshCallback);
+            }
+
+            $('#continueActionsModal').modal('show');
+        }
+
+        function _handleContinueYes() {
+            $('#continueActionsModal').modal('hide');
+            setTimeout(function () {
+                updateSelectionUI();
+                $('#selectedProductsModal').modal('show');
+            }, 300);
+        }
+
+        function _handleContinueNo() {
+            $('#continueActionsModal').modal('hide');
+            clearSelection();
+            _flushPendingRefreshes();
+        }
+
+        function _flushPendingRefreshes() {
+            if (_pendingRefreshCallbacks.length === 0) return;
+            var callbacks = _pendingRefreshCallbacks.slice();
+            _pendingRefreshCallbacks = [];
+            callbacks.forEach(function (cb) {
+                try { cb(); } catch (e) { console.error('Refresh callback error:', e); }
+            });
         }
 
         function _openFlagModal() {
@@ -344,11 +372,7 @@
                 .then(function (response) {
                     if (response.success) {
                         $('#flagModal').modal('hide');
-                        showGlobalUpdate('<p>Pomyślnie zaktualizowano flagi dla ' + productIdsArray.length + ' produktów.</p>');
-
-                        clearSelection();
-
-                        if (onFlagsUpdated) onFlagsUpdated();
+                        _askContinueOrFinish(onFlagsUpdated);
                     } else {
                         alert('Błąd: ' + response.message);
                     }
@@ -572,9 +596,7 @@
                     return response.text().then(function (text) { throw new Error(text); });
                 })
                 .then(function (data) {
-                    showGlobalUpdate('<p style="font-weight:bold;">Sukces!</p><p>' + data.message + '</p>');
-                    clearSelection();
-                    if (onAutomationsUpdated) onAutomationsUpdated();
+                    _askContinueOrFinish(onAutomationsUpdated);
                 })
                 .catch(function (error) {
                     console.error('Błąd:', error);
@@ -599,27 +621,6 @@
                 });
             }
 
-            var selectedList = document.getElementById('selectedProductsList');
-            if (selectedList) {
-                selectedList.addEventListener('click', function (event) {
-                    var removeButton = event.target.closest('.remove-selection-btn');
-                    if (!removeButton) return;
-
-                    var productId = removeButton.dataset.productId;
-                    selectedProductIds.delete(productId);
-                    _saveToStorage();
-
-                    var mainButton = document.querySelector('.select-product-btn[data-product-id="' + productId + '"]');
-                    if (mainButton) {
-                        mainButton.textContent = 'Zaznacz';
-                        mainButton.classList.remove('selected');
-                    }
-
-                    updateSelectionUI();
-                    onSelectionChanged(selectedProductIds);
-                });
-            }
-
             var flagBtn = document.getElementById('openBulkFlagModalBtn');
             if (flagBtn) {
                 flagBtn.addEventListener('click', function () { _openFlagModal(); });
@@ -637,7 +638,33 @@
                 }
             });
 
+            // ── Continue/Finish modal buttons ──
+            var continueYesBtn = document.getElementById('continueActionsYesBtn');
+            var continueNoBtn = document.getElementById('continueActionsNoBtn');
+            if (continueYesBtn) continueYesBtn.addEventListener('click', function () { _handleContinueYes(); });
+            if (continueNoBtn) continueNoBtn.addEventListener('click', function () { _handleContinueNo(); });
+
+            // ── Clear all selection button ──
+            var clearAllBtn = document.getElementById('clearAllSelectionBtn');
+            if (clearAllBtn) {
+                clearAllBtn.addEventListener('click', function () {
+                    if (selectedProductIds.size === 0) return;
+                    if (!confirm('Czy na pewno chcesz wyczyścić wszystkie zaznaczone produkty (' + selectedProductIds.size + ')?')) return;
+                    clearSelection();
+                    _flushPendingRefreshes();
+                    $('#selectedProductsModal').modal('hide');
+                });
+            }
+
+            // ── When main modal is closed and there are pending refreshes, flush them ──
+            $('#selectedProductsModal').on('hidden.bs.modal', function () {
+                if (_pendingRefreshCallbacks.length > 0) {
+                    _flushPendingRefreshes();
+                }
+            });
+
             updateSelectionUI();
+            updateVisibleButtons();
         }
 
         return {

@@ -3,18 +3,215 @@
 @inject UserManager<PriceSafariUser> UserManager
 
 @{
-   
     var user = await UserManager.GetUserAsync(User);
-
-   
     bool canEditAutomation = user?.AccesToEditPriceAutomation ?? false;
-
     string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen. Skontaktuj sie z nami biuro@pricesafari.pl";
 }
+<style>
+    .mass-action-bar {
+        background: #f8f9fa;
+        border: 1px solid #e3e6f0;
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
+    }
 
+    .mass-action-bar-inner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .mass-action-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #5a5c69;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .mass-action-title i {
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+    .mass-action-buttons {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .mass-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 18px;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s ease, color 0.2s ease;
+        text-decoration: none;
+        line-height: 1;
+    }
+
+    .mass-btn-flags {
+        background-color: #fff;
+        color: #222;
+        border: 1.5px solid #222;
+    }
+
+        .mass-btn-flags:hover {
+            background-color: #222;
+            color: #fff;
+        }
+
+    .mass-btn-automation {
+        background-color: #2d2d2d;
+        color: #fff;
+    }
+
+        .mass-btn-automation:hover {
+            background-color: #1a1a1a;
+        }
+
+        .mass-btn-automation img {
+            width: 14px;
+            height: 14px;
+            filter: brightness(0) invert(1);
+        }
+
+    .mass-btn-disabled {
+        background-color: #e2e5ec;
+        color: #9a9cad;
+        border: 1.5px solid #d1d3e2;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+
+        .mass-btn-disabled img {
+            filter: brightness(0) invert(0.65);
+        }
+
+    /* Footer bar */
+    .mass-modal-footer-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 20px;
+        border-top: 1px solid #e3e6f0;
+        background-color: #f8f9fa;
+    }
+
+    .mass-btn-clear {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        background-color: #fff;
+        color: #e74a3b;
+        border: 1.5px solid #e74a3b;
+        cursor: pointer;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+        .mass-btn-clear:hover {
+            background-color: #e74a3b;
+            color: #fff;
+        }
+
+    /* Continue modal */
+    #continueActionsModal .modal-content {
+        border-radius: 12px;
+        overflow: hidden;
+        border: none;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+
+    .continue-modal-body {
+        text-align: center;
+        padding: 30px 30px 20px;
+    }
+
+        .continue-modal-body .continue-icon {
+            font-size: 42px;
+            color: #1cc88a;
+            margin-bottom: 14px;
+        }
+
+        .continue-modal-body h5 {
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .continue-modal-body p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 0;
+        }
+
+    .continue-modal-footer {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        padding: 10px 30px 28px;
+        border-top: none;
+    }
+
+    .continue-btn-yes {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        background-color: #2d2d2d;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+        .continue-btn-yes:hover {
+            background-color: #1a1a1a;
+        }
+
+
+    .continue-btn-no {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        background-color: #fff;
+        color: #5a5c69;
+        border: 1.5px solid #d1d3e2;
+        cursor: pointer;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+        .continue-btn-no:hover {
+            background-color: #f8f9fa;
+            border-color: #b7b9cc;
+        }
+</style>
+
+<!-- ═══════════════ MAIN SELECTED PRODUCTS MODAL ═══════════════ -->
 <div class="modal fade" id="selectedProductsModal" tabindex="-1" role="dialog" aria-labelledby="selectedProductsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl" role="document">
-        <div class="modal-content" style="margin: 3% auto !important; width: 1100px !important; max-width: 95% !important;">
+        <div class="modal-content" style="margin: 3% auto !important; width: 1100px !important; max-width: 95% !important; border-radius: 10px; overflow: hidden;">
             <div class="modal-header">
                 <div class="price-box-column-name" id="selectedProductsModalLabel">
                     Zaznaczone produkty (<span id="selectedProductsModalCounter">0</span>)
@@ -23,43 +220,76 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body">
-                <div class="mb-4 p-3" style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <strong style="font-size: 1.1rem; color: #333;">Dostępne akcje masowe:</strong>
+            <div class="modal-body" style="padding: 20px;">
+
+                <!-- Action bar -->
+                <div class="mass-action-bar">
+                    <div class="mass-action-bar-inner">
+                        <div class="mass-action-title">
+                            <i class="fa-solid fa-layer-group"></i>
+                            Akcje masowe
                         </div>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <button id="openBulkFlagModalBtn" class="Button-Page-Small-bl">
-                                <i class="fa-solid fa-tags" style="margin-right: 5px;"></i> Zarządzaj flagami
+                        <div class="mass-action-buttons">
+                            <button id="openBulkFlagModalBtn" class="mass-btn mass-btn-flags">
+                                <i class="fa-solid fa-tags"></i> Zarządzaj flagami
                             </button>
 
-                         
                             @if (canEditAutomation)
                             {
-                            
-                                <button id="openBulkAutomationModalBtn" class="Button-Page-Small" style="background-color: #4e73df; color: white; border: none;">
-                                    <i class="fa-solid fa-robot" style="margin-right: 5px;"></i> Automatyzacja Cen
+                                <button id="openBulkAutomationModalBtn" class="mass-btn mass-btn-automation">
+                                    <img src="/images/Robot-bone.svg" alt="" /> Automatyzacja Cen
                                 </button>
                             }
                             else
                             {
-                              
-                                <button type="button" onclick="alert('@Html.Raw(noAccessMessage)')" class="Button-Page-Small" style="background-color: #858796; color: white; border: none; opacity: 0.6; cursor: not-allowed;">
-                                    <i class="fas fa-robot" style="margin-right: 5px;"></i> Automatyzacja Cen <i class="fas fa-lock ml-1" style="font-size: 0.8em;"></i>
+                                <button type="button" onclick="alert('@Html.Raw(noAccessMessage)')" class="mass-btn mass-btn-disabled">
+                                    <img src="/images/Robot-bone.svg" alt="" /> Automatyzacja Cen
+                                    <i class="fas fa-lock" style="font-size: 0.8em; margin-left: 2px;"></i>
                                 </button>
                             }
-
                         </div>
                     </div>
                 </div>
 
-                <div id="selectedProductsList" class="table-scroll" style="max-height: 55vh; min-height: 40vh; overflow-y: auto;"> </div>
+                <!-- Product list (no trash column) -->
+                <div id="selectedProductsList" class="table-scroll" style="max-height: 50vh; min-height: 35vh; overflow-y: auto;"></div>
+            </div>
+
+            <!-- Footer with clear button -->
+            <div class="mass-modal-footer-bar">
+                <button type="button" id="clearAllSelectionBtn" class="mass-btn-clear">
+                    <i class="fa-solid fa-xmark"></i> Wyczyść zaznaczenie
+                </button>
+                <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Zamknij</button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- ═══════════════ CONTINUE ACTIONS MODAL ═══════════════ -->
+<div id="continueActionsModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true" style="z-index: 1070;">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 440px;">
+        <div class="modal-content">
+            <div class="continue-modal-body">
+                <div class="continue-icon">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <h5>Akcja wykonana pomyślnie</h5>
+                <p>Czy chcesz wykonać kolejną akcję na tych samych zaznaczonych produktach?</p>
+            </div>
+            <div class="continue-modal-footer">
+                <button type="button" id="continueActionsYesBtn" class="continue-btn-yes">
+                    <i class="fa-solid fa-arrow-rotate-left"></i> Tak, kontynuuj
+                </button>
+                <button type="button" id="continueActionsNoBtn" class="continue-btn-no">
+                    Nie, zakończ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ AUTOMATION SELECTION MODAL ═══════════════ -->
 <div id="automationSelectionModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="automationSelectionModalLabel" aria-hidden="true" style="z-index: 1060;">
     <div class="modal-dialog modal-xl" role="document">
         <div class="modal-content" style="margin: 3% auto !important; width: 1100px !important; max-width: 95% !important;">
@@ -75,7 +305,7 @@
                     Jeśli produkt jest już w innej grupie, zostanie przeniesiony.
                 </p>
 
-                <div id="automationRulesListContainer" class="table-scroll" style="max-height: 60vh;  min-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;">
+                <div id="automationRulesListContainer" class="table-scroll" style="max-height: 60vh; min-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;">
                     <div style="text-align:center; padding:20px;">
                         <i class="fas fa-spinner fa-spin"></i> Ładowanie reguł...
                     </div>
@@ -88,6 +318,7 @@
     </div>
 </div>
 
+<!-- ═══════════════ FLAG MODAL ═══════════════ -->
 <div id="flagModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="flagModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl" role="document">
         <div class="modal-content" style="margin: 3% auto !important; width: 1100px !important; max-width: 95% !important;">
