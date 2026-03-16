@@ -62,6 +62,8 @@
     let currentScrapId = null;
     let selectedPriceChanges = [];
     const priceChangeLocalStorageKey = `selectedAllegroPriceChanges_${storeId}`;
+    let catalogGroupMap = new Map(); 
+    let activeCatalogGroupFilter = null; 
 
     const stepPriceInput = document.getElementById("stepPrice");
     const stepPriceIndicatorSpan = document.getElementById('stepPriceIndicator');
@@ -1456,7 +1458,7 @@
     function renderPrices(data) {
         const container = document.getElementById('priceContainer');
         container.innerHTML = '';
-
+       
         const productSearchTerm = document.getElementById('productSearch').value.trim();
         const storeSearchTerm = document.getElementById('storeSearch').value.trim();
 
@@ -1702,14 +1704,52 @@
             rightColumn.className = 'price-box-right-column';
 
             const flagsContainer = createFlagsContainer(item);
-
-            
-            if (item.isNew) {
-                priceBoxColumnName.insertAdjacentHTML('beforeend', '<div><span class="badge-new">NEW</span></div>');
-            }
-
+           
             leftColumn.appendChild(priceBoxColumnName);
+
+            const catalogInfo2 = catalogGroupMap.get(item.productId);
+            if (item.isNew || catalogInfo2) {
+                const badgesHtml = [];
+
+                if (catalogInfo2) {
+                    const count = catalogInfo2.totalInGroup;
+                    const offerWord = count === 1 ? 'Oferta' : ((count >= 2 && count <= 4) ? 'Oferty' : 'Ofert');
+                    const isLeader = catalogInfo2.isLeader;
+                    const leaderSuffix = isLeader
+                        ? ' | <i class="fa-solid fa-crown" style="color:#e6a817; margin:2px 0px 0px 2px;"></i>'
+                        : '';
+
+                    badgesHtml.push(
+                        `<span class="badge-catalog catalog-badge-click" data-product-id="${item.productId}" title="Pokaż wszystkie ${count} oferty w tym katalogu">
+                ${count} ${offerWord} w katalogu${leaderSuffix}
+            </span>`
+                    );
+                }
+
+                if (item.isNew) {
+                    badgesHtml.push('<span class="badge-new">NEW</span>');
+                }
+
+                priceBoxColumnName.insertAdjacentHTML('beforeend',
+                    `<div style="display:flex; align-items:center; gap:5px; margin-top:3px; flex-wrap:wrap;">
+            ${badgesHtml.join('')}
+        </div>`
+                );
+
+                const catalogBadgeEl = priceBoxColumnName.querySelector('.catalog-badge-click');
+                if (catalogBadgeEl) {
+                    catalogBadgeEl.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        showCatalogGroup(item.productId);
+                    });
+                }
+            }
             leftColumn.appendChild(flagsContainer);
+
+
+
+
+
             const selectProductButton = document.createElement('button');
             selectProductButton.className = 'select-product-btn';
             selectProductButton.dataset.productId = item.productId;
@@ -1943,6 +1983,90 @@
 
         return Array.from(catalogGroups.values());
     }
+
+
+    function buildCatalogGroupInfo() {
+        catalogGroupMap.clear();
+        const groups = [];
+
+        for (const item of allPrices) {
+            if (!item.myOffersGroupKey) continue;
+            const itemIds = new Set(item.myOffersGroupKey.split(',').filter(Boolean));
+            if (itemIds.size === 0) continue;
+
+            let matchedIndices = [];
+            for (let i = 0; i < groups.length; i++) {
+                if ([...itemIds].some(id => groups[i].mergedIds.has(id))) {
+                    matchedIndices.push(i);
+                }
+            }
+
+            if (matchedIndices.length === 0) {
+                groups.push({ mergedIds: new Set(itemIds), products: [item] });
+            } else {
+
+                const primary = groups[matchedIndices[0]];
+                itemIds.forEach(id => primary.mergedIds.add(id));
+                primary.products.push(item);
+
+                for (let i = matchedIndices.length - 1; i >= 1; i--) {
+                    const other = groups[matchedIndices[i]];
+                    other.mergedIds.forEach(id => primary.mergedIds.add(id));
+                    primary.products.push(...other.products);
+                    groups.splice(matchedIndices[i], 1);
+                }
+            }
+        }
+
+        for (const group of groups) {
+            if (group.products.length <= 1) continue;
+
+            const withPrice = group.products.filter(p => p.myPrice != null && !p.isRejected);
+            const leader = withPrice.length > 0
+                ? withPrice.reduce((best, p) => parseFloat(p.myPrice) < parseFloat(best.myPrice) ? p : best)
+                : null;
+
+            const productIdSet = new Set(group.products.map(p => p.productId));
+
+            for (const product of group.products) {
+                catalogGroupMap.set(product.productId, {
+                    groupProductIds: productIdSet,
+                    totalInGroup: group.products.length,
+                    isLeader: leader != null && product.productId === leader.productId
+                });
+            }
+        }
+    }
+
+    function showCatalogGroup(productId) {
+        const info = catalogGroupMap.get(productId);
+        if (!info) return;
+        activeCatalogGroupFilter = info.groupProductIds;
+        currentPage = 1;
+        updateCatalogButton();
+        filterAndSortPrices();
+    }
+
+    function clearCatalogGroupFilter() {
+        activeCatalogGroupFilter = null;
+        updateCatalogButton();
+        filterAndSortPrices();
+    }
+
+    function updateCatalogButton() {
+        const btn = document.getElementById('linkOffers');
+        if (!btn) return;
+
+        if (activeCatalogGroupFilter) {
+            btn.classList.remove('active');
+            btn.classList.add('catalog-group-active');
+            btn.innerHTML = 'Wybrany Katalog <i class="fa-regular fa-rectangle-xmark" style="margin-left:8px; font-size:13px;"></i>';
+        } else {
+            btn.classList.remove('catalog-group-active');
+            btn.textContent = 'Katalog';
+            btn.classList.toggle('active', isCatalogViewActive);
+        }
+    }
    
     function renderPaginationControls(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -2076,7 +2200,9 @@
             if (isCatalogViewActive) {
                 filtered = groupAndFilterByCatalog(filtered);
             }
-
+            if (activeCatalogGroupFilter) {
+                filtered = filtered.filter(item => activeCatalogGroupFilter.has(item.productId));
+            }
             const productSearchRaw = document.getElementById('productSearch').value.trim();
             if (productSearchRaw) {
                 const sanitizedSearch = productSearchRaw.replace(/[^a-zA-Z0-9\s.-]/g, '').toLowerCase().replace(/\s+/g, '');
@@ -2715,11 +2841,15 @@
             filterNewCheckbox.addEventListener('change', () => filterAndSortPrices());
         }
         document.getElementById('linkOffers').addEventListener('click', function () {
+          
+            if (activeCatalogGroupFilter) {
+                clearCatalogGroupFilter();
+                return;
+            }
+
             isCatalogViewActive = !isCatalogViewActive;
             this.classList.toggle('active', isCatalogViewActive);
-
             localStorage.setItem(allegroCatalogStorageKey, JSON.stringify(isCatalogViewActive));
-
             filterAndSortPrices();
         });
 
@@ -3142,7 +3272,7 @@
 
                     producerDropdown.appendChild(opt);
                 });
-
+                buildCatalogGroupInfo();
                 document.getElementById('totalProductCount').textContent = allPrices.length;
                 document.getElementById('totalPriceCount').textContent = data.priceCount || 0;
 
