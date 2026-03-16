@@ -222,7 +222,6 @@
             };
         }
 
-        // ── Post-action continuation flow ──
         function _askContinueOrFinish(refreshCallback) {
             if (refreshCallback) {
                 _pendingRefreshCallbacks.push(refreshCallback);
@@ -638,13 +637,12 @@
                 }
             });
 
-            // ── Continue/Finish modal buttons ──
             var continueYesBtn = document.getElementById('continueActionsYesBtn');
             var continueNoBtn = document.getElementById('continueActionsNoBtn');
             if (continueYesBtn) continueYesBtn.addEventListener('click', function () { _handleContinueYes(); });
             if (continueNoBtn) continueNoBtn.addEventListener('click', function () { _handleContinueNo(); });
 
-            // ── Clear all selection button ──
+  
             var clearAllBtn = document.getElementById('clearAllSelectionBtn');
             if (clearAllBtn) {
                 clearAllBtn.addEventListener('click', function () {
@@ -656,7 +654,7 @@
                 });
             }
 
-            // ── When main modal is closed and there are pending refreshes, flush them ──
+  
             $('#selectedProductsModal').on('hidden.bs.modal', function () {
                 if (_pendingRefreshCallbacks.length > 0) {
                     _flushPendingRefreshes();
