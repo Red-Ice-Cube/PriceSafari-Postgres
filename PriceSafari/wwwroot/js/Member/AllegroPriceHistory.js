@@ -2041,6 +2041,13 @@
     function showCatalogGroup(productId) {
         const info = catalogGroupMap.get(productId);
         if (!info) return;
+
+ 
+        if (isCatalogViewActive) {
+            isCatalogViewActive = false;
+            localStorage.setItem(allegroCatalogStorageKey, JSON.stringify(false));
+        }
+
         activeCatalogGroupFilter = info.groupProductIds;
         currentPage = 1;
         updateCatalogButton();
