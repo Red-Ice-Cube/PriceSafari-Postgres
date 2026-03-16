@@ -1716,7 +1716,7 @@
                     const offerWord = count === 1 ? 'Oferta' : ((count >= 2 && count <= 4) ? 'Oferty' : 'Ofert');
                     const isLeader = catalogInfo2.isLeader;
                     const leaderSuffix = isLeader
-                        ? ' | <i class="fa-solid fa-crown" style="color:#e6a817; margin:2px 0px 0px 2px;"></i>'
+                        ? ' | <i class="fa-solid fa-crown" style="color:#e6a817; margin:2px 0px 0px 4px;"></i>'
                         : '';
 
                     badgesHtml.push(
