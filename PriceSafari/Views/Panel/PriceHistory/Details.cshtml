@@ -24,7 +24,18 @@
     {
         basePrice = myStorePrice.Price;
     }
+
+    // ── Nowe zmienne ──
+    var flags = ViewBag.Flags as List<PriceSafari.Models.ViewModels.FlagViewModel>
+                ?? new List<PriceSafari.Models.ViewModels.FlagViewModel>();
+    var productFlagIds = ViewBag.ProductFlagIds as List<int> ?? new List<int>();
+    var automationRuleName = ViewBag.AutomationRuleName as string;
+    var automationRuleColor = ViewBag.AutomationRuleColor as string;
+    var automationRuleIsActive = (bool)(ViewBag.AutomationRuleIsActive ?? false);
+    var automationRuleId = ViewBag.AutomationRuleId as int?;
 }
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
 <style>
 
@@ -118,14 +129,28 @@
         overflow-y: auto;
     }
 
- 
 </style>
 
 <div class="Vert" data-store-name="@storeName">
     <div class="Page-Box">
         <div style="display:flex; width:100%; justify-content:space-between;">
-            <div style="font-weight: 300; font-size: 22px;">
-                @productName
+            <div>
+                <div style="font-weight: 300; font-size: 22px;">
+                    @productName
+                </div>
+             
+                <div class="detail-flags-row" id="detailFlagsContainer">
+                    @if (productFlagIds.Any())
+                    {
+                        @foreach (var flag in flags.Where(f => productFlagIds.Contains(f.FlagId)))
+                        {
+                            <span class="detail-flag-pill"
+                                  style="border-color: @flag.FlagColor; color: @flag.FlagColor; background-color: @(flag.FlagColor)4D;">
+                                @flag.FlagName
+                            </span>
+                        }
+                    }
+                </div>
             </div>
             <div style="margin-top:4px;">
                 <button type="button" id="showTableBtn" class="button-active">
@@ -138,23 +163,22 @@
         </div>
 
         <div class="form-check-orders" style="margin-bottom:16px;">
-
             <div>
                 <p><strong>Wykonano:</strong> @scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
             </div>
         </div>
+
         <div class="price-box-space" style="gap:32px;">
-            <div style="display:flex; width:100%; gap:48px; margin-bottom:8px;">
+            <div style="display:flex; width:100%; gap:24px; margin-bottom:8px;">
                 @if (!string.IsNullOrEmpty(img))
                 {
                     <div style="display:flex;">
-                        <img src="@img" style="height: 130px; width: 130px;" />
+                        <img src="@img" style="height: 110px; width: 110px;" />
                     </div>
                 }
 
                 <div class="price-box-column-name" style="align-content:flex-end;">
                     <div class="store-section">
-      
                         <div class="form-check">
                             <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPrice" value="price" checked>
                             <label class="form-check-label" for="sortPrice">Sortuj po cenie</label>
@@ -185,31 +209,30 @@
                             </div>
                         }
                     </div>
-                    <div style="margin-top: 16px; display:flex; justify-content:center; gap:6px;">
+                    <div style="margin-top: 10px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+             
+                        <button type="button" class="Button-Page-Small" id="detailManageBtn">
+                            <i class="fa-solid fa-sliders"></i> Zarządzaj
+                        </button>
+
                         <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="presetButton" onclick="openCompetitorsModal()">
-
-                            @if (!string.IsNullOrEmpty(ViewBag.ActivePresetName))
+                            @if (!string.IsNullOrEmpty(ViewBag.ActivePresetName as string))
                             {
-
-                                <span id="activePresetDisplay">
-                                    Presety - @ViewBag.ActivePresetName
-                                </span>
+                                <span id="activePresetDisplay">Presety - @ViewBag.ActivePresetName</span>
                             }
                             else
                             {
-
-                                <span id="activePresetDisplay">
-                                    Presety - Widok PriceSafari
-                                </span>
+                                <span id="activePresetDisplay">Presety - Widok PriceSafari</span>
                             }
                         </button>
-                        @if (!string.IsNullOrEmpty(googleUrl))
+
+                        @if (!string.IsNullOrEmpty(googleUrl?.ToString()))
                         {
                             <a href="@googleUrl" class="Button-Page-Small" target="_blank">
                                 <img src="~/images/GoogleShopping.png" alt="Channel Icon" style="width:18px; height:18px;" /> Google
                             </a>
                         }
-                        @if (!string.IsNullOrEmpty(url))
+                        @if (!string.IsNullOrEmpty(url?.ToString()))
                         {
                             <a href="@url" class="Button-Page-Small" target="_blank">
                                 <img src="~/images/Ceneo.png" alt="Channel Icon" style="width:18px; height:18px;" /> Ceneo
@@ -221,6 +244,19 @@
                                 <img src="~/images/Click-b.svg" alt="Channel Icon" style="width:20px; height:20px;" /> Strona
                             </a>
                         }
+
+                        @if (!string.IsNullOrEmpty(automationRuleName))
+                        {
+                            var isPaused = ViewBag.IsAutomationPaused as bool? ?? false;
+                            var statusColor = isPaused ? "#f6c23e" : (automationRuleIsActive ? "#1cc88a" : "#e74a3b");
+                            var statusLabel = isPaused ? "Zatrzymana" : (automationRuleIsActive ? "Aktywna" : "Nieaktywna");
+                            <span class="detail-automation-badge-v2">
+                                <span class="detail-automation-color-bar" style="background-color: @automationRuleColor;"></span>
+                                <span class="detail-automation-name">@automationRuleName</span>
+                                <span class="detail-automation-sep">|</span>
+                                <span class="detail-automation-status-dot" style="background-color: @statusColor;" title="@statusLabel"></span>
+                            </span>
+                        }
                     </div>
                 </div>
             </div>
@@ -229,7 +265,7 @@
             </div>
         </div>
 
-        <div id="priceTableContainer" class="Vert-table" style="display: block;">
+        <div id="priceTableContainer" class="Vert-table" style="display: block; margin-top:12px;">
             <table class="table-orders" id="priceTable">
                 <thead>
                     <tr>
@@ -302,13 +338,6 @@
                             shippingCost = $"{item.ShippingCostNum} PLN";
                         }
 
-
-
-
-
-
-
-
                         <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-position="@item.Position">
                             <td>
                                 <div class="color-bar @colorClass"></div>
@@ -358,7 +387,7 @@
                                     <div class="Position" style="background-color: #414141;">Schowany</div>
                                 }
                             </td>
-                           <td>
+                            <td>
                                 @if (item.IsBidding == "1")
                                 {
                                     <div class="Bidding">Bid</div>
@@ -383,12 +412,11 @@
                                 }
                                 else
                                 {
-                                    <div class="PaidShipping">@shippingCost</div> 
+                                    <div class="PaidShipping">@shippingCost</div>
                                 }
                             </td>
                             <td>
-                               
-                                @if (item.IsGoogle) 
+                                @if (item.IsGoogle)
                                 {
                                     @if (item.GoogleInStock == true)
                                     {
@@ -403,20 +431,19 @@
                                         <span class="BD">Brak danych</span>
                                     }
                                 }
-                                else 
+                                else
                                 {
-                                 
                                     @if (item.CeneoInStock == true)
                                     {
-                                        <span class="stock-available">Dostępny</span> 
+                                        <span class="stock-available">Dostępny</span>
                                     }
                                     else if (item.CeneoInStock == false)
                                     {
-                                        <span class="stock-unavailable">Niedostępny</span> 
+                                        <span class="stock-unavailable">Niedostępny</span>
                                     }
-                                    else 
+                                    else
                                     {
-                                        <span class="BD">Brak danych</span> 
+                                        <span class="BD">Brak danych</span>
                                     }
                                 }
                             </td>
@@ -432,7 +459,7 @@
                                             <i class="fas fa-external-link-alt" style="margin-right: 4px;"></i> Link
                                         </a>
                                     }
-                                    else if (!item.IsGoogle && !string.IsNullOrEmpty(url))
+                                    else if (!item.IsGoogle && !string.IsNullOrEmpty(url?.ToString()))
                                     {
                                         <a href="@url" target="_blank" class="Button-Page-Small" style="text-decoration:none; padding: 2px 8px; font-size: 11px;">
                                             <i class="fas fa-external-link-alt" style="margin-right: 4px;"></i> Link
@@ -463,7 +490,7 @@
                 <div class="price-trend__chart-area">
                     <div id="trendChart" style="width: 100%; height: 100%;"></div>
                 </div>
-    
+
                 <div class="price-trend__controls">
                     <div class="price-trend__alpha-slider-wrapper">
                         <input type="range" id="grayAlphaRange" min="0" max="0.6" step="0.01" value="0.3">
@@ -480,6 +507,11 @@
 </div>
 
 @await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_PresetyPriceComparison.cshtml")
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
+
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loader"></div>
+</div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
@@ -497,10 +529,67 @@
     const presetTypeContext = 0;
 </script>
 <script src="~/js/member/Presets.js"></script>
+<script src="~/js/member/MassActions.js"></script>
 
-<div id="loadingOverlay" class="loading-overlay" style="display: none;">
-    <div class="loader"></div>
-</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var detailProductId = @ViewBag.ProductId;
+
+        var detailMassActions = MassActions({
+            storeId: @ViewBag.StoreId,
+            isAllegro: false,
+            storageKey: 'massaction_detail_store_@(ViewBag.StoreId)',
+            flags: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                                flags.Select(f => new { flagId = f.FlagId, flagName = f.FlagName, flagColor = f.FlagColor })
+                        )),
+
+            getAllPrices: function () {
+                return [{
+                    productId: detailProductId,
+                    productName: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.ProductName as string))
+                }];
+            },
+            getFilteredPrices: function () {
+                return [{
+                    productId: detailProductId,
+                    productName: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.ProductName as string))
+                }];
+            },
+            getProductIdentifier: function (product) {
+                var eanVal = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.Ean as string ?? ""));
+                return { label: 'EAN', value: eanVal };
+            },
+
+            showLoading: function () {
+                var el = document.getElementById('loadingOverlay');
+                if (el) el.style.display = 'flex';
+            },
+            hideLoading: function () {
+                var el = document.getElementById('loadingOverlay');
+                if (el) el.style.display = 'none';
+            },
+            showGlobalUpdate: function (msg) { },
+            showGlobalNotification: function (msg) { alert('Błąd: ' + msg); },
+
+            onFlagsUpdated: function () { location.reload(); },
+            onAutomationsUpdated: function () { location.reload(); }
+        });
+
+        detailMassActions.init();
+
+
+        var manageBtn = document.getElementById('detailManageBtn');
+        if (manageBtn) {
+            manageBtn.addEventListener('click', function () {
+                detailMassActions.clearSelection();
+                detailMassActions.addProduct(detailProductId);
+                detailMassActions.updateSelectionUI();
+                $('#selectedProductsModal').modal('show');
+            });
+        }
+    });
+</script>
 
 <script>
 
@@ -527,7 +616,6 @@
         }
 
         function sortRowsByPrice() {
-
             rows.forEach(row => row.style.display = '');
             rows.sort((a, b) => {
                 let priceA = parseFloat(a.getAttribute("data-price"));
@@ -543,45 +631,38 @@
             });
             const tbody = document.querySelector("#priceTable tbody");
             rows.forEach(row => tbody.appendChild(row));
-
             headerEl.textContent = "Sklep (" + rows.length + ")";
             highlightObservedStore();
         }
 
         function sortRowsByCeneoPosition() {
-
             const filteredRows = rows.filter(row => row.querySelector(".Position-Google") === null);
             filteredRows.sort((a, b) => {
                 const posA = parseInt(a.getAttribute("data-position")) || Infinity;
                 const posB = parseInt(b.getAttribute("data-position")) || Infinity;
                 return posA - posB;
             });
-
             rows.forEach(row => {
                 row.style.display = filteredRows.indexOf(row) === -1 ? 'none' : '';
             });
             const tbody = document.querySelector("#priceTable tbody");
             filteredRows.forEach(row => tbody.appendChild(row));
-
             headerEl.textContent = "Sklep (" + filteredRows.length + " - Ceneo)";
             highlightObservedStore();
         }
 
         function sortRowsByGooglePosition() {
-
             const filteredRows = rows.filter(row => row.querySelector(".Position-Google") !== null);
             filteredRows.sort((a, b) => {
                 const posA = parseInt(a.getAttribute("data-position")) || Infinity;
                 const posB = parseInt(b.getAttribute("data-position")) || Infinity;
                 return posA - posB;
             });
-
             rows.forEach(row => {
                 row.style.display = filteredRows.indexOf(row) === -1 ? 'none' : '';
             });
             const tbody = document.querySelector("#priceTable tbody");
             filteredRows.forEach(row => tbody.appendChild(row));
-
             headerEl.textContent = "Sklep (" + filteredRows.length + " - Google)";
             highlightObservedStore();
         }
@@ -598,10 +679,10 @@
 
         document.getElementById("sortPrice").addEventListener("click", handleSortChange);
 
-        if(document.getElementById("sortPosition")){
+        if (document.getElementById("sortPosition")) {
             document.getElementById("sortPosition").addEventListener("click", handleSortChange);
         }
-        if(document.getElementById("sortGooglePosition")){
+        if (document.getElementById("sortGooglePosition")) {
             document.getElementById("sortGooglePosition").addEventListener("click", handleSortChange);
         }
 
@@ -689,14 +770,14 @@
     let productId = @ViewBag.ProductId;
     let myStoreLower = "@storeName".toLowerCase().trim();
     let lastHoverParams = null;
-    let currentHistoryLimit = 30; 
+    let currentHistoryLimit = 30;
     let originalChartData = null;
     let highlightedStores = [];
     let storeColorMap = {};
     let lastHighlightedStore = null;
     let hiddenStores = [];
 
-     const highlightColors = [
+    const highlightColors = [
         'rgba(255, 128, 0, 1)',
         'rgba(76, 175, 80, 1)',
         'rgba(153, 102, 255, 1)',
@@ -712,7 +793,7 @@
     const myStoreColor = 'rgba(54, 162, 235, 1)';
     const defaultGrayColor = 'rgba(128, 128, 128, {alpha})';
 
-        const UNIFORM_LINE_WIDTH = 2.3;
+    const UNIFORM_LINE_WIDTH = 2.3;
     const UNIFORM_EMPHASIS_LINE_WIDTH = 2.3;
 
     let defaultGrayAlpha = 0.3;
@@ -730,9 +811,8 @@
         }
     }
 
-        function recalculateYAxisRange() {
+    function recalculateYAxisRange() {
         if (!currentChartOptions || !currentChartOptions.series) {
-
             return null;
         }
 
@@ -742,7 +822,6 @@
 
         currentChartOptions.series.forEach(series => {
             const storeLower = series.name.toLowerCase().trim();
-
             if (!hiddenStores.includes(storeLower)) {
                 series.data.forEach(dataPoint => {
                     const price = dataPoint.value;
@@ -756,38 +835,31 @@
         });
 
         if (!hasVisibleData || !isFinite(minPrice)) {
-
-             console.warn("No visible data points found after filtering. Using default Y-axis range.");
-             return { min: 0, max: 100 };
+            console.warn("No visible data points found after filtering. Using default Y-axis range.");
+            return { min: 0, max: 100 };
         }
 
-         if (!isFinite(maxPrice) || maxPrice <= minPrice) {
-             maxPrice = minPrice + 100;
-         }
+        if (!isFinite(maxPrice) || maxPrice <= minPrice) {
+            maxPrice = minPrice + 100;
+        }
 
         const padding = (maxPrice - minPrice) * 0.05;
-
         const finalMin = Math.max(0, minPrice - padding);
         const finalMax = maxPrice + padding;
 
         return { min: finalMin, max: finalMax };
     }
 
-    $('.history-btn').on('click', function() {
-    $('.history-btn').removeClass('active');
-    $(this).addClass('active');
-
-    var newLimit = $(this).data('days');
-
-    if (currentHistoryLimit !== newLimit) {
-    currentHistoryLimit = newLimit;
-            
-  
-
-    if ($('#trendChartContainer').is(':visible')) {
-    loadTrendDataAndDrawEcharts();
-    }
-    }
+    $('.history-btn').on('click', function () {
+        $('.history-btn').removeClass('active');
+        $(this).addClass('active');
+        var newLimit = $(this).data('days');
+        if (currentHistoryLimit !== newLimit) {
+            currentHistoryLimit = newLimit;
+            if ($('#trendChartContainer').is(':visible')) {
+                loadTrendDataAndDrawEcharts();
+            }
+        }
     });
 
     function findNextFreeColorIndex() {
@@ -798,7 +870,7 @@
         return null;
     }
 
-        function hideStoreFromChart(storeName) {
+    function hideStoreFromChart(storeName) {
         if (!echartsTrendChart || !currentTimelineData) {
             console.warn("Chart not ready or no data to hide store.");
             return;
@@ -812,39 +884,33 @@
 
         const highlightedIndex = highlightedStores.indexOf(storeLower);
         if (highlightedIndex > -1) {
-
             highlightedStores.splice(highlightedIndex, 1);
-
             delete storeColorMap[storeLower];
-
             if (lastHighlightedStore === storeLower) {
                 lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null;
             }
         }
 
         updateEchartsStylesAndZ();
-    const newYAxisRange = recalculateYAxisRange();
-       if (newYAxisRange && currentChartOptions && currentChartOptions.yAxis) {
+        const newYAxisRange = recalculateYAxisRange();
+        if (newYAxisRange && currentChartOptions && currentChartOptions.yAxis) {
+            currentChartOptions.yAxis.min = newYAxisRange.min;
+            currentChartOptions.yAxis.max = newYAxisRange.max;
+            echartsTrendChart.setOption({
+                yAxis: {
+                    min: newYAxisRange.min,
+                    max: newYAxisRange.max
+                }
+            });
+        }
 
-           currentChartOptions.yAxis.min = newYAxisRange.min;
-           currentChartOptions.yAxis.max = newYAxisRange.max;
-
-           echartsTrendChart.setOption({
-               yAxis: {
-                   min: newYAxisRange.min,
-                   max: newYAxisRange.max
-
-               }
-           });
-       }
-
-       if (lastHoverParams) {
-           const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
-           updateCustomTooltipPanel(updatedPanelHtml || defaultCustomTooltipContent);
-       }
+        if (lastHoverParams) {
+            const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
+            updateCustomTooltipPanel(updatedPanelHtml || defaultCustomTooltipContent);
+        }
     }
 
-        function getSeriesStyleAndZ(storeNameLower) {
+    function getSeriesStyleAndZ(storeNameLower) {
         if (hiddenStores.includes(storeNameLower)) {
             return {
                 lineStyle: { color: 'transparent', width: 0 },
@@ -873,7 +939,6 @@
         }
 
         return {
-
             lineStyle: { color: color, width: UNIFORM_LINE_WIDTH },
             itemStyle: { color: color },
             z: z
@@ -881,42 +946,37 @@
     }
 
     function generateTooltipPanelHtml(params) {
-     if (!params || params.length === 0) {
-         return null;
-     }
+        if (!params || params.length === 0) {
+            return null;
+        }
 
-     const date = params[0].axisValueLabel;
-     let items = [];
+        const date = params[0].axisValueLabel;
+        let items = [];
 
-     params.forEach(param => {
-         const priceVal = param.data.value;
+        params.forEach(param => {
+            const priceVal = param.data.value;
+            const sourceVal = param.data.source;
+            const storeName = param.seriesName;
+            const storeLower = storeName.toLowerCase().trim();
 
-         const sourceVal = param.data.source;
+            if (hiddenStores.includes(storeLower)) {
+                return;
+            }
 
-         const storeName = param.seriesName;
-         const storeLower = storeName.toLowerCase().trim();
-
-         if (hiddenStores.includes(storeLower)) {
-             return;
-         }
-
-         if (priceVal !== null && priceVal !== undefined) {
-
-              const currentSeriesStyle = getSeriesStyleAndZ(storeLower);
-
-             items.push({
-                 storeName: storeName,
-                 price: priceVal,
-                 source: sourceVal,
-                 isHighlighted: highlightedStores.includes(storeLower),
-                 isMyStore: (storeLower === myStoreLower),
-                 isLastHighlighted: (storeLower === lastHighlightedStore),
-                 colorIndex: storeColorMap[storeLower],
-                 markerColor: currentSeriesStyle.itemStyle.color
-
-             });
-         }
-     });
+            if (priceVal !== null && priceVal !== undefined) {
+                const currentSeriesStyle = getSeriesStyleAndZ(storeLower);
+                items.push({
+                    storeName: storeName,
+                    price: priceVal,
+                    source: sourceVal,
+                    isHighlighted: highlightedStores.includes(storeLower),
+                    isMyStore: (storeLower === myStoreLower),
+                    isLastHighlighted: (storeLower === lastHighlightedStore),
+                    colorIndex: storeColorMap[storeLower],
+                    markerColor: currentSeriesStyle.itemStyle.color
+                });
+            }
+        });
 
         items.sort((a, b) => {
             if (a.price !== b.price) {
@@ -925,69 +985,67 @@
             return a.storeName.localeCompare(b.storeName);
         });
 
-       let panelHtml = `<div style="font-weight:bold; margin-bottom:4px;">Data: ${date}</div>`;
-    if (items.length > 0) {
-        panelHtml += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
-        items.forEach(item => {
-            let colorText = 'rgba(50, 50, 50, 1)';
-            let fontWeight = 'normal';
-            const storeLower = item.storeName.toLowerCase().trim();
+        let panelHtml = `<div style="font-weight:bold; margin-bottom:4px;">Data: ${date}</div>`;
+        if (items.length > 0) {
+            panelHtml += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
+            items.forEach(item => {
+                let colorText = 'rgba(50, 50, 50, 1)';
+                let fontWeight = 'normal';
+                const storeLower = item.storeName.toLowerCase().trim();
 
-             if (storeLower === myStoreLower) {
-                 colorText = myStoreColor;
-                 fontWeight = 'bold';
-             } else if (highlightedStores.includes(storeLower) && item.colorIndex != null) {
-                 colorText = highlightColors[item.colorIndex];
-                 fontWeight = 'bold';
-             }
+                if (storeLower === myStoreLower) {
+                    colorText = myStoreColor;
+                    fontWeight = 'bold';
+                } else if (highlightedStores.includes(storeLower) && item.colorIndex != null) {
+                    colorText = highlightColors[item.colorIndex];
+                    fontWeight = 'bold';
+                }
 
-            let displayName = item.storeName;
-            if (displayName.length > 23) displayName = displayName.substring(0, 20) + '...';
+                let displayName = item.storeName;
+                if (displayName.length > 23) displayName = displayName.substring(0, 20) + '...';
 
-            let iconHtml = (item.source === 'google')
-                 ? `<img src="/images/GoogleShopping.png" alt="G" style="width:14px;height:14px;margin-right:4px; vertical-align: middle;" title="Google Shopping" />`
+                let iconHtml = (item.source === 'google')
+                    ? `<img src="/images/GoogleShopping.png" alt="G" style="width:14px;height:14px;margin-right:4px; vertical-align: middle;" title="Google Shopping" />`
                     : `<img src="/images/Ceneo.png" alt="C" style="width:14px;height:14px;margin-right:4px; vertical-align: middle;" title="Ceneo" />`;
 
-            const escapedStoreName = item.storeName.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const escapedStoreName = item.storeName.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-            const removeButtonHtml = `
-                <span class="remove-store-btn" title="Ukryj sklep '${item.storeName}' z wykresu"
-                      style="cursor: pointer; color: #aaa; margin-left: 8px; font-weight: bold; padding: 0 4px; display: inline-block; vertical-align: middle;"
-                      onmouseover="this.style.color='red'"
-                      onmouseout="this.style.color='#aaa'"
-                      onclick="event.stopPropagation(); hideStoreFromChart('${escapedStoreName}');">
-                      &times;
-                </span>`;
+                const removeButtonHtml = `
+                    <span class="remove-store-btn" title="Ukryj sklep '${item.storeName}' z wykresu"
+                          style="cursor: pointer; color: #aaa; margin-left: 8px; font-weight: bold; padding: 0 4px; display: inline-block; vertical-align: middle;"
+                          onmouseover="this.style.color='red'"
+                          onmouseout="this.style.color='#aaa'"
+                          onclick="event.stopPropagation(); hideStoreFromChart('${escapedStoreName}');">
+                          &times;
+                    </span>`;
 
-            panelHtml += `
-                <tr style="border-bottom:1px solid #eee; cursor:pointer;"
-                    onclick="event.stopPropagation(); toggleStoreHighlight('${escapedStoreName}');">
-                    <td style="padding: 3px 2px; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.storeName}">
-                        <span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${item.markerColor}; vertical-align: middle;"></span>
-                        ${iconHtml}${displayName}
-                    </td>
-                    <td style="padding: 3px 2px; text-align:right; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap;">
-                        ${item.price.toFixed(2)} PLN
-                        ${removeButtonHtml}
-                    </td>
-                </tr>
-            `;
-        });
-        panelHtml += `</table>`;
-    } else {
-
-         const hasAnyDataForDate = params.some(p => p.data.value !== null && p.data.value !== undefined);
-         if(hasAnyDataForDate) {
-             panelHtml += `<div style="color: #666; font-style: italic;">Wszystkie widoczne sklepy nie miały oferty w tej dacie lub zostały ukryte.</div>`;
-         } else {
-            panelHtml += `<div style="color: #666; font-style: italic;">Brak danych dla tej daty.</div>`;
-         }
+                panelHtml += `
+                    <tr style="border-bottom:1px solid #eee; cursor:pointer;"
+                        onclick="event.stopPropagation(); toggleStoreHighlight('${escapedStoreName}');">
+                        <td style="padding: 3px 2px; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.storeName}">
+                            <span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${item.markerColor}; vertical-align: middle;"></span>
+                            ${iconHtml}${displayName}
+                        </td>
+                        <td style="padding: 3px 2px; text-align:right; color:${colorText}; font-weight:${fontWeight}; white-space:nowrap;">
+                            ${item.price.toFixed(2)} PLN
+                            ${removeButtonHtml}
+                        </td>
+                    </tr>
+                `;
+            });
+            panelHtml += `</table>`;
+        } else {
+            const hasAnyDataForDate = params.some(p => p.data.value !== null && p.data.value !== undefined);
+            if (hasAnyDataForDate) {
+                panelHtml += `<div style="color: #666; font-style: italic;">Wszystkie widoczne sklepy nie miały oferty w tej dacie lub zostały ukryte.</div>`;
+            } else {
+                panelHtml += `<div style="color: #666; font-style: italic;">Brak danych dla tej daty.</div>`;
+            }
+        }
+        return panelHtml;
     }
-    return panelHtml;
-    }
 
-       function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
-
+    function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
         const SINGLE_POINT_SIZE = 10;
         const MULTI_POINT_EMPHASIS_SIZE = 12;
         const SINGLE_POINT_EMPHASIS_SIZE = 14;
@@ -995,11 +1053,9 @@
         return allInstances.map(instanceId => {
             const [storeName, source] = instanceId.split('|');
             const storeLower = storeName.toLowerCase().trim();
-
             const initialStyleAndZ = getSeriesStyleAndZ(storeLower);
 
             let validDataPointsCount = 0;
-
             const data = allDates.map(date => {
                 const price = dataByInstance[instanceId]?.[date] ?? null;
                 if (price !== null && price !== undefined) {
@@ -1026,34 +1082,31 @@
                 data: data,
                 connectNulls: false,
                 smooth: 0.30,
-
                 showSymbol: showSymbolDefault,
                 symbol: 'circle',
                 symbolSize: symbolSizeDefault,
-
-               emphasis: {
-        focus: 'series',
-        symbolSize: symbolSizeEmphasis,
-        lineStyle: {
-            width: UNIFORM_EMPHASIS_LINE_WIDTH
-
-        },
-        itemStyle: {
-
-            color: initialStyleAndZ.itemStyle.color,
-            borderColor: 'rgba(255, 255, 255, 0.7)',
-            borderWidth: 1,
-            opacity: 1
-        }
-    },
-    lineStyle: initialStyleAndZ.lineStyle,
-    itemStyle: {
-        color: initialStyleAndZ.itemStyle.color
-    },
-    z: initialStyleAndZ.z
+                emphasis: {
+                    focus: 'series',
+                    symbolSize: symbolSizeEmphasis,
+                    lineStyle: {
+                        width: UNIFORM_EMPHASIS_LINE_WIDTH
+                    },
+                    itemStyle: {
+                        color: initialStyleAndZ.itemStyle.color,
+                        borderColor: 'rgba(255, 255, 255, 0.7)',
+                        borderWidth: 1,
+                        opacity: 1
+                    }
+                },
+                lineStyle: initialStyleAndZ.lineStyle,
+                itemStyle: {
+                    color: initialStyleAndZ.itemStyle.color
+                },
+                z: initialStyleAndZ.z
             };
         });
     }
+
     function drawEchartsTrendChart(timelineData) {
         currentTimelineData = timelineData;
 
@@ -1070,282 +1123,219 @@
 
         echartsTrendChart = echarts.init(chartDom);
 
-    let allDatesSet = new Set();
-    let allInstancesSet = new Set();
-    let dataByInstance = {};
+        let allDatesSet = new Set();
+        let allInstancesSet = new Set();
+        let dataByInstance = {};
 
-    timelineData.forEach(entry => {
-        const date = entry.scrapDate;
-        allDatesSet.add(date);
-        entry.pricesByStore.forEach(ps => {
-            if (ps.storeName && ps.source && ps.price !== null && ps.price !== undefined) {
-                const storeName = ps.storeName;
-                const source = ps.source;
-                const price = ps.price;
-                const instanceId = `${storeName}|${source}`;
-                allInstancesSet.add(instanceId);
-                if (!dataByInstance[instanceId]) {
-                    dataByInstance[instanceId] = {};
-                }
-                dataByInstance[instanceId][date] = price;
-            }
-        });
-    });
-
-    const chartContainerElement = document.getElementById('trendChartContainer');
-
-    if (chartContainerElement && typeof ResizeObserver !== 'undefined') {
-        const resizeObserver = new ResizeObserver(entries => {
-
-            if (echartsTrendChart && $('#trendChartContainer').is(':visible')) {
-                 console.log('ResizeObserver detected container resize, resizing ECharts.');
-
-                 echartsTrendChart.resize({
-                    animation: {
-                        duration: 200,
-                        easing: 'quadraticInOut'
+        timelineData.forEach(entry => {
+            const date = entry.scrapDate;
+            allDatesSet.add(date);
+            entry.pricesByStore.forEach(ps => {
+                if (ps.storeName && ps.source && ps.price !== null && ps.price !== undefined) {
+                    const storeName = ps.storeName;
+                    const source = ps.source;
+                    const price = ps.price;
+                    const instanceId = `${storeName}|${source}`;
+                    allInstancesSet.add(instanceId);
+                    if (!dataByInstance[instanceId]) {
+                        dataByInstance[instanceId] = {};
                     }
-                 });
-            }
-        });
-
-        resizeObserver.observe(chartContainerElement);
-
-    } else if (!chartContainerElement) {
-
-    }
-     else {
-
-    }
-
-    let allDates = Array.from(allDatesSet).sort();
-    let allInstances = Array.from(allInstancesSet);
-
-    allInstances.sort((a, b) => {
-        const [nameA, sourceA] = a.split('|');
-        const [nameB, sourceB] = b.split('|');
-        const nameALower = nameA.toLowerCase().trim();
-        const nameBLower = nameB.toLowerCase().trim();
-        if (nameALower === myStoreLower && nameBLower !== myStoreLower) return -1;
-        if (nameBLower === myStoreLower && nameALower !== myStoreLower) return 1;
-        const nameCompare = nameA.localeCompare(nameB);
-        if (nameCompare !== 0) return nameCompare;
-        return sourceA.localeCompare(sourceB);
-    });
-
-    let globalMinPrice = Number.POSITIVE_INFINITY;
-    let globalMaxPrice = Number.NEGATIVE_INFINITY;
-    Object.values(dataByInstance).forEach(datesMap => {
-        Object.values(datesMap).forEach(price => {
-            if (price < globalMinPrice) globalMinPrice = price;
-            if (price > globalMaxPrice) globalMaxPrice = price;
-        });
-    });
-
-     if (!isFinite(globalMinPrice)) globalMinPrice = 0;
-     if (!isFinite(globalMaxPrice) || globalMaxPrice <= globalMinPrice) {
-         globalMaxPrice = globalMinPrice + 100;
-     } else {
-         const padding = (globalMaxPrice - globalMinPrice) * 0.05;
-         globalMinPrice = Math.max(0, globalMinPrice - padding);
-         globalMaxPrice = globalMaxPrice + padding;
-     }
-
-    const seriesData = prepareEchartsSeries(dataByInstance, allDates, allInstances);
-
-    const polishMonths = [
-        'sty', 'lut', 'mar', 'kwi', 'maj', 'cze',
-        'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'
-    ];
-
-    function formatDateToPolishDM(dateString) {
-        try {
-
-            const parts = dateString.split('-');
-            if (parts.length === 3) {
-                const day = parseInt(parts[2], 10);
-                const monthIndex = parseInt(parts[1], 10) - 1;
-                if (!isNaN(day) && monthIndex >= 0 && monthIndex < 12) {
-                    return `${day} ${polishMonths[monthIndex]}`;
+                    dataByInstance[instanceId][date] = price;
                 }
-            }
+            });
+        });
 
-            return dateString;
-        } catch (e) {
-            console.error("Error formatting date:", dateString, e);
-            return dateString;
+        const chartContainerElement = document.getElementById('trendChartContainer');
+        if (chartContainerElement && typeof ResizeObserver !== 'undefined') {
+            const resizeObserver = new ResizeObserver(entries => {
+                if (echartsTrendChart && $('#trendChartContainer').is(':visible')) {
+                    echartsTrendChart.resize({
+                        animation: {
+                            duration: 200,
+                            easing: 'quadraticInOut'
+                        }
+                    });
+                }
+            });
+            resizeObserver.observe(chartContainerElement);
         }
-    }
 
-    currentChartOptions = {
-        tooltip: {
-            trigger: 'axis',
-            axisPointer: {
-                type: 'cross',
-                snap: true,
-                label: { backgroundColor: '#6a7985' }
-            },
+        let allDates = Array.from(allDatesSet).sort();
+        let allInstances = Array.from(allInstancesSet);
 
-            formatter: function (params) {
-                lastHoverParams = params;
-                const panelHtml = generateTooltipPanelHtml(params);
-                updateCustomTooltipPanel(panelHtml || defaultCustomTooltipContent);
-                return '';
-            },
+        allInstances.sort((a, b) => {
+            const [nameA, sourceA] = a.split('|');
+            const [nameB, sourceB] = b.split('|');
+            const nameALower = nameA.toLowerCase().trim();
+            const nameBLower = nameB.toLowerCase().trim();
+            if (nameALower === myStoreLower && nameBLower !== myStoreLower) return -1;
+            if (nameBLower === myStoreLower && nameALower !== myStoreLower) return 1;
+            const nameCompare = nameA.localeCompare(nameB);
+            if (nameCompare !== 0) return nameCompare;
+            return sourceA.localeCompare(sourceB);
+        });
 
-        },
-        xAxis: {
-            type: 'category',
-            data: allDates,
-            splitLine: {
-                show: true,
-                lineStyle: {
-                    color: '#E8E8E8',
-                    type: 'dashed',
-                    width: 1,
-                    opacity: 1.0
+        let globalMinPrice = Number.POSITIVE_INFINITY;
+        let globalMaxPrice = Number.NEGATIVE_INFINITY;
+        Object.values(dataByInstance).forEach(datesMap => {
+            Object.values(datesMap).forEach(price => {
+                if (price < globalMinPrice) globalMinPrice = price;
+                if (price > globalMaxPrice) globalMaxPrice = price;
+            });
+        });
+
+        if (!isFinite(globalMinPrice)) globalMinPrice = 0;
+        if (!isFinite(globalMaxPrice) || globalMaxPrice <= globalMinPrice) {
+            globalMaxPrice = globalMinPrice + 100;
+        } else {
+            const padding = (globalMaxPrice - globalMinPrice) * 0.05;
+            globalMinPrice = Math.max(0, globalMinPrice - padding);
+            globalMaxPrice = globalMaxPrice + padding;
+        }
+
+        const seriesData = prepareEchartsSeries(dataByInstance, allDates, allInstances);
+
+        const polishMonths = [
+            'sty', 'lut', 'mar', 'kwi', 'maj', 'cze',
+            'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'
+        ];
+
+        function formatDateToPolishDM(dateString) {
+            try {
+                const parts = dateString.split('-');
+                if (parts.length === 3) {
+                    const day = parseInt(parts[2], 10);
+                    const monthIndex = parseInt(parts[1], 10) - 1;
+                    if (!isNaN(day) && monthIndex >= 0 && monthIndex < 12) {
+                        return `${day} ${polishMonths[monthIndex]}`;
+                    }
+                }
+                return dateString;
+            } catch (e) {
+                console.error("Error formatting date:", dateString, e);
+                return dateString;
+            }
+        }
+
+        currentChartOptions = {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'cross',
+                    snap: true,
+                    label: { backgroundColor: '#6a7985' }
+                },
+                formatter: function (params) {
+                    lastHoverParams = params;
+                    const panelHtml = generateTooltipPanelHtml(params);
+                    updateCustomTooltipPanel(panelHtml || defaultCustomTooltipContent);
+                    return '';
                 }
             },
-            boundaryGap: false,
-              axisLabel: {
-
-                formatter: function (value) {
-
-                    return formatDateToPolishDM(value);
+            xAxis: {
+                type: 'category',
+                data: allDates,
+                splitLine: {
+                    show: true,
+                    lineStyle: { color: '#E8E8E8', type: 'dashed', width: 1, opacity: 1.0 }
                 },
-
-                fontSize: 11,
-                color: '#666'
-
-            }
-
-        },
+                boundaryGap: false,
+                axisLabel: {
+                    formatter: function (value) {
+                        return formatDateToPolishDM(value);
+                    },
+                    fontSize: 11,
+                    color: '#666'
+                }
+            },
             yAxis: {
-            type: 'value',
-            min: globalMinPrice,
-            max: globalMaxPrice,
-            axisLabel: {
-                 show: false,
-                 formatter: function (value) {  }
-            },
-            scale: true,
-            axisPointer: {
-                show: true,
-                snap: true
-            },
-            splitLine: {
-                show: true,
-                lineStyle: {
-                    color: '#E8E8E8',
-                    type: 'dashed',
-                    width: 1,
-                    opacity: 1.0
-                }
-            }
-        },
-        grid: {
-            left: '3%',
-            right: '4%',
-
-            bottom: '80px',
-            containLabel: true
-        },
-        series: seriesData,
-        animationEasing: 'quadraticInOut',
-        animationDuration: 600,
-
-    dataZoom: [
-        {
-            type: 'slider',
-            xAxisIndex: 0,
-            start: 0,
-            end: 100,
-            bottom: '10px',
-            height: 25,
-            showDetail: true,
-            realtime: true,
-            filterMode: 'filter',
-
-            backgroundColor: 'rgba(240, 240, 240, 0.6)',
-            borderColor: '#cccccc',
-            fillerColor: 'rgba(180, 180, 180, 0.4)',
-            handleStyle: {
-                color: '#a7a7a7',
-                borderColor: '#747474',
-                borderWidth: 1
-            },
-            dataBackground: {
-                lineStyle: { color: 'transparent' },
-                areaStyle: { color: '#ebebeb' }
-            },
-            selectedDataBackground: {
-                lineStyle: { color: 'transparent' },
-                areaStyle: { color: '#dcdcdc' }
-            },
-
-            showMoveHandle: false,
-
-            moveHandleIcon: 'none',
-            moveHandleStyle: {
-                color: 'transparent',
-                opacity: 0
-            },
-
-            emphasis: {
-                fillerColor: 'rgba(180, 180, 180, 0.6)',
-                handleStyle: {
-                    color: '#747474',
-                    borderColor: '#505050'
+                type: 'value',
+                min: globalMinPrice,
+                max: globalMaxPrice,
+                axisLabel: {
+                    show: false,
+                    formatter: function (value) { }
                 },
-                moveHandleStyle: {
-                    color: 'transparent',
-                    opacity: 0
+                scale: true,
+                axisPointer: { show: true, snap: true },
+                splitLine: {
+                    show: true,
+                    lineStyle: { color: '#E8E8E8', type: 'dashed', width: 1, opacity: 1.0 }
                 }
             },
-             labelFormatter: function (value) {
-
-                    let dateStr = '';
-
-                    if (typeof value === 'number' && value >= 0 && value < allDates.length) {
-
-                        dateStr = allDates[value];
-                    } else if (typeof value === 'string') {
-
-                         dateStr = value;
-                    } else {
-
-                         return '';
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '80px',
+                containLabel: true
+            },
+            series: seriesData,
+            animationEasing: 'quadraticInOut',
+            animationDuration: 600,
+            dataZoom: [
+                {
+                    type: 'slider',
+                    xAxisIndex: 0,
+                    start: 0,
+                    end: 100,
+                    bottom: '10px',
+                    height: 25,
+                    showDetail: true,
+                    realtime: true,
+                    filterMode: 'filter',
+                    backgroundColor: 'rgba(240, 240, 240, 0.6)',
+                    borderColor: '#cccccc',
+                    fillerColor: 'rgba(180, 180, 180, 0.4)',
+                    handleStyle: { color: '#a7a7a7', borderColor: '#747474', borderWidth: 1 },
+                    dataBackground: {
+                        lineStyle: { color: 'transparent' },
+                        areaStyle: { color: '#ebebeb' }
+                    },
+                    selectedDataBackground: {
+                        lineStyle: { color: 'transparent' },
+                        areaStyle: { color: '#dcdcdc' }
+                    },
+                    showMoveHandle: false,
+                    moveHandleIcon: 'none',
+                    moveHandleStyle: { color: 'transparent', opacity: 0 },
+                    emphasis: {
+                        fillerColor: 'rgba(180, 180, 180, 0.6)',
+                        handleStyle: { color: '#747474', borderColor: '#505050' },
+                        moveHandleStyle: { color: 'transparent', opacity: 0 }
+                    },
+                    labelFormatter: function (value) {
+                        let dateStr = '';
+                        if (typeof value === 'number' && value >= 0 && value < allDates.length) {
+                            dateStr = allDates[value];
+                        } else if (typeof value === 'string') {
+                            dateStr = value;
+                        } else {
+                            return '';
+                        }
+                        return formatDateToPolishDM(dateStr);
                     }
-
-                    return formatDateToPolishDM(dateStr);
+                },
+                {
+                    type: 'inside',
+                    xAxisIndex: 0,
+                    start: 0,
+                    end: 100,
+                    zoomOnMouseWheel: true,
+                    moveOnMouseMove: true,
+                    preventDefaultMouseMove: true
                 }
-
-        },
-        {
-            type: 'inside',
-            xAxisIndex: 0,
-            start: 0,
-            end: 100,
-            zoomOnMouseWheel: true,
-            moveOnMouseMove: true,
-            preventDefaultMouseMove: true
-        }
-    ]
-    };
+            ]
+        };
 
         echartsTrendChart.setOption(currentChartOptions);
 
         echartsTrendChart.on('click', function (params) {
-         if (params && params.seriesName) {
-             const clickedStoreName = params.seriesName;
-
-             toggleStoreHighlight(clickedStoreName);
-         }
-     });
-
-        echartsTrendChart.on('mouseout', function () {
-
+            if (params && params.seriesName) {
+                toggleStoreHighlight(params.seriesName);
+            }
         });
+
+        echartsTrendChart.on('mouseout', function () { });
 
         window.addEventListener('resize', () => {
             if (echartsTrendChart) {
@@ -1368,39 +1358,37 @@
             highlightedStores.splice(idx, 1);
             delete storeColorMap[sLower];
             if (lastHighlightedStore === sLower) {
-                 lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null;
+                lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null;
             }
         } else {
             if (sLower === myStoreLower) {
-                 console.log("Kliknięto własny sklep - brak dodatkowego podświetlenia.");
-                 lastHighlightedStore = sLower;
+                console.log("Kliknięto własny sklep - brak dodatkowego podświetlenia.");
+                lastHighlightedStore = sLower;
             } else if (highlightedStores.length >= highlightColors.length) {
-                 alert(`Możesz zaznaczyć maks. ${highlightColors.length} sklepów do porównania `);
-                 return;
+                alert(`Możesz zaznaczyć maks. ${highlightColors.length} sklepów do porównania `);
+                return;
             } else {
-                 let cIndex = findNextFreeColorIndex();
-                 if (cIndex === null) {
-                     alert("Brak wolnych kolorów do podświetlenia!");
-                     return;
-                 }
-                 if (!highlightedStores.includes(sLower)) {
-                     highlightedStores.push(sLower);
-                 }
-                 storeColorMap[sLower] = cIndex;
-                 lastHighlightedStore = sLower;
+                let cIndex = findNextFreeColorIndex();
+                if (cIndex === null) {
+                    alert("Brak wolnych kolorów do podświetlenia!");
+                    return;
+                }
+                if (!highlightedStores.includes(sLower)) {
+                    highlightedStores.push(sLower);
+                }
+                storeColorMap[sLower] = cIndex;
+                lastHighlightedStore = sLower;
             }
         }
 
         updateEchartsStylesAndZ();
 
         if (lastHoverParams) {
-
             const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
             if (updatedPanelHtml) {
-                 updateCustomTooltipPanel(updatedPanelHtml);
+                updateCustomTooltipPanel(updatedPanelHtml);
             }
         }
-
     }
 
     function updateEchartsStylesAndZ() {
@@ -1414,12 +1402,6 @@
             const currentEmphasisItemStyle = currentEmphasis.itemStyle || {};
             const currentEmphasisLineStyle = currentEmphasis.lineStyle || {};
 
-            const DEBUG_STORE_NAME = "NAZWA_SKLEPU_Z_JEDNYM_PUNKTEM";
-            if (series.name === DEBUG_STORE_NAME) {
-                 console.log(`[${series.name}] Emphasis PRZED aktualizacją:`, JSON.stringify(currentEmphasis));
-                 console.log(`[${series.name}] Styl normalny (itemStyle.color):`, styleAndZ.itemStyle.color);
-            }
-
             const newEmphasis = {
                 ...currentEmphasis,
                 lineStyle: {
@@ -1432,10 +1414,6 @@
                     opacity: 1
                 }
             };
-
-             if (series.name === DEBUG_STORE_NAME) {
-                 console.log(`[${series.name}] Emphasis PO aktualizacji (przed setOption):`, JSON.stringify(newEmphasis));
-             }
 
             return {
                 ...series,
@@ -1456,7 +1434,7 @@
     }
 
     document.addEventListener("DOMContentLoaded", function () {
-         const $exportExcelBtn = $('#exportExcelBtn');
+        const $exportExcelBtn = $('#exportExcelBtn');
         const $showTableBtn = $('#showTableBtn');
         const $showChartBtn = $('#showChartBtn');
         const $tableContainer = $('#priceTableContainer');
@@ -1479,95 +1457,89 @@
             $showTableBtn.removeClass('button-active').addClass('button-inactive');
 
             if ($chartContainer.is(':visible')) {
-                 if (!echartsTrendChart && currentTimelineData) {
-                     if (document.getElementById('trendChart')) {
-                          drawEchartsTrendChart(currentTimelineData);
-                     } else {
-                          console.error("Target div 'trendChart' not found when trying to redraw.");
-                     }
-                 } else if (!echartsTrendChart) {
-                      if (document.getElementById('trendChart')) {
-                          loadTrendDataAndDrawEcharts();
-                      } else {
-                          console.error("Target div 'trendChart' not found on initial load.");
-                      }
-                 } else {
-                     echartsTrendChart.resize();
-                 }
+                if (!echartsTrendChart && currentTimelineData) {
+                    if (document.getElementById('trendChart')) {
+                        drawEchartsTrendChart(currentTimelineData);
+                    } else {
+                        console.error("Target div 'trendChart' not found when trying to redraw.");
+                    }
+                } else if (!echartsTrendChart) {
+                    if (document.getElementById('trendChart')) {
+                        loadTrendDataAndDrawEcharts();
+                    } else {
+                        console.error("Target div 'trendChart' not found on initial load.");
+                    }
+                } else {
+                    echartsTrendChart.resize();
+                }
             }
         });
 
-    if ($exportExcelBtn.length) {
-        $exportExcelBtn.on('click', function() {
-
-            if (!currentTimelineData) {
-                alert("Dane historii cen nie zostały jeszcze załadowane. Proszę najpierw kliknąć przycisk 'Wykres'.");
-
-            } else {
-                exportChartDataToExcel();
-            }
-        });
-    }
+        if ($exportExcelBtn.length) {
+            $exportExcelBtn.on('click', function () {
+                if (!currentTimelineData) {
+                    alert("Dane historii cen nie zostały jeszcze załadowane. Proszę najpierw kliknąć przycisk 'Wykres'.");
+                } else {
+                    exportChartDataToExcel();
+                }
+            });
+        }
 
         const grayAlphaRange = document.getElementById("grayAlphaRange");
         if (grayAlphaRange) {
             grayAlphaRange.addEventListener("input", function (e) {
                 defaultGrayAlpha = parseFloat(e.target.value);
                 updateEchartsStylesAndZ();
-
-                 if (lastHoverParams) {
+                if (lastHoverParams) {
                     const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
                     if (updatedPanelHtml) {
-                         updateCustomTooltipPanel(updatedPanelHtml);
+                        updateCustomTooltipPanel(updatedPanelHtml);
                     }
-                 }
+                }
             });
         }
 
-         $showTableBtn.click();
-
+        $showTableBtn.click();
     });
 
     function loadTrendDataAndDrawEcharts() {
-    if ($('#trendChartContainer').is(':visible')) {
-    $('#loadingOverlay').show();
-    }
+        if ($('#trendChartContainer').is(':visible')) {
+            $('#loadingOverlay').show();
+        }
 
-    $.ajax({
-    url: '@Url.Action("GetPriceTrendData", "PriceHistory")',
-    type: 'GET',
-  
-    data: {
-    productId: productId,
-    limit: currentHistoryLimit 
-    },
-            success: function(response) {
+        $.ajax({
+            url: '@Url.Action("GetPriceTrendData", "PriceHistory")',
+            type: 'GET',
+            data: {
+                productId: productId,
+                limit: currentHistoryLimit
+            },
+            success: function (response) {
                 if (response && response.timelineData && Array.isArray(response.timelineData)) {
-                     currentTimelineData = response.timelineData;
-                     if ($('#trendChartContainer').is(':visible') && document.getElementById('trendChart')) {
-                          drawEchartsTrendChart(currentTimelineData);
-                     } else {
-                          console.log("Chart container not visible, data stored for later drawing.");
-                     }
+                    currentTimelineData = response.timelineData;
+                    if ($('#trendChartContainer').is(':visible') && document.getElementById('trendChart')) {
+                        drawEchartsTrendChart(currentTimelineData);
+                    } else {
+                        console.log("Chart container not visible, data stored for later drawing.");
+                    }
                 } else {
-                     alert("Otrzymano nieprawidłowy format danych trendu.");
-                     console.error("Invalid timeline data received:", response);
-                     updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania danych.</div>');
+                    alert("Otrzymano nieprawidłowy format danych trendu.");
+                    console.error("Invalid timeline data received:", response);
+                    updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania danych.</div>');
                 }
             },
-            error: function(jqXHR, textStatus, errorThrown) {
+            error: function (jqXHR, textStatus, errorThrown) {
                 alert("Błąd pobierania danych trendu: " + errorThrown);
                 console.error("AJAX Error:", textStatus, errorThrown);
-                 updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania danych.</div>');
+                updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania danych.</div>');
             },
-            complete: function() {
-                 $('#loadingOverlay').hide();
+            complete: function () {
+                $('#loadingOverlay').hide();
             }
         });
     }
 
     function rgbaToHex(rgba) {
-
         if (typeof rgba !== 'string' || !rgba.toLowerCase().startsWith('rgba')) {
             return null;
         }
@@ -1584,7 +1556,6 @@
             }
             const toHex = c => ('0' + c.toString(16)).slice(-2);
             const hex = `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
-
             return hex;
         } catch (e) {
             return null;
@@ -1592,44 +1563,31 @@
     }
 
     function getExcelColorForStoreWithInfo(storeKey, currentStoreInfo) {
-
         if (!currentStoreInfo || !storeKey || !currentStoreInfo[storeKey]) {
-
             return null;
         }
 
         const name = currentStoreInfo[storeKey].name;
         const storeLower = name.toLowerCase().trim();
-
         let colorToConvert = null;
 
         const isMy = (typeof myStoreLower !== 'undefined' && storeLower === myStoreLower);
-
         if (isMy && typeof myStoreColor !== 'undefined') {
             colorToConvert = myStoreColor;
-
         }
 
         const isHighlighted = (typeof highlightedStores !== 'undefined' && Array.isArray(highlightedStores) && highlightedStores.includes(storeLower));
-
-         if (!isMy && isHighlighted) {
+        if (!isMy && isHighlighted) {
             if (typeof storeColorMap !== 'undefined' && typeof highlightColors !== 'undefined' && Array.isArray(highlightColors)) {
                 const colorIndex = storeColorMap[storeLower];
-
                 if (colorIndex !== undefined && colorIndex !== null && colorIndex < highlightColors.length) {
                     colorToConvert = highlightColors[colorIndex];
-
-                } else {
-
                 }
-            } else {
-
             }
         }
 
         if (colorToConvert) {
             const hexColor = rgbaToHex(colorToConvert);
-
             return hexColor;
         }
 
@@ -1650,7 +1608,7 @@
             console.warn("Instancja echartsTrendChart nie znaleziona.");
             return;
         }
-         if (typeof hiddenStores === 'undefined' || !Array.isArray(hiddenStores)) {
+        if (typeof hiddenStores === 'undefined' || !Array.isArray(hiddenStores)) {
             console.warn("Zmienna hiddenStores nie jest zdefiniowana jako tablica. Eksportowane będą wszystkie dane.");
         }
 
@@ -1683,30 +1641,22 @@
         const option = echartsTrendChart.getOption();
         let zoomStartIndex = 0;
         let zoomEndIndex = sortedDates.length - 1;
-        let dateRangeAvailable = false;
 
         if (option && option.dataZoom && Array.isArray(option.dataZoom) && option.dataZoom.length > 0) {
-
             const dataZoomConfig = option.dataZoom.find(dz => dz.xAxisIndex === 0 || typeof dz.xAxisIndex === 'undefined');
-
             if (dataZoomConfig && typeof dataZoomConfig.start !== 'undefined' && typeof dataZoomConfig.end !== 'undefined') {
-                 const totalDates = sortedDates.length;
-
-                 zoomStartIndex = Math.floor(totalDates * (dataZoomConfig.start / 100));
-
-                 zoomEndIndex = Math.ceil(totalDates * (dataZoomConfig.end / 100)) - 1;
-
-                 zoomStartIndex = Math.max(0, zoomStartIndex);
-                 zoomEndIndex = Math.min(totalDates - 1, zoomEndIndex);
-                 if(zoomStartIndex > zoomEndIndex && totalDates > 0) {
-                     zoomEndIndex = zoomStartIndex;
-                     console.warn("Obliczony startIndex był większy niż endIndex, skorygowano.");
-                 }
-
-                 console.log(`Zoom wykryty: start=${dataZoomConfig.start}%, end=${dataZoomConfig.end}%. Obliczone indeksy [${zoomStartIndex}, ${zoomEndIndex}] w tablicy ${totalDates} dat.`);
-                 dateRangeAvailable = true;
+                const totalDates = sortedDates.length;
+                zoomStartIndex = Math.floor(totalDates * (dataZoomConfig.start / 100));
+                zoomEndIndex = Math.ceil(totalDates * (dataZoomConfig.end / 100)) - 1;
+                zoomStartIndex = Math.max(0, zoomStartIndex);
+                zoomEndIndex = Math.min(totalDates - 1, zoomEndIndex);
+                if (zoomStartIndex > zoomEndIndex && totalDates > 0) {
+                    zoomEndIndex = zoomStartIndex;
+                    console.warn("Obliczony startIndex był większy niż endIndex, skorygowano.");
+                }
+                console.log(`Zoom wykryty: start=${dataZoomConfig.start}%, end=${dataZoomConfig.end}%. Obliczone indeksy [${zoomStartIndex}, ${zoomEndIndex}] w tablicy ${totalDates} dat.`);
             } else {
-                 console.warn("Nie można odczytać wartości 'start'/'end' z konfiguracji dataZoom.");
+                console.warn("Nie można odczytać wartości 'start'/'end' z konfiguracji dataZoom.");
             }
         } else {
             console.warn("Nie znaleziono konfiguracji dataZoom w opcjach wykresu.");
@@ -1718,16 +1668,15 @@
             alert("Brak danych w wybranym zakresie dat na wykresie do wyeksportowania.");
             console.warn("Tablica dat po filtracji jest pusta.");
             return;
-        } else if(filteredDates.length === 0 && sortedDates.length === 0) {
-             alert("Brak jakichkolwiek danych historycznych do wyeksportowania.");
-             console.warn("Brak jakichkolwiek dat do przetworzenia.");
-             return;
+        } else if (filteredDates.length === 0 && sortedDates.length === 0) {
+            alert("Brak jakichkolwiek danych historycznych do wyeksportowania.");
+            console.warn("Brak jakichkolwiek dat do przetworzenia.");
+            return;
         }
         console.log(`Eksportowany zakres dat: ${filteredDates.length} dni, od ${filteredDates[0]} do ${filteredDates[filteredDates.length - 1]}`);
 
         const sortedStoreKeys = Object.keys(storeData).sort((a, b) => {
-
-             if (!localStoreInfo[a] || !localStoreInfo[b]) return 0;
+            if (!localStoreInfo[a] || !localStoreInfo[b]) return 0;
             const nameA = localStoreInfo[a].name.toLowerCase();
             const nameB = localStoreInfo[b].name.toLowerCase();
             if (nameA < nameB) return -1;
@@ -1739,7 +1688,7 @@
             return 0;
         });
 
-         if (sortedStoreKeys.length === 0) {
+        if (sortedStoreKeys.length === 0) {
             alert("Brak widocznych danych sklepów do wyeksportowania (mogły zostać ukryte).");
             console.warn("Brak kluczy sklepów do eksportu po odfiltrowaniu ukrytych sklepów.");
             return;
@@ -1783,8 +1732,8 @@
 
                 if (hexColor) {
                     stylesAppliedCount++;
-                    const excelJsFillStyle = { type: 'pattern', pattern:'solid', fgColor:{ argb:'FF' + hexColor.substring(1) } };
-                    row.eachCell({ includeEmpty: true }, function(cell) { cell.fill = excelJsFillStyle; });
+                    const excelJsFillStyle = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + hexColor.substring(1) } };
+                    row.eachCell({ includeEmpty: true }, function (cell) { cell.fill = excelJsFillStyle; });
                 }
             });
             console.log(`Style kolorów tła zaaplikowane dla ${stylesAppliedCount} wierszy.`);

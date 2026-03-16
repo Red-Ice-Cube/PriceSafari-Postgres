@@ -763,6 +763,11 @@ namespace PriceSafari.Controllers.MemberControllers
                 allegroIncludeCommisionInPriceChange = includeCommission
             });
         }
+
+
+
+
+        // ═══ ZAKTUALIZOWANA AKCJA DETAILS — zastąp istniejącą ═══
         [HttpGet]
         public async Task<IActionResult> Details(int storeId, int productId)
         {
@@ -774,13 +779,69 @@ namespace PriceSafari.Controllers.MemberControllers
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null) return NotFound("Store not found.");
 
+            // ── Flagi dla tego produktu ──
+            var allFlags = await _context.Flags
+                .Where(f => f.StoreId == storeId && f.IsMarketplace == true)
+                .Select(f => new FlagViewModel
+                {
+                    FlagId = f.FlagId,
+                    FlagName = f.FlagName,
+                    FlagColor = f.FlagColor,
+                    IsMarketplace = f.IsMarketplace
+                })
+                .ToListAsync();
+
+            var productFlagIds = await _context.ProductFlags
+                .Where(pf => pf.AllegroProductId == productId)
+                .Select(pf => pf.FlagId)
+                .ToListAsync();
+
+            // ── Automatyzacja dla tego produktu ──
+            var automationAssignment = await _context.AutomationProductAssignments
+                .Include(a => a.AutomationRule)
+                .Where(a => a.AllegroProductId == productId
+                         && a.AutomationRule.StoreId == storeId
+                         && a.AutomationRule.SourceType == AutomationSourceType.Marketplace)
+                .Select(a => new
+                {
+                    RuleName = a.AutomationRule.Name,
+                    RuleColor = a.AutomationRule.ColorHex,
+                    IsActive = a.AutomationRule.IsActive,
+                    RuleId = a.AutomationRule.Id,
+                    IsTimeLimited = a.AutomationRule.IsTimeLimited,
+                    StartDate = a.AutomationRule.ScheduledStartDate,
+                    EndDate = a.AutomationRule.ScheduledEndDate
+                })
+                .FirstOrDefaultAsync();
+
+            bool isAutomationPaused = false;
+            if (automationAssignment != null && automationAssignment.IsActive && automationAssignment.IsTimeLimited)
+            {
+                var today = DateTime.Today;
+                bool isScheduledForFuture = automationAssignment.StartDate.HasValue && today < automationAssignment.StartDate.Value.Date;
+                bool isExpiredInPast = automationAssignment.EndDate.HasValue && today > automationAssignment.EndDate.Value.Date;
+                if (isScheduledForFuture || isExpiredInPast)
+                {
+                    isAutomationPaused = true;
+                }
+            }
+
             ViewBag.StoreId = storeId;
             ViewBag.ProductId = productId;
             ViewBag.ProductName = product.AllegroProductName;
-            ViewBag.OfferId = product.IdOnAllegro; 
+            ViewBag.OfferId = product.IdOnAllegro;
             ViewBag.Ean = product.AllegroEan;
             ViewBag.StoreName = store.StoreNameAllegro;
             ViewBag.AllegroOfferUrl = product.AllegroOfferUrl;
+
+            // ── Nowe ViewBag ──
+            ViewBag.Flags = allFlags;
+            ViewBag.ProductFlagIds = productFlagIds;
+            ViewBag.AutomationRuleName = automationAssignment?.RuleName;
+            ViewBag.AutomationRuleColor = automationAssignment?.RuleColor;
+            ViewBag.AutomationRuleIsActive = automationAssignment?.IsActive ?? false;
+            ViewBag.AutomationRuleId = automationAssignment?.RuleId;
+            ViewBag.IsAutomationPaused = isAutomationPaused;
 
             return View("~/Views/Panel/AllegroPriceHistory/Details.cshtml");
         }

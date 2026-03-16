@@ -206,7 +206,7 @@ p {
     align-self: stretch;
     background: #FFF;
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.15);
-    padding: 20px;
+    padding: 24px;
 }
 
 .Page-Box-Container {
@@ -574,6 +574,73 @@ p {
     font-size: 22px;
     font-weight: 300;
 }
+
+
+.detail-flags-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+.detail-flag-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1.5px solid;
+    line-height: 1.3;
+}
+
+.detail-no-flags {
+    font-size: 12px;
+    color: #aaa;
+    font-style: italic;
+}
+
+.detail-automation-badge-v2 {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    height: 34px;
+    border-radius: 4px;
+    font-size: 14px;
+    line-height: 1;
+    background-color: #f4f5f7;
+    border: 1px solid #e3e6f0;
+    white-space: nowrap;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.detail-automation-color-bar {
+    width: 5px;
+    height: 18px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.detail-automation-name {
+    font-weight: 500;
+    color: #444;
+}
+
+.detail-automation-sep {
+    color: #d1d3e2;
+    font-weight: 300;
+}
+
+.detail-automation-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+ 
 
 .Category-Data-List {
     display: flex;

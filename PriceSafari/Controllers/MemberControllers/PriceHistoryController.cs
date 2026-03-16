@@ -914,6 +914,51 @@ namespace PriceSafari.Controllers.MemberControllers
                 })
             );
 
+            // ── Flagi dla tego produktu ──
+            var allFlags = await _context.Flags
+                .Where(f => f.StoreId == storeId && f.IsMarketplace == false)
+                .Select(f => new FlagViewModel
+                {
+                    FlagId = f.FlagId,
+                    FlagName = f.FlagName,
+                    FlagColor = f.FlagColor,
+                    IsMarketplace = f.IsMarketplace
+                })
+                .ToListAsync();
+
+            var productFlagIds = await _context.ProductFlags
+                .Where(pf => pf.ProductId == productId)
+                .Select(pf => pf.FlagId)
+                .ToListAsync();
+
+            // ── Automatyzacja dla tego produktu ──
+            var automationAssignment = await _context.AutomationProductAssignments
+                .Include(a => a.AutomationRule)
+                .Where(a => a.ProductId == productId
+                         && a.AutomationRule.StoreId == storeId
+                         && a.AutomationRule.SourceType == AutomationSourceType.PriceComparison)
+                .Select(a => new
+                {
+                    RuleName = a.AutomationRule.Name,
+                    RuleColor = a.AutomationRule.ColorHex,
+                    IsActive = a.AutomationRule.IsActive,
+                    RuleId = a.AutomationRule.Id,
+                    IsTimeLimited = a.AutomationRule.IsTimeLimited,
+                    StartDate = a.AutomationRule.ScheduledStartDate,
+                    EndDate = a.AutomationRule.ScheduledEndDate
+                })
+                .FirstOrDefaultAsync();
+
+            bool isAutomationPaused = false;
+            if (automationAssignment != null && automationAssignment.IsActive && automationAssignment.IsTimeLimited)
+            {
+                var today = DateTime.Today;
+                bool isScheduledForFuture = automationAssignment.StartDate.HasValue && today < automationAssignment.StartDate.Value.Date;
+                bool isExpiredInPast = automationAssignment.EndDate.HasValue && today > automationAssignment.EndDate.Value.Date;
+                if (isScheduledForFuture || isExpiredInPast)
+                    isAutomationPaused = true;
+            }
+
             ViewBag.ScrapHistory = scrapHistory;
             ViewBag.ProductName = product.ProductName;
             ViewBag.Url = product.OfferUrl;
@@ -931,6 +976,13 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.ApiId = product.ExternalId;
             ViewBag.PricesDataJson = pricesDataJson;
             ViewBag.ActivePresetName = activePresetName;
+            ViewBag.Flags = allFlags;
+            ViewBag.ProductFlagIds = productFlagIds;
+            ViewBag.AutomationRuleName = automationAssignment?.RuleName;
+            ViewBag.AutomationRuleColor = automationAssignment?.RuleColor;
+            ViewBag.AutomationRuleIsActive = automationAssignment?.IsActive ?? false;
+            ViewBag.AutomationRuleId = automationAssignment?.RuleId;
+            ViewBag.IsAutomationPaused = isAutomationPaused;
 
             return View("~/Views/Panel/PriceHistory/Details.cshtml", prices);
         }
