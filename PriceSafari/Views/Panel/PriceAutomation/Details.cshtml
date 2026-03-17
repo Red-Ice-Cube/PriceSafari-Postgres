@@ -1418,6 +1418,7 @@
                             }
                             <th style="min-width: 155px; width: 160px;">Zmiana</th>
                             <th class="bg-gradient-light border-left-primary" style="min-width: 250px;">Wyznaczona Cena</th>
+        
                             <th>Status</th>
                           
                         </tr>
@@ -2152,9 +2153,9 @@
                                             @if (item.Status != AutomationCalculationStatus.Blocked && item.SuggestedPrice.HasValue)
                                             {
                                                 <div class="status-box-dashed status-dashed-danger">
-                                                    <i class="fas fa-times mr-1"></i> NIE WGRANO
+                                                    <i class="fas fa-times mr-1"></i> OCZEKUJE
                                                 </div>
-                                                <span class="text-xs text-gray-400">Oczekuje</span>
+                                                <span class="text-xs text-gray-400">Nie wgrano</span>
                                             }
                                             else
                                             {
