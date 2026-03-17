@@ -666,7 +666,10 @@ namespace PriceSafari.Controllers.MemberControllers
             var allPriceHistories = await _context.AllegroPriceHistories
               .Where(ph => ph.AllegroScrapeHistoryId == latestScrapId && productIds.Contains(ph.AllegroProductId))
               .ToListAsync();
-
+            allPriceHistories = allPriceHistories
+            .GroupBy(ph => new { ph.AllegroProductId, ph.IdAllegro })
+            .Select(g => g.First())
+            .ToList();
             var priceHistoriesByProduct = allPriceHistories
               .GroupBy(ph => ph.AllegroProductId)
               .ToDictionary(g => g.Key, g => g.ToList());

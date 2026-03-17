@@ -511,7 +511,10 @@ namespace PriceSafari.Services.PriceAutomationService
             var priceHistories = await _context.AllegroPriceHistories
                 .Where(ph => ph.AllegroScrapeHistoryId == scrapId && productIds.Contains(ph.AllegroProductId))
                 .ToListAsync();
-
+            priceHistories = priceHistories
+                .GroupBy(ph => new { ph.AllegroProductId, ph.IdAllegro })
+                .Select(g => g.First())
+                .ToList();
             var extendedInfos = await _context.AllegroPriceHistoryExtendedInfos
                 .Where(x => x.ScrapHistoryId == scrapId && productIds.Contains(x.AllegroProductId))
                 .ToListAsync();
@@ -1130,6 +1133,10 @@ namespace PriceSafari.Services.PriceAutomationService
                     h.IsBestPriceGuarantee
                 })
                 .ToListAsync();
+            allBasicBadges = allBasicBadges
+            .GroupBy(b => new { b.AllegroScrapeHistoryId, b.AllegroProductId })
+            .Select(g => g.First())
+            .ToList();
 
             var allExtendedBadges = await _context.AllegroPriceHistoryExtendedInfos
                 .Where(h => scrapIds.Contains(h.ScrapHistoryId)
@@ -1215,6 +1222,11 @@ namespace PriceSafari.Services.PriceAutomationService
                     h.Popularity
                 })
                 .ToListAsync();
+
+            allRecords = allRecords
+                .GroupBy(r => new { r.AllegroScrapeHistoryId, r.AllegroProductId, r.IdAllegro })
+                .Select(g => g.First())
+                .ToList();
 
             var model = new AutomationSalesHistoryViewModel();
 
@@ -1409,10 +1421,17 @@ namespace PriceSafari.Services.PriceAutomationService
                 {
                     h.AllegroScrapeHistoryId,
                     h.AllegroProductId,
+                    h.IdAllegro,           // ← dodaj
                     h.SellerName,
                     h.Price
                 })
                 .ToListAsync();
+
+            // ── Deduplikacja ──
+            allRecords = allRecords
+                .GroupBy(r => new { r.AllegroScrapeHistoryId, r.AllegroProductId, r.IdAllegro })
+                .Select(g => g.First())
+                .ToList();
 
             var model = new AutomationPricePositionHistoryViewModel();
             model.TotalProductsInRule = currentProductIds.Count;
