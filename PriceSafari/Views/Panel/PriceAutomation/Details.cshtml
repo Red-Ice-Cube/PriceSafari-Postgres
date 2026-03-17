@@ -29,7 +29,6 @@
     int successCount = Model.CountMet + Model.CountMaintained + Model.CountLimited;
     int blockedCount = Model.CountBlocked;
     int percentSuccess = Model.SuccessRate;
-    // ── Time scheduling ──
     bool isTimeLimited = Model.IsTimeLimited;
     DateTime? schedStart = Model.ScheduledStartDate;
     DateTime? schedEnd = Model.ScheduledEndDate;
@@ -92,12 +91,12 @@
         }
         else
         {
-            // Aktywny — end date inclusive, więc +1 dzień do totalDays
-            double totalSpan = (schedEnd.Value.Date - schedStart.Value.Date).TotalDays + 1; // 3
-            double elapsedFull = (now.Date - schedStart.Value.Date).TotalDays;               // na 04.03 = 1
-            timeProgressPercent = totalSpan > 0 ? Math.Round((elapsedFull / totalSpan) * 100, 1) : 0; // 33.3%
-            timeProgressPercent = Math.Max(0, Math.Min(timeProgressPercent, 99.9)); // nigdy 100 gdy jeszcze aktywny
-            int daysLeft = (int)(schedEnd.Value.Date - now.Date).TotalDays + 1;     // na 04.03 → 2 (4 i 5)
+      
+            double totalSpan = (schedEnd.Value.Date - schedStart.Value.Date).TotalDays + 1; 
+            double elapsedFull = (now.Date - schedStart.Value.Date).TotalDays;          
+            timeProgressPercent = totalSpan > 0 ? Math.Round((elapsedFull / totalSpan) * 100, 1) : 0; 
+            timeProgressPercent = Math.Max(0, Math.Min(timeProgressPercent, 99.9)); 
+            int daysLeft = (int)(schedEnd.Value.Date - now.Date).TotalDays + 1;     
 
             timeStatusLabel = "Aktywny";
             timeStatusClass = "time-status-active";
@@ -2235,7 +2234,7 @@
                 }
             },
 
-           scrollToProduct: function () {
+          scrollToProduct: function () {
                 const scrollToId = sessionStorage.getItem('automation_scrollToProduct');
                 if (!scrollToId) return;
 
@@ -2248,10 +2247,14 @@
                     if (wrapper) {
                         const row = wrapper.closest('tr');
                         row.scrollIntoView({ behavior: 'instant', block: 'center' });
+            
+               
+                        window.scrollTo(0, 0);
+
                         row.style.transition = 'background-color 0s';
                         row.style.backgroundColor = '#fff3cd';
                         setTimeout(function () {
-                            row.style.transition = 'background-color 2s ease';
+                            row.style.transition = 'background-color 3s ease';
                             row.style.backgroundColor = '';
                         }, 100);
                     }
