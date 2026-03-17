@@ -448,7 +448,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         FlagIds = productFlagsDictionary.GetValueOrDefault(product.AllegroProductId, new List<int>()),
 
                         Ean = product.AllegroEan,
-
+                        AllegroSku = product.AllegroSku,
                         ExternalId = (int?)null,
 
                         MarginPrice = product.AllegroMarginPrice,
@@ -840,10 +840,9 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.ProductName = product.AllegroProductName;
             ViewBag.OfferId = product.IdOnAllegro;
             ViewBag.Ean = product.AllegroEan;
+            ViewBag.AllegroSku = product.AllegroSku;
             ViewBag.StoreName = store.StoreNameAllegro;
             ViewBag.AllegroOfferUrl = product.AllegroOfferUrl;
-
-            // ── Nowe ViewBag ──
             ViewBag.Flags = allFlags;
             ViewBag.ProductFlagIds = productFlagIds;
             ViewBag.AutomationRuleName = automationAssignment?.RuleName;
