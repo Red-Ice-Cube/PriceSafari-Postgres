@@ -524,7 +524,30 @@
             notif.style.display = "none";
         }, 4000);
     }
+    const priceContainer = document.getElementById('priceContainer');
+    if (priceContainer) {
+        priceContainer.addEventListener('click', function (e) {
 
+            const btn = e.target.closest('.automation-link-btn');
+
+            if (btn) {
+
+                e.preventDefault();
+
+                e.stopPropagation();
+
+                const url = btn.getAttribute('data-url');
+                const productId = btn.getAttribute('data-product-id');
+
+                if (url && productId) {
+
+                    sessionStorage.setItem('automation_scrollToProduct', productId);
+
+                    window.open(url, '_blank');
+                }
+            }
+        });
+    }
     function getMarginBadgeClass(marginClass) {
         switch (marginClass) {
             case 'priceBox-diff-margin-ins':
@@ -2351,7 +2374,11 @@
         </div>
 
         <div class="automation-btn-wrapper">
-            <a href="${detailsUrl}" target="_blank" class="btn-automation-details" title="Przejdź do konfiguracji">
+            <a href="#"
+               class="btn-automation-details automation-link-btn"
+               data-url="${detailsUrl}" 
+               data-product-id="${item.productId}"
+               title="Przejdź do konfiguracji">
                 <i class="fa-solid fa-sliders"></i> Konfiguruj
             </a>
         </div>
@@ -2360,7 +2387,18 @@
         const linkBtn = column.querySelector('.btn-automation-details');
         if (linkBtn) {
             linkBtn.addEventListener('click', function (e) {
-                e.stopPropagation();
+                e.preventDefault(); 
+                e.stopPropagation(); 
+
+                const url = this.getAttribute('data-url');
+                const productId = this.getAttribute('data-product-id');
+
+                if (url && productId) {
+                   
+                    sessionStorage.setItem('automation_scrollToProduct', productId);
+            
+                    window.open(url, '_blank');
+                }
             });
         }
 
