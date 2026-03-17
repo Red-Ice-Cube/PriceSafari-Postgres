@@ -1803,7 +1803,40 @@
                     apiBox.innerHTML = 'Brak ID';
                 }
             }
+ 
+            let valueToCopy = null;
+            if (allegroMarginSettings.identifierForSimulation === 'EAN' && item.ean) {
+                valueToCopy = item.ean;
+            } else if (allegroMarginSettings.identifierForSimulation === 'SKU' && item.allegroSku) {
+                valueToCopy = item.allegroSku;
+            } else if (allegroMarginSettings.identifierForSimulation !== 'EAN' && allegroMarginSettings.identifierForSimulation !== 'SKU' && item.myIdAllegro) {
+                valueToCopy = item.myIdAllegro.toString();
+            }
 
+            if (valueToCopy) {
+                apiBox.style.cursor = 'pointer';
+                apiBox.title = 'Kliknij, aby skopiować';
+
+                apiBox.addEventListener('click', function (e) {
+                    e.stopPropagation();
+
+                    navigator.clipboard.writeText(valueToCopy).then(() => {
+                        const originalHtml = apiBox.innerHTML;
+                        const originalBg = apiBox.style.backgroundColor;
+                        const originalColor = apiBox.style.color;
+
+                        apiBox.innerHTML = 'Skopiowano!';
+                        apiBox.style.backgroundColor = '#198754';
+                        apiBox.style.color = 'white';
+
+                        setTimeout(() => {
+                            apiBox.innerHTML = originalHtml;
+                            apiBox.style.backgroundColor = originalBg;
+                            apiBox.style.color = originalColor;
+                        }, 2000);
+                    });
+                });
+            }
             rightColumn.appendChild(selectProductButton);
             rightColumn.appendChild(apiBox);
             priceBoxSpace.appendChild(leftColumn);

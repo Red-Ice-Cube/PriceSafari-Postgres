@@ -2539,7 +2539,31 @@
             } else {
                 apiBox.innerHTML = `Brak ${identifierLabel}`;
             }
+            
+            if (identifierValue) {
+                apiBox.style.cursor = 'pointer';
+                apiBox.title = 'Kliknij, aby skopiować';
 
+                apiBox.addEventListener('click', function (e) {
+                    e.stopPropagation();
+
+                    navigator.clipboard.writeText(identifierValue).then(() => {
+                        const originalHtml = apiBox.innerHTML;
+                        const originalBg = apiBox.style.backgroundColor;
+                        const originalColor = apiBox.style.color;
+
+                        apiBox.innerHTML = 'Skopiowano!';
+                        apiBox.style.backgroundColor = '#198754';
+                        apiBox.style.color = 'white';
+
+                        setTimeout(() => {
+                            apiBox.innerHTML = originalHtml;
+                            apiBox.style.backgroundColor = originalBg;
+                            apiBox.style.color = originalColor;
+                        }, 2000);
+                    });
+                });
+            }
             rightColumn.appendChild(selectProductButton);
             rightColumn.appendChild(apiBox);
 
