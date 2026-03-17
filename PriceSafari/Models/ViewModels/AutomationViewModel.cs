@@ -161,7 +161,8 @@ namespace PriceSafari.Models.ViewModels
         public string MissingPlatformName { get; set; }
 
         public bool IsSmartPriceAdjusted { get; set; } = false;
-
+        public string? AllegroSku { get; set; }
+        public string? AllegroEan { get; set; }
         public List<int> FlagIds { get; set; } = new List<int>();
     }
 

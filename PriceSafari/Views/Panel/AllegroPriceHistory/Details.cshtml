@@ -154,6 +154,10 @@
                     {
                         <p><strong>EAN:</strong> @ean</p>
                     }
+                    @if (!string.IsNullOrEmpty(ViewBag.AllegroSku as string))
+                    {
+                        <p><strong>SKU:</strong> @ViewBag.AllegroSku</p>
+                    }
                 </div>
                 <div style="display:flex; gap:8px; align-items: center; flex-wrap: wrap;">
                    

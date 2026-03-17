@@ -390,6 +390,7 @@ namespace PriceSafari.Services.PriceAutomationService
                     FlagIds = productFlagsLookup.ContainsKey(p.ProductId)
                       ? productFlagsLookup[p.ProductId]
                       : new List<int>()
+
                 };
 
                 bool bestRivalIsCeneo = bestCompetitor != null && bestCompetitor.IsGoogle != true;
@@ -665,7 +666,9 @@ namespace PriceSafari.Services.PriceAutomationService
                     HasScrapedPrice = myHistory != null && myHistory.Price > 0,
                     FlagIds = productFlagsLookup.ContainsKey(p.AllegroProductId)
                       ? productFlagsLookup[p.AllegroProductId]
-                      : new List<int>()
+                      : new List<int>(),
+                    AllegroSku = p.AllegroSku,
+                    AllegroEan = p.AllegroEan,
                 };
 
                 CalculateSuggestedPrice(rule, row);
