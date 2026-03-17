@@ -179,16 +179,21 @@
                             }
                         </span>
                     </button>
-
                     @if (!string.IsNullOrEmpty(automationRuleName))
                     {
-                        var isActive = automationRuleIsActive;
                         var isPaused = ViewBag.IsAutomationPaused as bool? ?? false;
-                        var statusColor = isPaused ? "#f6c23e" : (isActive ? "#1cc88a" : "#e74a3b");
-                        var statusLabel = isPaused ? "Zatrzymana" : (isActive ? "Aktywna" : "Nieaktywna");
-                        <span class="detail-automation-badge-v2">
+                        var statusColor = isPaused ? "#f6c23e" : (automationRuleIsActive ? "#1cc88a" : "#e74a3b");
+                        var statusLabel = isPaused ? "Zatrzymana" : (automationRuleIsActive ? "Aktywna" : "Nieaktywna");
+    
+                      
+                        var automationDetailsUrl = Url.Action("Details", "PriceAutomation", new { id = automationRuleId });
+
+                        <span class="detail-automation-badge-v2 automation-link-btn"
+                              data-url="@automationDetailsUrl"
+                              data-product-id="@productId"
+                              style="cursor: pointer;"
+                              title="Przejdź do konfiguracji tego automatu">
                             <span class="detail-automation-color-bar" style="background-color: @automationRuleColor;"></span>
-                           
                             <span class="detail-automation-name">@automationRuleName</span>
                             <span class="detail-automation-sep">|</span>
                             <span class="detail-automation-status-dot" style="background-color: @statusColor;" title="@statusLabel"></span>
@@ -1004,6 +1009,24 @@
             const buffer = await workbook.xlsx.writeBuffer(); const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); const prodNameSafe = (originalChartData.productName || "Produkt").replace(/[^a-z0-9_ -]/gi, '_').substring(0, 50); const fileName = `PriceSafari_${prodNameSafe}_wyswietlenia_${visDates[0]}_do_${visDates[visDates.length - 1]}.xlsx`; const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = fileName; document.body.appendChild(link); link.click(); document.body.removeChild(link); setTimeout(() => { URL.revokeObjectURL(link.href); }, 100);
             } catch (e) { console.error("Błąd Excel (visits):", e); alert("Błąd tworzenia pliku Excel: " + e.message); }
         }
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+           
+            document.querySelectorAll('.automation-link-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var url = this.getAttribute('data-url');
+                    var productId = this.getAttribute('data-product-id');
+
+                    if (url && productId) {
+                      
+                        sessionStorage.setItem('automation_scrollToProduct', productId);
+                
+                      
+                        window.location.href = url;
+                    }
+                });
+            });
         });
     </script>
 }

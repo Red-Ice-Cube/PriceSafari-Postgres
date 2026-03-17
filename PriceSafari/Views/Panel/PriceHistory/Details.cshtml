@@ -250,7 +250,15 @@
                             var isPaused = ViewBag.IsAutomationPaused as bool? ?? false;
                             var statusColor = isPaused ? "#f6c23e" : (automationRuleIsActive ? "#1cc88a" : "#e74a3b");
                             var statusLabel = isPaused ? "Zatrzymana" : (automationRuleIsActive ? "Aktywna" : "Nieaktywna");
-                            <span class="detail-automation-badge-v2">
+    
+                         
+                            var automationDetailsUrl = Url.Action("Details", "PriceAutomation", new { id = automationRuleId });
+
+                            <span class="detail-automation-badge-v2 automation-link-btn"
+                                  data-url="@automationDetailsUrl"
+                                  data-product-id="@ViewBag.ProductId"
+                                  style="cursor: pointer;"
+                                  title="Przejdź do konfiguracji tego automatu">
                                 <span class="detail-automation-color-bar" style="background-color: @automationRuleColor;"></span>
                                 <span class="detail-automation-name">@automationRuleName</span>
                                 <span class="detail-automation-sep">|</span>
@@ -1766,4 +1774,23 @@
         }
     }
 
+</script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+   
+        document.querySelectorAll('.automation-link-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var url = this.getAttribute('data-url');
+                var productId = this.getAttribute('data-product-id');
+
+                if (url && productId) {
+                 
+                    sessionStorage.setItem('automation_scrollToProduct', productId);
+                    
+            
+                    window.location.href = url;
+                }
+            });
+        });
+    });
 </script>
