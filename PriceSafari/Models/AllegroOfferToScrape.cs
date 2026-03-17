@@ -56,6 +56,7 @@ namespace PriceSafari.Models
         public int? AllegroVisitsCount { get; set; }
 
         public string? AllegroBrand { get; set; }
+        public string? AllegroProducerCode { get; set; }
         public virtual ICollection<AllegroScrapedOffer> ScrapedOffers { get; set; } = new List<AllegroScrapedOffer>();
     }
 }

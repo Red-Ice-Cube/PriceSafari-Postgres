@@ -22,10 +22,9 @@ namespace PriceSafari.Services.AllegroServices
         string? Ean,
         bool IsAnyPromoActive,
         bool IsSubsidyActive,
-        // ═══ NOWE POLA ═══
         int? VisitsCount,
-        string? Brand
-    // ═══════════════════
+        string? Brand,
+        string? ProducerCode
     );
 
     internal record BadgeData(string CampaignName, JsonNode? BadgeNode);
@@ -288,10 +287,9 @@ namespace PriceSafari.Services.AllegroServices
                     offer.AllegroEan = apiData.Ean;
                     offer.AnyPromoActive = apiData.IsAnyPromoActive;
                     offer.IsSubsidyActive = apiData.IsSubsidyActive;
-                    // ═══ ZAPIS NOWYCH PÓL ═══
                     offer.AllegroVisitsCount = apiData.VisitsCount;
                     offer.AllegroBrand = apiData.Brand;
-                    // ═════════════════════════
+                    offer.AllegroProducerCode = apiData.ProducerCode;
                     offer.IsApiProcessed = true;
 
                     counters.IncrementSuccess();
@@ -372,7 +370,7 @@ namespace PriceSafari.Services.AllegroServices
 
                 var badgeCampaigns = await badgesTask;
                 var visitsCount = await visitsTask;
-                // ═══════════════════════════════════════════════════════════
+            
 
                 var commissionTask = GetOfferCommissionWithRetry(accessToken, offerDataNode);
                 var alleDiscountsTask = GetAlleDiscountsAsync(accessToken, offerId, badgeCampaigns);
@@ -433,7 +431,33 @@ namespace PriceSafari.Services.AllegroServices
                     }
                 }
                 catch { }
-                // ═══════════════════════════════════════════════════════════════════
+
+
+                string? producerCode = null;
+                try
+                {
+                    var parameters = offerDataNode["productSet"]?[0]?["product"]?["parameters"]?.AsArray();
+                    if (parameters != null)
+                    {
+                        var mpnParam = parameters.FirstOrDefault(p =>
+                            p?["id"]?.ToString() == "4783" ||
+                            p?["name"]?.ToString()?.Equals("Kod producenta", StringComparison.OrdinalIgnoreCase) == true
+                        );
+                        if (mpnParam != null)
+                        {
+                            var labelsArray = mpnParam["valuesLabels"]?.AsArray();
+                            if (labelsArray != null && labelsArray.Count > 0)
+                                producerCode = labelsArray[0]?.ToString();
+                            else
+                            {
+                                var valuesArray = mpnParam["values"]?.AsArray();
+                                if (valuesArray != null && valuesArray.Count > 0)
+                                    producerCode = valuesArray[0]?.ToString();
+                            }
+                        }
+                    }
+                }
+                catch { }
 
                 decimal sellerEarns = basePrice;
                 decimal customerPays = basePrice;
@@ -495,12 +519,11 @@ namespace PriceSafari.Services.AllegroServices
                     return (null, FailureReason.InvalidPrice);
                 }
 
-                // ═══ ZMIANA: Przekazujemy nowe pola do rekordu ═══
                 return (new AllegroApiSummary(
-                        customerPays, sellerEarns, commission, ean,
-                        isAnyPromoActive, isSubsidyActive,
-                        visitsCount, brand),
-                    FailureReason.None);
+                    customerPays, sellerEarns, commission, ean,
+                    isAnyPromoActive, isSubsidyActive,
+                    visitsCount, brand, producerCode),
+                FailureReason.None);
             }
             catch (AllegroAuthException)
             {
@@ -521,9 +544,7 @@ namespace PriceSafari.Services.AllegroServices
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // NOWA METODA: Pobieranie wyświetleń z /sale/offers
-        // ═══════════════════════════════════════════════════════════════
+
         private async Task<int?> GetOfferVisitsCountWithRetry(string accessToken, string offerId)
         {
             int attempt = 0;
@@ -588,9 +609,6 @@ namespace PriceSafari.Services.AllegroServices
             return null;
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // METODY Z WBUDOWANYM RETRY (bez zmian)
-        // ═══════════════════════════════════════════════════════════════
 
         private async Task<JsonNode?> GetOfferDataWithRetry(string accessToken, string offerId)
         {

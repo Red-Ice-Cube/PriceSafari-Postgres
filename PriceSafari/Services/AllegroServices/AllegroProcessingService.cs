@@ -36,7 +36,6 @@ namespace PriceSafari.Services.AllegroServices
             }
             var userAllegroStoreName = userStore.StoreNameAllegro;
 
-
             var storeProducts = await _context.AllegroProducts
                 .Where(p => p.StoreId == storeId)
                 .ToListAsync();
@@ -62,7 +61,6 @@ namespace PriceSafari.Services.AllegroServices
 
             var rejectedOffers = relevantOffersForStore.Where(o => o.IsRejected).ToList();
 
-
             var productIdsToRejectFromUpstream = rejectedOffers.Any()
                 ? rejectedOffers.SelectMany(o => o.AllegroProductIds).Intersect(storeProductIds).Distinct().ToList()
                 : new List<int>();
@@ -87,34 +85,27 @@ namespace PriceSafari.Services.AllegroServices
                 .AsNoTracking()
                 .ToListAsync();
 
-
             var offersGroupedByUrl = scrapedOffersData.GroupBy(o => o.AllegroOfferToScrapeId);
-
 
             var urlsWithoutUserStore = offersGroupedByUrl
                 .Where(group => !group.Any(offer => offer.SellerName == userAllegroStoreName))
                 .Select(group => group.Key)
                 .ToHashSet();
 
-
             var tasksWithResults = scrapedOffersData.Select(x => x.AllegroOfferToScrapeId).Distinct().ToHashSet();
             var tasksWithZeroResults = validOfferIds.Where(id => !tasksWithResults.Contains(id)).ToList();
-
 
             foreach (var zeroResultId in tasksWithZeroResults)
             {
                 urlsWithoutUserStore.Add(zeroResultId);
             }
 
-
             var productIdsToRejectForSellerMismatch = urlsWithoutUserStore.Any()
                 ? relevantOffersForStore.Where(o => urlsWithoutUserStore.Contains(o.Id))
                     .SelectMany(o => o.AllegroProductIds).Intersect(storeProductIds).Distinct().ToList()
                 : new List<int>();
 
-
             var productIdsToRejectForMissingMainOffer = new List<int>();
-
 
             var urlsToCheckForMainOffer = offersGroupedByUrl.Where(g => !urlsWithoutUserStore.Contains(g.Key));
 
@@ -146,7 +137,6 @@ namespace PriceSafari.Services.AllegroServices
                 .Distinct()
                 .ToList();
 
-            // Wykonanie odrzucenia w bazie
             if (allProductIdsToReject.Any())
             {
                 await _context.AllegroProducts
@@ -154,7 +144,6 @@ namespace PriceSafari.Services.AllegroServices
                     .ExecuteUpdateAsync(s => s.SetProperty(p => p.IsRejected, true));
             }
 
-            // --- Zapis historii i sukcesów (Reszta bez zmian) ---
             var scrapeHistory = new AllegroScrapeHistory
             {
                 StoreId = storeId,
@@ -189,7 +178,6 @@ namespace PriceSafari.Services.AllegroServices
                     .Intersect(storeProductIds)
                     .ToList();
 
-                // Logika aktualizacji EAN
                 if (sourceOfferToScrape.IsApiProcessed == true && !string.IsNullOrEmpty(sourceOfferToScrape.AllegroEan))
                 {
                     var newEan = sourceOfferToScrape.AllegroEan;
@@ -206,7 +194,6 @@ namespace PriceSafari.Services.AllegroServices
                     }
                 }
 
-                // ═══ NOWE: Logika aktualizacji Producer (Brand/Marka) - analogicznie do EAN ═══
                 if (sourceOfferToScrape.IsApiProcessed == true && !string.IsNullOrEmpty(sourceOfferToScrape.AllegroBrand))
                 {
                     var newBrand = sourceOfferToScrape.AllegroBrand;
@@ -222,31 +209,43 @@ namespace PriceSafari.Services.AllegroServices
                         }
                     }
                 }
-                // ═══════════════════════════════════════════════════════════════════════════════
+
+                if (sourceOfferToScrape.IsApiProcessed == true && !string.IsNullOrEmpty(sourceOfferToScrape.AllegroProducerCode))
+                {
+                    var newProducerCode = sourceOfferToScrape.AllegroProducerCode;
+                    var productsToUpdateSku = storeProducts
+                        .Where(p => productIdsForThisStore.Contains(p.AllegroProductId))
+                        .ToList();
+
+                    foreach (var product in productsToUpdateSku)
+                    {
+                        if (string.IsNullOrEmpty(product.AllegroSku) || product.AllegroSku != newProducerCode)
+                        {
+                            product.AllegroSku = newProducerCode;
+                        }
+                    }
+                }
 
                 foreach (var productId in productIdsForThisStore)
                 {
-                    // 1. ZATRZYMUJEMY ZAPIS TYLKO DLA TWARDYCH BŁĘDÓW SKRAPERA (np. strona usunięta, błąd 404)
+
                     if (productIdsToRejectFromUpstream.Contains(productId))
                     {
                         continue;
                     }
 
-                    // 2. AKTUALIZUJEMY FLAGĘ IsRejected W BAZIE DANYCH
-                    // Sprawdzamy, czy produkt jest na pełnej liście odrzuconych (np. brakuje Twojej oferty)
                     bool shouldBeRejected = allProductIdsToReject.Contains(productId);
 
                     var productEntity = storeProducts.FirstOrDefault(p => p.AllegroProductId == productId);
                     if (productEntity != null)
                     {
-                        // Aktualizujemy status tylko, jeśli się zmienił
+
                         if (productEntity.IsRejected != shouldBeRejected)
                         {
                             productEntity.IsRejected = shouldBeRejected;
-                            // Entity Framework śledzi tę zmianę i zapisze ją przy ostatecznym SaveChangesAsync
+
                         }
                     }
-
 
                     newPriceHistories.Add(new AllegroPriceHistory
                     {
@@ -272,7 +271,6 @@ namespace PriceSafari.Services.AllegroServices
                         RatingCount = scrapedOffer.RatingCount,
                         RatingPositivePercent = scrapedOffer.RatingPositivePercent,
                     });
-
 
                     if (sourceOfferToScrape.IsApiProcessed == true && scrapedOffer.SellerName.Equals(userAllegroStoreName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -318,7 +316,6 @@ namespace PriceSafari.Services.AllegroServices
 
             scrapeHistory.ProcessedUrlsCount = relevantOffersForStore.Count;
             scrapeHistory.SavedOffersCount = newPriceHistories.Count;
-
 
             await _context.SaveChangesAsync();
 
