@@ -36,6 +36,9 @@
             if (allegroMarginSettings.identifierForSimulation === 'EAN') {
                 return { label: 'EAN', value: product.ean || null };
             }
+            if (allegroMarginSettings.identifierForSimulation === 'SKU') {   
+                return { label: 'SKU', value: product.allegroSku || null };
+            }
             return { label: 'ID', value: product.myIdAllegro ? product.myIdAllegro.toString() : null };
         },
         showLoading: showLoading,
@@ -1783,6 +1786,13 @@
                     apiBox.innerHTML = `EAN ${highlightedEan}`;
                 } else {
                     apiBox.innerHTML = 'Brak EAN';
+                }
+            } else if (allegroMarginSettings.identifierForSimulation === 'SKU') { 
+                if (item.allegroSku) {
+                    const highlightedSku = highlightMatches(item.allegroSku, productSearchTerm, 'highlighted-text-yellow');
+                    apiBox.innerHTML = `SKU ${highlightedSku}`;
+                } else {
+                    apiBox.innerHTML = 'Brak SKU';
                 }
             } else {
                 if (item.myIdAllegro) {

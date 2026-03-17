@@ -34,7 +34,7 @@
         getProductIdentifier: (product) => {
             switch (marginSettings.identifierForSimulation) {
                 case 'ID': return { label: 'ID', value: product.externalId ? product.externalId.toString() : null };
-                case 'ProducerCode': return { label: 'KOD', value: product.producerCode || null };
+                case 'ProducerCode': return { label: 'SKU', value: product.producerCode || null };
                 default: return { label: 'EAN', value: product.ean || null };
             }
         },
@@ -2524,7 +2524,7 @@
                     break;
                 case 'ProducerCode':
                     identifierValue = item.producerCode || null;
-                    identifierLabel = 'KOD';
+                    identifierLabel = 'SKU';
                     break;
                 case 'EAN':
                 default:
