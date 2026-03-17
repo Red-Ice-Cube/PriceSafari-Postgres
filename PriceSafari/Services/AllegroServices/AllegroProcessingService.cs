@@ -172,6 +172,10 @@ namespace PriceSafari.Services.AllegroServices
                 .Select(g => g.Key)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+            var visitsPerOffer = allOffersToScrape
+            .Where(o => o.IsApiProcessed == true && o.AllegroVisitsCount.HasValue)
+            .ToDictionary(o => o.AllegroOfferId, o => o.AllegroVisitsCount);
+
             foreach (var scrapedOffer in scrapedOffersData)
             {
                 var sourceOfferToScrape = allOffersToScrape.FirstOrDefault(o => o.Id == scrapedOffer.AllegroOfferToScrapeId);
@@ -294,8 +298,8 @@ namespace PriceSafari.Services.AllegroServices
                             ApiAllegroPriceFromUser = sourceOfferToScrape.ApiAllegroPriceFromUser,
                             ApiAllegroCommission = sourceOfferToScrape.ApiAllegroCommission,
                             AnyPromoActive = finalAnyPromoActive,
-                            IsSubsidyActive = finalIsSubsidyActive,                    
-                            AllegroVisitsCount = sourceOfferToScrape.AllegroVisitsCount,
+                            IsSubsidyActive = finalIsSubsidyActive,
+                            AllegroVisitsCount = visitsPerOffer.GetValueOrDefault(scrapedOffer.IdAllegro),
                             IdAllegro = scrapedOffer.IdAllegro,
                         });
                     }
