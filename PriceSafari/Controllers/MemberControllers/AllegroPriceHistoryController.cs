@@ -193,9 +193,15 @@ namespace PriceSafari.Controllers.MemberControllers
                 );
 
             var priceData = await _context.AllegroPriceHistories
-                .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id && aph.AllegroProduct.IsScrapable)
-                .Include(aph => aph.AllegroProduct)
-                .ToListAsync();
+            .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id && aph.AllegroProduct.IsScrapable)
+            .Include(aph => aph.AllegroProduct)
+            .ToListAsync();
+
+            // ── Deduplikacja: jeden rekord per produkt + oferta ──
+            priceData = priceData
+                .GroupBy(aph => new { aph.AllegroProductId, aph.IdAllegro })
+                .Select(g => g.First())
+                .ToList();
 
             var productIds = priceData.Select(p => p.AllegroProductId).Distinct().ToList();
             var productFlagsDictionary = await _context.ProductFlags
@@ -878,10 +884,16 @@ namespace PriceSafari.Controllers.MemberControllers
                 .ToDictionary(ci => ci.StoreName.ToLower().Trim(), ci => ci.UseCompetitor);
 
             var allOffersForProduct = await _context.AllegroPriceHistories
-                .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id &&
-                                aph.AllegroProductId == productId &&
-                                aph.Price > 0)
-                .ToListAsync();
+            .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id &&
+                            aph.AllegroProductId == productId &&
+                            aph.Price > 0)
+            .ToListAsync();
+
+                    // ── Deduplikacja: jedna oferta per IdAllegro ──
+                    allOffersForProduct = allOffersForProduct
+                        .GroupBy(aph => aph.IdAllegro)
+                        .Select(g => g.First())
+                        .ToList();
             List<AllegroPriceHistory> filteredOffers;
             bool includeNoDelivery = activePreset?.IncludeNoDeliveryInfo ?? true;
             int minDelivery = activePreset?.MinDeliveryDays ?? 0;
@@ -1067,6 +1079,14 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(aph => aph.AllegroProductId == productId && scrapIds.Contains(aph.AllegroScrapeHistoryId))
                 .Where(aph => aph.Price > 0)
                 .ToListAsync();
+
+            // ── Deduplikacja: jeden rekord per scrap + oferta ──
+            priceHistories = priceHistories
+                .GroupBy(aph => new { aph.AllegroScrapeHistoryId, aph.IdAllegro })
+                .Select(g => g.First())
+                .ToList();
+
+
 
             // ═══ FIX: Znajdź TYLKO nasze oferty (IdAllegro) które występują w tym katalogu ═══
             var ourOfferIdsInCatalog = priceHistories
