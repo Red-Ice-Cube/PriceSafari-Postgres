@@ -11,7 +11,6 @@ let openedId = null;
 let lastLoadedAnalysisDays = null;
 let lastLoadedHistoryDays = null;
 
-// ── Cache szczegółów (scrapId/batchId → dane) ──
 const scrapDetailsCache = {};
 const batchDetailsCache = {};
 
@@ -74,10 +73,6 @@ function buildPriceDetailsCell(price, commission, marginPrice, includeCommission
         </div>`;
 }
 
-// ══════════════════════════════════════════════════════════════
-// CHART
-// ══════════════════════════════════════════════════════════════
-
 function drawChart(dailyData) {
     const ctxElement = document.getElementById("priceAnaliseChart");
     if (!ctxElement) return;
@@ -120,10 +115,6 @@ function drawChart(dailyData) {
         }
     });
 }
-
-// ══════════════════════════════════════════════════════════════
-// ANALYSIS TABLE (lazy load scrap details)
-// ══════════════════════════════════════════════════════════════
 
 function buildTable(dailyData) {
     const tb = document.querySelector("#analysisTable tbody");
@@ -253,10 +244,6 @@ function buildInnerTable(details, colorType, count) {
     </table>`;
 }
 
-// ══════════════════════════════════════════════════════════════
-// HISTORY TABLE (lazy load batch details)
-// ══════════════════════════════════════════════════════════════
-
 function buildHistoryTable(dailyData) {
     const tb = document.querySelector("#historyTable tbody");
     if (!tb) return;
@@ -272,7 +259,6 @@ function buildHistoryTable(dailyData) {
         const dLow = day.dayShort.toLowerCase();
         const isWeekend = dLow.includes("s") || dLow.includes("niedz") || dLow === "nd";
 
-        // ── Batche BEZ items — tylko podsumowania ──
         const batchesHtml = day.batches.map(batch => buildBatchSectionLazy(batch)).join("");
 
         tb.insertAdjacentHTML("beforeend", `
@@ -385,10 +371,6 @@ function buildBatchItemsTable(items) {
     </table>`;
 }
 
-// ══════════════════════════════════════════════════════════════
-// TOGGLE ROW (wspólny dla obu widoków)
-// ══════════════════════════════════════════════════════════════
-
 function toggleRowSmooth(id) {
     if (openedId && openedId !== id) closeRow(openedId);
     if (openedId === id) { closeRow(id); openedId = null; return; }
@@ -405,7 +387,6 @@ function toggleRowSmooth(id) {
         contentBox.style.maxHeight = contentBox.scrollHeight + 'px';
         openedId = id;
 
-        // ── Lazy load — rozpoznaj typ po ID ──
         const isAnalysis = id.startsWith('detail_allegro_');
         const isHistory = id.startsWith('detail_history_');
 
@@ -416,7 +397,7 @@ function toggleRowSmooth(id) {
                 : Promise.resolve();
 
         loadPromise.then(() => {
-            // Po załadowaniu treść się powiększyła — zaktualizuj maxHeight
+
             contentBox.style.maxHeight = contentBox.scrollHeight + 'px';
         });
     }
@@ -444,10 +425,6 @@ function closeRow(id) {
         row.addEventListener('transitionend', transitionEndHandler);
     }
 }
-
-// ══════════════════════════════════════════════════════════════
-// LOAD FUNCTIONS
-// ══════════════════════════════════════════════════════════════
 
 async function load(days) {
     if (!hubConnectionId) return;
@@ -491,10 +468,6 @@ async function loadHistory(days) {
         if (progressBarContainer) progressBarContainer.style.display = 'block';
     }
 }
-
-// ══════════════════════════════════════════════════════════════
-// SIGNALR + INIT
-// ══════════════════════════════════════════════════════════════
 
 hub.on("ReceiveProgress", (_msg, percent) => {
     const progressBar = document.getElementById("progressBar");

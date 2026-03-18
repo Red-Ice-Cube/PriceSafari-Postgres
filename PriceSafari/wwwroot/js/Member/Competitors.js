@@ -4,7 +4,6 @@
     const scrapableCountSpan = document.getElementById('scrapable-count');
     const tooltip = document.getElementById('barTooltip');
 
-    // ── Wyszukiwanie ──
     searchInput.addEventListener('input', function () {
         const searchTerm = searchInput.value.toLowerCase();
         let visibleCount = 0;
@@ -24,17 +23,15 @@
 
     scrapableCountSpan.textContent = competitorTableRows.length;
 
-    // ── Kliknięcie w wiersz ──
     competitorTableRows.forEach(row => {
         row.addEventListener('click', function (e) {
-            // Nie nawiguj jeśli kliknięto w bar (tooltip)
+
             if (e.target.closest('.competitorsBarBox')) return;
             const url = row.getAttribute('data-url');
             if (url) window.location.href = url;
         });
     });
 
-    // ── Tooltip dla pasków ──
     const allBars = document.querySelectorAll('.competitorsBarBox');
 
     allBars.forEach(bar => {
@@ -74,7 +71,6 @@
             let x = e.clientX + offsetX;
             let y = e.clientY + offsetY;
 
-            // Nie wyjeżdżaj poza ekran
             if (x + ttWidth > window.innerWidth - 8) {
                 x = e.clientX - ttWidth - offsetX;
             }
@@ -90,7 +86,6 @@
             tooltip.style.display = 'none';
         });
 
-        // Kliknięcie w pasek → nawigacja do szczegółów
         bar.addEventListener('click', function () {
             const row = bar.closest('tr');
             if (row) {
