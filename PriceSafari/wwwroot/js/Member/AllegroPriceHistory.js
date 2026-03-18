@@ -2464,7 +2464,7 @@
 
                    
                     const currentOffers = item.totalOfferCount || 0;
-                    const offerMatch = currentOffers >= offerMin && currentOffers <= offerMax;
+                    const offerMatch = (currentOffers === 0) ? true : (currentOffers >= offerMin && currentOffers <= offerMax);
 
                  
                     const myPriceVal = item.myPrice != null ? parseFloat(item.myPrice) : 0;
