@@ -258,10 +258,11 @@
                 <button class="dateShortcut" data-count="14">14</button>
                 <button class="dateShortcut" data-count="30">30</button>
             </div>
+            @* FIX: klasa historyDateShortcut zamiast dateShortcut *@
             <div id="historyDateShortcuts" class="Select-Line" style="gap:2px; display: none;">
-                <button class="dateShortcut active" data-count="7">7</button>
-                <button class="dateShortcut" data-count="14">14</button>
-                <button class="dateShortcut" data-count="30">30</button>
+                <button class="historyDateShortcut active" data-count="7">7</button>
+                <button class="historyDateShortcut" data-count="14">14</button>
+                <button class="historyDateShortcut" data-count="30">30</button>
             </div>
         </div>
 
@@ -319,8 +320,8 @@
 <div id="loadingOverlay"
      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999">
     <div style="position:absolute;top:50%;left:50%;
-              transform:translate(-50%,-50%);
-              width:400px;background:#fff;border-radius:8px;padding:24px">
+        transform:translate(-50%,-50%);
+        width:400px;background:#fff;border-radius:8px;padding:24px">
         <p class="mb-2" style="font-weight:500">Wczytywanie analizy Allegro…</p>
         <div id="progressBarContainer"
              style="height:16px;background:#ddd;border-radius:4px;overflow:hidden;margin-block:12px">

@@ -11,6 +11,10 @@ let openedId = null;
 let lastLoadedAnalysisDays = null;
 let lastLoadedHistoryDays = null;
 
+// ── Cache szczegółów (scrapId/batchId → dane) ──
+const scrapDetailsCache = {};
+const batchDetailsCache = {};
+
 function showLoadingOverlay() {
     const progressBar = document.getElementById("progressBar");
     const progressText = document.getElementById("progressText");
@@ -47,36 +51,32 @@ function calculateMargin(price, marginPrice, commission, includeCommission) {
     const priceNum = parseFloat(price);
     const marginPriceNum = parseFloat(marginPrice);
     const commissionNum = (includeCommission && commission !== null) ? parseFloat(commission) : 0;
-
     const netPrice = priceNum - commissionNum;
     const marginAmount = netPrice - marginPriceNum;
     const marginPercent = (marginAmount / marginPriceNum) * 100;
-
-    return {
-        amount: marginAmount,
-        percent: marginPercent
-    };
+    return { amount: marginAmount, percent: marginPercent };
 }
 
 function buildPriceDetailsCell(price, commission, marginPrice, includeCommission) {
     const margin = calculateMargin(price, marginPrice, commission, includeCommission);
     let marginHtml = "";
-
     if (margin.amount !== null) {
         const marginColor = margin.amount >= 0 ? "#198754" : "#dc3545";
         marginHtml = `<div style="font-size: 11px; color: ${marginColor}; margin-top: 2px;">
                         Narzut: ${formatPLN(margin.amount)} (${margin.percent.toFixed(2)}%)
                       </div>`;
     }
-
     return `
         <div style="line-height: 1.2;">
             <div style="font-weight: 500; font-size: 14px;">${formatPLN(price)}</div>
             <div style="font-size: 11px; color: #6c757d;">Prowizja: ${formatPLN(commission)}</div>
             ${marginHtml}
-        </div>
-    `;
+        </div>`;
 }
+
+// ══════════════════════════════════════════════════════════════
+// CHART
+// ══════════════════════════════════════════════════════════════
 
 function drawChart(dailyData) {
     const ctxElement = document.getElementById("priceAnaliseChart");
@@ -84,75 +84,35 @@ function drawChart(dailyData) {
     const ctx = ctxElement.getContext("2d");
 
     const sortedDays = [...dailyData].sort((a, b) => new Date(a.date) - new Date(b.date));
-
     const labels = sortedDays.map(d => d.date.slice(5));
     tooltipMeta = sortedDays.map(d => `${d.date} (${mapDayFull(d.dayShort)})`);
     const loweredData = sortedDays.map(d => -d.totalLowered);
     const raisedData = sortedDays.map(d => d.totalRaised);
 
-    if (chart) {
-        chart.destroy();
-    }
+    if (chart) chart.destroy();
 
     chart = new Chart(ctx, {
         type: "bar",
         data: {
             labels: labels,
             datasets: [
-                {
-                    label: "Obniżki",
-                    data: loweredData,
-                    backgroundColor: "rgba(0,128,0,.6)",
-                    borderColor: "rgba(0,128,0,1)",
-                    borderWidth: 2,
-                    borderRadius: 4,
-                    barPercentage: 0.6,
-                    categoryPercentage: 0.8
-                },
-                {
-                    label: "Podwyżki",
-                    data: raisedData,
-                    backgroundColor: "rgba(255,0,0,.6)",
-                    borderColor: "rgba(255,0,0,1)",
-                    borderWidth: 2,
-                    borderRadius: 4,
-                    barPercentage: 0.6,
-                    categoryPercentage: 0.8
-                }
+                { label: "Obniżki", data: loweredData, backgroundColor: "rgba(0,128,0,.6)", borderColor: "rgba(0,128,0,1)", borderWidth: 2, borderRadius: 4, barPercentage: 0.6, categoryPercentage: 0.8 },
+                { label: "Podwyżki", data: raisedData, backgroundColor: "rgba(255,0,0,.6)", borderColor: "rgba(255,0,0,1)", borderWidth: 2, borderRadius: 4, barPercentage: 0.6, categoryPercentage: 0.8 }
             ]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             interaction: { mode: "index", intersect: false },
             scales: {
-                x: {
-                    stacked: true,
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45,
-                        font: { size: 11 }
-                    }
-                },
-                y: {
-                    stacked: true,
-                    beginAtZero: true,
-                    ticks: {
-                        callback: v => Math.abs(v),
-                        precision: 0
-                    },
-                    title: { display: true, text: "Liczba zmian" }
-                }
+                x: { stacked: true, ticks: { maxRotation: 45, minRotation: 45, font: { size: 11 } } },
+                y: { stacked: true, beginAtZero: true, ticks: { callback: v => Math.abs(v), precision: 0 }, title: { display: true, text: "Liczba zmian" } }
             },
             plugins: {
                 legend: { display: false },
                 tooltip: {
                     itemSort: (a, b) => a.dataset.label === "Podwyżki" ? -1 : 1,
                     callbacks: {
-                        title: c => {
-                            const i = c[0].dataIndex;
-                            return tooltipMeta[i] || c[0].label;
-                        },
+                        title: c => { const i = c[0].dataIndex; return tooltipMeta[i] || c[0].label; },
                         label: c => `${c.dataset.label}: ${Math.abs(c.parsed.y)}`
                     }
                 }
@@ -161,13 +121,16 @@ function drawChart(dailyData) {
     });
 }
 
+// ══════════════════════════════════════════════════════════════
+// ANALYSIS TABLE (lazy load scrap details)
+// ══════════════════════════════════════════════════════════════
+
 function buildTable(dailyData) {
     const tb = document.querySelector("#analysisTable tbody");
     if (!tb) return;
     tb.innerHTML = "";
 
     const daysDesc = [...dailyData].sort((a, b) => new Date(b.date) - new Date(a.date));
-
     const downArrow = '<span style="color: green;">&#9660;</span>';
     const upArrow = '<span style="color: red;">&#9650;</span>';
     const grayCircle = '<span style="color: gray;">&#9679;</span>';
@@ -178,25 +141,20 @@ function buildTable(dailyData) {
         const isWeekend = dLow.includes("s") || dLow.includes("niedz") || dLow === "nd";
 
         const scrapsDesc = [...day.scraps].sort((a, b) => b.time.localeCompare(a.time));
-        const scrapsHtml = scrapsDesc.map(scrap => buildScrapSection(scrap)).join("");
+        const scrapsHtml = scrapsDesc.map(scrap => buildScrapSectionLazy(scrap)).join("");
 
         let loweredCell = day.totalLowered > 0 ? `${downArrow} ${day.totalLowered}` : `${grayCircle} 0`;
         let raisedCell = day.totalRaised > 0 ? `${upArrow} ${day.totalRaised}` : `${grayCircle} 0`;
 
         tb.insertAdjacentHTML("beforeend", `
         <tr class="parent-row" data-target="${detailId}" style="cursor: pointer;">
-          <td>
-            <div class="${isWeekend ? "weekend-box" : "week-box"}">${day.dayShort}</div>
-            ${day.date}
-          </td>
+          <td><div class="${isWeekend ? "weekend-box" : "week-box"}">${day.dayShort}</div>${day.date}</td>
           <td class="text-start">${loweredCell}</td>
           <td class="text-start">${raisedCell}</td>
         </tr>
         <tr id="${detailId}" class="details-row">
           <td colspan="3" class="p-0" style="border: none;">
-             <div class="details-content">
-                ${scrapsHtml}
-             </div>
+             <div class="details-content">${scrapsHtml}</div>
           </td>
         </tr>`);
     });
@@ -206,7 +164,7 @@ function buildTable(dailyData) {
     });
 }
 
-function buildScrapSection(scrap) {
+function buildScrapSectionLazy(scrap) {
     const downArrow = '<span style="color: green;">&#9660;</span>';
     const upArrow = '<span style="color: red;">&#9650;</span>';
     const grayCircle = '<span style="color: gray;">&#9679;</span>';
@@ -215,7 +173,7 @@ function buildScrapSection(scrap) {
     const raisedSummary = scrap.raised > 0 ? `${upArrow} ${scrap.raised}` : `${grayCircle} 0`;
 
     return `
-    <div class="scrap-section">
+    <div class="scrap-section" data-scrap-id="${scrap.scrapId}" data-loaded="false">
         <div class="scrap-header">
             <span class="time-badge">${scrap.time}</span>
             <span style="margin-left: auto; display: flex; gap: 20px;">
@@ -223,16 +181,51 @@ function buildScrapSection(scrap) {
                  <span>Podwyżki: ${raisedSummary}</span>
             </span>
         </div>
-        <div class="row no-gutters details-inner-row">
-            <div class="col-md-6" style="padding: 6px 3px 6px 12px;">
-                ${buildInnerTable(scrap.loweredDetails, "green", scrap.lowered)}
-            </div>
-            <div class="col-md-6" style="padding: 6px 12px 6px 3px;">
-                ${buildInnerTable(scrap.raisedDetails, "red", scrap.raised)}
+        <div class="scrap-details-container">
+            <div class="text-center text-muted py-3" style="font-size: 13px;">
+                <i class="fas fa-spinner fa-spin"></i> Ładowanie szczegółów...
             </div>
         </div>
-    </div>
-    `;
+    </div>`;
+}
+
+async function loadScrapDetails(detailRow) {
+    const sections = detailRow.querySelectorAll('.scrap-section[data-loaded="false"]');
+    for (const section of sections) {
+        const scrapId = section.dataset.scrapId;
+        const container = section.querySelector('.scrap-details-container');
+        if (!scrapId || !container) continue;
+
+        if (scrapDetailsCache[scrapId]) {
+            renderScrapDetails(container, scrapDetailsCache[scrapId]);
+            section.dataset.loaded = "true";
+            continue;
+        }
+
+        try {
+            const res = await fetch(`/AllegroDashboard/GetScrapChangeDetails?storeId=${STORE_ID}&scrapId=${scrapId}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            scrapDetailsCache[scrapId] = data;
+            renderScrapDetails(container, data);
+            section.dataset.loaded = "true";
+        } catch (e) {
+            console.error(`Błąd ładowania szczegółów scrapa ${scrapId}:`, e);
+            container.innerHTML = '<div class="text-center text-danger py-3">Błąd ładowania szczegółów.</div>';
+        }
+    }
+}
+
+function renderScrapDetails(container, data) {
+    container.innerHTML = `
+        <div class="row no-gutters details-inner-row">
+            <div class="col-md-6" style="padding: 6px 3px 6px 12px;">
+                ${buildInnerTable(data.loweredDetails, "green", data.loweredDetails.length)}
+            </div>
+            <div class="col-md-6" style="padding: 6px 12px 6px 3px;">
+                ${buildInnerTable(data.raisedDetails, "red", data.raisedDetails.length)}
+            </div>
+        </div>`;
 }
 
 function buildInnerTable(details, colorType, count) {
@@ -243,35 +236,158 @@ function buildInnerTable(details, colorType, count) {
     const rows = details && details.length > 0
         ? details.map(d => `
             <tr>
-                <td>
-                    <a href="/AllegroPriceHistory/Details?storeId=${STORE_ID}&productId=${d.productId}" target="_blank">
-                        ${d.productName}
-                    </a>
-                </td>
+                <td><a href="/AllegroPriceHistory/Details?storeId=${STORE_ID}&productId=${d.productId}" target="_blank">${d.productName}</a></td>
                 <td>${d.oldPrice.toFixed(2)} PLN</td>
                 <td>${d.newPrice.toFixed(2)} PLN</td>
-                <td style="color:${isGreen ? 'green' : 'red'};">
-                    ${isGreen ? '' : '+'}${d.priceDifference.toFixed(2)} PLN
-                </td>
-            </tr>
-        `).join("")
+                <td style="color:${isGreen ? 'green' : 'red'};">${isGreen ? '' : '+'}${d.priceDifference.toFixed(2)} PLN</td>
+            </tr>`).join("")
         : `<tr><td colspan="4" class="text-center text-muted py-3">Brak zmian (${headerText.toLowerCase()})</td></tr>`;
 
     return `
     <table class="table table-sm inner-table">
-          <thead>
-            <tr>
-              <th>Produkt <span class="${headerClass} font-weight-normal">(${headerText}: ${count})</span></th>
-              <th>Poprzednia cena</th>
-              <th>Nowa cena</th>
-              <th>Zmiana ceny</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows}
-          </tbody>
+        <thead><tr>
+            <th>Produkt <span class="${headerClass} font-weight-normal">(${headerText}: ${count})</span></th>
+            <th>Poprzednia cena</th><th>Nowa cena</th><th>Zmiana ceny</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
     </table>`;
 }
+
+// ══════════════════════════════════════════════════════════════
+// HISTORY TABLE (lazy load batch details)
+// ══════════════════════════════════════════════════════════════
+
+function buildHistoryTable(dailyData) {
+    const tb = document.querySelector("#historyTable tbody");
+    if (!tb) return;
+    tb.innerHTML = "";
+
+    if (!dailyData || dailyData.length === 0) {
+        tb.innerHTML = '<tr><td colspan="3" class="text-center" style="padding: 20px;">Brak historii zmian w wybranym okresie.</td></tr>';
+        return;
+    }
+
+    dailyData.forEach((day, i) => {
+        const detailId = `detail_history_${i}`;
+        const dLow = day.dayShort.toLowerCase();
+        const isWeekend = dLow.includes("s") || dLow.includes("niedz") || dLow === "nd";
+
+        // ── Batche BEZ items — tylko podsumowania ──
+        const batchesHtml = day.batches.map(batch => buildBatchSectionLazy(batch)).join("");
+
+        tb.insertAdjacentHTML("beforeend", `
+        <tr class="parent-row" data-target="${detailId}" style="cursor: pointer;">
+          <td><div class="${isWeekend ? "weekend-box" : "week-box"}">${day.dayShort}</div>${day.date}</td>
+          <td class="text-start" colspan="2"><span style="color: green; font-weight:bold;">${day.totalItemsChanged} zmian</span></td>
+        </tr>
+        <tr id="${detailId}" class="details-row">
+          <td colspan="3" class="p-0" style="border: none;">
+             <div class="details-content">${batchesHtml}</div>
+          </td>
+        </tr>`);
+    });
+
+    tb.querySelectorAll("tr.parent-row").forEach(tr => {
+        tr.addEventListener("click", () => toggleRowSmooth(tr.dataset.target));
+    });
+}
+
+function buildBatchSectionLazy(batch) {
+    const userLabel = batch.automationRuleName
+        ? `<span style="margin-left: 10px;">Automat: <strong>${batch.automationRuleName}</strong></span>`
+        : `<span style="margin-left: 10px;">Użytkownik: <strong>${batch.userName}</strong></span>`;
+
+    return `
+    <div class="scrap-section" data-batch-id="${batch.batchId}" data-loaded="false" style="background: #f9f9f9;">
+        <div class="scrap-header" style="background: #eee;">
+            <span class="time-badge" style="background: #555;">${batch.executionTime}</span>
+            ${userLabel}
+            <span style="margin-left: auto; display: flex; gap: 20px;">
+                 <span style="color: green;">Sukces: ${batch.successfulCount}</span>
+                 <span style="color: red;">Błędy: ${batch.failedCount}</span>
+            </span>
+        </div>
+        <div class="batch-details-container" style="padding: 10px;">
+            <div class="text-center text-muted py-3" style="font-size: 13px;">
+                <i class="fas fa-spinner fa-spin"></i> Ładowanie szczegółów...
+            </div>
+        </div>
+    </div>`;
+}
+
+async function loadBatchDetails(detailRow) {
+    const sections = detailRow.querySelectorAll('.scrap-section[data-batch-id][data-loaded="false"]');
+    for (const section of sections) {
+        const batchId = section.dataset.batchId;
+        const container = section.querySelector('.batch-details-container');
+        if (!batchId || !container) continue;
+
+        if (batchDetailsCache[batchId]) {
+            renderBatchDetails(container, batchDetailsCache[batchId]);
+            section.dataset.loaded = "true";
+            continue;
+        }
+
+        try {
+            const res = await fetch(`/AllegroDashboard/GetBatchDetails?storeId=${STORE_ID}&batchId=${batchId}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            batchDetailsCache[batchId] = data;
+            renderBatchDetails(container, data);
+            section.dataset.loaded = "true";
+        } catch (e) {
+            console.error(`Błąd ładowania szczegółów batcha ${batchId}:`, e);
+            container.innerHTML = '<div class="text-center text-danger py-3">Błąd ładowania szczegółów.</div>';
+        }
+    }
+}
+
+function renderBatchDetails(container, items) {
+    container.innerHTML = buildBatchItemsTable(items);
+}
+
+function buildBatchItemsTable(items) {
+    if (!items || items.length === 0) return '<p class="text-muted">Brak szczegółów.</p>';
+
+    const rows = items.map(item => {
+        const priceDiffStr = item.priceDiff > 0 ? `+${item.priceDiff.toFixed(2)}` : item.priceDiff.toFixed(2);
+        const priceColor = item.priceDiff > 0 ? 'red' : (item.priceDiff < 0 ? 'green' : 'gray');
+        const errorTitle = item.errorMessage ? item.errorMessage.replace(/"/g, '&quot;') : 'Błąd';
+        const statusIcon = item.success
+            ? '<i class="fas fa-check-circle" style="color: #198754; font-size: 1.3em;" title="Pomyślnie zmieniono"></i>'
+            : `<i class="fas fa-times-circle" style="color: #dc3545; font-size: 1.3em; cursor: help;" title="${errorTitle}"></i>`;
+
+        return `
+        <tr>
+            <td style="vertical-align: middle;">
+                 <div style="line-height: 1.3;">
+                     <a href="/AllegroPriceHistory/Details?storeId=${STORE_ID}&productId=${item.productId}" target="_blank" style="font-weight: 500;">${item.productName}</a>
+                     <div style="font-size: 12px; color: #999; margin-top: 2px;">ID: ${item.offerId}</div>
+                 </div>
+            </td>
+            <td style="vertical-align: top;">${buildPriceDetailsCell(item.priceBefore, item.commissionBefore, item.marginPrice, item.includeCommissionInMargin)}</td>
+            <td style="vertical-align: top;">${buildPriceDetailsCell(item.priceAfter, item.commissionAfter, item.marginPrice, item.includeCommissionInMargin)}</td>
+            <td style="vertical-align: middle; font-size: 15px; font-weight: 500; color: ${priceColor};">${priceDiffStr} PLN</td>
+            <td class="text-center" style="vertical-align: middle;">${statusIcon}</td>
+        </tr>`;
+    }).join("");
+
+    return `
+    <table class="table table-sm inner-table" style="background: #fff;">
+        <thead><tr>
+            <th style="width: 35%;">Produkt</th>
+            <th style="width: 20%;">Przed zmianą</th>
+            <th style="width: 20%;">Po zmianie</th>
+            <th style="width: 15%;">Zmiana</th>
+            <th style="width: 10%;" class="text-center">Status</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// TOGGLE ROW (wspólny dla obu widoków)
+// ══════════════════════════════════════════════════════════════
 
 function toggleRowSmooth(id) {
     if (openedId && openedId !== id) closeRow(openedId);
@@ -288,6 +404,21 @@ function toggleRowSmooth(id) {
         parentRow.classList.add('active');
         contentBox.style.maxHeight = contentBox.scrollHeight + 'px';
         openedId = id;
+
+        // ── Lazy load — rozpoznaj typ po ID ──
+        const isAnalysis = id.startsWith('detail_allegro_');
+        const isHistory = id.startsWith('detail_history_');
+
+        const loadPromise = isAnalysis
+            ? loadScrapDetails(row)
+            : isHistory
+                ? loadBatchDetails(row)
+                : Promise.resolve();
+
+        loadPromise.then(() => {
+            // Po załadowaniu treść się powiększyła — zaktualizuj maxHeight
+            contentBox.style.maxHeight = contentBox.scrollHeight + 'px';
+        });
     }
 }
 
@@ -314,32 +445,29 @@ function closeRow(id) {
     }
 }
 
+// ══════════════════════════════════════════════════════════════
+// LOAD FUNCTIONS
+// ══════════════════════════════════════════════════════════════
+
 async function load(days) {
     if (!hubConnectionId) return;
-
     if (days === lastLoadedAnalysisDays) return;
 
     showLoadingOverlay();
-
     try {
         const res = await fetch(`/AllegroDashboard/GetDashboardData?storeId=${STORE_ID}&days=${days}&connectionId=${hubConnectionId}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-
         drawChart(data);
         buildTable(data);
-
         lastLoadedAnalysisDays = days;
     } catch (e) {
         console.error("Błąd:", e);
         alert("Wystąpił błąd podczas pobierania danych analizy.");
-    } finally {
-
     }
 }
 
 async function loadHistory(days) {
-
     if (days === lastLoadedHistoryDays) return;
 
     showLoadingOverlay();
@@ -354,7 +482,6 @@ async function loadHistory(days) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         buildHistoryTable(data);
-
         lastLoadedHistoryDays = days;
     } catch (e) {
         console.error("Błąd ładowania historii:", e);
@@ -365,119 +492,9 @@ async function loadHistory(days) {
     }
 }
 
-function buildHistoryTable(dailyData) {
-    const tb = document.querySelector("#historyTable tbody");
-    if (!tb) return;
-    tb.innerHTML = "";
-
-    if (!dailyData || dailyData.length === 0) {
-        tb.innerHTML = '<tr><td colspan="5" class="text-center" style="padding: 20px;">Brak historii zmian w wybranym okresie.</td></tr>';
-        return;
-    }
-
-    dailyData.forEach((day, i) => {
-        const detailId = `detail_history_${i}`;
-        const dLow = day.dayShort.toLowerCase();
-        const isWeekend = dLow.includes("s") || dLow.includes("niedz") || dLow === "nd";
-
-        const batchesHtml = day.batches.map(batch => buildBatchSection(batch)).join("");
-
-        tb.insertAdjacentHTML("beforeend", `
-        <tr class="parent-row" data-target="${detailId}" style="cursor: pointer;">
-          <td>
-             <div class="${isWeekend ? "weekend-box" : "week-box"}">${day.dayShort}</div>
-             ${day.date}
-          </td>
-          <td class="text-start" colspan="2"><span style="color: green; font-weight:bold;">${day.totalItemsChanged} zmian</span></td>
-        </tr>
-        <tr id="${detailId}" class="details-row">
-          <td colspan="3" class="p-0" style="border: none;">
-             <div class="details-content">
-                ${batchesHtml}
-             </div>
-          </td>
-        </tr>`);
-    });
-
-    tb.querySelectorAll("tr.parent-row").forEach(tr => {
-        tr.addEventListener("click", () => toggleRowSmooth(tr.dataset.target));
-    });
-}
-
-function buildBatchSection(batch) {
-    return `
-    <div class="scrap-section" style="background: #f9f9f9;">
-        <div class="scrap-header" style="background: #eee;">
-            <span class="time-badge" style="background: #555;">${batch.executionTime}</span>
-            <span style="margin-left: 10px;">Użytkownik: <strong>${batch.userName}</strong></span>
-            <span style="margin-left: auto; display: flex; gap: 20px;">
-                 <span style="color: green;">Sukces: ${batch.successfulCount}</span>
-                 <span style="color: red;">Błędy: ${batch.failedCount}</span>
-            </span>
-        </div>
-        <div style="padding: 10px;">
-            ${buildBatchItemsTable(batch.items)}
-        </div>
-    </div>
-    `;
-}
-
-function buildBatchItemsTable(items) {
-    if (!items || items.length === 0) return '<p class="text-muted">Brak szczegółów.</p>';
-
-    const rows = items.map(item => {
-        const priceDiffStr = item.priceDiff > 0 ? `+${item.priceDiff.toFixed(2)}` : item.priceDiff.toFixed(2);
-        const priceColor = item.priceDiff > 0 ? 'red' : (item.priceDiff < 0 ? 'green' : 'gray');
-
-        const errorTitle = item.errorMessage ? item.errorMessage.replace(/"/g, '&quot;') : 'Błąd';
-
-        const statusIcon = item.success
-            ? '<i class="fas fa-check-circle" style="color: #198754; font-size: 1.3em;" title="Pomyślnie zmieniono"></i>'
-            : `<i class="fas fa-times-circle" style="color: #dc3545; font-size: 1.3em; cursor: help;" title="${errorTitle}"></i>`;
-
-        return `
-        <tr>
-            <td style="vertical-align: middle;">
-                 <div style="line-height: 1.3;">
-                     <a href="/AllegroPriceHistory/Details?storeId=${STORE_ID}&productId=${item.productId}" target="_blank" style="font-weight: 500;">
-                        ${item.productName}
-                     </a>
-                     <div style="font-size: 12px; color: #999; margin-top: 2px;">ID: ${item.offerId}</div>
-                 </div>
-            </td>
-            <td style="vertical-align: top;">
-                ${buildPriceDetailsCell(item.priceBefore, item.commissionBefore, item.marginPrice, item.includeCommissionInMargin)}
-            </td>
-            <td style="vertical-align: top;">
-                ${buildPriceDetailsCell(item.priceAfter, item.commissionAfter, item.marginPrice, item.includeCommissionInMargin)}
-            </td>
-            <td style="vertical-align: middle; font-size: 15px; font-weight: 500; color: ${priceColor};">
-                ${priceDiffStr} PLN
-            </td>
-            <td class="text-center" style="vertical-align: middle;">
-                ${statusIcon}
-            </td>
-        </tr>
-        `;
-    }).join("");
-
-    return `
-    <table class="table table-sm inner-table" style="background: #fff;">
-        <thead>
-            <tr>
-                <th style="width: 35%;">Produkt</th>
-                <th style="width: 20%;">Przed zmianą</th>
-                <th style="width: 20%;">Po zmianie</th>
-                <th style="width: 15%;">Zmiana</th>
-                <th style="width: 10%;" class="text-center">Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${rows}
-        </tbody>
-    </table>
-    `;
-}
+// ══════════════════════════════════════════════════════════════
+// SIGNALR + INIT
+// ══════════════════════════════════════════════════════════════
 
 hub.on("ReceiveProgress", (_msg, percent) => {
     const progressBar = document.getElementById("progressBar");
@@ -502,7 +519,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const historyShortcuts = document.getElementById('historyDateShortcuts');
     const viewAnalysisBtn = document.getElementById('viewAnalysisBtn');
     const viewHistoryBtn = document.getElementById('viewHistoryBtn');
-
     const analysisContainer = document.getElementById('analysisViewContainer');
     const historyContainer = document.getElementById('historyViewContainer');
 
@@ -511,6 +527,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.addEventListener("click", () => {
                 analysisShortcuts.querySelectorAll(".dateShortcut").forEach(b => b.classList.remove("active"));
                 btn.classList.add("active");
+                lastLoadedAnalysisDays = null;
                 load(+btn.dataset.count);
             });
         });
@@ -521,6 +538,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.addEventListener("click", () => {
                 historyShortcuts.querySelectorAll(".historyDateShortcut").forEach(b => b.classList.remove("active"));
                 btn.classList.add("active");
+                lastLoadedHistoryDays = null;
                 loadHistory(+btn.dataset.count);
             });
         });
@@ -532,15 +550,12 @@ document.addEventListener("DOMContentLoaded", () => {
             currentView = 'analysis';
             viewAnalysisBtn.classList.add('active');
             viewHistoryBtn.classList.remove('active');
-
             analysisContainer.style.display = 'block';
             historyContainer.style.display = 'none';
-
             if (analysisShortcuts) analysisShortcuts.style.display = 'flex';
             if (historyShortcuts) historyShortcuts.style.display = 'none';
 
             const activeBtn = analysisShortcuts ? analysisShortcuts.querySelector(".dateShortcut.active") : null;
-
             load(activeBtn ? +activeBtn.dataset.count : 7);
         });
 
@@ -549,16 +564,13 @@ document.addEventListener("DOMContentLoaded", () => {
             currentView = 'history';
             viewHistoryBtn.classList.add('active');
             viewAnalysisBtn.classList.remove('active');
-
             analysisContainer.style.display = 'none';
             historyContainer.style.display = 'block';
-
             if (analysisShortcuts) analysisShortcuts.style.display = 'none';
             if (historyShortcuts) historyShortcuts.style.display = 'flex';
 
             const activeBtn = historyShortcuts ? historyShortcuts.querySelector(".historyDateShortcut.active") : null;
-
-            loadHistory(activeBtn ? +activeBtn.dataset.count : 30);
+            loadHistory(activeBtn ? +activeBtn.dataset.count : 7);
         });
     }
 });

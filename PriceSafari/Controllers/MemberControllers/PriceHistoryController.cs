@@ -125,6 +125,12 @@ namespace PriceSafari.Controllers.MemberControllers
             return View("~/Views/Panel/PriceHistory/Index.cshtml");
         }
 
+
+
+
+
+
+
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId)
         {
@@ -148,6 +154,7 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             var latestScrap = await _context.ScrapHistories
+                .AsNoTracking()
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
                 .Select(sh => new { sh.Id, sh.Date })
@@ -167,31 +174,21 @@ namespace PriceSafari.Controllers.MemberControllers
                 });
             }
 
-            var bridgeItems = await _context.PriceBridgeItems
-        .Include(i => i.Batch)
-        .Where(i => i.Batch.StoreId == storeId.Value &&
-                    i.Batch.ScrapHistoryId == latestScrap.Id)
-        .ToListAsync();
-
-            var committedLookup = bridgeItems
-                .GroupBy(i => i.ProductId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.OrderByDescending(i => i.Batch.ExecutionDate).First()
-                );
-
             var previousScrapId = await _context.ScrapHistories
+                .AsNoTracking()
                 .Where(sh => sh.StoreId == storeId && sh.Date < latestScrap.Date)
                 .OrderByDescending(sh => sh.Date)
                 .Select(sh => sh.Id)
                 .FirstOrDefaultAsync();
 
             var storeName = await _context.Stores
+                .AsNoTracking()
                 .Where(s => s.StoreId == storeId)
                 .Select(s => s.StoreName)
                 .FirstOrDefaultAsync();
 
             var priceValues = await _context.PriceValues
+                .AsNoTracking()
                 .Where(pv => pv.StoreId == storeId)
                 .Select(pv => new
                 {
@@ -220,9 +217,17 @@ namespace PriceSafari.Controllers.MemberControllers
                     PriceIndexTargetPercent = 100.00m
                 };
 
-            var baseQuery = from p in _context.Products
+            // ── Preset konkurencji ──
+            var activePreset = await _context.CompetitorPresets
+                .AsNoTracking()
+                .Include(x => x.CompetitorItems)
+                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
+
+            string activePresetName = null;
+
+            var baseQuery = from p in _context.Products.AsNoTracking()
                             where p.StoreId == storeId && p.IsScrapable
-                            join ph in _context.PriceHistories
+                            join ph in _context.PriceHistories.AsNoTracking()
                                 .Where(ph => ph.ScrapHistoryId == latestScrap.Id)
                                 on p.ProductId equals ph.ProductId into phGroup
                             from ph in phGroup.DefaultIfEmpty()
@@ -237,19 +242,12 @@ namespace PriceSafari.Controllers.MemberControllers
                                 Position = (ph != null ? ph.Position : (int?)null),
                                 IsBidding = ph != null ? ph.IsBidding : null,
                                 IsGoogle = (ph != null ? ph.IsGoogle : (bool?)null),
-
                                 CeneoInStock = (ph != null ? ph.CeneoInStock : (bool?)null),
                                 GoogleInStock = (ph != null ? ph.GoogleInStock : (bool?)null),
                                 IsRejected = p.IsRejected,
                                 ShippingCostNum = (ph != null ? ph.ShippingCostNum : (decimal?)null),
                                 AddedDate = p.AddedDate
                             };
-
-            var activePreset = await _context.CompetitorPresets
-                .Include(x => x.CompetitorItems)
-                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
-
-            string activePresetName = null;
 
             if (activePreset != null)
             {
@@ -273,7 +271,25 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var productIds = rawPrices.Select(p => p.ProductId).Distinct().ToList();
 
+            // ── Committed changes — przeniesione po productIds, ograniczone filtrem ──
+            var bridgeItems = await _context.PriceBridgeItems
+                .AsNoTracking()
+                .Include(i => i.Batch)
+                .Where(i => i.Batch.StoreId == storeId.Value
+                         && i.Batch.ScrapHistoryId == latestScrap.Id
+                         && productIds.Contains(i.ProductId))
+                .ToListAsync();
+
+            var committedLookup = bridgeItems
+                .GroupBy(i => i.ProductId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(i => i.Batch.ExecutionDate).First()
+                );
+
+            // ── Extended info — ograniczone do aktywnych produktów ──
             var extendedInfoData = await _context.PriceHistoryExtendedInfos
+                .AsNoTracking()
                 .Where(e => e.ScrapHistoryId == latestScrap.Id && productIds.Contains(e.ProductId))
                 .ToListAsync();
             var extendedInfoDict = extendedInfoData.ToDictionary(e => e.ProductId);
@@ -282,26 +298,29 @@ namespace PriceSafari.Controllers.MemberControllers
             if (previousScrapId > 0)
             {
                 previousExtendedInfoData = await _context.PriceHistoryExtendedInfos
+                    .AsNoTracking()
                     .Where(e => e.ScrapHistoryId == previousScrapId && productIds.Contains(e.ProductId))
                     .ToDictionaryAsync(e => e.ProductId);
             }
 
             var productFlagsDictionary = await _context.ProductFlags
-               .Where(pf => pf.ProductId.HasValue && productIds.Contains(pf.ProductId.Value))
-               .GroupBy(pf => pf.ProductId.Value)
-               .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
+                .AsNoTracking()
+                .Where(pf => pf.ProductId.HasValue && productIds.Contains(pf.ProductId.Value))
+                .GroupBy(pf => pf.ProductId.Value)
+                .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
             var productsWithExternalInfo = await _context.Products
-               .Where(p => p.StoreId == storeId && productIds.Contains(p.ProductId))
-               .Select(p => new {
-                   p.ProductId,
-                   p.ExternalId,
-                   p.MainUrl,
-                   p.MarginPrice,
-                   p.Ean,
-                   p.ProducerCode
-               })
-               .ToListAsync();
+                .AsNoTracking()
+                .Where(p => p.StoreId == storeId && productIds.Contains(p.ProductId))
+                .Select(p => new {
+                    p.ProductId,
+                    p.ExternalId,
+                    p.MainUrl,
+                    p.MarginPrice,
+                    p.Ean,
+                    p.ProducerCode
+                })
+                .ToListAsync();
             var productExternalInfoDictionary = productsWithExternalInfo.ToDictionary(
                 p => p.ProductId,
                 p => new { p.ExternalId, p.MainUrl, p.MarginPrice, p.Ean, p.ProducerCode }
@@ -319,10 +338,10 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             var automationLookup = await _context.AutomationProductAssignments
+                .AsNoTracking()
                 .Include(a => a.AutomationRule)
                 .Where(a => a.AutomationRule.StoreId == storeId.Value
                          && a.ProductId != null
-
                          && a.AutomationRule.SourceType == AutomationSourceType.PriceComparison)
                 .Select(a => new
                 {
@@ -335,8 +354,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     StartDate = a.AutomationRule.ScheduledStartDate,
                     EndDate = a.AutomationRule.ScheduledEndDate
                 })
-            .ToDictionaryAsync(a => a.ProductId);
+                .ToDictionaryAsync(a => a.ProductId);
+
             var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
+
             var allPrices = rawPrices
                    .GroupBy(p => p.ProductId)
                    .Select(g =>
@@ -356,7 +377,7 @@ namespace PriceSafari.Controllers.MemberControllers
                        bool isAutomationPaused = false;
                        if (autoRule != null && autoRule.IsActive && autoRule.IsTimeLimited)
                        {
-                           var today = DateTime.Today; // Porównujemy z dzisiejszą datą, tak jak w modelu
+                           var today = DateTime.Today;
 
                            bool isScheduledForFuture = autoRule.StartDate.HasValue && today < autoRule.StartDate.Value.Date;
                            bool isExpiredInPast = autoRule.EndDate.HasValue && today > autoRule.EndDate.Value.Date;
@@ -366,6 +387,7 @@ namespace PriceSafari.Controllers.MemberControllers
                                isAutomationPaused = true;
                            }
                        }
+
                        if (competitorItemsDict != null)
                        {
                            foreach (var row in allCompetitorEntries)
@@ -404,9 +426,7 @@ namespace PriceSafari.Controllers.MemberControllers
                        decimal? finalBestPrice = bestCompetitorPrice;
 
                        decimal? marketAveragePrice = null;
-
                        decimal? marketPriceIndex = null;
-
                        string marketBucket = "market-neutral";
 
                        var competitorPricesOnly = presetFilteredCompetitorPrices
@@ -416,36 +436,28 @@ namespace PriceSafari.Controllers.MemberControllers
 
                        if (competitorPricesOnly.Count > 0)
                        {
-
                            marketAveragePrice = CalculateMedian(competitorPricesOnly);
 
                            if (marketAveragePrice.HasValue && myPrice.HasValue && myPrice.Value > 0 && marketAveragePrice.Value > 0)
                            {
-
                                decimal diff = myPrice.Value - marketAveragePrice.Value;
                                marketPriceIndex = Math.Round((diff / marketAveragePrice.Value) * 100, 2);
 
                                if (marketPriceIndex < -15)
                                    marketBucket = "market-deep-discount";
-
                                else if (marketPriceIndex >= -15 && marketPriceIndex < -2)
                                    marketBucket = "market-below-average";
-
                                else if (marketPriceIndex >= -2 && marketPriceIndex <= 2)
                                    marketBucket = "market-average";
-
                                else if (marketPriceIndex > 2 && marketPriceIndex <= 15)
                                    marketBucket = "market-above-average";
-
                                else
                                    marketBucket = "market-overpriced";
-
                            }
                        }
                        else if (onlyMe)
                        {
                            marketBucket = "market-solo";
-
                        }
 
                        bool iAmEffectivelyTheBest = false;
@@ -624,11 +636,8 @@ namespace PriceSafari.Controllers.MemberControllers
                                NewGoogleRanking = committedItem.RankingGoogleAfterSimulated,
                                NewCeneoRanking = committedItem.RankingCeneoAfterSimulated
                            },
-
                            MarketAveragePrice = marketAveragePrice,
-
                            MarketPriceIndex = marketPriceIndex,
-
                            MarketBucket = marketBucket,
                            AutomationRuleName = autoRule?.RuleName,
                            AutomationRuleColor = autoRule?.RuleColor,
@@ -664,6 +673,550 @@ namespace PriceSafari.Controllers.MemberControllers
                 latestScrapId = latestScrap?.Id
             });
         }
+
+
+
+
+
+        //[HttpGet]
+        //public async Task<IActionResult> GetPrices(int? storeId)
+        //{
+        //    if (storeId == null)
+        //    {
+        //        return Json(new
+        //        {
+        //            productCount = 0,
+        //            priceCount = 0,
+        //            myStoreName = "",
+        //            prices = new List<object>(),
+        //            missedProductsCount = 0,
+        //            setPrice1 = 2.00m,
+        //            setPrice2 = 2.00m
+        //        });
+        //    }
+
+        //    if (!await UserHasAccessToStore(storeId.Value))
+        //    {
+        //        return Json(new { error = "Nie ma takiego sklepu" });
+        //    }
+
+        //    var latestScrap = await _context.ScrapHistories
+        //        .Where(sh => sh.StoreId == storeId)
+        //        .OrderByDescending(sh => sh.Date)
+        //        .Select(sh => new { sh.Id, sh.Date })
+        //        .FirstOrDefaultAsync();
+
+        //    if (latestScrap == null)
+        //    {
+        //        return Json(new
+        //        {
+        //            productCount = 0,
+        //            priceCount = 0,
+        //            myStoreName = "",
+        //            prices = new List<object>(),
+        //            missedProductsCount = 0,
+        //            setPrice1 = 2.00m,
+        //            setPrice2 = 2.00m
+        //        });
+        //    }
+
+        //    var bridgeItems = await _context.PriceBridgeItems
+        //.Include(i => i.Batch)
+        //.Where(i => i.Batch.StoreId == storeId.Value &&
+        //            i.Batch.ScrapHistoryId == latestScrap.Id)
+        //.ToListAsync();
+
+        //    var committedLookup = bridgeItems
+        //        .GroupBy(i => i.ProductId)
+        //        .ToDictionary(
+        //            g => g.Key,
+        //            g => g.OrderByDescending(i => i.Batch.ExecutionDate).First()
+        //        );
+
+        //    var previousScrapId = await _context.ScrapHistories
+        //        .Where(sh => sh.StoreId == storeId && sh.Date < latestScrap.Date)
+        //        .OrderByDescending(sh => sh.Date)
+        //        .Select(sh => sh.Id)
+        //        .FirstOrDefaultAsync();
+
+        //    var storeName = await _context.Stores
+        //        .Where(s => s.StoreId == storeId)
+        //        .Select(s => s.StoreName)
+        //        .FirstOrDefaultAsync();
+
+        //    var priceValues = await _context.PriceValues
+        //        .Where(pv => pv.StoreId == storeId)
+        //        .Select(pv => new
+        //        {
+        //            pv.SetPrice1,
+        //            pv.SetPrice2,
+        //            pv.PriceStep,
+        //            pv.UsePriceDiff,
+        //            pv.IdentifierForSimulation,
+        //            pv.UseMarginForSimulation,
+        //            pv.EnforceMinimalMargin,
+        //            pv.MinimalMarginPercent,
+        //            pv.UsePriceWithDelivery,
+        //            pv.PriceIndexTargetPercent
+        //        })
+        //        .FirstOrDefaultAsync() ?? new
+        //        {
+        //            SetPrice1 = 2.00m,
+        //            SetPrice2 = 2.00m,
+        //            PriceStep = 2.00m,
+        //            UsePriceDiff = true,
+        //            IdentifierForSimulation = "EAN",
+        //            UseMarginForSimulation = true,
+        //            EnforceMinimalMargin = true,
+        //            MinimalMarginPercent = 0.00m,
+        //            UsePriceWithDelivery = false,
+        //            PriceIndexTargetPercent = 100.00m
+        //        };
+
+        //    var baseQuery = from p in _context.Products
+        //                    where p.StoreId == storeId && p.IsScrapable
+        //                    join ph in _context.PriceHistories
+        //                        .Where(ph => ph.ScrapHistoryId == latestScrap.Id)
+        //                        on p.ProductId equals ph.ProductId into phGroup
+        //                    from ph in phGroup.DefaultIfEmpty()
+        //                    select new PriceRowDto
+        //                    {
+        //                        ProductId = p.ProductId,
+        //                        ProductName = p.ProductName,
+        //                        Producer = p.Producer,
+        //                        Price = (ph != null ? ph.Price : (decimal?)null),
+        //                        StoreName = (ph != null ? ph.StoreName : null),
+        //                        ScrapHistoryId = (ph != null ? ph.ScrapHistoryId : (int?)null),
+        //                        Position = (ph != null ? ph.Position : (int?)null),
+        //                        IsBidding = ph != null ? ph.IsBidding : null,
+        //                        IsGoogle = (ph != null ? ph.IsGoogle : (bool?)null),
+
+        //                        CeneoInStock = (ph != null ? ph.CeneoInStock : (bool?)null),
+        //                        GoogleInStock = (ph != null ? ph.GoogleInStock : (bool?)null),
+        //                        IsRejected = p.IsRejected,
+        //                        ShippingCostNum = (ph != null ? ph.ShippingCostNum : (decimal?)null),
+        //                        AddedDate = p.AddedDate
+        //                    };
+
+        //    var activePreset = await _context.CompetitorPresets
+        //        .Include(x => x.CompetitorItems)
+        //        .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
+
+        //    string activePresetName = null;
+
+        //    if (activePreset != null)
+        //    {
+        //        activePresetName = activePreset.PresetName;
+        //        if (!activePreset.SourceGoogle) baseQuery = baseQuery.Where(p => p.IsGoogle != true);
+        //        if (!activePreset.SourceCeneo) baseQuery = baseQuery.Where(p => p.IsGoogle == true);
+        //    }
+
+        //    var rawPrices = await baseQuery.ToListAsync();
+
+        //    if (priceValues.UsePriceWithDelivery)
+        //    {
+        //        foreach (var row in rawPrices)
+        //        {
+        //            if (row.Price.HasValue && row.ShippingCostNum.HasValue)
+        //            {
+        //                row.Price = row.Price.Value + row.ShippingCostNum.Value;
+        //            }
+        //        }
+        //    }
+
+        //    var productIds = rawPrices.Select(p => p.ProductId).Distinct().ToList();
+
+        //    var extendedInfoData = await _context.PriceHistoryExtendedInfos
+        //        .Where(e => e.ScrapHistoryId == latestScrap.Id && productIds.Contains(e.ProductId))
+        //        .ToListAsync();
+        //    var extendedInfoDict = extendedInfoData.ToDictionary(e => e.ProductId);
+
+        //    var previousExtendedInfoData = new Dictionary<int, PriceHistoryExtendedInfoClass>();
+        //    if (previousScrapId > 0)
+        //    {
+        //        previousExtendedInfoData = await _context.PriceHistoryExtendedInfos
+        //            .Where(e => e.ScrapHistoryId == previousScrapId && productIds.Contains(e.ProductId))
+        //            .ToDictionaryAsync(e => e.ProductId);
+        //    }
+
+        //    var productFlagsDictionary = await _context.ProductFlags
+        //       .Where(pf => pf.ProductId.HasValue && productIds.Contains(pf.ProductId.Value))
+        //       .GroupBy(pf => pf.ProductId.Value)
+        //       .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
+
+        //    var productsWithExternalInfo = await _context.Products
+        //       .Where(p => p.StoreId == storeId && productIds.Contains(p.ProductId))
+        //       .Select(p => new {
+        //           p.ProductId,
+        //           p.ExternalId,
+        //           p.MainUrl,
+        //           p.MarginPrice,
+        //           p.Ean,
+        //           p.ProducerCode
+        //       })
+        //       .ToListAsync();
+        //    var productExternalInfoDictionary = productsWithExternalInfo.ToDictionary(
+        //        p => p.ProductId,
+        //        p => new { p.ExternalId, p.MainUrl, p.MarginPrice, p.Ean, p.ProducerCode }
+        //    );
+
+        //    Dictionary<(string Store, DataSourceType Source), bool> competitorItemsDict = null;
+        //    var storeNameLower = storeName?.ToLower().Trim() ?? "";
+
+        //    if (activePreset != null && activePreset.Type == PresetType.PriceComparison)
+        //    {
+        //        competitorItemsDict = activePreset.CompetitorItems.ToDictionary(
+        //            ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource),
+        //            ci => ci.UseCompetitor
+        //        );
+        //    }
+
+        //    var automationLookup = await _context.AutomationProductAssignments
+        //        .Include(a => a.AutomationRule)
+        //        .Where(a => a.AutomationRule.StoreId == storeId.Value
+        //                 && a.ProductId != null
+
+        //                 && a.AutomationRule.SourceType == AutomationSourceType.PriceComparison)
+        //        .Select(a => new
+        //        {
+        //            ProductId = a.ProductId.Value,
+        //            RuleName = a.AutomationRule.Name,
+        //            RuleColor = a.AutomationRule.ColorHex,
+        //            IsActive = a.AutomationRule.IsActive,
+        //            RuleId = a.AutomationRule.Id,
+        //            IsTimeLimited = a.AutomationRule.IsTimeLimited,
+        //            StartDate = a.AutomationRule.ScheduledStartDate,
+        //            EndDate = a.AutomationRule.ScheduledEndDate
+        //        })
+        //    .ToDictionaryAsync(a => a.ProductId);
+        //    var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
+        //    var allPrices = rawPrices
+        //           .GroupBy(p => p.ProductId)
+        //           .Select(g =>
+        //           {
+        //               var productGroup = g.ToList();
+        //               var product = productGroup.First();
+        //               var validPrices = productGroup.Where(x => x.Price.HasValue).ToList();
+
+        //               var myPriceEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower() == storeNameLower).ToList();
+        //               var myPriceEntry = myPriceEntries.OrderByDescending(x => x.IsGoogle == false).FirstOrDefault();
+        //               var myPrice = myPriceEntry?.Price;
+
+        //               var allCompetitorEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower() != storeNameLower).ToList();
+        //               var presetFilteredCompetitorPrices = new List<PriceRowDto>();
+        //               var committedItem = committedLookup.GetValueOrDefault(g.Key);
+        //               var autoRule = automationLookup.GetValueOrDefault(g.Key);
+        //               bool isAutomationPaused = false;
+        //               if (autoRule != null && autoRule.IsActive && autoRule.IsTimeLimited)
+        //               {
+        //                   var today = DateTime.Today; // Porównujemy z dzisiejszą datą, tak jak w modelu
+
+        //                   bool isScheduledForFuture = autoRule.StartDate.HasValue && today < autoRule.StartDate.Value.Date;
+        //                   bool isExpiredInPast = autoRule.EndDate.HasValue && today > autoRule.EndDate.Value.Date;
+
+        //                   if (isScheduledForFuture || isExpiredInPast)
+        //                   {
+        //                       isAutomationPaused = true;
+        //                   }
+        //               }
+        //               if (competitorItemsDict != null)
+        //               {
+        //                   foreach (var row in allCompetitorEntries)
+        //                   {
+        //                       DataSourceType currentSource = row.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
+        //                       var key = (Store: (row.StoreName ?? "").ToLower().Trim(), Source: currentSource);
+
+        //                       if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
+        //                       {
+        //                           if (useCompetitor) presetFilteredCompetitorPrices.Add(row);
+        //                       }
+        //                       else if (activePreset.UseUnmarkedStores)
+        //                       {
+        //                           presetFilteredCompetitorPrices.Add(row);
+        //                       }
+        //                   }
+        //               }
+        //               else
+        //               {
+        //                   presetFilteredCompetitorPrices = allCompetitorEntries;
+        //               }
+
+        //               var presetFilteredValidPrices = new List<PriceRowDto>(presetFilteredCompetitorPrices);
+        //               if (myPriceEntry != null) presetFilteredValidPrices.Add(myPriceEntry);
+
+        //               bool onlyMe = !presetFilteredCompetitorPrices.Any() && myPriceEntry != null;
+
+        //               var bestCompetitorPriceEntry = presetFilteredCompetitorPrices
+        //                   .OrderBy(x => x.Price)
+        //                   .ThenBy(x => x.StoreName)
+        //                   .ThenByDescending(x => x.IsGoogle == false)
+        //                   .FirstOrDefault();
+        //               var bestCompetitorPrice = bestCompetitorPriceEntry?.Price;
+
+        //               PriceRowDto finalBestPriceEntry = bestCompetitorPriceEntry;
+        //               decimal? finalBestPrice = bestCompetitorPrice;
+
+        //               decimal? marketAveragePrice = null;
+
+        //               decimal? marketPriceIndex = null;
+
+        //               string marketBucket = "market-neutral";
+
+        //               var competitorPricesOnly = presetFilteredCompetitorPrices
+        //                   .Where(x => x.Price.HasValue && x.Price.Value > 0)
+        //                   .Select(x => x.Price.Value)
+        //                   .ToList();
+
+        //               if (competitorPricesOnly.Count > 0)
+        //               {
+
+        //                   marketAveragePrice = CalculateMedian(competitorPricesOnly);
+
+        //                   if (marketAveragePrice.HasValue && myPrice.HasValue && myPrice.Value > 0 && marketAveragePrice.Value > 0)
+        //                   {
+
+        //                       decimal diff = myPrice.Value - marketAveragePrice.Value;
+        //                       marketPriceIndex = Math.Round((diff / marketAveragePrice.Value) * 100, 2);
+
+        //                       if (marketPriceIndex < -15)
+        //                           marketBucket = "market-deep-discount";
+
+        //                       else if (marketPriceIndex >= -15 && marketPriceIndex < -2)
+        //                           marketBucket = "market-below-average";
+
+        //                       else if (marketPriceIndex >= -2 && marketPriceIndex <= 2)
+        //                           marketBucket = "market-average";
+
+        //                       else if (marketPriceIndex > 2 && marketPriceIndex <= 15)
+        //                           marketBucket = "market-above-average";
+
+        //                       else
+        //                           marketBucket = "market-overpriced";
+
+        //                   }
+        //               }
+        //               else if (onlyMe)
+        //               {
+        //                   marketBucket = "market-solo";
+
+        //               }
+
+        //               bool iAmEffectivelyTheBest = false;
+        //               if (myPrice.HasValue)
+        //               {
+        //                   if (!bestCompetitorPrice.HasValue) iAmEffectivelyTheBest = true;
+        //                   else if (myPrice.Value <= bestCompetitorPrice.Value) iAmEffectivelyTheBest = true;
+        //               }
+
+        //               string myPricePositionString = "N/A / 0";
+        //               var totalValidOffers = presetFilteredValidPrices.Count();
+        //               if (myPrice.HasValue && totalValidOffers > 0)
+        //               {
+        //                   var myStorePriceValue = myPrice.Value;
+        //                   int pricesLower = presetFilteredValidPrices.Count(vp => vp.Price.HasValue && vp.Price.Value < myStorePriceValue);
+        //                   int pricesEqual = presetFilteredValidPrices.Count(vp => vp.Price.HasValue && vp.Price.Value == myStorePriceValue);
+        //                   int rankStart = pricesLower + 1; int rankEnd = pricesLower + pricesEqual;
+        //                   myPricePositionString = (rankStart == rankEnd) ? $"{rankStart}/{totalValidOffers}" : $"{rankStart}-{rankEnd}/{totalValidOffers}";
+        //               }
+        //               else if (totalValidOffers > 0) myPricePositionString = $"N/A / {totalValidOffers}";
+
+        //               decimal? priceDifference = null;
+        //               decimal? percentageDifference = null;
+        //               decimal? savings = null;
+        //               bool isUniqueBestPrice = false;
+        //               bool isRejectedDueToZeroPrice = false;
+        //               int? myPosition = myPriceEntry?.Position;
+
+        //               if (product.IsRejected || (myPrice.HasValue && myPrice.Value == 0) || (bestCompetitorPrice.HasValue && bestCompetitorPrice.Value == 0))
+        //               {
+        //                   isRejectedDueToZeroPrice = true;
+        //               }
+
+        //               if (myPrice.HasValue && bestCompetitorPrice.HasValue && bestCompetitorPrice.Value <= myPrice.Value)
+        //               {
+        //                   priceDifference = Math.Round(myPrice.Value - bestCompetitorPrice.Value, 2);
+        //                   if (bestCompetitorPrice.Value > 0)
+        //                   {
+        //                       percentageDifference = Math.Round((myPrice.Value - bestCompetitorPrice.Value) / bestCompetitorPrice.Value * 100, 2);
+        //                   }
+        //               }
+
+        //               if (iAmEffectivelyTheBest && myPrice.HasValue && !isRejectedDueToZeroPrice)
+        //               {
+        //                   bool amIUniquelyTheBest = myPrice.HasValue && (!bestCompetitorPrice.HasValue || myPrice.Value < bestCompetitorPrice.Value);
+        //                   if (amIUniquelyTheBest)
+        //                   {
+        //                       isUniqueBestPrice = true;
+        //                       if (bestCompetitorPrice.HasValue) savings = Math.Round(bestCompetitorPrice.Value - myPrice.Value, 2);
+        //                   }
+        //               }
+
+        //               bool? bestEntryStockStatus = finalBestPriceEntry != null ? (finalBestPriceEntry.IsGoogle == true ? finalBestPriceEntry.GoogleInStock : finalBestPriceEntry.CeneoInStock) : null;
+        //               bool? myEntryStockStatus = myPriceEntry != null ? (myPriceEntry.IsGoogle == true ? myPriceEntry.GoogleInStock : myPriceEntry.CeneoInStock) : null;
+
+        //               var storeCount = presetFilteredValidPrices
+        //                   .Where(s => s != null && s.StoreName != null)
+        //                   .Select(x => new { StoreName = x.StoreName.ToLower().Trim(), Source = x.IsGoogle ?? false })
+        //                   .Distinct().Count();
+
+        //               bool sourceGoogle = productGroup.Any(x => x.IsGoogle == true);
+        //               bool sourceCeneo = productGroup.Any(x => x.IsGoogle == false);
+
+        //               bool? bestPriceIncludesDeliveryFlag = null; bool? myPriceIncludesDeliveryFlag = null;
+        //               extendedInfoDict.TryGetValue(g.Key, out var extendedInfo);
+        //               if (priceValues.UsePriceWithDelivery)
+        //               {
+        //                   bestPriceIncludesDeliveryFlag = finalBestPriceEntry?.ShippingCostNum.HasValue;
+        //                   myPriceIncludesDeliveryFlag = myPriceEntry?.ShippingCostNum.HasValue;
+        //               }
+
+        //               int externalBestPriceCount = 0;
+        //               if (bestCompetitorPrice.HasValue)
+        //               {
+        //                   if (myPrice.HasValue && myPrice.Value < bestCompetitorPrice.Value) externalBestPriceCount = 0;
+        //                   else if (myPrice.HasValue && myPrice.Value == bestCompetitorPrice.Value) externalBestPriceCount = presetFilteredValidPrices.Count(x => x.Price.HasValue && x.Price.Value == bestCompetitorPrice.Value);
+        //                   else externalBestPriceCount = presetFilteredCompetitorPrices.Count(x => x.Price.HasValue && x.Price.Value == bestCompetitorPrice.Value);
+        //               }
+
+        //               productFlagsDictionary.TryGetValue(g.Key, out var flagIds); flagIds ??= new List<int>();
+        //               productExternalInfoDictionary.TryGetValue(g.Key, out var extInfo);
+
+        //               SalesTrendStatus salesTrendStatus = SalesTrendStatus.NoData;
+        //               int? salesDifference = null; decimal? salesPercentageChange = null;
+        //               previousExtendedInfoData.TryGetValue(g.Key, out var previousExtendedInfo);
+        //               if (extendedInfo?.CeneoSalesCount != null && previousExtendedInfo?.CeneoSalesCount != null)
+        //               {
+        //                   int currentSales = extendedInfo.CeneoSalesCount.Value; int previousSales = previousExtendedInfo.CeneoSalesCount.Value;
+        //                   salesDifference = currentSales - previousSales;
+        //                   if (previousSales > 0) salesPercentageChange = Math.Round(((decimal)salesDifference.Value / previousSales) * 100, 2);
+        //                   else if (salesDifference > 0) salesPercentageChange = 100m;
+
+        //                   const decimal smallChangeThreshold = 10.0m;
+        //                   if (salesDifference == 0) salesTrendStatus = SalesTrendStatus.NoChange;
+        //                   else if (salesDifference > 0) salesTrendStatus = (salesPercentageChange.HasValue && Math.Abs(salesPercentageChange.Value) > smallChangeThreshold) ? SalesTrendStatus.SalesUpBig : SalesTrendStatus.SalesUpSmall;
+        //                   else salesTrendStatus = (salesPercentageChange.HasValue && Math.Abs(salesPercentageChange.Value) > smallChangeThreshold) ? SalesTrendStatus.SalesDownBig : SalesTrendStatus.SalesDownSmall;
+        //               }
+
+        //               decimal? singleBestCheaperDiff = null;
+        //               decimal? singleBestCheaperDiffPerc = null;
+        //               var validPresetPrices = presetFilteredValidPrices.Where(x => x.Price.HasValue && x.Price.Value > 0).ToList();
+        //               if (validPresetPrices.Any())
+        //               {
+        //                   decimal absoluteLowestPrice = validPresetPrices.Select(x => x.Price.Value).Min();
+        //                   var lowestPriceEntries = validPresetPrices.Where(x => x.Price.Value == absoluteLowestPrice).ToList();
+        //                   int absoluteLowestPriceCount = lowestPriceEntries.Count;
+
+        //                   if (absoluteLowestPriceCount == 1)
+        //                   {
+        //                       var singleCheapestEntry = lowestPriceEntries.First();
+        //                       bool isMyStoreSoleCheapest = (singleCheapestEntry.StoreName != null && singleCheapestEntry.StoreName.ToLower().Trim() == storeNameLower);
+
+        //                       if (!isMyStoreSoleCheapest)
+        //                       {
+        //                           var secondLowestPrice = validPresetPrices.Where(x => x.Price.Value > absoluteLowestPrice).Select(x => x.Price.Value).OrderBy(x => x).FirstOrDefault();
+        //                           decimal? actualSecondLowest = (secondLowestPrice == 0) ? null : (decimal?)secondLowestPrice;
+        //                           if (actualSecondLowest.HasValue)
+        //                           {
+        //                               singleBestCheaperDiff = Math.Round(actualSecondLowest.Value - absoluteLowestPrice, 2);
+        //                               var diffPercent = ((actualSecondLowest.Value - absoluteLowestPrice) / actualSecondLowest.Value) * 100;
+        //                               singleBestCheaperDiffPerc = Math.Round(diffPercent, 2);
+        //                           }
+        //                       }
+        //                   }
+        //               }
+
+        //               return new
+        //               {
+        //                   ProductId = product.ProductId,
+        //                   ProductName = product.ProductName,
+        //                   Producer = product.Producer,
+        //                   LowestPrice = finalBestPrice,
+        //                   StoreName = finalBestPriceEntry?.StoreName,
+        //                   MyPrice = myPrice,
+        //                   ScrapId = latestScrap.Id,
+        //                   PriceDifference = priceDifference,
+        //                   PercentageDifference = percentageDifference,
+        //                   Savings = savings,
+        //                   IsSharedBestPrice = (iAmEffectivelyTheBest && !isUniqueBestPrice && myPrice.HasValue),
+        //                   IsUniqueBestPrice = isUniqueBestPrice,
+        //                   OnlyMe = onlyMe,
+        //                   ExternalBestPriceCount = externalBestPriceCount,
+        //                   IsBidding = finalBestPriceEntry?.IsBidding,
+        //                   IsGoogle = finalBestPriceEntry?.IsGoogle,
+        //                   Position = finalBestPriceEntry?.Position,
+        //                   MyIsBidding = myPriceEntry?.IsBidding,
+        //                   MyIsGoogle = myPriceEntry?.IsGoogle,
+        //                   MyPosition = myPosition,
+        //                   FlagIds = flagIds,
+        //                   BestEntryInStock = bestEntryStockStatus,
+        //                   MyEntryInStock = myEntryStockStatus,
+        //                   ExternalId = extInfo?.ExternalId,
+        //                   MarginPrice = extInfo?.MarginPrice,
+        //                   ImgUrl = extInfo?.MainUrl,
+        //                   Ean = extInfo?.Ean,
+        //                   ProducerCode = extInfo?.ProducerCode,
+        //                   IsRejected = product.IsRejected || isRejectedDueToZeroPrice,
+        //                   StoreCount = storeCount,
+        //                   SourceGoogle = sourceGoogle,
+        //                   SourceCeneo = sourceCeneo,
+        //                   SingleBestCheaperDiff = singleBestCheaperDiff,
+        //                   SingleBestCheaperDiffPerc = singleBestCheaperDiffPerc,
+        //                   BestPriceIncludesDelivery = bestPriceIncludesDeliveryFlag,
+        //                   MyPriceIncludesDelivery = myPriceIncludesDeliveryFlag,
+        //                   BestPriceDeliveryCost = priceValues.UsePriceWithDelivery ? finalBestPriceEntry?.ShippingCostNum : null,
+        //                   MyPriceDeliveryCost = priceValues.UsePriceWithDelivery ? myPriceEntry?.ShippingCostNum : null,
+        //                   CeneoSalesCount = extendedInfo?.CeneoSalesCount,
+        //                   SalesTrendStatus = salesTrendStatus.ToString(),
+        //                   SalesDifference = salesDifference,
+        //                   SalesPercentageChange = salesPercentageChange,
+        //                   ExternalApiPrice = extendedInfo?.ExtendedDataApiPrice,
+        //                   MyPricePosition = myPricePositionString,
+        //                   Committed = committedItem == null ? null : new
+        //                   {
+        //                       NewPrice = committedItem.PriceAfter,
+        //                       NewGoogleRanking = committedItem.RankingGoogleAfterSimulated,
+        //                       NewCeneoRanking = committedItem.RankingCeneoAfterSimulated
+        //                   },
+
+        //                   MarketAveragePrice = marketAveragePrice,
+
+        //                   MarketPriceIndex = marketPriceIndex,
+
+        //                   MarketBucket = marketBucket,
+        //                   AutomationRuleName = autoRule?.RuleName,
+        //                   AutomationRuleColor = autoRule?.RuleColor,
+        //                   IsAutomationActive = autoRule?.IsActive,
+        //                   AutomationRuleId = autoRule?.RuleId,
+        //                   IsAutomationPaused = isAutomationPaused,
+        //                   IsNew = product.AddedDate >= sevenDaysAgo
+        //               };
+        //           })
+        //           .Where(p => p != null)
+        //           .ToList();
+
+        //    var missedProductsCount = allPrices.Count(p => p.IsRejected);
+
+        //    return Json(new
+        //    {
+        //        productCount = allPrices.Count,
+        //        priceCount = rawPrices.Count,
+        //        myStoreName = storeName,
+        //        prices = allPrices,
+        //        missedProductsCount = missedProductsCount,
+        //        setPrice1 = priceValues.SetPrice1,
+        //        setPrice2 = priceValues.SetPrice2,
+        //        stepPrice = priceValues.PriceStep,
+        //        usePriceDiff = priceValues.UsePriceDiff,
+        //        useMarginForSimulation = priceValues.UseMarginForSimulation,
+        //        enforceMinimalMargin = priceValues.EnforceMinimalMargin,
+        //        minimalMarginPercent = priceValues.MinimalMarginPercent,
+        //        identifierForSimulation = priceValues.IdentifierForSimulation,
+        //        usePriceWithDelivery = priceValues.UsePriceWithDelivery,
+        //        priceIndexTarget = priceValues.PriceIndexTargetPercent,
+        //        presetName = activePresetName ?? "PriceSafari",
+        //        latestScrapId = latestScrap?.Id
+        //    });
+        //}
 
 
         public class PriceRowDto
