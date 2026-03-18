@@ -158,20 +158,19 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
-
-
-
         [HttpGet]
         public async Task<IActionResult> GetAllegroPrices(int? storeId)
         {
             if (storeId == null) return BadRequest();
             if (!await UserHasAccessToStore(storeId.Value)) return Forbid();
 
-            var store = await _context.Stores.FindAsync(storeId.Value);
+            var store = await _context.Stores.AsNoTracking().FirstOrDefaultAsync(s => s.StoreId == storeId.Value);
             var priceSettings = await _context.PriceValues
+                .AsNoTracking()
                 .FirstOrDefaultAsync(pv => pv.StoreId == storeId.Value);
 
             var latestScrap = await _context.AllegroScrapeHistories
+                .AsNoTracking()
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
                 .FirstOrDefaultAsync();
@@ -181,16 +180,45 @@ namespace PriceSafari.Controllers.MemberControllers
                 return Json(new { myStoreName = store?.StoreNameAllegro, prices = new List<object>() });
             }
 
+            // ── 1. Załaduj WSZYSTKIE aktywne produkty NAJPIERW ──
+            var allScrapableProducts = await _context.AllegroProducts
+                .AsNoTracking()
+                .Where(p => p.StoreId == storeId.Value && p.IsScrapable)
+                .ToListAsync();
+
+            var productIds = allScrapableProducts.Select(p => p.AllegroProductId).ToList();
+            var productDictionary = allScrapableProducts.ToDictionary(p => p.AllegroProductId);
+
+            // ── 2. Historia cen BEZ Include (produkt ze słownika) ──
+            var priceData = await _context.AllegroPriceHistories
+                .AsNoTracking()
+                .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id
+                            && productIds.Contains(aph.AllegroProductId))
+                .ToListAsync();
+
+            // ── Deduplikacja: jeden rekord per produkt + oferta ──
+            priceData = priceData
+                .GroupBy(aph => new { aph.AllegroProductId, aph.IdAllegro })
+                .Select(g => g.First())
+                .ToList();
+
+            // ── 3. Committed changes — ograniczone do aktywnych produktów ──
             var committedChanges = await _context.AllegroPriceBridgeItems
+                .AsNoTracking()
                 .Include(i => i.PriceBridgeBatch)
-                .Where(i => i.PriceBridgeBatch.StoreId == storeId.Value && i.PriceBridgeBatch.AllegroScrapeHistoryId == latestScrap.Id && i.Success)
+                .Where(i => i.PriceBridgeBatch.StoreId == storeId.Value
+                         && i.PriceBridgeBatch.AllegroScrapeHistoryId == latestScrap.Id
+                         && i.Success
+                         && productIds.Contains(i.AllegroProductId))
                 .ToListAsync();
 
             var committedLookup = committedChanges
                 .GroupBy(i => i.AllegroProductId)
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(i => i.PriceBridgeBatch.ExecutionDate).First());
 
+            // ── 4. Preset konkurencji ──
             var activePreset = await _context.CompetitorPresets
+                .AsNoTracking()
                 .Include(p => p.CompetitorItems)
                 .FirstOrDefaultAsync(p => p.StoreId == storeId.Value && p.NowInUse && p.Type == PresetType.Marketplace);
 
@@ -203,35 +231,20 @@ namespace PriceSafari.Controllers.MemberControllers
                     ci => ci.UseCompetitor
                 );
 
-            var priceData = await _context.AllegroPriceHistories
-            .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id && aph.AllegroProduct.IsScrapable)
-            .Include(aph => aph.AllegroProduct)
-            .ToListAsync();
-
-            // ── Deduplikacja: jeden rekord per produkt + oferta ──
-            priceData = priceData
-                .GroupBy(aph => new { aph.AllegroProductId, aph.IdAllegro })
-                .Select(g => g.First())
-                .ToList();
-
-            // ── Załaduj WSZYSTKIE aktywne produkty (także te bez historii cen) ──
-            var allScrapableProducts = await _context.AllegroProducts
-                .Where(p => p.StoreId == storeId.Value && p.IsScrapable)
-                .ToListAsync();
-
-            var productIds = allScrapableProducts.Select(p => p.AllegroProductId).ToList();
+            // ── 5. Flagi — ograniczone do aktywnych produktów ──
             var productFlagsDictionary = await _context.ProductFlags
+                .AsNoTracking()
                 .Where(pf => productIds.Contains(pf.AllegroProductId.Value))
                 .GroupBy(pf => pf.AllegroProductId.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
+            // ── 6. Automatyzacja — ograniczona do aktywnych produktów ──
             var automationLookup = await _context.AutomationProductAssignments
+                .AsNoTracking()
                 .Include(a => a.AutomationRule)
                 .Where(a => a.AutomationRule.StoreId == storeId.Value
                          && a.AllegroProductId != null
-
                          && a.AutomationRule.SourceType == AutomationSourceType.Marketplace)
-
                 .Select(a => new
                 {
                     AllegroProductId = a.AllegroProductId.Value,
@@ -245,19 +258,25 @@ namespace PriceSafari.Controllers.MemberControllers
                 })
                 .ToDictionaryAsync(a => a.AllegroProductId);
 
+            // ── 7. Extended info — ograniczone do aktywnych produktów ──
             var allExtendedInfo = await _context.AllegroPriceHistoryExtendedInfos
-                .Where(e => e.ScrapHistoryId == latestScrap.Id)
+                .AsNoTracking()
+                .Where(e => e.ScrapHistoryId == latestScrap.Id
+                         && productIds.Contains(e.AllegroProductId))
                 .ToListAsync();
 
             var extendedInfoDictionary = allExtendedInfo
                 .GroupBy(e => e.AllegroProductId)
                 .ToDictionary(g => g.Key, g => g.First());
+
             var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
+
+            // ── 8. Grupowanie po AllegroProductId (produkt ze słownika) ──
             var groupedData = priceData
-                .GroupBy(aph => aph.AllegroProduct)
+                .GroupBy(aph => aph.AllegroProductId)
                 .Select(g =>
                 {
-                    var product = g.Key;
+                    var product = productDictionary[g.Key];
 
                     long? targetOfferId = null;
                     if (long.TryParse(product.IdOnAllegro, out var parsedId))
@@ -279,7 +298,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     {
                         filteredCompetitors = g.Where(p =>
                         {
-
                             if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
                             {
                                 return false;
@@ -287,7 +305,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
                             if (p.DeliveryTime.HasValue)
                             {
-
                                 if (p.DeliveryTime.Value < minDelivery || p.DeliveryTime.Value > maxDelivery)
                                 {
                                     return false;
@@ -295,12 +312,10 @@ namespace PriceSafari.Controllers.MemberControllers
                             }
                             else
                             {
-
                                 if (!includeNoDelivery)
                                 {
                                     return false;
                                 }
-
                             }
 
                             var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
@@ -313,16 +328,13 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                     else
                     {
-
                         filteredCompetitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
                     }
 
                     var bestCompetitor = filteredCompetitors.OrderBy(p => p.Price).FirstOrDefault();
 
                     decimal? marketAveragePrice = null;
-
                     decimal? marketPriceIndex = null;
-
                     string marketBucket = "market-neutral";
 
                     var competitorPricesOnly = filteredCompetitors
@@ -332,12 +344,10 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     if (competitorPricesOnly.Count > 0)
                     {
-
                         marketAveragePrice = CalculateMedian(competitorPricesOnly);
 
                         if (marketAveragePrice.HasValue && myOffer != null && myOffer.Price > 0 && marketAveragePrice.Value > 0)
                         {
-
                             decimal diff = myOffer.Price - marketAveragePrice.Value;
                             marketPriceIndex = Math.Round((diff / marketAveragePrice.Value) * 100, 2);
 
@@ -392,7 +402,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     string myPricePosition = null;
                     if (myOffer != null)
                     {
-
                         int zeroBasedIndex = sortedOffers.FindIndex(p => p.IdAllegro == myOffer.IdAllegro);
 
                         if (zeroBasedIndex != -1)
@@ -419,6 +428,7 @@ namespace PriceSafari.Controllers.MemberControllers
                             isAutomationPaused = true;
                         }
                     }
+
                     return new
                     {
                         ProductId = product.AllegroProductId,
@@ -456,23 +466,17 @@ namespace PriceSafari.Controllers.MemberControllers
                         OnlyMe = (myOffer != null && !filteredCompetitors.Any()),
                         Savings = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price) ? bestCompetitor.Price - myOffer.Price : (decimal?)null,
                         PriceDifference = (myOffer != null && bestCompetitor != null) ? myOffer.Price - bestCompetitor.Price : (decimal?)null,
-
                         PercentageDifference = (myOffer != null && bestCompetitor != null && bestCompetitor.Price > 0) ? Math.Round(((myOffer.Price - bestCompetitor.Price) / bestCompetitor.Price) * 100, 2) : (decimal?)null,
-
                         IsUniqueBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price),
                         IsSharedBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price == bestCompetitor.Price),
                         FlagIds = productFlagsDictionary.GetValueOrDefault(product.AllegroProductId, new List<int>()),
-
                         Ean = product.AllegroEan,
                         AllegroSku = product.AllegroSku,
                         ExternalId = (int?)null,
-
                         MarginPrice = product.AllegroMarginPrice,
-
                         MarketAveragePrice = marketAveragePrice,
                         MarketPriceIndex = marketPriceIndex,
                         MarketBucket = marketBucket,
-
                         ImgUrl = (string)null,
                         ApiAllegroPrice = extendedInfo?.ApiAllegroPrice,
                         ApiAllegroPriceFromUser = extendedInfo?.ApiAllegroPriceFromUser,
@@ -486,17 +490,14 @@ namespace PriceSafari.Controllers.MemberControllers
                         IsAutomationPaused = isAutomationPaused,
                         Committed = committed == null ? null : new
                         {
-
                             NewPrice = committed.PriceAfter_Verified ?? committed.PriceAfter_Simulated,
-
                             NewCommission = committed.CommissionAfter_Verified ?? (committed.IncludeCommissionInMargin ? (decimal?)null : null),
-
                             NewPosition = committed.RankingAfter_Simulated
                         }
                     };
                 }).Cast<object>().ToList();
 
-            // ── Produkty aktywne, ale bez historii cen w ostatnim scrapie ──
+            // ── 9. Produkty aktywne, ale bez historii cen w ostatnim scrapie ──
             var coveredProductIds = new HashSet<int>(
                 priceData.Select(p => p.AllegroProductId).Distinct());
 
@@ -605,14 +606,466 @@ namespace PriceSafari.Controllers.MemberControllers
                 allegroEnforceMinimalMargin = priceSettings?.AllegroEnforceMinimalMargin ?? true,
                 allegroMinimalMarginPercent = priceSettings?.AllegroMinimalMarginPercent ?? 0.00m,
                 allegroIncludeCommisionInPriceChange = priceSettings?.AllegroIncludeCommisionInPriceChange ?? false,
-
                 allegroChangePriceForBagdeSuperPrice = priceSettings?.AllegroChangePriceForBagdeSuperPrice ?? false,
                 allegroChangePriceForBagdeTopOffer = priceSettings?.AllegroChangePriceForBagdeTopOffer ?? false,
                 allegroChangePriceForBagdeBestPriceGuarantee = priceSettings?.AllegroChangePriceForBagdeBestPriceGuarantee ?? false,
                 allegroChangePriceForBagdeInCampaign = priceSettings?.AllegroChangePriceForBagdeInCampaign ?? false
-
             });
         }
+
+
+        //[HttpGet]
+        //public async Task<IActionResult> GetAllegroPrices(int? storeId)
+        //{
+        //    if (storeId == null) return BadRequest();
+        //    if (!await UserHasAccessToStore(storeId.Value)) return Forbid();
+
+        //    var store = await _context.Stores.FindAsync(storeId.Value);
+        //    var priceSettings = await _context.PriceValues
+        //        .FirstOrDefaultAsync(pv => pv.StoreId == storeId.Value);
+
+        //    var latestScrap = await _context.AllegroScrapeHistories
+        //        .Where(sh => sh.StoreId == storeId)
+        //        .OrderByDescending(sh => sh.Date)
+        //        .FirstOrDefaultAsync();
+
+        //    if (latestScrap == null || store == null)
+        //    {
+        //        return Json(new { myStoreName = store?.StoreNameAllegro, prices = new List<object>() });
+        //    }
+
+        //    var committedChanges = await _context.AllegroPriceBridgeItems
+        //        .Include(i => i.PriceBridgeBatch)
+        //        .Where(i => i.PriceBridgeBatch.StoreId == storeId.Value && i.PriceBridgeBatch.AllegroScrapeHistoryId == latestScrap.Id && i.Success)
+        //        .ToListAsync();
+
+        //    var committedLookup = committedChanges
+        //        .GroupBy(i => i.AllegroProductId)
+        //        .ToDictionary(g => g.Key, g => g.OrderByDescending(i => i.PriceBridgeBatch.ExecutionDate).First());
+
+        //    var activePreset = await _context.CompetitorPresets
+        //        .Include(p => p.CompetitorItems)
+        //        .FirstOrDefaultAsync(p => p.StoreId == storeId.Value && p.NowInUse && p.Type == PresetType.Marketplace);
+
+        //    string activePresetName = activePreset?.PresetName;
+
+        //    var competitorRules = activePreset?.CompetitorItems
+        //        .Where(ci => ci.DataSource == DataSourceType.Allegro)
+        //        .ToDictionary(
+        //            ci => ci.StoreName.ToLower().Trim(),
+        //            ci => ci.UseCompetitor
+        //        );
+
+        //    var priceData = await _context.AllegroPriceHistories
+        //    .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id && aph.AllegroProduct.IsScrapable)
+        //    .Include(aph => aph.AllegroProduct)
+        //    .ToListAsync();
+
+        //    // ── Deduplikacja: jeden rekord per produkt + oferta ──
+        //    priceData = priceData
+        //        .GroupBy(aph => new { aph.AllegroProductId, aph.IdAllegro })
+        //        .Select(g => g.First())
+        //        .ToList();
+
+        //    // ── Załaduj WSZYSTKIE aktywne produkty (także te bez historii cen) ──
+        //    var allScrapableProducts = await _context.AllegroProducts
+        //        .Where(p => p.StoreId == storeId.Value && p.IsScrapable)
+        //        .ToListAsync();
+
+        //    var productIds = allScrapableProducts.Select(p => p.AllegroProductId).ToList();
+        //    var productFlagsDictionary = await _context.ProductFlags
+        //        .Where(pf => productIds.Contains(pf.AllegroProductId.Value))
+        //        .GroupBy(pf => pf.AllegroProductId.Value)
+        //        .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
+
+        //    var automationLookup = await _context.AutomationProductAssignments
+        //        .Include(a => a.AutomationRule)
+        //        .Where(a => a.AutomationRule.StoreId == storeId.Value
+        //                 && a.AllegroProductId != null
+
+        //                 && a.AutomationRule.SourceType == AutomationSourceType.Marketplace)
+
+        //        .Select(a => new
+        //        {
+        //            AllegroProductId = a.AllegroProductId.Value,
+        //            RuleName = a.AutomationRule.Name,
+        //            RuleColor = a.AutomationRule.ColorHex,
+        //            IsActive = a.AutomationRule.IsActive,
+        //            RuleId = a.AutomationRule.Id,
+        //            IsTimeLimited = a.AutomationRule.IsTimeLimited,
+        //            StartDate = a.AutomationRule.ScheduledStartDate,
+        //            EndDate = a.AutomationRule.ScheduledEndDate
+        //        })
+        //        .ToDictionaryAsync(a => a.AllegroProductId);
+
+        //    var allExtendedInfo = await _context.AllegroPriceHistoryExtendedInfos
+        //        .Where(e => e.ScrapHistoryId == latestScrap.Id)
+        //        .ToListAsync();
+
+        //    var extendedInfoDictionary = allExtendedInfo
+        //        .GroupBy(e => e.AllegroProductId)
+        //        .ToDictionary(g => g.Key, g => g.First());
+        //    var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
+        //    var groupedData = priceData
+        //        .GroupBy(aph => aph.AllegroProduct)
+        //        .Select(g =>
+        //        {
+        //            var product = g.Key;
+
+        //            long? targetOfferId = null;
+        //            if (long.TryParse(product.IdOnAllegro, out var parsedId))
+        //            {
+        //                targetOfferId = parsedId;
+        //            }
+
+        //            var myOffer = targetOfferId.HasValue
+        //                ? g.FirstOrDefault(p => p.IdAllegro == targetOfferId.Value && p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+        //                : g.FirstOrDefault(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
+
+        //            List<AllegroPriceHistory> filteredCompetitors;
+
+        //            bool includeNoDelivery = activePreset?.IncludeNoDeliveryInfo ?? true;
+        //            int minDelivery = activePreset?.MinDeliveryDays ?? 0;
+        //            int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
+
+        //            if (activePreset != null && competitorRules != null)
+        //            {
+        //                filteredCompetitors = g.Where(p =>
+        //                {
+
+        //                    if (p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+        //                    {
+        //                        return false;
+        //                    }
+
+        //                    if (p.DeliveryTime.HasValue)
+        //                    {
+
+        //                        if (p.DeliveryTime.Value < minDelivery || p.DeliveryTime.Value > maxDelivery)
+        //                        {
+        //                            return false;
+        //                        }
+        //                    }
+        //                    else
+        //                    {
+
+        //                        if (!includeNoDelivery)
+        //                        {
+        //                            return false;
+        //                        }
+
+        //                    }
+
+        //                    var sellerNameLower = (p.SellerName ?? "").ToLower().Trim();
+        //                    if (competitorRules.TryGetValue(sellerNameLower, out bool useCompetitor))
+        //                    {
+        //                        return useCompetitor;
+        //                    }
+        //                    return activePreset.UseUnmarkedStores;
+        //                }).ToList();
+        //            }
+        //            else
+        //            {
+
+        //                filteredCompetitors = g.Where(p => !p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase)).ToList();
+        //            }
+
+        //            var bestCompetitor = filteredCompetitors.OrderBy(p => p.Price).FirstOrDefault();
+
+        //            decimal? marketAveragePrice = null;
+
+        //            decimal? marketPriceIndex = null;
+
+        //            string marketBucket = "market-neutral";
+
+        //            var competitorPricesOnly = filteredCompetitors
+        //                .Where(x => x.Price > 0)
+        //                .Select(x => x.Price)
+        //                .ToList();
+
+        //            if (competitorPricesOnly.Count > 0)
+        //            {
+
+        //                marketAveragePrice = CalculateMedian(competitorPricesOnly);
+
+        //                if (marketAveragePrice.HasValue && myOffer != null && myOffer.Price > 0 && marketAveragePrice.Value > 0)
+        //                {
+
+        //                    decimal diff = myOffer.Price - marketAveragePrice.Value;
+        //                    marketPriceIndex = Math.Round((diff / marketAveragePrice.Value) * 100, 2);
+
+        //                    if (marketPriceIndex < -15)
+        //                        marketBucket = "market-deep-discount";
+        //                    else if (marketPriceIndex >= -15 && marketPriceIndex < -2)
+        //                        marketBucket = "market-below-average";
+        //                    else if (marketPriceIndex >= -2 && marketPriceIndex <= 2)
+        //                        marketBucket = "market-average";
+        //                    else if (marketPriceIndex > 2 && marketPriceIndex <= 15)
+        //                        marketBucket = "market-above-average";
+        //                    else
+        //                        marketBucket = "market-overpriced";
+        //                }
+        //            }
+        //            else if (myOffer != null)
+        //            {
+        //                marketBucket = "market-solo";
+        //            }
+
+        //            var allMyOffersInGroup = g.Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase));
+        //            var myOfferIdsList = allMyOffersInGroup.Select(o => o.IdAllegro).ToList();
+
+        //            if (targetOfferId.HasValue && !myOfferIdsList.Contains(targetOfferId.Value))
+        //            {
+        //                myOfferIdsList.Add(targetOfferId.Value);
+        //            }
+
+        //            var myOffersGroupKey = string.Join(",", myOfferIdsList.OrderBy(id => id));
+
+        //            var totalPopularity = g.Sum(p => p.Popularity ?? 0);
+        //            var myPopularity = g.Where(p => p.SellerName.Equals(store.StoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+        //                .Sum(p => p.Popularity ?? 0);
+
+        //            var marketSharePercentage = (totalPopularity > 0) ? Math.Round(((decimal)myPopularity / totalPopularity) * 100, 2) : 0;
+
+        //            var visibleSellers = new HashSet<string>(filteredCompetitors.Select(c => c.SellerName));
+        //            if (myOffer != null)
+        //            {
+        //                visibleSellers.Add(myOffer.SellerName);
+        //            }
+        //            var visibleOfferCount = filteredCompetitors.Count() + (myOffer != null ? 1 : 0);
+
+        //            var allVisibleOffers = new List<AllegroPriceHistory>(filteredCompetitors);
+        //            if (myOffer != null)
+        //            {
+        //                allVisibleOffers.Add(myOffer);
+        //            }
+
+        //            var sortedOffers = allVisibleOffers.OrderBy(p => p.Price).ToList();
+
+        //            string myPricePosition = null;
+        //            if (myOffer != null)
+        //            {
+
+        //                int zeroBasedIndex = sortedOffers.FindIndex(p => p.IdAllegro == myOffer.IdAllegro);
+
+        //                if (zeroBasedIndex != -1)
+        //                {
+        //                    int myRank = zeroBasedIndex + 1;
+        //                    myPricePosition = $"{myRank}/{visibleOfferCount}";
+        //                }
+        //            }
+
+        //            var extendedInfo = extendedInfoDictionary.GetValueOrDefault(product.AllegroProductId);
+        //            var committed = committedLookup.GetValueOrDefault(product.AllegroProductId);
+        //            var autoRule = automationLookup.GetValueOrDefault(product.AllegroProductId);
+
+        //            bool isAutomationPaused = false;
+        //            if (autoRule != null && autoRule.IsActive && autoRule.IsTimeLimited)
+        //            {
+        //                var today = DateTime.Today;
+
+        //                bool isScheduledForFuture = autoRule.StartDate.HasValue && today < autoRule.StartDate.Value.Date;
+        //                bool isExpiredInPast = autoRule.EndDate.HasValue && today > autoRule.EndDate.Value.Date;
+
+        //                if (isScheduledForFuture || isExpiredInPast)
+        //                {
+        //                    isAutomationPaused = true;
+        //                }
+        //            }
+        //            return new
+        //            {
+        //                ProductId = product.AllegroProductId,
+        //                ProductName = product.AllegroProductName,
+        //                Producer = product.Producer,
+        //                MyPrice = myOffer?.Price,
+        //                LowestPrice = bestCompetitor?.Price,
+        //                StoreName = bestCompetitor?.SellerName,
+        //                StoreCount = visibleSellers.Count,
+        //                TotalOfferCount = visibleOfferCount,
+        //                MyPricePosition = myPricePosition,
+        //                TotalPopularity = totalPopularity,
+        //                MyTotalPopularity = myPopularity,
+        //                MarketSharePercentage = marketSharePercentage,
+        //                DeliveryTime = bestCompetitor?.DeliveryTime,
+        //                IsSuperSeller = bestCompetitor?.SuperSeller ?? false,
+        //                IsSmart = bestCompetitor?.Smart ?? false,
+        //                IsBestPriceGuarantee = bestCompetitor?.IsBestPriceGuarantee ?? false,
+        //                IsTopOffer = bestCompetitor?.TopOffer ?? false,
+        //                IsSuperPrice = bestCompetitor?.SuperPrice ?? false,
+        //                IsPromoted = bestCompetitor?.Promoted ?? false,
+        //                IsSponsored = bestCompetitor?.Sponsored ?? false,
+        //                MyIdAllegro = myOffer?.IdAllegro ?? (targetOfferId.HasValue ? targetOfferId : null),
+        //                MyOffersGroupKey = myOffersGroupKey,
+        //                MyDeliveryTime = myOffer?.DeliveryTime,
+        //                MyIsSuperSeller = myOffer?.SuperSeller ?? false,
+        //                IsNew = product.AddedDate >= sevenDaysAgo,
+        //                MyIsSmart = myOffer?.Smart ?? false,
+        //                MyIsBestPriceGuarantee = myOffer?.IsBestPriceGuarantee ?? false,
+        //                MyIsTopOffer = myOffer?.TopOffer ?? false,
+        //                MyIsSuperPrice = myOffer?.SuperPrice ?? false,
+        //                MyIsPromoted = myOffer?.Promoted ?? false,
+        //                MyIsSponsored = myOffer?.Sponsored ?? false,
+        //                IsRejected = product.IsRejected,
+        //                OnlyMe = (myOffer != null && !filteredCompetitors.Any()),
+        //                Savings = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price) ? bestCompetitor.Price - myOffer.Price : (decimal?)null,
+        //                PriceDifference = (myOffer != null && bestCompetitor != null) ? myOffer.Price - bestCompetitor.Price : (decimal?)null,
+
+        //                PercentageDifference = (myOffer != null && bestCompetitor != null && bestCompetitor.Price > 0) ? Math.Round(((myOffer.Price - bestCompetitor.Price) / bestCompetitor.Price) * 100, 2) : (decimal?)null,
+
+        //                IsUniqueBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price < bestCompetitor.Price),
+        //                IsSharedBestPrice = (myOffer != null && bestCompetitor != null && myOffer.Price == bestCompetitor.Price),
+        //                FlagIds = productFlagsDictionary.GetValueOrDefault(product.AllegroProductId, new List<int>()),
+
+        //                Ean = product.AllegroEan,
+        //                AllegroSku = product.AllegroSku,
+        //                ExternalId = (int?)null,
+
+        //                MarginPrice = product.AllegroMarginPrice,
+
+        //                MarketAveragePrice = marketAveragePrice,
+        //                MarketPriceIndex = marketPriceIndex,
+        //                MarketBucket = marketBucket,
+
+        //                ImgUrl = (string)null,
+        //                ApiAllegroPrice = extendedInfo?.ApiAllegroPrice,
+        //                ApiAllegroPriceFromUser = extendedInfo?.ApiAllegroPriceFromUser,
+        //                ApiAllegroCommission = extendedInfo?.ApiAllegroCommission,
+        //                AnyPromoActive = extendedInfo?.AnyPromoActive,
+        //                IsSubsidyActive = extendedInfo?.IsSubsidyActive,
+        //                AutomationRuleName = autoRule?.RuleName,
+        //                AutomationRuleColor = autoRule?.RuleColor,
+        //                IsAutomationActive = autoRule?.IsActive,
+        //                AutomationRuleId = autoRule?.RuleId,
+        //                IsAutomationPaused = isAutomationPaused,
+        //                Committed = committed == null ? null : new
+        //                {
+
+        //                    NewPrice = committed.PriceAfter_Verified ?? committed.PriceAfter_Simulated,
+
+        //                    NewCommission = committed.CommissionAfter_Verified ?? (committed.IncludeCommissionInMargin ? (decimal?)null : null),
+
+        //                    NewPosition = committed.RankingAfter_Simulated
+        //                }
+        //            };
+        //        }).Cast<object>().ToList();
+
+        //    // ── Produkty aktywne, ale bez historii cen w ostatnim scrapie ──
+        //    var coveredProductIds = new HashSet<int>(
+        //        priceData.Select(p => p.AllegroProductId).Distinct());
+
+        //    var missingProducts = allScrapableProducts
+        //        .Where(p => !coveredProductIds.Contains(p.AllegroProductId))
+        //        .ToList();
+
+        //    if (missingProducts.Any())
+        //    {
+        //        var missingEntries = missingProducts.Select(product =>
+        //        {
+        //            long? targetOfferId = null;
+        //            if (long.TryParse(product.IdOnAllegro, out var pid))
+        //                targetOfferId = pid;
+
+        //            var autoRule = automationLookup.GetValueOrDefault(product.AllegroProductId);
+        //            bool isAutoPaused = false;
+        //            if (autoRule != null && autoRule.IsActive && autoRule.IsTimeLimited)
+        //            {
+        //                var today = DateTime.Today;
+        //                if ((autoRule.StartDate.HasValue && today < autoRule.StartDate.Value.Date) ||
+        //                    (autoRule.EndDate.HasValue && today > autoRule.EndDate.Value.Date))
+        //                    isAutoPaused = true;
+        //            }
+
+        //            return (object)new
+        //            {
+        //                ProductId = product.AllegroProductId,
+        //                ProductName = product.AllegroProductName,
+        //                Producer = product.Producer,
+        //                MyPrice = (decimal?)null,
+        //                LowestPrice = (decimal?)null,
+        //                StoreName = (string)null,
+        //                StoreCount = 0,
+        //                TotalOfferCount = 0,
+        //                MyPricePosition = (string)null,
+        //                TotalPopularity = 0,
+        //                MyTotalPopularity = 0,
+        //                MarketSharePercentage = 0m,
+        //                DeliveryTime = (int?)null,
+        //                IsSuperSeller = false,
+        //                IsSmart = false,
+        //                IsBestPriceGuarantee = false,
+        //                IsTopOffer = false,
+        //                IsSuperPrice = false,
+        //                IsPromoted = false,
+        //                IsSponsored = false,
+        //                MyIdAllegro = targetOfferId,
+        //                MyOffersGroupKey = targetOfferId.HasValue ? targetOfferId.Value.ToString() : "",
+        //                MyDeliveryTime = (int?)null,
+        //                MyIsSuperSeller = false,
+        //                IsNew = product.AddedDate >= sevenDaysAgo,
+        //                MyIsSmart = false,
+        //                MyIsBestPriceGuarantee = false,
+        //                MyIsTopOffer = false,
+        //                MyIsSuperPrice = false,
+        //                MyIsPromoted = false,
+        //                MyIsSponsored = false,
+        //                IsRejected = product.IsRejected,
+        //                OnlyMe = false,
+        //                Savings = (decimal?)null,
+        //                PriceDifference = (decimal?)null,
+        //                PercentageDifference = (decimal?)null,
+        //                IsUniqueBestPrice = false,
+        //                IsSharedBestPrice = false,
+        //                FlagIds = productFlagsDictionary.GetValueOrDefault(product.AllegroProductId, new List<int>()),
+        //                Ean = product.AllegroEan,
+        //                AllegroSku = product.AllegroSku,
+        //                ExternalId = (int?)null,
+        //                MarginPrice = product.AllegroMarginPrice,
+        //                MarketAveragePrice = (decimal?)null,
+        //                MarketPriceIndex = (decimal?)null,
+        //                MarketBucket = "market-neutral",
+        //                ImgUrl = (string)null,
+        //                ApiAllegroPrice = (decimal?)null,
+        //                ApiAllegroPriceFromUser = (decimal?)null,
+        //                ApiAllegroCommission = (decimal?)null,
+        //                AnyPromoActive = (bool?)null,
+        //                IsSubsidyActive = (bool?)null,
+        //                AutomationRuleName = autoRule?.RuleName,
+        //                AutomationRuleColor = autoRule?.RuleColor,
+        //                IsAutomationActive = autoRule?.IsActive,
+        //                AutomationRuleId = autoRule?.RuleId,
+        //                IsAutomationPaused = isAutoPaused,
+        //                Committed = (object)null
+        //            };
+        //        }).ToList();
+
+        //        groupedData.AddRange(missingEntries);
+        //    }
+
+        //    return Json(new
+        //    {
+        //        myStoreName = store.StoreNameAllegro,
+        //        prices = groupedData,
+        //        priceCount = groupedData.Count,
+        //        setPrice1 = priceSettings?.AllegroSetPrice1 ?? 2.00m,
+        //        setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m,
+        //        stepPrice = priceSettings?.AllegroPriceStep ?? 2.00m,
+        //        usePriceDifference = priceSettings?.AllegroUsePriceDiff ?? true,
+        //        allegroPriceIndexTarget = priceSettings?.AllegroPriceIndexTargetPercent ?? 100.00m,
+        //        presetName = activePresetName ?? "PriceSafari",
+        //        latestScrapId = latestScrap?.Id,
+        //        allegroIdentifierForSimulation = priceSettings?.AllegroIdentifierForSimulation ?? "EAN",
+        //        allegroUseMarginForSimulation = priceSettings?.AllegroUseMarginForSimulation ?? true,
+        //        allegroEnforceMinimalMargin = priceSettings?.AllegroEnforceMinimalMargin ?? true,
+        //        allegroMinimalMarginPercent = priceSettings?.AllegroMinimalMarginPercent ?? 0.00m,
+        //        allegroIncludeCommisionInPriceChange = priceSettings?.AllegroIncludeCommisionInPriceChange ?? false,
+
+        //        allegroChangePriceForBagdeSuperPrice = priceSettings?.AllegroChangePriceForBagdeSuperPrice ?? false,
+        //        allegroChangePriceForBagdeTopOffer = priceSettings?.AllegroChangePriceForBagdeTopOffer ?? false,
+        //        allegroChangePriceForBagdeBestPriceGuarantee = priceSettings?.AllegroChangePriceForBagdeBestPriceGuarantee ?? false,
+        //        allegroChangePriceForBagdeInCampaign = priceSettings?.AllegroChangePriceForBagdeInCampaign ?? false
+
+        //    });
+        //}
 
 
 
