@@ -4,7 +4,7 @@
     var storeId = ViewBag.StoreId;
 
     var detailAction = ViewBag.DetailAction as string ?? "CompetitorPrices";
-   
+
     var scrapHistoryUrl = ViewBag.ScrapHistoryUrl ?? Url.Action("GetScrapHistoryIds", "Competitors");
     var pricesUrl = ViewBag.PricesUrl ?? Url.Action("GetCompetitorPrices", "Competitors");
 }
@@ -16,32 +16,81 @@
 <style>
     .competitorsBarBox {
         display: flex;
-        width: 534px;
+        width: 100%;
+        max-width: 534px;
+        height: 24px;
+        border-radius: 6px;
+        overflow: hidden;
         background: #F4F4F4;
-        justify-content: center;
-        align-content: center;
-        height: 48px;
-        border-radius: 8px;
+        position: relative;
     }
 
-    canvas[id^="chart-"] {
-        max-width: 500px;
-        height: 48px;
+    .css-bar-seg {
+        height: 100%;
+        min-width: 0;
+        transition: width 0.3s ease;
     }
+
+    .bar-lower {
+        background: rgba(0, 145, 123, 0.85);
+    }
+
+    .bar-same {
+        background: rgba(117, 152, 112, 0.85);
+    }
+
+    .bar-higher {
+        background: rgba(171, 37, 32, 0.85);
+    }
+
+    /* ── Tooltip ── */
+    .bar-tooltip {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        background: #222;
+        color: #fff;
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-size: 13px;
+        line-height: 1.6;
+        pointer-events: none;
+        white-space: nowrap;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+
+        .bar-tooltip .tt-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bar-tooltip .tt-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .bar-tooltip .tt-value {
+            margin-left: auto;
+            font-weight: 600;
+            padding-left: 12px;
+        }
 
     #competitors-table tbody tr {
         cursor: pointer;
     }
 </style>
 
+<script>const STORE_ID = @storeId;</script>
+
 <div class="Vert">
     <div class="Page-Box">
         <div class="price-box-space">
             <div class="Order-Container-Title">
                 Konkurenci @ViewBag.StoreName
-                
             </div>
-
             <div>
                 <input type="text" id="storeSearch" placeholder="Wyszukaj sklep" />
             </div>
@@ -63,14 +112,11 @@
                 <tbody>
                     @foreach (var competitor in Model)
                     {
-                       
                         <tr data-url="@Url.Action(detailAction, "Competitors", new { storeId = storeId, competitorStoreName = competitor.StoreName })">
                             <td class="competitor-name">
-                               
                                 @{
                                     string googleIcon = "<img src=\"/images/GoogleShopping.png\" alt=\"Google Icon\" style=\"width:17px; height:17px; margin-left: 6px; vertical-align: middle;\">";
                                     string ceneoIcon = "<img src=\"/images/Ceneo.png\" alt=\"Ceneo Icon\" style=\"width:17px; height:17px; margin-left: 4px; vertical-align: middle;\">";
-                                 
                                     string allegroIcon = "<img src=\"/images/AllegroIcon.png\" alt=\"Allegro Icon\" style=\"width:17px; height:17px; margin-left: 4px; vertical-align: middle;\">";
 
                                     if (competitor.DataSourceDescription == "Google")
@@ -86,7 +132,6 @@
                                         @Html.Raw(googleIcon)
                                         @Html.Raw(ceneoIcon)
                                     }
-                                    
                                     else if (competitor.DataSourceDescription == "Allegro")
                                     {
                                         @Html.Raw(allegroIcon)
@@ -96,12 +141,20 @@
                             </td>
                             <td>@competitor.CommonProductsCount</td>
                             <td>
-                                <div class="competitorsBarBox">
-                                    <canvas id="chart-@competitor.StoreName"
-                                            data-same="@competitor.SamePriceCount"
-                                            data-higher="@competitor.HigherPriceCount"
-                                            data-lower="@competitor.LowerPriceCount"
-                                            data-total="@competitor.CommonProductsCount"></canvas>
+                                @{
+                                    int total = (int)competitor.CommonProductsCount;
+                                    double pctLower = total > 0 ? (double)competitor.HigherPriceCount / total * 100 : 0;
+                                    double pctSame = total > 0 ? (double)competitor.SamePriceCount / total * 100 : 0;
+                                    double pctHigher = total > 0 ? (double)competitor.LowerPriceCount / total * 100 : 0;
+                                }
+                                <div class="competitorsBarBox"
+                                     data-lower="@competitor.HigherPriceCount"
+                                     data-same="@competitor.SamePriceCount"
+                                     data-higher="@competitor.LowerPriceCount"
+                                     data-total="@total">
+                                    <div class="css-bar-seg bar-lower" style="width:@(pctLower.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                                    <div class="css-bar-seg bar-same" style="width:@(pctSame.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                                    <div class="css-bar-seg bar-higher" style="width:@(pctHigher.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%"></div>
                                 </div>
                             </td>
                         </tr>
@@ -111,5 +164,8 @@
         </div>
     </div>
 </div>
+
+<!-- Tooltip (jeden globalny, przesuwany za kursorem) -->
+<div class="bar-tooltip" id="barTooltip"></div>
 
 <script src="~/js/member/Competitors.js"></script>
