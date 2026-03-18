@@ -1011,7 +1011,7 @@
          function filterRows() {
                 var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
                     .map(function (cb) { return cb.getAttribute('data-status'); });
-                var searchTerm = searchInput.value.toLowerCase();
+                var searchTerm = searchInput.value.trim().toLowerCase();
                 var filterNewOnly = document.getElementById('filter-new').checked;
 
                 var result = allProducts.filter(function (p) {

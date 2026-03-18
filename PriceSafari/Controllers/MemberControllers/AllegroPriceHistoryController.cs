@@ -150,6 +150,17 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(result);
         }
 
+
+
+
+
+
+
+
+
+
+
+
         [HttpGet]
         public async Task<IActionResult> GetAllegroPrices(int? storeId)
         {
@@ -602,6 +613,18 @@ namespace PriceSafari.Controllers.MemberControllers
 
             });
         }
+
+
+
+
+
+
+
+
+
+
+
+
 
         public class PriceSettingsViewModel
         {
