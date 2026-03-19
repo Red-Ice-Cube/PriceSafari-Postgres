@@ -1447,40 +1447,28 @@
 
                             string limitType = "none";
 
-                            if (item.Status == AutomationCalculationStatus.PriceLimited && item.SuggestedPrice.HasValue)
+                            if (!string.IsNullOrEmpty(item.BlockReason))
                             {
-                                if (item.MinPriceLimit.HasValue &&
-                                Math.Abs(item.SuggestedPrice.Value - item.MinPriceLimit.Value) < 0.01m)
+                                if (item.BlockReason.Contains("(Min)") || item.BlockReason == "Ochrona Ceny")
                                 {
                                     limitType = "floor";
                                 }
-                                else if (item.MaxPriceLimit.HasValue &&
-                                Math.Abs(item.SuggestedPrice.Value - item.MaxPriceLimit.Value) < 0.01m)
+                                else if (item.BlockReason.Contains("(Max)"))
                                 {
                                     limitType = "ceiling";
                                 }
-                                else
-                                {
-                                    if (item.MinPriceLimit.HasValue && item.MaxPriceLimit.HasValue)
-                                    {
-                                        decimal distToMin = Math.Abs(item.SuggestedPrice.Value - item.MinPriceLimit.Value);
-                                        decimal distToMax = Math.Abs(item.SuggestedPrice.Value - item.MaxPriceLimit.Value);
-                                        limitType = distToMin < distToMax ? "floor" : "ceiling";
-                                    }
-                                    else if (item.MinPriceLimit.HasValue)
-                                    {
-                                        limitType = "floor";
-                                    }
-                                    else if (item.MaxPriceLimit.HasValue)
-                                    {
-                                        limitType = "ceiling";
-                                    }
-                                }
                             }
 
-                            else if (item.Status == AutomationCalculationStatus.Blocked && item.BlockReason != null && item.BlockReason.StartsWith("Blokada Ceny"))
+                            if (limitType == "none" && item.Status == AutomationCalculationStatus.PriceLimited && item.SuggestedPrice.HasValue)
                             {
-                                limitType = item.BlockReason.Contains("Max") ? "ceiling" : "floor";
+                                if (item.MinPriceLimit.HasValue && Math.Abs(item.SuggestedPrice.Value - item.MinPriceLimit.Value) < 0.01m)
+                                {
+                                    limitType = "floor";
+                                }
+                                else if (item.MaxPriceLimit.HasValue && Math.Abs(item.SuggestedPrice.Value - item.MaxPriceLimit.Value) < 0.01m)
+                                {
+                                    limitType = "ceiling";
+                                }
                             }
 
                             bool isMissingOwnOffer = item.IsMissingPlatformWarning ||
@@ -1998,20 +1986,23 @@
                                                     }
                                                     break;
                                                 case AutomationCalculationStatus.Blocked:
-                                                    @if (item.BlockReason != null && item.BlockReason.Contains("Narzutu") && item.BlockReason.Contains("Min"))
+                                                    @if (item.BlockReason != null && (item.BlockReason.Contains("(Min)") || item.BlockReason == "Ochrona Ceny" || (item.BlockReason.Contains("Narzutu") && item.BlockReason.Contains("Min"))))
                                                     {
+                                                
                                                         <div class="status-badge status-limited">
                                                             <i class="fas fa-ban mr-2"></i> @item.BlockReason
                                                         </div>
                                                     }
-                                                    else if (item.BlockReason != null && item.BlockReason.Contains("Narzutu") && item.BlockReason.Contains("Max"))
+                                                    else if (item.BlockReason != null && (item.BlockReason.Contains("(Max)") || (item.BlockReason.Contains("Narzutu") && item.BlockReason.Contains("Max"))))
                                                     {
+                                                       
                                                         <div class="status-badge status-limited-max">
                                                             <i class="fas fa-ban mr-2"></i> @item.BlockReason
                                                         </div>
                                                     }
                                                     else
                                                     {
+                                                      
                                                         <div class="status-badge status-blocked">
                                                             <i class="fas fa-times mr-2"></i> @item.BlockReason
                                                         </div>
