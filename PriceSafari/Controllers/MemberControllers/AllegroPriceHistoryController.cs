@@ -1661,7 +1661,14 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(g => g.First())
                 .ToList();
 
+            var scrapIdsWithData = new HashSet<int>(
+                priceHistories.Select(ph => ph.AllegroScrapeHistoryId).Distinct());
 
+            lastScraps = lastScraps
+                .Where(sh => scrapIdsWithData.Contains(sh.Id))
+                .ToList();
+
+            scrapIds = lastScraps.Select(sh => sh.Id).ToList();
 
             // ═══ FIX: Znajdź TYLKO nasze oferty (IdAllegro) które występują w tym katalogu ═══
             var ourOfferIdsInCatalog = priceHistories

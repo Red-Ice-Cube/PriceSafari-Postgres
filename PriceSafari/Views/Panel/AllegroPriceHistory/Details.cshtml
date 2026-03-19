@@ -896,11 +896,55 @@
             const validCount = data.filter(d => d.value != null).length;
             return { name: 'Wyświetlenia łącznie', _offerId: null, type: 'line', data: data, smooth: 0.3, symbol: 'circle', symbolSize: validCount <= 1 ? 10 : 6, showSymbol: validCount <= 1, connectNulls: false, lineStyle: { color: visitsMainColor, width: 2.5 }, itemStyle: { color: visitsMainColor }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(124, 77, 255, 0.25)' }, { offset: 1, color: 'rgba(124, 77, 255, 0.02)' }]) }, emphasis: { focus: 'series', lineStyle: { width: 3 } }, z: 5 };
         }
+        function calculateInterpolatedTotalSales(timelineData) {
+            const dateCount = timelineData.length;
+   
+            const instances = new Map();
+            timelineData.forEach((day, dateIdx) => {
+                (day.offers || []).forEach(offer => {
+                    const key = `${offer.storeName}|${offer.idAllegro}`;
+                    if (!instances.has(key)) instances.set(key, []);
+                    instances.get(key).push({ dateIdx, sales: offer.sales || 0 });
+                });
+            });
 
+            const totals = new Array(dateCount).fill(0);
+
+            instances.forEach((points) => {
+                points.sort((a, b) => a.dateIdx - b.dateIdx);
+                const salesByDate = new Array(dateCount).fill(null);
+                points.forEach(p => { salesByDate[p.dateIdx] = p.sales; });
+
+             
+                for (let i = 0; i < points.length - 1; i++) {
+                    const si = points[i].dateIdx;
+                    const ei = points[i + 1].dateIdx;
+                    if (ei - si <= 1) continue; 
+                    const sv = points[i].sales;
+                    const ev = points[i + 1].sales;
+                    for (let j = si + 1; j < ei; j++) {
+                        const ratio = (j - si) / (ei - si);
+                        salesByDate[j] = Math.round(sv + (ev - sv) * ratio);
+                    }
+                }
+             
+
+                for (let i = 0; i < dateCount; i++) {
+                    if (salesByDate[i] !== null) totals[i] += salesByDate[i];
+                }
+            });
+
+            return totals;
+        }
         function drawChart(timelineData, dataType) {
         const { allDates, dataByInstance, allInstances } = processData(timelineData, dataType);
         let seriesData = prepareSeries(dataByInstance, allDates, allInstances, dataType);
-        if (dataType === 'sales') { seriesData.unshift({ name: 'Sprzedaż w katalogu', type: 'line', data: timelineData.map(d => ({ value: d.totalSales })), smooth: 0.3, lineStyle: { color: 'rgba(34, 34, 34, 0.9)', width: 3, type: 'dashed' }, itemStyle: { color: '#222' }, symbol: 'none', z: 10, silent: true }); }
+        if (dataType === 'sales') {
+        const interpolatedTotals = calculateInterpolatedTotalSales(timelineData);
+        seriesData.unshift({
+        name: 'Sprzedaż w katalogu',
+        type: 'line',
+        data: interpolatedTotals.map(v => ({ value: v })),  smooth: 0.3, lineStyle: { color: 'rgba(34, 34, 34, 0.9)', width: 3, type: 'dashed' }, itemStyle: { color: '#222' }, symbol: 'none', z: 10, silent: true }); }
         const { min, max } = recalculateYAxisRangeFromData(seriesData, dataType);
         currentChartOptions = getBaseChartOptions(allDates, min, max, seriesData);
         echartsTrendChart.setOption(currentChartOptions, true);

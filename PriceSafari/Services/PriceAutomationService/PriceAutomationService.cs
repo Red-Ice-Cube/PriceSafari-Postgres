@@ -1226,6 +1226,60 @@ namespace PriceSafari.Services.PriceAutomationService
                 })
                 .ToListAsync();
 
+
+            // === Po deduplikacji allRecords ===
+            allRecords = allRecords
+                .GroupBy(r => new { r.AllegroScrapeHistoryId, r.AllegroProductId, r.IdAllegro })
+                .Select(g => g.First())
+                .ToList();
+
+            // ═══ NOWE: Interpolacja luk per produkt+oferta ═══
+            var scrapIndexMap = scrapHistories
+                .Select((s, idx) => new { s.Id, idx })
+                .ToDictionary(x => x.Id, x => x.idx);
+
+            int scrapCount = scrapHistories.Count;
+
+            var byInstance = allRecords
+                .GroupBy(r => new { r.AllegroProductId, r.IdAllegro, r.SellerName })
+                .ToList();
+
+            foreach (var group in byInstance)
+            {
+                var points = group
+                    .Where(r => scrapIndexMap.ContainsKey(r.AllegroScrapeHistoryId))
+                    .Select(r => new { ScrapIdx = scrapIndexMap[r.AllegroScrapeHistoryId], r.Popularity })
+                    .OrderBy(r => r.ScrapIdx)
+                    .ToList();
+
+                for (int i = 0; i < points.Count - 1; i++)
+                {
+                    int si = points[i].ScrapIdx;
+                    int ei = points[i + 1].ScrapIdx;
+
+                    if (ei - si <= 1) continue;
+
+                    long sv = points[i].Popularity ?? 0;
+                    long ev = points[i + 1].Popularity ?? 0;
+
+                    for (int j = si + 1; j < ei; j++)
+                    {
+                        double ratio = (double)(j - si) / (ei - si);
+                        int interpolated = (int)Math.Round(sv + (ev - sv) * ratio);
+
+                        allRecords.Add(new
+                        {
+                            AllegroScrapeHistoryId = scrapHistories[j].Id,
+                            AllegroProductId = group.Key.AllegroProductId,
+                            IdAllegro = group.Key.IdAllegro,
+                            SellerName = group.Key.SellerName,
+                            Popularity = (int?)interpolated
+                        });
+                    }
+                }
+            }
+            // ═══════════════════════════════════════════════════
+
             allRecords = allRecords
                 .GroupBy(r => new { r.AllegroScrapeHistoryId, r.AllegroProductId, r.IdAllegro })
                 .Select(g => g.First())
@@ -1558,27 +1612,19 @@ namespace PriceSafari.Services.PriceAutomationService
     {
         public List<string> Dates { get; set; } = new();
 
-        // <summary>Bezwzględnie najtańsi — tylko my na pozycji 1</summary>
-
         public List<int> Top1Solo { get; set; } = new();
-
-        // <summary>Najtańsi ale ex aequo — nasza cena = najlepsza, ale ktoś jeszcze ją ma</summary>
 
         public List<int> Top1ExAequo { get; set; } = new();
 
-        // <summary>Pozycja 2–3</summary>
 
         public List<int> Position2to3 { get; set; } = new();
 
-        // <summary>Pozycja 4–5</summary>
 
         public List<int> Position4to5 { get; set; } = new();
 
-        // <summary>Pozycja 6–10</summary>
 
         public List<int> Position6to10 { get; set; } = new();
 
-        // <summary>Pozycja 11+</summary>
 
         public List<int> Position11Plus { get; set; } = new();
 
