@@ -1136,10 +1136,11 @@ namespace PriceSafari.Services.PriceAutomationService
                     h.IsBestPriceGuarantee
                 })
                 .ToListAsync();
+
             allBasicBadges = allBasicBadges
-            .GroupBy(b => new { b.AllegroScrapeHistoryId, b.AllegroProductId })
-            .Select(g => g.First())
-            .ToList();
+                .GroupBy(b => new { b.AllegroScrapeHistoryId, b.AllegroProductId })
+                .Select(g => g.First())
+                .ToList();
 
             var allExtendedBadges = await _context.AllegroPriceHistoryExtendedInfos
                 .Where(h => scrapIds.Contains(h.ScrapHistoryId)
@@ -1152,6 +1153,78 @@ namespace PriceSafari.Services.PriceAutomationService
                     h.IsSubsidyActive
                 })
                 .ToListAsync();
+
+            // ═══ Interpolacja luk — carry forward odznak basic ═══
+            var badgeScrapIndexMap = scrapHistories
+                .Select((s, idx) => new { s.Id, idx })
+                .ToDictionary(x => x.Id, x => x.idx);
+
+            var badgeByProduct = allBasicBadges
+                .GroupBy(b => b.AllegroProductId)
+                .ToList();
+
+            foreach (var group in badgeByProduct)
+            {
+                var points = group
+                    .Where(b => badgeScrapIndexMap.ContainsKey(b.AllegroScrapeHistoryId))
+                    .Select(b => new { ScrapIdx = badgeScrapIndexMap[b.AllegroScrapeHistoryId], Record = b })
+                    .OrderBy(b => b.ScrapIdx)
+                    .ToList();
+
+                for (int i = 0; i < points.Count - 1; i++)
+                {
+                    int si = points[i].ScrapIdx;
+                    int ei = points[i + 1].ScrapIdx;
+                    if (ei - si <= 1) continue;
+
+                    var src = points[i].Record;
+                    for (int j = si + 1; j < ei; j++)
+                    {
+                        allBasicBadges.Add(new
+                        {
+                            AllegroScrapeHistoryId = scrapHistories[j].Id,
+                            AllegroProductId = group.Key,
+                            TopOffer = src.TopOffer,
+                            SuperPrice = src.SuperPrice,
+                            IsBestPriceGuarantee = src.IsBestPriceGuarantee
+                        });
+                    }
+                }
+            }
+
+            // ═══ Interpolacja luk — carry forward odznak extended ═══
+            var extByProduct = allExtendedBadges
+                .GroupBy(b => b.AllegroProductId)
+                .ToList();
+
+            foreach (var group in extByProduct)
+            {
+                var points = group
+                    .Where(b => badgeScrapIndexMap.ContainsKey(b.ScrapHistoryId))
+                    .Select(b => new { ScrapIdx = badgeScrapIndexMap[b.ScrapHistoryId], Record = b })
+                    .OrderBy(b => b.ScrapIdx)
+                    .ToList();
+
+                for (int i = 0; i < points.Count - 1; i++)
+                {
+                    int si = points[i].ScrapIdx;
+                    int ei = points[i + 1].ScrapIdx;
+                    if (ei - si <= 1) continue;
+
+                    var src = points[i].Record;
+                    for (int j = si + 1; j < ei; j++)
+                    {
+                        allExtendedBadges.Add(new
+                        {
+                            ScrapHistoryId = scrapHistories[j].Id,
+                            AllegroProductId = group.Key,
+                            AnyPromoActive = src.AnyPromoActive,
+                            IsSubsidyActive = src.IsSubsidyActive
+                        });
+                    }
+                }
+            }
+            // ═══════════════════════════════════════════════════════
 
             var model = new AutomationBadgeHistoryViewModel();
             model.TotalProductsInRule = currentProductIds.Count;
@@ -1478,7 +1551,7 @@ namespace PriceSafari.Services.PriceAutomationService
                 {
                     h.AllegroScrapeHistoryId,
                     h.AllegroProductId,
-                    h.IdAllegro,           // ← dodaj
+                    h.IdAllegro,
                     h.SellerName,
                     h.Price
                 })
@@ -1489,6 +1562,45 @@ namespace PriceSafari.Services.PriceAutomationService
                 .GroupBy(r => new { r.AllegroScrapeHistoryId, r.AllegroProductId, r.IdAllegro })
                 .Select(g => g.First())
                 .ToList();
+
+            // ═══ Interpolacja luk — carry forward ceny ═══
+            var posScrapIndexMap = scrapHistories
+                .Select((s, idx) => new { s.Id, idx })
+                .ToDictionary(x => x.Id, x => x.idx);
+
+            var posByInstance = allRecords
+                .GroupBy(r => new { r.AllegroProductId, r.IdAllegro, r.SellerName })
+                .ToList();
+
+            foreach (var group in posByInstance)
+            {
+                var points = group
+                    .Where(r => posScrapIndexMap.ContainsKey(r.AllegroScrapeHistoryId))
+                    .Select(r => new { ScrapIdx = posScrapIndexMap[r.AllegroScrapeHistoryId], Record = r })
+                    .OrderBy(r => r.ScrapIdx)
+                    .ToList();
+
+                for (int i = 0; i < points.Count - 1; i++)
+                {
+                    int si = points[i].ScrapIdx;
+                    int ei = points[i + 1].ScrapIdx;
+                    if (ei - si <= 1) continue;
+
+                    var src = points[i].Record;
+                    for (int j = si + 1; j < ei; j++)
+                    {
+                        allRecords.Add(new
+                        {
+                            AllegroScrapeHistoryId = scrapHistories[j].Id,
+                            AllegroProductId = group.Key.AllegroProductId,
+                            IdAllegro = group.Key.IdAllegro,
+                            SellerName = group.Key.SellerName,
+                            Price = src.Price
+                        });
+                    }
+                }
+            }
+            // ═══════════════════════════════════════════════
 
             var model = new AutomationPricePositionHistoryViewModel();
             model.TotalProductsInRule = currentProductIds.Count;
@@ -1555,6 +1667,7 @@ namespace PriceSafari.Services.PriceAutomationService
 
             return model;
         }
+
 
         private async Task<List<FlagViewModel>> GetStoreFlagsAsync(int storeId, bool isMarketplace)
         {
