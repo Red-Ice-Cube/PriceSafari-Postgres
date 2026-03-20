@@ -1002,6 +1002,21 @@ namespace PriceSafari.Services.PriceAutomationService
                 row.IsGradualDecreaseApplied = false;
                 row.IsGradualIncreaseApplied = false;
             }
+            if (wasLimitedByMin && suggested > basePrice && rule.EnableGradualIncrease)
+            {
+                decimal maxRise = rule.IsGradualIncreasePercent
+                    ? basePrice * (rule.GradualIncreaseValue / 100m)
+                    : rule.GradualIncreaseValue;
+
+                decimal ceilingByStep = basePrice + maxRise;
+                if (suggested > ceilingByStep)
+                {
+                    suggested = ceilingByStep;
+                    row.IsGradualIncreaseApplied = true;
+                    row.IsMarginWarning = true;
+                    wasLimitedByMin = false;
+                }
+            }
 
             row.SuggestedPrice = Math.Round(suggested, 2);
             decimal finalSuggested = row.SuggestedPrice.Value;
