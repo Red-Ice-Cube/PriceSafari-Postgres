@@ -57,7 +57,6 @@
     }
     else if (schedStart.HasValue && schedEnd.HasValue)
     {
-        // Data końcowa WŁĄCZNIE — porównujemy daty (nie DateTime)
         bool beforeStart = now.Date < schedStart.Value.Date;
         bool afterEnd = now.Date > schedEnd.Value.Date;
 
@@ -978,7 +977,6 @@
             background: #e74a3b;
         }
 
-    /* Triangle marker */
     .time-marker {
         position: absolute;
         top: 8px;
@@ -1035,6 +1033,15 @@
         font-weight: 400;
     }
 
+    .filter-btn[data-filter-key="gradual-decrease"].active {
+        background: #1cc88a;
+        border-color: #1cc88a;
+    }
+
+    .filter-btn[data-filter-key="gradual-increase"].active {
+        background: #1cc88a;
+        border-color: #1cc88a;
+    }
 </style>
 
 <div class="View">
@@ -1067,9 +1074,9 @@
                     </div>
                 </div>
                 
-                <!-- Time scheduling info -->
+           
                 <div class="time-schedule-box">
-                    @* ─── Status label ─── *@
+                
                     <div class="time-status-label @timeStatusClass">
                         <i class="fa-solid @timeStatusIcon" style="font-size: 10px;"></i>
                         @timeStatusLabel
@@ -1077,17 +1084,17 @@
 
                     @if (!isTimeLimited)
                     {
-                        @* Brak ograniczenia — tylko tekst *@
+                   
                         <span class="time-extra-label" style="color: #1cc88a;">Automat działa bez limitu czasu</span>
                     }
                     else if (isDisabled)
                     {
-                        @* Wyłączony — daty nieistotne *@
+                    
                         <span class="time-extra-label">Włącz automat, aby harmonogram zaczął działać</span>
                     }
                     else
                     {
-                        @* ─── Daty ─── *@
+                     
                         @if (schedStart.HasValue || schedEnd.HasValue)
                         {
                             <span class="time-separator">|</span>
@@ -1112,7 +1119,7 @@
                             </div>
                         }
 
-                        @* ─── Pasek + trójkąt (tylko gdy obie daty) ─── *@
+                 
                         @if (schedStart.HasValue && schedEnd.HasValue)
                         {
                             <span class="time-separator">|</span>
@@ -1136,7 +1143,7 @@
                             </div>
                         }
 
-                        @* ─── Extra label ─── *@
+                       
                         @if (!string.IsNullOrEmpty(timeExtraLabel))
                         {
                             <span class="time-separator">|</span>
@@ -1540,6 +1547,8 @@
                                 data-has-margin-warning="@isMarginIssue.ToString().ToLower()"
                                 data-missing-own-offer="@isMissingOwnOffer.ToString().ToLower()"
                                 data-no-competition="@isNoCompetition.ToString().ToLower()"
+                                data-gradual-decrease="@(item.IsGradualDecreaseApplied.ToString().ToLower())"
+                                data-gradual-increase="@(item.IsGradualIncreaseApplied.ToString().ToLower())"
                                 data-flag-ids="@(item.FlagIds != null ? string.Join(",", item.FlagIds) : "")">
                           
                                 <td class="align-middle">
@@ -1847,6 +1856,14 @@
                                                     <i class="fas fa-arrow-down" style="margin-right: 5px; font-weight: 900; font-size: 0.8em;"></i>
                                                     @Math.Abs(item.PriceChange.Value).ToString("F2") PLN
                                                 </span>
+                                                @if (item.IsGradualDecreaseApplied)
+                                                {
+                                                    <span style="color: #1cc88a; cursor: help; font-size: 12px; margin-left: 4px;"
+                                                          data-toggle="tooltip"
+                                                          title="Stopniowa obniżka — cena została ograniczona maksymalnym krokiem obniżki. Docelowa cena jest niższa, ale automat dochodzi do niej stopniowo.">
+                                                        <i class="fas fa-shoe-prints fa-flip-horizontal"></i>
+                                                    </span>
+                                                }
                                             }
                                             else
                                             {
@@ -1854,6 +1871,14 @@
                                                     <i class="fas fa-arrow-up" style="margin-right: 5px; font-weight: 900; font-size: 0.8em;"></i>
                                                     @item.PriceChange.Value.ToString("F2") PLN
                                                 </span>
+                                                @if (item.IsGradualIncreaseApplied)
+                                                {
+                                                    <span style="color: #1cc88a; cursor: help; font-size: 12px; margin-left: 4px;"
+                                                          data-toggle="tooltip"
+                                                          title="Stopniowa podwyżka — cena została ograniczona maksymalnym krokiem podwyżki. Docelowa cena jest wyższa, ale automat dochodzi do niej stopniowo.">
+                                                        <i class="fas fa-shoe-prints"></i>
+                                                    </span>
+                                                }
                                             }
                                         }
                                         else if (item.Status == AutomationCalculationStatus.TargetMaintained)
@@ -1963,9 +1988,24 @@
                                             @switch (item.Status)
                                             {
                                                 case AutomationCalculationStatus.TargetMet:
-                                                    <div class="status-badge status-ok">
-                                                        <i class="fas fa-check mr-2"></i> Cel Osiągnięty
-                                                    </div>
+                                                    @if (item.IsGradualDecreaseApplied)
+                                                    {
+                                                        <div class="status-badge" style="background-color: #1cc88a;">
+                                                            <i class="fas fa-shoe-prints fa-flip-horizontal" style="font-size: 9px;"></i> Stopniowa Obn.
+                                                        </div>
+                                                    }
+                                                    else if (item.IsGradualIncreaseApplied)
+                                                    {
+                                                        <div class="status-badge" style="background-color: #1cc88a;">
+                                                            <i class="fas fa-shoe-prints" style="font-size: 9px;"></i> Stopniowa Pod.
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="status-badge status-ok">
+                                                            <i class="fas fa-check mr-2"></i> Cel Osiągnięty
+                                                        </div>
+                                                    }
                                                     break;
                                                 case AutomationCalculationStatus.TargetMaintained:
                                                     <div class="status-badge status-maintained">
@@ -2013,6 +2053,7 @@
                                                     <span class="badge badge-light border px-3 py-2">Brak danych</span>
                                                     break;
                                             }
+                                          
                                         </div>
                                         <div class="small text-muted ">@Model.StoreName</div>
 
@@ -3340,10 +3381,13 @@
                     filters: [
                         { key: 'increase', label: 'Podwyżki', icon: 'fa-arrow-up', attr: 'data-price-change', value: 'increase' },
                         { key: 'decrease', label: 'Obniżki', icon: 'fa-arrow-down', attr: 'data-price-change', value: 'decrease' },
+                        { key: 'gradual-decrease', label: 'Stopniowa obniżka', icon: 'fa-shoe-prints', attr: 'data-gradual-decrease', value: 'true' },
+                        { key: 'gradual-increase', label: 'Stopniowa podwyżka', icon: 'fa-shoe-prints', attr: 'data-gradual-increase', value: 'true' },
                         { key: 'maintained', label: 'Bez zmian', icon: 'fa-equals', attr: 'data-price-change', value: 'maintained' },
                         { key: 'blocked', label: 'Zablokowane', icon: 'fa-ban', attr: 'data-price-change', value: 'blocked' }
                     ]
                 },
+               
                 {
                     id: 'status',
                     label: 'Status',

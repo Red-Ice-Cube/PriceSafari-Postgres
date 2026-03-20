@@ -886,6 +886,7 @@ namespace PriceSafari.Services.PriceAutomationService
                 if (row.MinPriceLimit.HasValue && basePrice < row.MinPriceLimit.Value)
                 {
                     suggested = row.MinPriceLimit.Value;
+
                     row.SuggestedPrice = Math.Round(suggested, 2);
                     row.PriceChange = Math.Round(row.SuggestedPrice.Value - Math.Round(basePrice, 2), 2);
                     row.Status = AutomationCalculationStatus.PriceLimited;
@@ -961,16 +962,15 @@ namespace PriceSafari.Services.PriceAutomationService
 
                     bool isPriceImprovement = suggested > basePrice;
 
-                    if (isPriceImprovement && rule.SkipIfMarkupLimited)
+                    // Stopniowa podwyżka ma priorytet — nie przeskakuj do min limitu
+                    if (isPriceImprovement && row.IsGradualIncreaseApplied)
+                    {
+                        row.IsMarginWarning = true;
+                    }
+                    else if (isPriceImprovement && rule.SkipIfMarkupLimited)
                     {
 
                         row.IsMarginWarning = true;
-                    }
-                    else if (rule.SkipIfMarkupLimited)
-                    {
-
-                        ApplyBlock(row, "Limit Ceny (Min)");
-                        return;
                     }
                     else
                     {
@@ -996,6 +996,11 @@ namespace PriceSafari.Services.PriceAutomationService
                     suggested = row.MaxPriceLimit.Value;
                     wasLimitedByMax = true;
                 }
+            }
+            if (wasLimitedByMin || wasLimitedByMax)
+            {
+                row.IsGradualDecreaseApplied = false;
+                row.IsGradualIncreaseApplied = false;
             }
 
             row.SuggestedPrice = Math.Round(suggested, 2);
