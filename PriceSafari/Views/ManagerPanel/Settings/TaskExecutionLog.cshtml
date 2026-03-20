@@ -3,70 +3,185 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 
-    var distinctDeviceNames = Model
-        .Where(m => !string.IsNullOrWhiteSpace(m.DeviceName))
-        .Select(m => m.DeviceName)
+    var distinctOperations = Model
+        .Where(m => !string.IsNullOrWhiteSpace(m.OperationName))
+        .Select(m => m.OperationName)
         .Distinct()
+        .OrderBy(x => x)
         .ToList();
+
+    var grouped = Model
+        .GroupBy(m => m.StartTime.Date)
+        .OrderByDescending(g => g.Key)
+        .ToList();
+
+    var today = DateTime.Today;
 }
 
 <style>
-
-    .bg-green {
-        background-color: #c6f6c6;
-        color: #000;
+    .logs-wrapper {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        gap: 12px;
+        max-height: 82vh;
+        overflow-y: auto;
     }
 
-    .bg-red {
-        background-color: #f9c6c6;
-        color: #000;
+    /* --- Toolbar (sticky na górze wrappera) --- */
+    .logs-filters {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 10px 14px;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
     }
 
-    .bg-yellow {
-        background-color: #fffcc0;
-        color: #000;
+    .logs-filters label {
+        font-weight: 600;
+        margin: 0;
+        font-size: 0.9rem;
     }
 
-    .sort-container {
-        margin-bottom: 10px;
+    .logs-filters select {
+        padding: 5px 10px;
+        border-radius: 5px;
+        border: 1px solid #ced4da;
+        font-size: 0.88rem;
+        background: #fff;
     }
 
-        .sort-container select {
-            padding: 5px;
-            border-radius: 4px;
-            border: 1px solid #aaa;
-        }
+    .logs-filters .spacer { flex: 1; }
 
-    .Button-ClearAll {
-        margin-bottom: 10px;
-        background-color: #ff6666;
-        border: none;
+    .btn-clear-all {
+        background: #dc3545;
         color: #fff;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 5px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-clear-all:hover { background: #bb2d3b; }
+
+    /* --- Day section --- */
+    .day-section {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    .day-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 16px;
+        background: #e9ecef;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .day-section-header:hover { background: #dde1e5; }
+
+    .day-section-header.is-today {
+        background: #cfe2ff;
+        border-left: 4px solid #0d6efd;
+    }
+
+    .day-section-header.is-today:hover { background: #b6d4fe; }
+
+    .day-section-header .day-title {
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+
+    .day-section-header .day-title .count {
+        font-weight: 400;
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+
+    .day-stats { display: flex; gap: 8px; font-size: 0.8rem; }
+
+    .day-stats .stat {
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+
+    .stat-ok { background: #c6f6c6; color: #1a5c1a; }
+    .stat-fail { background: #f9c6c6; color: #8b1a1a; }
+    .stat-pending { background: #fffcc0; color: #6b6b00; }
+
+    .chevron {
+        transition: transform 0.2s;
+        color: #6c757d;
+        font-size: 0.8rem;
+    }
+
+    .day-section.collapsed .chevron { transform: rotate(-90deg); }
+
+    .day-section.collapsed .day-section-body {
+        display: none;
+    }
+
+    /* --- Table --- */
+    .log-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.87rem;
+    }
+
+    .log-table thead th {
+        background: #343a40;
+        color: #fff;
+        padding: 8px 12px;
+        text-align: left;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .log-table tbody td {
         padding: 6px 12px;
-        border-radius: 4px;
-        cursor: pointer;
+        border-bottom: 1px solid #eee;
     }
 
-        .Button-ClearAll:hover {
-            background-color: #ff4c4c;
+    .log-table .td-device { font-weight: 700; }
+    .log-table .td-time { white-space: nowrap; font-family: monospace; font-size: 0.85rem; }
+    .log-table .td-duration { font-family: monospace; white-space: nowrap; }
+    .log-table .td-comment {
+            word-break: break-word;
         }
 
-    .Button-DeleteSingle {
-        background-color: #c43c3c;
-        color: #fff;
+    /* Row colors */
+    .row-ok { background: #c6f6c6; }
+    .row-fail { background: #f9c6c6; }
+    .row-pending { background: #fffcc0; }
+
+    .btn-delete-row {
+        background: none;
         border: none;
-        padding: 4px 8px;
-        border-radius: 4px;
+        color: #aaa;
         cursor: pointer;
-        text-decoration: none;
+        font-size: 0.85rem;
+        padding: 2px 6px;
     }
 
-        .Button-DeleteSingle:hover {
-            background-color: #a93232;
-        }
+    .btn-delete-row:hover { color: #dc3545; }
 
-    .td-deviceName {
-        font-weight: bold;
+    .empty-msg {
+        padding: 30px;
+        text-align: center;
+        color: #999;
     }
 </style>
 
@@ -77,106 +192,169 @@
             <partial name="_ManageNavCol" />
         </div>
 
-        <!-- Dropdown do filtrowania po DeviceName -->
-        <div class="sort-container">
-            <label for="deviceNameFilter">Maszyna:</label>
-            <select id="deviceNameFilter">
-                <option value="">Wszystkie</option>
-                @foreach (var name in distinctDeviceNames)
+        <div class="logs-wrapper">
+
+            <!-- Filters -->
+            <div class="logs-filters">
+                <label><i class="fas fa-filter me-1"></i> Operacja:</label>
+                <select id="operationFilter">
+                    <option value="">Wszystkie</option>
+                    @foreach (var op in distinctOperations)
+                    {
+                        <option value="@op.ToLower()">@op</option>
+                    }
+                </select>
+
+                <div class="spacer"></div>
+
+                <form asp-action="ClearAll" method="post" style="margin:0;"
+                      onsubmit="return confirm('Czy na pewno chcesz usunąć wszystkie wpisy logów?');">
+                    <button type="submit" class="btn-clear-all">
+                        <i class="fas fa-trash me-1"></i>Kasuj wszystko
+                    </button>
+                </form>
+            </div>
+
+            <!-- Day groups -->
+            @if (!grouped.Any())
+            {
+                <div class="empty-msg">Brak logów do wyświetlenia.</div>
+            }
+
+            @foreach (var dayGroup in grouped)
+            {
+                var date = dayGroup.Key;
+                var isToday = date == today;
+                var isYesterday = date == today.AddDays(-1);
+                var items = dayGroup.OrderByDescending(x => x.StartTime).ToList();
+
+                var okCount = items.Count(i =>
+                    i.EndTime.HasValue &&
+                    !string.IsNullOrEmpty(i.Comment) &&
+                    (i.Comment.Contains("Sukces", StringComparison.OrdinalIgnoreCase) ||
+                     i.Comment.Contains("Success", StringComparison.OrdinalIgnoreCase)));
+                var failCount = items.Count(i =>
+                    i.EndTime.HasValue &&
+                    (string.IsNullOrEmpty(i.Comment) ||
+                     (!i.Comment.Contains("Sukces", StringComparison.OrdinalIgnoreCase) &&
+                      !i.Comment.Contains("Success", StringComparison.OrdinalIgnoreCase))));
+                var pendingCount = items.Count(i => !i.EndTime.HasValue);
+
+                var polishDay = date.DayOfWeek switch
                 {
-                    <option value="@name">@name</option>
-                }
-            </select>
-        </div>
+                    DayOfWeek.Monday => "Poniedziałek",
+                    DayOfWeek.Tuesday => "Wtorek",
+                    DayOfWeek.Wednesday => "Środa",
+                    DayOfWeek.Thursday => "Czwartek",
+                    DayOfWeek.Friday => "Piątek",
+                    DayOfWeek.Saturday => "Sobota",
+                    DayOfWeek.Sunday => "Niedziela",
+                    _ => ""
+                };
 
-        <form asp-action="ClearAll" method="post"
-              onsubmit="return confirm('Czy na pewno chcesz usunąć wszystkie wpisy logów?');">
-            <button type="submit" class="Button-ClearAll">Kasuj</button>
-        </form>
+                var prefix = isToday ? "Dzisiaj" : isYesterday ? "Wczoraj" : "";
+                var headerText = !string.IsNullOrEmpty(prefix)
+                    ? $"{prefix} — {polishDay}, {date:dd.MM.yyyy}"
+                    : $"{polishDay}, {date:dd.MM.yyyy}";
 
-        <table class="table-orders" id="logTable">
-            <thead>
-                <tr>
-                    <th>Urządzenie</th>
-                    <th>Operacja</th>
-                    <th>Start</th>
-                    <th>Koniec</th>
-                    <th>Czas trwania</th>
-                    <th>Komentarz</th>
-                    <th>Usuń</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model)
-                {
+                <div class="day-section @(isToday ? "" : "collapsed")">
+                    <div class="day-section-header @(isToday ? "is-today" : "")"
+                         onclick="this.parentElement.classList.toggle('collapsed')">
+                        <span class="day-title">
+                            <i class="fas fa-chevron-down chevron me-2"></i>
+                            @headerText
+                            <span class="count ms-2">(@items.Count)</span>
+                        </span>
+                        <div class="day-stats">
+                            @if (okCount > 0) { <span class="stat stat-ok">✓ @okCount</span> }
+                            @if (failCount > 0) { <span class="stat stat-fail">✗ @failCount</span> }
+                            @if (pendingCount > 0) { <span class="stat stat-pending">⏳ @pendingCount</span> }
+                        </div>
+                    </div>
+                    <div class="day-section-body">
+                        <table class="log-table">
+                            <thead>
+                                <tr>
+                                    <th>Urządzenie</th>
+                                    <th>Operacja</th>
+                                    <th>Start</th>
+                                    <th>Koniec</th>
+                                    <th>Czas</th>
+                                    <th>Komentarz</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in items)
+                                {
+                                    var rowClass = "";
+                                    if (!item.EndTime.HasValue)
+                                    {
+                                        rowClass = "row-pending";
+                                    }
+                                    else if (!string.IsNullOrEmpty(item.Comment) &&
+                                             (item.Comment.Contains("Sukces", StringComparison.OrdinalIgnoreCase) ||
+                                              item.Comment.Contains("Success", StringComparison.OrdinalIgnoreCase)))
+                                    {
+                                        rowClass = "row-ok";
+                                    }
+                                    else
+                                    {
+                                        rowClass = "row-fail";
+                                    }
 
-                    var rowClass = "";
-                    if (!item.EndTime.HasValue)
-                    {
+                                    var duration = "W trakcie...";
+                                    if (item.EndTime.HasValue)
+                                    {
+                                        var ts = item.EndTime.Value - item.StartTime;
+                                        duration = ts.ToString(@"hh\:mm\:ss");
+                                    }
 
-                        rowClass = "bg-yellow";
-                    }
-                    else
-                    {
+                                    <tr class="@rowClass log-row" data-operation="@item.OperationName?.ToLower()">
+                                        <td class="td-device">@item.DeviceName</td>
+                                        <td>@item.OperationName</td>
+                                        <td class="td-time">@item.StartTime.ToString("HH:mm:ss")</td>
+                                        <td class="td-time">@(item.EndTime?.ToString("HH:mm:ss") ?? "—")</td>
+                                        <td class="td-duration">@duration</td>
+                                     <td class="td-comment">@item.Comment</td>
+                                        <td>
+                                            <a asp-action="Delete" asp-route-id="@item.Id"
+                                               onclick="return confirm('Usunąć ten wpis?');"
+                                               class="btn-delete-row" title="Usuń">
+                                                <i class="fas fa-times"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
 
-                        if (!string.IsNullOrEmpty(item.Comment) &&
-                        (item.Comment.Contains("Sukces", StringComparison.OrdinalIgnoreCase)
-                        || item.Comment.Contains("Success", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            rowClass = "bg-green";
-                        }
-                        else
-                        {
-                            rowClass = "bg-red";
-                        }
-                    }
+        </div> <!-- /logs-wrapper -->
 
-                    var durationText = "W trakcie";
-                    if (item.EndTime.HasValue)
-                    {
-                        var timespan = item.EndTime.Value - item.StartTime;
-
-                        durationText = timespan.ToString(@"hh\:mm\:ss");
-                    }
-                    <tr class="@rowClass">
-                        <td class="td-deviceName">@item.DeviceName</td>
-                        <td>@item.OperationName</td>
-                        <td>@item.StartTime</td>
-                        <td>@(item.EndTime?.ToString() ?? "-")</td>
-                        <td>@durationText</td>
-                        <td>@item.Comment</td>
-                        <td>
-                            <a asp-action="Delete" asp-route-id="@item.Id"
-                               onclick="return confirm('Na pewno usunąć ten pojedynczy wpis?');"
-                               class="Button-DeleteSingle">
-                                Usuń
-                            </a>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
     </div>
 </div>
 
 @section Scripts {
     <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var filter = document.getElementById('operationFilter');
+            if (!filter) return;
 
-        const dropdown = document.getElementById('deviceNameFilter');
-        const table    = document.getElementById('logTable');
-        const rows     = Array.from(table.querySelectorAll('tbody tr'));
+            filter.addEventListener('change', function () {
+                var val = this.value.trim().toLowerCase();
 
-        dropdown.addEventListener('change', function () {
-            const selectedName = dropdown.value.trim().toLowerCase();
+                document.querySelectorAll('.log-row').forEach(function (row) {
+                    var op = row.dataset.operation || '';
+                    row.style.display = (val === '' || op === val) ? '' : 'none';
+                });
 
-            rows.forEach(row => {
-                const deviceCell = row.querySelector('.td-deviceName');
-                if (!deviceCell) return;
-                const rowDeviceName = deviceCell.textContent.trim().toLowerCase();
-
-                row.style.display = (selectedName === "" || rowDeviceName === selectedName)
-                    ? ""
-                    : "none";
+                document.querySelectorAll('.day-section').forEach(function (section) {
+                    var visible = section.querySelectorAll('.log-row:not([style*="display: none"])');
+                    section.style.display = visible.length > 0 ? '' : 'none';
+                });
             });
         });
     </script>
