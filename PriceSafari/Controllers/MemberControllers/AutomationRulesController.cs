@@ -27,7 +27,6 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // 1. Pobierz sklepy (bez zmian)
             var userStores = await _context.UserStores
                 .Where(us => us.UserId == userId)
                 .Select(us => new
@@ -44,10 +43,10 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var storeIds = userStores.Select(s => s.StoreId).ToList();
 
-            // 2. Pobierz liczniki z uwzględnieniem IsActive
             var rulesStats = await _context.AutomationRules
                 .Where(r => storeIds.Contains(r.StoreId))
-                .GroupBy(r => new { r.StoreId, r.SourceType, r.IsActive }) // Grupujemy też po statusie
+                .GroupBy(r => new { r.StoreId, r.SourceType, r.IsActive })
+
                 .Select(g => new
                 {
                     StoreId = g.Key.StoreId,
@@ -58,7 +57,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 .AsNoTracking()
                 .ToListAsync();
 
-            // 3. Mapowanie
             var model = userStores.Select(store => new AutomationStoreListViewModel
             {
                 StoreId = store.StoreId,
@@ -68,7 +66,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 OnGoogle = store.OnGoogle,
                 OnAllegro = store.OnAllegro,
 
-                // Porównywarki
                 ComparisonRulesActiveCount = rulesStats
                     .Where(r => r.StoreId == store.StoreId
                              && r.SourceType == AutomationSourceType.PriceComparison
@@ -81,7 +78,6 @@ namespace PriceSafari.Controllers.MemberControllers
                              && !r.IsActive)
                     .Sum(r => r.Count),
 
-                // Marketplace
                 MarketplaceRulesActiveCount = rulesStats
                     .Where(r => r.StoreId == store.StoreId
                              && r.SourceType == AutomationSourceType.Marketplace
@@ -114,7 +110,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (storeName == null) return NotFound("Sklep nie istnieje.");
 
-            // Budujemy zapytanie
             var query = _context.AutomationRules
                 .Where(r => r.StoreId == storeId)
                 .AsQueryable();
@@ -125,7 +120,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 ViewBag.CurrentFilter = filterType.Value;
             }
 
-            // Projekcja do ViewModelu
             var rules = await query
                 .Select(r => new AutomationRuleListViewModel
                 {
@@ -135,10 +129,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     IsActive = r.IsActive,
                     SourceType = r.SourceType,
 
-                    // Pobieramy tryb strategii, żeby zdecydować o ikonie (Piorun/Dolar)
                     StrategyMode = r.StrategyMode,
 
-                    // Pobieramy nazwę presetu (np. "Top 3 Allegro")
                     CompetitorPresetName = r.CompetitorPreset != null ? r.CompetitorPreset.PresetName : "Domyślny",
                     IsTimeLimited = r.IsTimeLimited,
                     ScheduledStartDate = r.ScheduledStartDate,
@@ -163,10 +155,8 @@ namespace PriceSafari.Controllers.MemberControllers
             public AutomationSourceType SourceType { get; set; }
             public AutomationStrategyMode StrategyMode { get; set; }
 
-            // Nowe pole: liczba produktów przypisanych do tej reguły
             public int AssignedProductsCount { get; set; }
 
-            // Nazwa presetu konkurencji (opcjonalnie, dla kontekstu "Lider Rynku" itp.)
             public string CompetitorPresetName { get; set; }
 
             public bool IsTimeLimited { get; set; }
@@ -215,8 +205,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 SourceType = sourceType ?? AutomationSourceType.PriceComparison,
                 StrategyMode = AutomationStrategyMode.Competitiveness,
-                //RequireOwnOfferOnCeneo = true,
-                //RequireOwnOfferOnGoogle = true
 
             };
             return View("~/Views/Panel/AutomationRules/CreateOrEdit.cshtml", model);
@@ -231,7 +219,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (rule.CompetitorPresetId == 0) rule.CompetitorPresetId = null;
 
-            // ===== NOWE: Walidacja planowania czasowego =====
             if (!rule.IsTimeLimited)
             {
                 rule.ScheduledStartDate = null;
@@ -243,7 +230,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 ModelState.AddModelError("ScheduledEndDate",
                     "Data zakończenia nie może być wcześniejsza niż data rozpoczęcia.");
             }
-            // ===== KONIEC =====
 
             if (ModelState.IsValid)
             {
@@ -311,31 +297,22 @@ namespace PriceSafari.Controllers.MemberControllers
         [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> Delete(int id)
         {
-            // 1. Pobieramy regułę
+
             var rule = await _context.AutomationRules.FindAsync(id);
 
             if (rule != null)
             {
-                // ====================================================================
-                // KROK DODATKOWY: Usuwanie historii powiązanej z regułą
-                // ====================================================================
 
-                // Znajdź wszystkie batche, które wskazują na usuwaną regułę
                 var ruleHistory = _context.AllegroPriceBridgeBatches
                     .Where(batch => batch.AutomationRuleId == id);
 
-                // Usuń je z bazy (RemoveRange jest wydajniejsze dla wielu rekordów)
                 _context.AllegroPriceBridgeBatches.RemoveRange(ruleHistory);
 
-                // ====================================================================
-
-                // 2. Standardowe usuwanie reguły
                 int storeId = rule.StoreId;
                 var type = rule.SourceType;
 
                 _context.AutomationRules.Remove(rule);
 
-                // 3. Zapisz zmiany (to usunie i historię, i regułę w jednej transakcji)
                 await _context.SaveChangesAsync();
 
                 return RedirectToAction(nameof(Index), new { storeId = storeId, filterType = type });

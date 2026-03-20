@@ -726,6 +726,103 @@
 
             </div>
 
+            <div style="display: flex; gap: 50px; padding-top: 30px; padding-bottom: 30px; border-top: 1px solid #f8f9fc; flex-wrap: wrap;">
+
+                <div style="flex: 1; min-width: 350px;">
+                    <div class="d-flex align-items-center justify-content-between mb-4">
+                        <span style="font-size: 14px; font-weight: 500; color: #e74a3b; text-transform: uppercase;">
+                            <i class="fas fa-shoe-prints fa-flip-horizontal mr-2"></i> Stopniowa Obniżka
+                        </span>
+
+                        <div class="switch-container switch-status @(Model.EnableGradualDecrease ? "state-right" : "state-left")"
+                             onclick="toggleSwitch(this); toggleInputs(this.querySelector('input'), 'gradualDecreaseContainer')"
+                             style="height: 38px; min-width: 100px; padding: 3px;">
+
+                            <input type="checkbox" asp-for="EnableGradualDecrease" />
+
+                            <div class="switch-slider-bg" style="top:3px; left:3px; width:calc(50% - 3px); height:calc(100% - 6px);"></div>
+
+                            <div class="switch-labels">
+                                <span class="switch-label-text label-left" style="font-size: 11px; font-weight: 700;">WYŁ</span>
+                                <span class="switch-label-text label-right" style="font-size: 11px; font-weight: 700;">WŁ</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="gradualDecreaseContainer" style="opacity: @(Model.EnableGradualDecrease ? "1" : "0.5"); pointer-events: @(Model.EnableGradualDecrease ? "auto" : "none"); transition: opacity 0.3s;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <input asp-for="GradualDecreaseValue" type="number" step="0.01" class="form-control-custom input-narrow" placeholder="Wartość" />
+
+                            <div class="switch-container switch-neutral @(Model.IsGradualDecreasePercent ? "state-right" : "state-left")" onclick="toggleSwitch(this)" style="min-width: 100px;">
+                                <input type="checkbox" asp-for="IsGradualDecreasePercent" />
+                                <div class="switch-slider-bg"></div>
+                                <div class="switch-labels">
+                                    <span class="switch-label-text label-left">PLN</span>
+                                    <span class="switch-label-text label-right">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="font-size: 12px; color: #e74a3b; margin-top: 8px;">
+                            Wartość musi być większa od 0,00.
+                        </div>
+                        <div style="font-size: 13px; color: #858796; margin-top: 10px;">
+                            Maksymalna jednorazowa obniżka ceny. Automat nie obniży ceny o więcej niż tę wartość w jednym uruchomieniu.
+                        </div>
+                        <div style="font-size: 12px; color: #b7b9cc; margin-top: 8px; padding: 10px; background: #f8f9fc; border-radius: 6px;">
+                            <strong>Przykład:</strong> Twoja cena 300 zł, konkurent 250 zł, krok 0,01 zł. Stopniowa obniżka 10 zł.
+                            Zamiast jednorazowej obniżki do 249,99 zł, automat obniży najpierw do 290 zł, potem 280 zł, 270 zł itd. — aż osiągnie docelową pozycję.
+                        </div>
+                    </div>
+                </div>
+
+                <div style="flex: 1; min-width: 350px; border-left: 1px solid #f8f9fc; padding-left: 40px;">
+                    <div class="d-flex align-items-center justify-content-between mb-4">
+                        <span style="font-size: 14px; font-weight: 500; color: #1cc88a; text-transform: uppercase;">
+                            <i class="fas fa-shoe-prints mr-2"></i> Stopniowa Podwyżka
+                        </span>
+
+                        <div class="switch-container switch-status @(Model.EnableGradualIncrease ? "state-right" : "state-left")"
+                             onclick="toggleSwitch(this); toggleInputs(this.querySelector('input'), 'gradualIncreaseContainer')"
+                             style="height: 38px; min-width: 100px; padding: 3px;">
+
+                            <input type="checkbox" asp-for="EnableGradualIncrease" />
+
+                            <div class="switch-slider-bg" style="top:3px; left:3px; width:calc(50% - 3px); height:calc(100% - 6px);"></div>
+
+                            <div class="switch-labels">
+                                <span class="switch-label-text label-left" style="font-size: 11px; font-weight: 700;">WYŁ</span>
+                                <span class="switch-label-text label-right" style="font-size: 11px; font-weight: 700;">WŁ</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="gradualIncreaseContainer" style="opacity: @(Model.EnableGradualIncrease ? "1" : "0.5"); pointer-events: @(Model.EnableGradualIncrease ? "auto" : "none"); transition: opacity 0.3s;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <input asp-for="GradualIncreaseValue" type="number" step="0.01"  class="form-control-custom input-narrow" placeholder="Wartość" />
+
+                            <div class="switch-container switch-neutral @(Model.IsGradualIncreasePercent ? "state-right" : "state-left")" onclick="toggleSwitch(this)" style="min-width: 100px;">
+                                <input type="checkbox" asp-for="IsGradualIncreasePercent" />
+                                <div class="switch-slider-bg"></div>
+                                <div class="switch-labels">
+                                    <span class="switch-label-text label-left">PLN</span>
+                                    <span class="switch-label-text label-right">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="font-size: 12px; color: #e74a3b; margin-top: 8px;">
+                            Wartość musi być większa od 0,00.
+                        </div>
+                        <div style="font-size: 13px; color: #858796; margin-top: 10px;">
+                            Maksymalna jednorazowa podwyżka ceny. Automat nie podniesie ceny o więcej niż tę wartość w jednym uruchomieniu.
+                        </div>
+                        <div style="font-size: 12px; color: #b7b9cc; margin-top: 8px; padding: 10px; background: #f8f9fc; border-radius: 6px;">
+                            <strong>Przykład:</strong> Twoja cena 200 zł, konkurent 300 zł, krok 0,01 zł. Stopniowa podwyżka 40 zł.
+                            Zamiast jednorazowego skoku do 299,99 zł, automat podniesie najpierw do 240 zł, potem 280 zł, aż dojdzie do docelowej pozycji 299,99zł.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
             <div style="background: #fff; border: 2px dashed #f1f3f9; border-radius: 8px; padding: 15px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
@@ -1109,16 +1206,14 @@
         window.validateSmartThreshold = function(input) {
             let val = parseFloat(input.value);
 
-            // 1. Walidacja minimum (0.01)
+           
             if (isNaN(val) || val <= 0) {
                 alert("Granica przebicia musi być większa od 0.");
                 input.value = 0.01;
                 return;
             }
 
-            // 2. Walidacja maksimum (44.99)
-            // Logika: Nie ma sensu chronić Smarta powyżej kwoty 45 zł,
-            // bo wtedy i tak mamy darmową wysyłkę.
+     
             const allegroSmartThreshold = 45.00;
 
             if (val >= allegroSmartThreshold) {
@@ -1284,7 +1379,7 @@
             if (endInput) endInput.addEventListener('change', updateSchedulePreview);
             updateSchedulePreview();
 
-            // ===== PRZENIESIONE TUTAJ =====
+        
             var form = document.getElementById('automationRuleForm');
             if (form) {
                 form.addEventListener('submit', function(e) {
@@ -1296,6 +1391,26 @@
                         if (startVal && endVal && new Date(endVal) < new Date(startVal)) {
                             e.preventDefault();
                             alert('Data zakończenia nie może być wcześniejsza niż data rozpoczęcia!');
+                            return false;
+                        }
+                    }
+              
+                    var gradDecEnabled = document.querySelector('input[name="EnableGradualDecrease"]')?.checked;
+                    if (gradDecEnabled) {
+                        var gradDecVal = parseFloat(document.querySelector('input[name="GradualDecreaseValue"]')?.value);
+                        if (isNaN(gradDecVal) || gradDecVal <= 0) {
+                            e.preventDefault();
+                            alert('Wartość stopniowej obniżki musi być większa od 0,00.');
+                            return false;
+                        }
+                    }
+
+                    var gradIncEnabled = document.querySelector('input[name="EnableGradualIncrease"]')?.checked;
+                    if (gradIncEnabled) {
+                        var gradIncVal = parseFloat(document.querySelector('input[name="GradualIncreaseValue"]')?.value);
+                        if (isNaN(gradIncVal) || gradIncVal <= 0) {
+                            e.preventDefault();
+                            alert('Wartość stopniowej podwyżki musi być większa od 0,00.');
                             return false;
                         }
                     }
