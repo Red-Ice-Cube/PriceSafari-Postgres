@@ -64,7 +64,7 @@ namespace PriceSafari.Models.ViewModels
         public DateTime? ScheduledStartDate { get; set; }
         public DateTime? ScheduledEndDate { get; set; }
 
-
+   
         public List<FlagViewModel> AvailableStoreFlags { get; set; } = new List<FlagViewModel>();
 
     }
@@ -126,19 +126,12 @@ namespace PriceSafari.Models.ViewModels
 
         public DateTime? PurchasePriceUpdatedDate { get; set; }
 
-        // --- NOWE POLA STATUSU ---
-
-        // Główny status wiersza (zastępuje stare flagi)
+ 
         public AutomationCalculationStatus Status { get; set; }
 
-        // Powód blokady (tekstowy)
         public string BlockReason { get; set; }
-
-        // Helper dla kompatybilności wstecznej (czy w ogóle udało się wyliczyć cenę)
-        // Zwraca true dla Zielonego, Niebieskiego i Żółtego
         public bool IsTargetMet => Status != AutomationCalculationStatus.Blocked;
 
-        // Helper sprawdzający czy wiersz jest zablokowany (dla kompatybilności widoku)
         public bool IsBlockedByStatus => Status == AutomationCalculationStatus.Blocked;
 
         public bool IsSuggestedDifferentFromUpdated { get; set; }
@@ -146,9 +139,6 @@ namespace PriceSafari.Models.ViewModels
         public bool IsProductRejected { get; set; } = false;
         public bool IsProductScrapable { get; set; } = true;
         public bool HasScrapedPrice { get; set; } = true;
-
-
-
 
         public bool IsAlreadyUpdated { get; set; }
         public decimal? UpdatedPrice { get; set; }
@@ -163,6 +153,9 @@ namespace PriceSafari.Models.ViewModels
         public bool IsSmartPriceAdjusted { get; set; } = false;
         public string? AllegroSku { get; set; }
         public string? AllegroEan { get; set; }
+
+        public bool IsGradualDecreaseApplied { get; set; } = false;
+        public bool IsGradualIncreaseApplied { get; set; } = false;
         public List<int> FlagIds { get; set; } = new List<int>();
     }
 

@@ -920,6 +920,37 @@ namespace PriceSafari.Services.PriceAutomationService
                 }
             }
 
+            // ═══ Krokowe ograniczenie zmiany ceny ═══
+            if (rule.EnableGradualDecrease && suggested < basePrice)
+            {
+                decimal maxDrop = rule.IsGradualDecreasePercent
+                    ? basePrice * (rule.GradualDecreaseValue / 100m)
+                    : rule.GradualDecreaseValue;
+
+                decimal floorByStep = basePrice - maxDrop;
+                if (suggested < floorByStep)
+                {
+                    suggested = floorByStep;
+                    row.IsGradualDecreaseApplied = true;
+                }
+            }
+
+            if (rule.EnableGradualIncrease && suggested > basePrice)
+            {
+                decimal maxRise = rule.IsGradualIncreasePercent
+                    ? basePrice * (rule.GradualIncreaseValue / 100m)
+                    : rule.GradualIncreaseValue;
+
+                decimal ceilingByStep = basePrice + maxRise;
+                if (suggested > ceilingByStep)
+                {
+                    suggested = ceilingByStep;
+                    row.IsGradualIncreaseApplied = true;
+                }
+            }
+            // ═══════════════════════════════════════════
+            // ═══════════════════════════════════════════
+
             bool wasLimitedByMin = false;
             bool wasLimitedByMax = false;
 

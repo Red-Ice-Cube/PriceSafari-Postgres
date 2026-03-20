@@ -166,6 +166,48 @@ namespace PriceSafari.Models
         public bool IsMaxMarkupPercent { get; set; } = true;
 
 
+        // =================================================================================
+        // SEKCJA 2b: KROKOWE ZMIANY CEN
+        // =================================================================================
+
+        /// <summary>
+        /// Czy włączyć ograniczenie maksymalnej jednorazowej obniżki ceny.
+        /// Jeśli true, cena nie spadnie o więcej niż GradualDecreaseValue na jedno wykonanie.
+        /// </summary>
+        [Display(Name = "Krokowe obniżki cen")]
+        public bool EnableGradualDecrease { get; set; } = false;
+
+        /// <summary>
+        /// Czy GradualDecreaseValue jest wyrażone w procentach (true) czy w walucie (false).
+        /// </summary>
+        public bool IsGradualDecreasePercent { get; set; } = true;
+
+        /// <summary>
+        /// Maksymalna jednorazowa obniżka ceny (wartość dodatnia, min 0.01).
+        /// Np. 10 przy IsGradualDecreasePercent=false oznacza max -10 zł na raz.
+        /// Np. 5 przy IsGradualDecreasePercent=true oznacza max -5% od aktualnej ceny na raz.
+        /// </summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal GradualDecreaseValue { get; set; } = 10.00m;
+
+        /// <summary>
+        /// Czy włączyć ograniczenie maksymalnej jednorazowej podwyżki ceny.
+        /// Jeśli true, cena nie wzrośnie o więcej niż GradualIncreaseValue na jedno wykonanie.
+        /// </summary>
+        [Display(Name = "Krokowe podwyżki cen")]
+        public bool EnableGradualIncrease { get; set; } = false;
+
+        /// <summary>
+        /// Czy GradualIncreaseValue jest wyrażone w procentach (true) czy w walucie (false).
+        /// </summary>
+        public bool IsGradualIncreasePercent { get; set; } = true;
+
+        /// <summary>
+        /// Maksymalna jednorazowa podwyżka ceny (wartość dodatnia, min 0.01).
+        /// </summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal GradualIncreaseValue { get; set; } = 10.00m;
+
         [Display(Name = "Pomiń zmianę, jeśli limit narzutu uniemożliwia osiągnięcie celu")]
         public bool SkipIfMarkupLimited { get; set; } = false;
 
