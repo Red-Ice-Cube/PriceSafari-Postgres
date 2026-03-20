@@ -26,7 +26,7 @@ namespace PriceSafari.Models.ViewModels.SchedulePlanViewModels
         public bool MarketPlaceAutomationEnabled { get; set; }
         public bool PriceComparisonAutomationEnabled { get; set; }
         public bool AllegroGatherEnabled { get; set; }
-
+        public bool ApplyToAllDays { get; set; }
         public List<StoreCheckboxItem> Stores { get; set; }
             = new List<StoreCheckboxItem>();
     }

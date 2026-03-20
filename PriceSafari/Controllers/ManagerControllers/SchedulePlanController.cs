@@ -96,25 +96,17 @@ namespace PriceSafari.Controllers
         [HttpPost]
         public async Task<IActionResult> AddTask(int dayDetailId, AddTaskViewModel model)
         {
-
             if (!TimeSpan.TryParse(model.StartTime, out var startTs))
-            {
                 ModelState.AddModelError("StartTime", "Nieprawidłowy format godziny (HH:mm).");
-            }
 
             if (!TimeSpan.TryParse(model.EndTime, out var endTs))
-            {
                 ModelState.AddModelError("EndTime", "Nieprawidłowy format godziny (HH:mm).");
-            }
 
             if (endTs <= startTs)
-            {
                 ModelState.AddModelError("EndTime", "Godzina końca musi być późniejsza niż start.");
-            }
 
             if (!ModelState.IsValid)
             {
-
                 var allStores = _context.Stores.ToList();
                 model.Stores = allStores.Select(s =>
                 {
@@ -131,17 +123,96 @@ namespace PriceSafari.Controllers
                 return View("~/Views/ManagerPanel/SchedulePlan/AddTask.cshtml", model);
             }
 
+            var selectedStoreIds = model.Stores
+                .Where(x => x.IsSelected)
+                .Select(x => x.StoreId)
+                .ToList();
+
+            if (model.ApplyToAllDays)
+            {
+                // Pobierz plan z wszystkimi dniami i ich zadaniami
+                var plan = await _context.SchedulePlans
+                    .Include(sp => sp.Monday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores)
+                    .Include(sp => sp.Tuesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores)
+                    .Include(sp => sp.Wednesday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores)
+                    .Include(sp => sp.Thursday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores)
+                    .Include(sp => sp.Friday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores)
+                    .Include(sp => sp.Saturday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores)
+                    .Include(sp => sp.Sunday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores)
+                    .AsSplitQuery()
+                    .FirstOrDefaultAsync();
+
+                if (plan == null)
+                    return RedirectToAction("Index");
+
+                var allDays = new[]
+                {
+            plan.Monday, plan.Tuesday, plan.Wednesday, plan.Thursday,
+            plan.Friday, plan.Saturday, plan.Sunday
+        };
+
+                foreach (var day in allDays)
+                {
+                    if (day == null) continue;
+
+                    // Znajdź i usuń kolidujące zadania
+                    var collisions = day.Tasks
+                        .Where(t => startTs < t.EndTime && endTs > t.StartTime)
+                        .ToList();
+
+                    foreach (var col in collisions)
+                    {
+                        // Usuń powiązania ze sklepami
+                        _context.ScheduleTaskStores.RemoveRange(col.TaskStores);
+                        _context.ScheduleTasks.Remove(col);
+                    }
+
+                    // Dodaj nowe zadanie
+                    var newTask = new ScheduleTask
+                    {
+                        SessionName = model.SessionName,
+                        StartTime = startTs,
+                        EndTime = endTs,
+                        UrlEnabled = model.UrlEnabled,
+                        CeneoEnabled = model.CeneoEnabled,
+                        GoogleEnabled = model.GoogleEnabled,
+                        ApiBotEnabled = model.ApiBotEnabled,
+                        BaseEnabled = model.BaseEnabled,
+                        UrlScalAleEnabled = model.UrlScalAleEnabled,
+                        AleCrawEnabled = model.AleCrawEnabled,
+                        AleApiBotEnabled = model.AleApiBotEnabled,
+                        AleBaseEnabled = model.AleBaseEnabled,
+                        MarketPlaceAutomationEnabled = model.MarketPlaceAutomationEnabled,
+                        PriceComparisonAutomationEnabled = model.PriceComparisonAutomationEnabled,
+                        AllegroGatherEnabled = model.AllegroGatherEnabled,
+                        DayDetailId = day.Id
+                    };
+                    _context.ScheduleTasks.Add(newTask);
+                    await _context.SaveChangesAsync(); // potrzebne żeby mieć newTask.Id
+
+                    foreach (var sid in selectedStoreIds)
+                    {
+                        _context.ScheduleTaskStores.Add(new ScheduleTaskStore
+                        {
+                            ScheduleTaskId = newTask.Id,
+                            StoreId = sid
+                        });
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
+
+            // ---- Standardowa ścieżka (jeden dzień) ----
             var dayDetail = await _context.DayDetails
                 .Include(d => d.Tasks)
                 .FirstOrDefaultAsync(d => d.Id == dayDetailId);
 
             if (dayDetail == null)
-            {
                 return RedirectToAction("Index");
-            }
 
             bool collision = dayDetail.Tasks.Any(t =>
-
                 (startTs < t.EndTime) && (endTs > t.StartTime)
             );
             if (collision)
@@ -164,19 +235,16 @@ namespace PriceSafari.Controllers
                 return View("~/Views/ManagerPanel/SchedulePlan/AddTask.cshtml", model);
             }
 
-            var newTask = new ScheduleTask
+            var singleTask = new ScheduleTask
             {
                 SessionName = model.SessionName,
                 StartTime = startTs,
                 EndTime = endTs,
-                
-                UrlEnabled = model.UrlEnabled,               
+                UrlEnabled = model.UrlEnabled,
                 CeneoEnabled = model.CeneoEnabled,
                 GoogleEnabled = model.GoogleEnabled,
                 ApiBotEnabled = model.ApiBotEnabled,
                 BaseEnabled = model.BaseEnabled,
-
-
                 UrlScalAleEnabled = model.UrlScalAleEnabled,
                 AleCrawEnabled = model.AleCrawEnabled,
                 AleApiBotEnabled = model.AleApiBotEnabled,
@@ -184,24 +252,18 @@ namespace PriceSafari.Controllers
                 MarketPlaceAutomationEnabled = model.MarketPlaceAutomationEnabled,
                 PriceComparisonAutomationEnabled = model.PriceComparisonAutomationEnabled,
                 AllegroGatherEnabled = model.AllegroGatherEnabled,
-
                 DayDetailId = dayDetailId
             };
-            _context.ScheduleTasks.Add(newTask);
+            _context.ScheduleTasks.Add(singleTask);
             await _context.SaveChangesAsync();
 
-            var selectedStoreIds = model.Stores
-                .Where(x => x.IsSelected)
-                .Select(x => x.StoreId)
-                .ToList();
             foreach (var sid in selectedStoreIds)
             {
-                var rel = new ScheduleTaskStore
+                _context.ScheduleTaskStores.Add(new ScheduleTaskStore
                 {
-                    ScheduleTaskId = newTask.Id,
+                    ScheduleTaskId = singleTask.Id,
                     StoreId = sid
-                };
-                _context.ScheduleTaskStores.Add(rel);
+                });
             }
             await _context.SaveChangesAsync();
 
