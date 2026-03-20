@@ -1069,6 +1069,8 @@ namespace PriceSafari.Services.PriceAutomationService
             row.BlockReason = reason;
             row.SuggestedPrice = row.ApiAllegroPriceFromUser ?? row.CurrentPrice;
             row.PriceChange = 0;
+            row.IsGradualDecreaseApplied = false;
+            row.IsGradualIncreaseApplied = false;
             CalculateMarkup(row);
         }
 

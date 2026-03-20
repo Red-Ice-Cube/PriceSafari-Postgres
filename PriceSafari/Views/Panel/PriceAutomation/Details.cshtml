@@ -1034,13 +1034,13 @@
     }
 
     .filter-btn[data-filter-key="gradual-decrease"].active {
-        background: #1cc88a;
-        border-color: #1cc88a;
+        background: #198754;
+        border-color: #198754;
     }
 
     .filter-btn[data-filter-key="gradual-increase"].active {
-        background: #1cc88a;
-        border-color: #1cc88a;
+        background: #DC3545;
+        border-color: #DC3545;
     }
 </style>
 
@@ -1852,34 +1852,42 @@
                                         {
                                             @if (item.PriceChange.Value < 0)
                                             {
-                                                <span class="price-main-style text-success" style="display: inline-flex; align-items: center;">
-                                                    <i class="fas fa-arrow-down" style="margin-right: 5px; font-weight: 900; font-size: 0.8em;"></i>
-                                                    @Math.Abs(item.PriceChange.Value).ToString("F2") PLN
-                                                </span>
-                                                @if (item.IsGradualDecreaseApplied)
-                                                {
-                                                    <span style="color: #1cc88a; cursor: help; font-size: 12px; margin-left: 4px;"
-                                                          data-toggle="tooltip"
-                                                          title="Stopniowa obniżka — cena została ograniczona maksymalnym krokiem obniżki. Docelowa cena jest niższa, ale automat dochodzi do niej stopniowo.">
-                                                        <i class="fas fa-shoe-prints fa-flip-horizontal"></i>
+                                                <span class="price-main-style text-success" style="display: inline-flex; align-items: center;"
+                                                    @if (item.IsGradualDecreaseApplied)
+                                                    {
+                                                        <text>data-toggle="tooltip" title="Stopniowa obniżka — cena została ograniczona maksymalnym krokiem obniżki. Docelowa cena jest niższa, ale automat dochodzi do niej stopniowo." style="display: inline-flex; align-items: center; cursor: help;"</text>
+                                                    }
+                                                    >
+                                                        @if (item.IsGradualDecreaseApplied)
+                                                        {
+                                                            <i class="fas fa-arrow-down-wide-short" style="margin-right: 5px; font-size: 0.9em;"></i>
+                                                        }
+                                                        else
+                                                        {
+                                                            <i class="fas fa-arrow-down" style="margin-right: 5px; font-weight: 900; font-size: 0.8em;"></i>
+                                                        }
+                                                        @Math.Abs(item.PriceChange.Value).ToString("F2") PLN
                                                     </span>
                                                 }
-                                            }
-                                            else
-                                            {
-                                                <span class="price-main-style text-danger" style="display: inline-flex; align-items: center;">
-                                                    <i class="fas fa-arrow-up" style="margin-right: 5px; font-weight: 900; font-size: 0.8em;"></i>
-                                                    @item.PriceChange.Value.ToString("F2") PLN
-                                                </span>
-                                                @if (item.IsGradualIncreaseApplied)
+else
                                                 {
-                                                    <span style="color: #1cc88a; cursor: help; font-size: 12px; margin-left: 4px;"
-                                                          data-toggle="tooltip"
-                                                          title="Stopniowa podwyżka — cena została ograniczona maksymalnym krokiem podwyżki. Docelowa cena jest wyższa, ale automat dochodzi do niej stopniowo.">
-                                                        <i class="fas fa-shoe-prints"></i>
-                                                    </span>
-                                                }
-                                            }
+                                                    <span class="price-main-style text-danger" style="display: inline-flex; align-items: center;"
+                                                        @if (item.IsGradualIncreaseApplied)
+                                                        {
+                                                            <text>data-toggle="tooltip" title="Stopniowa podwyżka — cena została ograniczona maksymalnym krokiem podwyżki. Docelowa cena jest wyższa, ale automat dochodzi do niej stopniowo." style="display: inline-flex; align-items: center; cursor: help;"</text>
+                                                        }
+                                                        >
+                                                            @if (item.IsGradualIncreaseApplied)
+                                                            {
+                                                                <i class="fas fa-arrow-up-wide-short" style="margin-right: 5px; font-size: 0.9em;"></i>
+                                                            }
+                                                            else
+                                                            {
+                                                                <i class="fas fa-arrow-up" style="margin-right: 5px; font-weight: 900; font-size: 0.8em;"></i>
+                                                            }
+                                                            @item.PriceChange.Value.ToString("F2") PLN
+                                                        </span>
+                                                    }
                                         }
                                         else if (item.Status == AutomationCalculationStatus.TargetMaintained)
                                         {
@@ -1990,14 +1998,14 @@
                                                 case AutomationCalculationStatus.TargetMet:
                                                     @if (item.IsGradualDecreaseApplied)
                                                     {
-                                                        <div class="status-badge" style="background-color: #1cc88a;">
-                                                            <i class="fas fa-shoe-prints fa-flip-horizontal" style="font-size: 9px;"></i> Stopniowa Obn.
+                                                                <div class="status-badge" style="background-color: #198754;">
+                                                            <i class="fas fa-arrow-down-wide-short" style="font-size: 9px;"></i> Stopniowa Obn.
                                                         </div>
                                                     }
                                                     else if (item.IsGradualIncreaseApplied)
                                                     {
-                                                        <div class="status-badge" style="background-color: #1cc88a;">
-                                                            <i class="fas fa-shoe-prints" style="font-size: 9px;"></i> Stopniowa Pod.
+                                                        <div class="status-badge" style="background-color: #DC3545;">
+                                                            <i class="fas fa-arrow-up-wide-short" style="font-size: 9px;"></i> Stopniowa Pod.
                                                         </div>
                                                     }
                                                     else
@@ -3381,8 +3389,8 @@
                     filters: [
                         { key: 'increase', label: 'Podwyżki', icon: 'fa-arrow-up', attr: 'data-price-change', value: 'increase' },
                         { key: 'decrease', label: 'Obniżki', icon: 'fa-arrow-down', attr: 'data-price-change', value: 'decrease' },
-                        { key: 'gradual-decrease', label: 'Stopniowa obniżka', icon: 'fa-shoe-prints', attr: 'data-gradual-decrease', value: 'true' },
-                        { key: 'gradual-increase', label: 'Stopniowa podwyżka', icon: 'fa-shoe-prints', attr: 'data-gradual-increase', value: 'true' },
+                        { key: 'gradual-increase', label: 'Stopniowa podwyżka', icon: 'fa-arrow-up-wide-short', attr: 'data-gradual-increase', value: 'true' },
+                        { key: 'gradual-decrease', label: 'Stopniowa obniżka', icon: 'fa-arrow-down-wide-short', attr: 'data-gradual-decrease', value: 'true' },
                         { key: 'maintained', label: 'Bez zmian', icon: 'fa-equals', attr: 'data-price-change', value: 'maintained' },
                         { key: 'blocked', label: 'Zablokowane', icon: 'fa-ban', attr: 'data-price-change', value: 'blocked' }
                     ]
