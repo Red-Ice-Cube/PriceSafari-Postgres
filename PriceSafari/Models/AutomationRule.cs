@@ -211,6 +211,11 @@ namespace PriceSafari.Models
         [Display(Name = "Pomiń zmianę, jeśli limit narzutu uniemożliwia osiągnięcie celu")]
         public bool SkipIfMarkupLimited { get; set; } = false;
 
+        /// <summary>
+        /// Kolejność wyświetlania na liście. Wyższy = wyżej na liście. 0 = brak ręcznej pozycji.
+        /// </summary>
+        public int SortOrder { get; set; } = 0;
+
         // =================================================================================
         // SEKCJA 3: SPECYFICZNE DLA PRICE COMPARISON (Google/Ceneo)
         // =================================================================================

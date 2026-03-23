@@ -124,6 +124,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(r => new AutomationRuleListViewModel
                 {
                     Id = r.Id,
+                    SortOrder = r.SortOrder,
                     Name = r.Name,
                     ColorHex = r.ColorHex,
                     IsActive = r.IsActive,
@@ -137,8 +138,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     ScheduledEndDate = r.ScheduledEndDate,
                     AssignedProductsCount = _context.AutomationProductAssignments.Count(a => a.AutomationRuleId == r.Id)
                 })
-                .OrderByDescending(r => r.Id)
+                .OrderByDescending(r => r.SortOrder)
+                .ThenByDescending(r => r.Id)
                 .ToListAsync();
+
 
             ViewBag.StoreId = storeId;
             ViewBag.StoreName = storeName;
@@ -149,6 +152,7 @@ namespace PriceSafari.Controllers.MemberControllers
         public class AutomationRuleListViewModel
         {
             public int Id { get; set; }
+            public int SortOrder { get; set; }
             public string Name { get; set; }
             public string ColorHex { get; set; }
             public bool IsActive { get; set; }
@@ -471,6 +475,36 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             return Ok(new { success = true, message = $"Usunięto przypisanie automatyzacji dla {assignmentsToRemove.Count} produktów." });
+        }
+
+        [HttpPost]
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
+        public async Task<IActionResult> UpdateSortOrder([FromBody] List<SortOrderItem> items)
+        {
+            if (items == null || !items.Any()) return BadRequest();
+
+            var ruleIds = items.Select(i => i.Id).ToList();
+            var rules = await _context.AutomationRules
+                .Where(r => ruleIds.Contains(r.Id))
+                .ToListAsync();
+
+            foreach (var rule in rules)
+            {
+                var item = items.FirstOrDefault(i => i.Id == rule.Id);
+                if (item != null)
+                {
+                    rule.SortOrder = item.Position;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true });
+        }
+
+        public class SortOrderItem
+        {
+            public int Id { get; set; }
+            public int Position { get; set; }
         }
     }
 }

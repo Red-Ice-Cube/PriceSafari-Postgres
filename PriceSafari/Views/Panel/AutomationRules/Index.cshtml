@@ -159,7 +159,28 @@
     .status-waiting  { color: #f6c23e; }
     .status-stopped  { color: #f6c23e; }
 
-    /* ── Time scheduling (identyczne jak Details) ── */
+   .rule-card.dragging {
+        opacity: 0.3;
+        transform: scale(0.97);
+    }
+
+    .drag-handle {
+        cursor: grab;
+        color: #d1d3e2;
+        font-size: 16px;
+        margin-right: 12px;
+        transition: color 0.2s;
+        flex-shrink: 0;
+    }
+
+    .drag-handle:hover {
+        color: #858796;
+    }
+
+    .drag-handle:active {
+        cursor: grabbing;
+    }
+
     .time-schedule-box {
         display: inline-flex;
         align-items: center;
@@ -308,9 +329,14 @@
     string iconClass = isCompetitiveness ? "fa-bolt" : "fa-dollar-sign";
     string colorClass = isCompetitiveness ? "text-strategy-comp" : "text-strategy-prof";
 
-    <div class="rule-card" onclick="location.href='@Url.Action("Details", "PriceAutomation", new { id = item.Id })'">
+    <div class="rule-card" data-rule-id="@item.Id" data-sort-order="@item.SortOrder"
+         draggable="true"
+         onclick="if(!window._wasDragging) location.href='@Url.Action("Details", "PriceAutomation", new { id = item.Id })'">
 
         <div class="rule-content-wrapper">
+            <div class="drag-handle" title="Przeciągnij aby zmienić kolejność">
+                <i class="fas fa-grip-vertical"></i>
+            </div>
             <div class="rule-color-bar" style="background-color: @item.ColorHex;"></div>
 
             <div class="rule-info">
@@ -588,6 +614,99 @@
     <script>
         function showNoAccessAlert() {
             alert('@Html.Raw(noAccessMessage)');
+        }
+      window._wasDragging = false;
+        let dragSrcEl = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.querySelector('.Vert-table');
+            if (!container) return;
+
+            const getCards = () => [...container.querySelectorAll('.rule-card')];
+
+            container.addEventListener('dragstart', function(e) {
+                const card = e.target.closest('.rule-card');
+                if (!card) return;
+
+                const handle = card.querySelector('.drag-handle');
+                if (handle) {
+                    const rect = handle.getBoundingClientRect();
+                    if (e.clientX < rect.left || e.clientX > rect.right ||
+                        e.clientY < rect.top || e.clientY > rect.bottom) {
+                        e.preventDefault();
+                        return;
+                    }
+                }
+
+                dragSrcEl = card;
+                window._wasDragging = false;
+
+                requestAnimationFrame(() => {
+                    card.classList.add('dragging');
+                });
+
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', card.dataset.ruleId);
+            });
+
+            container.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                window._wasDragging = true;
+
+                if (!dragSrcEl) return;
+
+                const card = e.target.closest('.rule-card');
+                if (!card || card === dragSrcEl) return;
+
+                const rect = card.getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+
+                if (e.clientY < midY) {
+                    if (card.previousElementSibling !== dragSrcEl) {
+                        container.insertBefore(dragSrcEl, card);
+                    }
+                } else {
+                    if (card.nextElementSibling !== dragSrcEl) {
+                        container.insertBefore(dragSrcEl, card.nextSibling);
+                    }
+                }
+            });
+
+            container.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (dragSrcEl) {
+                    dragSrcEl.classList.remove('dragging');
+                    saveSortOrder();
+                }
+                dragSrcEl = null;
+            });
+
+            container.addEventListener('dragend', function() {
+                if (dragSrcEl) dragSrcEl.classList.remove('dragging');
+                dragSrcEl = null;
+                setTimeout(() => { window._wasDragging = false; }, 100);
+            });
+        });
+
+        function saveSortOrder() {
+            const cards = document.querySelectorAll('.rule-card');
+            const total = cards.length;
+            const items = [];
+
+            cards.forEach((card, index) => {
+                items.push({
+                    Id: parseInt(card.dataset.ruleId),
+                    Position: total - index
+                });
+            });
+
+            fetch('@Url.Action("UpdateSortOrder", "AutomationRules")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(items)
+            }).catch(err => console.error('Błąd zapisu kolejności:', err));
         }
     </script>
 }
