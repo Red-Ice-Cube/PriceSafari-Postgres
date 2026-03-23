@@ -3196,7 +3196,8 @@ tr:last-child .sub-line {
         box-shadow: 0 2px 5px rgba(0,0,0,0.08);
     }
 
-.flagFilterExclude {
+.flagFilterExclude,
+.adv-filter-exclude {
     outline: none;
     background-color: white;
     border: 2px solid gray;
@@ -3205,12 +3206,14 @@ tr:last-child .sub-line {
     height: 16px;
 }
 
-    .flagFilterExclude:checked {
+    .flagFilterExclude:checked,
+    .adv-filter-exclude:checked {
         background-color: rgba(255, 0, 0, 0.7);
         border: 2px solid rgba(255, 0, 0, 1);
     }
 
-.flagFilterInclude {
+.flagFilterInclude,
+.adv-filter-include {
     outline: none;
     background-color: white;
     border: 2px solid gray;

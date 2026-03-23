@@ -202,51 +202,114 @@
                         </div>
                         <div id="myPriceRangeSlider"></div>
                     </div>
+
+
+
+
                     <div class="Category-Container-Select">Specjalne odznaki oferty</div>
                     <div class="store-section">
-                        <div class="form-check">
-                            <input class="form-check-input myBadgeFilter" type="checkbox" id="myTopOfferFilter" value="myIsTopOffer">
-                            <label class="form-check-label" for="myTopOfferFilter" id="labelMyTopOffer">Top oferta</label>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_myIsTopOffer" value="myIsTopOffer" title="Pokaż tylko z tą odznaką">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_myIsTopOffer" value="myIsTopOffer" title="Ukryj te z odznaką">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;" id="label_myIsTopOffer">Top oferta (0)</span>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input myBadgeFilter" type="checkbox" id="mySuperPriceFilter" value="myIsSuperPrice">
-                            <label class="form-check-label" for="mySuperPriceFilter" id="labelMySuperPrice">Super cena</label>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_myIsSuperPrice" value="myIsSuperPrice" title="Pokaż tylko z tą odznaką">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_myIsSuperPrice" value="myIsSuperPrice" title="Ukryj te z odznaką">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;" id="label_myIsSuperPrice">Super cena (0)</span>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input myBadgeFilter" type="checkbox" id="myBestPriceFilter" value="myIsBestPriceGuarantee">
-                            <label class="form-check-label" for="myBestPriceFilter" id="labelMyBestPrice">Gwarancja najniższej ceny</label>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_myIsBestPriceGuarantee" value="myIsBestPriceGuarantee" title="Pokaż tylko z tą odznaką">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_myIsBestPriceGuarantee" value="myIsBestPriceGuarantee" title="Ukryj te z odznaką">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;" id="label_myIsBestPriceGuarantee">Gwar. naj. ceny (0)</span>
                         </div>
                     </div>
+
                     <div class="Category-Container-Select">Oferty w kampanii</div>
                     <div class="store-section">
-                        <div class="form-check">
-                            <input class="form-check-input myBadgeFilter" type="checkbox" id="myCampaignFilter" value="anyPromoActive">
-                            <label class="form-check-label" for="myCampaignFilter" id="labelMyCampaign">W jakiejkolwiek kampanii</label>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_anyPromoActive" value="anyPromoActive" title="Pokaż tylko w kampanii">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_anyPromoActive" value="anyPromoActive" title="Ukryj te w kampanii">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;" id="label_anyPromoActive">W kampanii (0)</span>
                         </div>
-
-                        <div class="form-check">
-                            <input class="form-check-input myBadgeFilter" type="checkbox" id="mySubsidyFilter" value="isSubsidyActive">
-                            <label class="form-check-label" for="mySubsidyFilter" id="labelMySubsidy">Kampania z dopłatami</label>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_isSubsidyActive" value="isSubsidyActive" title="Pokaż tylko w kampanii z dopłatami">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_isSubsidyActive" value="isSubsidyActive" title="Ukryj kampanie z dopłatami">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;" id="label_isSubsidyActive">Dopłaty (0)</span>
                         </div>
-
                     </div>
-                    <div class="Category-Container-Select">Status zmian cen</div>
-                    <div class="store-section">
-                        <div class="form-check">
-                            <input class="form-check-input statusFilter" type="checkbox" id="committedChangesFilter" value="committed">
-                            <label class="form-check-label" for="committedChangesFilter">Wprowadzone zmiany cen</label>
-                        </div>
-                    </div>
+
+            
 
                     <div class="Category-Container-Select">Nowe produkty</div>
                     <div class="store-section">
-                        <div class="form-check">
-                            <input class="form-check-input status-filter" type="checkbox" id="filter-new" value="isNew">
-                            <label class="form-check-label" for="filter-new">
-                                Nowy - 7 dni <span id="count-new" style="color: #888; font-size: 0.9em;"></span>
-                            </label>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_isNew" value="isNew" title="Pokaż tylko nowe">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_isNew" value="isNew" title="Ukryj nowe">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;" id="label_isNew">Nowy - 7 dni (0)</span>
                         </div>
                     </div>
+
+                    <div class="Category-Container-Select">Katalog Allegro</div>
+                    <div class="store-section">
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_catalogMulti" value="catalogMulti" title="Pokaż tylko spięte w katalogu">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_catalogMulti" value="catalogMulti" title="Ukryj spięte w katalogu">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;" id="label_catalogMulti">Wielokrotne wys. (0)</span>
+                        </div>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_catalogLeader" value="catalogLeader" title="Pokaż tylko liderów katalogu">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_catalogLeader" value="catalogLeader" title="Ukryj liderów katalogu">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;" id="label_catalogLeader">Główna oferta (0)</span>
+                        </div>
+                    </div>
+
+
+                    <div class="Category-Container-Select">Status zmian cen</div>
+                    <div class="store-section">
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_committed" value="committed" title="Pokaż tylko ze zmianą">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_committed" value="committed" title="Ukryj te ze zmianą">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;" id="label_committed">Zmiany cen (0)</span>
+                        </div>
+                    </div>
+               
                     <div class="Category-Container-Select">Sprzedaż Allegro - 30 dni</div>
                     <div class="store-section">
                         <div id="salesSortingButtons">
@@ -433,7 +496,7 @@
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom:24px; width:250px;">
-                            <label for="allegroChangePriceForBagdeBestPriceGuaranteeInput">Pozwól na zmianę ceny dla ofert "Gwarancją Najniższej Ceny"</label>
+                            <label for="allegroChangePriceForBagdeBestPriceGuaranteeInput">Pozwól na zmianę ceny dla ofert "Gwarancja Najniższej Ceny"</label>
                             <select class="form-control" id="allegroChangePriceForBagdeBestPriceGuaranteeInput">
                                 <option value="false">Nie (Blokuj)</option>
                                 <option value="true">Tak (Zmieniaj)</option>
