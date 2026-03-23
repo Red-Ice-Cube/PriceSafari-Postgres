@@ -801,6 +801,12 @@ namespace PriceSafari.Services.PriceAutomationService
 
                 row.MaxPriceLimit = Math.Round(maxLimit, 2);
             }
+            if (row.MinPriceLimit.HasValue && row.MaxPriceLimit.HasValue
+              && row.MinPriceLimit.Value > row.MaxPriceLimit.Value)
+            {
+                ApplyBlock(row, "Konflikt Min/Max");
+                return;
+            }
 
             if (rule.SourceType == AutomationSourceType.Marketplace)
             {
@@ -921,8 +927,14 @@ namespace PriceSafari.Services.PriceAutomationService
                 }
             }
 
-            // ═══ Krokowe ograniczenie zmiany ceny ═══
-            if (rule.EnableGradualDecrease && suggested < basePrice)
+            if (rule.SkipIfMarkupLimited
+               && row.MinPriceLimit.HasValue
+               && suggested < row.MinPriceLimit.Value
+               && suggested < basePrice)
+            {
+                ApplyBlock(row, "Limit Ceny (Min)");
+                return;
+            }
             {
                 decimal maxDrop = rule.IsGradualDecreasePercent
                     ? basePrice * (rule.GradualDecreaseValue / 100m)
@@ -949,8 +961,7 @@ namespace PriceSafari.Services.PriceAutomationService
                     row.IsGradualIncreaseApplied = true;
                 }
             }
-            // ═══════════════════════════════════════════
-            // ═══════════════════════════════════════════
+  
 
             bool wasLimitedByMin = false;
             bool wasLimitedByMax = false;
@@ -962,7 +973,7 @@ namespace PriceSafari.Services.PriceAutomationService
 
                     bool isPriceImprovement = suggested > basePrice;
 
-                    // Stopniowa podwyżka ma priorytet — nie przeskakuj do min limitu
+                
                     if (isPriceImprovement && row.IsGradualIncreaseApplied)
                     {
                         row.IsMarginWarning = true;
@@ -971,6 +982,11 @@ namespace PriceSafari.Services.PriceAutomationService
                     {
 
                         row.IsMarginWarning = true;
+                    }
+                    else if (rule.SkipIfMarkupLimited)
+                    {
+                        ApplyBlock(row, "Limit Ceny (Min)");
+                        return;
                     }
                     else
                     {
@@ -1002,7 +1018,7 @@ namespace PriceSafari.Services.PriceAutomationService
                 row.IsGradualDecreaseApplied = false;
                 row.IsGradualIncreaseApplied = false;
             }
-            if (wasLimitedByMin && suggested > basePrice && rule.EnableGradualIncrease)
+           if (wasLimitedByMin && suggested > basePrice && rule.EnableGradualIncrease)
             {
                 decimal maxRise = rule.IsGradualIncreasePercent
                     ? basePrice * (rule.GradualIncreaseValue / 100m)
@@ -1015,6 +1031,21 @@ namespace PriceSafari.Services.PriceAutomationService
                     row.IsGradualIncreaseApplied = true;
                     row.IsMarginWarning = true;
                     wasLimitedByMin = false;
+                }
+            }
+
+            if (wasLimitedByMax && suggested < basePrice && rule.EnableGradualDecrease)
+            {
+                decimal maxDrop = rule.IsGradualDecreasePercent
+                    ? basePrice * (rule.GradualDecreaseValue / 100m)
+                    : rule.GradualDecreaseValue;
+
+                decimal floorByStep = basePrice - maxDrop;
+                if (suggested < floorByStep)
+                {
+                    suggested = floorByStep;
+                    row.IsGradualDecreaseApplied = true;
+                    wasLimitedByMax = false;
                 }
             }
 
