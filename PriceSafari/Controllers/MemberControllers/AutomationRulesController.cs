@@ -235,7 +235,7 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 _context.AutomationRules.Add(rule);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index), new { storeId = rule.StoreId, filterType = rule.SourceType });
+                return RedirectToAction("Details", "PriceAutomation", new { id = rule.Id });
             }
             return View("~/Views/Panel/AutomationRules/CreateOrEdit.cshtml", rule);
         }
@@ -287,7 +287,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     if (!_context.AutomationRules.Any(e => e.Id == rule.Id)) return NotFound();
                     else throw;
                 }
-                return RedirectToAction(nameof(Index), new { storeId = rule.StoreId, filterType = rule.SourceType });
+                return RedirectToAction("Details", "PriceAutomation", new { id = rule.Id });
             }
             return View("~/Views/Panel/AutomationRules/CreateOrEdit.cshtml", rule);
         }

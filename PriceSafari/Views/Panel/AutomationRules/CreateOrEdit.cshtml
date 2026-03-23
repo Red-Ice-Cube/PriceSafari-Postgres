@@ -290,7 +290,14 @@
                 @(isEdit ? "Edycja Automatu Cenowego" : "Nowy Automat Cenowy")
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
-                <a asp-action="Index" asp-route-storeId="@Model.StoreId" asp-route-filterType="@Model.SourceType" class="Button-Page-Small">Anuluj</a>
+                @if (isEdit)
+                {
+                    <a asp-controller="PriceAutomation" asp-action="Details" asp-route-id="@Model.Id" class="Button-Page-Small">Anuluj</a>
+                }
+                else
+                {
+                    <a asp-controller="AutomationRules" asp-action="Index" asp-route-storeId="@Model.StoreId" asp-route-filterType="@Model.SourceType" class="Button-Page-Small">Anuluj</a>
+                }
                 <button type="submit" class="Button-Page-Small-bl" style="height:34px;">
                     <i class="fas fa-save mr-2" style="margin-right:4px;"></i> Zapisz Zmiany
                 </button>
