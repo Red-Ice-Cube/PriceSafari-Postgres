@@ -113,7 +113,8 @@
     let selectedAutomationsExclude = new Set();
     let selectedPriceChanges = [];
     let isBulkFlaggingMode = false;
-
+    let selectedAdvancedIncludes = new Set();
+    let selectedAdvancedExcludes = new Set();
     function getOfferText(count) {
         if (count === 1) return `${count} Oferta`;
         const lastDigit = count % 10;
@@ -1602,17 +1603,7 @@
             }
         }
 
-        const selectedBid = document.getElementById('bidFilter').checked;
-        const suspiciouslyLowFilter = document.getElementById('suspiciouslyLowFilter').checked;
 
-        const selectedStockMyStore = Array.from(document.querySelectorAll('.stockFilterMyStore:checked')).map(checkbox => {
-            if (checkbox.value === 'null') return null;
-            return checkbox.value === 'true';
-        });
-        const selectedStockCompetitor = Array.from(document.querySelectorAll('.stockFilterCompetitor:checked')).map(checkbox => {
-            if (checkbox.value === 'null') return null;
-            return checkbox.value === 'true';
-        });
 
         const positionSliderValues = positionSlider.noUiSlider.get();
         const positionMin = parseInt(positionSliderValues[0]);
@@ -1646,12 +1637,7 @@
             return myPrice >= priceMin && myPrice <= priceMax;
         });
 
-        if (suspiciouslyLowFilter) {
-            filteredPrices = filteredPrices.filter(item =>
-                item.singleBestCheaperDiffPerc !== null && item.singleBestCheaperDiffPerc > 25
-            );
-            filteredPrices.sort((a, b) => b.singleBestCheaperDiffPerc - a.singleBestCheaperDiffPerc);
-        }
+    
 
         if (selectedFlagsExclude.size > 0) {
             filteredPrices = filteredPrices.filter(item => {
@@ -1670,17 +1656,7 @@
             });
         }
 
-        if (selectedBid) {
-            filteredPrices = filteredPrices.filter(item => item.myIsBidding === "1");
-        }
 
-        if (selectedStockMyStore.length) {
-            filteredPrices = filteredPrices.filter(item => selectedStockMyStore.includes(item.myEntryInStock));
-        }
-
-        if (selectedStockCompetitor.length) {
-            filteredPrices = filteredPrices.filter(item => selectedStockCompetitor.includes(item.bestEntryInStock));
-        }
 
         if (selectedAutomationsExclude.size > 0) {
             filteredPrices = filteredPrices.filter(item => {
@@ -1694,6 +1670,45 @@
                 const ruleId = item.automationRuleId ? item.automationRuleId.toString() : 'noRule';
                 return selectedAutomationsInclude.has(ruleId);
             });
+        }
+
+        function checkAdvancedCondition(item, filterName) {
+            switch (filterName) {
+                case 'isBidding': return item.myIsBidding === "1";
+                case 'isNew': return item.isNew === true;
+                case 'suspiciouslyLow': return item.singleBestCheaperDiffPerc !== null && item.singleBestCheaperDiffPerc > 25;
+                case 'myStockAvailable': return item.myEntryInStock === true;
+                case 'myStockUnavailable': return item.myEntryInStock === false;
+                case 'myStockNoData': return item.myEntryInStock === null;
+                case 'compStockAvailable': return item.bestEntryInStock === true;
+                case 'compStockUnavailable': return item.bestEntryInStock === false;
+                case 'compStockNoData': return item.bestEntryInStock === null;
+                default: return false;
+            }
+        }
+
+     
+        if (selectedAdvancedExcludes.size > 0) {
+            filteredPrices = filteredPrices.filter(item => {
+                for (let filterName of selectedAdvancedExcludes) {
+                    if (checkAdvancedCondition(item, filterName)) return false;
+                }
+                return true;
+            });
+        }
+
+      
+        if (selectedAdvancedIncludes.size > 0) {
+            filteredPrices = filteredPrices.filter(item => {
+                for (let filterName of selectedAdvancedIncludes) {
+                    if (!checkAdvancedCondition(item, filterName)) return false;
+                }
+                return true;
+            });
+        }
+
+        if (selectedAdvancedIncludes.has('suspiciouslyLow')) {
+            filteredPrices.sort((a, b) => b.singleBestCheaperDiffPerc - a.singleBestCheaperDiffPerc);
         }
 
         return filteredPrices;
@@ -3857,10 +3872,7 @@
                 );
             }
 
-            const filterNewCheckboxEl = document.getElementById('filter-new');
-            if (filterNewCheckboxEl && filterNewCheckboxEl.checked) {
-                filteredPrices = filteredPrices.filter(item => item.isNew === true);
-            }
+           
 
             currentlyFilteredPrices = [...filteredPrices];
 
@@ -3958,8 +3970,8 @@
     }, 300);
 
     document.getElementById('productSearch').addEventListener('input', debouncedFilterPrices);
-
-    document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter, .stockFilterMyStore, .stockFilterCompetitor, .externalPriceFilter')
+    
+    document.querySelectorAll('.colorFilter, .flagFilter, .positionFilter')
         .forEach(function (checkbox) {
             checkbox.addEventListener('change', function () {
                 showLoading();
@@ -3967,21 +3979,33 @@
             });
         });
 
-    document.getElementById('bidFilter').addEventListener('change', function () {
-        filterPricesAndUpdateUI();
-    });
+    document.querySelectorAll('.adv-filter-include, .adv-filter-exclude').forEach(checkbox => {
+        checkbox.addEventListener('change', function () {
+            const val = this.value;
+            const isInclude = this.classList.contains('adv-filter-include');
 
-    document.getElementById('suspiciouslyLowFilter').addEventListener('change', function () {
-        filterPricesAndUpdateUI();
-    });
+            if (isInclude) {
+                if (this.checked) {
+                    const exclude = document.getElementById(`exclude_${val}`);
+                    if (exclude) { exclude.checked = false; selectedAdvancedExcludes.delete(val); }
+                    selectedAdvancedIncludes.add(val);
+                } else {
+                    selectedAdvancedIncludes.delete(val);
+                }
+            } else {
+                if (this.checked) {
+                    const include = document.getElementById(`include_${val}`);
+                    if (include) { include.checked = false; selectedAdvancedIncludes.delete(val); }
+                    selectedAdvancedExcludes.add(val);
+                } else {
+                    selectedAdvancedExcludes.delete(val);
+                }
+            }
 
-    const filterNewCheckbox = document.getElementById('filter-new');
-    if (filterNewCheckbox) {
-        filterNewCheckbox.addEventListener('change', function () {
             showLoading();
             filterPricesAndUpdateUI();
         });
-    }
+    });
 
     document.getElementById('sortName').addEventListener('click', function () {
         if (sortingState.sortName === null) {

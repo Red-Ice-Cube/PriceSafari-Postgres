@@ -261,69 +261,106 @@
                         </div>
                         <div id="myPriceRangeSlider"></div>
                     </div>
-                    <div class="Category-Container-Select">Ceneo - Promowanie</div>
+                   <div class="Category-Container-Select">Ceneo - Promowanie</div>
                     <div class="store-section">
-
-                        <div class="form-check">
-                            <input class="form-check-input bidFilter" type="checkbox" id="bidFilter">
-                            <label class="form-check-label" for="bidFilter">Bid</label>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_isBidding" value="isBidding" title="Pokaż tylko w Bid">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_isBidding" value="isBidding" title="Ukryj te w Bid">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;">Bid</span>
                         </div>
-
                     </div>
+
                     <div class="Category-Container-Select">Dostępność - Twój sklep</div>
                     <div class="store-section">
-                        <div class="filter-category">
-                            <div class="form-check">
-                                <input class="form-check-input stockFilterMyStore" type="checkbox" id="stockAvailableMyStore" value="true">
-                                <label class="form-check-label" for="stockAvailableMyStore">Dostępny</label>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_myStockAvailable" value="myStockAvailable" title="Pokaż tylko dostępne">
                             </div>
-                            <div class="form-check">
-                                <input class="form-check-input stockFilterMyStore" type="checkbox" id="stockUnavailableMyStore" value="false">
-                                <label class="form-check-label" for="stockUnavailableMyStore">Niedostępny</label>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_myStockAvailable" value="myStockAvailable" title="Ukryj dostępne">
                             </div>
-                            <div class="form-check">
-                                <input class="form-check-input stockFilterMyStore" type="checkbox" id="stockNoDataMyStore" value="null">
-                                <label class="form-check-label" for="stockNoDataMyStore">Brak danych</label>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;">Dostępny</span>
+                        </div>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_myStockUnavailable" value="myStockUnavailable" title="Pokaż tylko niedostępne">
                             </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_myStockUnavailable" value="myStockUnavailable" title="Ukryj niedostępne">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;">Niedostępny</span>
+                        </div>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_myStockNoData" value="myStockNoData" title="Pokaż brak danych">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_myStockNoData" value="myStockNoData" title="Ukryj brak danych">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;">Brak danych</span>
                         </div>
                     </div>
+
                     <div class="Category-Container-Select">Dostępność - konkurencja</div>
                     <div class="store-section">
-                        <div class="filter-category">
-                            <div class="form-check">
-                                <input class="form-check-input stockFilterCompetitor" type="checkbox" id="stockAvailableCompetitor" value="true">
-                                <label class="form-check-label" for="stockAvailableCompetitor">Dostępny</label>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_compStockAvailable" value="compStockAvailable" title="Pokaż tylko dostępne">
                             </div>
-                            <div class="form-check">
-                                <input class="form-check-input stockFilterCompetitor" type="checkbox" id="stockUnavailableCompetitor" value="false">
-                                <label class="form-check-label" for="stockUnavailableCompetitor">Niedostępny</label>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_compStockAvailable" value="compStockAvailable" title="Ukryj dostępne">
                             </div>
-                            <div class="form-check">
-                                <input class="form-check-input stockFilterCompetitor" type="checkbox" id="stockNoDataCompetitor" value="null">
-                                <label class="form-check-label" for="stockNoDataCompetitor">Brak danych</label>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;">Dostępny</span>
+                        </div>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_compStockUnavailable" value="compStockUnavailable" title="Pokaż tylko niedostępne">
                             </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_compStockUnavailable" value="compStockUnavailable" title="Ukryj niedostępne">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;">Niedostępny</span>
+                        </div>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_compStockNoData" value="compStockNoData" title="Pokaż brak danych">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_compStockNoData" value="compStockNoData" title="Ukryj brak danych">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;">Brak danych</span>
                         </div>
                     </div>
+
                     <div class="Category-Container-Select">Nowe produkty</div>
                     <div class="store-section">
-                        <div class="form-check">
-                            <input class="form-check-input status-filter" type="checkbox" id="filter-new" value="isNew">
-                            <label class="form-check-label" for="filter-new">
-                                Nowy - 7 dni <span id="count-new" style="color: #888; font-size: 0.9em;"></span>
-                            </label>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_isNew" value="isNew" title="Pokaż tylko nowe">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_isNew" value="isNew" title="Ukryj nowe">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;">Nowy - 7 dni <span id="count-new" style="color: #888; font-size: 0.9em; margin-left: 4px;"></span></span>
                         </div>
                     </div>
-                        <div class="Category-Container-Select">Podejrzanie niska cena</div>
-                        <div class="store-section">
-                            <div class="filter-category">
-                                <div class="form-check">
-                                    <input class="form-check-input externalPriceFilter" type="checkbox" id="suspiciouslyLowFilter" value="1">
-                                    <label class="form-check-label" for="suspiciouslyLowFilter">Pow. 25% odchylenia</label>
-                                </div>
 
+                    <div class="Category-Container-Select">Podejrzanie niska cena</div>
+                    <div class="store-section">
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_suspiciouslyLow" value="suspiciouslyLow" title="Pokaż tylko z odchyleniem">
                             </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_suspiciouslyLow" value="suspiciouslyLow" title="Ukryj odchylenia">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; display:flex; align-items:center; flex: 1; min-width: 0; margin-left: 6px;">Pow. 25% odchylenia</span>
                         </div>
-
+                    </div>
                     <div class="Category-Container-Select">Sprzedaż Ceneo - 90 dni</div>
                     <div class="store-section">
                         <div id="salesSortingButtons">
