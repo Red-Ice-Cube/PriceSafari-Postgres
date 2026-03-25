@@ -106,6 +106,10 @@ public class Program
         builder.Services.AddScoped<AllegroAuthTokenService>();
         builder.Services.AddScoped<PriceAutomationService>();
         builder.Services.AddScoped<AllegroGatherService>();
+        builder.Services.AddScoped<PriceSafari.Services.KSeF.IInvoiceXmlBuilder,
+                           PriceSafari.Services.KSeF.InvoiceXmlBuilder>();
+        builder.Services.AddHttpClient<PriceSafari.Services.KSeF.IKSeFClientWrapper,
+                                       PriceSafari.Services.KSeF.KSeFClientWrapper>();
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 
         builder.Services.AddMemoryCache();

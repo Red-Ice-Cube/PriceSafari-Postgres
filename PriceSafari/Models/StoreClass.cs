@@ -125,6 +125,8 @@ namespace PriceSafari.Models
         public string? ApiExportToken { get; set; }
         // Sugeruję wygenerować tu Guid w momencie tworzenia sklepu/włączania opcji, np. Guid.NewGuid().ToString("N")
 
+        public bool UseKSeF { get; set; } = false;
+
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
         public ICollection<ProductClass> Products { get; set; } = new List<ProductClass>();
         public ICollection<AllegroProductClass> AllegroProducts { get; set; } = new List<AllegroProductClass>();
