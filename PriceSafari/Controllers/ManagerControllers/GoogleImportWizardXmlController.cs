@@ -154,37 +154,128 @@ namespace PriceSafari.Controllers.ManagerControllers
             public string LocalName { get; set; }
         }
 
+        //[HttpPost]
+        //public async Task<IActionResult> SaveProductMapsFromFront([FromBody] List<ProductMapDto> productMaps)
+        //{
+        //    if (productMaps == null || productMaps.Count == 0)
+        //    {
+        //        return Json(new { success = false, message = "Brak productMaps" });
+        //    }
+
+        //    int storeId = productMaps[0].StoreId;
+        //    var existing = await _context.ProductMaps
+        //        .Where(pm => pm.StoreId == storeId)
+        //        .ToListAsync();
+
+        //    int added = 0, updated = 0;
+
+        //    foreach (var pmDto in productMaps)
+        //    {
+
+        //        if (!string.IsNullOrEmpty(pmDto.ExternalId))
+        //        {
+        //            pmDto.ExternalId = new string(pmDto.ExternalId.Where(c => char.IsDigit(c)).ToArray());
+        //        }
+
+        //        var found = existing.FirstOrDefault(x =>
+        //            x.Url == pmDto.Url
+        //            && x.ExternalId == pmDto.ExternalId
+        //        );
+
+        //        if (found == null)
+        //        {
+
+        //            var newMap = new ProductMap
+        //            {
+        //                StoreId = pmDto.StoreId,
+        //                ExternalId = pmDto.ExternalId,
+        //                Url = pmDto.Url,
+        //                GoogleEan = pmDto.GoogleEan,
+        //                GoogleImage = pmDto.GoogleImage,
+        //                GoogleExportedName = pmDto.GoogleExportedName,
+        //                GoogleExportedProducer = pmDto.GoogleExportedProducer,
+
+        //                GoogleXMLPrice = pmDto.GoogleXMLPrice,
+        //                GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice,
+        //                GoogleExportedProducerCode = pmDto.GoogleExportedProducerCode,
+
+        //            };
+
+        //            _context.ProductMaps.Add(newMap);
+        //            existing.Add(newMap);
+        //            added++;
+        //        }
+        //        else
+        //        {
+
+        //            found.ExternalId = pmDto.ExternalId;
+        //            found.Url = pmDto.Url;
+        //            found.GoogleEan = pmDto.GoogleEan;
+        //            found.GoogleImage = pmDto.GoogleImage;
+        //            found.GoogleExportedName = pmDto.GoogleExportedName;
+        //            found.GoogleExportedProducer = pmDto.GoogleExportedProducer;
+
+        //            found.GoogleXMLPrice = pmDto.GoogleXMLPrice;
+        //            found.GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice;
+
+        //            found.GoogleExportedProducerCode = pmDto.GoogleExportedProducerCode;
+
+        //            _context.ProductMaps.Update(found);
+        //            updated++;
+        //        }
+        //    }
+
+        //    await _context.SaveChangesAsync();
+        //    return Json(new { success = true, message = $"Dodano {added}, zaktualizowano {updated}." });
+        //}
+
         [HttpPost]
         public async Task<IActionResult> SaveProductMapsFromFront([FromBody] List<ProductMapDto> productMaps)
         {
             if (productMaps == null || productMaps.Count == 0)
-            {
                 return Json(new { success = false, message = "Brak productMaps" });
-            }
 
             int storeId = productMaps[0].StoreId;
-            var existing = await _context.ProductMaps
+
+            // 1. Zabezpieczenie przed duplikatami z FRONTENDU
+            // Grupujemy po ExternalId i Url, bierzemy tylko pierwszy element z grupy
+            var uniqueProductMaps = productMaps
+                .GroupBy(pm => new { pm.ExternalId, pm.Url })
+                .Select(g => g.First())
+                .ToList();
+
+            // 2. Pobierz istniejące z bazy do szybkiego wyszukiwania (Słownik)
+            var existingDict = await _context.ProductMaps
                 .Where(pm => pm.StoreId == storeId)
-                .ToListAsync();
+                .ToDictionaryAsync(pm => new { pm.ExternalId, pm.Url });
 
             int added = 0, updated = 0;
 
-            foreach (var pmDto in productMaps)
+            foreach (var pmDto in uniqueProductMaps)
             {
-
                 if (!string.IsNullOrEmpty(pmDto.ExternalId))
-                {
                     pmDto.ExternalId = new string(pmDto.ExternalId.Where(c => char.IsDigit(c)).ToArray());
-                }
 
-                var found = existing.FirstOrDefault(x =>
-                    x.Url == pmDto.Url
-                    && x.ExternalId == pmDto.ExternalId
-                );
+                var key = new { ExternalId = pmDto.ExternalId, Url = pmDto.Url };
 
-                if (found == null)
+                if (existingDict.TryGetValue(key, out var found))
                 {
+                    // Aktualizacja istniejącego
+                    found.GoogleEan = pmDto.GoogleEan;
+                    found.GoogleImage = pmDto.GoogleImage;
+                    found.GoogleExportedName = pmDto.GoogleExportedName;
+                    found.GoogleExportedProducer = pmDto.GoogleExportedProducer;
+                    found.GoogleXMLPrice = pmDto.GoogleXMLPrice;
+                    found.GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice;
+                    found.GoogleExportedProducerCode = pmDto.GoogleExportedProducerCode;
 
+                    // _context.Update(found) NIE JEST KONIECZNE, jeśli 'found' pochodzi bezpośrednio
+                    // z kontekstu bazy (EF sam śledzi zmiany). Ale można zostawić dla pewności.
+                    updated++;
+                }
+                else
+                {
+                    // Dodawanie nowego
                     var newMap = new ProductMap
                     {
                         StoreId = pmDto.StoreId,
@@ -194,34 +285,13 @@ namespace PriceSafari.Controllers.ManagerControllers
                         GoogleImage = pmDto.GoogleImage,
                         GoogleExportedName = pmDto.GoogleExportedName,
                         GoogleExportedProducer = pmDto.GoogleExportedProducer,
-
                         GoogleXMLPrice = pmDto.GoogleXMLPrice,
                         GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice,
                         GoogleExportedProducerCode = pmDto.GoogleExportedProducerCode,
-
                     };
 
                     _context.ProductMaps.Add(newMap);
-                    existing.Add(newMap);
                     added++;
-                }
-                else
-                {
-
-                    found.ExternalId = pmDto.ExternalId;
-                    found.Url = pmDto.Url;
-                    found.GoogleEan = pmDto.GoogleEan;
-                    found.GoogleImage = pmDto.GoogleImage;
-                    found.GoogleExportedName = pmDto.GoogleExportedName;
-                    found.GoogleExportedProducer = pmDto.GoogleExportedProducer;
-
-                    found.GoogleXMLPrice = pmDto.GoogleXMLPrice;
-                    found.GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice;
-
-                    found.GoogleExportedProducerCode = pmDto.GoogleExportedProducerCode;
-
-                    _context.ProductMaps.Update(found);
-                    updated++;
                 }
             }
 

@@ -462,8 +462,8 @@ function extractProductsFromXml() {
                 GoogleExportedName: getVal(entries[i], "GoogleExportedName", productNodeNameWithPredicate),
                 GoogleExportedProducer: getVal(entries[i], "GoogleExportedProducer", productNodeNameWithPredicate),
                 GoogleExportedProducerCode: getVal(entries[i], "GoogleExportedProducerCode", productNodeNameWithPredicate),
-                GoogleXMLPrice: parsePrice(getVal(entries[i], "GoogleXMLPrice", productNodeNameWithPredicate)),
-                GoogleDeliveryXMLPrice: parsePrice(getVal(entries[i], "GoogleDeliveryXMLPrice", productNodeNameWithPredicate))
+                GoogleXMLPrice: parseFloat(parsePrice(getVal(entries[i], "GoogleXMLPrice", productNodeNameWithPredicate))) || null,
+                GoogleDeliveryXMLPrice: parseFloat(parsePrice(getVal(entries[i], "GoogleDeliveryXMLPrice", productNodeNameWithPredicate))) || null
             };
             if (onlyEan && (!pm.GoogleEan || !pm.GoogleEan.trim())) continue;
             if (pm.Url) {
