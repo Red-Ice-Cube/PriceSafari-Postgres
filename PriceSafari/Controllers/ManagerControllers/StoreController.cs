@@ -159,6 +159,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.IsPayingCustomer = store.IsPayingCustomer;
             existingStore.GetAllegroSkuByApi= store.GetAllegroSkuByApi;
             existingStore.SubscriptionStartDate = store.SubscriptionStartDate;
+            existingStore.UseKSeF = store.UseKSeF;
 
             if (!isPaymentDataEmpty && store.PaymentData != null)
             {
