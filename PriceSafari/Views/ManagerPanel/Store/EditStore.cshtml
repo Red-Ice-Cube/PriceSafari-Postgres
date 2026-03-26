@@ -266,7 +266,7 @@
                     <div class="form-row align-items-center">
                         <div class="form-group col-md-8">
                             <label asp-for="PaymentData.InvoiceAutoMail">E-mail do wysyłki faktur</label>
-                            <input asp-for="PaymentData.InvoiceAutoMail" id="invoiceEmailInput" class="form-control" placeholder="faktury@firma.pl" type="email" autocomplete="off" />
+                    <input asp-for="PaymentData.InvoiceAutoMail" id="invoiceEmailInput" class="form-control" placeholder="faktury@firma.pl" type="email" autocomplete="new-email" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" />
                             <span asp-validation-for="PaymentData.InvoiceAutoMail" class="text-danger"></span>
                         </div>
                         <div class="form-group col-md-4">
