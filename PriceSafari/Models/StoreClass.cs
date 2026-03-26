@@ -90,6 +90,8 @@ namespace PriceSafari.Models
 
         public bool IsAllegroPriceBridgeActive { get; set; } = false;
 
+        public bool GetAllegroSkuByApi { get; set; } = false;
+
         public UserPaymentData? PaymentData { get; set; }
 
         public string? ImojePaymentProfileId { get; set; }
@@ -123,7 +125,7 @@ namespace PriceSafari.Models
         [Display(Name = "Token dostępu do API (JSON/XML)")]
         [MaxLength(100)]
         public string? ApiExportToken { get; set; }
-        // Sugeruję wygenerować tu Guid w momencie tworzenia sklepu/włączania opcji, np. Guid.NewGuid().ToString("N")
+       
 
         public bool UseKSeF { get; set; } = false;
 

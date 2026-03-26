@@ -432,30 +432,11 @@ namespace PriceSafari.Services.AllegroServices
                 }
                 catch { }
 
-
+                // --- NOWY KOD (POBIERANIE SYGNATURY/SKU) ---
                 string? producerCode = null;
                 try
                 {
-                    var parameters = offerDataNode["productSet"]?[0]?["product"]?["parameters"]?.AsArray();
-                    if (parameters != null)
-                    {
-                        var mpnParam = parameters.FirstOrDefault(p =>
-                            p?["id"]?.ToString() == "4783" ||
-                            p?["name"]?.ToString()?.Equals("Kod producenta", StringComparison.OrdinalIgnoreCase) == true
-                        );
-                        if (mpnParam != null)
-                        {
-                            var labelsArray = mpnParam["valuesLabels"]?.AsArray();
-                            if (labelsArray != null && labelsArray.Count > 0)
-                                producerCode = labelsArray[0]?.ToString();
-                            else
-                            {
-                                var valuesArray = mpnParam["values"]?.AsArray();
-                                if (valuesArray != null && valuesArray.Count > 0)
-                                    producerCode = valuesArray[0]?.ToString();
-                            }
-                        }
-                    }
+                    producerCode = offerDataNode["external"]?["id"]?.ToString();
                 }
                 catch { }
 

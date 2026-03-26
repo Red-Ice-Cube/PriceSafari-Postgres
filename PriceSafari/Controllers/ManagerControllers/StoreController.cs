@@ -157,6 +157,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.IsAllegroPriceBridgeActive = store.IsAllegroPriceBridgeActive;
             existingStore.FetchExtendedAllegroData = store.FetchExtendedAllegroData;
             existingStore.IsPayingCustomer = store.IsPayingCustomer;
+            existingStore.GetAllegroSkuByApi= store.GetAllegroSkuByApi;
             existingStore.SubscriptionStartDate = store.SubscriptionStartDate;
 
             if (!isPaymentDataEmpty && store.PaymentData != null)

@@ -210,7 +210,8 @@ namespace PriceSafari.Services.AllegroServices
                     }
                 }
 
-                if (sourceOfferToScrape.IsApiProcessed == true && !string.IsNullOrEmpty(sourceOfferToScrape.AllegroProducerCode))
+          
+                if (userStore.GetAllegroSkuByApi && sourceOfferToScrape.IsApiProcessed == true && !string.IsNullOrEmpty(sourceOfferToScrape.AllegroProducerCode))
                 {
                     var newProducerCode = sourceOfferToScrape.AllegroProducerCode;
                     var productsToUpdateSku = storeProducts
