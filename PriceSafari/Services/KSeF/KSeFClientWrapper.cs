@@ -59,7 +59,7 @@ namespace PriceSafari.Services.KSeF
                 // 1. Challenge
                 var challengeResp = await PostJsonAsync<ChallengeResponse>(
                     $"{_baseUrl}/auth/challenge",
-                    new { contextIdentifier = new { nip = _nip } }, ct);
+                    new { contextIdentifier = new { type = "Nip", value = _nip } }, ct); // Zmieniono na poprawny format KSeF 2.0
 
                 if (challengeResp == null || string.IsNullOrEmpty(challengeResp.Challenge))
                 {
@@ -67,7 +67,7 @@ namespace PriceSafari.Services.KSeF
                     return false;
                 }
 
-                _logger.LogInformation("Challenge OK (timestamp: {ts})", challengeResp.Timestamp);
+                _logger.LogInformation("Challenge OK (timestampMs: {ts})", challengeResp.TimestampMs);
 
                 // 2. Certyfikaty
                 await EnsureCertificatesAsync(ct);
@@ -77,10 +77,8 @@ namespace PriceSafari.Services.KSeF
                     return false;
                 }
 
-                // 3. Szyfruj token|timestamp
-                var timestamp = challengeResp.Timestamp
-                    ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
-                var tokenPayload = $"{_ksefToken}|{timestamp}";
+                // 3. Szyfruj token|timestampMs (KSeF 2.0 bezwzględnie wymaga TimestampMs jako liczby!)
+                var tokenPayload = $"{_ksefToken}|{challengeResp.TimestampMs}";
                 var encryptedToken = _tokenEncryptionKey.Encrypt(
                     Encoding.UTF8.GetBytes(tokenPayload), RSAEncryptionPadding.OaepSHA256);
 
@@ -90,83 +88,89 @@ namespace PriceSafari.Services.KSeF
                     new
                     {
                         challenge = challengeResp.Challenge,
-                        contextIdentifier = new { type = "nip", value = _nip },
+                        contextIdentifier = new { type = "Nip", value = _nip }, // KSeF 2.0 jest czuły na wielkość liter ("Nip")
                         encryptedToken = Convert.ToBase64String(encryptedToken)
                     }, ct);
 
-                if (authResp == null)
+                if (authResp?.AuthenticationToken?.Token == null || string.IsNullOrEmpty(authResp.ReferenceNumber))
                 {
-                    _logger.LogError("Brak odpowiedzi z /auth/ksef-token");
+                    _logger.LogError("Błąd logowania. Brak OperationToken lub ReferenceNumber z /auth/ksef-token.");
                     return false;
                 }
 
-                // KSeF 2.0 Demo zwraca JWT od razu w authenticationToken.token
-                if (!string.IsNullOrEmpty(authResp.AuthenticationToken?.Token))
+                // Ustawiamy tymczasowo OperationToken jako główny token, 
+                // bo jest on potrzebny w nagłówku Bearer do odpytania o status i zrobienia Redeem
+                _accessToken = authResp.AuthenticationToken.Token;
+                var authRef = authResp.ReferenceNumber;
+
+                _logger.LogInformation("Otrzymano OperationToken. Polling statusu {ref}...", authRef);
+
+                // 5. Polling statusu uwierzytelniania (teraz z użyciem OperationToken)
+                if (!await PollAuthStatusAsync(authRef, ct))
                 {
-                    _accessToken = authResp.AuthenticationToken.Token;
-                    _tokenExpiresAt = DateTime.TryParse(authResp.AuthenticationToken.ValidUntil, out var exp)
+                    _accessToken = null; // Czyścimy token w razie błędu
+                    return false;
+                }
+
+                _logger.LogInformation("Status 200 OK! Pobieram właściwy AccessToken (Redeem)...");
+
+                // 6. POST /auth/token/redeem (Wymiana na pełnoprawny token)
+                var redeem = await PostJsonAsync<TokenRedeemResponse>(
+                    $"{_baseUrl}/auth/token/redeem",
+                    new { }, // W KSeF 2.0 endpoint redeem nie wymaga wysyłania referenceNumber w ciele żądania
+                    ct,
+                    useAuth: true); // Kluczowe: wysyłamy żądanie podbite OperationTokenem
+
+                if (!string.IsNullOrEmpty(redeem?.AccessToken?.Token))
+                {
+                    _accessToken = redeem.AccessToken.Token; // Nadpisujemy token docelowym AccessTokenem!
+                    _refreshToken = redeem.RefreshToken?.Token;
+
+                    _tokenExpiresAt = DateTime.TryParse(redeem.AccessToken.ValidUntil, out var exp)
                         ? exp.ToUniversalTime()
-                        : DateTime.UtcNow.AddMinutes(14);
-                    _logger.LogInformation("<<< [KSeF AUTH] OK! JWT z authenticationToken (ważny do {v})",
-                        authResp.AuthenticationToken.ValidUntil);
+                        : DateTime.UtcNow.AddMinutes(115);
+
+                    _logger.LogInformation("<<< [KSeF AUTH] SUKCES! Właściwy token JWT pobrany (ważny do {v}).", redeem.AccessToken.ValidUntil);
                     return true;
                 }
 
-                // Alternatywa: bezpośredni accessToken
-                if (!string.IsNullOrEmpty(authResp.AccessToken))
-                {
-                    _accessToken = authResp.AccessToken;
-                    _refreshToken = authResp.RefreshToken;
-                    _tokenExpiresAt = DateTime.UtcNow.AddMinutes(14);
-                    _logger.LogInformation("<<< [KSeF AUTH] OK! AccessToken bezpośrednio.");
-                    return true;
-                }
-
-                // ReferenceNumber → poll → redeem
-                if (!string.IsNullOrEmpty(authResp.ReferenceNumber))
-                {
-                    _logger.LogInformation("Auth ref: {ref}, polling...", authResp.ReferenceNumber);
-
-                    if (!await PollAuthStatusAsync(authResp.ReferenceNumber, ct))
-                        return false;
-
-                    var redeem = await PostJsonAsync<TokenRedeemResponse>(
-                        $"{_baseUrl}/auth/token/redeem",
-                        new { referenceNumber = authResp.ReferenceNumber }, ct);
-
-                    if (redeem?.AccessToken != null)
-                    {
-                        _accessToken = redeem.AccessToken;
-                        _refreshToken = redeem.RefreshToken;
-                        _tokenExpiresAt = DateTime.UtcNow.AddMinutes(14);
-                        _logger.LogInformation("<<< [KSeF AUTH] OK! JWT przez redeem.");
-                        return true;
-                    }
-                }
-
-                _logger.LogError("Auth: brak accessToken i referenceNumber");
+                _logger.LogError("Redeem się nie powiódł, brak docelowego AccessToken.");
+                _accessToken = null;
                 return false;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Wyjątek auth KSeF");
+                _accessToken = null;
                 return false;
             }
         }
-
         private async Task<bool> PollAuthStatusAsync(string refNum, CancellationToken ct)
         {
             for (int i = 0; i < 15; i++)
             {
                 await Task.Delay(2000, ct);
-                var r = await GetJsonAsync<AuthStatusResponse>($"{_baseUrl}/auth/{refNum}", ct);
-                if (r?.ProcessingCode == 200) return true;
-                if (r?.ProcessingCode >= 400)
+
+                // Pamiętaj o useAuth: true (jest to wymagane w v2)
+                var r = await GetJsonAsync<AuthStatusResponse>($"{_baseUrl}/auth/{refNum}", ct, useAuth: true);
+
+                int code = r?.Status?.Code ?? 0;
+
+                if (code == 200)
                 {
-                    _logger.LogError("Auth poll error: {c} {d}", r.ProcessingCode, r.ProcessingDescription);
+                    _logger.LogInformation("Auth poll success (Code 200).");
+                    return true;
+                }
+
+                if (code >= 400)
+                {
+                    _logger.LogError("Auth poll error: {c} {d}", code, r?.Status?.Description);
                     return false;
                 }
+
+                _logger.LogInformation("Auth poll in progress... (Code: {c})", code);
             }
+
             _logger.LogError("Auth poll timeout 30s");
             return false;
         }
@@ -249,11 +253,16 @@ namespace PriceSafari.Services.KSeF
                     $"{_baseUrl}/sessions/online",
                     new
                     {
-                        formCode = new { systemCode = "FA (3)", schemaVersion = "1-0E", targetNamespace = "http://crd.gov.pl/wzor/2025/06/25/13775/" },
+                        formCode = new
+                        {
+                            systemCode = "FA (3)",
+                            schemaVersion = "1-0E",
+                            value = "FA" // <--- Zamiast targetNamespace używamy pola "value"
+                        },
                         encryption = new
                         {
-                            encryptionKeyBody = Convert.ToBase64String(encKey),
-                            iv = Convert.ToBase64String(aes.IV)
+                            encryptedSymmetricKey = Convert.ToBase64String(encKey), // <--- Zmieniono nazwę
+                            initializationVector = Convert.ToBase64String(aes.IV)   // <--- Zmieniono nazwę
                         }
                     }, ct, useAuth: true);
 
@@ -299,7 +308,6 @@ namespace PriceSafari.Services.KSeF
                     _logger.LogInformation("[KSeF] Faktura wysłana! InvoiceRef: {ir}", invoiceRefNumber);
                 }
 
-                // --- KROK 3: Zamknij sesję ---
                 _logger.LogInformation("[KSeF] Zamykam sesję {ref}...", sessionRef);
 
                 await PostJsonAsync<SessionResponse>(
@@ -308,8 +316,8 @@ namespace PriceSafari.Services.KSeF
 
                 _logger.LogInformation("[KSeF] Sesja zamknięta.");
 
-                // Zwracamy referenceNumber sesji (lub faktury jeśli jest)
-                var resultRef = invoiceRefNumber ?? sessionRef;
+                // NOWE: Sklejamy obie referencje znakiem "|", by zachować je w bazie w jednym stringu!
+                var resultRef = $"{sessionRef}|{invoiceRefNumber}";
                 return (true, resultRef, null);
             }
             catch (Exception ex)
@@ -319,18 +327,45 @@ namespace PriceSafari.Services.KSeF
             }
         }
 
-        public async Task<(KSeFExportStatus Status, string? KSeFNumber, string? Error)>
-            CheckStatusAsync(string referenceNumber, CancellationToken ct)
+        public async Task<(KSeFExportStatus Status, string? KSeFNumber, string? Error)> CheckStatusAsync(string referenceNumber, CancellationToken ct)
         {
             try
             {
-                var r = await GetJsonAsync<InvoiceStatusResponse>(
-                    $"{_baseUrl}/invoices/status/{referenceNumber}", ct, useAuth: true);
-                if (r == null) return (KSeFExportStatus.Pending, null, "Brak odpowiedzi");
-                if (r.ProcessingCode == 200)
+                // 1. Rozpakowanie obu referencji
+                var parts = referenceNumber.Split('|');
+                if (parts.Length != 2)
+                {
+                    // Opcjonalne zabezpieczenie, jeśli utknęła Ci w bazie stara faktura z samym InvoiceRef
+                    return (KSeFExportStatus.Error, null, $"Zły format ReferenceNumber. Wymagane SessionRef|InvoiceRef, jest: {referenceNumber}");
+                }
+
+                string sessionRef = parts[0];
+                string invoiceRef = parts[1];
+
+                // 2. Nowy endpoint KSeF 2.0!
+                var url = $"{_baseUrl}/sessions/{sessionRef}/invoices/{invoiceRef}";
+
+                var r = await GetJsonAsync<InvoiceStatusResponse>(url, ct, useAuth: true);
+                if (r == null) return (KSeFExportStatus.Pending, null, "Brak odpowiedzi (404/Pusta)");
+
+                // 3. Wyciągnięcie kodu KSeF 2.0
+                int code = r.Status?.Code ?? r.ProcessingCode;
+                string? desc = r.Status?.Description ?? r.ProcessingDescription;
+
+                if (code == 200)
                     return (KSeFExportStatus.Confirmed, r.KsefReferenceNumber, null);
-                if (r.ProcessingCode >= 400)
-                    return (KSeFExportStatus.Error, null, $"{r.ProcessingCode}: {r.ProcessingDescription}");
+
+                if (code >= 400)
+                {
+                    // Wyciągamy szczegóły błędu
+                    string exactError = r.Status?.Details != null && r.Status.Details.Any()
+                        ? string.Join(" | ", r.Status.Details)
+                        : desc ?? "Błąd KSeF";
+
+                    return (KSeFExportStatus.Error, null, $"{code}: {exactError}");
+                }
+
+                // Kody 100-399 oznaczają, że faktura wciąż weryfikuje się w urzędzie
                 return (KSeFExportStatus.Pending, null, null);
             }
             catch (Exception ex)
@@ -366,19 +401,28 @@ namespace PriceSafari.Services.KSeF
             }
         }
 
-        private async Task<T?> PostJsonAsync<T>(string url, object payload, CancellationToken ct,
-            bool useAuth = false) where T : class
+        private async Task<T?> PostJsonAsync<T>(string url, object payload, CancellationToken ct, bool useAuth = false) where T : class
         {
             var json = JsonSerializer.Serialize(payload, _jsonOptions);
             var req = new HttpRequestMessage(HttpMethod.Post, url)
             { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+
             if (useAuth && _accessToken != null)
                 req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
 
             var resp = await _httpClient.SendAsync(req, ct);
+
+            // Jeśli status to 204 No Content, od razu zwracamy null, żeby nie parsować pustego stringa
+            if (resp.StatusCode == System.Net.HttpStatusCode.NoContent)
+            {
+                return null;
+            }
+
             var body = await resp.Content.ReadAsStringAsync(ct);
             if (!resp.IsSuccessStatusCode)
                 _logger.LogWarning("POST {u} → {c}: {b}", url, resp.StatusCode, Trunc(body));
+
+            if (string.IsNullOrWhiteSpace(body)) return null;
 
             try { return JsonSerializer.Deserialize<T>(body, _jsonOptions); }
             catch (JsonException ex)
@@ -411,7 +455,7 @@ namespace PriceSafari.Services.KSeF
         private class ChallengeResponse
         {
             [JsonPropertyName("challenge")] public string? Challenge { get; set; }
-            [JsonPropertyName("timestamp")] public string? Timestamp { get; set; }
+            [JsonPropertyName("timestampMs")] public long TimestampMs { get; set; } // <--- KSeF 2.0 używa milisekund!
         }
 
         private class AuthTokenResponse
@@ -430,14 +474,22 @@ namespace PriceSafari.Services.KSeF
 
         private class AuthStatusResponse
         {
-            [JsonPropertyName("processingCode")] public int ProcessingCode { get; set; }
-            [JsonPropertyName("processingDescription")] public string? ProcessingDescription { get; set; }
+            [JsonPropertyName("status")] public AuthStatusDetail? Status { get; set; }
         }
 
+        private class AuthStatusDetail
+        {
+            [JsonPropertyName("code")] public int Code { get; set; }
+            [JsonPropertyName("description")] public string? Description { get; set; }
+
+            // DODAJ TĘ LINIJKĘ - tu KSeF chowa dokładne błędy XML-a!
+            [JsonPropertyName("details")] public List<string>? Details { get; set; }
+        }
         private class TokenRedeemResponse
         {
-            [JsonPropertyName("accessToken")] public string? AccessToken { get; set; }
-            [JsonPropertyName("refreshToken")] public string? RefreshToken { get; set; }
+            // W KSeF 2.0 to jest zagnieżdżony obiekt, a nie string
+            [JsonPropertyName("accessToken")] public AuthTokenDetail? AccessToken { get; set; }
+            [JsonPropertyName("refreshToken")] public AuthTokenDetail? RefreshToken { get; set; }
         }
 
         private class InvoiceSendResponse
@@ -454,9 +506,13 @@ namespace PriceSafari.Services.KSeF
 
         private class InvoiceStatusResponse
         {
-            [JsonPropertyName("processingCode")] public int ProcessingCode { get; set; }
+            [JsonPropertyName("processingCode")] public int ProcessingCode { get; set; } // Zostawiamy dla wstecznej zgodności
             [JsonPropertyName("processingDescription")] public string? ProcessingDescription { get; set; }
             [JsonPropertyName("ksefReferenceNumber")] public string? KsefReferenceNumber { get; set; }
+
+            // DODANE DLA KSEF 2.0:
+            [JsonPropertyName("status")] public AuthStatusDetail? Status { get; set; }
         }
+        // Uwaga: Klasę AuthStatusDetail dodałeś już wcześniej przy logowaniu, więc jest gotowa!
     }
 }

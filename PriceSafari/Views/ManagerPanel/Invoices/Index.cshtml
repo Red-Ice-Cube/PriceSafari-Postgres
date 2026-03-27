@@ -476,6 +476,13 @@
                                     <span class="status-badge badge-ksef-error" title="@invoice.KSeFErrorMessage">
                                         <i class="fas fa-exclamation-triangle"></i> KSeF BŁĄD
                                     </span>
+    
+                                    @if (!string.IsNullOrEmpty(invoice.KSeFErrorMessage))
+                                    {
+                                        <div style="font-size: 0.65rem; color: #c62828; margin-top: 4px; line-height: 1.2; word-break: break-word; background: #fff0f0; padding: 4px; border-radius: 4px; border-left: 2px solid #c62828;">
+                                            <strong>Powód:</strong> @invoice.KSeFErrorMessage
+                                        </div>
+                                    }
                                 }
                                 else
                                 {

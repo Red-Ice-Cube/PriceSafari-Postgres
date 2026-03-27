@@ -828,6 +828,9 @@ namespace PriceSafari.Services.SubscriptionService
                     {
                         invoice.KSeFStatus = KSeFExportStatus.Error;
                         invoice.KSeFErrorMessage = error?.Length > 500 ? error[..500] : error;
+
+                        // DODAJ TĘ LINIJKĘ:
+                        _logger.LogError($"[KSeF BŁĄD WALIDACJI] FV: {invoice.InvoiceNumber} odrzucona! Powód: {error}");
                     }
                     // Pending = zostaje, sprawdzimy następnym razem
 
