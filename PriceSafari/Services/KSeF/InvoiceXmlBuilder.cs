@@ -190,6 +190,7 @@ namespace PriceSafari.Services.KSeF
                                                  $"Max. Marketplace SKU - {(plan?.ProductsToScrapAllegro?.ToString() ?? "0")} | " +
                                                  $"Max. Price Comparison SKU - {(plan?.ProductsToScrap?.ToString() ?? "0")}";
 
+
                         if (!string.IsNullOrWhiteSpace(plan?.Info))
                         {
                             fullServiceName += $" | {plan.Info}";
