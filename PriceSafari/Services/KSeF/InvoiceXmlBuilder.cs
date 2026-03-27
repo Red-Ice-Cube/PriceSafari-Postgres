@@ -7,7 +7,6 @@ namespace PriceSafari.Services.KSeF
     public interface IInvoiceXmlBuilder
     {
 
-
         string BuildInvoiceXml(InvoiceClass invoice);
     }
 
@@ -133,21 +132,18 @@ namespace PriceSafari.Services.KSeF
                     writer.WriteElementString("KodWaluty", "PLN");
                     writer.WriteElementString("P_1", invoice.IssueDate.ToString("yyyy-MM-dd"));
 
-                    // 1. Miejsce wystawienia (musi być PO P_1, a PRZED P_2)
                     writer.WriteElementString("P_1M", SELLER_CITY);
 
                     writer.WriteElementString("P_2", invoice.InvoiceNumber);
 
-                    // 2. OkresFa (musi być PO P_2, a PRZED kwotami P_13)
                     writer.WriteStartElement("OkresFa");
                     {
                         writer.WriteElementString("P_6_Od", invoice.IssueDate.ToString("yyyy-MM-dd"));
                         var endDate = invoice.IssueDate.AddDays(invoice.DaysIncluded);
                         writer.WriteElementString("P_6_Do", endDate.ToString("yyyy-MM-dd"));
                     }
-                    writer.WriteEndElement(); // TO JEST KLUCZOWE: Zamykamy OkresFa!
+                    writer.WriteEndElement();
 
-                    // 3. Kwoty (P_13_1 nie może "wejść" do środka OkresFa)
                     writer.WriteElementString("P_13_1", netAmount.ToString("F2", CultureInfo.InvariantCulture));
                     writer.WriteElementString("P_14_1", vatAmount.ToString("F2", CultureInfo.InvariantCulture));
                     writer.WriteElementString("P_15", grossAmount.ToString("F2", CultureInfo.InvariantCulture));
@@ -183,12 +179,10 @@ namespace PriceSafari.Services.KSeF
 
                     writer.WriteElementString("RodzajFaktury", "VAT");
 
-                    // === 3. WIERSZ FAKTURY ===
                     writer.WriteStartElement("FaWiersz");
                     {
                         writer.WriteElementString("NrWierszaFa", "1");
 
-                        // Budujemy dynamiczną nazwę usługi z Twoich pól
                         var plan = invoice.Plan;
                         string fullServiceName = $"Dostęp do platformy PriceSafari - Monitoring i Automatyzacja cen | " +
                                                  $"{(plan?.PlanName ?? "Plan Standard")} | " +
@@ -196,7 +190,6 @@ namespace PriceSafari.Services.KSeF
                                                  $"Max. Marketplace SKU - {(plan?.ProductsToScrapAllegro?.ToString() ?? "0")} | " +
                                                  $"Max. Price Comparison SKU - {(plan?.ProductsToScrap?.ToString() ?? "0")}";
 
-                        // Jeśli pole Info nie jest puste, doklejamy je na końcu
                         if (!string.IsNullOrWhiteSpace(plan?.Info))
                         {
                             fullServiceName += $" | {plan.Info}";
@@ -210,55 +203,47 @@ namespace PriceSafari.Services.KSeF
                         writer.WriteElementString("P_11", netAmount.ToString("F2", CultureInfo.InvariantCulture));
                         writer.WriteElementString("P_12", "23");
                     }
-                    writer.WriteEndElement(); // FaWiersz
+                    writer.WriteEndElement();
 
-                    // === 4. PŁATNOŚĆ (Wewnątrz sekcji Fa) ===
                     if (invoice.DueDate.HasValue)
                     {
                         writer.WriteStartElement("Platnosc");
                         {
                             writer.WriteStartElement("TerminPlatnosci");
                             writer.WriteElementString("Termin", invoice.DueDate.Value.ToString("yyyy-MM-dd"));
-                            writer.WriteEndElement(); // TerminPlatnosci
+                            writer.WriteEndElement();
 
-                            // Forma płatności
                             writer.WriteElementString("FormaPlatnosci", invoice.IsPaidByCard ? "4" : "6");
 
-                            // Twoje dane bankowe
                             string myRawAccountNumber = "47 1050 1142 1000 0090 8605 6679";
                             string cleanAccountNumber = myRawAccountNumber.Replace(" ", "").Replace("PL", "");
-                            string mySwiftCode = "INGBPLPW"; // Kod SWIFT dla ING Bank Śląski
+                            string mySwiftCode = "INGBPLPW";
 
                             if (!invoice.IsPaidByCard)
                             {
                                 writer.WriteStartElement("RachunekBankowy");
                                 {
-                                    // 1. Numer konta (same cyfry)
+
                                     writer.WriteElementString("NrRB", cleanAccountNumber);
 
-                                    // 2. Kod SWIFT (BIC)
                                     writer.WriteElementString("SWIFT", mySwiftCode);
 
-                                    // 3. Nazwa banku
                                     writer.WriteElementString("NazwaBanku", "ING Bank Śląski S.A.");
 
-                                    // 4. Opis rachunku
                                     writer.WriteElementString("OpisRachunku", "Rachunek do wpłat PriceSafari");
                                 }
-                                writer.WriteEndElement(); // RachunekBankowy
+                                writer.WriteEndElement();
+
                             }
                         }
-                        writer.WriteEndElement(); // Platnosc
+                        writer.WriteEndElement();
+
                     }
 
-
-
                 }
-             
 
                 writer.WriteEndElement();
 
-                // Dopiero teraz otwieramy sekcję <Stopka>
                 writer.WriteStartElement("Stopka");
                 {
                     writer.WriteStartElement("Rejestry");
@@ -267,7 +252,7 @@ namespace PriceSafari.Services.KSeF
                         writer.WriteElementString("REGON", "388799620");
                         writer.WriteElementString("BDO", "000555719");
                     }
-                    writer.WriteEndElement(); // Zamyka Rejestry
+                    writer.WriteEndElement();
                 }
                 writer.WriteEndElement();
 
