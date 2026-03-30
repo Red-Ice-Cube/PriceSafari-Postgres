@@ -619,6 +619,10 @@ namespace PriceSafari.Services.SubscriptionService
             var statusColor = isPaid ? "#41C7C7" : "#E74C3C";
             var statusText = isPaid ? "OPŁACONA" : "DO ZAPŁATY";
 
+            // Kolor tła i obramowania dla info o KSeF
+            var ksefBg = "#F0F9FA";
+            var ksefBorder = "#41C7C7";
+
             string message;
             if (isPaid)
             {
@@ -631,44 +635,66 @@ namespace PriceSafari.Services.SubscriptionService
             }
 
             return $@"
-            <!DOCTYPE html>
-            <html lang=""pl"">
-            <head>
-                <meta charset=""UTF-8"">
-                <style>
-                    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f7; }}
-                    .container {{ max-width: 560px; margin: 40px auto; background-color: #ffffff; overflow: hidden; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
-                    .top-bar {{ height: 4px; background-color: {headerColor}; }} 
-                    .header {{ padding: 30px 40px 10px 40px; text-align: center; }}
-                    .content {{ padding: 20px 40px 40px 40px; line-height: 1.6; color: #1d1d1f; font-size: 16px; }}
-                    .invoice-box {{ background-color: #f9f9f9; border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin: 20px 0; }}
-                    .amount {{ font-size: 24px; font-weight: 700; color: #1d1d1f; }}
-                    .status {{ font-weight: bold; color: {statusColor}; }} 
-                    .footer {{ background-color: #f5f5f7; color: #86868b; padding: 20px 40px; text-align: center; font-size: 12px; }}
-                </style>
-            </head>
-            <body>
-                <div class=""container"">
-                    <div class=""top-bar""></div>
-                    <div class=""header"">
-                        <img src=""cid:PriceSafariLogo"" alt=""Price Safari"" style=""height: 32px; width: auto;"">
-                    </div>
-                    <div class=""content"">
-                        <h2 style=""margin-top: 0;"">Faktura nr {invoice.InvoiceNumber}</h2>
-                        <p>Cześć {invoice.Store.StoreName},</p>
-                        <p>{message}</p>
-                        <div class=""invoice-box"">
-                            <table width=""100%"">
-                                <tr><td>Kwota brutto:</td><td align=""right"" class=""amount"">{(invoice.NetAmount * 1.23m):C}</td></tr>
-                                <tr><td>Status:</td><td align=""right"" class=""status"">{statusText}</td></tr>
-                            </table>
-                        </div>
-                        <p style=""font-size: 14px; color: #666;"">Dokument w formacie PDF znajduje się w załączniku tej wiadomości.</p>
-                    </div>
-                    <div class=""footer""><p>&copy; {DateTime.Now.Year} Price Safari<br>Heated Box Sp. z o.o.</p></div>
+    <!DOCTYPE html>
+    <html lang=""pl"">
+    <head>
+        <meta charset=""UTF-8"">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f7; }}
+            .container {{ max-width: 560px; margin: 40px auto; background-color: #ffffff; overflow: hidden; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
+            .top-bar {{ height: 4px; background-color: {headerColor}; }} 
+            .header {{ padding: 30px 40px 10px 40px; text-align: center; }}
+            .content {{ padding: 20px 40px 40px 40px; line-height: 1.6; color: #1d1d1f; font-size: 16px; }}
+            .ksef-box {{ 
+                background-color: {ksefBg}; 
+                border-left: 4px solid {ksefBorder}; 
+                padding: 15px; 
+                border-radius: 4px; 
+                margin: 25px 0; 
+                font-size: 14px; 
+                color: #3a5a5a;
+            }}
+            .invoice-box {{ background-color: #f9f9f9; border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin: 20px 0; }}
+            .amount {{ font-size: 24px; font-weight: 700; color: #1d1d1f; }}
+            .status {{ font-weight: bold; color: {statusColor}; }} 
+            .footer {{ background-color: #f5f5f7; color: #86868b; padding: 20px 40px; text-align: center; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class=""container"">
+            <div class=""top-bar""></div>
+            <div class=""header"">
+                <img src=""cid:PriceSafariLogo"" alt=""Price Safari"" style=""height: 32px; width: auto;"">
+            </div>
+            <div class=""content"">
+                <h2 style=""margin-top: 0;"">Faktura nr {invoice.InvoiceNumber}</h2>
+                <p>Cześć {invoice.Store.StoreName},</p>
+                <p>{message}</p>
+
+                <div class=""ksef-box"">
+                    <table width=""100%"" cellpadding=""0"" cellspacing=""0"">
+                        <tr>
+                            <td style=""vertical-align: top; padding-right: 10px; font-size: 18px;"">🛡️</td>
+                            <td>
+                                <strong>Informacja o e-Fakturze</strong><br>
+                                Niniejszy dokument został wystawiony i przesłany do <strong>Krajowego Systemu e-Faktur (KSeF)</strong> zgodnie z obowiązującymi przepisami.
+                            </td>
+                        </tr>
+                    </table>
                 </div>
-            </body>
-            </html>";
+
+                <div class=""invoice-box"">
+                    <table width=""100%"">
+                        <tr><td>Kwota brutto:</td><td align=""right"" class=""amount"">{(invoice.NetAmount * 1.23m):C}</td></tr>
+                        <tr><td>Status:</td><td align=""right"" class=""status"">{statusText}</td></tr>
+                    </table>
+                </div>
+                <p style=""font-size: 14px; color: #666;"">Dokument w formacie PDF znajduje się w załączniku tej wiadomości.</p>
+            </div>
+            <div class=""footer""><p>&copy; {DateTime.Now.Year} Price Safari<br>Heated Box Sp. z o.o.</p></div>
+        </div>
+    </body>
+    </html>";
         }
     }
 }
