@@ -117,7 +117,7 @@ namespace PriceSafari.Models
         public bool CollectGoogleStoreLinks { get; set; } = false;
 
 
-        // W pliku StoreClass.cs
+  
 
         [Display(Name = "Eksport XML/JSON dla API włączony")]
         public bool IsApiExportEnabled { get; set; } = false;
@@ -128,6 +128,19 @@ namespace PriceSafari.Models
        
 
         public bool UseKSeF { get; set; } = false;
+
+
+        // Rozszerzone ustaweinia systemu, do scrapowania GS 
+        // Rozszerzone ustaweinia systemu, do scrapowania GS 
+        [Display(Name = "Pobieraj tytuł z Google")]
+        public bool GoogleGetTitle { get; set; } = false;
+
+        [Display(Name = "Kod kraju Google")]
+        [StringLength(2, MinimumLength = 2, ErrorMessage = "Kod kraju musi mieć dokładnie 2 znaki (np. pl, de)")]
+        public string GoogleCountryCode { get; set; } = "pl";
+
+        [Display(Name = "Kalkulacja cen za kilogram (Per KG)")]
+        public bool UseCalculationEnginePerKG { get; set; } = false;
 
         public ICollection<ScrapHistoryClass> ScrapHistories { get; set; } = new List<ScrapHistoryClass>();
         public ICollection<ProductClass> Products { get; set; } = new List<ProductClass>();

@@ -160,6 +160,9 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.GetAllegroSkuByApi= store.GetAllegroSkuByApi;
             existingStore.SubscriptionStartDate = store.SubscriptionStartDate;
             existingStore.UseKSeF = store.UseKSeF;
+            existingStore.GoogleGetTitle = store.GoogleGetTitle;
+            existingStore.GoogleCountryCode = store.GoogleCountryCode;
+            existingStore.UseCalculationEnginePerKG = store.UseCalculationEnginePerKG;
 
             if (!isPaymentDataEmpty && store.PaymentData != null)
             {
