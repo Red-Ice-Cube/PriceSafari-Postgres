@@ -1,17 +1,20 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PriceSafari.Data;
 using PriceSafari.Models;
-using PriceSafari.Models.DTOs; // <--- Dodaj to
+using PriceSafari.Models.DTOs;
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO; // <--- Dodaj to
+using System.IO;
+
 using System.Linq;
-using System.Text.Json; // <--- Dodaj to
+using System.Text.Json;
+
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Xml.Serialization; // <--- Dodaj to
+using System.Xml.Serialization;
 
 public class StoreProcessingService
 {
@@ -59,7 +62,7 @@ public class StoreProcessingService
         var updatedProductsBag = new ConcurrentBag<ProductClass>();
         var extendedInfoBag = new ConcurrentBag<PriceHistoryExtendedInfoClass>();
         var processedProductsForExtendedInfo = new ConcurrentDictionary<int, bool>();
-
+        var googleTitleLookup = new ConcurrentDictionary<(int ProductId, string StoreNameLower), string>();
         await Task.Run(() => Parallel.ForEach(products, product =>
         {
             var relatedCoOfrs = coOfrClasses
@@ -92,7 +95,6 @@ public class StoreProcessingService
             int maxCeneoPosition = 0;
             int maxGooglePosition = 0;
 
-            // --- PRZETWARZANIE CENEO ---
             var ceneoPrices = allRawPrices.Where(ph => ph.StoreName != null).ToList();
             foreach (var coOfrPrice in ceneoPrices)
             {
@@ -134,7 +136,6 @@ public class StoreProcessingService
                 });
             }
 
-            // --- PRZETWARZANIE GOOGLE ---
             var googlePricesRaw = allRawPrices
                 .Where(ph => ph.GoogleStoreName != null)
                 .Select(ph => {
@@ -163,7 +164,6 @@ public class StoreProcessingService
                 if (gPos > maxGooglePosition) maxGooglePosition = gPos.Value;
                 if (isOurStore) foundOurStoreGoogle = true;
 
-                // NOWE: Kalkulacja per KG (tylko gdy oba ustawienia aktywne)
                 int? packUnits = null;
                 decimal? unitWeightG = null;
                 decimal? pricePerKg = null;
@@ -189,14 +189,19 @@ public class StoreProcessingService
                     ScrapHistory = scrapHistory,
                     IsGoogle = true,
                     GoogleOfferUrl = gp.GoogleOfferUrl,
-                    // NOWE:
+
                     GooglePackUnits = packUnits,
                     GoogleUnitWeightG = unitWeightG,
                     GooglePricePerKg = pricePerKg
                 });
+
+                if (!string.IsNullOrEmpty(gp.GoogleOfferTitle) && store.GoogleGetTitle)
+                {
+                    var key = (product.ProductId, gp.GoogleStoreName.ToLower());
+                    googleTitleLookup.TryAdd(key, gp.GoogleOfferTitle);
+                }
             }
 
-            // --- Czyszczenie ExportedNameCeneo gdy brak nazwy z ostatniego scrapu ---
             if (!string.IsNullOrEmpty(product.ExportedNameCeneo))
             {
                 bool foundExportedName = ceneoPrices
@@ -213,7 +218,6 @@ public class StoreProcessingService
                 }
             }
 
-            // --- Ceny z XML Feed (Ostrzykiwanie) ---
             if (store.UseCeneoXMLFeedPrice && !foundOurStoreCeneo && (product.GoogleXMLPrice ?? 0) > 0)
             {
                 priceHistoriesBag.Add(new PriceHistoryClass
@@ -246,7 +250,6 @@ public class StoreProcessingService
                 foundOurStoreGoogle = true;
             }
 
-          
             bool hasStorePrice = foundOurStoreCeneo || foundOurStoreGoogle;
             lock (product)
             {
@@ -284,20 +287,21 @@ public class StoreProcessingService
         }
         await _context.SaveChangesAsync();
 
-        // ========================================================
-        // NOWOŚĆ: GENEROWANIE PLIKU PO ZAKOŃCZENIU ZAPISÓW BAZY
-        // ========================================================
         if (store.IsApiExportEnabled && !string.IsNullOrEmpty(store.ApiExportToken))
         {
-            await GenerateExportFilesAsync(store, products, priceHistoriesAll, canonicalStoreName);
+            await GenerateExportFilesAsync(store, products, priceHistoriesAll, canonicalStoreName, googleTitleLookup);
         }
     }
 
-    private async Task GenerateExportFilesAsync(StoreClass store, List<ProductClass> products, List<PriceHistoryClass> priceHistories, string canonicalStoreName)
+    private async Task GenerateExportFilesAsync(
+        StoreClass store,
+        List<ProductClass> products,
+        List<PriceHistoryClass> priceHistories,
+        string canonicalStoreName,
+        ConcurrentDictionary<(int ProductId, string StoreNameLower), string>? googleTitleLookup = null)
     {
         var myStoreNameLower = canonicalStoreName.ToLower().Trim();
 
-        // 1. Budujemy strukturę DTO z surowych danych
         var feed = new ExportFeedDto
         {
             StoreId = store.StoreId,
@@ -305,7 +309,6 @@ public class StoreProcessingService
             GeneratedAt = DateTime.Now
         };
 
-        // Grupujemy historie po ID produktu dla szybkiego dostępu
         var historiesByProduct = priceHistories.GroupBy(p => p.ProductId).ToDictionary(g => g.Key, g => g.ToList());
 
         foreach (var product in products)
@@ -313,31 +316,34 @@ public class StoreProcessingService
             if (!historiesByProduct.TryGetValue(product.ProductId, out var productHistories))
                 continue;
 
-            // Szukamy naszej oferty
             var myOffer = productHistories.FirstOrDefault(ph => ph.StoreName != null && ph.StoreName.ToLower().Trim() == myStoreNameLower);
 
-            // Szukamy ofert konkurencji i mapujemy je do DTO
             var competitors = productHistories
                 .Where(ph => ph.StoreName != null && ph.StoreName.ToLower().Trim() != myStoreNameLower && ph.Price > 0)
                 .Select(ph =>
                 {
-                    // Ustalenie statusu magazynowego (Stock) zależnie od źródła
+
                     bool? inStock = ph.IsGoogle == true ? ph.GoogleInStock : ph.CeneoInStock;
 
-                    // Ustalenie URLa oferty, jeśli klient ma włączoną opcję zbierania linków
                     string? finalOfferUrl = null;
                     if (store.CollectGoogleStoreLinks)
                     {
                         if (ph.IsGoogle == true)
                         {
-                            // Używamy zeskrobanego linku prosto do sklepu konkurencji z Google
+
                             finalOfferUrl = ph.GoogleOfferUrl;
                         }
                         else
                         {
-                            // Dla Ceneo używamy "sztucznego" linku do ogólnego katalogu produktu
+
                             finalOfferUrl = product.OfferUrl;
                         }
+                    }
+                    string? offerTitle = null;
+                    if (googleTitleLookup != null && ph.IsGoogle && ph.StoreName != null)
+                    {
+                        googleTitleLookup.TryGetValue(
+                            (product.ProductId, ph.StoreName.ToLower()), out offerTitle);
                     }
 
                     return new ExportCompetitorDto
@@ -348,10 +354,11 @@ public class StoreProcessingService
                         Source = ph.IsGoogle == true ? "Google" : "Ceneo",
                         InStock = inStock,
                         OfferUrl = finalOfferUrl,
-                        // NOWE:
+
                         PackUnits = ph.GooglePackUnits,
                         UnitWeightG = ph.GoogleUnitWeightG,
-                        PricePerKg = ph.GooglePricePerKg
+                        PricePerKg = ph.GooglePricePerKg,
+                        OfferTitle = offerTitle
                     };
                 }).ToList();
 
@@ -374,16 +381,13 @@ public class StoreProcessingService
             Directory.CreateDirectory(exportFolder);
         }
 
-        // 3. Ścieżki do plików
         var jsonPath = Path.Combine(exportFolder, $"feed_{store.StoreId}.json");
         var xmlPath = Path.Combine(exportFolder, $"feed_{store.StoreId}.xml");
 
-        // 4. Zapis do JSON
         var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
         var jsonString = JsonSerializer.Serialize(feed, jsonOptions);
         await File.WriteAllTextAsync(jsonPath, jsonString);
 
-        // 5. Zapis do XML
         var xmlSerializer = new XmlSerializer(typeof(ExportFeedDto));
         using (var stream = new FileStream(xmlPath, FileMode.Create))
         {
@@ -393,26 +397,26 @@ public class StoreProcessingService
 }
 public static class WeightParser
 {
-    /// <summary>
-    /// Parsuje tytuł oferty Google i wyciąga informacje o wadze/ilości.
-    /// Zwraca (ilość_w_paczce, waga_jednostki_g, cena_za_kg) lub nulle gdy nie da się sparsować.
-    /// </summary>
+
+    // <summary>
+
+    // Parsuje tytuł oferty Google i wyciąga informacje o wadze/ilości.
+
+    // Zwraca (ilość_w_paczce, waga_jednostki_g, cena_za_kg) lub nulle gdy nie da się sparsować.
+
+    // </summary>
+
     public static (int? units, decimal? unitWeightG, decimal? pricePerKg) ParseFromTitle(string? title, decimal price)
     {
         if (string.IsNullOrWhiteSpace(title) || price <= 0)
             return (null, null, null);
 
-        // Odrzuć śmieci — zbyt krótkie lub brak cyfr
         if (title.Length < 5 || !Regex.IsMatch(title, @"\d"))
             return (null, null, null);
 
         int? units = null;
         decimal? weightPerUnitG = null;
 
-        // ═══════════════════════════════════════════════
-        // FAZA 1: Szukamy wzorca NxW (najczęstszy)
-        // "6x85g", "24 x 85g", "6X50 g", "120x85g", "48x50 g"
-        // ═══════════════════════════════════════════════
         var nxw = Regex.Match(title,
             @"(\d+)\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\b",
             RegexOptions.IgnoreCase);
@@ -423,9 +427,6 @@ public static class WeightParser
             weightPerUnitG = ConvertToGrams(nxw.Groups[2].Value, nxw.Groups[3].Value);
         }
 
-        // ═══════════════════════════════════════════════
-        // FAZA 2: Odwrócony wzorzec WxN — "85gx6", "85g x 6"
-        // ═══════════════════════════════════════════════
         if (units == null)
         {
             var wxn = Regex.Match(title,
@@ -439,11 +440,6 @@ public static class WeightParser
             }
         }
 
-        // ═══════════════════════════════════════════════
-        // FAZA 3: Niemiecki "Menge: N je Bestelleinheit" + waga osobno
-        // "800g (Menge: 6 je Bestelleinheit)"
-        // "370 g (Menge: 6 je Bestelleinheit)"
-        // ═══════════════════════════════════════════════
         if (units == null)
         {
             var menge = Regex.Match(title,
@@ -457,9 +453,6 @@ public static class WeightParser
             }
         }
 
-        // ═══════════════════════════════════════════════
-        // FAZA 4: "Ner Pack" — "6er Pack à 50g", "8er Pack"
-        // ═══════════════════════════════════════════════
         if (units == null)
         {
             var erPack = Regex.Match(title, @"(\d+)er\s*Pack", RegexOptions.IgnoreCase);
@@ -470,11 +463,6 @@ public static class WeightParser
             }
         }
 
-        // ═══════════════════════════════════════════════
-        // FAZA 5: "N Stück" / "N szt" / "N pieces" + waga osobno
-        // "8 Stück, je 6x50 g" — ale NxW złapie to wcześniej
-        // "6 Stück" z wagą gdzieś indziej
-        // ═══════════════════════════════════════════════
         if (units == null)
         {
             var stueck = Regex.Match(title,
@@ -488,10 +476,6 @@ public static class WeightParser
             }
         }
 
-        // ═══════════════════════════════════════════════
-        // FAZA 6: Totalny fallback — sama waga, 1 sztuka
-        // "800g", "2,4 kg", "370 g"
-        // ═══════════════════════════════════════════════
         if (units == null && weightPerUnitG == null)
         {
             var singleWeight = FindFirstWeight(title);
@@ -502,15 +486,9 @@ public static class WeightParser
             }
         }
 
-        // ═══════════════════════════════════════════════
-        // FAZA 7 (BONUS): Zewnętrzny mnożnik
-        // Gdy już mamy NxW (np. "6x50g"), sprawdzamy czy jest
-        // dodatkowy "8 Stück" albo "- 8 Stück" który mnoży całość.
-        // "Gourmet Katzen-Nassfutter, 8 Stück, je 6x50 g" → 8×6×50g
-        // ═══════════════════════════════════════════════
         if (units.HasValue && weightPerUnitG.HasValue && nxw.Success)
         {
-            // Szukamy "N Stück" gdzie N != units (żeby nie łapać tego samego)
+
             var outerMultiplier = Regex.Match(title,
                 @"(\d+)\s*(?:Stück|szt\.?|pieces?|pcs)\b",
                 RegexOptions.IgnoreCase);
@@ -520,13 +498,13 @@ public static class WeightParser
                 int outerN = int.Parse(outerMultiplier.Groups[1].Value);
                 if (outerN != units && outerN > 1 && outerN <= 200)
                 {
-                    // Mnożymy: 8 opakowań × 6 saszetek = 48 szt
+
                     units = units * outerN;
                 }
             }
             else
             {
-                // "8er Pack (8x300g)" — "Ner Pack" jako outer
+
                 var outerErPack = Regex.Match(title, @"(\d+)er\s*Pack", RegexOptions.IgnoreCase);
                 if (outerErPack.Success)
                 {
@@ -539,12 +517,10 @@ public static class WeightParser
             }
         }
 
-        // ═══════════════════════════════════════════════
-        // WALIDACJA I KALKULACJA
-        // ═══════════════════════════════════════════════
         if (!units.HasValue || !weightPerUnitG.HasValue
             || units <= 0 || weightPerUnitG <= 0
-            || units > 10000 || weightPerUnitG > 100_000) // sanity: max 100kg per unit
+            || units > 10000 || weightPerUnitG > 100_000)
+
         {
             return (null, null, null);
         }
@@ -556,17 +532,20 @@ public static class WeightParser
 
         decimal pricePerKg = Math.Round(price / totalWeightKg, 2);
 
-        // Sanity check — cena za kg nie powinna być absurdalna
         if (pricePerKg > 100_000)
             return (null, null, null);
 
         return (units, weightPerUnitG, pricePerKg);
     }
 
-    /// <summary>
-    /// Znajduje pierwszą wagę w tytule (np. "800g", "2,4 kg", "370 g").
-    /// Pomija wartości które wyglądają jak ceny (poprzedzone €/zł/PLN).
-    /// </summary>
+    // <summary>
+
+    // Znajduje pierwszą wagę w tytule (np. "800g", "2,4 kg", "370 g").
+
+    // Pomija wartości które wyglądają jak ceny (poprzedzone €/zł/PLN).
+
+    // </summary>
+
     private static decimal? FindFirstWeight(string title)
     {
         var matches = Regex.Matches(title,
@@ -576,7 +555,7 @@ public static class WeightParser
         foreach (Match m in matches)
         {
             var val = ConvertToGrams(m.Groups[1].Value, m.Groups[2].Value);
-            // Pomijamy wartości < 1g (śmieciowe) i > 100kg (nieprawdopodobne)
+
             if (val > 0 && val <= 100_000)
                 return val;
         }
@@ -584,9 +563,12 @@ public static class WeightParser
         return null;
     }
 
-    /// <summary>
-    /// Konwertuje wartość z podaną jednostką na gramy.
-    /// </summary>
+    // <summary>
+
+    // Konwertuje wartość z podaną jednostką na gramy.
+
+    // </summary>
+
     private static decimal ConvertToGrams(string valueStr, string unit)
     {
         valueStr = valueStr.Replace(",", ".");
@@ -597,8 +579,10 @@ public static class WeightParser
         {
             "kg" => value * 1000m,
             "g" => value,
-            "l" => value * 1000m,   // 1l ≈ 1000g (przybliżenie dla mokrej karmy)
-            "ml" => value,           // 1ml ≈ 1g
+            "l" => value * 1000m,
+
+            "ml" => value,
+
             _ => 0
         };
     }
