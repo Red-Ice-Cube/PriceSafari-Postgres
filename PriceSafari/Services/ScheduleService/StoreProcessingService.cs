@@ -5,9 +5,11 @@ using PriceSafari.Models.DTOs; // <--- Dodaj to
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO; // <--- Dodaj to
 using System.Linq;
 using System.Text.Json; // <--- Dodaj to
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Serialization; // <--- Dodaj to
 
@@ -159,8 +161,19 @@ public class StoreProcessingService
                 int? gPos = int.TryParse(gp.GooglePosition, out var p) ? p : null;
 
                 if (gPos > maxGooglePosition) maxGooglePosition = gPos.Value;
-
                 if (isOurStore) foundOurStoreGoogle = true;
+
+                // NOWE: Kalkulacja per KG (tylko gdy oba ustawienia aktywne)
+                int? packUnits = null;
+                decimal? unitWeightG = null;
+                decimal? pricePerKg = null;
+
+                if (store.UseCalculationEnginePerKG && store.GoogleGetTitle
+                    && !string.IsNullOrEmpty(gp.GoogleOfferTitle))
+                {
+                    (packUnits, unitWeightG, pricePerKg) =
+                        WeightParser.ParseFromTitle(gp.GoogleOfferTitle, gPrice);
+                }
 
                 priceHistoriesBag.Add(new PriceHistoryClass
                 {
@@ -169,14 +182,17 @@ public class StoreProcessingService
                     Price = gPrice,
                     Position = gPos,
                     IsBidding = gp.IsBidding ?? "0",
-                    ShippingCostNum = gp.GooglePriceWithDelivery.HasValue ? Math.Max(0, gp.GooglePriceWithDelivery.Value - gPrice) : null,
+                    ShippingCostNum = gp.GooglePriceWithDelivery.HasValue
+                        ? Math.Max(0, gp.GooglePriceWithDelivery.Value - gPrice) : null,
                     GoogleInStock = gp.GoogleInStock,
                     GoogleOfferPerStoreCount = gp.GoogleOfferPerStoreCount,
                     ScrapHistory = scrapHistory,
                     IsGoogle = true,
-
-                    // --- ZMIANA TUTAJ: Przepisujemy URL z "brudnopisu" do historii ---
-                    GoogleOfferUrl = gp.GoogleOfferUrl
+                    GoogleOfferUrl = gp.GoogleOfferUrl,
+                    // NOWE:
+                    GooglePackUnits = packUnits,
+                    GoogleUnitWeightG = unitWeightG,
+                    GooglePricePerKg = pricePerKg
                 });
             }
 
@@ -327,11 +343,15 @@ public class StoreProcessingService
                     return new ExportCompetitorDto
                     {
                         StoreName = ph.StoreName,
-                        Price = ph.Price, // Tu poprawialiśmy wcześniej błąd
+                        Price = ph.Price,
                         ShippingCost = ph.ShippingCostNum,
                         Source = ph.IsGoogle == true ? "Google" : "Ceneo",
-                        InStock = inStock, // <--- Nowe
-                        OfferUrl = finalOfferUrl // <--- Nowe
+                        InStock = inStock,
+                        OfferUrl = finalOfferUrl,
+                        // NOWE:
+                        PackUnits = ph.GooglePackUnits,
+                        UnitWeightG = ph.GoogleUnitWeightG,
+                        PricePerKg = ph.GooglePricePerKg
                     };
                 }).ToList();
 
@@ -369,5 +389,217 @@ public class StoreProcessingService
         {
             xmlSerializer.Serialize(stream, feed);
         }
+    }
+}
+public static class WeightParser
+{
+    /// <summary>
+    /// Parsuje tytuł oferty Google i wyciąga informacje o wadze/ilości.
+    /// Zwraca (ilość_w_paczce, waga_jednostki_g, cena_za_kg) lub nulle gdy nie da się sparsować.
+    /// </summary>
+    public static (int? units, decimal? unitWeightG, decimal? pricePerKg) ParseFromTitle(string? title, decimal price)
+    {
+        if (string.IsNullOrWhiteSpace(title) || price <= 0)
+            return (null, null, null);
+
+        // Odrzuć śmieci — zbyt krótkie lub brak cyfr
+        if (title.Length < 5 || !Regex.IsMatch(title, @"\d"))
+            return (null, null, null);
+
+        int? units = null;
+        decimal? weightPerUnitG = null;
+
+        // ═══════════════════════════════════════════════
+        // FAZA 1: Szukamy wzorca NxW (najczęstszy)
+        // "6x85g", "24 x 85g", "6X50 g", "120x85g", "48x50 g"
+        // ═══════════════════════════════════════════════
+        var nxw = Regex.Match(title,
+            @"(\d+)\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\b",
+            RegexOptions.IgnoreCase);
+
+        if (nxw.Success)
+        {
+            units = int.Parse(nxw.Groups[1].Value);
+            weightPerUnitG = ConvertToGrams(nxw.Groups[2].Value, nxw.Groups[3].Value);
+        }
+
+        // ═══════════════════════════════════════════════
+        // FAZA 2: Odwrócony wzorzec WxN — "85gx6", "85g x 6"
+        // ═══════════════════════════════════════════════
+        if (units == null)
+        {
+            var wxn = Regex.Match(title,
+                @"(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\s*[xX×]\s*(\d+)\b",
+                RegexOptions.IgnoreCase);
+
+            if (wxn.Success)
+            {
+                weightPerUnitG = ConvertToGrams(wxn.Groups[1].Value, wxn.Groups[2].Value);
+                units = int.Parse(wxn.Groups[3].Value);
+            }
+        }
+
+        // ═══════════════════════════════════════════════
+        // FAZA 3: Niemiecki "Menge: N je Bestelleinheit" + waga osobno
+        // "800g (Menge: 6 je Bestelleinheit)"
+        // "370 g (Menge: 6 je Bestelleinheit)"
+        // ═══════════════════════════════════════════════
+        if (units == null)
+        {
+            var menge = Regex.Match(title,
+                @"Menge:\s*(\d+)\s*je\s*Bestelleinheit",
+                RegexOptions.IgnoreCase);
+
+            if (menge.Success)
+            {
+                units = int.Parse(menge.Groups[1].Value);
+                weightPerUnitG = FindFirstWeight(title);
+            }
+        }
+
+        // ═══════════════════════════════════════════════
+        // FAZA 4: "Ner Pack" — "6er Pack à 50g", "8er Pack"
+        // ═══════════════════════════════════════════════
+        if (units == null)
+        {
+            var erPack = Regex.Match(title, @"(\d+)er\s*Pack", RegexOptions.IgnoreCase);
+            if (erPack.Success)
+            {
+                units = int.Parse(erPack.Groups[1].Value);
+                weightPerUnitG = FindFirstWeight(title);
+            }
+        }
+
+        // ═══════════════════════════════════════════════
+        // FAZA 5: "N Stück" / "N szt" / "N pieces" + waga osobno
+        // "8 Stück, je 6x50 g" — ale NxW złapie to wcześniej
+        // "6 Stück" z wagą gdzieś indziej
+        // ═══════════════════════════════════════════════
+        if (units == null)
+        {
+            var stueck = Regex.Match(title,
+                @"(\d+)\s*(?:Stück|szt\.?|pieces?|pcs)\b",
+                RegexOptions.IgnoreCase);
+
+            if (stueck.Success)
+            {
+                units = int.Parse(stueck.Groups[1].Value);
+                weightPerUnitG = FindFirstWeight(title);
+            }
+        }
+
+        // ═══════════════════════════════════════════════
+        // FAZA 6: Totalny fallback — sama waga, 1 sztuka
+        // "800g", "2,4 kg", "370 g"
+        // ═══════════════════════════════════════════════
+        if (units == null && weightPerUnitG == null)
+        {
+            var singleWeight = FindFirstWeight(title);
+            if (singleWeight.HasValue && singleWeight > 0)
+            {
+                units = 1;
+                weightPerUnitG = singleWeight;
+            }
+        }
+
+        // ═══════════════════════════════════════════════
+        // FAZA 7 (BONUS): Zewnętrzny mnożnik
+        // Gdy już mamy NxW (np. "6x50g"), sprawdzamy czy jest
+        // dodatkowy "8 Stück" albo "- 8 Stück" który mnoży całość.
+        // "Gourmet Katzen-Nassfutter, 8 Stück, je 6x50 g" → 8×6×50g
+        // ═══════════════════════════════════════════════
+        if (units.HasValue && weightPerUnitG.HasValue && nxw.Success)
+        {
+            // Szukamy "N Stück" gdzie N != units (żeby nie łapać tego samego)
+            var outerMultiplier = Regex.Match(title,
+                @"(\d+)\s*(?:Stück|szt\.?|pieces?|pcs)\b",
+                RegexOptions.IgnoreCase);
+
+            if (outerMultiplier.Success)
+            {
+                int outerN = int.Parse(outerMultiplier.Groups[1].Value);
+                if (outerN != units && outerN > 1 && outerN <= 200)
+                {
+                    // Mnożymy: 8 opakowań × 6 saszetek = 48 szt
+                    units = units * outerN;
+                }
+            }
+            else
+            {
+                // "8er Pack (8x300g)" — "Ner Pack" jako outer
+                var outerErPack = Regex.Match(title, @"(\d+)er\s*Pack", RegexOptions.IgnoreCase);
+                if (outerErPack.Success)
+                {
+                    int outerN = int.Parse(outerErPack.Groups[1].Value);
+                    if (outerN != units && outerN > 1 && outerN <= 200)
+                    {
+                        units = units * outerN;
+                    }
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════
+        // WALIDACJA I KALKULACJA
+        // ═══════════════════════════════════════════════
+        if (!units.HasValue || !weightPerUnitG.HasValue
+            || units <= 0 || weightPerUnitG <= 0
+            || units > 10000 || weightPerUnitG > 100_000) // sanity: max 100kg per unit
+        {
+            return (null, null, null);
+        }
+
+        decimal totalWeightKg = (units.Value * weightPerUnitG.Value) / 1000m;
+
+        if (totalWeightKg <= 0)
+            return (null, null, null);
+
+        decimal pricePerKg = Math.Round(price / totalWeightKg, 2);
+
+        // Sanity check — cena za kg nie powinna być absurdalna
+        if (pricePerKg > 100_000)
+            return (null, null, null);
+
+        return (units, weightPerUnitG, pricePerKg);
+    }
+
+    /// <summary>
+    /// Znajduje pierwszą wagę w tytule (np. "800g", "2,4 kg", "370 g").
+    /// Pomija wartości które wyglądają jak ceny (poprzedzone €/zł/PLN).
+    /// </summary>
+    private static decimal? FindFirstWeight(string title)
+    {
+        var matches = Regex.Matches(title,
+            @"(?<!\S[€$])\b(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\b",
+            RegexOptions.IgnoreCase);
+
+        foreach (Match m in matches)
+        {
+            var val = ConvertToGrams(m.Groups[1].Value, m.Groups[2].Value);
+            // Pomijamy wartości < 1g (śmieciowe) i > 100kg (nieprawdopodobne)
+            if (val > 0 && val <= 100_000)
+                return val;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Konwertuje wartość z podaną jednostką na gramy.
+    /// </summary>
+    private static decimal ConvertToGrams(string valueStr, string unit)
+    {
+        valueStr = valueStr.Replace(",", ".");
+        if (!decimal.TryParse(valueStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
+            return 0;
+
+        return unit.ToLower() switch
+        {
+            "kg" => value * 1000m,
+            "g" => value,
+            "l" => value * 1000m,   // 1l ≈ 1000g (przybliżenie dla mokrej karmy)
+            "ml" => value,           // 1ml ≈ 1g
+            _ => 0
+        };
     }
 }

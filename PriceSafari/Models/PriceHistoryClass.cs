@@ -26,5 +26,9 @@ namespace PriceSafari.Models
         public int? GoogleOfferPerStoreCount { get; set; }
 
         public string? GoogleOfferUrl { get; set; }
+
+        public int? GooglePackUnits { get; set; }
+        public decimal? GoogleUnitWeightG { get; set; }
+        public decimal? GooglePricePerKg { get; set; }
     }
 }

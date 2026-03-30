@@ -38,5 +38,8 @@ namespace PriceSafari.Models.DTOs
         public string Source { get; set; } // "Google" lub "Ceneo"
         public bool? InStock { get; set; }
         public string? OfferUrl { get; set; }
+        public int? PackUnits { get; set; }
+        public decimal? UnitWeightG { get; set; }
+        public decimal? PricePerKg { get; set; }
     }
 }
