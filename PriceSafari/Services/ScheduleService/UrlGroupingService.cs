@@ -153,9 +153,12 @@ namespace PriceSafari.Services.ScheduleService
             // Sprawdzamy flagi konfiguracyjne ze sklepu
             bool useGPID = productList.Any(p => p.Store?.UseGPID == true);
             bool useWRGA = productList.Any(p => p.Store?.UseWRGA == true);
-
-            // NOWA FLAGA: Sprawdzamy, czy którykolwiek sklep w tej grupie produktów chce zbierać linki sklepowe z Google
             bool collectGoogleStoreLinks = productList.Any(p => p.Store?.CollectGoogleStoreLinks == true);
+
+            // NOWE FLAGI: Tytuł i Kod Kraju
+            bool googleGetTitle = productList.Any(p => p.Store?.GoogleGetTitle == true);
+            // Dla stringa bierzemy kod z pierwszego sklepu w grupie (jeśli jest pusty, domyślnie 'pl')
+            string googleCountryCode = productList.FirstOrDefault(p => !string.IsNullOrEmpty(p.Store?.GoogleCountryCode))?.Store?.GoogleCountryCode ?? "pl";
 
             var coOfr = new CoOfrClass
             {
@@ -169,9 +172,11 @@ namespace PriceSafari.Services.ScheduleService
 
                 UseGPID = useGPID,
                 UseWRGA = useWRGA,
-
-                // Przypisanie nowej flagi do zadania scrapowania
                 CollectGoogleStoreLinks = collectGoogleStoreLinks,
+
+                // Przypisanie nowych flag do zadania scrapowania
+                GoogleGetTitle = googleGetTitle,
+                GoogleCountryCode = googleCountryCode,
 
                 ProductIds = productList.Select(p => p.ProductId).ToList(),
                 ProductIdsGoogle = (googleUrl != null || useHidOffer) ? productList.Select(p => p.ProductId).ToList() : new List<int>(),

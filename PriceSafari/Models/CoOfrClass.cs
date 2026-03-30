@@ -27,6 +27,9 @@ public class CoOfrClass
     public bool UseWRGA { get; set; } = false;
 
     public bool CollectGoogleStoreLinks { get; set; } = false;
+
+    public bool GoogleGetTitle { get; set; } = false;
+    public string GoogleCountryCode { get; set; } = "pl";
     public List<string> StoreNames { get; set; } = new List<string>();
     public List<string> StoreProfiles { get; set; } = new List<string>();
 

@@ -36,6 +36,7 @@ namespace PriceSafari.Models
 
         public string? GoogleOfferUrl { get; set; }
 
-
+        // NOWE:
+        public string? GoogleOfferTitle { get; set; }
     }
 }

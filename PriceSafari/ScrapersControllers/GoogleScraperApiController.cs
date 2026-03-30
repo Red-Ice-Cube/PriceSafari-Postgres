@@ -106,7 +106,9 @@ namespace PriceSafari.Services.GoogleScraping
                         googleHid = c.GoogleHid,
                         useGoogleHidOffer = c.UseGoogleHidOffer,
                         useGPID = c.UseGPID,
-                        useWRGA = c.UseWRGA
+                        useWRGA = c.UseWRGA,
+                        googleGetTitle = c.GoogleGetTitle,
+                        googleCountryCode = c.GoogleCountryCode
                     })
                     .ToListAsync();
 
@@ -215,7 +217,9 @@ namespace PriceSafari.Services.GoogleScraping
                 useGoogleHidOffer = c.UseGoogleHidOffer,
                 useGPID = c.UseGPID,
                 useWRGA = c.UseWRGA,
-                collectGoogleStoreLinks = c.CollectGoogleStoreLinks
+                collectGoogleStoreLinks = c.CollectGoogleStoreLinks,
+                googleGetTitle = c.GoogleGetTitle,
+                googleCountryCode = c.GoogleCountryCode
             });
 
             _logger.LogInformation("Przydzielono paczkę {BatchId} ({Count} URLi) do {ScraperName}",
@@ -285,7 +289,8 @@ namespace PriceSafari.Services.GoogleScraping
                             GooglePriceWithDelivery = scraped.GooglePriceWithDelivery,
                             GooglePosition = scraped.GooglePosition,
                             GoogleInStock = scraped.GoogleInStock,
-                            GoogleOfferUrl = scraped.GoogleOfferUrl
+                            GoogleOfferUrl = scraped.GoogleOfferUrl,
+                            GoogleOfferTitle = scraped.GoogleOfferTitle
                         });
                     }
                 }
@@ -561,6 +566,9 @@ namespace PriceSafari.Services.GoogleScraping
 
         [JsonPropertyName("googleOfferUrl")]
         public string? GoogleOfferUrl { get; set; }
+
+        [JsonPropertyName("googleOfferTitle")]
+        public string? GoogleOfferTitle { get; set; }
     }
 
     public class GoogleHeartbeatDto
