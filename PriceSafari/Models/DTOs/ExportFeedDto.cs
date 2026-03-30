@@ -43,5 +43,6 @@ namespace PriceSafari.Models.DTOs
         public decimal? PricePerKg { get; set; }
 
         public string? OfferTitle { get; set; }
+        public int? WeightConfidence { get; set; }
     }
 }

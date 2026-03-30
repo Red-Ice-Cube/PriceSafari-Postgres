@@ -63,6 +63,7 @@ public class StoreProcessingService
         var extendedInfoBag = new ConcurrentBag<PriceHistoryExtendedInfoClass>();
         var processedProductsForExtendedInfo = new ConcurrentDictionary<int, bool>();
         var googleTitleLookup = new ConcurrentDictionary<(int ProductId, string StoreNameLower), string>();
+        var weightConfidenceLookup = new ConcurrentDictionary<(int ProductId, string StoreNameLower), int>();
         await Task.Run(() => Parallel.ForEach(products, product =>
         {
             var relatedCoOfrs = coOfrClasses
@@ -153,6 +154,8 @@ public class StoreProcessingService
                 .Select(g => g.OrderBy(x => x.IsAdditional).First().Data)
                 .ToList();
 
+            var googlePriceHistories = new List<PriceHistoryClass>();
+
             foreach (var gp in deduplicatedGoogle)
             {
                 decimal gPrice = gp.GooglePrice ?? 0;
@@ -164,18 +167,7 @@ public class StoreProcessingService
                 if (gPos > maxGooglePosition) maxGooglePosition = gPos.Value;
                 if (isOurStore) foundOurStoreGoogle = true;
 
-                int? packUnits = null;
-                decimal? unitWeightG = null;
-                decimal? pricePerKg = null;
-
-                if (store.UseCalculationEnginePerKG && store.GoogleGetTitle
-                    && !string.IsNullOrEmpty(gp.GoogleOfferTitle))
-                {
-                    (packUnits, unitWeightG, pricePerKg) =
-                        WeightParser.ParseFromTitle(gp.GoogleOfferTitle, gPrice);
-                }
-
-                priceHistoriesBag.Add(new PriceHistoryClass
+                var ph = new PriceHistoryClass
                 {
                     ProductId = product.ProductId,
                     StoreName = isOurStore ? canonicalStoreName : gp.GoogleStoreName,
@@ -189,17 +181,43 @@ public class StoreProcessingService
                     ScrapHistory = scrapHistory,
                     IsGoogle = true,
                     GoogleOfferUrl = gp.GoogleOfferUrl,
+                };
 
-                    GooglePackUnits = packUnits,
-                    GoogleUnitWeightG = unitWeightG,
-                    GooglePricePerKg = pricePerKg
-                });
+                googlePriceHistories.Add(ph);
 
                 if (!string.IsNullOrEmpty(gp.GoogleOfferTitle) && store.GoogleGetTitle)
                 {
                     var key = (product.ProductId, gp.GoogleStoreName.ToLower());
                     googleTitleLookup.TryAdd(key, gp.GoogleOfferTitle);
                 }
+            }
+
+            // --- Inteligentna kalkulacja per KG (batch) ---
+            if (store.UseCalculationEnginePerKG && store.GoogleGetTitle && googlePriceHistories.Count > 0)
+            {
+                // Buduj słownik tytułów dla tego produktu
+                var titlesForProduct = new Dictionary<string, string>();
+                foreach (var ph in googlePriceHistories)
+                {
+                    var storeKey = (ph.StoreName ?? "").ToLower();
+                    if (googleTitleLookup.TryGetValue((product.ProductId, storeKey), out var title))
+                    {
+                        titlesForProduct.TryAdd(storeKey, title);
+                    }
+                }
+
+                var confidenceScores = WeightParser.ResolveWeightsForProduct(googlePriceHistories, titlesForProduct);
+
+                // Zapisz confidence do eksportowego lookup (nie do bazy)
+                foreach (var kvp in confidenceScores)
+                {
+                    weightConfidenceLookup.TryAdd((product.ProductId, kvp.Key), kvp.Value);
+                }
+            }
+
+            foreach (var ph in googlePriceHistories)
+            {
+                priceHistoriesBag.Add(ph);
             }
 
             if (!string.IsNullOrEmpty(product.ExportedNameCeneo))
@@ -289,16 +307,17 @@ public class StoreProcessingService
 
         if (store.IsApiExportEnabled && !string.IsNullOrEmpty(store.ApiExportToken))
         {
-            await GenerateExportFilesAsync(store, products, priceHistoriesAll, canonicalStoreName, googleTitleLookup);
+            await GenerateExportFilesAsync(store, products, priceHistoriesAll, canonicalStoreName, googleTitleLookup, weightConfidenceLookup);
         }
     }
 
     private async Task GenerateExportFilesAsync(
-        StoreClass store,
-        List<ProductClass> products,
-        List<PriceHistoryClass> priceHistories,
-        string canonicalStoreName,
-        ConcurrentDictionary<(int ProductId, string StoreNameLower), string>? googleTitleLookup = null)
+         StoreClass store,
+         List<ProductClass> products,
+         List<PriceHistoryClass> priceHistories,
+         string canonicalStoreName,
+         ConcurrentDictionary<(int ProductId, string StoreNameLower), string>? googleTitleLookup = null,
+         ConcurrentDictionary<(int ProductId, string StoreNameLower), int>? weightConfidenceLookup = null)
     {
         var myStoreNameLower = canonicalStoreName.ToLower().Trim();
 
@@ -346,6 +365,16 @@ public class StoreProcessingService
                             (product.ProductId, ph.StoreName.ToLower()), out offerTitle);
                     }
 
+                    int? confidence = null;
+                    if (weightConfidenceLookup != null && ph.IsGoogle && ph.StoreName != null)
+                    {
+                        if (weightConfidenceLookup.TryGetValue(
+                            (product.ProductId, ph.StoreName.ToLower()), out var conf))
+                        {
+                            confidence = conf;
+                        }
+                    }
+
                     return new ExportCompetitorDto
                     {
                         StoreName = ph.StoreName,
@@ -358,7 +387,8 @@ public class StoreProcessingService
                         PackUnits = ph.GooglePackUnits,
                         UnitWeightG = ph.GoogleUnitWeightG,
                         PricePerKg = ph.GooglePricePerKg,
-                        OfferTitle = offerTitle
+                        OfferTitle = offerTitle,
+                        WeightConfidence = confidence
                     };
                 }).ToList();
 
@@ -384,7 +414,14 @@ public class StoreProcessingService
         var jsonPath = Path.Combine(exportFolder, $"feed_{store.StoreId}.json");
         var xmlPath = Path.Combine(exportFolder, $"feed_{store.StoreId}.xml");
 
-        var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
+        var jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            // To sprawi, że znaki takie jak + czy / będą czytelne w pliku tekstowym
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            // Opcjonalnie: upewnij się, że null-e nie zaśmiecają pliku, jeśli chcesz
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
         var jsonString = JsonSerializer.Serialize(feed, jsonOptions);
         await File.WriteAllTextAsync(jsonPath, jsonString);
 
@@ -395,17 +432,393 @@ public class StoreProcessingService
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public static class WeightParser
 {
+    public static Dictionary<string, int> ResolveWeightsForProduct(
+       List<PriceHistoryClass> googleOffers,
+       Dictionary<string, string> titlesByStoreLower)
+    {
+        var confidenceResults = new Dictionary<string, int>(); // storeName.Lower → confidence 0-5
 
-    // <summary>
+        if (googleOffers == null || googleOffers.Count == 0) return confidenceResults;
 
-    // Parsuje tytuł oferty Google i wyciąga informacje o wadze/ilości.
+        // ─── FAZA 1: Parsowanie indywidualne (tytuł + URL + adnotacja) ───
+        var parsed = new List<ParsedWeightData>();
 
-    // Zwraca (ilość_w_paczce, waga_jednostki_g, cena_za_kg) lub nulle gdy nie da się sparsować.
+        foreach (var offer in googleOffers)
+        {
+            var data = new ParsedWeightData { Offer = offer };
+            var storeKey = (offer.StoreName ?? "").ToLower();
 
-    // </summary>
+            // Źródło 1: Tytuł z lookup (NIE z bazy)
+            string? rawTitle = null;
+            string? perKgAnnotation = null;
 
+            if (titlesByStoreLower.TryGetValue(storeKey, out var fullTitle) && !string.IsNullOrEmpty(fullTitle))
+            {
+                var bracketMatch = Regex.Match(fullTitle, @"\[([^\]]+/\s*\d+\s*(?:kg|g|l))\]\s*$", RegexOptions.IgnoreCase);
+                if (bracketMatch.Success)
+                {
+                    perKgAnnotation = bracketMatch.Groups[1].Value;
+                    rawTitle = fullTitle[..bracketMatch.Index].Trim();
+                }
+                else
+                {
+                    rawTitle = fullTitle;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(rawTitle))
+            {
+                var (u, w, _) = ParseFromTitle(rawTitle, offer.Price);
+                if (u.HasValue && w.HasValue)
+                {
+                    data.TitleUnits = u;
+                    data.TitleWeightG = w;
+                }
+            }
+
+            // Źródło 2: URL oferty (z bazy)
+            if (!string.IsNullOrEmpty(offer.GoogleOfferUrl))
+            {
+                var (urlUnits, urlWeightG) = ParseFromUrl(offer.GoogleOfferUrl);
+                if (urlUnits.HasValue && urlWeightG.HasValue)
+                {
+                    data.UrlUnits = urlUnits;
+                    data.UrlWeightG = urlWeightG;
+                }
+            }
+
+            // Źródło 3: Adnotacja Google per-kg
+            if (!string.IsNullOrEmpty(perKgAnnotation))
+            {
+                data.GooglePerKg = ParseGooglePerKgAnnotation(perKgAnnotation);
+            }
+
+            parsed.Add(data);
+        }
+
+        // ─── FAZA 2: Wybór najlepszego wyniku per oferta ───
+        foreach (var data in parsed)
+        {
+            PickBestResult(data);
+        }
+
+        // ─── FAZA 3: Konsensus gramatury jednostkowej ───
+        // Jeśli wiele ofert zgadza się co do wagi jednostki, to jest prawda
+        var confirmedUnitWeights = parsed
+            .Where(d => d.FinalWeightG.HasValue && d.Confidence >= WeightConfidence.High)
+            .Select(d => d.FinalWeightG!.Value)
+            .GroupBy(w => w)
+            .OrderByDescending(g => g.Count())
+            .FirstOrDefault();
+
+        decimal? consensusUnitWeight = confirmedUnitWeights?.Count() >= 2
+            ? confirmedUnitWeights.Key
+            : null;
+
+
+        // ─── FAZA 3.5: Reverse-calc z Google per-kg + konsensus ───
+        // Dla ofert z adnotacją per-kg ale bez units — oblicz units z totalKg / unitWeight
+        if (consensusUnitWeight.HasValue && consensusUnitWeight.Value > 0)
+        {
+            foreach (var data in parsed.Where(d => d.GoogleReverseTotalKg.HasValue
+                                                   && (!d.FinalUnits.HasValue || d.Confidence < WeightConfidence.Medium)))
+            {
+                decimal totalGrams = data.GoogleReverseTotalKg!.Value * 1000m;
+                decimal rawUnits = totalGrams / consensusUnitWeight.Value;
+                int snapped = SnapToCommonPackSize((int)Math.Round(rawUnits));
+
+                if (snapped >= 1 && snapped <= 10000)
+                {
+                    // Walidacja: obliczona per-kg vs Google per-kg
+                    decimal checkPerKg = CalcPerKg(data.Offer.Price, snapped, consensusUnitWeight.Value);
+                    if (data.GooglePerKg.HasValue && checkPerKg > 0)
+                    {
+                        decimal deviation = Math.Abs(checkPerKg - data.GooglePerKg.Value) / data.GooglePerKg.Value;
+                        if (deviation < 0.05m) // <5% — bardzo dobra zgodność
+                        {
+                            data.FinalUnits = snapped;
+                            data.FinalWeightG = consensusUnitWeight;
+                            data.Confidence = WeightConfidence.High; // per-kg Google + konsensus = solidne
+                        }
+                    }
+                }
+            }
+        }
+
+        // ─── FAZA 4: Uzupełnianie luk na podstawie konsensusu + proporcji cen ───
+        if (consensusUnitWeight.HasValue)
+        {
+            // Zbierz "cenę za sztukę" z potwierdzonych ofert
+            var confirmedPricePerUnit = parsed
+                .Where(d => d.FinalUnits.HasValue && d.FinalWeightG == consensusUnitWeight
+                            && d.Confidence >= WeightConfidence.High && d.Offer.Price > 0)
+                .Select(d => new { PricePerUnit = d.Offer.Price / d.FinalUnits!.Value, Units = d.FinalUnits!.Value })
+                .ToList();
+
+            if (confirmedPricePerUnit.Count >= 1)
+            {
+                // Mediana ceny za sztukę — to nasz "anchor"
+                var sortedPPU = confirmedPricePerUnit.OrderBy(x => x.PricePerUnit).ToList();
+                decimal medianPPU = sortedPPU[sortedPPU.Count / 2].PricePerUnit;
+
+                foreach (var data in parsed.Where(d => !d.FinalUnits.HasValue || d.Confidence < WeightConfidence.Medium))
+                {
+                    if (data.Offer.Price <= 0) continue;
+
+                    // Oblicz najbardziej prawdopodobną liczbę sztuk
+                    decimal rawUnits = data.Offer.Price / medianPPU;
+                    int estimatedUnits = (int)Math.Round(rawUnits);
+
+                    // Szukaj najbliższego "popularnego" rozmiaru opakowania
+                    int snappedUnits = SnapToCommonPackSize(estimatedUnits);
+
+                    if (snappedUnits >= 1 && snappedUnits <= 10000)
+                    {
+                        decimal totalKg = (snappedUnits * consensusUnitWeight.Value) / 1000m;
+                        decimal estimatedPerKg = totalKg > 0 ? data.Offer.Price / totalKg : 0;
+
+                        // Walidacja przez Google per-kg
+                        if (data.GooglePerKg.HasValue && estimatedPerKg > 0)
+                        {
+                            decimal deviation = Math.Abs(estimatedPerKg - data.GooglePerKg.Value) / data.GooglePerKg.Value;
+                            if (deviation < 0.05m)
+                            {
+                                data.FinalUnits = snappedUnits;
+                                data.FinalWeightG = consensusUnitWeight;
+                                data.Confidence = WeightConfidence.Inferred;
+                            }
+                        }
+                        else
+                        {
+                            // Walidacja przez odchylenie od mediany
+                            decimal actualPPU = data.Offer.Price / snappedUnits;
+                            decimal ppuDeviation = Math.Abs(actualPPU - medianPPU) / medianPPU;
+
+                            if (ppuDeviation < 0.30m && estimatedPerKg > 0.5m && estimatedPerKg < 500m)
+                            {
+                                data.FinalUnits = snappedUnits;
+                                data.FinalWeightG = consensusUnitWeight;
+                                data.Confidence = WeightConfidence.Inferred;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach (var data in parsed)
+        {
+            var storeKey = (data.Offer.StoreName ?? "").ToLower();
+
+            if (data.FinalUnits.HasValue && data.FinalWeightG.HasValue
+                && data.FinalUnits > 0 && data.FinalWeightG > 0
+                && data.Confidence >= WeightConfidence.Inferred)
+            {
+                decimal totalKg = (data.FinalUnits.Value * data.FinalWeightG.Value) / 1000m;
+                if (totalKg > 0)
+                {
+                    data.Offer.GooglePackUnits = data.FinalUnits;
+                    data.Offer.GoogleUnitWeightG = data.FinalWeightG;
+                    data.Offer.GooglePricePerKg = Math.Round(data.Offer.Price / totalKg, 2);
+                }
+            }
+
+            confidenceResults[storeKey] = (int)data.Confidence;
+        }
+
+        return confidenceResults;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // FAZA 2 HELPER: Wybór najlepszego wyniku z wielu źródeł
+    // ═══════════════════════════════════════════════════════════════
+
+    private static void PickBestResult(ParsedWeightData data)
+    {
+        // Priorytet: Tytuł > URL > GooglePerKg-reverse
+
+        // Przypadek 1: Tytuł sparsowany + walidacja przez Google per-kg
+        if (data.TitleUnits.HasValue && data.TitleWeightG.HasValue)
+        {
+            decimal titlePerKg = CalcPerKg(data.Offer.Price, data.TitleUnits.Value, data.TitleWeightG.Value);
+
+            if (data.GooglePerKg.HasValue && titlePerKg > 0)
+            {
+                decimal deviation = Math.Abs(titlePerKg - data.GooglePerKg.Value) / data.GooglePerKg.Value;
+                if (deviation < 0.10m) // <10% — potwierdzone
+                {
+                    data.FinalUnits = data.TitleUnits;
+                    data.FinalWeightG = data.TitleWeightG;
+                    data.Confidence = WeightConfidence.Confirmed;
+                    return;
+                }
+                // >10% odchylenia — tytuł może być błędny, spróbuj URL
+            }
+            else
+            {
+                // Brak Google per-kg do walidacji — ufamy tytułowi z mniejszym confidence
+                data.FinalUnits = data.TitleUnits;
+                data.FinalWeightG = data.TitleWeightG;
+                data.Confidence = WeightConfidence.High;
+                return;
+            }
+        }
+
+        // Przypadek 2: URL sparsowany
+        if (data.UrlUnits.HasValue && data.UrlWeightG.HasValue)
+        {
+            decimal urlPerKg = CalcPerKg(data.Offer.Price, data.UrlUnits.Value, data.UrlWeightG.Value);
+
+            if (data.GooglePerKg.HasValue && urlPerKg > 0)
+            {
+                decimal deviation = Math.Abs(urlPerKg - data.GooglePerKg.Value) / data.GooglePerKg.Value;
+                if (deviation < 0.10m)
+                {
+                    data.FinalUnits = data.UrlUnits;
+                    data.FinalWeightG = data.UrlWeightG;
+                    data.Confidence = WeightConfidence.Confirmed;
+                    return;
+                }
+            }
+            else
+            {
+                data.FinalUnits = data.UrlUnits;
+                data.FinalWeightG = data.UrlWeightG;
+                data.Confidence = WeightConfidence.Medium;
+                return;
+            }
+        }
+
+        // Przypadek 3: Tytuł odrzucony przez walidację, ale mamy go — użyj z niskim confidence
+        if (data.TitleUnits.HasValue && data.TitleWeightG.HasValue)
+        {
+            data.FinalUnits = data.TitleUnits;
+            data.FinalWeightG = data.TitleWeightG;
+            data.Confidence = WeightConfidence.Low;
+        }
+
+
+        // Przypadek 4: Reverse-calculation z Google per-kg
+        // Gdy tytuł/URL nie dały wyniku lub dały absurdalny, ale mamy adnotację Google
+        if (data.GooglePerKg.HasValue && data.GooglePerKg.Value > 0 && data.Offer.Price > 0)
+        {
+            // Oblicz totalKg z proporcji cena/per-kg
+            decimal totalKg = data.Offer.Price / data.GooglePerKg.Value;
+
+            if (totalKg > 0.001m && totalKg < 1000m)
+            {
+                data.GoogleReverseTotalKg = totalKg;
+                // Jeśli już mamy wynik ale jest absurdalny — nadpisz
+                if (data.Confidence <= WeightConfidence.Low && data.FinalUnits.HasValue && data.FinalWeightG.HasValue)
+                {
+                    decimal existingPerKg = CalcPerKg(data.Offer.Price, data.FinalUnits.Value, data.FinalWeightG.Value);
+                    if (existingPerKg > 0)
+                    {
+                        decimal deviation = Math.Abs(existingPerKg - data.GooglePerKg.Value) / data.GooglePerKg.Value;
+                        if (deviation > 0.15m) // >15% = nasz wynik jest błędny
+                        {
+                            data.FinalUnits = null;
+                            data.FinalWeightG = null;
+                            data.Confidence = WeightConfidence.None;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PARSERY ŹRÓDŁOWE
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>Parsuje wagę z URL-a oferty. Np. "/12-x-100-g/" lub "/macs-cat-pouch-kalb-rind-100g"</summary>
+    public static (int? units, decimal? weightG) ParseFromUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return (null, null);
+
+        try
+        {
+            var path = new Uri(url).AbsolutePath.ToLower();
+
+            // Wzorzec: "12-x-100-g", "24x85g", "6-x-50-g"
+            var nxw = Regex.Match(path, @"(\d+)-?x-?(\d+(?:[.,]\d+)?)-?(g|kg|ml|l)\b", RegexOptions.IgnoreCase);
+            if (nxw.Success)
+            {
+                int units = int.Parse(nxw.Groups[1].Value);
+                decimal weight = ConvertToGrams(nxw.Groups[2].Value, nxw.Groups[3].Value);
+                if (units > 0 && units <= 10000 && weight > 0)
+                    return (units, weight);
+            }
+
+            // Wzorzec: "100g" solo w ścieżce (1 sztuka)
+            var solo = Regex.Match(path, @"(?:^|[/-])(\d+(?:[.,]\d+)?)-?(g|kg)\b", RegexOptions.IgnoreCase);
+            if (solo.Success)
+            {
+                decimal weight = ConvertToGrams(solo.Groups[1].Value, solo.Groups[2].Value);
+                if (weight > 0 && weight <= 100_000)
+                    return (1, weight);
+            }
+        }
+        catch { }
+
+        return (null, null);
+    }
+
+    /// <summary>Parsuje adnotację Google "10,62 € / 1 kg" → decimal per-kg</summary>
+    public static decimal? ParseGooglePerKgAnnotation(string? annotation)
+    {
+        if (string.IsNullOrEmpty(annotation)) return null;
+
+        // "10,62 € / 1 kg", "1,29 € / 100 g", "12,90 € / 1 kg"
+        var m = Regex.Match(annotation, @"(\d+[.,]\d+)\s*€?\s*/\s*(\d+)\s*(kg|g|l)", RegexOptions.IgnoreCase);
+        if (!m.Success) return null;
+
+        decimal priceVal = ParseDecimalSafe(m.Groups[1].Value);
+        int qtyVal = int.Parse(m.Groups[2].Value);
+        string unit = m.Groups[3].Value.ToLower();
+
+        if (priceVal <= 0 || qtyVal <= 0) return null;
+
+        // Normalizuj do per-kg
+        decimal gramsInDenominator = unit switch
+        {
+            "kg" => qtyVal * 1000m,
+            "g" => qtyVal,
+            "l" => qtyVal * 1000m,
+            _ => 0
+        };
+
+        if (gramsInDenominator <= 0) return null;
+
+        // priceVal to cena za qtyVal jednostek
+        // per-kg = priceVal * (1000 / gramsInDenominator)
+        return Math.Round(priceVal * (1000m / gramsInDenominator), 2);
+    }
+
+    /// <summary>Parsuje wagę z tytułu (istniejąca logika, bez zmian).</summary>
     public static (int? units, decimal? unitWeightG, decimal? pricePerKg) ParseFromTitle(string? title, decimal price)
     {
         if (string.IsNullOrWhiteSpace(title) || price <= 0)
@@ -417,10 +830,7 @@ public static class WeightParser
         int? units = null;
         decimal? weightPerUnitG = null;
 
-        var nxw = Regex.Match(title,
-            @"(\d+)\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\b",
-            RegexOptions.IgnoreCase);
-
+        var nxw = Regex.Match(title, @"(\d+)\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\b", RegexOptions.IgnoreCase);
         if (nxw.Success)
         {
             units = int.Parse(nxw.Groups[1].Value);
@@ -429,10 +839,7 @@ public static class WeightParser
 
         if (units == null)
         {
-            var wxn = Regex.Match(title,
-                @"(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\s*[xX×]\s*(\d+)\b",
-                RegexOptions.IgnoreCase);
-
+            var wxn = Regex.Match(title, @"(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\s*[xX×]\s*(\d+)\b", RegexOptions.IgnoreCase);
             if (wxn.Success)
             {
                 weightPerUnitG = ConvertToGrams(wxn.Groups[1].Value, wxn.Groups[2].Value);
@@ -442,10 +849,7 @@ public static class WeightParser
 
         if (units == null)
         {
-            var menge = Regex.Match(title,
-                @"Menge:\s*(\d+)\s*je\s*Bestelleinheit",
-                RegexOptions.IgnoreCase);
-
+            var menge = Regex.Match(title, @"Menge:\s*(\d+)\s*je\s*Bestelleinheit", RegexOptions.IgnoreCase);
             if (menge.Success)
             {
                 units = int.Parse(menge.Groups[1].Value);
@@ -465,10 +869,7 @@ public static class WeightParser
 
         if (units == null)
         {
-            var stueck = Regex.Match(title,
-                @"(\d+)\s*(?:Stück|szt\.?|pieces?|pcs)\b",
-                RegexOptions.IgnoreCase);
-
+            var stueck = Regex.Match(title, @"(\d+)\s*(?:Stück|szt\.?|pieces?|pcs)\b", RegexOptions.IgnoreCase);
             if (stueck.Success)
             {
                 units = int.Parse(stueck.Groups[1].Value);
@@ -488,102 +889,135 @@ public static class WeightParser
 
         if (units.HasValue && weightPerUnitG.HasValue && nxw.Success)
         {
-
-            var outerMultiplier = Regex.Match(title,
-                @"(\d+)\s*(?:Stück|szt\.?|pieces?|pcs)\b",
-                RegexOptions.IgnoreCase);
-
+            var outerMultiplier = Regex.Match(title, @"(\d+)\s*(?:Stück|szt\.?|pieces?|pcs)\b", RegexOptions.IgnoreCase);
             if (outerMultiplier.Success)
             {
                 int outerN = int.Parse(outerMultiplier.Groups[1].Value);
                 if (outerN != units && outerN > 1 && outerN <= 200)
-                {
-
-                    units = units * outerN;
-                }
+                    units *= outerN;
             }
             else
             {
-
                 var outerErPack = Regex.Match(title, @"(\d+)er\s*Pack", RegexOptions.IgnoreCase);
                 if (outerErPack.Success)
                 {
                     int outerN = int.Parse(outerErPack.Groups[1].Value);
                     if (outerN != units && outerN > 1 && outerN <= 200)
-                    {
-                        units = units * outerN;
-                    }
+                        units *= outerN;
                 }
             }
         }
 
-        if (!units.HasValue || !weightPerUnitG.HasValue
-            || units <= 0 || weightPerUnitG <= 0
+        if (!units.HasValue || !weightPerUnitG.HasValue || units <= 0 || weightPerUnitG <= 0
             || units > 10000 || weightPerUnitG > 100_000)
-
-        {
             return (null, null, null);
-        }
 
         decimal totalWeightKg = (units.Value * weightPerUnitG.Value) / 1000m;
-
-        if (totalWeightKg <= 0)
-            return (null, null, null);
+        if (totalWeightKg <= 0) return (null, null, null);
 
         decimal pricePerKg = Math.Round(price / totalWeightKg, 2);
-
-        if (pricePerKg > 100_000)
-            return (null, null, null);
+        if (pricePerKg > 100_000) return (null, null, null);
 
         return (units, weightPerUnitG, pricePerKg);
     }
 
-    // <summary>
+    // ═══════════════════════════════════════════════════════════════
+    // HELPERS
+    // ═══════════════════════════════════════════════════════════════
 
-    // Znajduje pierwszą wagę w tytule (np. "800g", "2,4 kg", "370 g").
+    private static decimal CalcPerKg(decimal price, int units, decimal weightG)
+    {
+        if (units <= 0 || weightG <= 0 || price <= 0) return 0;
+        decimal totalKg = (units * weightG) / 1000m;
+        return totalKg > 0 ? Math.Round(price / totalKg, 2) : 0;
+    }
 
-    // Pomija wartości które wyglądają jak ceny (poprzedzone €/zł/PLN).
-
-    // </summary>
+    private static decimal ParseDecimalSafe(string s)
+    {
+        s = s.Replace(",", ".");
+        return decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : 0;
+    }
 
     private static decimal? FindFirstWeight(string title)
     {
-        var matches = Regex.Matches(title,
-            @"(?<!\S[€$])\b(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\b",
-            RegexOptions.IgnoreCase);
-
+        var matches = Regex.Matches(title, @"(?<!\S[€$])\b(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\b", RegexOptions.IgnoreCase);
         foreach (Match m in matches)
         {
             var val = ConvertToGrams(m.Groups[1].Value, m.Groups[2].Value);
-
-            if (val > 0 && val <= 100_000)
-                return val;
+            if (val > 0 && val <= 100_000) return val;
         }
-
         return null;
     }
-
-    // <summary>
-
-    // Konwertuje wartość z podaną jednostką na gramy.
-
-    // </summary>
 
     private static decimal ConvertToGrams(string valueStr, string unit)
     {
         valueStr = valueStr.Replace(",", ".");
         if (!decimal.TryParse(valueStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
             return 0;
-
         return unit.ToLower() switch
         {
             "kg" => value * 1000m,
             "g" => value,
             "l" => value * 1000m,
-
             "ml" => value,
-
             _ => 0
         };
+    }
+
+    private static int SnapToCommonPackSize(int estimated)
+    {
+        int[] commonSizes = { 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 30, 36, 40, 48, 50, 60, 72, 80, 96, 100, 120, 144 };
+
+        int best = estimated;
+        int bestDiff = int.MaxValue;
+
+        foreach (var size in commonSizes)
+        {
+            int diff = Math.Abs(size - estimated);
+            if (diff < bestDiff)
+            {
+                bestDiff = diff;
+                best = size;
+            }
+        }
+
+        // Akceptuj snap tylko jeśli odchylenie < 20%
+        if (estimated > 0 && Math.Abs(best - estimated) / (decimal)estimated > 0.20m)
+            return estimated; // Zbyt daleko — zostaw oryginał
+
+        return best;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // MODELE WEWNĘTRZNE
+    // ═══════════════════════════════════════════════════════════════
+
+    private enum WeightConfidence
+    {
+        None = 0,
+        Inferred = 1,   // Wyliczone z proporcji cenowych / konsensusu
+        Low = 2,         // Sparsowane ale nie zwalidowane
+        Medium = 3,      // Sparsowane z URL
+        High = 4,        // Sparsowane z tytułu
+        Confirmed = 5    // Sparsowane + potwierdzone przez Google per-kg
+    }
+
+    private class ParsedWeightData
+    {
+        public PriceHistoryClass Offer { get; set; } = null!;
+
+        public int? TitleUnits { get; set; }
+        public decimal? TitleWeightG { get; set; }
+
+        public int? UrlUnits { get; set; }
+        public decimal? UrlWeightG { get; set; }
+
+        public decimal? GooglePerKg { get; set; }
+        // NOWE:
+        public decimal? GoogleReverseTotalKg { get; set; }
+
+        public int? FinalUnits { get; set; }
+        public decimal? FinalWeightG { get; set; }
+        public WeightConfidence Confidence { get; set; } = WeightConfidence.None;
     }
 }
