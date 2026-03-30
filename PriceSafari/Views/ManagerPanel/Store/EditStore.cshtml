@@ -373,6 +373,29 @@
                                     </label>
                                   
                                 </div>
+                                <div class="form-check mt-3">
+                                    <input asp-for="GoogleGetTitle" class="form-check-input" type="checkbox" />
+                                    <label asp-for="GoogleGetTitle" class="form-check-label font-weight-bold">
+                                        Pobieraj tytuł z Google
+                                    </label>
+                                    <small class="d-block text-muted">Bot będzie próbował zaciągnąć oryginalną nazwę produktu ze strony Google.</small>
+                                </div>
+
+                                <div class="form-group mt-3 mb-2" style="max-width: 250px;">
+                                    <label asp-for="GoogleCountryCode" class="font-weight-bold mb-1">Kod kraju Google</label>
+                                    <input asp-for="GoogleCountryCode" class="form-control form-control-sm" placeholder="np. pl, de, uk" maxlength="2" />
+                                    <span asp-validation-for="GoogleCountryCode" class="text-danger"></span>
+                                    <small class="form-text text-muted">Dwuliterowy kod (domyślnie <strong>pl</strong>).</small>
+                                </div>
+
+                                <div class="form-check mt-3 pt-3 border-top">
+                                    <input asp-for="UseCalculationEnginePerKG" class="form-check-input" type="checkbox" />
+                                    <label asp-for="UseCalculationEnginePerKG" class="form-check-label font-weight-bold text-info">
+                                        <i class="fas fa-balance-scale"></i> Włącz kalkulację Per KG (Calculation Engine)
+                                    </label>
+                                    <small class="d-block text-muted">Aktywuje silnik przeliczania cen dla produktów sprzedawanych na kilogramy.</small>
+                                </div>
+                   
                             </div>
                         </div>
                     </div>
