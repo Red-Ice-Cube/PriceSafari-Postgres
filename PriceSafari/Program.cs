@@ -20,6 +20,7 @@ using PriceSafari.Services.PriceAutomationService;
 using PriceSafari.Services.ScheduleService;
 using PriceSafari.Services.ViewRenderService;
 using PriceSafari.SignalIR;
+using PriceSafari.VSA.MassExporter;
 
 public class Program
 {
@@ -106,12 +107,13 @@ public class Program
         builder.Services.AddScoped<AllegroAuthTokenService>();
         builder.Services.AddScoped<PriceAutomationService>();
         builder.Services.AddScoped<AllegroGatherService>();
+        builder.Services.AddScoped<IMassExportService, MassExportService>();
         builder.Services.AddScoped<PriceSafari.Services.KSeF.IInvoiceXmlBuilder,
                            PriceSafari.Services.KSeF.InvoiceXmlBuilder>();
         builder.Services.AddHttpClient<PriceSafari.Services.KSeF.IKSeFClientWrapper,
                                        PriceSafari.Services.KSeF.KSeFClientWrapper>();
         GlobalFontSettings.UseWindowsFontsUnderWindows = true;
-
+        
         builder.Services.AddMemoryCache();
         builder.Services.AddSession(options =>
         {

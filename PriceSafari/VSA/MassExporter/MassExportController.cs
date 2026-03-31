@@ -1,0 +1,69 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using PriceSafari.Models;
+
+namespace PriceSafari.VSA.MassExporter
+{
+    [Authorize(Roles = "Admin, Manager, Member")]
+    [Route("api/[controller]")]
+    [ApiController]
+    public class MassExportController : ControllerBase
+    {
+        private readonly IMassExportService _exportService;
+        private readonly UserManager<PriceSafariUser> _userManager;
+
+        public MassExportController(IMassExportService exportService, UserManager<PriceSafariUser> userManager)
+        {
+            _exportService = exportService;
+            _userManager = userManager;
+        }
+
+        [HttpPost("ExportMultiScraps")]
+        public async Task<IActionResult> ExportMultiScraps([FromQuery] int storeId, [FromBody] ExportMultiRequest request)
+        {
+            if (request?.ScrapIds == null || !request.ScrapIds.Any())
+                return BadRequest("Nie wybrano żadnych analiz.");
+
+            if (request.ScrapIds.Count > 12)
+                return BadRequest("Maksymalnie 12 analiz.");
+
+            var userId = _userManager.GetUserId(User);
+
+            try
+            {
+                var (fileContent, fileName, contentType) = await _exportService.GenerateExportAsync(storeId, request, userId);
+                return File(fileContent, contentType, fileName);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        // ZAKTUALIZOWANA METODA: Cała robota oddelegowana do serwisu!
+        [HttpGet("GetAvailableScraps")]
+        public async Task<IActionResult> GetAvailableScraps([FromQuery] int storeId)
+        {
+            var userId = _userManager.GetUserId(User);
+
+            try
+            {
+                var result = await _exportService.GetAvailableScrapsAsync(storeId, userId);
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+    }
+}

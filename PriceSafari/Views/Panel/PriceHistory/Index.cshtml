@@ -1071,6 +1071,7 @@
             $usePriceWithDeliveryInput.on('change', function () {
                 var selectedValue = $(this).val();
 
+
                 if (selectedValue === 'true' && originalDeliverySetting === 'false') {
 
                     $(this).val('false');
@@ -1111,7 +1112,7 @@
     <script src="~/js/member/PriceChange.js" asp-append-version="true"></script>
     <script src="~/js/member/Presets.js" asp-append-version="true"></script>
     <script src="~/js/member/PriceHistory.js" asp-append-version="true"></script>
-
+    <script src="~/js/member/MassExport.js" asp-append-version="true"></script>
     <div id="loadingOverlay" class="loading-overlay" style="display: none;">
         <div class="loader"></div>
     </div>
