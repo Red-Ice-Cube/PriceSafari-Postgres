@@ -21,7 +21,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             _context = context;
         }
 
-        // Metody Index i StoreDetails zostają bez zmian - korzystają z poprawionych metod w regionach poniżej
         public async Task<IActionResult> Index()
         {
             var storeSummariesDict = new Dictionary<int, StoreSummaryViewModel>();
@@ -128,69 +127,78 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             var (_, totalPhDataKB) = await GetTableSpaceUsageKB("PriceHistories");
             var totalPhCount = (decimal)await _context.PriceHistories.CountAsync();
-            var phGroups = await _context.PriceHistories
-                .Where(ph => ph.ScrapHistory.StoreId == storeId)
-                .GroupBy(ph => new { ph.ScrapHistoryId, ph.ScrapHistory.Date })
-                .Select(g => new { g.Key.ScrapHistoryId, g.Key.Date, Count = g.Count() })
-                .OrderByDescending(g => g.Date)
-                .ToListAsync();
-
-            var tableSizes = phGroups.Select(g => new TableSizeInfo
-            {
-                ScrapHistoryId = g.ScrapHistoryId,
-                Date = g.Date,
-                PriceHistoriesCount = g.Count,
-                UsedSpaceMB = totalPhCount > 0 ? Math.Round((totalPhDataKB * g.Count / totalPhCount) / 1024.0m, 4) : 0
-            }).ToList();
 
             var (_, totalGprDataKB) = await GetTableSpaceUsageKB("GlobalPriceReports");
             var totalGprCount = (decimal)await _context.GlobalPriceReports.CountAsync();
-            var preparedReports = await _context.PriceSafariReports
-                .Where(psr => psr.StoreId == storeId && psr.Prepared == true)
-                .OrderByDescending(psr => psr.CreatedDate)
-                .Select(psr => new { psr.ReportId, psr.ReportName, psr.CreatedDate })
-                .ToListAsync();
-
-            var reportIds = preparedReports.Select(r => r.ReportId).ToList();
-            var reportCounts = await _context.GlobalPriceReports
-                .Where(gpr => reportIds.Contains(gpr.PriceSafariReportId))
-                .GroupBy(gpr => gpr.PriceSafariReportId)
-                .Select(g => new { ReportId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.ReportId, x => x.Count);
-
-            var reportSizes = preparedReports.Select(psr =>
-            {
-                reportCounts.TryGetValue(psr.ReportId, out var count);
-                return new PriceSafariReportSizeInfo
-                {
-                    ReportId = psr.ReportId,
-                    ReportName = psr.ReportName,
-                    ReportDate = psr.CreatedDate,
-                    TotalGlobalPriceReportsCount = count,
-                    UsedSpaceMB = totalGprCount > 0 ? Math.Round((totalGprDataKB * count / totalGprCount) / 1024.0m, 4) : 0
-                };
-            }).ToList();
 
             var (_, totalAphDataKB) = await GetTableSpaceUsageKB("AllegroPriceHistories");
             var totalAphCount = (decimal)await _context.AllegroPriceHistories.CountAsync();
-            var aphGroups = await _context.AllegroPriceHistories
-                .Where(aph => aph.AllegroScrapeHistory.StoreId == storeId)
-                .GroupBy(aph => new { aph.AllegroScrapeHistoryId, aph.AllegroScrapeHistory.Date })
-                .Select(g => new { g.Key.AllegroScrapeHistoryId, g.Key.Date, Count = g.Count() })
-                .OrderByDescending(g => g.Date)
+
+            var scrapHistories = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => new
+                {
+                    sh.Id,
+                    sh.Date,
+
+                    Count = _context.PriceHistories.Count(ph => ph.ScrapHistoryId == sh.Id)
+                })
                 .ToListAsync();
 
-            var allegroSizes = aphGroups.Select(g => new AllegroScrapeHistorySizeInfo
+            var tableSizes = scrapHistories.Select(sh => new TableSizeInfo
             {
-                AllegroScrapeHistoryId = g.AllegroScrapeHistoryId,
-                Date = g.Date,
-                PriceHistoriesCount = g.Count,
-                UsedSpaceMB = totalAphCount > 0 ? Math.Round((totalAphDataKB * g.Count / totalAphCount) / 1024.0m, 4) : 0
+                ScrapHistoryId = sh.Id,
+                Date = sh.Date,
+                PriceHistoriesCount = sh.Count,
+                UsedSpaceMB = (totalPhCount > 0 && sh.Count > 0)
+                    ? Math.Round((totalPhDataKB * sh.Count / totalPhCount) / 1024.0m, 4)
+                    : 0
             }).ToList();
 
-            var totalStoreHistorySizeMB = tableSizes.Sum(s => s.UsedSpaceMB);
-            var totalAllegroHistorySizeMB = allegroSizes.Sum(s => s.UsedSpaceMB);
-            var totalReportsSizeMB = reportSizes.Sum(s => s.UsedSpaceMB);
+            var preparedReports = await _context.PriceSafariReports
+                .Where(psr => psr.StoreId == storeId && psr.Prepared == true)
+                .OrderByDescending(psr => psr.CreatedDate)
+                .Select(psr => new
+                {
+                    psr.ReportId,
+                    psr.ReportName,
+                    psr.CreatedDate,
+                    Count = _context.GlobalPriceReports.Count(gpr => gpr.PriceSafariReportId == psr.ReportId)
+                })
+                .ToListAsync();
+
+            var reportSizes = preparedReports.Select(psr => new PriceSafariReportSizeInfo
+            {
+                ReportId = psr.ReportId,
+                ReportName = psr.ReportName,
+                ReportDate = psr.CreatedDate,
+                TotalGlobalPriceReportsCount = psr.Count,
+                UsedSpaceMB = (totalGprCount > 0 && psr.Count > 0)
+                    ? Math.Round((totalGprDataKB * psr.Count / totalGprCount) / 1024.0m, 4)
+                    : 0
+            }).ToList();
+
+            var allegroHistories = await _context.AllegroScrapeHistories
+                .Where(ash => ash.StoreId == storeId)
+                .OrderByDescending(ash => ash.Date)
+                .Select(ash => new
+                {
+                    ash.Id,
+                    ash.Date,
+                    Count = _context.AllegroPriceHistories.Count(aph => aph.AllegroScrapeHistoryId == ash.Id)
+                })
+                .ToListAsync();
+
+            var allegroSizes = allegroHistories.Select(ash => new AllegroScrapeHistorySizeInfo
+            {
+                AllegroScrapeHistoryId = ash.Id,
+                Date = ash.Date,
+                PriceHistoriesCount = ash.Count,
+                UsedSpaceMB = (totalAphCount > 0 && ash.Count > 0)
+                    ? Math.Round((totalAphDataKB * ash.Count / totalAphCount) / 1024.0m, 4)
+                    : 0
+            }).ToList();
 
             var viewModel = new StoreDetailsViewModel
             {
@@ -199,9 +207,9 @@ namespace PriceSafari.Controllers.ManagerControllers
                 TableSizes = tableSizes,
                 PriceSafariReportSizes = reportSizes,
                 AllegroScrapeHistorySizes = allegroSizes,
-                TotalStoreHistorySizeMB = totalStoreHistorySizeMB,
-                TotalAllegroHistorySizeMB = totalAllegroHistorySizeMB,
-                TotalReportsSizeMB = totalReportsSizeMB
+                TotalStoreHistorySizeMB = tableSizes.Sum(s => s.UsedSpaceMB),
+                TotalAllegroHistorySizeMB = allegroSizes.Sum(s => s.UsedSpaceMB),
+                TotalReportsSizeMB = reportSizes.Sum(s => s.UsedSpaceMB)
             };
 
             return View("~/Views/ManagerPanel/DatabaseSize/StoreDetails.cshtml", viewModel);
@@ -218,7 +226,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 _context.Database.SetCommandTimeout(TimeSpan.FromMinutes(10));
                 foreach (var id in selectedIds)
                 {
-                    // W Postgres używamy " " zamiast [ ]
+
                     await _context.Database.ExecuteSqlRawAsync(
                         "DELETE FROM \"PriceHistories\" WHERE \"ScrapHistoryId\" = {0}", id);
 
@@ -238,7 +246,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                 _context.Database.SetCommandTimeout(TimeSpan.FromMinutes(10));
                 foreach (var reportId in selectedIds)
                 {
-                    // Postgres nie obsługuje DELETE TOP. Usuwamy wszystko - Postgres i tak jest szybki.
+
                     await _context.Database.ExecuteSqlRawAsync(
                         "DELETE FROM \"GlobalPriceReports\" WHERE \"PriceSafariReportId\" = {0}", reportId);
 
@@ -282,7 +290,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         private async Task<(long reservedKB, long dataKB)> GetTableSpaceUsageKB(string tableName)
         {
-            // PostgreSQL: pg_total_relation_size pobiera wszystko, pg_relation_size same dane
+
             var sql = $@"
                 SELECT 
                     pg_total_relation_size('""{tableName}""') / 1024 as reserved_kb,
@@ -318,7 +326,7 @@ namespace PriceSafari.Controllers.ManagerControllers
         private async Task<List<TableUsageInfo>> GetTopTableSizesAsync(int topN)
         {
             var result = new List<TableUsageInfo>();
-            // Postgres statystyki z pg_stat_user_tables
+
             var query = $@"
                 SELECT 
                     relname AS TableName,
@@ -355,7 +363,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             using (var command = connection.CreateCommand())
             {
-                // Agregacja rozmiaru danych i indeksów dla całej bazy w Postgres
+
                 command.CommandText = @"
                     SELECT 
                         SUM(pg_relation_size(quote_ident(schemaname) || '.' || quote_ident(relname))) / 1024 / 1024.0 as data_mb,
@@ -376,7 +384,6 @@ namespace PriceSafari.Controllers.ManagerControllers
         #endregion
     }
 
-    // ViewModels pozostają bez zmian pod kodem kontrolera...
     #region ViewModels
     public class TableUsageInfo
     {
