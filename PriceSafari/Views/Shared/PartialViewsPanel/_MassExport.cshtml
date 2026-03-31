@@ -1,0 +1,146 @@
+﻿<div class="modal fade" id="exportScrapSelectorModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog" role="document" style="max-width: 560px;">
+        <div class="modal-content">
+ 
+           
+            <div id="exportStep_select">
+                <div class="modal-header">
+                    <div class="price-box-column-name">
+                        <i class="fa-solid fa-file-excel" style="color: #198754; margin-right: 6px;"></i>
+                        Eksport danych do Excel
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+ 
+                <div class="modal-body" style="padding: 15px 20px;">
+ 
+          
+                    <div class="export-type-selector">
+                        <label class="export-type-option selected" data-type="prices">
+                            <input type="radio" name="exportType" value="prices" checked />
+                            <div class="export-type-icon"><i class="fa-solid fa-table-list"></i></div>
+                            <div class="export-type-text">
+                                <div class="export-type-title">Dane cenowe</div>
+                                <div class="export-type-desc">Pełna tabela cen z pozycjami, narzutami i dostępnością</div>
+                            </div>
+                        </label>
+                        <label class="export-type-option" data-type="competition">
+                            <input type="radio" name="exportType" value="competition" />
+                            <div class="export-type-icon"><i class="fa-solid fa-chart-bar"></i></div>
+                            <div class="export-type-text">
+                                <div class="export-type-title">Raport konkurencji</div>
+                                <div class="export-type-desc">Analiza pozycji cenowej vs. konkurentów wg progów i marek</div>
+                            </div>
+                        </label>
+                    </div>
+ 
+                    <hr style="margin: 15px 0 12px;">
+ 
+                  
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span id="exportSelectionCounter" style="font-weight: 600; font-size: 14px; color: #333;">
+                            Wybrano: 0 / 12
+                        </span>
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" id="exportSelectLastBtn" class="Button-Page-Small" style="font-size: 12px; padding: 4px 10px; height: auto;">
+                                Ostatnia
+                            </button>
+                            <button type="button" id="exportSelectLast7Btn" class="Button-Page-Small" style="font-size: 12px; padding: 4px 10px; height: auto;">
+                                Ostatnie 7
+                            </button>
+                            <button type="button" id="exportDeselectAllBtn" class="Button-Page-Small" style="font-size: 12px; padding: 4px 10px; height: auto;">
+                                Wyczyść
+                            </button>
+                        </div>
+                    </div>
+ 
+                    <div id="exportScrapList" style="
+                        max-height: 380px;
+                        overflow-y: auto;
+                        border: 1px solid #dee2e6;
+                        border-radius: 6px;
+                        background: #fafafa;
+                        ">
+                        <div id="exportScrapListLoading" style="padding: 40px; text-align: center; color: #888;">
+                            <i class="fa-solid fa-spinner fa-spin" style="font-size: 20px;"></i>
+                            <p style="margin-top: 10px;">Ładowanie listy analiz...</p>
+                        </div>
+                    </div>
+                </div>
+ 
+                <div class="modal-footer" style="justify-content: space-between;">
+                    <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Anuluj</button>
+                    <button type="button" id="exportStartBtn" class="Button-Page-Small-gr" disabled>
+                        <i class="fas fa-file-excel"></i> <span id="exportStartText">Eksportuj (0)</span>
+                    </button>
+                </div>
+            </div>
+ 
+          
+            <div id="exportStep_progress" style="display: none;">
+                <div class="modal-header" style="border-bottom: none;">
+                    <div class="price-box-column-name">
+                        <i class="fa-solid fa-file-excel" style="color: #198754; margin-right: 6px;"></i>
+                        Generowanie pliku Excel
+                    </div>
+                </div>
+ 
+                <div class="modal-body" style="text-align: center; padding: 20px 30px 30px;">
+                    <div style="margin-bottom: 18px;">
+                        <i class="fa-solid fa-gears" id="exportProgressIcon" style="font-size: 36px; color: #198754;"></i>
+                    </div>
+ 
+                    <p id="exportProgressStatus" style="font-size: 15px; font-weight: 600; color: #333; margin-bottom: 4px;">
+                        Przygotowywanie...
+                    </p>
+ 
+                    <p id="exportProgressDetail" style="font-size: 13px; color: #777; margin-bottom: 16px;">
+                        &nbsp;
+                    </p>
+ 
+                    <div style="width: 100%; background-color: #e9ecef; border-radius: 8px; overflow: hidden; height: 10px; margin-bottom: 8px;">
+                        <div id="exportProgressBar" style="
+                        width: 0%;
+                        height: 100%;
+                        background: linear-gradient(90deg, #198754, #20c997);
+                        border-radius: 8px;
+                        transition: width 0.4s ease;
+                        "></div>
+                    </div>
+ 
+                    <p id="exportProgressPercent" style="font-size: 13px; color: #888; margin-bottom: 0;">
+                        0%
+                    </p>
+ 
+                    <div id="exportProgressStats" style="
+                        margin-top: 18px;
+                        padding: 10px 14px;
+                        background: #f0f4f8;
+                        border-radius: 6px;
+                        font-size: 13px;
+                        color: #555;
+                        display: flex;
+                        justify-content: space-around;
+                        ">
+                        <div>
+                            <div style="font-weight: 600; color: #333;" id="exportStatScraps">0 / 0</div>
+                            <div>Analiz</div>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #333;" id="exportStatPrices">0</div>
+                            <div>Cen przetworzonych</div>
+                        </div>
+                    </div>
+                </div>
+ 
+                <div id="exportErrorBox" style="display: none; padding: 0 30px 20px; text-align: center;">
+                    <i class="fa-solid fa-circle-exclamation" style="font-size: 32px; color: #dc3545; margin-bottom: 10px;"></i>
+                    <p id="exportErrorText" style="color: #dc3545; font-size: 14px;"></p>
+                    <button type="button" class="Button-Page-Small" data-dismiss="modal" style="margin-top: 10px;">Zamknij</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

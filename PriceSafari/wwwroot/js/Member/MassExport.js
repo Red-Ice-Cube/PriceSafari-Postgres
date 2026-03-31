@@ -165,7 +165,7 @@
         function updateExportSelectionUI() {
             const count = exportSelectedIds.size;
             document.getElementById('exportSelectionCounter').textContent = `Wybrano: ${count} / ${EXPORT_MAX_SCRAPS}`;
-            document.getElementById('exportStartCount').textContent = count;
+            document.getElementById('exportStartText').textContent = `Eksportuj (${count})`;
             document.getElementById('exportStartBtn').disabled = count === 0;
 
             document.querySelectorAll('.export-scrap-row').forEach(row => {

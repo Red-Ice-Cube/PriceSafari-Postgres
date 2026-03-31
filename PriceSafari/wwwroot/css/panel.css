@@ -4260,11 +4260,11 @@ tr:last-child .sub-line {
 }
 
     .export-scrap-row:hover {
-        background: #e8f4fd;
+        background: #EFEFEF;
     }
 
     .export-scrap-row.selected {
-        background: #d1ecf1;
+        background: #E6E6E6;
     }
 
     .export-scrap-row.disabled-row {
@@ -4303,9 +4303,9 @@ tr:last-child .sub-line {
 
 .export-scrap-prices {
     font-size: 12px;
-    color: #666;
+    color: #fff;
     margin-left: auto;
-    background: #e9ecef;
+    background: #2d2d2d;
     padding: 2px 8px;
     border-radius: 10px;
     white-space: nowrap;
