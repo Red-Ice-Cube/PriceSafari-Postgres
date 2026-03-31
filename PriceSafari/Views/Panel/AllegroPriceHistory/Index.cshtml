@@ -331,7 +331,9 @@
                     <button type="button" class="Button-Page-Small" style="white-space: nowrap; height:33.99px;" id="presetButton" onclick="openCompetitorsModal()">
                         Presety
                     </button>
-
+                    <button class="Button-Page-Small" style="white-space: nowrap;" id="exportToExcelButton">
+                        <i class="fa-solid fa-floppy-disk" style="margin-top:2px;"></i>Eksport
+                    </button>
                   
                     <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px; height:33.99px;" data-toggle="modal" data-target="#infoModal">
                         <i class="fa fa-info-circle"></i>
@@ -650,7 +652,7 @@
         </div>
     </div>
 </div>
-
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassExport.cshtml")
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -675,4 +677,5 @@
     <script src="~/js/member/AllegroPriceHistory.js" asp-append-version="true"></script>
     <script src="~/js/member/AllegroPriceChange.js" asp-append-version="true"></script>
     <script src="~/js/member/Presets.js" asp-append-version="true"></script>
+    <script src="~/js/member/MassExport.js" asp-append-version="true"></script>
 }

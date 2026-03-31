@@ -1,7 +1,7 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
     const EXPORT_HUB_URL = '/scrapingHub';
     const EXPORT_MAX_SCRAPS = 12;
-
+    const exportSourceType = (typeof presetTypeContext !== 'undefined' && presetTypeContext === 1) ? 'marketplace' : 'comparison';
     const exportButton = document.getElementById("exportToExcelButton");
 
     if (exportButton) {
@@ -51,7 +51,7 @@
             </div>`;
 
             // ZMIANA: Strzał do nowego API
-            fetch(`/api/MassExport/GetAvailableScraps?storeId=${storeId}`)
+            fetch(`/api/MassExport/GetAvailableScraps?storeId=${storeId}&sourceType=${exportSourceType}`)
                 .then(r => r.json())
                 .then(scraps => {
                     exportAvailableScraps = scraps;
@@ -239,7 +239,8 @@
                     body: JSON.stringify({
                         scrapIds: scrapIds,
                         connectionId: connectionId,
-                        exportType: exportType
+                        exportType: exportType,
+                        sourceType: exportSourceType   
                     })
                 });
 

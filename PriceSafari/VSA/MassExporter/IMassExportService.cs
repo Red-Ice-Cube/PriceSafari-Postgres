@@ -9,7 +9,6 @@ namespace PriceSafari.VSA.MassExporter
             ExportMultiRequest request,
             string userId);
 
-       
-        Task<object> GetAvailableScrapsAsync(int storeId, string userId);
+        Task<object> GetAvailableScrapsAsync(int storeId, string userId, string sourceType = "comparison");
     }
 }

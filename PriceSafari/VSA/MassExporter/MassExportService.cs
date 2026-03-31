@@ -11,15 +11,13 @@ namespace PriceSafari.VSA.MassExporter
 {
     public class MassExportService : IMassExportService
     {
-
         private readonly PriceSafariContext _context;
         private readonly IHubContext<ScrapingHub> _hubContext;
-        private readonly ILogger<MassExportService> _logger; // DODANO LOGGER
+        private readonly ILogger<MassExportService> _logger;
 
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, DateTime> _exportCooldowns = new();
         private static readonly TimeSpan ExportCooldown = TimeSpan.FromMinutes(5);
 
-        // Wstrzykujemy zależności
         public MassExportService(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, ILogger<MassExportService> logger)
         {
             _context = context;
@@ -27,17 +25,24 @@ namespace PriceSafari.VSA.MassExporter
             _logger = logger;
         }
 
+        // ====================================================================
+        // GET AVAILABLE SCRAPS (comparison + marketplace)
+        // ====================================================================
 
-        public async Task<object> GetAvailableScrapsAsync(int storeId, string userId)
+        public async Task<object> GetAvailableScrapsAsync(int storeId, string userId, string sourceType = "comparison")
         {
-            // 1. Sprawdzamy dostęp (zastępuje stare UserHasAccessToStore)
             var hasAccess = await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
             if (!hasAccess)
-            {
                 throw new UnauthorizedAccessException("Brak dostępu do tego sklepu.");
-            }
 
-            // 2. Pobieramy analizy
+            if (sourceType == "marketplace")
+                return await GetAvailableAllegroScrapsAsync(storeId);
+
+            return await GetAvailableComparisonScrapsAsync(storeId);
+        }
+
+        private async Task<object> GetAvailableComparisonScrapsAsync(int storeId)
+        {
             var scraps = await _context.ScrapHistories
                 .AsNoTracking()
                 .Where(sh => sh.StoreId == storeId)
@@ -58,31 +63,55 @@ namespace PriceSafari.VSA.MassExporter
                 .Select(g => new { ScrapId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.ScrapId, x => x.Count);
 
-            var result = scraps.Select(s => new
+            return scraps.Select(s => new
             {
                 id = s.Id,
                 date = s.Date.ToString("yyyy-MM-ddTHH:mm:ss"),
                 priceCount = priceCounts.GetValueOrDefault(s.Id, 0)
             }).ToList();
+        }
 
-            return result;
+        private async Task<object> GetAvailableAllegroScrapsAsync(int storeId)
+        {
+            var scraps = await _context.AllegroScrapeHistories
+                .AsNoTracking()
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Take(360)
+                .Select(sh => new { sh.Id, sh.Date })
+                .ToListAsync();
+
+            if (!scraps.Any())
+                return new List<object>();
+
+            var scrapIds = scraps.Select(s => s.Id).ToList();
+
+            var priceCounts = await _context.AllegroPriceHistories
+                .AsNoTracking()
+                .Where(ph => scrapIds.Contains(ph.AllegroScrapeHistoryId))
+                .GroupBy(ph => ph.AllegroScrapeHistoryId)
+                .Select(g => new { ScrapId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.ScrapId, x => x.Count);
+
+            return scraps.Select(s => new
+            {
+                id = s.Id,
+                date = s.Date.ToString("yyyy-MM-ddTHH:mm:ss"),
+                priceCount = priceCounts.GetValueOrDefault(s.Id, 0)
+            }).ToList();
         }
 
         // ====================================================================
-        // GŁÓWNA METODA SERWISU (WYMAGANA PRZEZ INTERFEJS)
+        // GŁÓWNA METODA GENEROWANIA EKSPORTU
         // ====================================================================
+
         public async Task<(byte[] FileContent, string FileName, string ContentType)> GenerateExportAsync(
             int storeId, ExportMultiRequest request, string userId)
         {
-            // 1. Sprawdzenie dostępu (Zamiast Forbid() rzucamy wyjątek)
             var hasAccess = await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
-            // Uwaga: Jeśli chcesz tu uwzględnić adminów, najlepiej sprawdzić to w kontrolerze przed wywołaniem serwisu!
             if (!hasAccess)
-            {
                 throw new UnauthorizedAccessException("Brak dostępu do tego sklepu.");
-            }
 
-            // 2. Rate limit (Zamiast BadRequest rzucamy wyjątek)
             var now = DateTime.UtcNow;
             if (_exportCooldowns.TryGetValue(storeId, out var lastExport))
             {
@@ -96,10 +125,24 @@ namespace PriceSafari.VSA.MassExporter
             }
             _exportCooldowns[storeId] = now;
 
+            var sourceType = request.SourceType ?? "comparison";
+
+            if (sourceType == "marketplace")
+                return await GenerateAllegroExportAsync(storeId, request);
+
+            return await GenerateComparisonExportAsync(storeId, request);
+        }
+
+        // ====================================================================
+        // COMPARISON EXPORT (Ceneo / Google) — istniejąca logika
+        // ====================================================================
+
+        private async Task<(byte[] FileContent, string FileName, string ContentType)> GenerateComparisonExportAsync(
+            int storeId, ExportMultiRequest request)
+        {
             var connectionId = request.ConnectionId;
             var exportType = request.ExportType ?? "prices";
 
-            // 3. Pobranie danych wspólnych
             var storeName = await _context.Stores.AsNoTracking()
                 .Where(s => s.StoreId == storeId).Select(s => s.StoreName).FirstOrDefaultAsync();
             var myStoreNameLower = storeName?.ToLower().Trim() ?? "";
@@ -129,7 +172,6 @@ namespace PriceSafari.VSA.MassExporter
             if (!scraps.Any())
                 throw new InvalidOperationException("Nie znaleziono wybranych analiz.");
 
-            // 4. Generowanie Excela
             using var workbook = new XSSFWorkbook();
             var styles = CreateExportStyles(workbook);
 
@@ -210,7 +252,6 @@ namespace PriceSafari.VSA.MassExporter
                 percentComplete = 100
             });
 
-            // 5. Zwracamy wynik z Serwisu (Tuple zamiast FileResult)
             using var stream = new MemoryStream();
             workbook.Write(stream);
             var content = stream.ToArray();
@@ -227,8 +268,220 @@ namespace PriceSafari.VSA.MassExporter
         }
 
         // ====================================================================
-        // KLASY POMOCNICZE (Modele)
+        // ALLEGRO EXPORT (Marketplace)
         // ====================================================================
+
+        private async Task<(byte[] FileContent, string FileName, string ContentType)> GenerateAllegroExportAsync(
+            int storeId, ExportMultiRequest request)
+        {
+            var connectionId = request.ConnectionId;
+            var exportType = request.ExportType ?? "prices";
+
+            var store = await _context.Stores.AsNoTracking()
+                .Where(s => s.StoreId == storeId)
+                .Select(s => new { s.StoreName, s.StoreNameAllegro })
+                .FirstOrDefaultAsync();
+
+            var storeName = store?.StoreName ?? "";
+            var storeNameAllegro = store?.StoreNameAllegro ?? "";
+            var myStoreNameLower = storeNameAllegro.ToLower().Trim();
+
+            var activePreset = await _context.CompetitorPresets.AsNoTracking()
+                .Include(x => x.CompetitorItems)
+                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.Marketplace);
+
+            Dictionary<string, bool> competitorRules = null;
+            if (activePreset != null)
+            {
+                competitorRules = activePreset.CompetitorItems
+                    .Where(ci => ci.DataSource == DataSourceType.Allegro)
+                    .ToDictionary(ci => ci.StoreName.ToLower().Trim(), ci => ci.UseCompetitor);
+            }
+
+            var scraps = await _context.AllegroScrapeHistories.AsNoTracking()
+                .Where(sh => request.ScrapIds.Contains(sh.Id) && sh.StoreId == storeId)
+                .OrderBy(sh => sh.Date)
+                .ToListAsync();
+
+            if (!scraps.Any())
+                throw new InvalidOperationException("Nie znaleziono wybranych analiz.");
+
+            using var workbook = new XSSFWorkbook();
+            var styles = CreateExportStyles(workbook);
+
+            int totalScraps = scraps.Count;
+            int processedScraps = 0;
+            int grandTotalPrices = 0;
+
+            foreach (var scrap in scraps)
+            {
+                var scrapDateStr = scrap.Date.ToString("dd.MM.yyyy");
+                var scrapDateShort = scrap.Date.ToString("dd.MM");
+
+                await SendExportProgress(connectionId, new
+                {
+                    step = "processing",
+                    currentIndex = processedScraps + 1,
+                    totalScraps,
+                    scrapDate = scrapDateStr,
+                    priceCount = 0,
+                    grandTotalPrices,
+                    percentComplete = (int)((double)processedScraps / totalScraps * 95)
+                });
+
+                var rawData = await LoadRawAllegroExportData(scrap.Id, storeId, storeNameAllegro, activePreset, competitorRules);
+
+                grandTotalPrices += rawData.Count;
+
+                await SendExportProgress(connectionId, new
+                {
+                    step = "writing",
+                    currentIndex = processedScraps + 1,
+                    totalScraps,
+                    scrapDate = scrapDateStr,
+                    priceCount = rawData.Count,
+                    grandTotalPrices,
+                    percentComplete = (int)(((double)processedScraps + 0.5) / totalScraps * 95)
+                });
+
+                if (exportType == "competition")
+                {
+                    var suffix = totalScraps > 1 ? $" {scrapDateShort}" : "";
+
+                    // Deduplikacja przed raportem konkurencji:
+                    // Grupujemy po EAN (priorytet) lub AllegroProductId, potem:
+                    // - nasza oferta: najtańsza (priorytet targetOfferId)
+                    // - konkurent: najtańsza per SellerName
+                    var dedupedForCompetition = rawData
+                        .GroupBy(x => !string.IsNullOrWhiteSpace(x.Ean)
+                            ? $"ean:{x.Ean.Trim()}"
+                            : $"pid:{x.AllegroProductId}")
+                        .SelectMany(g =>
+                        {
+                            var items = g.ToList();
+                            var result = new List<RawAllegroExportEntry>();
+
+                            // Moja oferta: priorytet targetOfferId, potem najtańsza
+                            var myItems = items.Where(x => x.IsMe && x.Price > 0).ToList();
+                            if (myItems.Any())
+                            {
+                                RawAllegroExportEntry myBest = null;
+                                foreach (var entry in myItems)
+                                {
+                                    if (long.TryParse(entry.IdOnAllegro, out var tid) && entry.IdAllegro == tid)
+                                    { myBest = entry; break; }
+                                }
+                                result.Add(myBest ?? myItems.OrderBy(x => x.Price).First());
+                            }
+                            else
+                            {
+                                var myZero = items.FirstOrDefault(x => x.IsMe);
+                                if (myZero != null) result.Add(myZero);
+                            }
+
+                            // Konkurenci: najtańsza oferta per sprzedawca
+                            var compDeduped = items
+                                .Where(x => !x.IsMe && x.Price > 0)
+                                .GroupBy(x => x.SellerName.ToLower().Trim())
+                                .Select(sg => sg.OrderBy(x => x.Price).First());
+                            result.AddRange(compDeduped);
+
+                            return result;
+                        })
+                        .ToList();
+
+                    var mappedForCompetition = dedupedForCompetition.Select(x => new RawExportEntry
+                    {
+                        ProductName = x.ProductName,
+                        Producer = x.Producer,
+                        Ean = x.Ean,
+                        CatalogNumber = x.AllegroSku,
+                        ExternalId = null,
+                        MarginPrice = x.MarginPrice,
+                        Price = x.Price,
+                        StoreName = x.SellerName,
+                        IsGoogle = false,
+                        ShippingCostNum = null,
+                        CeneoInStock = null,
+                        GoogleInStock = null,
+                        IsMe = x.IsMe,
+                        FinalPrice = x.Price
+                    }).ToList();
+
+                    var (competitors, brands) = BuildCompetitionData(mappedForCompetition, myStoreNameLower);
+
+                    WriteCompetitionOverviewSheet(workbook, $"Przegląd{suffix}", competitors, scrapDateStr, storeName, activePreset?.PresetName, styles);
+                    WriteCompetitionDistributionSheet(workbook, $"Rozkład{suffix}", competitors, scrapDateStr, styles);
+                    WriteBrandAnalysisSheet(workbook, $"Marki{suffix}", brands, scrapDateStr, styles);
+                }
+                else
+                {
+                    var exportRows = BuildAllegroPriceExportRows(rawData, myStoreNameLower);
+                    var sheetName = scrapDateStr;
+                    var sheet = workbook.CreateSheet(sheetName);
+                    WriteAllegroPriceExportSheet(sheet, exportRows, styles);
+                }
+
+                processedScraps++;
+                await SendExportProgress(connectionId, new
+                {
+                    step = "processing",
+                    currentIndex = processedScraps,
+                    totalScraps,
+                    scrapDate = scrapDateStr,
+                    priceCount = rawData.Count,
+                    grandTotalPrices,
+                    percentComplete = (int)((double)processedScraps / totalScraps * 95)
+                });
+            }
+
+            await SendExportProgress(connectionId, new
+            {
+                step = "finalizing",
+                currentIndex = totalScraps,
+                totalScraps,
+                scrapDate = "",
+                priceCount = 0,
+                grandTotalPrices,
+                percentComplete = 100
+            });
+
+            using var stream = new MemoryStream();
+            workbook.Write(stream);
+            var content = stream.ToArray();
+
+            var dateRange = scraps.Count == 1
+                ? scraps[0].Date.ToString("yyyy-MM-dd")
+                : $"{scraps.First().Date:yyyy-MM-dd}_do_{scraps.Last().Date:yyyy-MM-dd}";
+
+            var typeLabel = exportType == "competition" ? "Konkurencja_Allegro" : "Analiza_Allegro";
+            var fileName = $"{typeLabel}_{storeName}_{dateRange}.xlsx";
+            var contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+            return (content, fileName, contentType);
+        }
+
+        // ====================================================================
+        // MODELE POMOCNICZE — Comparison (istniejące)
+        // ====================================================================
+
+        private class RawExportEntry
+        {
+            public string ProductName { get; set; }
+            public string Producer { get; set; }
+            public string Ean { get; set; }
+            public string CatalogNumber { get; set; }
+            public int? ExternalId { get; set; }
+            public decimal? MarginPrice { get; set; }
+            public decimal Price { get; set; }
+            public string StoreName { get; set; }
+            public bool IsGoogle { get; set; }
+            public decimal? ShippingCostNum { get; set; }
+            public bool? CeneoInStock { get; set; }
+            public bool? GoogleInStock { get; set; }
+            public bool IsMe { get; set; }
+            public decimal FinalPrice { get; set; }
+        }
 
         private class ExportProductRow
         {
@@ -259,6 +512,58 @@ namespace PriceSafari.VSA.MassExporter
             public string Store { get; set; }
             public decimal FinalPrice { get; set; }
         }
+
+        // ====================================================================
+        // MODELE POMOCNICZE — Allegro (nowe)
+        // ====================================================================
+
+        private class RawAllegroExportEntry
+        {
+            public int AllegroProductId { get; set; }
+            public string ProductName { get; set; }
+            public string Producer { get; set; }
+            public string Ean { get; set; }
+            public string AllegroSku { get; set; }
+            public string IdOnAllegro { get; set; }
+            public decimal? MarginPrice { get; set; }
+            public decimal Price { get; set; }
+            public string SellerName { get; set; }
+            public long IdAllegro { get; set; }
+            public int? DeliveryTime { get; set; }
+            public int? Popularity { get; set; }
+            public bool SuperSeller { get; set; }
+            public bool Smart { get; set; }
+            public bool IsBestPriceGuarantee { get; set; }
+            public bool TopOffer { get; set; }
+            public bool SuperPrice { get; set; }
+            public bool IsMe { get; set; }
+        }
+
+        private class ExportAllegroProductRow
+        {
+            public int AllegroProductId { get; set; }
+            public string ProductName { get; set; }
+            public string Producer { get; set; }
+            public string Ean { get; set; }
+            public string AllegroSku { get; set; }
+            public decimal? MarginPrice { get; set; }
+            public decimal? MyPrice { get; set; }
+            public decimal? BestCompetitorPrice { get; set; }
+            public string BestCompetitorStore { get; set; }
+            public decimal? DiffToLowest { get; set; }
+            public decimal? DiffToLowestPercent { get; set; }
+            public int TotalOffers { get; set; }
+            public int MyRank { get; set; }
+            public string PositionString { get; set; }
+            public int ColorCode { get; set; }
+            public int? MyPopularity { get; set; }
+            public int TotalPopularity { get; set; }
+            public List<ExportCompetitorOffer> Competitors { get; set; } = new();
+        }
+
+        // ====================================================================
+        // MODELE POMOCNICZE — Competition (współdzielone)
+        // ====================================================================
 
         private class CompetitorSummary
         {
@@ -311,40 +616,9 @@ namespace PriceSafari.VSA.MassExporter
             public decimal WeAreMostExpensivePercent { get; set; }
         }
 
-        private class RawExportEntry
-        {
-            public string ProductName { get; set; }
-            public string Producer { get; set; }
-            public string Ean { get; set; }
-            public string CatalogNumber { get; set; }
-            public int? ExternalId { get; set; }
-            public decimal? MarginPrice { get; set; }
-            public decimal Price { get; set; }
-            public string StoreName { get; set; }
-            public bool IsGoogle { get; set; }
-            public decimal? ShippingCostNum { get; set; }
-            public bool? CeneoInStock { get; set; }
-            public bool? GoogleInStock { get; set; }
-            public bool IsMe { get; set; }
-            public decimal FinalPrice { get; set; }
-        }
-
         // ====================================================================
-        // METODY POMOCNICZE W SERWISIE
+        // ŁADOWANIE DANYCH — Comparison
         // ====================================================================
-
-        private async Task SendExportProgress(string connectionId, object progress)
-        {
-            if (string.IsNullOrEmpty(connectionId)) return;
-            try
-            {
-                await _hubContext.Clients.Client(connectionId).SendAsync("ExportProgress", progress);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Nie udało się wysłać postępu eksportu.");
-            }
-        }
 
         private async Task<List<RawExportEntry>> LoadRawExportData(
             int scrapId, int storeId, string myStoreNameLower,
@@ -418,6 +692,105 @@ namespace PriceSafari.VSA.MassExporter
                 };
             }).ToList();
         }
+
+        // ====================================================================
+        // ŁADOWANIE DANYCH — Allegro
+        // ====================================================================
+
+        private async Task<List<RawAllegroExportEntry>> LoadRawAllegroExportData(
+            int scrapId, int storeId, string storeNameAllegro,
+            CompetitorPresetClass activePreset,
+            Dictionary<string, bool> competitorRules)
+        {
+            var products = await _context.AllegroProducts.AsNoTracking()
+                .Where(p => p.StoreId == storeId && p.IsScrapable)
+                .ToListAsync();
+
+            var productIds = products.Select(p => p.AllegroProductId).ToList();
+            var productDict = products.ToDictionary(p => p.AllegroProductId);
+
+            var rawPrices = await _context.AllegroPriceHistories.AsNoTracking()
+                .Where(ph => ph.AllegroScrapeHistoryId == scrapId && productIds.Contains(ph.AllegroProductId))
+                .ToListAsync();
+
+            // Deduplikacja: jeden rekord per produkt + oferta
+            rawPrices = rawPrices
+                .GroupBy(ph => new { ph.AllegroProductId, ph.IdAllegro })
+                .Select(g => g.First())
+                .ToList();
+
+            bool includeNoDelivery = activePreset?.IncludeNoDeliveryInfo ?? true;
+            int minDelivery = activePreset?.MinDeliveryDays ?? 0;
+            int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
+
+            var result = new List<RawAllegroExportEntry>();
+
+            foreach (var ph in rawPrices)
+            {
+                if (!productDict.TryGetValue(ph.AllegroProductId, out var product))
+                    continue;
+
+                bool isMe = ph.SellerName.Equals(storeNameAllegro, StringComparison.OrdinalIgnoreCase);
+
+                // Filtrowanie presetu (nie filtrujemy "moich" ofert)
+                if (!isMe && activePreset != null)
+                {
+                    // Filtr czasu dostawy
+                    if (ph.DeliveryTime.HasValue)
+                    {
+                        if (ph.DeliveryTime.Value < minDelivery || ph.DeliveryTime.Value > maxDelivery)
+                            continue;
+                    }
+                    else
+                    {
+                        if (!includeNoDelivery)
+                            continue;
+                    }
+
+                    // Filtr sprzedawcy
+                    if (competitorRules != null)
+                    {
+                        var sellerLower = (ph.SellerName ?? "").ToLower().Trim();
+                        if (competitorRules.TryGetValue(sellerLower, out bool useCompetitor))
+                        {
+                            if (!useCompetitor) continue;
+                        }
+                        else if (!activePreset.UseUnmarkedStores)
+                        {
+                            continue;
+                        }
+                    }
+                }
+
+                result.Add(new RawAllegroExportEntry
+                {
+                    AllegroProductId = product.AllegroProductId,
+                    ProductName = product.AllegroProductName,
+                    Producer = product.Producer,
+                    Ean = product.AllegroEan,
+                    AllegroSku = product.AllegroSku,
+                    IdOnAllegro = product.IdOnAllegro,
+                    MarginPrice = product.AllegroMarginPrice,
+                    Price = ph.Price,
+                    SellerName = ph.SellerName,
+                    IdAllegro = ph.IdAllegro,
+                    DeliveryTime = ph.DeliveryTime,
+                    Popularity = ph.Popularity,
+                    SuperSeller = ph.SuperSeller,
+                    Smart = ph.Smart,
+                    IsBestPriceGuarantee = ph.IsBestPriceGuarantee,
+                    TopOffer = ph.TopOffer,
+                    SuperPrice = ph.SuperPrice,
+                    IsMe = isMe
+                });
+            }
+
+            return result;
+        }
+
+        // ====================================================================
+        // BUDOWANIE WIERSZY — Comparison
+        // ====================================================================
 
         private List<ExportProductRow> BuildPriceExportRows(List<RawExportEntry> rawData, string myStoreNameLower)
         {
@@ -505,6 +878,124 @@ namespace PriceSafari.VSA.MassExporter
                 .ToList();
         }
 
+        // ====================================================================
+        // BUDOWANIE WIERSZY — Allegro
+        // ====================================================================
+
+        private List<ExportAllegroProductRow> BuildAllegroPriceExportRows(List<RawAllegroExportEntry> rawData, string myStoreNameLower)
+        {
+            // Grupowanie priorytetowo po EAN (jeśli istnieje), fallback po AllegroProductId.
+            // Dzięki temu produkty z tym samym EAN w różnych katalogach schodzą do jednego wiersza.
+            return rawData
+                .GroupBy(x => !string.IsNullOrWhiteSpace(x.Ean)
+                    ? $"ean:{x.Ean.Trim()}"
+                    : $"pid:{x.AllegroProductId}")
+                .Select(g =>
+                {
+                    var all = g.ToList();
+
+                    // Metadane z pierwszego wpisu (lub tego z najlepszymi danymi)
+                    var representative = all.First();
+
+                    // ── MOJA OFERTA: priorytet targetOfferId, potem najtańsza ──
+                    var myEntries = all.Where(x => x.IsMe && x.Price > 0).ToList();
+                    RawAllegroExportEntry myOffer = null;
+
+                    if (myEntries.Any())
+                    {
+                        // Najpierw szukamy oferty pasującej do IdOnAllegro (główna aukcja)
+                        foreach (var entry in myEntries)
+                        {
+                            if (long.TryParse(entry.IdOnAllegro, out var tid) && entry.IdAllegro == tid)
+                            {
+                                myOffer = entry;
+                                break;
+                            }
+                        }
+                        // Fallback: najtańsza z moich ofert
+                        myOffer ??= myEntries.OrderBy(x => x.Price).First();
+                    }
+
+                    // ── KONKURENCI: deduplikacja po SellerName, najtańsza oferta per sprzedawca ──
+                    var competitors = all
+                        .Where(x => !x.IsMe && x.Price > 0)
+                        .GroupBy(x => x.SellerName.ToLower().Trim())
+                        .Select(sg => sg.OrderBy(x => x.Price).First())
+                        .OrderBy(x => x.Price)
+                        .ToList();
+
+                    // Wszystkie unikalne oferty (do rankingu)
+                    var allUniqueOffers = new List<RawAllegroExportEntry>(competitors);
+                    if (myOffer != null) allUniqueOffers.Add(myOffer);
+
+                    var bestComp = competitors.FirstOrDefault();
+                    int totalOffers = allUniqueOffers.Count;
+                    int myRank = 0;
+                    string posStr = "-";
+                    decimal? diffPln = null;
+                    decimal? diffPct = null;
+                    int colorCode = 0;
+
+                    if (myOffer != null && myOffer.Price > 0 && totalOffers > 0)
+                    {
+                        int cheaper = allUniqueOffers.Count(x => x.Price < myOffer.Price);
+                        myRank = cheaper + 1;
+                        posStr = $"{myRank} z {totalOffers}";
+
+                        if (bestComp != null)
+                        {
+                            diffPln = myOffer.Price - bestComp.Price;
+                            if (bestComp.Price > 0)
+                                diffPct = Math.Round((myOffer.Price - bestComp.Price) / bestComp.Price * 100, 2);
+                        }
+
+                        decimal minPrice = allUniqueOffers.Where(x => x.Price > 0).Min(x => x.Price);
+                        if (myOffer.Price == minPrice)
+                        {
+                            int othersAtMin = allUniqueOffers.Count(x => x.Price == minPrice && !x.IsMe);
+                            colorCode = othersAtMin == 0 ? 1 : 2;
+                        }
+                        else colorCode = 3;
+                    }
+
+                    // Popularity: sumujemy WSZYSTKIE wpisy (bez dedupu) — bo każda aukcja ma swój wolumen
+                    int totalPopularity = all.Sum(x => x.Popularity ?? 0);
+                    int? myPopularity = myEntries.Any() ? myEntries.Sum(x => x.Popularity ?? 0) : (int?)null;
+
+                    return new ExportAllegroProductRow
+                    {
+                        AllegroProductId = representative.AllegroProductId,
+                        ProductName = representative.ProductName,
+                        Producer = representative.Producer,
+                        Ean = representative.Ean,
+                        AllegroSku = representative.AllegroSku,
+                        MarginPrice = representative.MarginPrice,
+                        MyPrice = myOffer?.Price,
+                        BestCompetitorPrice = bestComp?.Price,
+                        BestCompetitorStore = bestComp?.SellerName,
+                        DiffToLowest = diffPln,
+                        DiffToLowestPercent = diffPct,
+                        TotalOffers = totalOffers,
+                        MyRank = myRank,
+                        PositionString = posStr,
+                        ColorCode = colorCode,
+                        MyPopularity = myPopularity,
+                        TotalPopularity = totalPopularity,
+                        Competitors = competitors.Select(c => new ExportCompetitorOffer
+                        {
+                            Store = c.SellerName,
+                            FinalPrice = c.Price
+                        }).ToList()
+                    };
+                })
+                .OrderBy(x => x.ProductName)
+                .ToList();
+        }
+
+        // ====================================================================
+        // ZAPIS ARKUSZA — Comparison
+        // ====================================================================
+
         private void WritePriceExportSheet(ISheet sheet, List<ExportProductRow> data, ExportStyles s)
         {
             var headerRow = sheet.CreateRow(0);
@@ -590,6 +1081,97 @@ namespace PriceSafari.VSA.MassExporter
 
             for (int i = 0; i < 17; i++) { try { sheet.AutoSizeColumn(i); } catch { } }
         }
+
+        // ====================================================================
+        // ZAPIS ARKUSZA — Allegro
+        // ====================================================================
+
+        private void WriteAllegroPriceExportSheet(ISheet sheet, List<ExportAllegroProductRow> data, ExportStyles s)
+        {
+            var headerRow = sheet.CreateRow(0);
+            int col = 0;
+
+            string[] headers = {
+                "ID Produktu", "Nazwa Produktu", "Producent", "EAN", "SKU Allegro",
+                "Cena Zakupu", "Twoja Cena", "Najt. Cena Konkurencji", "Najt. Sprzedawca",
+                "Różnica PLN", "Różnica %",
+                "Ilość Ofert", "Twoja Pozycja",
+                "Twoja Sprzedaż", "Sprzedaż Katalogu"
+            };
+
+            foreach (var h in headers)
+            {
+                var cell = headerRow.CreateCell(col++);
+                cell.SetCellValue(h);
+                cell.CellStyle = s.Header;
+            }
+
+            int maxComp = 60;
+            for (int i = 1; i <= maxComp; i++)
+            {
+                var c1 = headerRow.CreateCell(col++); c1.SetCellValue($"Sprzedawca {i}"); c1.CellStyle = s.Header;
+                var c2 = headerRow.CreateCell(col++); c2.SetCellValue($"Cena {i}"); c2.CellStyle = s.Header;
+            }
+
+            int rowIdx = 1;
+            foreach (var item in data)
+            {
+                var row = sheet.CreateRow(rowIdx++);
+                col = 0;
+
+                row.CreateCell(col++).SetCellValue(item.AllegroProductId);
+                row.CreateCell(col++).SetCellValue(item.ProductName ?? "");
+                row.CreateCell(col++).SetCellValue(item.Producer ?? "");
+                row.CreateCell(col++).SetCellValue(item.Ean ?? "");
+                row.CreateCell(col++).SetCellValue(item.AllegroSku ?? "");
+
+                SetDecimalCell(row.CreateCell(col++), item.MarginPrice, s.Currency);
+
+                var cellMyPrice = row.CreateCell(col++);
+                if (item.MyPrice.HasValue)
+                {
+                    cellMyPrice.SetCellValue((double)item.MyPrice.Value);
+                    cellMyPrice.CellStyle = item.ColorCode switch
+                    {
+                        1 => s.PriceGreen,
+                        2 => s.PriceLightGreen,
+                        3 => s.PriceRed,
+                        _ => s.Currency
+                    };
+                }
+                else cellMyPrice.SetCellValue("-");
+
+                SetDecimalCell(row.CreateCell(col++), item.BestCompetitorPrice, s.Currency);
+                row.CreateCell(col++).SetCellValue(item.BestCompetitorStore ?? "");
+
+                SetDecimalCell(row.CreateCell(col++), item.DiffToLowest, s.Currency);
+                SetDecimalCell(row.CreateCell(col++), item.DiffToLowestPercent, s.Percent);
+
+                row.CreateCell(col++).SetCellValue(item.TotalOffers);
+                row.CreateCell(col++).SetCellValue(item.PositionString);
+
+                row.CreateCell(col++).SetCellValue(item.MyPopularity ?? 0);
+                row.CreateCell(col++).SetCellValue(item.TotalPopularity);
+
+                for (int i = 0; i < maxComp; i++)
+                {
+                    if (i < item.Competitors.Count)
+                    {
+                        row.CreateCell(col++).SetCellValue(item.Competitors[i].Store);
+                        var cp = row.CreateCell(col++);
+                        cp.SetCellValue((double)item.Competitors[i].FinalPrice);
+                        cp.CellStyle = s.Currency;
+                    }
+                    else col += 2;
+                }
+            }
+
+            for (int i = 0; i < 15; i++) { try { sheet.AutoSizeColumn(i); } catch { } }
+        }
+
+        // ====================================================================
+        // BUDOWANIE DANYCH KONKURENCJI (współdzielone przez oba tryby)
+        // ====================================================================
 
         private (List<CompetitorSummary> competitors, List<BrandSummary> brands) BuildCompetitionData(
             List<RawExportEntry> rawData, string myStoreNameLower)
@@ -731,6 +1313,10 @@ namespace PriceSafari.VSA.MassExporter
 
             return (competitors, brands);
         }
+
+        // ====================================================================
+        // ARKUSZE KONKURENCJI (współdzielone)
+        // ====================================================================
 
         private void WriteCompetitionOverviewSheet(XSSFWorkbook wb, string sheetName,
             List<CompetitorSummary> data, string scrapDate, string storeName, string presetName, ExportStyles s)
@@ -938,6 +1524,10 @@ namespace PriceSafari.VSA.MassExporter
             for (int i = 0; i < headers.Length; i++) { try { sheet.AutoSizeColumn(i); } catch { } }
         }
 
+        // ====================================================================
+        // STYLE EXCELA
+        // ====================================================================
+
         private class ExportStyles
         {
             public ICellStyle Header { get; set; }
@@ -955,7 +1545,6 @@ namespace PriceSafari.VSA.MassExporter
             public ICellStyle Default { get; set; }
             public ICellStyle CellRedBg { get; set; }
             public ICellStyle CellGreenBg { get; set; }
-
             public ICellStyle CellRed1 { get; set; }
             public ICellStyle CellRed2 { get; set; }
             public ICellStyle CellRed3 { get; set; }
@@ -967,7 +1556,6 @@ namespace PriceSafari.VSA.MassExporter
             public ICellStyle CellRed9 { get; set; }
             public ICellStyle CellRed10 { get; set; }
             public ICellStyle CellRed11 { get; set; }
-
             public ICellStyle CellGreen1 { get; set; }
             public ICellStyle CellGreen2 { get; set; }
             public ICellStyle CellGreen3 { get; set; }
@@ -979,7 +1567,6 @@ namespace PriceSafari.VSA.MassExporter
             public ICellStyle CellGreen9 { get; set; }
             public ICellStyle CellGreen10 { get; set; }
             public ICellStyle CellGreen11 { get; set; }
-
             public ICellStyle SubHeaderBlue { get; set; }
             public ICellStyle CellBlue { get; set; }
         }
@@ -1080,6 +1667,23 @@ namespace PriceSafari.VSA.MassExporter
             }
 
             return style;
+        }
+
+        // ====================================================================
+        // METODY POMOCNICZE
+        // ====================================================================
+
+        private async Task SendExportProgress(string connectionId, object progress)
+        {
+            if (string.IsNullOrEmpty(connectionId)) return;
+            try
+            {
+                await _hubContext.Clients.Client(connectionId).SendAsync("ExportProgress", progress);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Nie udało się wysłać postępu eksportu.");
+            }
         }
 
         private static void SetDecimalCell(ICell cell, decimal? value, ICellStyle style)

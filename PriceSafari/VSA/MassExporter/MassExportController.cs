@@ -45,15 +45,14 @@ namespace PriceSafari.VSA.MassExporter
             }
         }
 
-        // ZAKTUALIZOWANA METODA: Cała robota oddelegowana do serwisu!
         [HttpGet("GetAvailableScraps")]
-        public async Task<IActionResult> GetAvailableScraps([FromQuery] int storeId)
+        public async Task<IActionResult> GetAvailableScraps([FromQuery] int storeId, [FromQuery] string sourceType = "comparison")
         {
             var userId = _userManager.GetUserId(User);
 
             try
             {
-                var result = await _exportService.GetAvailableScrapsAsync(storeId, userId);
+                var result = await _exportService.GetAvailableScrapsAsync(storeId, userId, sourceType);
                 return Ok(result);
             }
             catch (UnauthorizedAccessException)
