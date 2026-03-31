@@ -3464,6 +3464,10 @@ tr:last-child .sub-line {
     align-items: stretch;
 }
 
+.price-box-column-action:empty {
+    display: none !important;
+}
+
 .price-box-column {
     display: flex;
     flex-direction: column;
