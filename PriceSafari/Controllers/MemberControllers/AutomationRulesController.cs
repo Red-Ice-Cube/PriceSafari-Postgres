@@ -21,6 +21,18 @@ namespace PriceSafari.Controllers.MemberControllers
             _context = context;
         }
 
+        // ═══════════════════════════════════════════════════════
+        // DTO — Interwał info dla listy automatów
+        // ═══════════════════════════════════════════════════════
+        public class IntervalInfoDto
+        {
+            public int IntervalId { get; set; }
+            public string IntervalName { get; set; }
+            public string IntervalColorHex { get; set; }
+            public bool IntervalIsActive { get; set; }
+            public int Count { get; set; }
+        }
+
         [HttpGet]
         [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public async Task<IActionResult> Dashboard()
@@ -46,7 +58,6 @@ namespace PriceSafari.Controllers.MemberControllers
             var rulesStats = await _context.AutomationRules
                 .Where(r => storeIds.Contains(r.StoreId))
                 .GroupBy(r => new { r.StoreId, r.SourceType, r.IsActive })
-
                 .Select(g => new
                 {
                     StoreId = g.Key.StoreId,
@@ -129,9 +140,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     ColorHex = r.ColorHex,
                     IsActive = r.IsActive,
                     SourceType = r.SourceType,
-
                     StrategyMode = r.StrategyMode,
-
                     CompetitorPresetName = r.CompetitorPreset != null ? r.CompetitorPreset.PresetName : "Domyślny",
                     IsTimeLimited = r.IsTimeLimited,
                     ScheduledStartDate = r.ScheduledStartDate,
@@ -142,24 +151,39 @@ namespace PriceSafari.Controllers.MemberControllers
                 .ThenByDescending(r => r.Id)
                 .ToListAsync();
 
-
             var ruleIds = rules.Select(r => r.Id).ToList();
 
-            var intervalLookup = await _context.IntervalPriceRules
+            // ── Interwały — pobierz surowo i zbuduj słownik w pamięci ──
+            var intervalRaw = await _context.IntervalPriceRules
                 .Where(i => ruleIds.Contains(i.AutomationRuleId))
-                .GroupBy(i => i.AutomationRuleId)
-                .Select(g => new {
-                    AutomationRuleId = g.Key,
-                    IntervalId = g.OrderByDescending(i => i.Id).First().Id,
-                    IntervalName = g.OrderByDescending(i => i.Id).First().Name,
-                    IntervalColorHex = g.OrderByDescending(i => i.Id).First().ColorHex,
-                    IntervalIsActive = g.OrderByDescending(i => i.Id).First().IsActive,
-                    Count = g.Count()
+                .Select(i => new
+                {
+                    i.Id,
+                    i.AutomationRuleId,
+                    i.Name,
+                    i.ColorHex,
+                    i.IsActive
                 })
-                .ToDictionaryAsync(x => x.AutomationRuleId);
+                .ToListAsync();
 
-            ViewBag.IntervalLookup = intervalLookup;
+            var intervalDict = intervalRaw
+                .GroupBy(i => i.AutomationRuleId)
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                    {
+                        var latest = g.OrderByDescending(i => i.Id).First();
+                        return new IntervalInfoDto
+                        {
+                            IntervalId = latest.Id,
+                            IntervalName = latest.Name,
+                            IntervalColorHex = latest.ColorHex,
+                            IntervalIsActive = latest.IsActive,
+                            Count = g.Count()
+                        };
+                    });
 
+            ViewBag.IntervalLookup = intervalDict;
 
             ViewBag.StoreId = storeId;
             ViewBag.StoreName = storeName;
@@ -176,11 +200,8 @@ namespace PriceSafari.Controllers.MemberControllers
             public bool IsActive { get; set; }
             public AutomationSourceType SourceType { get; set; }
             public AutomationStrategyMode StrategyMode { get; set; }
-
             public int AssignedProductsCount { get; set; }
-
             public string CompetitorPresetName { get; set; }
-
             public bool IsTimeLimited { get; set; }
             public DateTime? ScheduledStartDate { get; set; }
             public DateTime? ScheduledEndDate { get; set; }
@@ -190,16 +211,13 @@ namespace PriceSafari.Controllers.MemberControllers
         [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public IActionResult GetModalPartial(AutomationSourceType type, int storeId)
         {
-
             var viewData = new ViewDataDictionary(new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider(), new Microsoft.AspNetCore.Mvc.ModelBinding.ModelStateDictionary())
-    {
-        { "StoreId", storeId }
-    };
+            {
+                { "StoreId", storeId }
+            };
 
             if (type == AutomationSourceType.Marketplace)
-
             {
-
                 return new PartialViewResult
                 {
                     ViewName = "~/Views/Shared/PartialViewsPanel/_PresetyMarketPlace.cshtml",
@@ -208,7 +226,6 @@ namespace PriceSafari.Controllers.MemberControllers
             }
             else
             {
-
                 return new PartialViewResult
                 {
                     ViewName = "~/Views/Shared/PartialViewsPanel/_PresetyPriceComparison.cshtml",
@@ -224,10 +241,8 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 StoreId = storeId,
                 ColorHex = "#4e73df",
-
                 SourceType = sourceType ?? AutomationSourceType.PriceComparison,
                 StrategyMode = AutomationStrategyMode.Competitiveness,
-
             };
             return View("~/Views/Panel/AutomationRules/CreateOrEdit.cshtml", model);
         }
@@ -319,12 +334,10 @@ namespace PriceSafari.Controllers.MemberControllers
         [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> Delete(int id)
         {
-
             var rule = await _context.AutomationRules.FindAsync(id);
 
             if (rule != null)
             {
-
                 var ruleHistory = _context.AllegroPriceBridgeBatches
                     .Where(batch => batch.AutomationRuleId == id);
 
@@ -346,10 +359,8 @@ namespace PriceSafari.Controllers.MemberControllers
         public class AssignProductsDto
         {
             public int RuleId { get; set; }
-
             public List<int> ProductIds { get; set; } = new List<int>();
             public bool IsAllegro { get; set; }
-
         }
 
         public class RulesStatusRequest
@@ -367,9 +378,7 @@ namespace PriceSafari.Controllers.MemberControllers
             public string ColorHex { get; set; }
             public bool IsActive { get; set; }
             public int StrategyMode { get; set; }
-
             public int MatchingCount { get; set; }
-
             public int TotalCount { get; set; }
         }
 
@@ -395,7 +404,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             foreach (var rule in rules)
             {
-
                 int matchingCount = relevantAssignments.Count(a => a.AutomationRuleId == rule.Id);
 
                 int totalCount = await _context.AutomationProductAssignments
@@ -436,14 +444,12 @@ namespace PriceSafari.Controllers.MemberControllers
 
             foreach (var prodId in model.ProductIds)
             {
-
                 var existing = model.IsAllegro
                     ? existingAssignments.FirstOrDefault(a => a.AllegroProductId == prodId)
                     : existingAssignments.FirstOrDefault(a => a.ProductId == prodId);
 
                 if (existing != null)
                 {
-
                     if (existing.AutomationRuleId != model.RuleId)
                     {
                         existing.AutomationRuleId = model.RuleId;
@@ -453,12 +459,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
                 else
                 {
-
                     var newAssignment = new AutomationProductAssignment
                     {
                         AutomationRuleId = model.RuleId,
                         AssignedDate = DateTime.UtcNow,
-
                         ProductId = model.IsAllegro ? null : prodId,
                         AllegroProductId = model.IsAllegro ? prodId : null
                     };

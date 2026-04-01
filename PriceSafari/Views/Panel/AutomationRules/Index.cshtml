@@ -1,4 +1,4 @@
-﻿@* @using Microsoft.AspNetCore.Identity
+﻿@using Microsoft.AspNetCore.Identity
 @using PriceSafari.Models
 @using PriceSafari.Enums
 @using PriceSafari.Models.ViewModels
@@ -15,822 +15,164 @@
 
     var user = await UserManager.GetUserAsync(User);
     bool canEdit = user?.AccesToEditPriceAutomation ?? false;
-
     string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen.";
-   
 
+    var intervalLookup = ViewBag.IntervalLookup as Dictionary<int, IntervalInfoDto>
+                         ?? new Dictionary<int, IntervalInfoDto>();
 }
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 <style>
+
+    .rules-scroll-container {
+        overflow-y: auto;
+        max-height: calc(100vh - 180px);
+        padding-right: 4px;
+    }
+    .rules-scroll-container::-webkit-scrollbar { width: 6px; }
+    .rules-scroll-container::-webkit-scrollbar-track { background: transparent; }
+    .rules-scroll-container::-webkit-scrollbar-thumb { background: #d1d3e2; border-radius: 3px; }
+    .rules-scroll-container::-webkit-scrollbar-thumb:hover { background: #b7b9cc; }
 
     .rule-card {
-        background-color: #fff;
+        background: #fff;
         border: 1px solid #e3e6f0;
-        border-radius: 8px;
-        padding: 12px 20px;
-        margin-bottom: 12px;
+        border-radius: 10px;
+        margin-bottom: 10px;
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        transition: all 0.2s ease-in-out;
-        cursor: pointer;
-        position: relative;
-    }
-
-    .rule-card:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        border-color: #b7b9cc;
-    }
-
-    .rule-color-bar {
-        width: 6px;
-        height: 36px;
-        border-radius: 4px;
-        margin-right: 18px;
-        flex-shrink: 0;
-    }
-
-    .rule-content-wrapper {
-        display: flex;
-        align-items: center;
-        flex-grow: 1;
-    }
-
-    .rule-info {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .rule-title {
-        font-size: 15px;
-        font-weight: 700;
-        color: #5a5c69;
-        margin-bottom: 4px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .rule-meta {
-        display: flex;
-        align-items: center;
-        font-size: 12px;
-        color: #858796;
-
-    }
-
-    .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 8px; 
-    }
-
-    .meta-separator {
-        height: 14px;
-        width: 1px;
-        background-color: #d1d3e2; 
-        margin: 0 15px; 
-    }
-
-    .rule-actions-side {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .info-badge {
-        background-color: #f8f9fc;
-        border: 1px solid #e3e6f0;
-        padding: 4px 12px;
-        border-radius: 6px;
-        font-size: 11px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        white-space: nowrap;
-        height: 31px;
-    }
-
-    .badge-label {
-        color: #b7b9cc;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .badge-separator {
-        height: 12px;
-        width: 1px;
-        background-color: #d1d3e2;
-        margin: 0 2px;
-    }
-
-    .badge-value {
-        font-weight: 700;
-        color: #5a5c69;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12px;
-    }
-
-    .text-strategy-comp { color: rgba(113, 96, 232, 1); }
-    .text-strategy-prof { color: #0d2c56; }
-
-    .status-badge {
-        font-size: 12px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        min-width: 80px;
-       
-    }
-
-    .status-active { color: #1cc88a; }
-    .status-inactive { color: #e74a3b; }
-
-    .vertical-separator {
-        height: 29px;
-        width: 1px;
-        background-color: #e3e6f0;
-    }
-
-
-    .status-waiting  { color: #f6c23e; }
-    .status-stopped  { color: #f6c23e; }
-
-   .rule-card.dragging {
-        opacity: 0.3;
-        transform: scale(0.97);
-    }
-
-    .drag-handle {
-        cursor: grab;
-        color: #d1d3e2;
-        font-size: 16px;
-        margin-right: 12px;
-        transition: color 0.2s;
-        flex-shrink: 0;
-    }
-
-    .drag-handle:hover {
-        color: #858796;
-    }
-
-    .drag-handle:active {
-        cursor: grabbing;
-    }
-
-    .time-schedule-box {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 14px;
-        border-radius: 4px;
-        border: 2px dashed #e3e6f0;
-        min-height: 31px;
-        gap: 8px;
-        white-space: nowrap;
-    }
-
-    .time-status-label {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.3px;
-        text-transform: uppercase;
-    }
-
-    .time-status-unlimited { color: #1cc88a; }
-    .time-status-waiting   { color: #f6c23e; }
-    .time-status-active    { color: #1cc88a; }
-    .time-status-expired   { color: #e74a3b; }
-    .time-status-disabled  { color: #858796; }
-
-    .time-separator {
-        color: #ddd;
-        font-weight: 300;
-        font-size: 12px;
-    }
-
-    .time-date-badge {
-        padding: 1px 5px;
-        border-radius: 3px;
-        background: #f8f9fc;
-        border: 1px solid #e3e6f0;
-        font-family: monospace;
-        font-size: 10px;
-        color: #5a5c69;
-    }
-
-    .time-dates-inline {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 10px;
-        color: #858796;
-    }
-
-    .time-progress-wrapper {
-        display: inline-flex;
-        flex-direction: column;
         align-items: stretch;
-        position: relative;
-        width: 100px;
-    }
-
-    .time-progress-track {
-        position: relative;
-        width: 100%;
-        height: 4px;
-        background: #e3e3e3;
-        border-radius: 3px;
-        overflow: visible;
-    }
-
-    .time-progress-fill {
-        height: 100%;
-        border-radius: 3px;
-        position: absolute;
-        top: 0;
-        left: 0;
-    }
-
-    .time-progress-fill.fill-waiting  { width: 0%; background: #f6c23e; }
-    .time-progress-fill.fill-active   { background: linear-gradient(90deg, #1cc88a, #17a673); }
-    .time-progress-fill.fill-expired  { width: 100%; background: #e74a3b; }
-
-    .time-marker {
-        position: absolute;
-        top: 7px;
-        transform: translateX(-50%);
-        width: 0;
-        height: 0;
-        border-left: 4px solid transparent;
-        border-right: 4px solid transparent;
-        border-bottom: 6px solid transparent;
-        transition: left 0.3s ease;
-    }
-
-    .marker-waiting { border-bottom-color: #f6c23e; left: 0%; }
-    .marker-active  { border-bottom-color: #1cc88a; }
-    .marker-expired { border-bottom-color: #e74a3b; left: 100%; }
-    .marker-hidden  { display: none; }
-
-    .time-extra-label {
-        font-size: 9px;
-        color: #a0a0a0;
-        font-weight: 600;
-    }
-</style>
-
-<div class="Vert">
-    <div class="Vert-full">
-        <div class="d-sm-flex align-items-center justify-content-between mb-4">
-            <div class="Order-Container-Title" style="margin-bottom:0;">
-                Automaty cenowe @storeName
-            </div>
-
-            @if (canEdit)
-            {
-                <a asp-action="Create"
-                   asp-route-storeId="@storeId"
-                   asp-route-sourceType="@ViewBag.CurrentFilter"
-                   class="Button-Action-Small">
-                 Dodaj nową regułę
-                </a>
-            }
-            else
-            {
-                <a href="#" onclick="showNoAccessAlert(); return false;"
-                   class="Button-Action-Small" style="opacity: 0.6; cursor: not-allowed;">
-              Dodaj nową regułę
-                </a>
-            }
-        </div>
-
-        <div class="Vert-table" style="background: transparent; border: none; padding: 0;">
-
-            @if (!Model.Any())
-            {
-                <div class="text-center py-5">
-                    <i class="fas fa-robot fa-3x text-gray-300 mb-3"></i>
-                    <p class="text-gray-500 mb-0">Brak zdefiniowanych reguł dla tego sklepu.</p>
-                    <p class="text-gray-500">Kliknij "Dodaj nową regułę", aby rozpocząć.</p>
-                </div>
-            }
-            else
-            {
-              @foreach (var item in Model)
-{
-    bool isCompetitiveness = item.StrategyMode == AutomationStrategyMode.Competitiveness;
-    string strategyName = isCompetitiveness ? "Konkurencyjność" : "Rentowność";
-    string iconClass = isCompetitiveness ? "fa-bolt" : "fa-dollar-sign";
-    string colorClass = isCompetitiveness ? "text-strategy-comp" : "text-strategy-prof";
-
-    <div class="rule-card" data-rule-id="@item.Id" data-sort-order="@item.SortOrder"
-         draggable="true"
-         onclick="if(!window._wasDragging) location.href='@Url.Action("Details", "PriceAutomation", new { id = item.Id })'">
-
-        <div class="rule-content-wrapper">
-            <div class="drag-handle" title="Przeciągnij aby zmienić kolejność">
-                <i class="fas fa-grip-vertical"></i>
-            </div>
-            <div class="rule-color-bar" style="background-color: @item.ColorHex;"></div>
-
-            <div class="rule-info">
-                <div class="rule-title">
-                    @item.Name
-                </div>
-
-                <div class="rule-meta">
-                    <div class="meta-item">
-                        <i class="fas fa-database"></i> 
-                        <span style="font-weight:700; color:#5a5c69;">@item.AssignedProductsCount</span> 
-                        <span>produktów</span>
-                    </div>
-
-                    <div class="meta-separator"></div>
-
-                    <div class="meta-item">
-                        @if (item.SourceType == AutomationSourceType.PriceComparison)
-                        {
-                            <i class="fas fa-globe"></i> <span>Porównywarki</span>
-                        }
-                        else
-                        {
-                            <i class="fas fa-shopping-cart"></i> <span>Marketplace</span>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="rule-actions-side">
-
-            <div class="d-none d-xl-flex info-badge">
-                <span class="badge-label">Preset</span>
-                <span class="badge-separator"></span>
-                <span class="badge-value">
-                    @item.CompetitorPresetName
-                </span>
-            </div>
-
-           <div class="d-none d-lg-flex info-badge">
-                <span class="badge-label">Strategia</span>
-                <span class="badge-separator"></span>
-                <span class="badge-value @colorClass">
-                    <i class="fas @iconClass"></i>
-                    @strategyName
-                </span>
-            </div>
-
-            @{
-                // ── Oblicz stan harmonogramu (identyczna logika jak Details) ──
-                bool itIsTimeLimited = item.IsTimeLimited;
-                DateTime? itSchedStart = item.ScheduledStartDate;
-                DateTime? itSchedEnd = item.ScheduledEndDate;
-                DateTime itNow = DateTime.Now;
-                bool itIsDisabled = !item.IsActive;
-
-                string itTimeLabel, itTimeClass, itTimeIcon;
-                double itProgress = -1;
-                string itExtra = "";
-                string itMarkerClass = "marker-hidden";
-                double itMarkerPos = 0;
-
-                string itDniLabel(int n) => n == 1 ? "dzień" : "dni";
-
-                if (itIsDisabled && itIsTimeLimited)
-                {
-                    itTimeLabel = "Wyłączony";
-                    itTimeClass = "time-status-disabled";
-                    itTimeIcon = "fa-power-off";
-                }
-                else if (!itIsTimeLimited)
-                {
-                    itTimeLabel = "Bez ograniczenia";
-                    itTimeClass = "time-status-unlimited";
-                    itTimeIcon = "fa-infinity";
-                }
-                else if (itSchedStart.HasValue && itSchedEnd.HasValue)
-                {
-                    bool beforeStart = itNow.Date < itSchedStart.Value.Date;
-                    bool afterEnd = itNow.Date > itSchedEnd.Value.Date;
-
-                    if (beforeStart)
-                    {
-                        int d = (int)(itSchedStart.Value.Date - itNow.Date).TotalDays;
-                        itTimeLabel = "Oczekuje";
-                        itTimeClass = "time-status-waiting";
-                        itTimeIcon = "fa-hourglass-start";
-                        itProgress = 0;
-                        itMarkerClass = "marker-waiting";
-                        itMarkerPos = 0;
-                        itExtra = $"Start za {d} {itDniLabel(d)}";
-                    }
-                    else if (afterEnd)
-                    {
-                        int d = (int)(itNow.Date - itSchedEnd.Value.Date).TotalDays;
-                        itTimeLabel = "Zakończony";
-                        itTimeClass = "time-status-expired";
-                        itTimeIcon = "fa-hourglass-end";
-                        itProgress = 100;
-                        itMarkerClass = "marker-expired";
-                        itMarkerPos = 100;
-                        itExtra = $"Zakończono {d} {itDniLabel(d)} temu";
-                    }
-                    else
-                    {
-                        double totalSpan = (itSchedEnd.Value.Date - itSchedStart.Value.Date).TotalDays + 1;
-                        double elapsed = (itNow.Date - itSchedStart.Value.Date).TotalDays;
-                        itProgress = totalSpan > 0 ? Math.Round((elapsed / totalSpan) * 100, 1) : 0;
-                        itProgress = Math.Max(0, Math.Min(itProgress, 99.9));
-                        int daysLeft = (int)(itSchedEnd.Value.Date - itNow.Date).TotalDays + 1;
-                        itTimeLabel = "Aktywny";
-                        itTimeClass = "time-status-active";
-                        itTimeIcon = "fa-hourglass-half";
-                        itMarkerClass = "marker-active";
-                        itMarkerPos = itProgress;
-                        itExtra = $"Pozostało {daysLeft} {itDniLabel(daysLeft)}";
-                    }
-                }
-                else if (itSchedStart.HasValue && !itSchedEnd.HasValue)
-                {
-                    if (itNow.Date < itSchedStart.Value.Date)
-                    {
-                        int d = (int)(itSchedStart.Value.Date - itNow.Date).TotalDays;
-                        itTimeLabel = "Oczekuje";
-                        itTimeClass = "time-status-waiting";
-                        itTimeIcon = "fa-hourglass-start";
-                        itProgress = 0;
-                        itMarkerClass = "marker-waiting";
-                        itMarkerPos = 0;
-                        itExtra = $"Start za {d} {itDniLabel(d)}";
-                    }
-                    else
-                    {
-                        itTimeLabel = "Aktywny";
-                        itTimeClass = "time-status-active";
-                        itTimeIcon = "fa-play";
-                        itExtra = "Bez daty końcowej";
-                    }
-                }
-                else if (!itSchedStart.HasValue && itSchedEnd.HasValue)
-                {
-                    if (itNow.Date > itSchedEnd.Value.Date)
-                    {
-                        int d = (int)(itNow.Date - itSchedEnd.Value.Date).TotalDays;
-                        itTimeLabel = "Zakończony";
-                        itTimeClass = "time-status-expired";
-                        itTimeIcon = "fa-hourglass-end";
-                        itProgress = 100;
-                        itMarkerClass = "marker-expired";
-                        itMarkerPos = 100;
-                        itExtra = $"Zakończono {d} {itDniLabel(d)} temu";
-                    }
-                    else
-                    {
-                        int daysLeft = (int)(itSchedEnd.Value.Date - itNow.Date).TotalDays + 1;
-                        itTimeLabel = "Aktywny";
-                        itTimeClass = "time-status-active";
-                        itTimeIcon = "fa-play";
-                        itExtra = $"Do {itSchedEnd.Value:dd.MM.yyyy} ({daysLeft} {itDniLabel(daysLeft)})";
-                    }
-                }
-                else
-                {
-                    itTimeLabel = "Brak dat";
-                    itTimeClass = "time-status-waiting";
-                    itTimeIcon = "fa-question-circle";
-                }
-                string itemStatusClass = item.IsActive ? "status-active" : "status-inactive";
-                string itemStatusLabel = item.IsActive ? "Aktywny" : "Wyłączony";
-
-                if (item.IsActive && itIsTimeLimited)
-                {
-                    if (itTimeClass == "time-status-waiting")
-                    {
-                        itemStatusClass = "status-waiting";
-                        itemStatusLabel = "Oczekuje";
-                    }
-                    else if (itTimeClass == "time-status-expired")
-                    {
-                        itemStatusClass = "status-stopped";
-                        itemStatusLabel = "Zatrzymany";
-                    }
-                }
-            }
-
-            <div class="d-none d-xl-flex time-schedule-box">
-                <div class="time-status-label @itTimeClass">
-                    <i class="fa-solid @itTimeIcon" style="font-size: 9px;"></i>
-                    @itTimeLabel
-                </div>
-
-                @if (!itIsTimeLimited)
-                {
-                    <span class="time-extra-label" style="color: #1cc88a;">Bez limitu czasu</span>
-                }
-                else if (itIsDisabled)
-                {
-                    <span class="time-extra-label">Włącz aby uruchomić</span>
-                }
-                else
-                {
-                    @if (itSchedStart.HasValue || itSchedEnd.HasValue)
-                    {
-                        <span class="time-separator">|</span>
-                        <div class="time-dates-inline">
-                            @if (itSchedStart.HasValue)
-                            {
-                                <span class="time-date-badge">@itSchedStart.Value.ToString("dd.MM.yyyy")</span>
-                            }
-                            else
-                            {
-                                <span class="time-date-badge" style="color:#ccc;">—</span>
-                            }
-                            <i class="fa-solid fa-arrow-right" style="font-size: 6px; color: #ccc;"></i>
-                            @if (itSchedEnd.HasValue)
-                            {
-                                <span class="time-date-badge">@itSchedEnd.Value.ToString("dd.MM.yyyy")</span>
-                            }
-                            else
-                            {
-                                <span class="time-date-badge" style="color:#ccc;">∞</span>
-                            }
-                        </div>
-                    }
-
-                    @if (itSchedStart.HasValue && itSchedEnd.HasValue)
-                    {
-                        <span class="time-separator">|</span>
-                        <div class="time-progress-wrapper">
-                            <div class="time-progress-track">
-                                @if (itProgress == 0)
-                                {
-                                    <div class="time-progress-fill fill-waiting"></div>
-                                }
-                                else if (itProgress >= 100)
-                                {
-                                    <div class="time-progress-fill fill-expired"></div>
-                                }
-                                else
-                                {
-                                    <div class="time-progress-fill fill-active" style="width: @(itProgress.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
-                                }
-                                <div class="time-marker @itMarkerClass" style="left: @(itMarkerPos.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
-                            </div>
-                        </div>
-                    }
-
-                    @if (!string.IsNullOrEmpty(itExtra))
-                    {
-                        <span class="time-separator">|</span>
-                        <span class="time-extra-label">@itExtra</span>
-                    }
-                }
-            </div>
-
-            <div class="vertical-separator d-none d-md-block"></div>
-
-            <div class="d-none d-md-block">
-                <div class="status-badge @itemStatusClass">
-                    <i class="fas fa-circle" style="font-size:8px;"></i> @itemStatusLabel
-                </div>
-            </div>
-
-            </div>
-    </div>
-}
-            }
-        </div>
-    </div>
-</div>
-
-@section Scripts {
-
-    <script>
-        function showNoAccessAlert() {
-            alert('@Html.Raw(noAccessMessage)');
-        }
-      window._wasDragging = false;
-        let dragSrcEl = null;
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const container = document.querySelector('.Vert-table');
-            if (!container) return;
-
-            const getCards = () => [...container.querySelectorAll('.rule-card')];
-
-            container.addEventListener('dragstart', function(e) {
-                const card = e.target.closest('.rule-card');
-                if (!card) return;
-
-                const handle = card.querySelector('.drag-handle');
-                if (handle) {
-                    const rect = handle.getBoundingClientRect();
-                    if (e.clientX < rect.left || e.clientX > rect.right ||
-                        e.clientY < rect.top || e.clientY > rect.bottom) {
-                        e.preventDefault();
-                        return;
-                    }
-                }
-
-                dragSrcEl = card;
-                window._wasDragging = false;
-
-                requestAnimationFrame(() => {
-                    card.classList.add('dragging');
-                });
-
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', card.dataset.ruleId);
-            });
-
-            container.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                window._wasDragging = true;
-
-                if (!dragSrcEl) return;
-
-                const card = e.target.closest('.rule-card');
-                if (!card || card === dragSrcEl) return;
-
-                const rect = card.getBoundingClientRect();
-                const midY = rect.top + rect.height / 2;
-
-                if (e.clientY < midY) {
-                    if (card.previousElementSibling !== dragSrcEl) {
-                        container.insertBefore(dragSrcEl, card);
-                    }
-                } else {
-                    if (card.nextElementSibling !== dragSrcEl) {
-                        container.insertBefore(dragSrcEl, card.nextSibling);
-                    }
-                }
-            });
-
-            container.addEventListener('drop', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                if (dragSrcEl) {
-                    dragSrcEl.classList.remove('dragging');
-                    saveSortOrder();
-                }
-                dragSrcEl = null;
-            });
-
-            container.addEventListener('dragend', function() {
-                if (dragSrcEl) dragSrcEl.classList.remove('dragging');
-                dragSrcEl = null;
-                setTimeout(() => { window._wasDragging = false; }, 100);
-            });
-        });
-
-        function saveSortOrder() {
-            const cards = document.querySelectorAll('.rule-card');
-            const total = cards.length;
-            const items = [];
-
-            cards.forEach((card, index) => {
-                items.push({
-                    Id: parseInt(card.dataset.ruleId),
-                    Position: total - index
-                });
-            });
-
-            fetch('@Url.Action("UpdateSortOrder", "AutomationRules")', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(items)
-            }).catch(err => console.error('Błąd zapisu kolejności:', err));
-        }
-    </script>
-} *@
-
-
-
-
-
-
-
-@using Microsoft.AspNetCore.Identity
-@using PriceSafari.Models
-@using PriceSafari.Enums
-@using PriceSafari.Models.ViewModels
-@using static PriceSafari.Controllers.MemberControllers.AutomationRulesController
-
-@model IEnumerable<AutomationRuleListViewModel>
-@inject UserManager<PriceSafariUser> UserManager
-
-@{
-    ViewData["Title"] = "Reguły Automatyzacji";
-    int storeId = ViewBag.StoreId;
-    string storeName = ViewBag.StoreName;
-    Layout = "~/Views/Shared/_PanelLayout.cshtml";
-
-    var user = await UserManager.GetUserAsync(User);
-    bool canEdit = user?.AccesToEditPriceAutomation ?? false;
-    string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen.";
-
-    var intervalLookup = ViewBag.IntervalLookup as Dictionary<int, dynamic> ?? new Dictionary<int, dynamic>();
-}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-<style>
-    .rule-card { background-color:#fff; border:1px solid #e3e6f0; border-radius:8px; padding:12px 20px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; transition:all 0.2s; cursor:pointer; }
-    .rule-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); border-color:#b7b9cc; }
-    .rule-color-bar { width:6px; height:36px; border-radius:4px; margin-right:18px; flex-shrink:0; }
-    .rule-content-wrapper { display:flex; align-items:center; flex-grow:1; min-width:0; }
-    .rule-info { display:flex; flex-direction:column; min-width:0; }
-    .rule-title { font-size:15px; font-weight:700; color:#5a5c69; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px; }
-    .rule-meta { display:flex; align-items:center; font-size:12px; color:#858796; }
-    .meta-item { display:flex; align-items:center; gap:8px; }
-    .meta-separator { height:14px; width:1px; background-color:#d1d3e2; margin:0 15px; }
-    .rule-actions-side { display:flex; align-items:center; gap:8px; flex-shrink:0; }
-    .info-badge { background-color:#f8f9fc; border:1px solid #e3e6f0; padding:4px 12px; border-radius:6px; font-size:11px; display:flex; align-items:center; gap:8px; white-space:nowrap; height:31px; }
-    .badge-label { color:#b7b9cc; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
-    .badge-separator { height:12px; width:1px; background-color:#d1d3e2; margin:0 2px; }
-    .badge-value { font-weight:700; color:#5a5c69; display:flex; align-items:center; gap:6px; font-size:12px; }
-    .text-strategy-comp { color:rgba(113,96,232,1); }
-    .text-strategy-prof { color:#0d2c56; }
-    .status-badge { font-size:12px; font-weight:600; display:flex; align-items:center; gap:6px; min-width:80px; }
-    .status-active { color:#1cc88a; }
-    .status-inactive { color:#e74a3b; }
-    .status-waiting { color:#f6c23e; }
-    .status-stopped { color:#f6c23e; }
-    .vertical-separator { height:29px; width:1px; background-color:#e3e6f0; }
-    .rule-card.dragging { opacity:0.3; transform:scale(0.97); }
-    .drag-handle { cursor:grab; color:#d1d3e2; font-size:16px; margin-right:12px; transition:color 0.2s; flex-shrink:0; }
-    .drag-handle:hover { color:#858796; }
-    .drag-handle:active { cursor:grabbing; }
-
-    .time-schedule-box { display:inline-flex; align-items:center; padding:4px 14px; border-radius:4px; border:2px dashed #e3e6f0; min-height:31px; gap:8px; white-space:nowrap; }
-    .time-status-label { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; letter-spacing:0.3px; text-transform:uppercase; }
-    .time-status-unlimited { color:#1cc88a; }
-    .time-status-waiting { color:#f6c23e; }
-    .time-status-active { color:#1cc88a; }
-    .time-status-expired { color:#e74a3b; }
-    .time-status-disabled { color:#858796; }
-    .time-separator { color:#ddd; font-weight:300; font-size:12px; }
-    .time-date-badge { padding:1px 5px; border-radius:3px; background:#f8f9fc; border:1px solid #e3e6f0; font-family:monospace; font-size:10px; color:#5a5c69; }
-    .time-dates-inline { display:inline-flex; align-items:center; gap:4px; font-size:10px; color:#858796; }
-    .time-extra-label { font-size:9px; color:#a0a0a0; font-weight:600; }
-    .time-progress-wrapper { display:inline-flex; flex-direction:column; position:relative; width:100px; }
-    .time-progress-track { position:relative; width:100%; height:4px; background:#e3e3e3; border-radius:3px; overflow:visible; }
-    .time-progress-fill { height:100%; border-radius:3px; position:absolute; top:0; left:0; }
-    .time-progress-fill.fill-waiting { width:0%; background:#f6c23e; }
-    .time-progress-fill.fill-active { background:linear-gradient(90deg,#1cc88a,#17a673); }
-    .time-progress-fill.fill-expired { width:100%; background:#e74a3b; }
-    .time-marker { position:absolute; top:7px; transform:translateX(-50%); width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-bottom:6px solid transparent; }
-    .marker-waiting { border-bottom-color:#f6c23e; left:0%; }
-    .marker-active { border-bottom-color:#1cc88a; }
-    .marker-expired { border-bottom-color:#e74a3b; left:100%; }
-    .marker-hidden { display:none; }
-
-    /* ── Interwał chip ── */
-    .interval-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 5px 12px;
-        border-radius: 6px;
-        font-size: 11px;
-        font-weight: 600;
-        cursor: pointer;
         transition: all 0.2s;
-        white-space: nowrap;
-        height: 31px;
-        text-decoration: none !important;
+        cursor: pointer;
+        overflow: hidden;
+    }
+    .rule-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.07); border-color: #b7b9cc; }
+    .rule-card.dragging { opacity: 0.3; transform: scale(0.97); }
+
+    .rule-main {
+        display: flex;
+        align-items: flex-start;
+        flex-grow: 1;
+        padding: 14px 16px;
+        min-width: 0;
+        gap: 12px;
+    }
+    .drag-handle {
+        cursor: grab; color: #d1d3e2; font-size: 15px;
+        transition: color 0.2s; flex-shrink: 0;
+        padding-top: 3px;
+    }
+    .drag-handle:hover { color: #858796; }
+    .drag-handle:active { cursor: grabbing; }
+    .rule-color-bar {
+        width: 5px; min-height: 100%; border-radius: 3px;
+        flex-shrink: 0; align-self: stretch;
+    }
+    .rule-info { display: flex; flex-direction: column; min-width: 0; flex-grow: 1; gap: 8px; }
+    .rule-title {
+        font-size: 14px; font-weight: 700; color: #5a5c69;
+        text-transform: uppercase; letter-spacing: 0.4px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .rule-meta {
+        display: flex; align-items: center; font-size: 11px; color: #858796; gap: 6px;
+        flex-wrap: wrap;
+    }
+    .meta-item { display: flex; align-items: center; gap: 5px; }
+    .meta-dot { width: 3px; height: 3px; border-radius: 50%; background: #d1d3e2; flex-shrink: 0; }
+
+    .rule-badges {
+        display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+        margin-top: 2px;
+    }
+    .rb { 
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 3px 10px; border-radius: 5px; font-size: 10px;
+        font-weight: 600; white-space: nowrap; letter-spacing: 0.3px;
+        border: 1px solid #e3e6f0; background: #f8f9fc; color: #5a5c69;
+    }
+    .rb i { font-size: 9px; }
+    .rb-strategy-comp { color: rgba(113,96,232,1); border-color: rgba(113,96,232,0.2); background: rgba(113,96,232,0.05); }
+    .rb-strategy-prof { color: #0d2c56; border-color: rgba(13,44,86,0.15); background: rgba(13,44,86,0.04); }
+
+    .rb-time { gap: 4px; }
+    .rb-time-unlimited { color: #1cc88a; border-color: rgba(28,200,138,0.2); background: rgba(28,200,138,0.05); }
+    .rb-time-active { color: #1cc88a; border-color: rgba(28,200,138,0.2); background: rgba(28,200,138,0.05); }
+    .rb-time-waiting { color: #f6c23e; border-color: rgba(246,194,62,0.25); background: rgba(246,194,62,0.06); }
+    .rb-time-expired { color: #e74a3b; border-color: rgba(231,74,59,0.2); background: rgba(231,74,59,0.05); }
+    .rb-time-disabled { color: #858796; }
+
+    .time-mini-dates { font-size: 9px; font-family: monospace; opacity: 0.8; }
+    .time-mini-extra { font-size: 9px; opacity: 0.7; }
+
+    .rule-sidebar {
+        display: flex; flex-direction: column; align-items: stretch;
+        border-left: 1px solid #eaecf4; flex-shrink: 0;
+        min-width: 200px; max-width: 240px;
+    }
+
+    .sidebar-section {
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center; padding: 10px 16px; gap: 3px;
+    }
+    .sidebar-section-label {
+        font-size: 8px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 1px; color: #b7b9cc; line-height: 1;
+    }
+
+    .sidebar-section-label.label-ivl-active { color: #1cc88a; }
+    .sidebar-section-label.label-ivl-inactive { color: #e74a3b; }
+
+    .sidebar-status-value {
+        display: flex; align-items: center; gap: 5px;
+        font-size: 12px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .sidebar-status-value i { font-size: 6px; }
+    .st-active { color: #1cc88a; }
+    .st-inactive { color: #e74a3b; }
+    .st-waiting { color: #f6c23e; }
+    .st-stopped { color: #f6c23e; }
+
+    .sidebar-interval {
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center; padding: 10px 14px; gap: 5px;
+        border-top: 1px solid #eaecf4;
+        background: #fafbfd;
+        min-height: 52px;
+    }
+
+    .interval-chip {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 5px 12px; border-radius: 6px; font-size: 11px;
+        font-weight: 600; cursor: pointer; transition: all 0.15s;
+        white-space: nowrap; text-decoration: none !important;
+        line-height: 1.3;
     }
     .interval-chip-exists {
-        background: rgba(230,126,34,0.08);
-        border: 1px solid rgba(230,126,34,0.3);
-        color: #e67e22;
+        background: #f0f1f5; border: 1px solid #d1d3e2; color: #5a5c69;
     }
     .interval-chip-exists:hover {
-        background: rgba(230,126,34,0.15);
-        border-color: #e67e22;
-        color: #d35400;
+        background: #e8e9ef; border-color: #b7b9cc; color: #3a3b45;
     }
-    .interval-chip-exists .interval-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
+    .interval-color-bar {
+        width: 4px;
+        align-self: stretch; 
+        min-height: 14px; 
+        border-radius: 2px;
         flex-shrink: 0;
     }
     .interval-chip-add {
-        background: transparent;
-        border: 1px dashed #d1d3e2;
-        color: #b7b9cc;
+        background: transparent; border: 1px dashed #d1d3e2; color: #b7b9cc;
+        padding: 5px 12px; border-radius: 6px;
     }
     .interval-chip-add:hover {
-        border-color: #e67e22;
-        color: #e67e22;
-        background: rgba(230,126,34,0.04);
+        border-color: #858796; color: #858796; background: #f8f9fc;
     }
+
+    .sidebar-no-interval {
+        font-size: 10px; color: #d1d3e2; font-weight: 500;
+        display: flex; align-items: center; gap: 4px;
+    }
+    .sidebar-no-interval i { font-size: 9px; }
 </style>
 
 <div class="Vert">
@@ -858,7 +200,7 @@
             }
         </div>
 
-        <div id="sectionStandard" style="background:transparent; border:none; padding:0;">
+        <div id="sectionStandard" class="rules-scroll-container">
             @if (!Model.Any())
             {
                 <div class="text-center py-5">
@@ -872,69 +214,61 @@
                 @foreach (var item in Model)
                 {
                     bool isComp = item.StrategyMode == AutomationStrategyMode.Competitiveness;
-                    string sName = isComp ? "Konkurencyjność" : "Rentowność";
-                    string sIcon = isComp ? "fa-bolt" : "fa-dollar-sign";
-                    string sColor = isComp ? "text-strategy-comp" : "text-strategy-prof";
 
                     bool tl = item.IsTimeLimited;
                     DateTime? ss = item.ScheduledStartDate;
                     DateTime? se = item.ScheduledEndDate;
                     DateTime n = DateTime.Now;
                     bool dis = !item.IsActive;
-                    string tLabel, tClass, tIcon;
-                    double tProg = -1;
+                    string tLabel, tCls, tIcon;
                     string tExtra = "";
-                    string tMark = "marker-hidden";
-                    double tMarkPos = 0;
                     string dl(int x) => x == 1 ? "dzień" : "dni";
+                    string tDates = "";
 
-                    if (dis && tl) { tLabel = "Wyłączony"; tClass = "time-status-disabled"; tIcon = "fa-power-off"; }
-                    else if (!tl) { tLabel = "Bez ograniczenia"; tClass = "time-status-unlimited"; tIcon = "fa-infinity"; }
+                    if (dis && tl) { tLabel = "Wyłączony"; tCls = "rb-time-disabled"; tIcon = "fa-power-off"; }
+                    else if (!tl) { tLabel = "Bez limitu"; tCls = "rb-time-unlimited"; tIcon = "fa-infinity"; }
                     else if (ss.HasValue && se.HasValue)
                     {
-                        if (n.Date < ss.Value.Date) { int d = (int)(ss.Value.Date - n.Date).TotalDays; tLabel = "Oczekuje"; tClass = "time-status-waiting"; tIcon = "fa-hourglass-start"; tProg = 0; tMark = "marker-waiting"; tMarkPos = 0; tExtra = $"Start za {d} {dl(d)}"; }
-                        else if (n.Date > se.Value.Date) { int d = (int)(n.Date - se.Value.Date).TotalDays; tLabel = "Zakończony"; tClass = "time-status-expired"; tIcon = "fa-hourglass-end"; tProg = 100; tMark = "marker-expired"; tMarkPos = 100; tExtra = $"Zakończono {d} {dl(d)} temu"; }
-                        else { double ts2 = (se.Value.Date - ss.Value.Date).TotalDays + 1; double el = (n.Date - ss.Value.Date).TotalDays; tProg = ts2 > 0 ? Math.Round((el / ts2) * 100, 1) : 0; tProg = Math.Max(0, Math.Min(tProg, 99.9)); int dLeft = (int)(se.Value.Date - n.Date).TotalDays + 1; tLabel = "Aktywny"; tClass = "time-status-active"; tIcon = "fa-hourglass-half"; tMark = "marker-active"; tMarkPos = tProg; tExtra = $"Pozostało {dLeft} {dl(dLeft)}"; }
+                        tDates = $"{ss.Value:dd.MM} → {se.Value:dd.MM.yy}";
+                        if (n.Date < ss.Value.Date) { int d = (int)(ss.Value.Date - n.Date).TotalDays; tLabel = "Oczekuje"; tCls = "rb-time-waiting"; tIcon = "fa-hourglass-start"; tExtra = $"za {d}{(d==1?"d":"d")}"; }
+                        else if (n.Date > se.Value.Date) { int d = (int)(n.Date - se.Value.Date).TotalDays; tLabel = "Zakończony"; tCls = "rb-time-expired"; tIcon = "fa-hourglass-end"; tExtra = $"{d}d temu"; }
+                        else { int dLeft = (int)(se.Value.Date - n.Date).TotalDays + 1; tLabel = "Aktywny"; tCls = "rb-time-active"; tIcon = "fa-hourglass-half"; tExtra = $"{dLeft}d"; }
                     }
                     else if (ss.HasValue)
                     {
-                        if (n.Date < ss.Value.Date) { int d = (int)(ss.Value.Date - n.Date).TotalDays; tLabel = "Oczekuje"; tClass = "time-status-waiting"; tIcon = "fa-hourglass-start"; tProg = 0; tMark = "marker-waiting"; tMarkPos = 0; tExtra = $"Start za {d} {dl(d)}"; }
-                        else { tLabel = "Aktywny"; tClass = "time-status-active"; tIcon = "fa-play"; tExtra = "Bez daty końcowej"; }
+                        tDates = $"{ss.Value:dd.MM} → ∞";
+                        if (n.Date < ss.Value.Date) { int d = (int)(ss.Value.Date - n.Date).TotalDays; tLabel = "Oczekuje"; tCls = "rb-time-waiting"; tIcon = "fa-hourglass-start"; tExtra = $"za {d}d"; }
+                        else { tLabel = "Aktywny"; tCls = "rb-time-active"; tIcon = "fa-play"; }
                     }
                     else if (se.HasValue)
                     {
-                        if (n.Date > se.Value.Date) { int d = (int)(n.Date - se.Value.Date).TotalDays; tLabel = "Zakończony"; tClass = "time-status-expired"; tIcon = "fa-hourglass-end"; tProg = 100; tMark = "marker-expired"; tMarkPos = 100; tExtra = $"Zakończono {d} {dl(d)} temu"; }
-                        else { int dLeft = (int)(se.Value.Date - n.Date).TotalDays + 1; tLabel = "Aktywny"; tClass = "time-status-active"; tIcon = "fa-play"; tExtra = $"Do {se.Value:dd.MM.yyyy} ({dLeft} {dl(dLeft)})"; }
+                        tDates = $"— → {se.Value:dd.MM.yy}";
+                        if (n.Date > se.Value.Date) { int d = (int)(n.Date - se.Value.Date).TotalDays; tLabel = "Zakończony"; tCls = "rb-time-expired"; tIcon = "fa-hourglass-end"; tExtra = $"{d}d temu"; }
+                        else { int dLeft = (int)(se.Value.Date - n.Date).TotalDays + 1; tLabel = "Aktywny"; tCls = "rb-time-active"; tIcon = "fa-play"; tExtra = $"{dLeft}d"; }
                     }
-                    else { tLabel = "Brak dat"; tClass = "time-status-waiting"; tIcon = "fa-question-circle"; }
+                    else { tLabel = "Brak dat"; tCls = "rb-time-waiting"; tIcon = "fa-question-circle"; }
 
-                    string stClass = item.IsActive ? "status-active" : "status-inactive";
+                    string stClass = item.IsActive ? "st-active" : "st-inactive";
                     string stLabel = item.IsActive ? "Aktywny" : "Wyłączony";
                     if (item.IsActive && tl)
                     {
-                        if (tClass == "time-status-waiting") { stClass = "status-waiting"; stLabel = "Oczekuje"; }
-                        else if (tClass == "time-status-expired") { stClass = "status-stopped"; stLabel = "Zatrzymany"; }
+                        if (tCls == "rb-time-waiting") { stClass = "st-waiting"; stLabel = "Oczekuje"; }
+                        else if (tCls == "rb-time-expired") { stClass = "st-stopped"; stLabel = "Zatrzymany"; }
                     }
 
-                    bool hasInterval = intervalLookup.ContainsKey(item.Id);
-                    dynamic intervalInfo = hasInterval ? intervalLookup[item.Id] : null;
+                    IntervalInfoDto intervalInfo = intervalLookup.ContainsKey(item.Id) ? intervalLookup[item.Id] : null;
 
                     <div class="rule-card" data-rule-id="@item.Id" data-sort-order="@item.SortOrder"
                          draggable="true"
                          onclick="if(!window._wasDragging) location.href='@Url.Action("Details", "PriceAutomation", new { id = item.Id })'">
 
-                        <div class="rule-content-wrapper">
+                        @* ── LEWA: Główna treść ── *@
+                        <div class="rule-main">
                             <div class="drag-handle" title="Przeciągnij aby zmienić kolejność"><i class="fas fa-grip-vertical"></i></div>
-                            <div class="rule-color-bar" style="background-color: @item.ColorHex;"></div>
+                            <div class="rule-color-bar" style="background-color:@item.ColorHex;"></div>
                             <div class="rule-info">
                                 <div class="rule-title">@item.Name</div>
                                 <div class="rule-meta">
-                                    <div class="meta-item">
-                                        <i class="fas fa-database"></i>
-                                        <span style="font-weight:700; color:#5a5c69;">@item.AssignedProductsCount</span>
-                                        <span>produktów</span>
-                                    </div>
-                                    <div class="meta-separator"></div>
                                     <div class="meta-item">
                                         @if (item.SourceType == AutomationSourceType.PriceComparison)
                                         {
@@ -945,106 +279,92 @@
                                             <i class="fas fa-shopping-cart"></i> <span>Marketplace</span>
                                         }
                                     </div>
+                                    <div class="meta-dot"></div>
+                                    <div class="meta-item">
+                                        <span style="font-weight:700; color:#5a5c69;">@item.AssignedProductsCount</span>
+                                        <span>produktów</span>
+                                    </div>
+                                </div>
+
+                                <div class="rule-badges">
+                                    @* Strategia *@
+                                    <span class="rb @(isComp ? "rb-strategy-comp" : "rb-strategy-prof")">
+                                        <i class="fas @(isComp ? "fa-bolt" : "fa-dollar-sign")"></i>
+                                        @(isComp ? "Konkurencyjność" : "Rentowność")
+                                    </span>
+
+                                    @* Preset *@
+                                    <span class="rb">
+                                        <i class="fas fa-sliders-h"></i> @item.CompetitorPresetName
+                                    </span>
+
+                                    @* Harmonogram czasowy *@
+                                    <span class="rb rb-time @tCls">
+                                        <i class="fa-solid @tIcon"></i>
+                                        @tLabel
+                                        @if (!string.IsNullOrEmpty(tDates))
+                                        {
+                                            <span class="time-mini-dates">@tDates</span>
+                                        }
+                                        @if (!string.IsNullOrEmpty(tExtra))
+                                        {
+                                            <span class="time-mini-extra">(@tExtra)</span>
+                                        }
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="rule-actions-side">
-
-                            <div class="d-none d-xl-flex info-badge">
-                                <span class="badge-label">Preset</span>
-                                <span class="badge-separator"></span>
-                                <span class="badge-value">@item.CompetitorPresetName</span>
+                        @* ── PRAWA: Status automatu + Interwał ── *@
+                        <div class="rule-sidebar">
+                            <div class="sidebar-section">
+                                <div class="sidebar-section-label">Automat</div>
+                                <div class="sidebar-status-value @stClass">
+                                    <i class="fas fa-circle"></i> @stLabel
+                                </div>
                             </div>
-
-                            <div class="d-none d-lg-flex info-badge">
-                                <span class="badge-label">Strategia</span>
-                                <span class="badge-separator"></span>
-                                <span class="badge-value @sColor"><i class="fas @sIcon"></i> @sName</span>
-                            </div>
-
-                            <div class="d-none d-xl-flex time-schedule-box">
-                                <div class="time-status-label @tClass"><i class="fa-solid @tIcon" style="font-size:9px;"></i> @tLabel</div>
-                                @if (!tl)
+                            <div class="sidebar-interval">
+                                @if (intervalInfo != null)
                                 {
-                                    <span class="time-extra-label" style="color:#1cc88a;">Bez limitu czasu</span>
-                                }
-                                else if (dis)
-                                {
-                                    <span class="time-extra-label">Włącz aby uruchomić</span>
+                                    <div class="sidebar-section-label @(intervalInfo.IntervalIsActive ? "label-ivl-active" : "label-ivl-inactive")">
+                                        Interwał @(intervalInfo.IntervalIsActive ? "Aktywny" : "Wyłączony")
+                                    </div>
+
+                                    <a href="@Url.Action("Details", "IntervalPrice", new { id = intervalInfo.IntervalId })"
+                                       class="interval-chip interval-chip-exists"
+                                       onclick="event.stopPropagation();"
+                                       title="Otwórz interwał: @intervalInfo.IntervalName">
+                                        <div class="interval-color-bar" style="background-color:@intervalInfo.IntervalColorHex;"></div>
+                                        <i class="fas fa-clock" style="font-size:9px; color:#858796;"></i>
+                                        <span style="max-width:100px; overflow:hidden; text-overflow:ellipsis;">@intervalInfo.IntervalName</span>
+                                        @if (intervalInfo.Count > 1)
+                                        {
+                                            <span style="font-size:9px; color:#b7b9cc;">+@(intervalInfo.Count - 1)</span>
+                                        }
+                                    </a>
                                 }
                                 else
                                 {
-                                    @if (ss.HasValue || se.HasValue)
+                                    <div class="sidebar-section-label">Interwał</div>
+
+                                    if (canEdit)
                                     {
-                                        <span class="time-separator">|</span>
-                                        <div class="time-dates-inline">
-                                            @if (ss.HasValue) { <span class="time-date-badge">@ss.Value.ToString("dd.MM.yyyy")</span> }
-                                            else { <span class="time-date-badge" style="color:#ccc;">—</span> }
-                                            <i class="fa-solid fa-arrow-right" style="font-size:6px; color:#ccc;"></i>
-                                            @if (se.HasValue) { <span class="time-date-badge">@se.Value.ToString("dd.MM.yyyy")</span> }
-                                            else { <span class="time-date-badge" style="color:#ccc;">∞</span> }
-                                        </div>
+                                        <a href="@Url.Action("Create", "IntervalPrice", new { automationRuleId = item.Id })"
+                                           class="interval-chip interval-chip-add"
+                                           onclick="event.stopPropagation();"
+                                           title="Dodaj interwał zmiany cen">
+                                            <i class="fas fa-plus" style="font-size:8px;"></i>
+                                            <i class="fas fa-clock" style="font-size:9px;"></i>
+                                            Dodaj interwał
+                                        </a>
                                     }
-                                    @if (ss.HasValue && se.HasValue)
+                                    else
                                     {
-                                        <span class="time-separator">|</span>
-                                        <div class="time-progress-wrapper">
-                                            <div class="time-progress-track">
-                                                @if (tProg == 0) { <div class="time-progress-fill fill-waiting"></div> }
-                                                else if (tProg >= 100) { <div class="time-progress-fill fill-expired"></div> }
-                                                else { <div class="time-progress-fill fill-active" style="width:@(tProg.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div> }
-                                                <div class="time-marker @tMark" style="left:@(tMarkPos.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
-                                            </div>
+                                        <div class="sidebar-no-interval">
+                                            <i class="fas fa-clock"></i> Brak
                                         </div>
-                                    }
-                                    @if (!string.IsNullOrEmpty(tExtra))
-                                    {
-                                        <span class="time-separator">|</span>
-                                        <span class="time-extra-label">@tExtra</span>
                                     }
                                 }
-                            </div>
-
-                            <div class="vertical-separator d-none d-md-block"></div>
-
-                            @* ── INTERWAŁ CHIP ── *@
-                            @if (hasInterval)
-                            {
-                                <a href="@Url.Action("Details", "IntervalPrice", new { id = (int)intervalInfo.IntervalId })"
-                                   class="interval-chip interval-chip-exists d-none d-md-inline-flex"
-                                   onclick="event.stopPropagation();"
-                                   title="Otwórz interwał: @((string)intervalInfo.IntervalName)">
-                                    <div class="interval-dot" style="background-color:@((string)intervalInfo.IntervalColorHex);"></div>
-                                    <i class="fas fa-clock" style="font-size:9px;"></i>
-                                    @((string)intervalInfo.IntervalName)
-                                    @if ((bool)intervalInfo.IntervalIsActive)
-                                    {
-                                        <i class="fas fa-circle" style="font-size:5px; color:#1cc88a;"></i>
-                                    }
-                                    @if ((int)intervalInfo.Count > 1)
-                                    {
-                                        <span style="font-size:9px; opacity:0.7;">+@((int)intervalInfo.Count - 1)</span>
-                                    }
-                                </a>
-                            }
-                            else if (canEdit)
-                            {
-                                <a href="@Url.Action("Create", "IntervalPrice", new { automationRuleId = item.Id })"
-                                   class="interval-chip interval-chip-add d-none d-md-inline-flex"
-                                   onclick="event.stopPropagation();"
-                                   title="Dodaj interwał zmiany cen">
-                                    <i class="fas fa-clock" style="font-size:9px;"></i>
-                                    Interwał
-                                </a>
-                            }
-
-                            <div class="vertical-separator d-none d-md-block"></div>
-
-                            <div class="d-none d-md-block">
-                                <div class="status-badge @stClass">
-                                    <i class="fas fa-circle" style="font-size:8px;"></i> @stLabel
-                                </div>
                             </div>
                         </div>
                     </div>
