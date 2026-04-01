@@ -438,6 +438,7 @@ namespace PriceSafari.Services.AllegroServices
 
         // ═══ Inline request tracking ═══
         private int _apiRequestCount = 0;
+        public string? LastApiStats { get; private set; }
         private Stopwatch _sessionStopwatch = new();
         private readonly Dictionary<int, int> _requestsPerMinute = new();
         private readonly object _statsLock = new();
@@ -750,9 +751,11 @@ namespace PriceSafari.Services.AllegroServices
 
             _sessionStopwatch.Stop();
 
+            LastApiStats = BuildApiStatsString();
+
             _logger.LogInformation(
                 "PriceBridge zakończony. Sukces: {Success}, Błędy: {Failed}. {ApiStats}",
-                result.SuccessfulCount, result.FailedCount, BuildApiStatsString());
+                result.SuccessfulCount, result.FailedCount, LastApiStats);
 
             try
             {

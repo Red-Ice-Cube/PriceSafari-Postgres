@@ -192,7 +192,7 @@ namespace PriceSafari.Services.PriceAutomationService
                     priceMaintainedCount: maintainedCount
                 );
 
-                return new { success = true, count = result.SuccessfulCount };
+                return new { success = true, count = result.SuccessfulCount, apiStats = _allegroBridgeService.LastApiStats ?? "" };
             }
 
             throw new Exception("Nieznany typ źródła.");

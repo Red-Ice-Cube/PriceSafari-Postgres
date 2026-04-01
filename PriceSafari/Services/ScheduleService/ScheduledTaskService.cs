@@ -907,17 +907,23 @@ public class ScheduledTaskService : BackgroundService
                     dynamic result = await automationService.ExecuteAutomationAsync(rule.Id, null);
 
                     int count = 0;
+                    string ruleApiStats = "";
+
                     if (result != null)
                     {
-                        // Bezpieczne odczytanie właściwości z obiektu anonimowego
                         var type = result.GetType();
                         var prop = type.GetProperty("count");
                         if (prop != null) count = (int)prop.GetValue(result, null);
+
+                        var apiStatsProp = type.GetProperty("apiStats");
+                        if (apiStatsProp != null) ruleApiStats = (string)(apiStatsProp.GetValue(result, null) ?? "");
                     }
 
                     totalChanges += count;
                     processedRules++;
                     sb.Append($"[R:{rule.Name}, Zmian:{count}] ");
+                    if (!string.IsNullOrEmpty(ruleApiStats))
+                        sb.Append($"({ruleApiStats}) ");
                 }
                 catch (Exception ex)
                 {
