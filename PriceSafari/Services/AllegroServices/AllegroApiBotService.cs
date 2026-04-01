@@ -1083,10 +1083,14 @@ namespace PriceSafari.Services.AllegroServices
 
             _sessionStopwatch.Stop();
 
+            var apiStats = BuildApiStatsString();
+
             _logger.LogInformation(
                 "Zakończono proces. Sprawdzono: {Checked}, Sukces: {Success}, Błędy: {Failed}. {ApiStats}",
                 result.TotalOffersChecked, result.TotalOffersSuccess, result.TotalOffersFailed,
-                BuildApiStatsString());
+                apiStats);
+
+            result.Messages.Add(apiStats);
 
             return result;
         }
