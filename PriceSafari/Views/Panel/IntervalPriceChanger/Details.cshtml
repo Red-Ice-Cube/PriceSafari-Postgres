@@ -25,40 +25,361 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
 <style>
-    .ipc-box { display:flex; flex-direction:column; padding:24px; border-radius:12px; background:#FFF; box-shadow:0px 4px 12px rgba(0,0,0,0.04); border:1px solid #edf0f2; width:100%; }
-    .kpi-container { display:flex; gap:16px; width:100%; flex-wrap:wrap; }
-    .kpi-card { flex:1; min-width:200px; background:#fff; border-radius:12px; padding:24px; box-shadow:0 4px 12px rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.03); display:flex; flex-direction:column; position:relative; overflow:hidden; }
-    .kpi-accent-bar { position:absolute; top:0; left:0; width:100%; height:4px; }
-    .kpi-title { font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#858796; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
-    .kpi-value-big { font-size:28px; font-weight:700; color:#5a5c69; line-height:1.2; }
-    .kpi-subtext { font-size:12px; color:#858796; margin-top:6px; font-weight:500; }
-    .mini-progress-bg { width:100%; height:6px; background:#e3e3e3; border-radius:3px; margin-top:10px; overflow:hidden; }
-    .mini-progress-fill { height:100%; border-radius:3px; }
+    .ipc-box {
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        border-radius: 12px;
+        background: #FFF;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.04);
+        border: 1px solid #edf0f2;
+        width: 100%;
+    }
 
-    .parent-info-box { display:flex; align-items:center; gap:16px; padding:14px 20px; background:#f8f9fc; border:2px dashed #e3e6f0; border-radius:10px; cursor:pointer; transition:all 0.2s; text-decoration:none !important; }
-    .parent-info-box:hover { border-color:#b7b9cc; background:#fff; }
-    .parent-color-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-    .parent-badge { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; padding:3px 8px; border-radius:4px; }
-    .parent-badge-active { background:rgba(28,200,138,0.15); color:#1cc88a; }
-    .parent-badge-inactive { background:rgba(231,74,59,0.15); color:#e74a3b; }
+    .kpi-container {
+        display: flex;
+        gap: 16px;
+        width: 100%;
+        flex-wrap: wrap;
+    }
 
-    .header-info-box { display:inline-flex; padding:4px 16px; align-items:center; justify-content:center; border-radius:4px; border:2px dashed #f1f3f9; min-height:34px; gap:12px; margin-left:15px; }
-    .status-indicator-text { font-weight:600; font-size:13px; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.3px; }
-    .btn-icon-settings { font-size:24px; color:#858796; background:none; border:none; padding:0; line-height:1; cursor:pointer; transition:color 0.2s ease,transform 0.2s ease; display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; text-decoration:none!important; }
-    .btn-icon-settings:hover { color:#5a5c69; transform:rotate(30deg); }
+    .kpi-card {
+        flex: 1;
+        min-width: 200px;
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border: 1px solid rgba(0,0,0,0.03);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+    }
 
-    .inherited-item { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#fcfcfd; border-radius:6px; border:1px solid #eaecf4; font-size:13px; }
-    .inherited-label { font-weight:700; color:#858796; text-transform:uppercase; font-size:10px; letter-spacing:0.5px; min-width:110px; }
-    .inherited-value { font-weight:600; color:#5a5c69; }
 
-    .schedule-ro-table { border-collapse:separate; border-spacing:1px; width:100%; min-width:600px; user-select:none; }
-    .schedule-ro-table th { text-align:center; font-size:10px; font-weight:700; color:#5a5c69; text-transform:uppercase; letter-spacing:0.5px; padding:6px 3px; background:#f8f9fc; }
-    .schedule-ro-table td.time-cell { text-align:right; padding-right:8px; font-family:monospace; font-size:10px; font-weight:500; color:#858796; background:#fcfcfd; width:50px; border-right:2px solid #e3e6f0; }
-    .schedule-ro-table td.time-cell.hour-mark { color:#5a5c69; font-weight:700; }
-    .ro-slot { width:14.28%; min-width:60px; height:18px; border-radius:2px; }
-    .ro-slot-on { background:#27ae60; }
-    .ro-slot-off { background:#f0f1f5; }
-    .schedule-ro-table tr.hour-boundary td { border-top:2px solid #d1d3e2; }
+
+    .kpi-title {
+        font-size: 14px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #858796;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .kpi-value-big {
+        font-size: 28px;
+        font-weight: 700;
+        color: #5a5c69;
+        line-height: 1.2;
+    }
+
+    .kpi-subtext {
+        font-size: 12px;
+        color: #858796;
+        margin-top: 6px;
+        font-weight: 500;
+    }
+
+    .mini-progress-bg {
+        width: 100%;
+        height: 6px;
+        background: #e3e3e3;
+        border-radius: 3px;
+        margin-top: 10px;
+        overflow: hidden;
+    }
+
+    .mini-progress-fill {
+        height: 100%;
+        border-radius: 3px;
+    }
+
+    .parent-info-box {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 20px;
+        background: #f8f9fc;
+        border: 2px dashed #e3e6f0;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none !important;
+        width: 100%;
+    }
+
+        .parent-info-box:hover {
+            border-color: #b7b9cc;
+            background: #fff;
+        }
+
+    .parent-color-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .parent-badge {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+
+    .parent-badge-active {
+        background: rgba(28,200,138,0.15);
+        color: #1cc88a;
+    }
+
+    .parent-badge-inactive {
+        background: rgba(231,74,59,0.15);
+        color: #e74a3b;
+    }
+
+    .header-info-box {
+        display: inline-flex;
+        padding: 4px 16px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        border: 2px dashed #f1f3f9;
+        min-height: 34px;
+        gap: 12px;
+        margin-left: 15px;
+    }
+
+    .status-indicator-text {
+        font-weight: 600;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .btn-icon-settings {
+        font-size: 24px;
+        color: #858796;
+        background: none;
+        border: none;
+        padding: 0;
+        line-height: 1;
+        cursor: pointer;
+        transition: color 0.2s ease,transform 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        text-decoration: none !important;
+    }
+
+        .btn-icon-settings:hover {
+            color: #5a5c69;
+            transform: rotate(30deg);
+        }
+
+    .inherited-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #fcfcfd;
+        border-radius: 6px;
+        border: 1px solid #eaecf4;
+        font-size: 13px;
+    }
+
+    .inherited-label {
+        font-weight: 700;
+        color: #858796;
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.5px;
+        min-width: 110px;
+    }
+
+    .inherited-value {
+        font-weight: 600;
+        color: #5a5c69;
+    }
+
+    /* ═══ COLLAPSIBLE SCHEDULE ═══ */
+    .schedule-collapse-toggle {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+        padding: 4px 0;
+        transition: all 0.2s;
+    }
+
+        .schedule-collapse-toggle:hover .toggle-chevron {
+            color: #5a5c69;
+        }
+
+    .toggle-chevron {
+        font-size: 14px;
+        color: #b7b9cc;
+        transition: transform 0.3s ease, color 0.2s;
+    }
+
+        .toggle-chevron.open {
+            transform: rotate(180deg);
+        }
+
+    .schedule-collapsible {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s ease;
+    }
+
+        .schedule-collapsible.open {
+            max-height: 5000px;
+        }
+
+    /* ═══ SIATKA HARMONOGRAMU (RO — klon z CreateOrEdit) ═══ */
+    .sg-table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 750px;
+        user-select: none;
+        -webkit-user-select: none;
+        table-layout: fixed;
+    }
+
+        .sg-table th {
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #5a5c69;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 6px 2px;
+            background: #f8f9fc;
+            border: 1px solid #e3e6f0;
+            position: sticky;
+            top: 0;
+            z-index: 3;
+        }
+
+            .sg-table th.th-time {
+                width: 52px;
+                min-width: 52px;
+                text-align: right;
+                padding-right: 8px;
+            }
+
+    .day-stats-row td {
+        text-align: center;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 5px 0;
+        background: #fcfcfd;
+        border: 1px solid #e3e6f0;
+        position: sticky;
+        top: 28px;
+        z-index: 2;
+        color: #b7b9cc;
+    }
+
+    .sg-table td.tc {
+        text-align: right;
+        padding-right: 8px;
+        font-family: 'SF Mono','Fira Code','Consolas',monospace;
+        font-size: 9px;
+        font-weight: 400;
+        color: #d0d2d8;
+        background: #fafbfc;
+        width: 52px;
+        min-width: 52px;
+        border: 1px solid #edf0f2;
+        border-right: 2px solid #e3e6f0;
+        height: 22px;
+    }
+
+        .sg-table td.tc.hour-mark {
+            color: #5a5c69;
+            font-weight: 700;
+            font-size: 10px;
+            background: #f8f9fc;
+        }
+
+    .sg-table tr.hour-boundary td {
+        border-top: 2px solid #cfd2da;
+    }
+
+    .sg-cell {
+        height: 22px;
+        position: relative;
+        border: 1px solid #edf0f2;
+        background: #fafbfc;
+    }
+
+        .sg-cell.on { /* colored via JS */
+        }
+
+    .blk-lbl {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 6px;
+        right: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        color: rgba(255,255,255,0.92);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 1;
+    }
+
+    .blk-lbl-left {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+        .blk-lbl-left i {
+            font-size: 9px;
+        }
+
+    .blk-lbl-right {
+        font-size: 10px;
+        font-weight: 600;
+        opacity: 0.8;
+        letter-spacing: 0.3px;
+    }
+
+    /* ═══ WSKAŹNIK "TERAZ" ═══ */
+    .sg-cell.now-marker::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: rgba(142, 68, 230, 0.30);
+        border: 2px solid rgba(142, 68, 230, 0.55);
+        border-radius: 2px;
+        z-index: 4;
+        pointer-events: none;
+        animation: now-pulse 2.5s ease-in-out infinite;
+    }
+
+ 
 </style>
 
 <div class="View">
@@ -68,7 +389,7 @@
         <div class="Date" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
             <div style="display:flex; align-items:center;">
                 <div class="Order-Container-Title" style="font-size:23px;">
-                    <i class="fas fa-clock" style="color:#e67e22; margin-right:8px;"></i>
+                    
                     Interwał <strong>@Model.Name</strong>
                 </div>
             </div>
@@ -132,20 +453,20 @@
     <div class="Vert">
         <div class="kpi-container">
             <div class="kpi-card">
-                <div class="kpi-accent-bar" style="background:#e67e22;"></div>
+               
                 <div class="kpi-title">Produkty <i class="fas fa-cube text-gray-400"></i></div>
                 <div class="kpi-value-big">@assignedCount<span style="font-size:14px; color:#858796; font-weight:400;"> / @parentProductCount</span></div>
                 <div class="kpi-subtext">w interwale / w automacie-rodzicu</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-accent-bar" style="background:#27ae60;"></div>
+                
                 <div class="kpi-title">Harmonogram <span style="color:#27ae60;">@activePct%</span></div>
                 <div class="kpi-value-big">@activeSlotsCount</div>
                 <div class="kpi-subtext">aktywnych slotów (z 1008)</div>
                 <div class="mini-progress-bg"><div class="mini-progress-fill" style="width:@activePct%; background:#27ae60;"></div></div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-accent-bar" style="background:#3498db;"></div>
+               
                 <div class="kpi-title">Krok Cenowy <i class="fas fa-arrow-down text-gray-400"></i></div>
                 <div class="kpi-value-big" style="color:@(Model.PriceStep < 0 ? "#27ae60" : "#e74a3b");">
                     @Model.PriceStep.ToString("F2") @(Model.IsPriceStepPercent ? "%" : "PLN")
@@ -159,7 +480,7 @@
     <div class="Vert">
         <div class="ipc-box">
             <div style="font-size:16px; font-weight:600; color:#2e3035; display:flex; align-items:center; gap:8px; margin-bottom:16px;">
-                <i class="fas fa-arrow-right" style="color:#e67e22;"></i> Ustawienia dziedziczone z automatu
+                Ustawienia dziedziczone z automatu
             </div>
             <div style="display:flex; flex-wrap:wrap; gap:8px;">
                 <div class="inherited-item">
@@ -203,32 +524,38 @@
         </div>
     </div>
 
-    @* ── HARMONOGRAM READ-ONLY ── *@
+    @* ── HARMONOGRAM — COLLAPSIBLE, PEŁNA SIATKA ── *@
     <div class="Vert">
         <div class="ipc-box">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <div style="font-size:16px; font-weight:600; color:#2e3035; display:flex; align-items:center; gap:8px;">
-                    <i class="fas fa-calendar-alt" style="color:#e67e22;"></i> Mapa Harmonogramu
-                </div>
-                <div style="display:flex; align-items:center; gap:12px; font-size:11px;">
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <div style="width:12px; height:12px; border-radius:2px; background:#27ae60;"></div> Aktywny
+            <div class="schedule-collapse-toggle" onclick="toggleSchedule()">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="font-size:16px; font-weight:600; color:#2e3035; display:flex; align-items:center; gap:8px;">
+                       Mapa Harmonogramu
                     </div>
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <div style="width:12px; height:12px; border-radius:2px; background:#f0f1f5;"></div> Nieaktywny
-                    </div>
+                    
+                    <span style="font-size:12px; color:#b7b9cc; font-weight:500;" id="scheduleToggleHint">(kliknij aby rozwinąć)</span>
                 </div>
+                <i class="fas fa-chevron-down toggle-chevron" id="scheduleChevron"></i>
             </div>
-            <div style="overflow-x:auto;">
-                <table class="schedule-ro-table" id="scheduleRoTable">
-                    <thead>
-                        <tr>
-                            <th style="width:50px;">Czas</th>
-                            <th>Pn</th><th>Wt</th><th>Śr</th><th>Cz</th><th>Pt</th><th>Sb</th><th>Nd</th>
-                        </tr>
-                    </thead>
-                    <tbody id="scheduleRoBody"></tbody>
-                </table>
+
+            <div class="schedule-collapsible" id="scheduleCollapsible">
+                <div style="margin-top:16px; overflow-x:auto;">
+                    <table class="sg-table" id="sgTable">
+                        <thead>
+                            <tr>
+                                <th class="th-time"></th>
+                                <th>Pn</th>
+                                <th>Wt</th>
+                                <th>Śr</th>
+                                <th>Cz</th>
+                                <th>Pt</th>
+                                <th>Sb</th>
+                                <th>Nd</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sgBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -238,7 +565,7 @@
         <div class="ipc-box">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                 <div style="font-size:16px; font-weight:600; color:#2e3035; display:flex; align-items:center; gap:8px;">
-                    <i class="fas fa-boxes" style="color:#e67e22;"></i> Przypisane Produkty
+                    Przypisane Produkty
                     <span style="font-size:13px; color:#858796; font-weight:400;">(@assignedCount z @parentProductCount dostępnych)</span>
                 </div>
                 @if (canEdit)
@@ -275,36 +602,219 @@
     <script>
         const intervalRuleId = @Model.Id;
 
-        document.addEventListener('DOMContentLoaded', function () {
-            const jsonStr = '@Html.Raw(Model.ScheduleJson ?? "[]")';
-            let grid;
-            try { grid = JSON.parse(jsonStr); } catch { grid = null; }
-            if (!grid || !Array.isArray(grid) || grid.length !== 7) return;
+        // ══════════════════════════════════════════════════════════════
+        // COLLAPSIBLE SCHEDULE
+        // ══════════════════════════════════════════════════════════════
+        let scheduleOpen = false;
+        let scheduleBuilt = false;
 
-            const tbody = document.getElementById('scheduleRoBody');
-            const step = 3; // 30-min blocks
-            const rows = 144 / step;
-            for (let r = 0; r < rows; r++) {
-                const bs = r * step, h = Math.floor((bs * 10) / 60), m = (bs * 10) % 60;
-                const ts = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
-                const isHourMark = m === 0;
-                const tr = document.createElement('tr');
-                if (isHourMark) tr.classList.add('hour-boundary');
-                const tdT = document.createElement('td');
-                tdT.className = 'time-cell' + (isHourMark ? ' hour-mark' : '');
-                tdT.textContent = ts;
-                tr.appendChild(tdT);
-                for (let d = 0; d < 7; d++) {
-                    const td = document.createElement('td');
-                    td.className = 'ro-slot';
-                    let allOn = true;
-                    for (let i = 0; i < step; i++) { if (bs + i < 144 && !grid[d][bs + i]) { allOn = false; break; } }
-                    td.classList.add(allOn ? 'ro-slot-on' : 'ro-slot-off');
-                    tr.appendChild(td);
-                }
-                tbody.appendChild(tr);
+        function toggleSchedule() {
+            scheduleOpen = !scheduleOpen;
+            const panel = document.getElementById('scheduleCollapsible');
+            const chevron = document.getElementById('scheduleChevron');
+            const hint = document.getElementById('scheduleToggleHint');
+
+            panel.classList.toggle('open', scheduleOpen);
+            chevron.classList.toggle('open', scheduleOpen);
+            hint.textContent = scheduleOpen ? '(kliknij aby zwinąć)' : '(kliknij aby rozwinąć)';
+
+            if (scheduleOpen && !scheduleBuilt) {
+                scheduleBuilt = true;
+                SG.init();
             }
-        });
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // SCHEDULE GRID — READ-ONLY (klon logiki renderingu z CreateOrEdit)
+        //
+        // Dane: grid[d][s]
+        //   0        = pusty
+        //   +N (1-6) = START klocka o rozmiarze N
+        //   -N       = kontynuacja klocka o rozmiarze N
+        //
+        // Slot aktywny = val != 0
+        // ══════════════════════════════════════════════════════════════
+        const SG = (function () {
+            const DAYS = 7, SLOTS = 144;
+
+            let grid = [];
+            let cells = {};
+
+            // Czas serwera wstrzyknięty z backendu
+            const serverNow = new Date('@DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")');
+            const nowDayIndex = (serverNow.getDay() + 6) % 7; // Pn=0 .. Nd=6
+            const nowSlotIndex = Math.floor((serverNow.getHours() * 60 + serverNow.getMinutes()) / 10);
+
+            // Palety kolorów (identyczne jak CreateOrEdit)
+            const G = {
+                c:  { 1:'#145a32', 2:'#1a7a42', 3:'#1e8c4a', 4:'#22a053', 5:'#27ae60', 6:'#2ecc71' },
+                hi: { 1:'#1a7040', 2:'#20904e', 3:'#26a458', 4:'#2cb862', 5:'#34d870', 6:'#3ee882' },
+                lo: { 1:'#0f4426', 2:'#145a32', 3:'#18703c', 4:'#1c8646', 5:'#209c50', 6:'#24b25a' },
+                accent: '#27ae60'
+            };
+            const R = {
+                c:  { 1:'#7b1a1a', 2:'#992222', 3:'#b52a2a', 4:'#cc3333', 5:'#e04040', 6:'#e86060' },
+                hi: { 1:'#922222', 2:'#aa2e2e', 3:'#c43636', 4:'#d94040', 5:'#ec5050', 6:'#f07070' },
+                lo: { 1:'#5c1212', 2:'#6e1818', 3:'#841e1e', 4:'#9a2626', 5:'#b03030', 6:'#c43a3a' },
+                accent: '#e04040'
+            };
+
+            let P = G;
+
+            function slotTime(s) {
+                const h = Math.floor((s * 10) / 60), m = (s * 10) % 60;
+                return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+            }
+
+            function getStepInfo() {
+                const v = @(Model.PriceStep.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                const pct = @(Model.IsPriceStepPercent ? "true" : "false");
+                const sign = v < 0 ? '-' : '+';
+                const up = v > 0;
+                return {
+                    text: sign + Math.abs(v).toFixed(2) + (pct ? '%' : ' PLN'),
+                    icon: up ? 'fa-arrow-up' : 'fa-arrow-down',
+                    up: up
+                };
+            }
+
+            function init() {
+                const jsonStr = '@Html.Raw(Model.ScheduleJson ?? "[]")';
+                try {
+                    grid = JSON.parse(jsonStr);
+                    if (!Array.isArray(grid) || grid.length !== DAYS) throw 0;
+                    if (grid[0] && typeof grid[0][0] === 'boolean') {
+                        grid = grid.map(day => day.map(v => v ? 1 : 0));
+                    }
+                } catch { grid = Array.from({ length: DAYS }, () => Array(SLOTS).fill(0)); }
+
+                buildTable();
+                render();
+            }
+
+            function buildTable() {
+                const tbody = document.getElementById('sgBody');
+                tbody.innerHTML = '';
+                cells = {};
+                for (let d = 0; d < DAYS; d++) cells[d] = {};
+
+                // Wiersz sum
+                const sr = document.createElement('tr');
+                sr.className = 'day-stats-row';
+                const t0 = document.createElement('td');
+                t0.className = 'tc'; t0.style.fontSize = '8px'; t0.textContent = '∑';
+                sr.appendChild(t0);
+                for (let d = 0; d < DAYS; d++) {
+                    const td = document.createElement('td');
+                    td.id = 'ds-' + d;
+                    sr.appendChild(td);
+                }
+                tbody.appendChild(sr);
+
+                for (let s = 0; s < SLOTS; s++) {
+                    const isHour = (s * 10) % 60 === 0;
+                    const tr = document.createElement('tr');
+                    if (isHour) tr.classList.add('hour-boundary');
+                    const tc = document.createElement('td');
+                    tc.className = 'tc' + (isHour ? ' hour-mark' : '');
+                    tc.textContent = slotTime(s);
+                    tr.appendChild(tc);
+                    for (let d = 0; d < DAYS; d++) {
+                        const td = document.createElement('td');
+                        td.className = 'sg-cell';
+                        td.dataset.d = d;
+                        td.dataset.s = s;
+                        cells[d][s] = td;
+                        tr.appendChild(td);
+                    }
+                    tbody.appendChild(tr);
+                }
+            }
+
+            function mkLabel(si, timeStr) {
+                return '<div class="blk-lbl">'
+                    + '<span class="blk-lbl-left"><i class="fas ' + si.icon + '"></i> ' + si.text + '</span>'
+                    + '<span class="blk-lbl-right">Wykonanie ' + timeStr + '</span>'
+                    + '</div>';
+            }
+
+            function render() {
+                const si = getStepInfo();
+                P = si.up ? R : G;
+                let weekBlocks = 0;
+                const dayBlocks = Array(DAYS).fill(0);
+
+                for (let d = 0; d < DAYS; d++) {
+                    // Reset cells
+                    for (let s = 0; s < SLOTS; s++) {
+                        const td = cells[d][s];
+                        td.className = 'sg-cell';
+                        td.innerHTML = '';
+                        td.style.cssText = '';
+                    }
+
+                    let s = 0;
+                    while (s < SLOTS) {
+                        const v = grid[d][s];
+                        if (v <= 0) { s++; continue; }
+
+                        const size = v;
+                        let len = 1;
+                        while (s + len < SLOTS && grid[d][s + len] === -size) len++;
+
+                        const color = P.c[size] || P.c[1];
+                        const colorHi = P.hi[size] || P.hi[1];
+                        const colorLo = P.lo[size] || P.lo[1];
+                        const timeFrom = slotTime(s);
+                        dayBlocks[d]++;
+                        weekBlocks++;
+
+                        for (let i = 0; i < len; i++) {
+                            const cell = cells[d][s + i];
+                            cell.classList.add('on');
+
+                            let css = 'background:' + color + ';';
+                            css += 'border-color:' + color + ';';
+                            let shadows = [];
+
+                            if (len === 1) {
+                                shadows.push('inset 0 2px 0 0 ' + colorHi);
+                                shadows.push('inset 0 -2px 0 0 ' + colorLo);
+                                cell.innerHTML = mkLabel(si, timeFrom);
+                            } else if (i === 0) {
+                                shadows.push('inset 0 2px 0 0 ' + colorHi);
+                                cell.innerHTML = mkLabel(si, timeFrom);
+                            } else if (i === len - 1) {
+                                shadows.push('inset 0 -2px 0 0 ' + colorLo);
+                            }
+
+                            if (shadows.length > 0) {
+                                css += 'box-shadow:' + shadows.join(', ') + ';';
+                            }
+                            cell.style.cssText = css;
+                        }
+                        s += len;
+                    }
+                }
+
+                // Sumy dzienne
+                for (let d = 0; d < DAYS; d++) {
+                    const el = document.getElementById('ds-' + d);
+                    if (el) {
+                        el.innerHTML = dayBlocks[d] > 0
+                            ? '<span style="color:' + P.accent + ';font-weight:700;">' + dayBlocks[d] + '</span>'
+                            : '<span style="color:#d0d2d8;">0</span>';
+                    }
+                }
+
+                // ── Wskaźnik "TERAZ" ──
+                if (nowDayIndex >= 0 && nowDayIndex < DAYS && nowSlotIndex >= 0 && nowSlotIndex < SLOTS) {
+                    cells[nowDayIndex][nowSlotIndex].classList.add('now-marker');
+                }
+            }
+
+            return { init };
+        })();
 
         function openProductSelector() {
             alert('Moduł zarządzania produktami w interwale — następny krok implementacji.');
