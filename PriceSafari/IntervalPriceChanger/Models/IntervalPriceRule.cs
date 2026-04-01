@@ -84,9 +84,9 @@ namespace PriceSafari.IntervalPriceChanger.Models
                 if (string.IsNullOrEmpty(ScheduleJson)) return 0;
                 try
                 {
-                    var schedule = System.Text.Json.JsonSerializer.Deserialize<bool[][]>(ScheduleJson);
+                    var schedule = System.Text.Json.JsonSerializer.Deserialize<int[][]>(ScheduleJson);
                     if (schedule == null) return 0;
-                    return schedule.Sum(day => day?.Count(s => s) ?? 0);
+                    return schedule.Sum(day => day?.Count(s => s > 0) ?? 0);
                 }
                 catch { return 0; }
             }
@@ -97,12 +97,12 @@ namespace PriceSafari.IntervalPriceChanger.Models
             if (string.IsNullOrEmpty(ScheduleJson)) return false;
             try
             {
-                var schedule = System.Text.Json.JsonSerializer.Deserialize<bool[][]>(ScheduleJson);
+                var schedule = System.Text.Json.JsonSerializer.Deserialize<int[][]>(ScheduleJson);
                 if (schedule == null || dayOfWeek < 0 || dayOfWeek > 6) return false;
                 if (schedule.Length <= dayOfWeek) return false;
                 var daySlots = schedule[dayOfWeek];
                 if (daySlots == null || slotIndex < 0 || slotIndex >= daySlots.Length) return false;
-                return daySlots[slotIndex];
+                return daySlots[slotIndex] > 0;
             }
             catch { return false; }
         }

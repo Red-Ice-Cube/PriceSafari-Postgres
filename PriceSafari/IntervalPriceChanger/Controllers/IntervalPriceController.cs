@@ -370,17 +370,17 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
         // ═══════════════════════════════════════════════════════
         // HELPERY
         // ═══════════════════════════════════════════════════════
-
         private bool ValidateScheduleJson(string json)
         {
             if (string.IsNullOrEmpty(json)) return true;
             try
             {
-                var schedule = JsonSerializer.Deserialize<bool[][]>(json);
+                var schedule = JsonSerializer.Deserialize<int[][]>(json);
                 if (schedule == null || schedule.Length != 7) return false;
                 foreach (var day in schedule)
                 {
                     if (day == null || day.Length != 144) return false;
+                    if (day.Any(v => v < 0 || v > 6)) return false;
                 }
                 return true;
             }
