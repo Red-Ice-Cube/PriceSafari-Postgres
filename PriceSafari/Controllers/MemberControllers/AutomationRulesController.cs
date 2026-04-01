@@ -143,6 +143,24 @@ namespace PriceSafari.Controllers.MemberControllers
                 .ToListAsync();
 
 
+            var ruleIds = rules.Select(r => r.Id).ToList();
+
+            var intervalLookup = await _context.IntervalPriceRules
+                .Where(i => ruleIds.Contains(i.AutomationRuleId))
+                .GroupBy(i => i.AutomationRuleId)
+                .Select(g => new {
+                    AutomationRuleId = g.Key,
+                    IntervalId = g.OrderByDescending(i => i.Id).First().Id,
+                    IntervalName = g.OrderByDescending(i => i.Id).First().Name,
+                    IntervalColorHex = g.OrderByDescending(i => i.Id).First().ColorHex,
+                    IntervalIsActive = g.OrderByDescending(i => i.Id).First().IsActive,
+                    Count = g.Count()
+                })
+                .ToDictionaryAsync(x => x.AutomationRuleId);
+
+            ViewBag.IntervalLookup = intervalLookup;
+
+
             ViewBag.StoreId = storeId;
             ViewBag.StoreName = storeName;
 

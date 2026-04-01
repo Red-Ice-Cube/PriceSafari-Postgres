@@ -1,8 +1,9 @@
-﻿using PriceSafari.Models;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using PriceSafari.Models.SchedulePlan;
+using PriceSafari.IntervalPriceChanger.Models;
+using PriceSafari.Models;
 using PriceSafari.Models.ProductXML;
+using PriceSafari.Models.SchedulePlan;
 
 namespace PriceSafari.Data
 {
@@ -73,6 +74,9 @@ namespace PriceSafari.Data
         public DbSet<AutomationProductAssignment> AutomationProductAssignments { get; set; }
 
         public DbSet<ProductGoogleCatalog> ProductGoogleCatalogs { get; set; }
+
+        public DbSet<IntervalPriceRule> IntervalPriceRules { get; set; }
+        public DbSet<IntervalPriceProductAssignment> IntervalPriceProductAssignments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -391,6 +395,45 @@ namespace PriceSafari.Data
                 .WithMany()
                 .HasForeignKey(apa => apa.AllegroProductId)
                 .OnDelete(DeleteBehavior.NoAction); // <--- Zmiana z Cascade na NoAction
+
+            // ═══ IntervalPriceRule → AutomationRule (parent) ═══
+            modelBuilder.Entity<IntervalPriceRule>()
+                .HasOne(ipr => ipr.AutomationRule)
+                .WithMany()
+                .HasForeignKey(ipr => ipr.AutomationRuleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ═══ IntervalPriceProductAssignment → IntervalPriceRule ═══
+            modelBuilder.Entity<IntervalPriceProductAssignment>()
+                .HasOne(a => a.Rule)
+                .WithMany(r => r.ProductAssignments)
+                .HasForeignKey(a => a.IntervalPriceRuleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ═══ IntervalPriceProductAssignment → ProductClass ═══
+            modelBuilder.Entity<IntervalPriceProductAssignment>()
+                .HasOne(a => a.Product)
+                .WithMany()
+                .HasForeignKey(a => a.ProductId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // ═══ IntervalPriceProductAssignment → AllegroProductClass ═══
+            modelBuilder.Entity<IntervalPriceProductAssignment>()
+                .HasOne(a => a.AllegroProduct)
+                .WithMany()
+                .HasForeignKey(a => a.AllegroProductId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // ═══ UNIKALNOŚĆ: Produkt może być w JEDNYM interwale ═══
+            modelBuilder.Entity<IntervalPriceProductAssignment>()
+                .HasIndex(a => a.ProductId)
+                .IsUnique()
+                .HasFilter("\"ProductId\" IS NOT NULL");
+
+            modelBuilder.Entity<IntervalPriceProductAssignment>()
+                .HasIndex(a => a.AllegroProductId)
+                .IsUnique()
+                .HasFilter("\"AllegroProductId\" IS NOT NULL");
         }
     }
 }

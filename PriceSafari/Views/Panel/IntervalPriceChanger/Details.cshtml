@@ -1,0 +1,313 @@
+﻿@using PriceSafari.Models
+@using PriceSafari.IntervalPriceChanger.Models
+@using Microsoft.AspNetCore.Identity
+
+@model IntervalPriceRule
+@inject UserManager<PriceSafariUser> UserManager
+
+@{
+    ViewData["Title"] = $"Interwał: {Model.Name}";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+    var user = await UserManager.GetUserAsync(User);
+    bool canEdit = user?.AccesToEditPriceAutomation ?? false;
+
+    var parent = Model.AutomationRule;
+    var store = parent?.Store;
+    bool isMarketplace = parent?.SourceType == AutomationSourceType.Marketplace;
+    int assignedCount = ViewBag.AssignedProductsCount ?? 0;
+    int parentProductCount = ViewBag.ParentProductCount ?? 0;
+    int activeSlotsCount = Model.ActiveSlotsCount;
+    decimal activePct = activeSlotsCount > 0 ? Math.Round((activeSlotsCount / 1008m) * 100, 1) : 0;
+    bool effectivelyActive = Model.IsActive && (parent?.CanExecute ?? false);
+}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+<style>
+    .ipc-box { display:flex; flex-direction:column; padding:24px; border-radius:12px; background:#FFF; box-shadow:0px 4px 12px rgba(0,0,0,0.04); border:1px solid #edf0f2; width:100%; }
+    .kpi-container { display:flex; gap:16px; width:100%; flex-wrap:wrap; }
+    .kpi-card { flex:1; min-width:200px; background:#fff; border-radius:12px; padding:24px; box-shadow:0 4px 12px rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.03); display:flex; flex-direction:column; position:relative; overflow:hidden; }
+    .kpi-accent-bar { position:absolute; top:0; left:0; width:100%; height:4px; }
+    .kpi-title { font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#858796; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+    .kpi-value-big { font-size:28px; font-weight:700; color:#5a5c69; line-height:1.2; }
+    .kpi-subtext { font-size:12px; color:#858796; margin-top:6px; font-weight:500; }
+    .mini-progress-bg { width:100%; height:6px; background:#e3e3e3; border-radius:3px; margin-top:10px; overflow:hidden; }
+    .mini-progress-fill { height:100%; border-radius:3px; }
+
+    .parent-info-box { display:flex; align-items:center; gap:16px; padding:14px 20px; background:#f8f9fc; border:2px dashed #e3e6f0; border-radius:10px; cursor:pointer; transition:all 0.2s; text-decoration:none !important; }
+    .parent-info-box:hover { border-color:#b7b9cc; background:#fff; }
+    .parent-color-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .parent-badge { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; padding:3px 8px; border-radius:4px; }
+    .parent-badge-active { background:rgba(28,200,138,0.15); color:#1cc88a; }
+    .parent-badge-inactive { background:rgba(231,74,59,0.15); color:#e74a3b; }
+
+    .header-info-box { display:inline-flex; padding:4px 16px; align-items:center; justify-content:center; border-radius:4px; border:2px dashed #f1f3f9; min-height:34px; gap:12px; margin-left:15px; }
+    .status-indicator-text { font-weight:600; font-size:13px; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.3px; }
+    .btn-icon-settings { font-size:24px; color:#858796; background:none; border:none; padding:0; line-height:1; cursor:pointer; transition:color 0.2s ease,transform 0.2s ease; display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; text-decoration:none!important; }
+    .btn-icon-settings:hover { color:#5a5c69; transform:rotate(30deg); }
+
+    .inherited-item { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#fcfcfd; border-radius:6px; border:1px solid #eaecf4; font-size:13px; }
+    .inherited-label { font-weight:700; color:#858796; text-transform:uppercase; font-size:10px; letter-spacing:0.5px; min-width:110px; }
+    .inherited-value { font-weight:600; color:#5a5c69; }
+
+    .schedule-ro-table { border-collapse:separate; border-spacing:1px; width:100%; min-width:600px; user-select:none; }
+    .schedule-ro-table th { text-align:center; font-size:10px; font-weight:700; color:#5a5c69; text-transform:uppercase; letter-spacing:0.5px; padding:6px 3px; background:#f8f9fc; }
+    .schedule-ro-table td.time-cell { text-align:right; padding-right:8px; font-family:monospace; font-size:10px; font-weight:500; color:#858796; background:#fcfcfd; width:50px; border-right:2px solid #e3e6f0; }
+    .schedule-ro-table td.time-cell.hour-mark { color:#5a5c69; font-weight:700; }
+    .ro-slot { width:14.28%; min-width:60px; height:18px; border-radius:2px; }
+    .ro-slot-on { background:#27ae60; }
+    .ro-slot-off { background:#f0f1f5; }
+    .schedule-ro-table tr.hour-boundary td { border-top:2px solid #d1d3e2; }
+</style>
+
+<div class="View">
+
+    @* ── NAGŁÓWEK ── *@
+    <div class="Vert">
+        <div class="Date" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+            <div style="display:flex; align-items:center;">
+                <div class="Order-Container-Title" style="font-size:23px;">
+                    <i class="fas fa-clock" style="color:#e67e22; margin-right:8px;"></i>
+                    Interwał <strong>@Model.Name</strong>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div class="header-info-box">
+                    <div style="font-weight:600; font-size:14px; color:#e67e22; display:flex; align-items:center; gap:6px;">
+                        <i class="fas fa-clock"></i> Interwał
+                    </div>
+                    <span style="color:#bbb; font-weight:300; font-size:16px;">|</span>
+                    <div class="status-indicator-text" style="color:@(effectivelyActive ? "#1cc88a" : "#e74a3b");">
+                        <i class="fa-solid fa-circle" style="font-size:6px;"></i>
+                        @if (effectivelyActive)
+                        {
+                            <text>Aktywny</text>
+                        }
+                        else if (Model.IsActive && !(parent?.CanExecute ?? false))
+                        {
+                            <text>Zablokowany (rodzic)</text>
+                        }
+                        else
+                        {
+                            <text>Wyłączony</text>
+                        }
+                    </div>
+                    @if (Model.IsCurrentlyArmed)
+                    {
+                        <span style="color:#bbb; font-weight:300; font-size:16px;">|</span>
+                        <div style="font-weight:600; font-size:12px; color:#27ae60; display:flex; align-items:center; gap:4px;">
+                            <i class="fas fa-bolt" style="font-size:10px;"></i> UZBROJONY
+                        </div>
+                    }
+                </div>
+                @if (canEdit)
+                {
+                    <a asp-controller="IntervalPrice" asp-action="Edit" asp-route-id="@Model.Id"
+                       class="btn-icon-settings" title="Konfiguruj"><i class="fas fa-cog"></i></a>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ── AUTOMAT-RODZIC ── *@
+    <div class="Vert">
+        <a href="@Url.Action("Details", "PriceAutomation", new { id = parent.Id })" class="parent-info-box">
+            <div class="parent-color-dot" style="background-color:@(parent.ColorHex);"></div>
+            <div style="flex-grow:1;">
+                <div style="font-size:15px; font-weight:700; color:#333;">@parent.Name</div>
+                <div style="font-size:12px; color:#858796; margin-top:2px;">
+                    Automat-rodzic · @(store?.StoreName ?? "?") ·
+                    @(parent.StrategyMode == AutomationStrategyMode.Competitiveness ? "Lider Rynku" : "Rentowność")
+                </div>
+            </div>
+            <span class="parent-badge @(parent.IsActive ? "parent-badge-active" : "parent-badge-inactive")">
+                @(parent.IsActive ? "Aktywny" : "Wyłączony")
+            </span>
+            <i class="fas fa-chevron-right" style="color:#d1d3e2;"></i>
+        </a>
+    </div>
+
+    @* ── KPI ── *@
+    <div class="Vert">
+        <div class="kpi-container">
+            <div class="kpi-card">
+                <div class="kpi-accent-bar" style="background:#e67e22;"></div>
+                <div class="kpi-title">Produkty <i class="fas fa-cube text-gray-400"></i></div>
+                <div class="kpi-value-big">@assignedCount<span style="font-size:14px; color:#858796; font-weight:400;"> / @parentProductCount</span></div>
+                <div class="kpi-subtext">w interwale / w automacie-rodzicu</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-accent-bar" style="background:#27ae60;"></div>
+                <div class="kpi-title">Harmonogram <span style="color:#27ae60;">@activePct%</span></div>
+                <div class="kpi-value-big">@activeSlotsCount</div>
+                <div class="kpi-subtext">aktywnych slotów (z 1008)</div>
+                <div class="mini-progress-bg"><div class="mini-progress-fill" style="width:@activePct%; background:#27ae60;"></div></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-accent-bar" style="background:#3498db;"></div>
+                <div class="kpi-title">Krok Cenowy <i class="fas fa-arrow-down text-gray-400"></i></div>
+                <div class="kpi-value-big" style="color:@(Model.PriceStep < 0 ? "#27ae60" : "#e74a3b");">
+                    @Model.PriceStep.ToString("F2") @(Model.IsPriceStepPercent ? "%" : "PLN")
+                </div>
+                <div class="kpi-subtext">na każdy interwał</div>
+            </div>
+        </div>
+    </div>
+
+    @* ── DZIEDZICZONE USTAWIENIA ── *@
+    <div class="Vert">
+        <div class="ipc-box">
+            <div style="font-size:16px; font-weight:600; color:#2e3035; display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+                <i class="fas fa-arrow-right" style="color:#e67e22;"></i> Ustawienia dziedziczone z automatu
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <div class="inherited-item">
+                    <span class="inherited-label">Min narzut</span>
+                    <span class="inherited-value">
+                        @if (parent.EnforceMinimalMarkup)
+                        {
+                            @parent.MinimalMarkupValue.ToString("F2") @(parent.IsMinimalMarkupPercent ? "%" : "PLN")
+                        }
+                        else
+                        {
+                            <span style="color:#b7b9cc;">Wyłączony</span>
+                        }
+                    </span>
+                </div>
+                <div class="inherited-item">
+                    <span class="inherited-label">Max narzut</span>
+                    <span class="inherited-value">
+                        @if (parent.EnforceMaxMarkup)
+                        {
+                            @parent.MaxMarkupValue.ToString("F2") @(parent.IsMaxMarkupPercent ? "%" : "PLN")
+                        }
+                        else
+                        {
+                            <span style="color:#b7b9cc;">Wyłączony</span>
+                        }
+                    </span>
+                </div>
+                @if (isMarketplace)
+                {
+                    <div class="inherited-item">
+                        <span class="inherited-label">Prowizja</span>
+                        <span class="inherited-value">@(parent.MarketplaceIncludeCommission ? "Uwzględniana" : "Nieuwzg.")</span>
+                    </div>
+                }
+                <div class="inherited-item">
+                    <span class="inherited-label">Cena zakupu</span>
+                    <span class="inherited-value">@(parent.UsePurchasePrice ? "Wymagana" : "Opcjonalna")</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── HARMONOGRAM READ-ONLY ── *@
+    <div class="Vert">
+        <div class="ipc-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <div style="font-size:16px; font-weight:600; color:#2e3035; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-calendar-alt" style="color:#e67e22;"></i> Mapa Harmonogramu
+                </div>
+                <div style="display:flex; align-items:center; gap:12px; font-size:11px;">
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <div style="width:12px; height:12px; border-radius:2px; background:#27ae60;"></div> Aktywny
+                    </div>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <div style="width:12px; height:12px; border-radius:2px; background:#f0f1f5;"></div> Nieaktywny
+                    </div>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="schedule-ro-table" id="scheduleRoTable">
+                    <thead>
+                        <tr>
+                            <th style="width:50px;">Czas</th>
+                            <th>Pn</th><th>Wt</th><th>Śr</th><th>Cz</th><th>Pt</th><th>Sb</th><th>Nd</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleRoBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @* ── PRODUKTY ── *@
+    <div class="Vert">
+        <div class="ipc-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <div style="font-size:16px; font-weight:600; color:#2e3035; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-boxes" style="color:#e67e22;"></i> Przypisane Produkty
+                    <span style="font-size:13px; color:#858796; font-weight:400;">(@assignedCount z @parentProductCount dostępnych)</span>
+                </div>
+                @if (canEdit)
+                {
+                    <button type="button" class="Button-Page-Small-bl" style="height:34px;" onclick="openProductSelector()">
+                        <i class="fas fa-plus" style="margin-right:4px;"></i> Zarządzaj produktami
+                    </button>
+                }
+            </div>
+
+            <div id="productListContainer">
+                @if (assignedCount == 0)
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-cube fa-2x text-gray-300 mb-2"></i>
+                        <p class="text-gray-500 mb-0">Brak przypisanych produktów.</p>
+                        <p class="text-gray-500" style="font-size:12px;">Kliknij "Zarządzaj produktami" aby wybrać produkty z automatu-rodzica.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-3">
+                        <span style="font-size:14px; color:#5a5c69; font-weight:500;">
+                            <strong>@assignedCount</strong> produktów przypisanych do interwału.
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const intervalRuleId = @Model.Id;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const jsonStr = '@Html.Raw(Model.ScheduleJson ?? "[]")';
+            let grid;
+            try { grid = JSON.parse(jsonStr); } catch { grid = null; }
+            if (!grid || !Array.isArray(grid) || grid.length !== 7) return;
+
+            const tbody = document.getElementById('scheduleRoBody');
+            const step = 3; // 30-min blocks
+            const rows = 144 / step;
+            for (let r = 0; r < rows; r++) {
+                const bs = r * step, h = Math.floor((bs * 10) / 60), m = (bs * 10) % 60;
+                const ts = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+                const isHourMark = m === 0;
+                const tr = document.createElement('tr');
+                if (isHourMark) tr.classList.add('hour-boundary');
+                const tdT = document.createElement('td');
+                tdT.className = 'time-cell' + (isHourMark ? ' hour-mark' : '');
+                tdT.textContent = ts;
+                tr.appendChild(tdT);
+                for (let d = 0; d < 7; d++) {
+                    const td = document.createElement('td');
+                    td.className = 'ro-slot';
+                    let allOn = true;
+                    for (let i = 0; i < step; i++) { if (bs + i < 144 && !grid[d][bs + i]) { allOn = false; break; } }
+                    td.classList.add(allOn ? 'ro-slot-on' : 'ro-slot-off');
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+        });
+
+        function openProductSelector() {
+            alert('Moduł zarządzania produktami w interwale — następny krok implementacji.');
+        }
+    </script>
+}

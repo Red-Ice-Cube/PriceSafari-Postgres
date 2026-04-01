@@ -1,0 +1,737 @@
+﻿@using PriceSafari.Models
+@using PriceSafari.IntervalPriceChanger.Models
+
+@model IntervalPriceRule
+
+@{
+    bool isEdit = Model.Id > 0;
+    ViewData["Title"] = isEdit ? "Edycja Interwału" : "Nowy Interwał Zmiany Cen";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+    var parentRule = ViewBag.ParentRule as AutomationRule;
+    bool isMarketplace = parentRule?.SourceType == AutomationSourceType.Marketplace;
+    string parentName = parentRule?.Name ?? "?";
+    string parentColor = parentRule?.ColorHex ?? "#ccc";
+    string storeName = parentRule?.Store?.StoreName ?? "?";
+}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+<style>
+    .ipc-box {
+        display: flex;
+        flex-direction: column;
+        padding: 30px;
+        border-radius: 12px;
+        background: #FFF;
+        box-shadow: 0px 5px 15px rgba(0,0,0,0.03);
+        border: 1px solid #edf0f2;
+        width: 100%;
+    }
+
+    .ipc-title {
+        font-size: 19px;
+        font-weight: 500;
+        color: #2e3035;
+        margin-bottom: 25px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 2px solid #f1f3f9;
+        padding-bottom: 15px;
+    }
+
+    .form-group label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #858796;
+        margin-bottom: 8px;
+        display: block;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-control-custom {
+        display: block;
+        width: 100%;
+        height: 45px;
+        padding: 10px 15px;
+        font-size: 15px;
+        font-weight: 500;
+        color: #333;
+        background-color: #fff;
+        border: 1px solid #d1d3e2;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+        .form-control-custom:focus {
+            border-color: #e67e22;
+            outline: 0;
+            box-shadow: 0 0 0 3px rgba(230,126,34,0.1);
+        }
+
+    .input-narrow {
+        max-width: 160px;
+        text-align: right;
+        display: inline-block;
+        font-weight: 500;
+    }
+
+    .switch-container {
+        position: relative;
+        display: inline-flex;
+        background-color: #eaecf4;
+        border-radius: 8px;
+        padding: 4px;
+        cursor: pointer;
+        user-select: none;
+        height: 45px;
+        min-width: 140px;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+
+        .switch-container input[type="checkbox"] {
+            display: none;
+        }
+
+    .switch-slider-bg {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        width: calc(50% - 4px);
+        height: calc(100% - 8px);
+        background-color: #fff;
+        border-radius: 6px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+        z-index: 1;
+    }
+
+    .switch-labels {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 2;
+    }
+
+    .switch-label-text {
+        flex: 1;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 500;
+        transition: color 0.25s;
+        line-height: 1;
+    }
+
+    .switch-neutral .switch-label-text {
+        color: #858796;
+    }
+
+    .switch-neutral.state-left .label-left {
+        color: #2e3035;
+    }
+
+    .switch-neutral.state-right .label-right {
+        color: #2e3035;
+    }
+
+    .switch-container.state-right .switch-slider-bg {
+        transform: translateX(100%);
+    }
+
+    .switch-status .switch-label-text {
+        color: #b7b9cc;
+    }
+
+    .switch-status.state-left .label-left {
+        color: #e74a3b;
+    }
+
+    .switch-status.state-right .label-right {
+        color: #1cc88a;
+    }
+
+    .switch-status.state-right .switch-slider-bg {
+        border: 1px solid #1cc88a;
+    }
+
+    .switch-status.state-left .switch-slider-bg {
+        border: 1px solid #e74a3b;
+    }
+
+    /* ── Parent info box ── */
+    .parent-info-box {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 24px;
+        background: #f8f9fc;
+        border: 2px dashed #e3e6f0;
+        border-radius: 10px;
+    }
+
+    .parent-color-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .parent-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #333;
+    }
+
+    .parent-meta {
+        font-size: 12px;
+        color: #858796;
+        margin-top: 2px;
+    }
+
+    .parent-badge {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+
+    .parent-badge-active {
+        background: rgba(28,200,138,0.15);
+        color: #1cc88a;
+    }
+
+    .parent-badge-inactive {
+        background: rgba(231,74,59,0.15);
+        color: #e74a3b;
+    }
+
+    /* ── Schedule grid ── */
+    .schedule-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .schedule-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .block-size-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: #eaecf4;
+        border-radius: 8px;
+        padding: 3px;
+    }
+
+    .block-size-btn {
+        padding: 6px 14px;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        background: transparent;
+        color: #858796;
+        transition: all 0.2s;
+    }
+
+        .block-size-btn:hover {
+            color: #5a5c69;
+        }
+
+        .block-size-btn.active {
+            background: #fff;
+            color: #333;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+    .schedule-stats {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 12px;
+        color: #858796;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .stat-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+
+    .stat-dot-active {
+        background: #27ae60;
+    }
+
+    .stat-dot-inactive {
+        background: #e3e6f0;
+    }
+
+    .schedule-table {
+        border-collapse: separate;
+        border-spacing: 1px;
+        width: 100%;
+        min-width: 700px;
+        user-select: none;
+    }
+
+        .schedule-table th {
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: #5a5c69;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 4px;
+            background: #f8f9fc;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+            .schedule-table th.time-header {
+                width: 60px;
+                min-width: 60px;
+                text-align: right;
+                padding-right: 10px;
+                font-family: 'SF Mono','Fira Code','Consolas',monospace;
+                font-size: 10px;
+                color: #b7b9cc;
+            }
+
+        .schedule-table td.time-cell {
+            text-align: right;
+            padding-right: 10px;
+            font-family: 'SF Mono','Fira Code','Consolas',monospace;
+            font-size: 10px;
+            font-weight: 500;
+            color: #858796;
+            background: #fcfcfd;
+            width: 60px;
+            min-width: 60px;
+            border-right: 2px solid #e3e6f0;
+        }
+
+            .schedule-table td.time-cell.hour-mark {
+                color: #5a5c69;
+                font-weight: 700;
+                font-size: 11px;
+            }
+
+    .slot-cell {
+        width: 14.28%;
+        min-width: 70px;
+        height: 22px;
+        text-align: center;
+        cursor: crosshair;
+        transition: background-color 0.08s;
+        border-radius: 2px;
+        position: relative;
+    }
+
+        .slot-cell.slot-off {
+            background: #f0f1f5;
+        }
+
+            .slot-cell.slot-off:hover {
+                background: #d5f5e3;
+            }
+
+        .slot-cell.slot-on {
+            background: #27ae60;
+        }
+
+            .slot-cell.slot-on:hover {
+                background: #1e8449;
+            }
+
+            .slot-cell.slot-on::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%,-50%);
+                width: 4px;
+                height: 4px;
+                background: rgba(255,255,255,0.5);
+                border-radius: 50%;
+            }
+
+    .schedule-table tr.hour-boundary td {
+        border-top: 2px solid #d1d3e2;
+    }
+
+    .schedule-quick-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .quick-action-btn {
+        padding: 5px 12px;
+        border: 1px solid #d1d3e2;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #fff;
+        color: #5a5c69;
+        transition: all 0.2s;
+    }
+
+        .quick-action-btn:hover {
+            background: #f8f9fc;
+            border-color: #b7b9cc;
+        }
+</style>
+
+<form asp-controller="IntervalPrice" asp-action="@(isEdit ? "Edit" : "Create")" method="post" id="intervalRuleForm" class="View">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="AutomationRuleId" />
+    <input type="hidden" asp-for="ScheduleJson" id="ScheduleJsonInput" />
+    <input type="hidden" asp-for="PreferredBlockSize" id="PreferredBlockSizeInput" />
+
+    @* ── NAGŁÓWEK ── *@
+    <div class="Vert">
+        <div class="Date" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+            <div class="Order-Container-Title">
+                <i class="fas fa-clock" style="color:#e67e22; margin-right:8px;"></i>
+                @(isEdit ? "Edycja Interwału Zmiany Cen" : "Nowy Interwał Zmiany Cen")
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                @if (isEdit)
+                {
+                    <a asp-controller="IntervalPrice" asp-action="Details" asp-route-id="@Model.Id" class="Button-Page-Small">Anuluj</a>
+                }
+                else
+                {
+
+                    <a asp-controller="PriceAutomation" asp-action="Details" asp-route-id="@Model.AutomationRuleId" class="Button-Page-Small">Anuluj</a>
+                }
+                <button type="submit" class="Button-Page-Small-bl" style="height:34px;">
+                    <i class="fas fa-save" style="margin-right:4px;"></i> Zapisz
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @* ── AUTOMAT-RODZIC ── *@
+    <div class="Vert">
+        <div class="ipc-box">
+            <div class="ipc-title">
+                <i class="fas fa-link" style="color:#e67e22;"></i> Automat Cenowy (Rodzic)
+            </div>
+
+            <div class="parent-info-box">
+                <div class="parent-color-dot" style="background-color: @parentColor;"></div>
+                <div style="flex-grow:1;">
+                    <div class="parent-name">@parentName</div>
+                    <div class="parent-meta">
+                        @storeName ·
+                        @(isMarketplace ? "Marketplace (Allegro)" : "Porównywarki Cen") ·
+                        Strategia: @(parentRule?.StrategyMode == AutomationStrategyMode.Competitiveness ? "Lider Rynku" : "Rentowność")
+                    </div>
+                </div>
+                <span class="parent-badge @(parentRule?.IsActive == true ? "parent-badge-active" : "parent-badge-inactive")">
+                    @(parentRule?.IsActive == true ? "Aktywny" : "Wyłączony")
+                </span>
+            </div>
+
+            <div style="margin-top:16px; font-size:12px; color:#858796; background:#fcfcfd; padding:12px 16px; border-radius:6px; border:1px solid #eaecf4;">
+                <i class="fas fa-info-circle" style="color:#e67e22; margin-right:6px;"></i>
+                Interwał dziedziczy z automatu-rodzica: <strong>limity cenowe (min/max)</strong>, <strong>prowizję</strong>,
+                <strong>preset konkurencji</strong> i <strong>ustawienia odznak</strong>.
+                Wyłączenie automatu-rodzica automatycznie wstrzymuje ten interwał.
+            </div>
+        </div>
+    </div>
+
+    @* ── DANE PODSTAWOWE ── *@
+    <div class="Vert">
+        <div class="ipc-box">
+            <div class="ipc-title">
+                <i class="fas fa-info-circle" style="color:#e67e22;"></i> Dane Podstawowe
+            </div>
+
+            <div style="display:flex; gap:30px; align-items:flex-end; flex-wrap:wrap;">
+                <div style="flex:0 0 90px;">
+                    <div class="form-group">
+                        <label>KOLOR</label>
+                        <div id="ColorContainer"
+                             style="position:relative; border:1px solid #d1d3e2; border-radius:6px; height:45px;
+                                    background-color:@(string.IsNullOrEmpty(Model.ColorHex) ? "#e67e22" : Model.ColorHex);
+                                    cursor:pointer; overflow:hidden; box-shadow:inset 0 0 5px rgba(0,0,0,0.1);">
+                            <input asp-for="ColorHex" type="color" id="ColorHexInput"
+                                   style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+                                          width:200%; height:200%; opacity:0; cursor:pointer;" />
+                        </div>
+                    </div>
+                </div>
+
+                <div style="flex:2; min-width:300px;">
+                    <div class="form-group">
+                        <label>NAZWA INTERWAŁU</label>
+                        <input asp-for="Name" class="form-control-custom" placeholder="Np. Nocne przebijanie Top Ofert..." />
+                        <span asp-validation-for="Name" class="text-danger" style="font-size:12px;"></span>
+                    </div>
+                </div>
+
+                <div style="flex:1; min-width:240px;">
+                    <div class="form-group">
+                        <label id="mainStatusLabel" style="transition:color 0.3s; color:@(Model.IsActive ? "#1cc88a" : "#e74a3b");">
+                            @(Model.IsActive ? "INTERWAŁ AKTYWNY" : "INTERWAŁ WYŁĄCZONY")
+                        </label>
+                        <div class="switch-container switch-status @(Model.IsActive ? "state-right" : "state-left")"
+                             onclick="toggleSwitch(this)" style="width:100%; height:45px;">
+                            <input type="checkbox" asp-for="IsActive" id="IsActiveSwitch" />
+                            <div class="switch-slider-bg"></div>
+                            <div class="switch-labels">
+                                <span class="switch-label-text label-left" style="font-size:14px;">WYŁĄCZONY</span>
+                                <span class="switch-label-text label-right" style="font-size:14px;">AKTYWNY</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @if (isEdit)
+                {
+                    <div style="flex:0 0 auto;">
+                        <div class="form-group">
+                            <label style="color:#e74a3b;">USUŃ</label>
+                            <button type="button" onclick="confirmDelete()"
+                                    class="btn btn-outline-danger"
+                                    style="height:45px; width:100%; font-weight:600; border:1px solid #e74a3b;
+                                               display:flex; align-items:center; justify-content:center; gap:8px;
+                                               background:#fff; border-radius:6px;">
+                                <i class="fas fa-trash"></i> USUŃ
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ── KROK CENOWY (jedyne ustawienie cenowe) ── *@
+    <div class="Vert">
+        <div class="ipc-box">
+            <div class="ipc-title">
+                <i class="fas fa-arrow-down" style="color:#27ae60;"></i> Krok Cenowy
+            </div>
+
+            <div style="display:flex; flex-direction:column; align-items:center;">
+                <label style="margin-bottom:15px; color:#e67e22; font-size:13px; font-weight:600; text-transform:uppercase;">
+                    WARTOŚĆ KROKU (np. -0.01 = obniżka o grosz)
+                </label>
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <input asp-for="PriceStep" type="number" step="0.01" class="form-control-custom input-narrow" style="font-size:20px;" />
+                    <div class="switch-container switch-neutral @(Model.IsPriceStepPercent ? "state-right" : "state-left")"
+                         onclick="toggleSwitch(this)">
+                        <input type="checkbox" asp-for="IsPriceStepPercent" />
+                        <div class="switch-slider-bg"></div>
+                        <div class="switch-labels">
+                            <span class="switch-label-text label-left">PLN</span>
+                            <span class="switch-label-text label-right">%</span>
+                        </div>
+                    </div>
+                </div>
+                <small style="color:#858796; margin-top:10px; font-size:13px;">
+                    Przy każdym interwale system pobiera aktualną cenę przez API i zmienia ją o ten krok.
+                    Limity cenowe (min/max narzut) są dziedziczone z automatu <strong>@parentName</strong>.
+                </small>
+            </div>
+        </div>
+    </div>
+
+    @* ── HARMONOGRAM ── *@
+    <div class="Vert">
+        <div class="ipc-box">
+            <div class="ipc-title">
+                <i class="fas fa-calendar-alt" style="color:#e67e22;"></i> Harmonogram Aktywności
+            </div>
+
+            <div class="schedule-controls">
+                <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                    <div>
+                        <span style="font-size:11px; font-weight:700; color:#858796; text-transform:uppercase; letter-spacing:0.5px; margin-right:8px;">
+                            Blok czasu:
+                        </span>
+                        <div class="block-size-group" id="blockSizeGroup">
+                            <button type="button" class="block-size-btn @(Model.PreferredBlockSize == 10 ? "active" : "")" data-block="10">10 min</button>
+                            <button type="button" class="block-size-btn @(Model.PreferredBlockSize == 20 ? "active" : "")" data-block="20">20 min</button>
+                            <button type="button" class="block-size-btn @(Model.PreferredBlockSize == 30 ? "active" : "")" data-block="30">30 min</button>
+                            <button type="button" class="block-size-btn @(Model.PreferredBlockSize == 60 ? "active" : "")" data-block="60">60 min</button>
+                        </div>
+                    </div>
+                    <div class="schedule-quick-actions">
+                        <button type="button" class="quick-action-btn" onclick="ScheduleGrid.fillAll()">
+                            <i class="fas fa-check-double" style="margin-right:4px; color:#27ae60;"></i> Zaznacz Wszystko
+                        </button>
+                        <button type="button" class="quick-action-btn" onclick="ScheduleGrid.clearAll()">
+                            <i class="fas fa-times" style="margin-right:4px; color:#e74a3b;"></i> Wyczyść
+                        </button>
+                        <button type="button" class="quick-action-btn" onclick="ScheduleGrid.fillWorkHours()">
+                            <i class="fas fa-briefcase" style="margin-right:4px; color:#3498db;"></i> 8-18 (Pn-Pt)
+                        </button>
+                        <button type="button" class="quick-action-btn" onclick="ScheduleGrid.fillNight()">
+                            <i class="fas fa-moon" style="margin-right:4px; color:#8e44ad;"></i> Nocne (22-6)
+                        </button>
+                    </div>
+                </div>
+                <div class="schedule-stats">
+                    <div class="stat-item">
+                        <div class="stat-dot stat-dot-active"></div>
+                        <span>Aktywne: <strong id="statActive">0</strong></span>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-dot stat-dot-inactive"></div>
+                        <span>Łącznie: <strong>1008</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="font-size:12px; color:#858796; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-mouse-pointer" style="color:#b7b9cc;"></i>
+                Kliknij i przeciągnij aby zaznaczyć / odznaczyć sloty. Trzymaj <kbd style="background:#eaecf4; padding:1px 6px; border-radius:3px; font-size:11px;">Shift</kbd> aby odznaczać.
+            </div>
+
+            <div class="schedule-wrapper">
+                <table class="schedule-table" id="scheduleTable">
+                    <thead>
+                        <tr>
+                            <th class="time-header">Czas</th>
+                            <th>Poniedziałek</th>
+                            <th>Wtorek</th>
+                            <th>Środa</th>
+                            <th>Czwartek</th>
+                            <th>Piątek</th>
+                            <th>Sobota</th>
+                            <th>Niedziela</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</form>
+
+@if (isEdit)
+{
+    <form id="deleteRuleForm" asp-controller="IntervalPrice" asp-action="Delete" asp-route-id="@Model.Id" method="post" style="display:none;"></form>
+}
+
+@section Scripts {
+    <script>
+        window.toggleSwitch = function(container) {
+            const cb = container.querySelector('input[type="checkbox"]');
+            cb.checked = !cb.checked;
+            container.classList.toggle('state-left', !cb.checked);
+            container.classList.toggle('state-right', cb.checked);
+            if (cb.id === 'IsActiveSwitch') {
+                const lbl = document.getElementById('mainStatusLabel');
+                if (lbl) { lbl.innerText = cb.checked ? "INTERWAŁ AKTYWNY" : "INTERWAŁ WYŁĄCZONY"; lbl.style.color = cb.checked ? "#1cc88a" : "#e74a3b"; }
+            }
+        };
+
+        function confirmDelete() {
+            if (confirm('Czy na pewno chcesz usunąć ten interwał?'))
+                document.getElementById('deleteRuleForm').submit();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var ci = document.getElementById('ColorHexInput'), cc = document.getElementById('ColorContainer');
+            if (ci && cc) { ci.addEventListener('input', () => cc.style.backgroundColor = ci.value); }
+        });
+
+        // ═══ SCHEDULE GRID ═══
+        const ScheduleGrid = (function() {
+            const DAYS = 7, SLOTS = 144;
+            let grid = [], blockSize = parseInt('@Model.PreferredBlockSize') || 10;
+            let isDragging = false, dragMode = null, lastCell = null;
+
+            function init() {
+                const json = document.getElementById('ScheduleJsonInput').value;
+                if (json) { try { grid = JSON.parse(json); if (!Array.isArray(grid) || grid.length !== 7) throw 0; } catch { grid = empty(); } }
+                else { grid = empty(); }
+                render(); updateStats(); bindBlockBtns(); bindDrag();
+            }
+            function empty() { return Array.from({length:DAYS}, () => Array(SLOTS).fill(false)); }
+
+            function render() {
+                const tbody = document.getElementById('scheduleBody'); tbody.innerHTML = '';
+                const step = blockSize / 10, rows = SLOTS / step;
+                for (let r = 0; r < rows; r++) {
+                    const bs = r * step, h = Math.floor((bs*10)/60), m = (bs*10)%60;
+                    const ts = String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+                    const tr = document.createElement('tr');
+                    if (m===0) tr.classList.add('hour-boundary');
+                    const tdT = document.createElement('td');
+                    tdT.className = 'time-cell'+(m===0?' hour-mark':''); tdT.textContent = ts; tr.appendChild(tdT);
+                    for (let d=0; d<DAYS; d++) {
+                        const td = document.createElement('td');
+                        td.className = 'slot-cell'; td.dataset.day=d; td.dataset.baseSlot=bs; td.dataset.step=step;
+                        td.classList.add(blockOn(d,bs,step)?'slot-on':'slot-off');
+                        tr.appendChild(td);
+                    }
+                    tbody.appendChild(tr);
+                }
+            }
+            function blockOn(d,bs,step) { for(let i=0;i<step;i++){if(bs+i<SLOTS&&!grid[d][bs+i])return false;} return true; }
+            function setBlock(d,bs,step,v) { for(let i=0;i<step;i++){const idx=bs+i; if(idx<SLOTS)grid[d][idx]=v;} }
+
+            function bindDrag() {
+                const tb = document.getElementById('scheduleBody');
+                tb.addEventListener('mousedown', e => { const c=e.target.closest('.slot-cell'); if(!c)return; e.preventDefault(); isDragging=true; dragMode=(e.shiftKey||c.classList.contains('slot-on'))?'off':'on'; apply(c); lastCell=c; });
+                tb.addEventListener('mouseover', e => { if(!isDragging)return; const c=e.target.closest('.slot-cell'); if(!c||c===lastCell)return; apply(c); lastCell=c; });
+                document.addEventListener('mouseup', () => { if(isDragging){isDragging=false; sync(); updateStats();} });
+                tb.addEventListener('touchstart', e => { const t=e.touches[0],c=document.elementFromPoint(t.clientX,t.clientY)?.closest('.slot-cell'); if(!c)return; e.preventDefault(); isDragging=true; dragMode=c.classList.contains('slot-on')?'off':'on'; apply(c); lastCell=c; },{passive:false});
+                tb.addEventListener('touchmove', e => { if(!isDragging)return; e.preventDefault(); const t=e.touches[0],c=document.elementFromPoint(t.clientX,t.clientY)?.closest('.slot-cell'); if(!c||c===lastCell)return; apply(c); lastCell=c; },{passive:false});
+                tb.addEventListener('touchend', () => { if(isDragging){isDragging=false; sync(); updateStats();} });
+            }
+            function apply(c) { const d=+c.dataset.day,bs=+c.dataset.baseSlot,s=+c.dataset.step,v=dragMode==='on'; setBlock(d,bs,s,v); c.classList.toggle('slot-on',v); c.classList.toggle('slot-off',!v); }
+            function bindBlockBtns() {
+                document.querySelectorAll('#blockSizeGroup .block-size-btn').forEach(b => b.addEventListener('click', function() {
+                    document.querySelectorAll('#blockSizeGroup .block-size-btn').forEach(x=>x.classList.remove('active'));
+                    this.classList.add('active'); blockSize=+this.dataset.block;
+                    document.getElementById('PreferredBlockSizeInput').value=blockSize; render();
+                }));
+            }
+            function sync() { document.getElementById('ScheduleJsonInput').value = JSON.stringify(grid); }
+            function updateStats() { let a=0; grid.forEach(d=>d.forEach(s=>{if(s)a++;})); document.getElementById('statActive').textContent=a; }
+
+            function fillAll() { grid=Array.from({length:DAYS},()=>Array(SLOTS).fill(true)); render(); sync(); updateStats(); }
+            function clearAll() { grid=empty(); render(); sync(); updateStats(); }
+            function fillRange(sh,eh,days) { if(!days)days=[0,1,2,3,4,5,6]; const ss=(sh*60)/10,es=(eh*60)/10; days.forEach(d=>{for(let s=ss;s<es&&s<SLOTS;s++)grid[d][s]=true;}); render(); sync(); updateStats(); }
+            function fillWorkHours() { clearAll(); fillRange(8,18,[0,1,2,3,4]); }
+            function fillNight() { clearAll(); for(let d=0;d<DAYS;d++){for(let s=132;s<144;s++)grid[d][s]=true;for(let s=0;s<36;s++)grid[d][s]=true;} render(); sync(); updateStats(); }
+
+            return { init, fillAll, clearAll, fillWorkHours, fillNight };
+        })();
+
+        document.addEventListener('DOMContentLoaded', () => ScheduleGrid.init());
+    </script>
+}
