@@ -397,42 +397,31 @@
 
         /* ── Aktywne komórki ── */
         .sg-cell.on {
-            border-color: rgba(255,255,255,0.15);
+            /* Bordery kolorowane via JS aby matchowały tło bloku = bezszwowe */
         }
 
-        /* Początek bloku */
         .sg-cell.blk-start {
-            border-top: 2px solid rgba(255,255,255,0.45);
-            border-top-left-radius: 4px;
-            border-top-right-radius: 4px;
-        }
-        /* Koniec bloku — grubszy dolny border = wizualna przerwa między klockami */
-        .sg-cell.blk-end {
-            border-bottom: 3px solid #edf0f2;
-            border-bottom-left-radius: 4px;
-            border-bottom-right-radius: 4px;
-        }
-        /* Środek bloku */
-        .sg-cell.blk-mid {
-            border-top-color: rgba(255,255,255,0.08);
-            border-bottom-color: rgba(255,255,255,0.08);
-        }
-        /* Pojedynczy slot = start + end */
-        .sg-cell.blk-single {
-            border-radius: 4px;
-            border-top: 2px solid rgba(255,255,255,0.45);
-            border-bottom: 3px solid #edf0f2;
         }
 
-    /* Etykieta na bloku */
+        .sg-cell.blk-end {
+        }
+
+        .sg-cell.blk-mid {
+        }
+
+        .sg-cell.blk-single {
+        }
+
+    /* Etykieta na bloku — wartość po lewej, czas po prawej */
     .blk-lbl {
         position: absolute;
-        top: 2px;
-        left: 4px;
-        right: 4px;
-        font-size: 8px;
+        top: 0;
+        bottom: 0;
+        left: 6px;
+        right: 6px;
+        font-size: 11px;
         font-weight: 700;
-        color: rgba(255,255,255,0.9);
+        color: rgba(255,255,255,0.92);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -440,65 +429,69 @@
         pointer-events: none;
         display: flex;
         align-items: center;
-        gap: 3px;
+        justify-content: space-between;
         z-index: 1;
     }
 
-        .blk-lbl i {
-            font-size: 7px;
+    .blk-lbl-left {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+        .blk-lbl-left i {
+            font-size: 9px;
         }
 
-    /* ── HOVER / PREVIEW ── */
-    .sg-cell.pv {
-        z-index: 1;
+    .blk-lbl-right {
+        font-size: 10px;
+        font-weight: 600;
+        opacity: 0.8;
+        letter-spacing: 0.3px;
     }
 
+    /* ── HOVER / PREVIEW — bordery ustawiane via JS (zielony/czerwony zależy od kroku) ── */
     .sg-cell.pv-paint {
-        border-color: rgba(39,174,96,0.4) !important;
+        z-index: 1;
     }
-
-        .sg-cell.pv-paint.pv-start {
-            border-top: 2px solid rgba(39,174,96,0.6);
-            border-top-left-radius: 5px;
-            border-top-right-radius: 5px;
-        }
-
-        .sg-cell.pv-paint.pv-end {
-            border-bottom: 2px solid rgba(39,174,96,0.5);
-            border-bottom-left-radius: 5px;
-            border-bottom-right-radius: 5px;
-        }
-
-        .sg-cell.pv-paint.pv-single {
-            border: 2px solid rgba(39,174,96,0.6);
-            border-radius: 5px;
-        }
 
         .sg-cell.pv-paint.pv-mid {
             border-top-color: transparent !important;
             border-bottom-color: transparent !important;
         }
 
-    .sg-cell.pv-erase {
-        background-color: rgba(231,74,59,0.15) !important;
-        border-color: rgba(231,74,59,0.3) !important;
+    /* Nie zmiesci się → szary preview */
+    .sg-cell.pv-blocked {
+        z-index: 1;
     }
 
-        .sg-cell.pv-erase.pv-start {
-            border-top: 2px solid rgba(231,74,59,0.4);
-            border-top-left-radius: 5px;
-            border-top-right-radius: 5px;
+        .sg-cell.pv-blocked.pv-start {
+            border-color: rgba(100,100,100,0.3) !important;
+            box-shadow: inset 0 2px 0 0 rgba(100,100,100,0.3) !important;
         }
 
-        .sg-cell.pv-erase.pv-end {
-            border-bottom: 2px solid rgba(231,74,59,0.35);
-            border-bottom-left-radius: 5px;
-            border-bottom-right-radius: 5px;
+        .sg-cell.pv-blocked.pv-end {
+            border-color: rgba(100,100,100,0.25) !important;
+            box-shadow: inset 0 -2px 0 0 rgba(100,100,100,0.25) !important;
         }
 
-        .sg-cell.pv-erase.pv-single {
-            border: 2px solid rgba(231,74,59,0.4);
-            border-radius: 5px;
+    .sg-cell.pv-single {
+        border-color: rgba(100,100,100,0.3) !important;
+        box-shadow: inset 0 2px 0 0 rgba(100,100,100,0.3), inset 0 -2px 0 0 rgba(100,100,100,0.3) !important;
+    }
+
+    /* Shift+hover na klocku → erase preview */
+    .sg-cell.pv-erase {
+        filter: brightness(0.7) saturate(0.5);
+        z-index: 1;
+    }
+
+        .sg-cell.pv-erase::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(231,74,59,0.2);
+            pointer-events: none;
         }
 </style>
 
@@ -621,16 +614,16 @@
                     <div>
                         <span style="font-size:11px; font-weight:700; color:#858796; text-transform:uppercase; margin-right:8px;">Pędzel:</span>
                         <div class="block-size-group" id="blockSizeGroup">
-                            <button type="button" class="block-size-btn" data-block="10"><span class="btn-dot" style="background:#145a32;"></span>10m</button>
-                            <button type="button" class="block-size-btn" data-block="20"><span class="btn-dot" style="background:#1a7a42;"></span>20m</button>
-                            <button type="button" class="block-size-btn" data-block="30"><span class="btn-dot" style="background:#1e8c4a;"></span>30m</button>
-                            <button type="button" class="block-size-btn" data-block="40"><span class="btn-dot" style="background:#22a053;"></span>40m</button>
-                            <button type="button" class="block-size-btn" data-block="50"><span class="btn-dot" style="background:#27ae60;"></span>50m</button>
-                            <button type="button" class="block-size-btn" data-block="60"><span class="btn-dot" style="background:#2ecc71;"></span>60m</button>
+                            <button type="button" class="block-size-btn" data-block="10"><span class="btn-dot" data-step="1"></span>10m</button>
+                            <button type="button" class="block-size-btn" data-block="20"><span class="btn-dot" data-step="2"></span>20m</button>
+                            <button type="button" class="block-size-btn" data-block="30"><span class="btn-dot" data-step="3"></span>30m</button>
+                            <button type="button" class="block-size-btn" data-block="40"><span class="btn-dot" data-step="4"></span>40m</button>
+                            <button type="button" class="block-size-btn" data-block="50"><span class="btn-dot" data-step="5"></span>50m</button>
+                            <button type="button" class="block-size-btn" data-block="60"><span class="btn-dot" data-step="6"></span>60m</button>
                         </div>
                     </div>
                     <div style="display:flex; gap:6px;">
-                        <button type="button" class="quick-action-btn" onclick="SG.fillAll()"><i class="fas fa-check-double" style="margin-right:3px; color:#27ae60;"></i> Wszystko</button>
+                        <button type="button" class="quick-action-btn" onclick="SG.fillAll()"><i id="fillAllIcon" class="fas fa-check-double" style="margin-right:3px; color:#27ae60;"></i> Wszystko</button>
                         <button type="button" class="quick-action-btn" onclick="SG.clearAll()"><i class="fas fa-times" style="margin-right:3px; color:#e74a3b;"></i> Wyczyść</button>
                     </div>
                 </div>
@@ -643,7 +636,7 @@
             </div>
 
             <div style="font-size:11px; color:#b7b9cc; margin-bottom:10px;">
-                <i class="fas fa-paint-brush"></i> Kliknij i przeciągnij aby malować. <strong>Shift</strong> = gumka. Rozmiar pędzla = rozmiar klocka. Kolor zależy od rozmiaru.
+                <i class="fas fa-paint-brush"></i> Kliknij i przeciągnij aby kłaść klocki. <strong>Shift + klik</strong> = usuń cały klocek. Klocki nie nakładają się — usuń istniejący żeby położyć nowy.
             </div>
 
             <div class="schedule-wrapper">
@@ -688,42 +681,102 @@
         document.addEventListener('DOMContentLoaded', function () {
             var ci = document.getElementById('ColorHexInput'), cc = document.getElementById('ColorContainer');
             if (ci && cc) ci.addEventListener('input', () => cc.style.backgroundColor = ci.value);
-            document.getElementById('PriceStepInput').addEventListener('input', () => SG.refresh());
+            // Krok cenowy: przeskakuj 0 (nigdy nie pozwól na wartość 0)
+            const psInput = document.getElementById('PriceStepInput');
+            let prevStepVal = parseFloat(psInput.value) || -0.01;
+
+            psInput.addEventListener('input', function () {
+                const v = parseFloat(this.value);
+                if (v === 0) {
+                    // Przeskocz 0 w kierunku ruchu
+                    const stepSize = parseFloat(this.step) || 0.01;
+                    if (prevStepVal < 0) {
+                        this.value = stepSize;   // szedł z ujemnych → wskocz na dodatni
+                    } else {
+                        this.value = -stepSize;  // szedł z dodatnich → wskocz na ujemny
+                    }
+                }
+                const newVal = parseFloat(this.value);
+                if (!isNaN(newVal) && newVal !== 0) prevStepVal = newVal;
+                SG.refresh();
+            });
+
+            psInput.addEventListener('change', function () {
+                const v = parseFloat(this.value);
+                if (v === 0 || isNaN(v)) {
+                    this.value = prevStepVal || '-0.01';
+                    SG.refresh();
+                } else {
+                    prevStepVal = v;
+                }
+            });
+
+            // Walidacja przy zapisie
+            document.getElementById('intervalRuleForm').addEventListener('submit', function (e) {
+                const v = parseFloat(psInput.value);
+                if (v === 0 || isNaN(v)) {
+                    e.preventDefault();
+                    psInput.value = '-0.01';
+                    psInput.focus();
+                    SG.refresh();
+                    alert('Krok cenowy nie może wynosić 0.');
+                }
+            });
         });
 
         // ══════════════════════════════════════════════════════════════
-        // SCHEDULE GRID  —  "brush" model
+        // SCHEDULE GRID
         //
-        // grid[d][s] = 0 (puste) | 1..6 (step = blockSize/10)
-        // Zmiana pędzla NIE modyfikuje już namalowanych slotów.
-        // Hover pokazuje podgląd klocka od pozycji kursora w dół.
+        // Dane:  grid[d][s]
+        //   0        = pusty slot
+        //   +N (1-6) = START klocka o rozmiarze N  (N = blockSize/10)
+        //   -N       = kontynuacja klocka o rozmiarze N
+        //
+        // Przykład klocek 30min:  [3, -3, -3]
+        // Dwa sąsiednie 30min:    [3, -3, -3, 3, -3, -3]  ← rozróżnialne
+        //
+        // Backend: slot aktywny = val != 0   (zamiast > 0)
         // ══════════════════════════════════════════════════════════════
         const SG = (function () {
             const DAYS = 7, SLOTS = 144;
 
-            // grid[d][s] = 0 | step (1-6)
             let grid = [];
             let blockSize = 10;
-            let step = 1;           // = blockSize / 10
+            let step = 1;
             let isDragging = false;
-            let dragMode = null;    // 'on' | 'off'
+            let dragMode = null;
             let lastKey = '';
-            let cells = {};         // cells[d][s] = <td>
+            let cells = {};
 
-            // Hover state
+            // Hover / preview
             let hvD = -1, hvS = -1;
-            let pvCells = [];       // cells currently showing preview
+            let pvCells = [];
+            let shiftHeld = false;
 
-            // Kolory: mniejszy blok = ciemniejszy zielony
-            const COLORS = {
-                1: '#145a32', 2: '#1a7a42', 3: '#1e8c4a',
-                4: '#22a053', 5: '#27ae60', 6: '#2ecc71'
+            // ── PALETY KOLORÓW ──
+            // Zielony = obniżki (step < 0), Czerwony = podwyżki (step > 0)
+            // Mniejszy blok = ciemniejszy
+            const G = {
+                c:  { 1:'#145a32', 2:'#1a7a42', 3:'#1e8c4a', 4:'#22a053', 5:'#27ae60', 6:'#2ecc71' },
+                hi: { 1:'#1a7040', 2:'#20904e', 3:'#26a458', 4:'#2cb862', 5:'#34d870', 6:'#3ee882' },
+                lo: { 1:'#0f4426', 2:'#145a32', 3:'#18703c', 4:'#1c8646', 5:'#209c50', 6:'#24b25a' },
+                pv: { 1:'rgba(20,90,50,0.28)',  2:'rgba(26,122,66,0.26)', 3:'rgba(30,140,74,0.24)',
+                      4:'rgba(34,160,83,0.22)', 5:'rgba(39,174,96,0.20)', 6:'rgba(46,204,113,0.18)' },
+                accent: '#27ae60',
+                pvBorder: 'rgba(39,174,96,0.55)'
             };
-            const PV_PAINT = {
-                1: 'rgba(20,90,50,0.30)',  2: 'rgba(26,122,66,0.30)',
-                3: 'rgba(30,140,74,0.28)', 4: 'rgba(34,160,83,0.26)',
-                5: 'rgba(39,174,96,0.24)', 6: 'rgba(46,204,113,0.22)'
+            const R = {
+                c:  { 1:'#7b1a1a', 2:'#992222', 3:'#b52a2a', 4:'#cc3333', 5:'#e04040', 6:'#e86060' },
+                hi: { 1:'#922222', 2:'#aa2e2e', 3:'#c43636', 4:'#d94040', 5:'#ec5050', 6:'#f07070' },
+                lo: { 1:'#5c1212', 2:'#6e1818', 3:'#841e1e', 4:'#9a2626', 5:'#b03030', 6:'#c43a3a' },
+                pv: { 1:'rgba(123,26,26,0.28)',  2:'rgba(153,34,34,0.26)', 3:'rgba(181,42,42,0.24)',
+                      4:'rgba(204,51,51,0.22)',  5:'rgba(224,64,64,0.20)', 6:'rgba(232,96,96,0.18)' },
+                accent: '#e04040',
+                pvBorder: 'rgba(224,64,64,0.55)'
             };
+
+            // Aktywna paleta (zmienia się przy refresh)
+            let P = G;
 
             function slotTime(s) {
                 const h = Math.floor((s * 10) / 60), m = (s * 10) % 60;
@@ -733,10 +786,30 @@
             function getStepInfo() {
                 const v = parseFloat(document.getElementById('PriceStepInput').value) || 0;
                 const pct = document.getElementById('IsPriceStepPercentInput').checked;
-                return { val: v, abs: Math.abs(v).toFixed(2), unit: pct ? '%' : '', icon: v < 0 ? 'fa-arrow-down' : 'fa-arrow-up' };
+                const sign = v < 0 ? '-' : '+';
+                const up = v > 0;
+                return {
+                    text: sign + Math.abs(v).toFixed(2) + (pct ? '%' : ' PLN'),
+                    icon: up ? 'fa-arrow-up' : 'fa-arrow-down',
+                    up: up
+                };
+            }
+
+            // Aktualizuj kolory UI (brush dots, ikony) po zmianie palety
+            function updateTheme() {
+                document.querySelectorAll('#blockSizeGroup .btn-dot').forEach(dot => {
+                    const st = +dot.dataset.step;
+                    dot.style.background = P.c[st] || P.c[1];
+                });
+                const fillIcon = document.getElementById('fillAllIcon');
+                if (fillIcon) fillIcon.style.color = P.accent;
+
+                const summary = document.getElementById('weeklyTotal');
+                if (summary) summary.style.color = P.accent;
             }
 
             function empty() { return Array.from({ length: DAYS }, () => Array(SLOTS).fill(0)); }
+            function absVal(v) { return Math.abs(v); }
 
             // ── Init ──
             function init() {
@@ -748,7 +821,7 @@
                     try {
                         grid = JSON.parse(json);
                         if (!Array.isArray(grid) || grid.length !== DAYS) throw 0;
-                        // Backward compat: boolean[][] → number[][]
+                        // Compat: boolean[][] → number[][]
                         if (grid[0] && typeof grid[0][0] === 'boolean') {
                             grid = grid.map(day => day.map(v => v ? 1 : 0));
                         }
@@ -763,14 +836,13 @@
 
             function clampStep(bs) { return Math.max(1, Math.min(6, Math.round(bs / 10))); }
 
-            // ── Budowa tabeli (stała, 144 wierszy × 7 dni) ──
+            // ── Budowa tabeli ──
             function buildTable() {
                 const tbody = document.getElementById('sgBody');
                 tbody.innerHTML = '';
                 cells = {};
                 for (let d = 0; d < DAYS; d++) cells[d] = {};
 
-                // Wiersz sum
                 const sr = document.createElement('tr');
                 sr.className = 'day-stats-row';
                 const t0 = document.createElement('td');
@@ -787,12 +859,10 @@
                     const isHour = (s * 10) % 60 === 0;
                     const tr = document.createElement('tr');
                     if (isHour) tr.classList.add('hour-boundary');
-
                     const tc = document.createElement('td');
                     tc.className = 'tc' + (isHour ? ' hour-mark' : '');
                     tc.textContent = slotTime(s);
                     tr.appendChild(tc);
-
                     for (let d = 0; d < DAYS; d++) {
                         const td = document.createElement('td');
                         td.className = 'sg-cell';
@@ -806,116 +876,151 @@
             }
 
             // ══════════════════════════════════════════
-            // RENDERING — per-block, never merge
+            // BLOCK HELPERS
+            // ══════════════════════════════════════════
+
+            // Znajdź blok zawierający slot s.
+            // Start = jedyny slot z wartością > 0, kontynuacja = < 0.
+            function findBlockAt(d, s) {
+                const v = grid[d][s];
+                if (v === 0) return null;
+                const size = absVal(v);
+                // Cofnij do startu (wartość > 0)
+                let start = s;
+                while (start > 0 && grid[d][start] < 0) start--;
+                // Policz długość od startu
+                let len = 1;
+                while (start + len < SLOTS && grid[d][start + len] < 0 && absVal(grid[d][start + len]) === size) len++;
+                return { start, size: len, val: size };
+            }
+
+            // Czy da się położyć klocek od s? Wszystkie muszą być 0.
+            function canPlace(d, s) {
+                if (s + step > SLOTS) return false;
+                for (let i = 0; i < step; i++) {
+                    if (grid[d][s + i] !== 0) return false;
+                }
+                return true;
+            }
+
+            // Połóż klocek: start = +step, reszta = -step
+            function placeBlock(d, s) {
+                grid[d][s] = step;
+                for (let i = 1; i < step; i++) grid[d][s + i] = -step;
+            }
+
+            // Usuń CAŁY klocek atomowo
+            function eraseBlock(d, s) {
+                const blk = findBlockAt(d, s);
+                if (!blk) return;
+                for (let i = 0; i < blk.size; i++) grid[d][blk.start + i] = 0;
+            }
+
+            // ══════════════════════════════════════════
+            // RENDERING
             //
-            // Każdy namalowany klocek (val slotów) to osobna
-            // jednostka wizualna. Sąsiednie klocki NIE łączą się.
-            // 1 blok = 1 wykonanie zmiany ceny.
+            // Szuka slotów z val > 0 (starty bloków), czyta rozmiar,
+            // renderuje komórki ze spójnym kolorem i borderami
+            // ustawianymi via JS = eliminacja cięć w środku.
             // ══════════════════════════════════════════
             function refresh() {
                 const si = getStepInfo();
+                P = si.up ? R : G;  // Paleta zależy od znaku kroku
                 let weekBlocks = 0;
                 const dayBlocks = Array(DAYS).fill(0);
 
                 for (let d = 0; d < DAYS; d++) {
-                    // 1) Wyczyść cały dzień
                     for (let s = 0; s < SLOTS; s++) {
                         const td = cells[d][s];
                         td.className = 'sg-cell';
                         td.innerHTML = '';
-                        td.style.backgroundColor = '';
+                        td.style.cssText = '';
                     }
 
-                    // 2) Renderuj poszczególne klocki
                     let s = 0;
                     while (s < SLOTS) {
-                        const val = grid[d][s];
-                        if (val === 0) { s++; continue; }
+                        const v = grid[d][s];
+                        if (v <= 0) { s++; continue; }
 
-                        // Sprawdź czy mamy kompletny blok rozmiaru val
-                        let blockLen = val;
-                        let complete = true;
-                        if (s + val > SLOTS) {
-                            complete = false;
-                            blockLen = SLOTS - s;
-                        } else {
-                            for (let i = 1; i < val; i++) {
-                                if (grid[d][s + i] !== val) { complete = false; blockLen = i; break; }
-                            }
-                        }
+                        const size = v;
+                        let len = 1;
+                        while (s + len < SLOTS && grid[d][s + len] === -size) len++;
 
-                        // Niepełny blok → renderuj sam slot jako single, idź dalej o 1
-                        if (!complete) {
-                            const cell = cells[d][s];
-                            cell.classList.add('on', 'blk-single');
-                            cell.style.backgroundColor = COLORS[val] || COLORS[1];
-                            cell.innerHTML = mkLabel(si, slotTime(s));
-                            dayBlocks[d]++;
-                            weekBlocks++;
-                            s++;
-                            continue;
-                        }
-
-                        // Kompletny blok — renderuj jako 1 jednostkę
-                        const color = COLORS[val] || COLORS[1];
+                        const color = P.c[size] || P.c[1];
+                        const colorHi = P.hi[size] || P.hi[1];
+                        const colorLo = P.lo[size] || P.lo[1];
                         const timeFrom = slotTime(s);
-                        const timeTo = slotTime(s + val);
                         dayBlocks[d]++;
                         weekBlocks++;
-
-                        for (let i = 0; i < val; i++) {
+                        for (let i = 0; i < len; i++) {
                             const cell = cells[d][s + i];
                             cell.classList.add('on');
-                            cell.style.backgroundColor = color;
 
-                            if (val === 1) {
+                            let css = 'background:' + color + ';';
+                            // Kolorujemy istniejącą ramkę (nie ruszamy grubości!)
+                            css += 'border-color:' + color + ';';
+
+                            let shadows = [];
+
+                            if (len === 1) {
                                 cell.classList.add('blk-single');
+                                shadows.push('inset 0 2px 0 0 ' + colorHi);
+                                shadows.push('inset 0 -2px 0 0 ' + colorLo);
                                 cell.innerHTML = mkLabel(si, timeFrom);
                             } else if (i === 0) {
                                 cell.classList.add('blk-start');
-                                cell.innerHTML = mkLabel(si, timeFrom + '–' + timeTo);
-                            } else if (i === val - 1) {
+                                shadows.push('inset 0 2px 0 0 ' + colorHi);
+                                cell.innerHTML = mkLabel(si, timeFrom);
+                            } else if (i === len - 1) {
                                 cell.classList.add('blk-end');
+                                shadows.push('inset 0 -2px 0 0 ' + colorLo);
                             } else {
                                 cell.classList.add('blk-mid');
                             }
+
+                            // Aplikujemy cienie dla wypukłości
+                            if (shadows.length > 0) {
+                                css += 'box-shadow:' + shadows.join(', ') + ';';
+                            }
+                            
+                            cell.style.cssText = css;
                         }
-                        s += val;
+                        s += len;
                     }
                 }
 
-                // Stats — liczymy bloki (= wykonania), nie sloty
                 document.getElementById('weeklyTotal').textContent = weekBlocks;
                 for (let d = 0; d < DAYS; d++) {
                     const el = document.getElementById('ds-' + d);
                     if (el) {
                         el.innerHTML = dayBlocks[d] > 0
-                            ? '<span style="color:#27ae60;font-weight:700;">' + dayBlocks[d] + '</span>'
+                            ? '<span style="color:' + P.accent + ';font-weight:700;">' + dayBlocks[d] + '</span>'
                             : '<span style="color:#d0d2d8;">0</span>';
                     }
                 }
+                updateTheme();
                 sync();
                 showPreview();
             }
 
             function mkLabel(si, timeStr) {
-                return '<div class="blk-lbl"><i class="fas ' + si.icon + '"></i> ' + si.abs + si.unit + ' · ' + timeStr + '</div>';
+                return '<div class="blk-lbl">'
+                    + '<span class="blk-lbl-left"><i class="fas ' + si.icon + '"></i> ' + si.text + '</span>'
+                    + '<span class="blk-lbl-right">Wykonanie ' + timeStr + '</span>'
+                    + '</div>';
             }
 
             // ══════════════════════════════════════════
             // HOVER PREVIEW
+            //
+            // Na pustym: zielony ghost klocka (czerwony jeśli nie zmieści się).
+            // Na zajętym: erase preview TYLKO z shiftem.
             // ══════════════════════════════════════════
             function clearPreview() {
-                for (const { d, s, origBg } of pvCells) {
-                    const cell = cells[d][s];
-                    // Usuń klasy preview
-                    cell.classList.remove('pv', 'pv-paint', 'pv-erase', 'pv-start', 'pv-end', 'pv-mid', 'pv-single');
-                    // Przywróć tło (jeśli nie jest aktywna — refresh je ustawił)
-                    if (grid[d][s] === 0) {
-                        cell.style.backgroundColor = '';
-                    } else {
-                        cell.style.backgroundColor = origBg;
-                    }
+                for (const item of pvCells) {
+                    const cell = cells[item.d][item.s];
+                    cell.classList.remove('pv-paint', 'pv-blocked', 'pv-erase', 'pv-start', 'pv-end', 'pv-mid', 'pv-single');
+                    cell.style.cssText = item.origStyle;
                 }
                 pvCells = [];
             }
@@ -924,73 +1029,99 @@
                 clearPreview();
                 if (hvD < 0 || hvS < 0 || isDragging) return;
 
-                // Czy kursor jest na aktywnym slocie? → tryb usuwania (gumka)
-                const isErase = grid[hvD][hvS] > 0;
-                const count = Math.min(step, SLOTS - hvS);
+                const slotVal = grid[hvD][hvS];
 
-                for (let i = 0; i < count; i++) {
-                    const s = hvS + i;
-                    const cell = cells[hvD][s];
-                    const origBg = cell.style.backgroundColor;
-                    pvCells.push({ d: hvD, s, origBg });
+                if (slotVal !== 0) {
+                    // Na zajętym — erase preview TYLKO gdy shift trzymany
+                    if (!shiftHeld) return;
 
-                    cell.classList.add('pv');
-
-                    if (isErase) {
+                    const blk = findBlockAt(hvD, hvS);
+                    if (!blk) return;
+                    for (let i = 0; i < blk.size; i++) {
+                        const s = blk.start + i;
+                        const cell = cells[hvD][s];
+                        pvCells.push({ d: hvD, s, origStyle: cell.style.cssText });
                         cell.classList.add('pv-erase');
-                    } else {
-                        cell.classList.add('pv-paint');
-                        if (grid[hvD][s] === 0) {
-                            cell.style.backgroundColor = PV_PAINT[step] || PV_PAINT[1];
+                    }
+                } else {
+                    // Na pustym — preview kładzenia
+                    const fits = canPlace(hvD, hvS);
+                    const pvClass = fits ? 'pv-paint' : 'pv-blocked';
+                    const count = Math.min(step, SLOTS - hvS);
+                    const bdr = P.pvBorder;
+
+                    for (let i = 0; i < count; i++) {
+                        const s = hvS + i;
+                        if (grid[hvD][s] !== 0) break;
+
+                        const cell = cells[hvD][s];
+                        pvCells.push({ d: hvD, s, origStyle: cell.style.cssText });
+                        cell.classList.add(pvClass);
+
+                        const pvColor = fits
+                            ? (P.pv[step] || P.pv[1])
+                            : 'rgba(100,100,100,0.08)';
+                        cell.style.backgroundColor = pvColor;
+
+                        // Kształt + bordery via JS (kolor z palety)
+                        const isLast = (i === count - 1) || (s + 1 < SLOTS && grid[hvD][s + 1] !== 0);
+                       if (fits) {
+                            // Tyko zmiana koloru ramki
+                            cell.style.borderColor = bdr;
+                            let shadows = [];
+
+                            if (count === 1 || (i === 0 && isLast)) {
+                                cell.classList.add('pv-single');
+                                shadows.push('inset 0 2px 0 0 ' + bdr, 'inset 0 -2px 0 0 ' + bdr);
+                            } else if (i === 0) {
+                                cell.classList.add('pv-start');
+                                shadows.push('inset 0 2px 0 0 ' + bdr);
+                            } else if (isLast) {
+                                cell.classList.add('pv-end');
+                                shadows.push('inset 0 -2px 0 0 ' + bdr);
+                            } else {
+                                cell.classList.add('pv-mid');
+                            }
+
+                            if (shadows.length > 0) {
+                                cell.style.boxShadow = shadows.join(', ');
+                            }
+                        } else {
+                            // pv-blocked — handled via CSS
+                            const isLast2 = isLast;
+                            if (count === 1 || (i === 0 && isLast2)) cell.classList.add('pv-single');
+                            else if (i === 0) cell.classList.add('pv-start');
+                            else if (isLast2) cell.classList.add('pv-end');
+                            else cell.classList.add('pv-mid');
                         }
+                        if (isLast && i < count - 1) break;
                     }
-
-                    // Kształt bloku preview
-                    if (count === 1) {
-                        cell.classList.add('pv-single');
-                    } else if (i === 0) {
-                        cell.classList.add('pv-start');
-                    } else if (i === count - 1) {
-                        cell.classList.add('pv-end');
-                    } else {
-                        cell.classList.add('pv-mid');
-                    }
-                }
-            }
-
-            // ══════════════════════════════════════════
-            // MALOWANIE (pędzel)
-            //
-            // paint() stampuje 1 klocek (step slotów) od pozycji s.
-            // shouldPaint() decyduje czy kursor wymaga nowego stampa
-            // — jeśli slot pod kursorem jest już namalowany tym samym
-            //   pędzlem, pomijamy (klocki się nie nakładają).
-            // ══════════════════════════════════════════
-            function paint(d, s) {
-                const count = Math.min(step, SLOTS - s);
-                if (dragMode === 'on') {
-                    for (let i = 0; i < count; i++) grid[d][s + i] = step;
-                } else {
-                    for (let i = 0; i < count; i++) grid[d][s + i] = 0;
-                }
-            }
-
-            function shouldPaint(d, s) {
-                if (dragMode === 'on') {
-                    // Jeśli slot jest pusty → maluj. Jeśli już zajęty → pomijaj
-                    // (kursor jest wewnątrz istniejącego klocka).
-                    return grid[d][s] === 0;
-                } else {
-                    // Gumka: jeśli slot jest aktywny → wymazuj
-                    return grid[d][s] > 0;
                 }
             }
 
             // ══════════════════════════════════════════
             // EVENTS
+            //
+            // Klik na puste = kładź (jeśli zmieści się).
+            // Shift+klik = usuń cały klocek atomowo.
+            // Drag kontynuuje wybrany tryb.
             // ══════════════════════════════════════════
             function bindEvents() {
                 const tbody = document.getElementById('sgBody');
+
+                // Track shift key state
+                document.addEventListener('keydown', e => {
+                    if (e.key === 'Shift' && !shiftHeld) {
+                        shiftHeld = true;
+                        showPreview();
+                    }
+                });
+                document.addEventListener('keyup', e => {
+                    if (e.key === 'Shift' && shiftHeld) {
+                        shiftHeld = false;
+                        showPreview();
+                    }
+                });
 
                 function info(el) {
                     const td = el.closest('.sg-cell');
@@ -1006,8 +1137,12 @@
                         const key = c.d + '-' + c.s;
                         if (key === lastKey) return;
                         lastKey = key;
-                        if (shouldPaint(c.d, c.s)) {
-                            paint(c.d, c.s);
+
+                        if (dragMode === 'on' && grid[c.d][c.s] === 0 && canPlace(c.d, c.s)) {
+                            placeBlock(c.d, c.s);
+                            refresh();
+                        } else if (dragMode === 'off' && grid[c.d][c.s] !== 0) {
+                            eraseBlock(c.d, c.s);
                             refresh();
                         }
                     } else {
@@ -1021,23 +1156,33 @@
                     clearPreview();
                 });
 
-                // ── Mouse paint ──
+                // ── Mouse ──
                 tbody.addEventListener('mousedown', e => {
                     const c = info(e.target);
                     if (!c) return;
                     e.preventDefault();
-                    isDragging = true;
                     clearPreview();
-                    dragMode = (e.shiftKey || grid[c.d][c.s] > 0) ? 'off' : 'on';
-                    paint(c.d, c.s);
-                    refresh();
-                    lastKey = c.d + '-' + c.s;
+
+                    if (e.shiftKey && grid[c.d][c.s] !== 0) {
+                        // Shift + zajęty = kasuj cały klocek
+                        isDragging = true;
+                        dragMode = 'off';
+                        eraseBlock(c.d, c.s);
+                        refresh();
+                        lastKey = c.d + '-' + c.s;
+                    } else if (!e.shiftKey && grid[c.d][c.s] === 0 && canPlace(c.d, c.s)) {
+                        // Bez shift + puste = kładź
+                        isDragging = true;
+                        dragMode = 'on';
+                        placeBlock(c.d, c.s);
+                        refresh();
+                        lastKey = c.d + '-' + c.s;
+                    }
                 });
 
                 document.addEventListener('mouseup', e => {
                     if (!isDragging) return;
                     isDragging = false;
-                    // Restore hover at current mouse position
                     const el = document.elementFromPoint(e.clientX, e.clientY);
                     if (el) {
                         const c = info(el);
@@ -1046,17 +1191,25 @@
                     refresh();
                 });
 
-                // ── Touch ──
+                // ── Touch (na mobile brak shift → tap na zajętym = kasuj) ──
                 tbody.addEventListener('touchstart', e => {
                     const t = e.touches[0];
                     const td = document.elementFromPoint(t.clientX, t.clientY)?.closest('.sg-cell');
                     if (!td) return;
                     e.preventDefault();
-                    isDragging = true;
                     const d = +td.dataset.d, s = +td.dataset.s;
-                    dragMode = grid[d][s] > 0 ? 'off' : 'on';
-                    paint(d, s);
-                    refresh();
+
+                    if (grid[d][s] !== 0) {
+                        isDragging = true;
+                        dragMode = 'off';
+                        eraseBlock(d, s);
+                        refresh();
+                    } else if (canPlace(d, s)) {
+                        isDragging = true;
+                        dragMode = 'on';
+                        placeBlock(d, s);
+                        refresh();
+                    }
                     lastKey = d + '-' + s;
                 }, { passive: false });
 
@@ -1070,8 +1223,12 @@
                     const key = d + '-' + s;
                     if (key === lastKey) return;
                     lastKey = key;
-                    if (shouldPaint(d, s)) {
-                        paint(d, s);
+
+                    if (dragMode === 'on' && grid[d][s] === 0 && canPlace(d, s)) {
+                        placeBlock(d, s);
+                        refresh();
+                    } else if (dragMode === 'off' && grid[d][s] !== 0) {
+                        eraseBlock(d, s);
                         refresh();
                     }
                 }, { passive: false });
@@ -1091,7 +1248,6 @@
                         blockSize = +this.dataset.block;
                         step = clampStep(blockSize);
                         document.getElementById('PreferredBlockSizeInput').value = blockSize;
-                        // Tylko zmień pędzel — NIE modyfikuj istniejących bloków
                         showPreview();
                     });
                 });
@@ -1100,7 +1256,13 @@
             function sync() { document.getElementById('ScheduleJsonInput').value = JSON.stringify(grid); }
 
             function fillAll() {
-                grid = Array.from({ length: DAYS }, () => Array(SLOTS).fill(step));
+                grid = empty();
+                for (let d = 0; d < DAYS; d++) {
+                    for (let s = 0; s + step <= SLOTS; s += step) {
+                        grid[d][s] = step;
+                        for (let i = 1; i < step; i++) grid[d][s + i] = -step;
+                    }
+                }
                 refresh();
             }
             function clearAll() { grid = empty(); refresh(); }

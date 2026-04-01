@@ -75,7 +75,6 @@ namespace PriceSafari.IntervalPriceChanger.Models
         // ═══════════════════════════════════════════════════════
         // HARMONOGRAM — HELPERY
         // ═══════════════════════════════════════════════════════
-
         [NotMapped]
         public int ActiveSlotsCount
         {
@@ -86,7 +85,7 @@ namespace PriceSafari.IntervalPriceChanger.Models
                 {
                     var schedule = System.Text.Json.JsonSerializer.Deserialize<int[][]>(ScheduleJson);
                     if (schedule == null) return 0;
-                    return schedule.Sum(day => day?.Count(s => s > 0) ?? 0);
+                    return schedule.Sum(day => day?.Count(s => s != 0) ?? 0);
                 }
                 catch { return 0; }
             }
@@ -102,7 +101,7 @@ namespace PriceSafari.IntervalPriceChanger.Models
                 if (schedule.Length <= dayOfWeek) return false;
                 var daySlots = schedule[dayOfWeek];
                 if (daySlots == null || slotIndex < 0 || slotIndex >= daySlots.Length) return false;
-                return daySlots[slotIndex] > 0;
+                return daySlots[slotIndex] != 0;
             }
             catch { return false; }
         }

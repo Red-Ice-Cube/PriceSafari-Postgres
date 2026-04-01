@@ -380,13 +380,12 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
                 foreach (var day in schedule)
                 {
                     if (day == null || day.Length != 144) return false;
-                    if (day.Any(v => v < 0 || v > 6)) return false;
+                    if (day.Any(v => v < -6 || v > 6)) return false;
                 }
                 return true;
             }
             catch { return false; }
         }
-
         // ═══════════════════════════════════════════════════════
         // DTOs
         // ═══════════════════════════════════════════════════════
