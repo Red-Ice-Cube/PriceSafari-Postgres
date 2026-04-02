@@ -15,10 +15,12 @@ namespace PriceSafari.Controllers.ManagerControllers
     public class DatabaseSizeController : Controller
     {
         private readonly PriceSafariContext _context;
+        private readonly string _connectionString;
 
-        public DatabaseSizeController(PriceSafariContext context)
+        public DatabaseSizeController(PriceSafariContext context, IConfiguration configuration)
         {
             _context = context;
+            _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
 
         public async Task<IActionResult> Index()
@@ -288,36 +290,31 @@ namespace PriceSafari.Controllers.ManagerControllers
             return Json(result);
         }
 
-        // 2. Akcja VACUUM na wybranej tabeli
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> VacuumTable(string tableName, bool full = false)
         {
-            // Walidacja — tylko znane tabele (ochrona przed SQL injection)
-            var allowedTables = new HashSet<string>
-    {
-        "PriceHistories", "AllegroPriceHistories", "Products", "CoOfrs",
-        "CoOfrPriceHistories", "AllegroScrapedOffers", "AllegroPriceBridgeItems",
-        "AllegroPriceBridgeBatches", "AllegroProducts", "ProductFlags",
-        "AutomationProductAssignments", "PriceHistoryExtendedInfos",
-        "AllegroPriceHistoryExtendedInfos", "AllegroOffersToScrape",
-        "ProductMaps", "ScrapHistories", "GlobalPriceReports",
-        "PriceSafariReports", "CompetitorPresets", "CompetitorPresetItems",
-        "PriceBridgeItems", "PriceBridgeBatches"
-    };
+            // Walidacja — pobierz listę tabel dynamicznie zamiast hardcodować
+            var existingTables = new HashSet<string>();
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != ConnectionState.Open) await connection.OpenAsync();
 
-            if (!allowedTables.Contains(tableName))
+            using (var checkCmd = connection.CreateCommand())
             {
-                return BadRequest($"Tabela '{tableName}' nie jest dozwolona.");
+                checkCmd.CommandText = "SELECT relname FROM pg_stat_user_tables WHERE schemaname = 'public'";
+                using var reader = await checkCmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    existingTables.Add(reader.GetString(0));
+            }
+
+            if (!existingTables.Contains(tableName))
+            {
+                return Json(new { success = false, message = $"Tabela '{tableName}' nie istnieje." });
             }
 
             try
             {
-                var connection = _context.Database.GetDbConnection();
-                if (connection.State != ConnectionState.Open) await connection.OpenAsync();
-
-                // VACUUM musi być poza transakcją — użyj oddzielnego połączenia
-                using var vacuumConn = new Npgsql.NpgsqlConnection(connection.ConnectionString);
+                using var vacuumConn = new Npgsql.NpgsqlConnection(_connectionString);
                 await vacuumConn.OpenAsync();
 
                 var sql = full
@@ -325,10 +322,10 @@ namespace PriceSafari.Controllers.ManagerControllers
                     : $"VACUUM ANALYZE \"{tableName}\"";
 
                 using var cmd = new Npgsql.NpgsqlCommand(sql, vacuumConn);
-                cmd.CommandTimeout = 600; // 10 minut na VACUUM FULL
+                cmd.CommandTimeout = 600;
                 await cmd.ExecuteNonQueryAsync();
 
-                return Json(new { success = true, message = $"VACUUM {(full ? "FULL " : "")}ANALYZE na tabeli \"{tableName}\" zakończony pomyślnie." });
+                return Json(new { success = true, message = $"VACUUM {(full ? "FULL " : "")}ANALYZE na \"{tableName}\" zakończony." });
             }
             catch (Exception ex)
             {

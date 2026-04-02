@@ -45,7 +45,7 @@ public class Program
 
         // Zmieniamy 'Data Source' na 'Host' oraz 'Uid' na 'Username'
         var connectionString = $"Host={dbServer};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};Include Error Detail=true";
-
+        builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
         //builder.Services.AddDbContext<PriceSafariContext>(options =>
         //   options.UseSqlServer(connectionString, sqlServerOptions =>
         //   {
