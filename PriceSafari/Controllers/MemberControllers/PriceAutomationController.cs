@@ -70,6 +70,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 await _automationService.PrepareMarketplaceData(rule, model);
             }
 
+            ViewBag.HasIntervalRules = await _context.IntervalPriceRules
+            .AnyAsync(r => r.AutomationRuleId == rule.Id);
+
             return View("~/Views/Panel/PriceAutomation/Details.cshtml", model);
         }
 

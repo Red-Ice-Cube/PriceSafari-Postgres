@@ -2316,189 +2316,367 @@ else
             }
         };
     </script>
-    <script>
-                const storeId = @Model.StoreId;
-                const currentRuleId = @Model.RuleId;
+   <script>
+    const storeId = @Model.StoreId;
+    const currentRuleId = @Model.RuleId;
 
-                const isAllegroContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
-                const sourceTypeInt = isAllegroContext ? 1 : 0;
-        const flags = @Html.Raw(Json.Serialize(Model.AvailableStoreFlags ?? new List<FlagViewModel>()));
-                const massActions = new window.MassActions({
-                    storeId: storeId,
-                    isAllegro: isAllegroContext, 
+    const isAllegroContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
+    const sourceTypeInt = isAllegroContext ? 1 : 0;
+    const flags = @Html.Raw(Json.Serialize(Model.AvailableStoreFlags ?? new List<FlagViewModel>()));
 
-                    storageKey: `automationDetails_selected_${currentRuleId}_${storeId}`, 
+    // ═══════════════════════════════════════════════════════
+    // EXTRA ACTIONS — Interwały Cenowe (warunkowo)
+    // ═══════════════════════════════════════════════════════
+     const extraActionsConfig = [];
 
-                    flags: typeof flags !== 'undefined' ? flags : [], 
+        // ═══════════════════════════════════════════════════════
+        // INTERWAŁY — Modal HTML + Rendering
+        // ═══════════════════════════════════════════════════════
+        const _intervalModalHtml = [
+            '<div id="intervalSelectionModal" class="modal fade" tabindex="-1" style="z-index:1060;">',
+            '<div class="modal-dialog modal-lg"><div class="modal-content" style="border-radius:10px; overflow:hidden;">',
+            '<div class="modal-header"><div class="price-box-column-name">Zarządzaj interwałami cenowymi</div>',
+            '<button type="button" class="close" data-dismiss="modal"><span>\u00D7</span></button></div>',
+            '<div class="modal-body" style="padding:20px;">',
+            '<p style="color:#666; margin-bottom:16px;">Przypisz lub odepnij zaznaczone produkty (<strong><span id="intervalProductCountDisplay">0</span></strong>) z interwału cenowego tego automatu.</p>',
+            '<div id="intervalRulesListContainer"></div>',
+            '</div><div class="modal-footer"><button type="button" class="Button-Page-Small-r" data-dismiss="modal">Anuluj</button></div>',
+            '</div></div></div>'
+        ].join('');
 
-                    getAllPrices: function() {
-                        return Array.from(document.querySelectorAll('#automationTable tbody tr')).map(row => {
-                            const btn = row.querySelector('.select-product-btn');
-                            if(!btn) return null;
-                            return {
-                                productId: btn.dataset.productId,
-                                productName: btn.dataset.productName,
+        function _renderIntervalList(intervals, ctx) {
+            var container = document.getElementById('intervalRulesListContainer');
+            container.innerHTML = '';
 
-                                identifierText: btn.dataset.identifier 
-                            };
-                        }).filter(Boolean);
-                    },
-                    getFilteredPrices: function() {
-                        return Array.from(document.querySelectorAll('#automationTable tbody tr'))
-                            .filter(row => row.style.display !== 'none' && !row.classList.contains('filter-hidden'))
-                            .map(row => {
-                                const btn = row.querySelector('.select-product-btn');
-                                if(!btn) return null;
-                                return {
-                                    productId: btn.dataset.productId,
-                                    productName: btn.dataset.productName,
-                                    identifierText: btn.dataset.identifier
-                                };
-                            }).filter(Boolean);
-                    },
-                    getProductIdentifier: function(product) {
-                        return { label: 'ID/EAN', value: product.identifierText };
-                    },
-                    showLoading: showLoading,
-                    hideLoading: hideLoading,
+            if (!intervals || intervals.length === 0) {
+                container.innerHTML = '<div class="alert alert-warning text-center">Brak interwałów.'
+                    + ' <a href="/IntervalPrice/Create?automationRuleId=' + currentRuleId + '">Utwórz nowy</a>.</div>';
+                return;
+            }
 
-                    showGlobalUpdate: function(msg) { alert("Sukces: Zaktualizowano pomyślnie."); },
-                    showGlobalNotification: function(msg) { alert("Powiadomienie: " + msg); },
-                    onFlagsUpdated: () => location.reload(), 
+            // ── Oblicz statystyki ──
+            var totalAssignedInSelection = 0;
+            intervals.forEach(function (iv) { totalAssignedInSelection += (iv.matchingCount || 0); });
+            var totalUnassigned = ctx.count - totalAssignedInSelection;
 
-                    onAutomationsUpdated: () => location.reload() 
+            // ── Nagłówek statystyk ──
+            var statsHeader = document.createElement('div');
+            statsHeader.style.cssText = 'background-color:#f8f9fa; border:1px solid #e3e6f0; border-radius:8px; padding:15px; margin-bottom:20px; display:flex; justify-content:space-around; align-items:center; text-align:center;';
+            statsHeader.innerHTML =
+                '<div>'
+                + '<div style="font-size:11px; color:#858796; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Zaznaczonych</div>'
+                + '<div style="font-size:20px; font-weight:700; color:#5a5c69;">' + ctx.count + '</div>'
+                + '</div>'
+                + '<div style="border-left:1px solid #e3e6f0; height:30px;"></div>'
+                + '<div>'
+                + '<div style="font-size:11px; color:#e67e22; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">W interwałach</div>'
+                + '<div style="font-size:20px; font-weight:700; color:#e67e22;">' + totalAssignedInSelection + '</div>'
+                + '</div>'
+                + '<div style="border-left:1px solid #e3e6f0; height:30px;"></div>'
+                + '<div>'
+                + '<div style="font-size:11px; color:#858796; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Bez interwału</div>'
+                + '<div style="font-size:20px; font-weight:700; color:#858796;">' + Math.max(0, totalUnassigned) + '</div>'
+                + '</div>';
+            container.appendChild(statsHeader);
 
+            // ── Opcja: Odepnij z interwałów ──
+            var hasAssignments = totalAssignedInSelection > 0;
+            var unassignDiv = document.createElement('div');
+            unassignDiv.style.cssText =
+                'border:1px dashed ' + (hasAssignments ? '#e74a3b' : '#ccc') + '; '
+                + 'border-radius:8px; padding:10px 15px; '
+                + 'cursor:' + (hasAssignments ? 'pointer' : 'default') + '; '
+                + 'background-color:#fff; display:flex; justify-content:space-between; align-items:center; '
+                + 'transition:background-color 0.2s; margin-bottom:20px; opacity:' + (hasAssignments ? '1' : '0.6') + ';';
+
+            if (hasAssignments) {
+                unassignDiv.onmouseover = function () { unassignDiv.style.backgroundColor = '#fff5f5'; };
+                unassignDiv.onmouseout = function () { unassignDiv.style.backgroundColor = '#fff'; };
+                unassignDiv.addEventListener('click', function () {
+                    _executeIntervalUnassign(intervals, ctx);
+                });
+            }
+
+            unassignDiv.innerHTML =
+                '<div style="display:flex; align-items:center; gap:15px;">'
+                + '<div style="width:6px; height:45px; background-color:' + (hasAssignments ? '#e74a3b' : '#ccc') + '; border-radius:3px;"></div>'
+                + '<div>'
+                + '<div style="font-weight:600; font-size:15px; color:' + (hasAssignments ? '#e74a3b' : '#888') + ';">Odepnij z interwałów</div>'
+                + '<div style="font-size:13px; color:#666; margin-top:2px;">'
+                + (hasAssignments
+                    ? 'Odepnij <strong>' + totalAssignedInSelection + '</strong> zaznaczonych produktów z ich interwałów.'
+                    : 'Żaden z zaznaczonych produktów nie jest przypisany do interwału.')
+                + '</div></div></div>'
+                + '<button class="Button-Page-Small-r" type="button" style="pointer-events:none;'
+                + (!hasAssignments ? ' background-color:#ccc; border-color:#ccc;' : '') + '">Odepnij</button>';
+            container.appendChild(unassignDiv);
+
+            // ── Karty interwałów (przypisywanie) ──
+            intervals.forEach(function (interval) {
+                var statusColor = interval.isActive ? '#1cc88a' : '#e74a3b';
+                var alreadyIn = interval.matchingCount || 0;
+                var toBeAdded = ctx.count - alreadyIn;
+                var stepSign = interval.priceStep < 0 ? '' : '+';
+                var stepText = stepSign + interval.priceStep.toFixed(2) + (interval.isPriceStepPercent ? '%' : ' PLN');
+                var stepColor = interval.priceStep < 0 ? '#27ae60' : '#e74a3b';
+                var stepIcon = interval.priceStep < 0 ? 'fa-arrow-down' : 'fa-arrow-up';
+
+                var backgroundStyle = alreadyIn > 0 ? '#fcfcfc' : '#fff';
+
+                var div = document.createElement('div');
+                div.style.cssText = 'border:1px solid #e3e6f0; border-radius:8px; padding:14px 18px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; transition:all 0.2s; background:' + backgroundStyle + ';';
+                div.onmouseover = function () { div.style.borderColor = interval.colorHex; div.style.backgroundColor = '#fafbfc'; };
+                div.onmouseout = function () { div.style.borderColor = '#e3e6f0'; div.style.backgroundColor = backgroundStyle; };
+
+                div.innerHTML =
+                    '<div style="display:flex; align-items:center; gap:14px; flex-grow:1;">'
+                    + '<div style="width:5px; height:50px; background:' + interval.colorHex + '; border-radius:3px;"></div>'
+                    + '<div style="flex-grow:1;">'
+                    + '<div style="display:flex; gap:12px; align-items:center;">'
+                    + '<div style="font-weight:600; font-size:15px; color:#333;">' + interval.name + '</div>'
+                    + '<div style="font-size:12px; display:flex; align-items:center; gap:6px;">'
+                    + '<span style="color:' + stepColor + '; font-weight:600;"><i class="fas ' + stepIcon + '" style="margin-right:3px;"></i>' + stepText + '</span>'
+                    + '<span style="color:#e3e6f0;">|</span>'
+                    + '<span style="color:' + statusColor + '; font-weight:500;">' + (interval.isActive ? 'Aktywny' : 'Wyłączony') + '</span>'
+                    + '</div></div>'
+                    + '<div style="display:flex; gap:15px; margin-top:6px; font-size:12px; color:#666;">'
+                    + '<span><i class="fas fa-database" style="color:#999; margin-right:4px;"></i>W interwale: <strong>' + interval.totalAssigned + '</strong></span>'
+                    + '<span style="color:#e3e6f0;">|</span>'
+                    + '<span><i class="fas fa-check-double" style="color:#999; margin-right:4px;"></i>Z wybranych: <strong>' + alreadyIn + '</strong></span>'
+                    + '<span style="color:#e3e6f0;">|</span>'
+                    + '<span>Nowych: <strong style="color:#1cc88a;">+' + Math.max(0, toBeAdded) + '</strong></span>'
+                    + '</div></div></div>'
+                    + '<button class="Button-Page-Small-bl" style="pointer-events:none; white-space:nowrap; padding:5px 15px;">Przypisz</button>';
+
+                div.addEventListener('click', function () {
+                    _executeIntervalAssign(interval.id, ctx);
                 });
 
-                document.addEventListener("DOMContentLoaded", function () {
-                massActions.init();
-                });
-
-                function showNoAccessAlert() {
-                    alert('@Html.Raw(noAccessMessage)');
-                }
-
-                function showLoading() { $('#loadingOverlay').css('display', 'flex'); }
-                function hideLoading() { $('#loadingOverlay').hide(); }
-
-                $(document).ready(function() {
-
-        $(document).on('click', '.select-product-btn', function(e) {
-        e.stopPropagation();
-        const btn = $(this);
-        const pid = btn.data('product-id').toString();
-
-        massActions.toggleProduct(pid);
-
-        if (massActions.isSelected(pid)) {
-        btn.text('Wybrano').addClass('selected');
-        } else {
-        btn.text('Zaznacz').removeClass('selected');
+                container.appendChild(div);
+            });
         }
-        });
 
+        // ── Assign ──
+        function _executeIntervalAssign(intervalId, ctx) {
+            $('#intervalSelectionModal').modal('hide');
+            ctx.showLoading();
 
-            $(document).on('click', '#openBulkAutomationModalBtn', function() {
-                if (selectedProductIds.size === 0) {
-                    alert('Nie zaznaczono żadnych produktów.');
-                    return;
+            fetch('/IntervalPrice/AssignProducts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ intervalRuleId: intervalId, productIds: ctx.selectedIds })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                ctx.hideLoading();
+                if (data.success) {
+                    ctx.askContinueOrFinish(function () { location.reload(); });
+                } else {
+                    alert('Błąd: ' + (data.message || 'Nieznany'));
+                    $('#intervalSelectionModal').modal('show');
                 }
+            })
+            .catch(function () {
+                ctx.hideLoading();
+                alert('Błąd komunikacji.');
+                $('#intervalSelectionModal').modal('show');
+            });
+        }
 
-                $('#selectedProductsModal').modal('hide');
-                showLoading();
+        // ── Unassign ──
+        function _executeIntervalUnassign(intervals, ctx) {
+            // Zbierz ID wszystkich interwałów tego automatu i odepnij po kolei
+            $('#intervalSelectionModal').modal('hide');
+            ctx.showLoading();
 
-                const productIdsArray = Array.from(selectedProductIds).map(id => parseInt(id));
-
-                fetch(`/AutomationRules/GetRulesStatusForProducts`, {
+            var promises = intervals.map(function (iv) {
+                if ((iv.matchingCount || 0) === 0) return Promise.resolve({ success: true, removed: 0 });
+                return fetch('/IntervalPrice/UnassignProducts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        StoreId: storeId,
-                        SourceType: sourceTypeInt,
-                        IsAllegro: isAllegroContext,
-                        ProductIds: productIdsArray
-                    })
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error("Błąd sieci");
-                    return response.json();
-                })
-                .then(rules => {
-                    renderAutomationRulesInModal(rules, selectedProductIds.size);
-                    hideLoading();
-                    $('#automationSelectionModal').modal('show');
-                })
-                .catch(error => {
-                    console.error('Błąd pobierania reguł:', error);
-                    hideLoading();
-                    alert('Błąd komunikacji z serwerem.');
+                    body: JSON.stringify({ intervalRuleId: iv.id, productIds: ctx.selectedIds })
+                }).then(function (r) { return r.json(); });
+            });
 
-                    $('#selectedProductsModal').modal('show');
+            Promise.all(promises)
+                .then(function (results) {
+                    ctx.hideLoading();
+                    var allOk = results.every(function (r) { return r.success; });
+                    if (allOk) {
+                        ctx.askContinueOrFinish(function () { location.reload(); });
+                    } else {
+                        alert('Część operacji nie powiodła się.');
+                        location.reload();
+                    }
+                })
+                .catch(function () {
+                    ctx.hideLoading();
+                    alert('Błąd komunikacji.');
+                    $('#intervalSelectionModal').modal('show');
                 });
-            });
+        }
 
-          
-            $(document).on('click', '.edit-btn', function(e) {
-                e.preventDefault(); e.stopPropagation();
-                var wrapper = $(this).closest('.purchase-wrapper');
-                $('.edit-mode').addClass('d-none'); $('.display-mode').removeClass('d-none');
-                wrapper.find('.display-mode').addClass('d-none'); wrapper.find('.edit-mode').removeClass('d-none');
-                var inp = wrapper.find('input'); inp.val(inp.val()); inp.focus();
-            });
-            $(document).on('click', '.cancel-btn', function(e) {
-                e.preventDefault();
-                $(this).closest('.purchase-wrapper').find('.edit-mode').addClass('d-none').end().find('.display-mode').removeClass('d-none');
-            });
-            $(document).on('click', '.save-btn', function(e) {
-                e.preventDefault();
-                var wrap = $(this).closest('.purchase-wrapper');
-                var val = wrap.find('input').val().replace(',', '.');
-                if(val==='' || isNaN(val) || parseFloat(val)<0) { alert("Błędna cena."); return; }
-                sendPriceUpdate(wrap, parseFloat(val), $(this));
-            });
-            $(document).on('click', '.delete-btn-inner', function(e) {
-                e.preventDefault();
-                if(confirm("Usunąć cenę zakupu?")) sendPriceUpdate($(this).closest('.purchase-wrapper'), null, $(this));
-            });
-            $(document).on('keypress', '.price-edit-input', function(e) {
-            if(e.which == 13) { e.preventDefault(); $(this).closest('.edit-mode').find('.save-btn').click(); }
-            });
+    @{
+        bool hasIntervalRules = (bool)(ViewBag.HasIntervalRules ?? false);
+    }
 
-            
-        StateManager.restoreFiltersAndSearch();
-        StateManager.scrollToProduct();
+    @if (hasIntervalRules && canEdit)
+    {
+        <text>
+        extraActionsConfig.push({
+            id: 'intervals',
+            label: 'Interwały Cenowe',
+            icon: 'fa-clock',
+            btnStyle: 'background-color:#e67e22; border:1px solid #e67e22; color:#fff;',
+            btnHoverStyle: 'background-color:#cf6d17; border:1px solid #cf6d17; color:#fff;',
+            modalHtml: _intervalModalHtml,
+            onClick: function (ctx) {
+                document.getElementById('intervalProductCountDisplay').textContent = ctx.count;
+                document.getElementById('intervalRulesListContainer').innerHTML =
+                    '<div class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Ładowanie...</div>';
+                ctx.closeMainModal();
+
+                fetch('/IntervalPrice/GetIntervalStatusForProducts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ automationRuleId: currentRuleId, productIds: ctx.selectedIds })
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (intervals) {
+                    _renderIntervalList(intervals, ctx);
+                    $('#intervalSelectionModal').modal('show');
+                })
+                .catch(function (err) { console.error(err); alert('Błąd ładowania interwałów.'); });
+            }
+        });
+        </text>
+    
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // MASS ACTIONS — inicjalizacja
+    // ═══════════════════════════════════════════════════════
+    const massActions = new window.MassActions({
+        storeId: storeId,
+        isAllegro: isAllegroContext,
+        storageKey: `automationDetails_selected_${currentRuleId}_${storeId}`,
+        flags: typeof flags !== 'undefined' ? flags : [],
+
+        extraActions: extraActionsConfig,
+
+        getAllPrices: function() {
+            return Array.from(document.querySelectorAll('#automationTable tbody tr')).map(row => {
+                const btn = row.querySelector('.select-product-btn');
+                if(!btn) return null;
+                return {
+                    productId: btn.dataset.productId,
+                    productName: btn.dataset.productName,
+                    identifierText: btn.dataset.identifier
+                };
+            }).filter(Boolean);
+        },
+        getFilteredPrices: function() {
+            return Array.from(document.querySelectorAll('#automationTable tbody tr'))
+                .filter(row => row.style.display !== 'none' && !row.classList.contains('filter-hidden'))
+                .map(row => {
+                    const btn = row.querySelector('.select-product-btn');
+                    if(!btn) return null;
+                    return {
+                        productId: btn.dataset.productId,
+                        productName: btn.dataset.productName,
+                        identifierText: btn.dataset.identifier
+                    };
+                }).filter(Boolean);
+        },
+        getProductIdentifier: function(product) {
+            return { label: 'ID/EAN', value: product.identifierText };
+        },
+        showLoading: showLoading,
+        hideLoading: hideLoading,
+        showGlobalUpdate: function(msg) { alert("Sukces: Zaktualizowano pomyślnie."); },
+        showGlobalNotification: function(msg) { alert("Powiadomienie: " + msg); },
+        onFlagsUpdated: () => location.reload(),
+        onAutomationsUpdated: () => location.reload()
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+        massActions.init();
+    });
+
+    function showNoAccessAlert() {
+        alert('@Html.Raw(noAccessMessage)');
+    }
+
+    function showLoading() { $('#loadingOverlay').css('display', 'flex'); }
+    function hideLoading() { $('#loadingOverlay').hide(); }
+
+    $(document).ready(function() {
+
+        $(document).on('click', '.select-product-btn', function(e) {
+            e.stopPropagation();
+            const btn = $(this);
+            const pid = btn.data('product-id').toString();
+
+            massActions.toggleProduct(pid);
+
+            if (massActions.isSelected(pid)) {
+                btn.text('Wybrano').addClass('selected');
+            } else {
+                btn.text('Zaznacz').removeClass('selected');
+            }
         });
 
+        $(document).on('click', '.edit-btn', function(e) {
+            e.preventDefault(); e.stopPropagation();
+            var wrapper = $(this).closest('.purchase-wrapper');
+            $('.edit-mode').addClass('d-none'); $('.display-mode').removeClass('d-none');
+            wrapper.find('.display-mode').addClass('d-none'); wrapper.find('.edit-mode').removeClass('d-none');
+            var inp = wrapper.find('input'); inp.val(inp.val()); inp.focus();
+        });
+        $(document).on('click', '.cancel-btn', function(e) {
+            e.preventDefault();
+            $(this).closest('.purchase-wrapper').find('.edit-mode').addClass('d-none').end().find('.display-mode').removeClass('d-none');
+        });
+        $(document).on('click', '.save-btn', function(e) {
+            e.preventDefault();
+            var wrap = $(this).closest('.purchase-wrapper');
+            var val = wrap.find('input').val().replace(',', '.');
+            if(val==='' || isNaN(val) || parseFloat(val)<0) { alert("Błędna cena."); return; }
+            sendPriceUpdate(wrap, parseFloat(val), $(this));
+        });
+        $(document).on('click', '.delete-btn-inner', function(e) {
+            e.preventDefault();
+            if(confirm("Usunąć cenę zakupu?")) sendPriceUpdate($(this).closest('.purchase-wrapper'), null, $(this));
+        });
+        $(document).on('keypress', '.price-edit-input', function(e) {
+            if(e.which == 13) { e.preventDefault(); $(this).closest('.edit-mode').find('.save-btn').click(); }
+        });
 
+        StateManager.restoreFiltersAndSearch();
+        StateManager.scrollToProduct();
+    });
 
+    function sendPriceUpdate(wrapper, priceValue, btnElement) {
+        var productId = wrapper.data('id');
+        var storeId = wrapper.data('store-id');
+        var isMktStr = String(wrapper.data('is-marketplace')).toLowerCase();
+        var isMarketplaceBool = (isMktStr === 'true');
 
+        var token = $('input[name="__RequestVerificationToken"]').val();
+        if (!token) { alert("Brak tokenu CSRF."); return; }
 
-
-
-
-
-
-        function sendPriceUpdate(wrapper, priceValue, btnElement) {
-            var productId = wrapper.data('id');
-            var storeId = wrapper.data('store-id');
-            var isMktStr = String(wrapper.data('is-marketplace')).toLowerCase();
-            var isMarketplaceBool = (isMktStr === 'true');
-
-            var token = $('input[name="__RequestVerificationToken"]').val();
-            if (!token) { alert("Brak tokenu CSRF."); return; }
-
-            var url = isMarketplaceBool
+        var url = isMarketplaceBool
             ? '@Url.Action("UpdateAllegroPurchasePrice", "AllegroProduct")?storeId=' + storeId
             : '@Url.Action("UpdatePurchasePrice", "Product")?storeId=' + storeId;
 
-            var payload = isMarketplaceBool
+        var payload = isMarketplaceBool
             ? { AllegroProductId: parseInt(productId), NewPrice: priceValue }
             : { ProductId: parseInt(productId), NewPrice: priceValue };
 
-            var originalContent = btnElement.html();
-            btnElement.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+        var originalContent = btnElement.html();
+        btnElement.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
 
-            $.ajax({
+        $.ajax({
             url: url,
             type: 'POST',
             contentType: 'application/json',
@@ -2506,7 +2684,7 @@ else
             data: JSON.stringify(payload),
             success: function(response) {
                 if(response.success) {
-                    sessionStorage.setItem('automation_scrollToProduct', productId); 
+                    sessionStorage.setItem('automation_scrollToProduct', productId);
                     location.reload();
                 }
                 else {
@@ -2515,35 +2693,35 @@ else
                 }
             },
             error: function(xhr) {
-            alert("Błąd serwera.");
-            btnElement.html(originalContent).prop('disabled', false);
+                alert("Błąd serwera.");
+                btnElement.html(originalContent).prop('disabled', false);
             }
-            });
+        });
+    }
+
+    function executeAutomation() {
+        if (!confirm("Czy na pewno chcesz wykonać automatyzację?")) { return; }
+        var btn = $(event.target).closest('button');
+        var originalText = btn.html();
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Przetwarzanie...');
+
+        $.ajax({
+            url: '@Url.Action("ExecuteAutomation", "PriceAutomation")',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ RuleId: currentRuleId }),
+            success: function(r) {
+                if(r.count === 0) alert("Wykonano, ale brak zmian do aktualizacji.");
+                else alert("Sukces! Zaktualizowano " + r.count + " ofert.");
+                location.reload();
+            },
+            error: function(xhr) {
+                alert("Błąd: " + (xhr.responseText || xhr.statusText));
+                btn.prop('disabled', false).html(originalText);
             }
-
-        function executeAutomation() {
-            if (!confirm("Czy na pewno chcesz wykonać automatyzację?")) { return; }
-            var btn = $(event.target).closest('button');
-            var originalText = btn.html();
-            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Przetwarzanie...');
-
-            $.ajax({
-                url: '@Url.Action("ExecuteAutomation", "PriceAutomation")',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ RuleId: currentRuleId }),
-                success: function(r) {
-                    if(r.count === 0) alert("Wykonano, ale brak zmian do aktualizacji.");
-                    else alert("Sukces! Zaktualizowano " + r.count + " ofert.");
-                    location.reload();
-                },
-                error: function(xhr) {
-                    alert("Błąd: " + (xhr.responseText || xhr.statusText));
-                    btn.prop('disabled', false).html(originalText);
-                }
-            });
-        }
-    </script>
+        });
+    }
+</script>
 
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script>

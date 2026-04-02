@@ -367,6 +367,84 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
             return Ok(new { success = true, activeSlotsCount = rule.ActiveSlotsCount });
         }
 
+
+
+
+        [HttpGet]
+        [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
+        public async Task<IActionResult> GetAssignedProducts(int intervalRuleId)
+        {
+            var rule = await _context.IntervalPriceRules
+                .Include(r => r.AutomationRule)
+                .FirstOrDefaultAsync(r => r.Id == intervalRuleId);
+
+            if (rule == null) return NotFound();
+
+            bool isAllegro = rule.AutomationRule.SourceType == AutomationSourceType.Marketplace;
+
+            var assignments = await _context.IntervalPriceProductAssignments
+                .Where(a => a.IntervalPriceRuleId == intervalRuleId)
+                .Select(a => new
+                {
+                    ProductId = isAllegro ? a.AllegroProductId : a.ProductId,
+                    ProductName = isAllegro
+                        ? (a.AllegroProduct != null ? a.AllegroProduct.AllegroProductName : "?")
+                        : (a.Product != null ? a.Product.ProductName : "?"),
+                    Identifier = isAllegro
+                        ? (a.AllegroProduct != null ? a.AllegroProduct.IdOnAllegro : "")
+                        : (a.Product != null ? a.Product.Ean : ""),
+                    a.AssignedDate
+                })
+                .ToListAsync();
+
+            return Json(assignments);
+        }
+
+        [HttpPost]
+        [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
+        public async Task<IActionResult> GetIntervalStatusForProducts([FromBody] IntervalStatusRequest request)
+        {
+            if (request == null || request.ProductIds == null || !request.ProductIds.Any())
+                return BadRequest();
+
+            var rule = await _context.AutomationRules
+                .FirstOrDefaultAsync(r => r.Id == request.AutomationRuleId);
+
+            if (rule == null) return NotFound();
+
+            bool isAllegro = rule.SourceType == AutomationSourceType.Marketplace;
+
+            var intervals = await _context.IntervalPriceRules
+                .Where(r => r.AutomationRuleId == request.AutomationRuleId)
+                .Select(r => new
+                {
+                    r.Id,
+                    r.Name,
+                    r.ColorHex,
+                    r.IsActive,
+                    r.PriceStep,
+                    r.IsPriceStepPercent,
+                    TotalAssigned = r.ProductAssignments.Count(),
+                    MatchingCount = r.ProductAssignments
+                        .Count(a => isAllegro
+                            ? (a.AllegroProductId.HasValue && request.ProductIds.Contains(a.AllegroProductId.Value))
+                            : (a.ProductId.HasValue && request.ProductIds.Contains(a.ProductId.Value)))
+                })
+                .ToListAsync();
+
+            return Json(intervals);
+        }
+
+        // DTO — dodaj obok istniejących DTO w kontrolerze
+        public class IntervalStatusRequest
+        {
+            public int AutomationRuleId { get; set; }
+            public List<int> ProductIds { get; set; } = new();
+        }
+
+
+
+
         // ═══════════════════════════════════════════════════════
         // HELPERY
         // ═══════════════════════════════════════════════════════

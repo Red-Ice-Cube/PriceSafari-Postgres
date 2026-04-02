@@ -474,7 +474,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             return Ok(new { success = true, message = $"Pomyślnie przypisano {model.ProductIds.Count} produktów do grupy: {rule.Name}" });
         }
-
         [HttpPost]
         [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> UnassignProducts([FromBody] AssignProductsDto model)
@@ -492,6 +491,32 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (assignmentsToRemove.Any())
             {
+                // ── Kaskada: usuń z interwałów powiązanych automatów ──
+                var affectedRuleIds = assignmentsToRemove
+                    .Select(a => a.AutomationRuleId)
+                    .Distinct()
+                    .ToList();
+
+                var intervalRuleIds = await _context.IntervalPriceRules
+                    .Where(ir => affectedRuleIds.Contains(ir.AutomationRuleId))
+                    .Select(ir => ir.Id)
+                    .ToListAsync();
+
+                if (intervalRuleIds.Any())
+                {
+                    var orphanedIntervalAssignments = await _context.IntervalPriceProductAssignments
+                        .Where(ipa => intervalRuleIds.Contains(ipa.IntervalPriceRuleId)
+                            && (model.IsAllegro
+                                ? (ipa.AllegroProductId.HasValue && model.ProductIds.Contains(ipa.AllegroProductId.Value))
+                                : (ipa.ProductId.HasValue && model.ProductIds.Contains(ipa.ProductId.Value))))
+                        .ToListAsync();
+
+                    if (orphanedIntervalAssignments.Any())
+                    {
+                        _context.IntervalPriceProductAssignments.RemoveRange(orphanedIntervalAssignments);
+                    }
+                }
+
                 _context.AutomationProductAssignments.RemoveRange(assignmentsToRemove);
                 await _context.SaveChangesAsync();
             }
