@@ -215,6 +215,198 @@ namespace PriceSafari.Controllers.ManagerControllers
             return View("~/Views/ManagerPanel/DatabaseSize/StoreDetails.cshtml", viewModel);
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // DODAJ TE METODY DO DatabaseSizeController
+        // ═══════════════════════════════════════════════════════════════
+
+        // 1. Nowy endpoint — kondycja tabel (dead tuples, bloat, autovacuum)
+        [HttpGet]
+        public async Task<IActionResult> GetTableHealth()
+        {
+            var result = new List<TableHealthInfo>();
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != ConnectionState.Open) await connection.OpenAsync();
+
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+            SELECT 
+                s.relname,
+                s.n_live_tup,
+                s.n_dead_tup,
+                CASE WHEN s.n_live_tup > 0 
+                     THEN ROUND(s.n_dead_tup::numeric / s.n_live_tup * 100, 1) 
+                     ELSE 0 END AS dead_pct,
+                pg_size_pretty(pg_relation_size(s.relid)) AS table_size,
+                pg_size_pretty(pg_total_relation_size(s.relid)) AS total_size,
+                pg_size_pretty(pg_indexes_size(s.relid)) AS index_size,
+                CASE WHEN s.n_live_tup > 0 
+                     THEN pg_relation_size(s.relid) / s.n_live_tup 
+                     ELSE 0 END AS avg_row_bytes,
+                s.last_vacuum,
+                s.last_autovacuum,
+                s.last_analyze,
+                s.last_autoanalyze,
+                s.vacuum_count,
+                s.autovacuum_count,
+                (SELECT option_value FROM pg_options_to_table(c.reloptions) WHERE option_name = 'autovacuum_vacuum_scale_factor' LIMIT 1)
+                    AS custom_vacuum_scale_factor,
+                (SELECT option_value FROM pg_options_to_table(c.reloptions) WHERE option_name = 'autovacuum_analyze_scale_factor' LIMIT 1)
+                    AS custom_analyze_scale_factor
+            FROM pg_stat_user_tables s
+            LEFT JOIN pg_class c ON c.relname = s.relname 
+                                 AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+                                 AND c.reloptions IS NOT NULL
+            WHERE s.schemaname = 'public'
+            ORDER BY s.n_dead_tup DESC";
+
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                result.Add(new TableHealthInfo
+                {
+                    TableName = reader["relname"].ToString(),
+                    LiveTuples = reader.IsDBNull(reader.GetOrdinal("n_live_tup")) ? 0 : Convert.ToInt64(reader["n_live_tup"]),
+                    DeadTuples = reader.IsDBNull(reader.GetOrdinal("n_dead_tup")) ? 0 : Convert.ToInt64(reader["n_dead_tup"]),
+                    DeadPercent = reader.IsDBNull(reader.GetOrdinal("dead_pct")) ? 0 : Convert.ToDecimal(reader["dead_pct"]),
+                    TableSize = reader["table_size"]?.ToString() ?? "0",
+                    TotalSize = reader["total_size"]?.ToString() ?? "0",
+                    IndexSize = reader["index_size"]?.ToString() ?? "0",
+                    AvgRowBytes = reader.IsDBNull(reader.GetOrdinal("avg_row_bytes")) ? 0 : Convert.ToInt64(reader["avg_row_bytes"]),
+                    LastVacuum = reader.IsDBNull(reader.GetOrdinal("last_vacuum")) ? null : Convert.ToDateTime(reader["last_vacuum"]),
+                    LastAutovacuum = reader.IsDBNull(reader.GetOrdinal("last_autovacuum")) ? null : Convert.ToDateTime(reader["last_autovacuum"]),
+                    LastAnalyze = reader.IsDBNull(reader.GetOrdinal("last_analyze")) ? null : Convert.ToDateTime(reader["last_analyze"]),
+                    LastAutoanalyze = reader.IsDBNull(reader.GetOrdinal("last_autoanalyze")) ? null : Convert.ToDateTime(reader["last_autoanalyze"]),
+                    VacuumCount = reader.IsDBNull(reader.GetOrdinal("vacuum_count")) ? 0 : Convert.ToInt64(reader["vacuum_count"]),
+                    AutovacuumCount = reader.IsDBNull(reader.GetOrdinal("autovacuum_count")) ? 0 : Convert.ToInt64(reader["autovacuum_count"]),
+                    CustomVacuumScaleFactor = reader.IsDBNull(reader.GetOrdinal("custom_vacuum_scale_factor"))
+                        ? null : reader["custom_vacuum_scale_factor"].ToString(),
+                    CustomAnalyzeScaleFactor = reader.IsDBNull(reader.GetOrdinal("custom_analyze_scale_factor"))
+                        ? null : reader["custom_analyze_scale_factor"].ToString()
+                });
+            }
+
+            return Json(result);
+        }
+
+        // 2. Akcja VACUUM na wybranej tabeli
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VacuumTable(string tableName, bool full = false)
+        {
+            // Walidacja — tylko znane tabele (ochrona przed SQL injection)
+            var allowedTables = new HashSet<string>
+    {
+        "PriceHistories", "AllegroPriceHistories", "Products", "CoOfrs",
+        "CoOfrPriceHistories", "AllegroScrapedOffers", "AllegroPriceBridgeItems",
+        "AllegroPriceBridgeBatches", "AllegroProducts", "ProductFlags",
+        "AutomationProductAssignments", "PriceHistoryExtendedInfos",
+        "AllegroPriceHistoryExtendedInfos", "AllegroOffersToScrape",
+        "ProductMaps", "ScrapHistories", "GlobalPriceReports",
+        "PriceSafariReports", "CompetitorPresets", "CompetitorPresetItems",
+        "PriceBridgeItems", "PriceBridgeBatches"
+    };
+
+            if (!allowedTables.Contains(tableName))
+            {
+                return BadRequest($"Tabela '{tableName}' nie jest dozwolona.");
+            }
+
+            try
+            {
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State != ConnectionState.Open) await connection.OpenAsync();
+
+                // VACUUM musi być poza transakcją — użyj oddzielnego połączenia
+                using var vacuumConn = new Npgsql.NpgsqlConnection(connection.ConnectionString);
+                await vacuumConn.OpenAsync();
+
+                var sql = full
+                    ? $"VACUUM FULL ANALYZE \"{tableName}\""
+                    : $"VACUUM ANALYZE \"{tableName}\"";
+
+                using var cmd = new Npgsql.NpgsqlCommand(sql, vacuumConn);
+                cmd.CommandTimeout = 600; // 10 minut na VACUUM FULL
+                await cmd.ExecuteNonQueryAsync();
+
+                return Json(new { success = true, message = $"VACUUM {(full ? "FULL " : "")}ANALYZE na tabeli \"{tableName}\" zakończony pomyślnie." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = $"Błąd: {ex.Message}" });
+            }
+        }
+
+        // 3. Akcja — ustaw agresywny autovacuum dla tabeli
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetAutovacuumThreshold(string tableName, decimal scaleFactor = 0.05m)
+        {
+            var allowedTables = new HashSet<string>
+    {
+        "PriceHistories", "AllegroPriceHistories", "Products", "CoOfrs",
+        "CoOfrPriceHistories", "AllegroScrapedOffers", "AllegroPriceBridgeItems",
+        "AllegroPriceBridgeBatches", "AllegroProducts", "PriceHistoryExtendedInfos",
+        "AllegroPriceHistoryExtendedInfos"
+    };
+
+            if (!allowedTables.Contains(tableName))
+                return BadRequest($"Tabela '{tableName}' nie jest dozwolona.");
+
+            if (scaleFactor < 0.01m || scaleFactor > 0.50m)
+                return BadRequest("Scale factor musi być między 0.01 a 0.50.");
+
+            try
+            {
+                var sfStr = scaleFactor.ToString(CultureInfo.InvariantCulture);
+                var sql = $@"ALTER TABLE ""{tableName}"" SET (
+            autovacuum_vacuum_scale_factor = {sfStr},
+            autovacuum_analyze_scale_factor = {sfStr}
+        )";
+
+                await _context.Database.ExecuteSqlRawAsync(sql);
+
+                return Json(new { success = true, message = $"Autovacuum dla \"{tableName}\" ustawiony na {scaleFactor:P0}." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = $"Błąd: {ex.Message}" });
+            }
+        }
+
+
+        // ═══════════════════════════════════════════════════════════════
+        // DODAJ TEN VIEWMODEL NA DOLE PLIKU (sekcja ViewModels)
+        // ═══════════════════════════════════════════════════════════════
+
+        public class TableHealthInfo
+        {
+            public string TableName { get; set; }
+            public long LiveTuples { get; set; }
+            public long DeadTuples { get; set; }
+            public decimal DeadPercent { get; set; }
+            public string TableSize { get; set; }
+            public string TotalSize { get; set; }
+            public string IndexSize { get; set; }
+            public long AvgRowBytes { get; set; }
+            public DateTime? LastVacuum { get; set; }
+            public DateTime? LastAutovacuum { get; set; }
+            public DateTime? LastAnalyze { get; set; }
+            public DateTime? LastAutoanalyze { get; set; }
+            public long VacuumCount { get; set; }
+            public long AutovacuumCount { get; set; }
+            public string CustomVacuumScaleFactor { get; set; }
+            public string CustomAnalyzeScaleFactor { get; set; }
+
+            // Obliczone na frontendzie lub tutaj
+            public string HealthStatus => DeadPercent switch
+            {
+                >= 20 => "critical",
+                >= 10 => "warning",
+                >= 5 => "attention",
+                _ => "healthy"
+            };
+        }
+
         #region Akcje Usuwania (Poprawione pod PostgreSQL)
 
         [HttpPost, ActionName("DeleteSelectedScrapHistories")]

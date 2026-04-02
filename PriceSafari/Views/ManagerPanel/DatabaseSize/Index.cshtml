@@ -6,6 +6,8 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+@Html.AntiForgeryToken()
+
 @section Styles {
     <style>
         .info-box {
@@ -168,6 +170,53 @@
 </div>
 
 <div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-heartbeat mr-1"></i> Kondycja Tabel (Dead Tuples & Autovacuum)
+        </h6>
+        <button class="btn btn-sm btn-outline-primary" onclick="loadTableHealth()">
+            <i class="fas fa-sync-alt mr-1"></i> Odśwież
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="mb-3">
+            <small class="text-muted">
+                <strong>Dead tuples</strong> to "martwe" wiersze pozostałe po UPDATE/DELETE.
+                PostgreSQL nie usuwa ich fizycznie — potrzebuje VACUUM żeby zwolnić miejsce.
+                Wysoki % dead tuples spowalnia zapytania bo baza musi przeskakiwać martwe dane.
+                <strong>Autovacuum</strong> czyści je automatycznie, ale domyślny próg (20%) bywa za wysoki dla dużych tabel.
+            </small>
+        </div>
+
+        <div id="healthLoading" class="text-center py-4" style="display:none;">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Ładowanie diagnostyki...</p>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-sm table-hover" id="healthTable" style="display:none;">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Tabela</th>
+                        <th class="text-right">Rozmiar</th>
+                        <th class="text-right">Indeksy</th>
+                        <th class="text-right">Live</th>
+                        <th class="text-right">Dead</th>
+                        <th class="text-center">Dead %</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Autovacuum</th>
+                        <th class="text-center">Ostatni VACUUM</th>
+                        <th class="text-center">Akcje</th>
+                    </tr>
+                </thead>
+                <tbody id="healthTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
     <div class="card-header py-3">
         <h6 class="m-0 font-weight-bold text-primary">Podział na sklepy</h6>
     </div>
@@ -266,4 +315,167 @@
             }
         });
     </script>
+
+    <script>
+        // Ładuj automatycznie przy starcie strony
+        document.addEventListener("DOMContentLoaded", function () {
+            loadTableHealth();
+        });
+
+        function loadTableHealth() {
+            const loading = document.getElementById('healthLoading');
+            const table = document.getElementById('healthTable');
+            const tbody = document.getElementById('healthTableBody');
+
+            loading.style.display = 'block';
+            table.style.display = 'none';
+
+            fetch('@Url.Action("GetTableHealth", "DatabaseSize")')
+                .then(r => r.json())
+                .then(data => {
+                    tbody.innerHTML = '';
+
+                    // Filtruj tabele z >100 wierszami (żeby nie zaśmiecać małymi tabelkami)
+                    const filtered = data.filter(t => t.liveTuples > 100 || t.deadTuples > 0);
+
+                    filtered.forEach(t => {
+                        const statusBadge = getStatusBadge(t.deadPercent);
+                        const lastVac = formatVacuumDate(t.lastVacuum, t.lastAutovacuum);
+                        const avThreshold = t.customVacuumScaleFactor
+                            ? `<span class="badge badge-info">${(parseFloat(t.customVacuumScaleFactor) * 100).toFixed(0)}%</span>`
+                            : `<span class="badge badge-secondary">20% (domyślny)</span>`;
+
+                        const row = document.createElement('tr');
+                        if (t.deadPercent >= 15) row.classList.add('table-danger');
+                        else if (t.deadPercent >= 5) row.classList.add('table-warning');
+
+                        row.innerHTML = `
+                            <td><strong>${t.tableName}</strong></td>
+                            <td class="text-right">${t.tableSize}</td>
+                            <td class="text-right">${t.indexSize}</td>
+                            <td class="text-right">${formatNumber(t.liveTuples)}</td>
+                            <td class="text-right">${formatNumber(t.deadTuples)}</td>
+                            <td class="text-center">
+                                <span class="font-weight-bold" style="color: ${getDeadColor(t.deadPercent)}">${t.deadPercent.toFixed(1)}%</span>
+                            </td>
+                            <td class="text-center">${statusBadge}</td>
+                            <td class="text-center">${avThreshold}</td>
+                            <td class="text-center">${lastVac}</td>
+                            <td class="text-center text-nowrap">
+                                <button class="btn btn-xs btn-outline-success" onclick="vacuumTable('${t.tableName}', false)" title="VACUUM ANALYZE — szybkie czyszczenie">
+                                    <i class="fas fa-broom"></i>
+                                </button>
+                                ${t.deadPercent >= 15 ? `
+                                <button class="btn btn-xs btn-outline-danger ml-1" onclick="vacuumTable('${t.tableName}', true)" title="VACUUM FULL — głębokie czyszczenie (blokuje tabelę!)">
+                                    <i class="fas fa-skull-crossbones"></i>
+                                </button>` : ''}
+                                ${!t.customVacuumScaleFactor && t.liveTuples > 50000 ? `
+                                <button class="btn btn-xs btn-outline-info ml-1" onclick="setAutovacuum('${t.tableName}')" title="Ustaw próg autovacuum na 5%">
+                                    <i class="fas fa-cog"></i>
+                                </button>` : ''}
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+
+                    loading.style.display = 'none';
+                    table.style.display = 'table';
+                })
+                .catch(err => {
+                    loading.innerHTML = `<p class="text-danger">Błąd ładowania: ${err.message}</p>`;
+                });
+        }
+
+        function vacuumTable(tableName, full) {
+            const label = full ? 'VACUUM FULL' : 'VACUUM';
+            const warning = full
+                ? `UWAGA: VACUUM FULL zablokuje tabelę "${tableName}" na czas operacji!\nDla dużych tabel może to potrwać kilka minut.\n\nKontynuować?`
+                : `Wykonać ${label} ANALYZE na tabeli "${tableName}"?`;
+
+            if (!confirm(warning)) return;
+
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+            fetch(`@Url.Action("VacuumTable", "DatabaseSize")?tableName=${encodeURIComponent(tableName)}&full=${full}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token || ''
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    loadTableHealth(); // Odśwież
+                } else {
+                    alert('Błąd: ' + data.message);
+                }
+            })
+            .catch(err => alert('Błąd: ' + err.message));
+        }
+
+        function setAutovacuum(tableName) {
+            if (!confirm(`Ustawić próg autovacuum na 5% dla tabeli "${tableName}"?\n\n` +
+                `Domyślny próg PostgreSQL to 20% — oznacza to, że autovacuum uruchomi się dopiero ` +
+                `gdy 20% wierszy będzie martwych. Dla dużych tabel to za późno.\n\n` +
+                `Po zmianie na 5%, czyszczenie będzie częstsze ale szybsze.`)) return;
+
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+            fetch(`@Url.Action("SetAutovacuumThreshold", "DatabaseSize")?tableName=${encodeURIComponent(tableName)}&scaleFactor=0.05`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token || ''
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    loadTableHealth();
+                } else {
+                    alert('Błąd: ' + data.message);
+                }
+            })
+            .catch(err => alert('Błąd: ' + err.message));
+        }
+
+        function getStatusBadge(deadPct) {
+            if (deadPct >= 20) return '<span class="badge badge-danger">Krytyczny</span>';
+            if (deadPct >= 10) return '<span class="badge badge-warning">Uwaga</span>';
+            if (deadPct >= 5) return '<span class="badge badge-info">Do obserwacji</span>';
+            return '<span class="badge badge-success">OK</span>';
+        }
+
+        function getDeadColor(deadPct) {
+            if (deadPct >= 20) return '#e74a3b';
+            if (deadPct >= 10) return '#f6c23e';
+            if (deadPct >= 5) return '#36b9cc';
+            return '#1cc88a';
+        }
+
+        function formatNumber(n) {
+            return n.toLocaleString('pl-PL');
+        }
+
+        function formatVacuumDate(manual, auto) {
+            const date = manual || auto;
+            if (!date) return '<span class="text-muted">Nigdy</span>';
+
+            const d = new Date(date);
+            const now = new Date();
+            const diffH = Math.round((now - d) / 3600000);
+
+            const formatted = d.toLocaleDateString('pl-PL') + ' ' + d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+            const label = manual ? '(ręczny)' : '(auto)';
+            const ageClass = diffH > 168 ? 'text-warning' : 'text-muted'; // >7 dni
+
+            return `<small class="${ageClass}">${formatted}<br/>${label}, ${diffH}h temu</small>`;
+        }
+    </script>
+
+
+
 }

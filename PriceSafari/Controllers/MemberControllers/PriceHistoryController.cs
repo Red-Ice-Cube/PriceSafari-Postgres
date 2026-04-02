@@ -134,10 +134,12 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
-
         [HttpGet]
         public async Task<IActionResult> GetPrices(int? storeId)
         {
+            var swTotal = System.Diagnostics.Stopwatch.StartNew();
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
             if (storeId == null)
             {
                 return Json(new
@@ -156,6 +158,8 @@ namespace PriceSafari.Controllers.MemberControllers
             {
                 return Json(new { error = "Nie ma takiego sklepu" });
             }
+            _logger.LogWarning("[PERF] Store {StoreId} | UserHasAccess: {ms}ms", storeId, sw.ElapsedMilliseconds);
+            sw.Restart();
 
             var latestScrap = await _context.ScrapHistories
                 .AsNoTracking()
@@ -163,6 +167,8 @@ namespace PriceSafari.Controllers.MemberControllers
                 .OrderByDescending(sh => sh.Date)
                 .Select(sh => new { sh.Id, sh.Date })
                 .FirstOrDefaultAsync();
+            _logger.LogWarning("[PERF] Store {StoreId} | latestScrap: {ms}ms", storeId, sw.ElapsedMilliseconds);
+            sw.Restart();
 
             if (latestScrap == null)
             {
@@ -184,12 +190,16 @@ namespace PriceSafari.Controllers.MemberControllers
                 .OrderByDescending(sh => sh.Date)
                 .Select(sh => sh.Id)
                 .FirstOrDefaultAsync();
+            _logger.LogWarning("[PERF] Store {StoreId} | previousScrapId: {ms}ms", storeId, sw.ElapsedMilliseconds);
+            sw.Restart();
 
             var storeName = await _context.Stores
                 .AsNoTracking()
                 .Where(s => s.StoreId == storeId)
                 .Select(s => s.StoreName)
                 .FirstOrDefaultAsync();
+            _logger.LogWarning("[PERF] Store {StoreId} | storeName: {ms}ms", storeId, sw.ElapsedMilliseconds);
+            sw.Restart();
 
             var priceValues = await _context.PriceValues
                 .AsNoTracking()
@@ -220,12 +230,16 @@ namespace PriceSafari.Controllers.MemberControllers
                     UsePriceWithDelivery = false,
                     PriceIndexTargetPercent = 100.00m
                 };
+            _logger.LogWarning("[PERF] Store {StoreId} | priceValues: {ms}ms", storeId, sw.ElapsedMilliseconds);
+            sw.Restart();
 
             // ── Preset konkurencji ──
             var activePreset = await _context.CompetitorPresets
                 .AsNoTracking()
                 .Include(x => x.CompetitorItems)
                 .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
+            _logger.LogWarning("[PERF] Store {StoreId} | activePreset: {ms}ms", storeId, sw.ElapsedMilliseconds);
+            sw.Restart();
 
             string activePresetName = null;
 
@@ -261,6 +275,10 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             var rawPrices = await baseQuery.ToListAsync();
+            var distinctProductCount = rawPrices.Select(p => p.ProductId).Distinct().Count();
+            _logger.LogWarning("[PERF] Store {StoreId} | rawPrices: {ms}ms (rows={Rows}, distinctProducts={Products})",
+                storeId, sw.ElapsedMilliseconds, rawPrices.Count, distinctProductCount);
+            sw.Restart();
 
             if (priceValues.UsePriceWithDelivery)
             {
@@ -275,7 +293,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var productIds = rawPrices.Select(p => p.ProductId).Distinct().ToList();
 
-            // ── Committed changes — przeniesione po productIds, ograniczone filtrem ──
+            // ── Committed changes ──
             var bridgeItems = await _context.PriceBridgeItems
                 .AsNoTracking()
                 .Include(i => i.Batch)
@@ -283,6 +301,9 @@ namespace PriceSafari.Controllers.MemberControllers
                          && i.Batch.ScrapHistoryId == latestScrap.Id
                          && productIds.Contains(i.ProductId))
                 .ToListAsync();
+            _logger.LogWarning("[PERF] Store {StoreId} | bridgeItems: {ms}ms (count={Count})",
+                storeId, sw.ElapsedMilliseconds, bridgeItems.Count);
+            sw.Restart();
 
             var committedLookup = bridgeItems
                 .GroupBy(i => i.ProductId)
@@ -291,12 +312,15 @@ namespace PriceSafari.Controllers.MemberControllers
                     g => g.OrderByDescending(i => i.Batch.ExecutionDate).First()
                 );
 
-            // ── Extended info — ograniczone do aktywnych produktów ──
+            // ── Extended info ──
             var extendedInfoData = await _context.PriceHistoryExtendedInfos
                 .AsNoTracking()
                 .Where(e => e.ScrapHistoryId == latestScrap.Id && productIds.Contains(e.ProductId))
                 .ToListAsync();
             var extendedInfoDict = extendedInfoData.ToDictionary(e => e.ProductId);
+            _logger.LogWarning("[PERF] Store {StoreId} | extendedInfo: {ms}ms (count={Count})",
+                storeId, sw.ElapsedMilliseconds, extendedInfoData.Count);
+            sw.Restart();
 
             var previousExtendedInfoData = new Dictionary<int, PriceHistoryExtendedInfoClass>();
             if (previousScrapId > 0)
@@ -306,12 +330,18 @@ namespace PriceSafari.Controllers.MemberControllers
                     .Where(e => e.ScrapHistoryId == previousScrapId && productIds.Contains(e.ProductId))
                     .ToDictionaryAsync(e => e.ProductId);
             }
+            _logger.LogWarning("[PERF] Store {StoreId} | previousExtendedInfo: {ms}ms (count={Count})",
+                storeId, sw.ElapsedMilliseconds, previousExtendedInfoData.Count);
+            sw.Restart();
 
             var productFlagsDictionary = await _context.ProductFlags
                 .AsNoTracking()
                 .Where(pf => pf.ProductId.HasValue && productIds.Contains(pf.ProductId.Value))
                 .GroupBy(pf => pf.ProductId.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
+            _logger.LogWarning("[PERF] Store {StoreId} | productFlags: {ms}ms (count={Count})",
+                storeId, sw.ElapsedMilliseconds, productFlagsDictionary.Count);
+            sw.Restart();
 
             var productsWithExternalInfo = await _context.Products
                 .AsNoTracking()
@@ -329,6 +359,9 @@ namespace PriceSafari.Controllers.MemberControllers
                 p => p.ProductId,
                 p => new { p.ExternalId, p.MainUrl, p.MarginPrice, p.Ean, p.ProducerCode }
             );
+            _logger.LogWarning("[PERF] Store {StoreId} | productsExternalInfo: {ms}ms (count={Count})",
+                storeId, sw.ElapsedMilliseconds, productsWithExternalInfo.Count);
+            sw.Restart();
 
             Dictionary<(string Store, DataSourceType Source), bool> competitorItemsDict = null;
             var storeNameLower = storeName?.ToLower().Trim() ?? "";
@@ -359,6 +392,9 @@ namespace PriceSafari.Controllers.MemberControllers
                     EndDate = a.AutomationRule.ScheduledEndDate
                 })
                 .ToDictionaryAsync(a => a.ProductId);
+            _logger.LogWarning("[PERF] Store {StoreId} | automationLookup: {ms}ms (count={Count})",
+                storeId, sw.ElapsedMilliseconds, automationLookup.Count);
+            sw.Restart();
 
             var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
 
@@ -653,10 +689,13 @@ namespace PriceSafari.Controllers.MemberControllers
                    })
                    .Where(p => p != null)
                    .ToList();
+            _logger.LogWarning("[PERF] Store {StoreId} | in-memory allPrices processing: {ms}ms (outputCount={Count})",
+                storeId, sw.ElapsedMilliseconds, allPrices.Count);
+            sw.Restart();
 
             var missedProductsCount = allPrices.Count(p => p.IsRejected);
 
-            return Json(new
+            var result = Json(new
             {
                 productCount = allPrices.Count,
                 priceCount = rawPrices.Count,
@@ -676,11 +715,13 @@ namespace PriceSafari.Controllers.MemberControllers
                 presetName = activePresetName ?? "PriceSafari",
                 latestScrapId = latestScrap?.Id
             });
+
+            swTotal.Stop();
+            _logger.LogWarning("[PERF] Store {StoreId} | JSON serialize: {ms}ms | === TOTAL: {totalMs}ms ===",
+                storeId, sw.ElapsedMilliseconds, swTotal.ElapsedMilliseconds);
+
+            return result;
         }
-
-
-
-
 
         //[HttpGet]
         //public async Task<IActionResult> GetPrices(int? storeId)
