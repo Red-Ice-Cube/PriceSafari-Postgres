@@ -157,6 +157,11 @@ namespace PriceSafari.Models.ViewModels
         public bool IsGradualDecreaseApplied { get; set; } = false;
         public bool IsGradualIncreaseApplied { get; set; } = false;
         public List<int> FlagIds { get; set; } = new List<int>();
+
+        // ═══ Interwał cenowy ═══
+        public int? IntervalRuleId { get; set; }
+        public string IntervalRuleName { get; set; }
+        public string IntervalRuleColorHex { get; set; }
     }
 
     public class AutomationExecutionRequest

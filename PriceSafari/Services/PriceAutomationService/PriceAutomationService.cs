@@ -320,6 +320,40 @@ namespace PriceSafari.Services.PriceAutomationService
                     g => g.Select(pf => pf.FlagId).ToList()
                 );
 
+            // ═══ INTERWAŁY — bulk lookup ═══
+            var intervalRulesForThisAutomation = await _context.IntervalPriceRules
+                .Where(ir => ir.AutomationRuleId == rule.Id)
+                .Select(ir => new { ir.Id, ir.Name, ir.ColorHex })
+                .ToListAsync();
+
+            var intervalAssignmentLookup = new Dictionary<int, (int RuleId, string Name, string Color)>();
+
+            if (intervalRulesForThisAutomation.Any())
+            {
+                var intervalRuleIds = intervalRulesForThisAutomation.Select(ir => ir.Id).ToList();
+                var intervalRuleLookup = intervalRulesForThisAutomation.ToDictionary(ir => ir.Id);
+
+                var allIntervalAssignments = await _context.IntervalPriceProductAssignments
+                    .Where(ipa => intervalRuleIds.Contains(ipa.IntervalPriceRuleId))
+                    .Select(ipa => new
+                    {
+                        ProductId = rule.SourceType == AutomationSourceType.Marketplace
+                            ? ipa.AllegroProductId
+                            : ipa.ProductId,
+                        ipa.IntervalPriceRuleId
+                    })
+                    .Where(x => x.ProductId.HasValue)
+                    .ToListAsync();
+
+                foreach (var ia in allIntervalAssignments)
+                {
+                    if (ia.ProductId.HasValue && intervalRuleLookup.TryGetValue(ia.IntervalPriceRuleId, out var irInfo))
+                    {
+                        intervalAssignmentLookup[ia.ProductId.Value] = (irInfo.Id, irInfo.Name, irInfo.ColorHex);
+                    }
+                }
+            }
+
             foreach (var item in assignments)
             {
                 var p = item.Product;
@@ -394,6 +428,13 @@ namespace PriceSafari.Services.PriceAutomationService
                       : new List<int>()
 
                 };
+                // ═══ Interwał cenowy ═══
+                if (intervalAssignmentLookup.TryGetValue(p.ProductId, out var intervalInfo))
+                {
+                    row.IntervalRuleId = intervalInfo.RuleId;
+                    row.IntervalRuleName = intervalInfo.Name;
+                    row.IntervalRuleColorHex = intervalInfo.Color;
+                }
 
                 bool bestRivalIsCeneo = bestCompetitor != null && bestCompetitor.IsGoogle != true;
                 bool bestRivalIsGoogle = bestCompetitor != null && bestCompetitor.IsGoogle == true;
@@ -539,6 +580,40 @@ namespace PriceSafari.Services.PriceAutomationService
                     g => g.Key,
                     g => g.Select(pf => pf.FlagId).ToList()
                 );
+
+            // ═══ INTERWAŁY — bulk lookup ═══
+            var intervalRulesForThisAutomation = await _context.IntervalPriceRules
+                .Where(ir => ir.AutomationRuleId == rule.Id)
+                .Select(ir => new { ir.Id, ir.Name, ir.ColorHex })
+                .ToListAsync();
+
+            var intervalAssignmentLookup = new Dictionary<int, (int RuleId, string Name, string Color)>();
+
+            if (intervalRulesForThisAutomation.Any())
+            {
+                var intervalRuleIds = intervalRulesForThisAutomation.Select(ir => ir.Id).ToList();
+                var intervalRuleLookup = intervalRulesForThisAutomation.ToDictionary(ir => ir.Id);
+
+                var allIntervalAssignments = await _context.IntervalPriceProductAssignments
+                    .Where(ipa => intervalRuleIds.Contains(ipa.IntervalPriceRuleId))
+                    .Select(ipa => new
+                    {
+                        ProductId = rule.SourceType == AutomationSourceType.Marketplace
+                            ? ipa.AllegroProductId
+                            : ipa.ProductId,
+                        ipa.IntervalPriceRuleId
+                    })
+                    .Where(x => x.ProductId.HasValue)
+                    .ToListAsync();
+
+                foreach (var ia in allIntervalAssignments)
+                {
+                    if (ia.ProductId.HasValue && intervalRuleLookup.TryGetValue(ia.IntervalPriceRuleId, out var irInfo))
+                    {
+                        intervalAssignmentLookup[ia.ProductId.Value] = (irInfo.Id, irInfo.Name, irInfo.ColorHex);
+                    }
+                }
+            }
             foreach (var item in assignments)
             {
                 var p = item.AllegroProduct;
@@ -672,6 +747,14 @@ namespace PriceSafari.Services.PriceAutomationService
                     AllegroSku = p.AllegroSku,
                     AllegroEan = p.AllegroEan,
                 };
+
+                // ═══ Interwał cenowy ═══
+                if (intervalAssignmentLookup.TryGetValue(p.AllegroProductId, out var intervalInfo))
+                {
+                    row.IntervalRuleId = intervalInfo.RuleId;
+                    row.IntervalRuleName = intervalInfo.Name;
+                    row.IntervalRuleColorHex = intervalInfo.Color;
+                }
 
                 CalculateSuggestedPrice(rule, row);
                 CalculateCurrentMarkup(row);
