@@ -5657,6 +5657,66 @@ small {
  
 }
 
+.interval-cell {
+    padding: 4px 2px;
+    width: 38px;
+    min-width: 38px;
+    max-width: 38px;
+}
+
+.interval-badge-simple {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    border-radius: 4px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 6px 0;
+    height: 97.5px;
+}
+
+    .interval-badge-simple:hover {
+        background-color: #eaecf4;
+        border-color: #d1d3e2;
+        text-decoration: none;
+    }
+
+.interval-icon-simple {
+    font-size: 14px;
+    color: #fd7e14; /* pomarańczowy zegar */
+    margin-bottom: 4px;
+}
+
+.interval-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-bottom: 4px;
+}
+
+.dot-active {
+    background-color: #1cc88a; /* zielona kropka */
+    box-shadow: 0 0 4px rgba(28, 200, 138, 0.4);
+}
+
+.dot-inactive {
+    background-color: #e74a3b; /* czerwona kropka */
+}
+
+.interval-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #858796;
+}
 
 .simulation-change-box {
     background-color: #ffffff;

@@ -319,39 +319,22 @@ namespace PriceSafari.Services.PriceAutomationService
                     g => g.Key,
                     g => g.Select(pf => pf.FlagId).ToList()
                 );
-
-            // ═══ INTERWAŁY — bulk lookup ═══
-            var intervalRulesForThisAutomation = await _context.IntervalPriceRules
+            // 🔴 DODANE: Pobranie jednego, globalnego interwału dla tego automatu (Ceneo/Google)
+            var intervalRule = await _context.IntervalPriceRules
                 .Where(ir => ir.AutomationRuleId == rule.Id)
-                .Select(ir => new { ir.Id, ir.Name, ir.ColorHex })
-                .ToListAsync();
+                .Select(ir => new { ir.Id, ir.Name, ir.ColorHex, ir.IsActive })
+                .FirstOrDefaultAsync();
 
-            var intervalAssignmentLookup = new Dictionary<int, (int RuleId, string Name, string Color)>();
+            var productsInInterval = new HashSet<int>();
 
-            if (intervalRulesForThisAutomation.Any())
+            if (intervalRule != null)
             {
-                var intervalRuleIds = intervalRulesForThisAutomation.Select(ir => ir.Id).ToList();
-                var intervalRuleLookup = intervalRulesForThisAutomation.ToDictionary(ir => ir.Id);
-
-                var allIntervalAssignments = await _context.IntervalPriceProductAssignments
-                    .Where(ipa => intervalRuleIds.Contains(ipa.IntervalPriceRuleId))
-                    .Select(ipa => new
-                    {
-                        ProductId = rule.SourceType == AutomationSourceType.Marketplace
-                            ? ipa.AllegroProductId
-                            : ipa.ProductId,
-                        ipa.IntervalPriceRuleId
-                    })
-                    .Where(x => x.ProductId.HasValue)
+                var assignmentsIds = await _context.IntervalPriceProductAssignments
+                    .Where(ipa => ipa.IntervalPriceRuleId == intervalRule.Id && ipa.ProductId.HasValue)
+                    .Select(ipa => ipa.ProductId.Value)
                     .ToListAsync();
 
-                foreach (var ia in allIntervalAssignments)
-                {
-                    if (ia.ProductId.HasValue && intervalRuleLookup.TryGetValue(ia.IntervalPriceRuleId, out var irInfo))
-                    {
-                        intervalAssignmentLookup[ia.ProductId.Value] = (irInfo.Id, irInfo.Name, irInfo.ColorHex);
-                    }
-                }
+                productsInInterval = new HashSet<int>(assignmentsIds);
             }
 
             foreach (var item in assignments)
@@ -428,13 +411,7 @@ namespace PriceSafari.Services.PriceAutomationService
                       : new List<int>()
 
                 };
-                // ═══ Interwał cenowy ═══
-                if (intervalAssignmentLookup.TryGetValue(p.ProductId, out var intervalInfo))
-                {
-                    row.IntervalRuleId = intervalInfo.RuleId;
-                    row.IntervalRuleName = intervalInfo.Name;
-                    row.IntervalRuleColorHex = intervalInfo.Color;
-                }
+                row.HasInterval = productsInInterval.Contains(p.ProductId);
 
                 bool bestRivalIsCeneo = bestCompetitor != null && bestCompetitor.IsGoogle != true;
                 bool bestRivalIsGoogle = bestCompetitor != null && bestCompetitor.IsGoogle == true;
@@ -581,38 +558,22 @@ namespace PriceSafari.Services.PriceAutomationService
                     g => g.Select(pf => pf.FlagId).ToList()
                 );
 
-            // ═══ INTERWAŁY — bulk lookup ═══
-            var intervalRulesForThisAutomation = await _context.IntervalPriceRules
+            // 🔴 DODANE: Pobranie jednego, globalnego interwału dla tego automatu (Marketplace)
+            var intervalRule = await _context.IntervalPriceRules
                 .Where(ir => ir.AutomationRuleId == rule.Id)
-                .Select(ir => new { ir.Id, ir.Name, ir.ColorHex })
-                .ToListAsync();
+                .Select(ir => new { ir.Id, ir.Name, ir.ColorHex, ir.IsActive })
+                .FirstOrDefaultAsync();
 
-            var intervalAssignmentLookup = new Dictionary<int, (int RuleId, string Name, string Color)>();
+            var productsInInterval = new HashSet<int>();
 
-            if (intervalRulesForThisAutomation.Any())
+            if (intervalRule != null)
             {
-                var intervalRuleIds = intervalRulesForThisAutomation.Select(ir => ir.Id).ToList();
-                var intervalRuleLookup = intervalRulesForThisAutomation.ToDictionary(ir => ir.Id);
-
-                var allIntervalAssignments = await _context.IntervalPriceProductAssignments
-                    .Where(ipa => intervalRuleIds.Contains(ipa.IntervalPriceRuleId))
-                    .Select(ipa => new
-                    {
-                        ProductId = rule.SourceType == AutomationSourceType.Marketplace
-                            ? ipa.AllegroProductId
-                            : ipa.ProductId,
-                        ipa.IntervalPriceRuleId
-                    })
-                    .Where(x => x.ProductId.HasValue)
+                var assignmentsIds = await _context.IntervalPriceProductAssignments
+                    .Where(ipa => ipa.IntervalPriceRuleId == intervalRule.Id && ipa.AllegroProductId.HasValue)
+                    .Select(ipa => ipa.AllegroProductId.Value)
                     .ToListAsync();
 
-                foreach (var ia in allIntervalAssignments)
-                {
-                    if (ia.ProductId.HasValue && intervalRuleLookup.TryGetValue(ia.IntervalPriceRuleId, out var irInfo))
-                    {
-                        intervalAssignmentLookup[ia.ProductId.Value] = (irInfo.Id, irInfo.Name, irInfo.ColorHex);
-                    }
-                }
+                productsInInterval = new HashSet<int>(assignmentsIds);
             }
             foreach (var item in assignments)
             {
@@ -748,13 +709,7 @@ namespace PriceSafari.Services.PriceAutomationService
                     AllegroEan = p.AllegroEan,
                 };
 
-                // ═══ Interwał cenowy ═══
-                if (intervalAssignmentLookup.TryGetValue(p.AllegroProductId, out var intervalInfo))
-                {
-                    row.IntervalRuleId = intervalInfo.RuleId;
-                    row.IntervalRuleName = intervalInfo.Name;
-                    row.IntervalRuleColorHex = intervalInfo.Color;
-                }
+                row.HasInterval = productsInInterval.Contains(p.AllegroProductId);
 
                 CalculateSuggestedPrice(rule, row);
                 CalculateCurrentMarkup(row);
@@ -797,7 +752,18 @@ namespace PriceSafari.Services.PriceAutomationService
             model.EnforceMinimalMarkup = rule.EnforceMinimalMarkup;
             model.IsMinimalMarkupPercent = rule.IsMinimalMarkupPercent;
             model.MinimalMarkupValue = rule.MinimalMarkupValue;
+            var intervalRule = await _context.IntervalPriceRules
+            .Where(ir => ir.AutomationRuleId == rule.Id)
+            .Select(ir => new { ir.Id, ir.Name, ir.ColorHex, ir.IsActive })
+            .FirstOrDefaultAsync();
 
+            if (intervalRule != null)
+            {
+                model.IntervalRuleId = intervalRule.Id;
+                model.IntervalRuleName = intervalRule.Name;
+                model.IntervalRuleColorHex = intervalRule.ColorHex;
+                model.IntervalIsActive = intervalRule.IsActive;
+            }
             model.Products = calculationResult.Products;
             model.TotalProducts = calculationResult.Products.Count;
             model.LastScrapDate = calculationResult.ScrapDate;
@@ -812,7 +778,18 @@ namespace PriceSafari.Services.PriceAutomationService
             model.EnforceMinimalMarkup = rule.EnforceMinimalMarkup;
             model.IsMinimalMarkupPercent = rule.IsMinimalMarkupPercent;
             model.MinimalMarkupValue = rule.MinimalMarkupValue;
+            var intervalRule = await _context.IntervalPriceRules
+            .Where(ir => ir.AutomationRuleId == rule.Id)
+            .Select(ir => new { ir.Id, ir.Name, ir.ColorHex, ir.IsActive })
+            .FirstOrDefaultAsync();
 
+            if (intervalRule != null)
+            {
+                model.IntervalRuleId = intervalRule.Id;
+                model.IntervalRuleName = intervalRule.Name;
+                model.IntervalRuleColorHex = intervalRule.ColorHex;
+                model.IntervalIsActive = intervalRule.IsActive;
+            }
             model.Products = result.Products;
             model.TotalProducts = result.Products.Count;
             model.LastScrapDate = result.ScrapDate;

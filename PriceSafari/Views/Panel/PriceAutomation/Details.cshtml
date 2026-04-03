@@ -12,7 +12,6 @@
     var user = await UserManager.GetUserAsync(User);
     bool canEdit = user?.AccesToEditPriceAutomation ?? false;
     string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen. Skontaktuj sie z nami biuro@pricesafari.pl";
-
     bool isCompetitiveness = Model.StrategyMode == AutomationStrategyMode.Competitiveness;
 
     string strategyClass = isCompetitiveness ? "strategy-comp" : "strategy-prof";
@@ -1418,6 +1417,11 @@
                         <tr>
                            
                             <th style="min-width: 240px;">Produkt</th>
+
+                            @if (Model.IntervalRuleId.HasValue)
+                            {
+                                <th style="width:38px; min-width:38px; max-width:38px; padding:0;"></th>
+                            }
                             
                             <th style="max-width: 170px; min-width: 165px;">Limity Cenowe</th>
                             <th style="min-width: 235px;">Dane z rynku - Twoja oferta</th>
@@ -1634,7 +1638,22 @@
                                         </div>
                                     </div>
                                 </td>
-                               
+                                @if (Model.IntervalRuleId.HasValue)
+                                {
+                                    <td class="align-middle interval-cell">
+                                        @if (item.HasInterval)
+                                        {
+                                            <a href="@Url.Action("Details", "IntervalPrice", new { id = Model.IntervalRuleId.Value })"
+                                               title="Przejdź do interwału: @Model.IntervalRuleName"
+                                               class="interval-badge-simple">
+
+                                                <i class="fas fa-clock interval-icon-simple"></i>
+                                                <div class="interval-status-dot @(Model.IntervalIsActive ? "dot-active" : "dot-inactive")"></div>
+                                                <span class="interval-text">Interwał</span>
+                                            </a>
+                                        }
+                                    </td>
+                                }
                                 <td class="align-middle">
                                     <div class="purchase-wrapper"
                                          data-id="@item.ProductId"
@@ -2516,11 +2535,9 @@ else
                 });
         }
 
-    @{
-        bool hasIntervalRules = (bool)(ViewBag.HasIntervalRules ?? false);
-    }
 
-    @if (hasIntervalRules && canEdit)
+
+        @if (Model.IntervalRuleId.HasValue && canEdit)
     {
         <text>
         extraActionsConfig.push({

@@ -64,7 +64,11 @@ namespace PriceSafari.Models.ViewModels
         public DateTime? ScheduledStartDate { get; set; }
         public DateTime? ScheduledEndDate { get; set; }
 
-   
+        public int? IntervalRuleId { get; set; }
+        public string IntervalRuleName { get; set; }
+        public string IntervalRuleColorHex { get; set; }
+        public bool IntervalIsActive { get; set; }
+
         public List<FlagViewModel> AvailableStoreFlags { get; set; } = new List<FlagViewModel>();
 
     }
@@ -158,10 +162,7 @@ namespace PriceSafari.Models.ViewModels
         public bool IsGradualIncreaseApplied { get; set; } = false;
         public List<int> FlagIds { get; set; } = new List<int>();
 
-        // ═══ Interwał cenowy ═══
-        public int? IntervalRuleId { get; set; }
-        public string IntervalRuleName { get; set; }
-        public string IntervalRuleColorHex { get; set; }
+        public bool HasInterval { get; set; }
     }
 
     public class AutomationExecutionRequest
