@@ -1046,6 +1046,53 @@
         background: #fd7e14;
         border-color: #fd7e14;
     }
+
+
+
+    .interval-info-box {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 20px;
+        background: #f8f9fc;
+        border: 2px dashed #e3e6f0;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none !important;
+        width: 100%;
+    }
+
+        .interval-info-box:hover {
+            border-color: #b7b9cc;
+            background: #fff;
+        }
+
+    .interval-color-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .interval-top-badge {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+
+    .interval-badge-active {
+        background: rgba(28,200,138,0.15);
+        color: #1cc88a;
+    }
+
+    .interval-badge-inactive {
+        background: rgba(231,74,59,0.15);
+        color: #e74a3b;
+    }
 </style>
 
 <div class="View">
@@ -1175,7 +1222,24 @@
 
         </div>
     </div>
-
+    @if (Model.IntervalRuleId.HasValue)
+    {
+        <div class="Vert">
+            <a href="@Url.Action("Details", "IntervalPrice", new { id = Model.IntervalRuleId.Value })" class="interval-info-box">
+                <div class="interval-color-dot" style="background-color:@(Model.IntervalRuleColorHex ?? "#858796");"></div>
+                <div style="flex-grow:1;">
+                    <div style="font-size:15px; font-weight:700; color:#333;">@Model.IntervalRuleName</div>
+                    <div style="font-size:12px; color:#858796; margin-top:2px;">
+                        Powiązany interwał cenowy
+                    </div>
+                </div>
+                <span class="interval-top-badge @(Model.IntervalIsActive ? "interval-badge-active" : "interval-badge-inactive")">
+                    @(Model.IntervalIsActive ? "Aktywny" : "Wyłączony")
+                </span>
+                <i class="fas fa-chevron-right" style="color:#d1d3e2;"></i>
+            </a>
+        </div>
+    }
 
     <div class="Vert">
         <div class="kpi-container">
