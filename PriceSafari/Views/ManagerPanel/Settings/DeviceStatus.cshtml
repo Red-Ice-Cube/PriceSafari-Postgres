@@ -109,7 +109,7 @@
                         <th rowspan="2">Online</th>
                         <th colspan="5" style="background-color: royalblue;">Sklepy</th>
                         <th colspan="4" style="background-color: orange;">Allegro</th>
-                        <th colspan="2" style="background-color: blueviolet;">Automatyzacja</th>
+                        <th colspan="3" style="background-color: blueviolet;">Automatyzacja</th>
                         <th colspan="1" style="background-color: #0d6efd;">Zbieranie</th>
                         <th colspan="3" style="background-color: darkgreen;">Dodatkowe Usługi</th>
                     </tr>
@@ -127,7 +127,7 @@
 
                         <th title="Automatyzacja Marketplace (Allegro)">Auto Market</th>
                         <th title="Automatyzacja Porównywarek (Ceneo/Google)">Auto Comp</th>
-
+                        <th title="Interwałowe zmiany cenowe">Interwał</th>
                         <th title="Allegro Gather (Zbieranie produktów)">Ale Gather</th>
 
                         <th>Faktury</th>
@@ -180,7 +180,9 @@
                             <td class="@(item.PriceComparisonAutomationEnabled ? "bg-yes" : "bg-no")">
                                 @(item.PriceComparisonAutomationEnabled ? "tak" : "nie")
                             </td>
-
+                            <td class="@(item.IntervalExecEnabled ? "bg-yes" : "bg-no")">
+                                @(item.IntervalExecEnabled ? "tak" : "nie")
+                            </td>
                             <td class="@(item.AleGatherEnabled ? "bg-yes" : "bg-no")">
                                 @(item.AleGatherEnabled ? "tak" : "nie")
                             </td>

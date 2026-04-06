@@ -44,7 +44,7 @@ namespace PriceSafari.IntervalPriceChanger.Models
         public bool IsPriceStepPercent { get; set; }
 
         [StringLength(2000)]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         [StringLength(100)]
         public string DeviceName { get; set; }

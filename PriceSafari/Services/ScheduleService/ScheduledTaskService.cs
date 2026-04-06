@@ -1219,6 +1219,7 @@ public class ScheduledTaskService : BackgroundService
         const string COMP_AUTO_EXPECTED = "88776655";
 
         const string ALE_GATHER_EXPECTED = "77553311";
+        const string INTERVAL_EXEC_EXPECTED = "49204718";
 
         bool hasBaseScal = (baseScalKey == BASE_SCAL_EXPECTED);
         bool hasUrlScal = (urlScalKey == URL_SCAL_EXPECTED);
@@ -1238,6 +1239,8 @@ public class ScheduledTaskService : BackgroundService
         bool hasCompAuto = (compAutoKey == COMP_AUTO_EXPECTED);
 
         bool hasAleGather = (aleGatherKey == ALE_GATHER_EXPECTED);
+        var intervalKey = Environment.GetEnvironmentVariable("INTERVAL_EXEC_KEY");  
+        bool hasIntervalExec = (intervalKey == INTERVAL_EXEC_EXPECTED);
 
         var newStatus = new DeviceStatus
         {
@@ -1263,6 +1266,7 @@ public class ScheduledTaskService : BackgroundService
             PriceComparisonAutomationEnabled = hasCompAuto,
 
             AleGatherEnabled = hasAleGather,
+            IntervalExecEnabled = hasIntervalExec,
         };
 
         await context.DeviceStatuses.AddAsync(newStatus, ct);
