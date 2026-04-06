@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using PriceSafari.Data;
+using PriceSafari.IntervalPriceChanger;
 using PriceSafari.Models;
 using PriceSafari.Models.SchedulePlan;
 using PriceSafari.ScrapersControllers;
@@ -902,6 +903,15 @@ public class ScheduledTaskService : BackgroundService
 
             foreach (var rule in executableRules)
             {
+                // Główny automat czeka na lock (max 5 min) — ma pierwszeństwo
+                using var storeLock = await StoreLockManager.AcquireAsync(rule.StoreId, TimeSpan.FromMinutes(5));
+
+                if (storeLock == null)
+                {
+                    sb.Append($"[R:{rule.Name}, SKIP:StoreLock timeout] ");
+                    continue;
+                }
+
                 try
                 {
                     dynamic result = await automationService.ExecuteAutomationAsync(rule.Id, null);
@@ -929,6 +939,7 @@ public class ScheduledTaskService : BackgroundService
                 {
                     sb.Append($"[R:{rule.Name}, Błąd:{ex.Message}] ");
                 }
+                // Lock zwalniany automatycznie przez using
             }
 
             // 4. Aktualizacja logu
@@ -999,6 +1010,14 @@ public class ScheduledTaskService : BackgroundService
 
             foreach (var rule in executableRules)
             {
+                using var storeLock = await StoreLockManager.AcquireAsync(rule.StoreId, TimeSpan.FromMinutes(5));
+
+                if (storeLock == null)
+                {
+                    sb.Append($"[R:{rule.Name}, SKIP:StoreLock timeout] ");
+                    continue;
+                }
+
                 try
                 {
                     dynamic result = await automationService.ExecuteAutomationAsync(rule.Id, null);

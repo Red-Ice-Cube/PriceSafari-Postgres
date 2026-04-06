@@ -78,6 +78,9 @@ namespace PriceSafari.Data
         public DbSet<IntervalPriceRule> IntervalPriceRules { get; set; }
         public DbSet<IntervalPriceProductAssignment> IntervalPriceProductAssignments { get; set; }
 
+        public DbSet<IntervalPriceExecutionBatch> IntervalPriceExecutionBatches { get; set; }
+        public DbSet<IntervalPriceExecutionItem> IntervalPriceExecutionItems { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -434,6 +437,19 @@ namespace PriceSafari.Data
                 .HasIndex(a => a.AllegroProductId)
                 .IsUnique()
                 .HasFilter("\"AllegroProductId\" IS NOT NULL");
+
+            modelBuilder.Entity<IntervalPriceExecutionBatch>(entity =>
+            {
+                entity.HasIndex(b => new { b.IntervalPriceRuleId, b.ExecutionDate });
+                entity.HasIndex(b => b.StoreId);
+            });
+
+            modelBuilder.Entity<IntervalPriceExecutionItem>(entity =>
+            {
+                entity.HasIndex(i => i.BatchId);
+                entity.HasIndex(i => i.AllegroProductId);
+                entity.HasIndex(i => i.ProductId);
+            });
         }
     }
 }

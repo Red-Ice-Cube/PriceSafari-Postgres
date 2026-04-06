@@ -1,8 +1,9 @@
 ﻿@using PriceSafari.Models
+@using PriceSafari.Models.ViewModels
 @using PriceSafari.IntervalPriceChanger.Models
 @using PriceSafari.IntervalPriceChanger.Models.ViewModels
 @using Microsoft.AspNetCore.Identity
-@using PriceSafari.Models.ViewModels
+
 @model IntervalPriceDetailsViewModel
 @inject UserManager<PriceSafariUser> UserManager
 
@@ -1457,7 +1458,7 @@
         const intervalRuleId = @Model.IntervalRuleId;
         const parentRuleId = @Model.ParentRuleId;
         const isAllegroContext = @(isMarketplace ? "true" : "false");
-        const flags = @Html.Raw(Json.Serialize(Model.AvailableStoreFlags ?? new List<FlagViewModel>()));
+        const flags = @Html.Raw(Json.Serialize(Model.AvailableStoreFlags));
 
         // ═══════════════════════════════════════════════════════
         // MASS ACTIONS

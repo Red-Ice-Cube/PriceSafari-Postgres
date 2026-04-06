@@ -109,6 +109,8 @@ public class Program
         builder.Services.AddScoped<PriceAutomationService>();
         builder.Services.AddScoped<AllegroGatherService>();
         builder.Services.AddScoped<IntervalPriceCalculationService>();
+        builder.Services.AddScoped<PriceSafari.IntervalPriceChanger.Services.IntervalPriceExecutionService>();
+        builder.Services.AddHostedService<PriceSafari.IntervalPriceChanger.IntervalPriceBackgroundService>();
         builder.Services.AddScoped<IMassExportService, MassExportService>();
         builder.Services.AddScoped<PriceSafari.Services.KSeF.IInvoiceXmlBuilder,
                            PriceSafari.Services.KSeF.InvoiceXmlBuilder>();
