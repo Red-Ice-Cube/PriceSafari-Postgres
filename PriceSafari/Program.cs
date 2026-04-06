@@ -7,6 +7,7 @@ using PriceSafari.Culture;
 using PriceSafari.Data;
 using PriceSafari.DotEnv;
 using PriceSafari.Hubs;
+using PriceSafari.IntervalPriceChanger.Services;
 using PriceSafari.Models;
 using PriceSafari.Models.SchedulePlan;
 using PriceSafari.Scrapers;
@@ -107,6 +108,7 @@ public class Program
         builder.Services.AddScoped<AllegroAuthTokenService>();
         builder.Services.AddScoped<PriceAutomationService>();
         builder.Services.AddScoped<AllegroGatherService>();
+        builder.Services.AddScoped<IntervalPriceCalculationService>();
         builder.Services.AddScoped<IMassExportService, MassExportService>();
         builder.Services.AddScoped<PriceSafari.Services.KSeF.IInvoiceXmlBuilder,
                            PriceSafari.Services.KSeF.InvoiceXmlBuilder>();

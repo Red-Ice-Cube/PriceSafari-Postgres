@@ -5,6 +5,7 @@ using PriceSafari.Attributes;
 using PriceSafari.Data;
 using PriceSafari.Enums;
 using PriceSafari.IntervalPriceChanger.Models;
+using PriceSafari.IntervalPriceChanger.Services;
 using PriceSafari.Models;
 using System.Text.Json;
 
@@ -14,12 +15,13 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
     public class IntervalPriceController : Controller
     {
         private readonly PriceSafariContext _context;
+        private readonly IntervalPriceCalculationService _calcService;
 
-        public IntervalPriceController(PriceSafariContext context)
+        public IntervalPriceController(PriceSafariContext context, IntervalPriceCalculationService calcService)
         {
             _context = context;
+            _calcService = calcService;
         }
-
         // ═══════════════════════════════════════════════════════
         // TWORZENIE
         // ═══════════════════════════════════════════════════════
@@ -137,20 +139,16 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
             var rule = await _context.IntervalPriceRules
                 .Include(r => r.AutomationRule)
                     .ThenInclude(ar => ar.Store)
+                .Include(r => r.AutomationRule)
+                    .ThenInclude(ar => ar.CompetitorPreset)
+                        .ThenInclude(cp => cp.CompetitorItems)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (rule == null) return NotFound();
 
-            var assignedCount = await _context.IntervalPriceProductAssignments
-                .CountAsync(a => a.IntervalPriceRuleId == id);
+            var model = await _calcService.PrepareDetailsDataAsync(rule);
 
-            var parentProductCount = await _context.AutomationProductAssignments
-                .CountAsync(a => a.AutomationRuleId == rule.AutomationRuleId);
-
-            ViewBag.AssignedProductsCount = assignedCount;
-            ViewBag.ParentProductCount = parentProductCount;
-
-            return View("~/Views/Panel/IntervalPriceChanger/Details.cshtml", rule);
+            return View("~/Views/Panel/IntervalPriceChanger/Details.cshtml", model);
         }
 
         // ═══════════════════════════════════════════════════════
