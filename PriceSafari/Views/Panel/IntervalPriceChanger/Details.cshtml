@@ -1068,7 +1068,7 @@
                             <th style="max-width:170px; min-width:165px;">Limity Cenowe</th>
                             <th style="min-width:235px;">Dane z rynku - Twoja oferta</th>
                             <th style="min-width:200px;">Najlepszy Rywal</th>
-                            <th style="min-width:170px;">Aktualna Cena Interwału</th>
+                            <th style="min-width:170px;">Ostatnia Znana Cena</th>
                             <th style="min-width:220px;" class="bg-gradient-light border-left-primary">Następny Krok</th>
                             <th style="min-width:100px;">Status</th>
                         </tr>
@@ -1320,26 +1320,43 @@
                                     }
                                 </td>
 
-                                @* ── KOLUMNA 5: Aktualna Cena Interwału ── *@
+                                @* ── KOLUMNA 5: Ostatnia Znana Cena ── *@
                                 <td class="align-middle text-center">
-                                    @if (item.IntervalCurrentPrice.HasValue)
+                                    @if (item.LastKnownPrice.HasValue)
                                     {
-                                        <div class="price-main-style" style="color:#e67e22;">@item.IntervalCurrentPrice.Value.ToString("F2") PLN</div>
-                                        <div class="small text-muted">@(item.IntervalLastChangeDate?.ToString("dd.MM HH:mm") ?? "")</div>
-                                        <div style="font-size:10px; color:#858796; margin-top:2px;">@item.IntervalExecutedSteps wykonań</div>
+                                        <div class="price-main-style" style="color:@(item.LastKnownSource == LastKnownPriceSource.Interval ? "#e67e22" : item.LastKnownSource == LastKnownPriceSource.Automation ? "#1cc88a" : "#858796");">
+                                            @item.LastKnownPrice.Value.ToString("F2") PLN
+                                        </div>
+                                        @if (item.LastKnownPriceDate.HasValue)
+                                        {
+                                            <div class="small text-muted">@item.LastKnownPriceDate.Value.ToString("dd.MM HH:mm")</div>
+                                        }
+                                        <div style="margin-top:4px;">
+                                            @switch (item.LastKnownSource)
+                                            {
+                                                case LastKnownPriceSource.Interval:
+                                                    <span style="font-size:10px; padding:2px 6px; border-radius:3px; background:rgba(230,126,34,0.12); color:#e67e22; font-weight:600;">
+                                                        <i class="fas fa-clock" style="margin-right:2px;"></i> Z interwału
+                                                    </span>
+                                                    break;
+                                                case LastKnownPriceSource.Automation:
+                                                    <span style="font-size:10px; padding:2px 6px; border-radius:3px; background:rgba(28,200,138,0.12); color:#1cc88a; font-weight:600;">
+                                                        <i class="fas fa-robot" style="margin-right:2px;"></i> Z automatu
+                                                    </span>
+                                                    break;
+                                                case LastKnownPriceSource.Market:
+                                                    <span style="font-size:10px; padding:2px 6px; border-radius:3px; background:rgba(133,135,150,0.12); color:#858796; font-weight:600;">
+                                                        <i class="fas fa-globe" style="margin-right:2px;"></i> Z rynku
+                                                    </span>
+                                                    break;
+                                            }
+                                        </div>
                                     }
                                     else
                                     {
                                         <div style="color:#d1d3e2; font-size:13px;">
-                                            <i class="fas fa-hourglass-start" style="margin-right:4px;"></i> Brak danych
+                                            <i class="fas fa-question-circle" style="margin-right:4px;"></i> Brak danych
                                         </div>
-                                        <div class="small text-muted">Interwał nie wykonał jeszcze akcji</div>
-                                        @if (item.EffectiveCurrentPrice.HasValue)
-                                        {
-                                            <div style="font-size:11px; color:#858796; margin-top:4px;">
-                                                Cena bazowa: <strong>@item.EffectiveCurrentPrice.Value.ToString("F2") PLN</strong>
-                                            </div>
-                                        }
                                     }
                                 </td>
 

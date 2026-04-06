@@ -140,8 +140,34 @@
         /// Ostrzeżenie o marży (narzut ujemny lub poniżej minimum).
         /// </summary>
         public bool IsMarginWarning { get; set; }
+
+
+        // ═══ OSTATNIA ZNANA CENA ═══
+
+        /// <summary>
+        /// Najnowsza znana cena — z interwału, automatu lub scrapu.
+        /// </summary>
+        public decimal? LastKnownPrice { get; set; }
+
+        /// <summary>
+        /// Data ostatniej znanej ceny.
+        /// </summary>
+        public DateTime? LastKnownPriceDate { get; set; }
+
+        /// <summary>
+        /// Skąd pochodzi ostatnia znana cena.
+        /// </summary>
+        public LastKnownPriceSource LastKnownSource { get; set; } = LastKnownPriceSource.None;
     }
 
+
+    public enum LastKnownPriceSource
+    {
+        None,
+        Interval,   // Z logu interwału
+        Automation, // Z głównego automatu (committed)
+        Market      // Z ostatniego scrapu
+    }
     public enum IntervalProductStatus
     {
         Ready,          // Gotowy do wykonania

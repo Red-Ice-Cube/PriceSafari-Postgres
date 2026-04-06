@@ -148,6 +148,20 @@ namespace PriceSafari.IntervalPriceChanger.Services
             // Następne wykonanie z harmonogramu
             DateTime? nextExecution = model.NextGlobalExecution;
 
+            var intervalExecutionData = await _context.Set<IntervalPriceExecutionItem>()
+                .Where(i => i.Batch.IntervalPriceRuleId == rule.Id
+                         && i.Success
+                         && i.AllegroProductId.HasValue)
+                .GroupBy(i => i.AllegroProductId.Value)
+                .Select(g => new
+                {
+                    AllegroProductId = g.Key,
+                    LatestPrice = g.OrderByDescending(i => i.Batch.ExecutionDate).Select(i => i.PriceAfterVerified ?? i.PriceAfterTarget).FirstOrDefault(),
+                    LatestDate = g.Max(i => i.Batch.ExecutionDate),
+                    TotalSteps = g.Count()
+                })
+                .ToDictionaryAsync(x => x.AllegroProductId);
+
             foreach (var item in assignments)
             {
                 var p = item.AllegroProduct;
@@ -242,11 +256,50 @@ namespace PriceSafari.IntervalPriceChanger.Services
                         ? productFlagsLookup[p.AllegroProductId]
                         : new List<int>(),
 
-                    // Na razie brak danych z interwału (będą później)
-                    IntervalCurrentPrice = null,
-                    IntervalLastChangeDate = null,
-                    IntervalExecutedSteps = 0,
+                    LastKnownPrice = null,       // wypełnione poniżej
+                    LastKnownPriceDate = null,
+                    LastKnownSource = LastKnownPriceSource.None,
                 };
+
+                // ═══ OSTATNIA ZNANA CENA — najnowsza z: interwał, automat, scrap ═══
+                {
+                    decimal? lkPrice = null;
+                    DateTime? lkDate = null;
+                    var lkSource = LastKnownPriceSource.None;
+
+                    // Kandydat 1: Interwał
+                    if (intervalExecutionData.TryGetValue(p.AllegroProductId, out var execData))
+                    {
+                        lkPrice = execData.LatestPrice;
+                        lkDate = execData.LatestDate;
+                        lkSource = LastKnownPriceSource.Interval;
+                    }
+
+                    // Kandydat 2: Automat (committed) — jeśli nowszy
+                    if (committedLookup.TryGetValue(p.AllegroProductId, out var ciLk))
+                    {
+                        var commitDate = ciLk.PriceBridgeBatch.ExecutionDate;
+                        var commitPrice = ciLk.PriceAfter_Verified ?? ciLk.PriceAfter_Simulated;
+                        if (!lkDate.HasValue || commitDate > lkDate.Value)
+                        {
+                            lkPrice = commitPrice;
+                            lkDate = commitDate;
+                            lkSource = LastKnownPriceSource.Automation;
+                        }
+                    }
+
+                    // Kandydat 3: Scrap — fallback
+                    if (!lkPrice.HasValue && marketPrice.HasValue && marketPrice.Value > 0)
+                    {
+                        lkPrice = marketPrice;
+                        lkDate = latestScrap?.Date;
+                        lkSource = LastKnownPriceSource.Market;
+                    }
+
+                    row.LastKnownPrice = lkPrice;
+                    row.LastKnownPriceDate = lkDate;
+                    row.LastKnownSource = lkSource;
+                }
 
                 // Oblicz limity min/max (identycznie jak w głównym automacie)
                 CalculatePriceLimits(parent, row);
@@ -323,6 +376,20 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 .GroupBy(pf => pf.ProductId.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
+            var intervalExecutionData = await _context.Set<IntervalPriceExecutionItem>()
+                .Where(i => i.Batch.IntervalPriceRuleId == rule.Id
+                         && i.Success
+                         && i.ProductId.HasValue)
+                .GroupBy(i => i.ProductId.Value)
+                .Select(g => new
+                {
+                    ProductId = g.Key,
+                    LatestPrice = g.OrderByDescending(i => i.Batch.ExecutionDate).Select(i => i.PriceAfterVerified ?? i.PriceAfterTarget).FirstOrDefault(),
+                    LatestDate = g.Max(i => i.Batch.ExecutionDate),
+                    TotalSteps = g.Count()
+                })
+                .ToDictionaryAsync(x => x.ProductId);
+
             DateTime? nextExecution = model.NextGlobalExecution;
 
             foreach (var item in assignments)
@@ -381,11 +448,46 @@ namespace PriceSafari.IntervalPriceChanger.Services
                         ? productFlagsLookup[p.ProductId]
                         : new List<int>(),
 
-                    IntervalCurrentPrice = null,
-                    IntervalLastChangeDate = null,
-                    IntervalExecutedSteps = 0,
+                    LastKnownPrice = null,
+                    LastKnownPriceDate = null,
+                    LastKnownSource = LastKnownPriceSource.None,
                 };
+                // ═══ OSTATNIA ZNANA CENA ═══
+                {
+                    decimal? lkPrice = null;
+                    DateTime? lkDate = null;
+                    var lkSource = LastKnownPriceSource.None;
 
+                    if (intervalExecutionData.TryGetValue(p.ProductId, out var execData))
+                    {
+                        lkPrice = execData.LatestPrice;
+                        lkDate = execData.LatestDate;
+                        lkSource = LastKnownPriceSource.Interval;
+                    }
+
+                    if (committedLookup.TryGetValue(p.ProductId, out var ciLk))
+                    {
+                        var commitDate = ciLk.Batch.ExecutionDate;
+                        var commitPrice = ciLk.PriceAfter;
+                        if (!lkDate.HasValue || commitDate > lkDate.Value)
+                        {
+                            lkPrice = commitPrice;
+                            lkDate = commitDate;
+                            lkSource = LastKnownPriceSource.Automation;
+                        }
+                    }
+
+                    if (!lkPrice.HasValue && (myHistory?.Price ?? 0) > 0)
+                    {
+                        lkPrice = myHistory.Price;
+                        lkDate = latestScrap?.Date;
+                        lkSource = LastKnownPriceSource.Market;
+                    }
+
+                    row.LastKnownPrice = lkPrice;
+                    row.LastKnownPriceDate = lkDate;
+                    row.LastKnownSource = lkSource;
+                }
                 CalculatePriceLimits(parent, row);
                 DetermineEffectivePriceAndStatus(rule, parent, row, myHistory != null && myHistory.Price > 0, committedPrice);
                 CalculateCurrentMarkup(row);
@@ -444,8 +546,8 @@ namespace PriceSafari.IntervalPriceChanger.Services
             decimal? committedPrice)
         {
             // Priorytet ceny: IntervalCurrentPrice → committedPrice → MarketCurrentPrice
-            decimal? effectivePrice = row.IntervalCurrentPrice
-                ?? committedPrice
+            // Priorytet ceny: LastKnownPrice → ApiAllegro → MarketCurrentPrice
+            decimal? effectivePrice = row.LastKnownPrice
                 ?? row.ApiAllegroPriceFromUser
                 ?? row.MarketCurrentPrice;
 
@@ -454,7 +556,8 @@ namespace PriceSafari.IntervalPriceChanger.Services
             // === BLOKADY ===
 
             // 1. Brak ceny ze scrapu
-            if (!hasScrapedPrice && row.IntervalCurrentPrice == null)
+
+            if (!hasScrapedPrice && row.LastKnownPrice == null)
             {
                 ApplyBlock(row, "Brak danych ze scrapu");
                 return;
