@@ -1,4 +1,4 @@
-﻿@using PriceSafari.Models
+﻿@* @using PriceSafari.Models
 @using PriceSafari.IntervalPriceChanger.Models
 
 @model IntervalPriceRule
@@ -1269,6 +1269,1673 @@
             function clearAll() { grid = empty(); refresh(); }
 
             return { init, refresh, fillAll, clearAll };
+        })();
+
+        document.addEventListener('DOMContentLoaded', () => SG.init());
+    </script>
+} *@
+
+
+                    @using PriceSafari.Models
+@using PriceSafari.IntervalPriceChanger.Models
+
+@model IntervalPriceRule
+
+@{
+    bool isEdit = Model.Id > 0;
+    ViewData["Title"] = isEdit ? "Edycja Interwału" : "Nowy Interwał Zmiany Cen";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+    var parentRule = ViewBag.ParentRule as AutomationRule;
+    bool isMarketplace = parentRule?.SourceType == AutomationSourceType.Marketplace;
+    string parentName = parentRule?.Name ?? "?";
+    string parentColor = parentRule?.ColorHex ?? "#ccc";
+    string storeName = parentRule?.Store?.StoreName ?? "?";
+}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+<style>
+    .ipc-box {
+        display: flex;
+        flex-direction: column;
+        padding: 30px;
+        border-radius: 12px;
+        background: #FFF;
+        box-shadow: 0px 5px 15px rgba(0,0,0,0.03);
+        border: 1px solid #edf0f2;
+        width: 100%;
+    }
+
+    .ipc-title {
+        font-size: 19px;
+        font-weight: 500;
+        color: #2e3035;
+        margin-bottom: 25px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 2px solid #f1f3f9;
+        padding-bottom: 15px;
+    }
+
+    .form-group label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #858796;
+        margin-bottom: 8px;
+        display: block;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-control-custom {
+        display: block;
+        width: 100%;
+        height: 45px;
+        padding: 10px 15px;
+        font-size: 15px;
+        font-weight: 500;
+        color: #333;
+        background-color: #fff;
+        border: 1px solid #d1d3e2;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+        .form-control-custom:focus {
+            border-color: #e67e22;
+            outline: 0;
+            box-shadow: 0 0 0 3px rgba(230,126,34,0.1);
+        }
+
+    .input-narrow {
+        max-width: 160px;
+        text-align: right;
+        display: inline-block;
+        font-weight: 500;
+    }
+
+    .switch-container {
+        position: relative;
+        display: inline-flex;
+        background-color: #eaecf4;
+        border-radius: 8px;
+        padding: 4px;
+        cursor: pointer;
+        user-select: none;
+        height: 45px;
+        min-width: 140px;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+
+        .switch-container input[type="checkbox"] {
+            display: none;
+        }
+
+    .switch-sm {
+        height: 38px;
+        min-width: 110px;
+    }
+
+    .switch-slider-bg {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        width: calc(50% - 4px);
+        height: calc(100% - 8px);
+        background-color: #fff;
+        border-radius: 6px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+        z-index: 1;
+    }
+
+    .switch-labels {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 2;
+    }
+
+    .switch-label-text {
+        flex: 1;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 500;
+        transition: color 0.25s;
+        line-height: 1;
+    }
+
+    .switch-neutral .switch-label-text {
+        color: #858796;
+    }
+
+    .switch-neutral.state-left .label-left {
+        color: #2e3035;
+    }
+
+    .switch-neutral.state-right .label-right {
+        color: #2e3035;
+    }
+
+    .switch-container.state-right .switch-slider-bg {
+        transform: translateX(100%);
+    }
+
+    .switch-status .switch-label-text {
+        color: #b7b9cc;
+    }
+
+    .switch-status.state-left .label-left {
+        color: #e74a3b;
+    }
+
+    .switch-status.state-right .label-right {
+        color: #1cc88a;
+    }
+
+    .switch-status.state-right .switch-slider-bg {
+        border: 1px solid #1cc88a;
+    }
+
+    .switch-status.state-left .switch-slider-bg {
+        border: 1px solid #e74a3b;
+    }
+
+    .parent-info-box {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 24px;
+        background: #f8f9fc;
+        border: 2px dashed #e3e6f0;
+        border-radius: 10px;
+    }
+
+    .parent-color-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .parent-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #333;
+    }
+
+    .parent-meta {
+        font-size: 12px;
+        color: #858796;
+        margin-top: 2px;
+    }
+
+    .parent-badge {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+
+    .parent-badge-active {
+        background: rgba(28,200,138,0.15);
+        color: #1cc88a;
+    }
+
+    .parent-badge-inactive {
+        background: rgba(231,74,59,0.15);
+        color: #e74a3b;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       KARTY KROKÓW A / B / C
+       ═══════════════════════════════════════════════════ */
+    .step-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+    }
+
+    @@media (max-width: 900px) {
+        .step-cards-grid { grid-template-columns: 1fr; }
+    }
+
+    .step-card {
+        position: relative;
+        background: #fcfcfd;
+        border: 1px solid #e3e6f0;
+        border-radius: 10px;
+        padding: 18px 20px 16px 20px;
+        transition: all 0.25s;
+        border-top-width: 4px;
+    }
+
+    .step-card-a { border-top-color: #e67e22; }
+    .step-card-b { border-top-color: #3498db; }
+    .step-card-c { border-top-color: #9b59b6; }
+
+    .step-card-inactive {
+        opacity: 0.55;
+        background: #f8f9fc;
+    }
+
+    .step-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    .step-card-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .step-card-letter {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 800;
+        color: #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    }
+
+    .step-card-a .step-card-letter { background: #e67e22; }
+.step-card-b .step-card-letter { background: #3498db; }
+.step-card-c .step-card-letter { background: #9b59b6; }
+
+    .step-card-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: #2e3035;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .step-card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .step-card-input-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .step-card-input-row input {
+        flex: 1;
+        text-align: right;
+        font-size: 17px;
+        font-weight: 600;
+        height: 42px;
+    }
+
+    .step-card-help {
+        font-size: 11px;
+        color: #b7b9cc;
+        line-height: 1.4;
+    }
+
+    /* ═══ SIATKA HARMONOGRAMU ═══ */
+    .schedule-wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .schedule-controls {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .control-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #858796;
+        text-transform: uppercase;
+        margin-right: 8px;
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    /* Step selector A/B/C */
+    .step-select-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: #eaecf4;
+        border-radius: 8px;
+        padding: 4px;
+    }
+
+    .step-select-btn {
+        padding: 6px 14px;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        background: transparent;
+        color: #858796;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 90px;
+        justify-content: center;
+    }
+
+        .step-select-btn:hover {
+            color: #5a5c69;
+        }
+
+        .step-select-btn.active {
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        .step-select-btn .ssb-letter {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .step-select-btn[data-step="1"] .ssb-letter { background: #e67e22; }
+.step-select-btn[data-step="2"] .ssb-letter { background: #3498db; }
+.step-select-btn[data-step="3"] .ssb-letter { background: #9b59b6; }
+
+        .step-select-btn .ssb-value {
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .step-select-btn.active[data-step="1"] .ssb-value { color: #e67e22; }
+.step-select-btn.active[data-step="2"] .ssb-value { color: #3498db; }
+.step-select-btn.active[data-step="3"] .ssb-value { color: #9b59b6; }
+
+        .step-select-btn.step-disabled .ssb-letter {
+            background: #b7b9cc !important;
+        }
+
+        .step-select-btn.step-disabled .ssb-value {
+            color: #b7b9cc !important;
+            text-decoration: line-through;
+        }
+
+    .block-size-group {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        background: #eaecf4;
+        border-radius: 8px;
+        padding: 3px;
+    }
+
+    .block-size-btn {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        background: transparent;
+        color: #858796;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+        .block-size-btn:hover {
+            color: #5a5c69;
+        }
+
+        .block-size-btn.active {
+            background: #fff;
+            color: #333;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        .block-size-btn .btn-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            margin-right: 4px;
+            vertical-align: middle;
+        }
+
+    .schedule-summary {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .summary-box {
+        text-align: center;
+    }
+
+    .summary-big {
+        font-size: 22px;
+        font-weight: 700;
+        color: #5a5c69;
+        line-height: 1;
+    }
+
+    .summary-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #b7b9cc;
+        margin-top: 2px;
+    }
+
+    .quick-action-btn {
+        padding: 5px 12px;
+        border: 1px solid #d1d3e2;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #fff;
+        color: #5a5c69;
+        transition: all 0.2s;
+        height: 34.5px;
+    }
+
+        .quick-action-btn:hover {
+            background: #f8f9fc;
+            border-color: #b7b9cc;
+        }
+
+    /* Tabela */
+    .sg-table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 750px;
+        user-select: none;
+        -webkit-user-select: none;
+        table-layout: fixed;
+    }
+
+        .sg-table th {
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #5a5c69;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 6px 2px;
+            background: #f8f9fc;
+            border: 1px solid #e3e6f0;
+            position: sticky;
+            top: 0;
+            z-index: 3;
+        }
+
+            .sg-table th.th-time {
+                width: 52px;
+                min-width: 52px;
+                text-align: right;
+                padding-right: 8px;
+            }
+
+    .day-stats-row td {
+        text-align: center;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 5px 0;
+        background: #fcfcfd;
+        border: 1px solid #e3e6f0;
+        position: sticky;
+        top: 28px;
+        z-index: 2;
+        color: #b7b9cc;
+    }
+
+    .sg-table td.tc {
+        text-align: right;
+        padding-right: 8px;
+        font-family: 'SF Mono','Fira Code','Consolas',monospace;
+        font-size: 9px;
+        font-weight: 400;
+        color: #d0d2d8;
+        background: #fafbfc;
+        width: 52px;
+        min-width: 52px;
+        border: 1px solid #edf0f2;
+        border-right: 2px solid #e3e6f0;
+        height: 22px;
+    }
+
+        .sg-table td.tc.hour-mark {
+            color: #5a5c69;
+            font-weight: 700;
+            font-size: 10px;
+            background: #f8f9fc;
+        }
+
+    .sg-table tr.hour-boundary td {
+        border-top: 2px solid #cfd2da;
+    }
+
+    .sg-cell {
+        height: 22px;
+        cursor: crosshair;
+        position: relative;
+        border: 1px solid #edf0f2;
+        background: #fafbfc;
+        transition: background-color 0.06s;
+    }
+
+    .blk-lbl {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 6px;
+        right: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        color: rgba(255,255,255,0.92);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 1;
+    }
+
+    .blk-lbl-left {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+        .blk-lbl-left i {
+            font-size: 9px;
+        }
+
+    .blk-lbl-step {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 800;
+        margin-right: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+    }
+
+    .blk-lbl-step-1 { background: #e67e22; }
+    .blk-lbl-step-2 { background: #3498db; }
+    .blk-lbl-step-3 { background: #9b59b6; }
+
+    .blk-lbl-right {
+        font-size: 10px;
+        font-weight: 600;
+        opacity: 0.8;
+        letter-spacing: 0.3px;
+    }
+
+    .sg-cell.pv-paint {
+        z-index: 1;
+    }
+
+        .sg-cell.pv-paint.pv-mid {
+            border-top-color: transparent !important;
+            border-bottom-color: transparent !important;
+        }
+
+    .sg-cell.pv-blocked {
+        z-index: 1;
+    }
+
+        .sg-cell.pv-blocked.pv-start {
+            border-color: rgba(100,100,100,0.3) !important;
+            box-shadow: inset 0 2px 0 0 rgba(100,100,100,0.3) !important;
+        }
+
+        .sg-cell.pv-blocked.pv-end {
+            border-color: rgba(100,100,100,0.25) !important;
+            box-shadow: inset 0 -2px 0 0 rgba(100,100,100,0.25) !important;
+        }
+
+    .sg-cell.pv-single {
+        border-color: rgba(100,100,100,0.3) !important;
+        box-shadow: inset 0 2px 0 0 rgba(100,100,100,0.3), inset 0 -2px 0 0 rgba(100,100,100,0.3) !important;
+    }
+
+    .sg-cell.pv-erase {
+        filter: brightness(0.7) saturate(0.5);
+        z-index: 1;
+    }
+
+        .sg-cell.pv-erase::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(231,74,59,0.2);
+            pointer-events: none;
+        }
+</style>
+
+<form asp-controller="IntervalPrice" asp-action="@(isEdit ? "Edit" : "Create")" method="post" id="intervalRuleForm" class="View">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="AutomationRuleId" />
+    <input type="hidden" asp-for="ScheduleJson" id="ScheduleJsonInput" />
+    <input type="hidden" asp-for="PreferredBlockSize" id="PreferredBlockSizeInput" />
+
+    <div class="Vert">
+        <div class="Date" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+            <div class="Order-Container-Title">
+                @(isEdit ? "Edycja Interwału Zmiany Cen" : "Nowy Interwał Zmiany Cen")
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                @if (isEdit)
+                {
+                    <a asp-controller="IntervalPrice" asp-action="Details" asp-route-id="@Model.Id" class="Button-Page-Small">Anuluj</a>
+                }
+                else
+                {
+                    <a asp-controller="PriceAutomation" asp-action="Details" asp-route-id="@Model.AutomationRuleId" class="Button-Page-Small">Anuluj</a>
+                }
+                <button type="submit" class="Button-Page-Small-bl" style="height:34px;"><i class="fas fa-save" style="margin-right:4px;"></i> Zapisz</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="Vert">
+        <div class="ipc-box">
+            <div class="ipc-title"><i class="fas fa-link" style="color:#e67e22;"></i> Automat Cenowy (Rodzic)</div>
+            <div class="parent-info-box">
+                <div class="parent-color-dot" style="background-color:@parentColor;"></div>
+                <div style="flex-grow:1;">
+                    <div class="parent-name">@parentName</div>
+                    <div class="parent-meta">@storeName · @(isMarketplace ? "Marketplace (Allegro)" : "Porównywarki Cen") · @(parentRule?.StrategyMode == AutomationStrategyMode.Competitiveness ? "Lider Rynku" : "Rentowność")</div>
+                </div>
+                <span class="parent-badge @(parentRule?.IsActive == true ? "parent-badge-active" : "parent-badge-inactive")">@(parentRule?.IsActive == true ? "Aktywny" : "Wyłączony")</span>
+            </div>
+            <div style="margin-top:16px; font-size:12px; color:#858796; background:#fcfcfd; padding:12px 16px; border-radius:6px; border:1px solid #eaecf4;">
+                Interwał dziedziczy: <strong>limity cenowe</strong>, <strong>prowizję</strong>, <strong>preset konkurencji</strong>. Wyłączenie rodzica wstrzymuje interwał.
+            </div>
+        </div>
+    </div>
+
+    <div class="Vert">
+        <div class="ipc-box">
+            <div class="ipc-title">Dane Podstawowe</div>
+            <div style="display:flex; gap:30px; align-items:flex-end; flex-wrap:wrap;">
+                <div style="flex:0 0 90px;">
+                    <div class="form-group">
+                        <label>KOLOR</label>
+                        <div id="ColorContainer" style="position:relative; border:1px solid #d1d3e2; border-radius:6px; height:45px; background-color:@(string.IsNullOrEmpty(Model.ColorHex) ? "#e67e22" : Model.ColorHex); cursor:pointer; overflow:hidden;">
+                            <input asp-for="ColorHex" type="color" id="ColorHexInput" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:200%; height:200%; opacity:0; cursor:pointer;" />
+                        </div>
+                    </div>
+                </div>
+                <div style="flex:2; min-width:300px;">
+                    <div class="form-group">
+                        <label>NAZWA</label>
+                        <input asp-for="Name" class="form-control-custom" placeholder="Np. Nocne przebijanie..." />
+                        <span asp-validation-for="Name" class="text-danger" style="font-size:12px;"></span>
+                    </div>
+                </div>
+                <div style="flex:1; min-width:240px;">
+                    <div class="form-group">
+                        <label id="mainStatusLabel" style="color:@(Model.IsActive ? "#1cc88a" : "#e74a3b");">@(Model.IsActive ? "INTERWAŁ AKTYWNY" : "INTERWAŁ WYŁĄCZONY")</label>
+                        <div class="switch-container switch-status @(Model.IsActive ? "state-right" : "state-left")" onclick="toggleSwitch(this)" style="width:100%; height:45px;">
+                            <input type="checkbox" asp-for="IsActive" id="IsActiveSwitch" />
+                            <div class="switch-slider-bg"></div>
+                            <div class="switch-labels">
+                                <span class="switch-label-text label-left" style="font-size:14px;">WYŁ</span>
+                                <span class="switch-label-text label-right" style="font-size:14px;">AKTYWNY</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @if (isEdit)
+                {
+                    <div style="flex:0 0 auto;">
+                        <div class="form-group">
+                            <label style="color:#e74a3b;">USUŃ</label>
+                            <button type="button" onclick="confirmDelete()" class="btn btn-outline-danger" style="height:45px; width:100%; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px; background:#fff; border-radius:6px;"><i class="fas fa-trash"></i> USUŃ</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="Vert">
+        <div class="ipc-box">
+            <div class="ipc-title">Kroki Cenowe (A / B / C)</div>
+            <div style="font-size:12px; color:#858796; margin-bottom:18px;">
+                Każdy krok ma własną wartość, jednostkę i przełącznik aktywności. W harmonogramie poniżej wybierasz, którym krokiem malujesz sloty — sloty należące do nieaktywnego kroku zostają zachowane, ale nie zostaną wykonane.
+            </div>
+
+            <div class="step-cards-grid">
+                <!-- ═════════ KROK A ═════════ -->
+                <div class="step-card step-card-a @(Model.IsStepAActive ? "" : "step-card-inactive")" id="stepCardA">
+                    <div class="step-card-header">
+                        <div class="step-card-title">
+                            <div class="step-card-letter">A</div>
+                            <div class="step-card-name">Krok A</div>
+                        </div>
+                        <div class="switch-container switch-status switch-sm @(Model.IsStepAActive ? "state-right" : "state-left")" onclick="toggleSwitch(this); SG.refresh();">
+                            <input type="checkbox" asp-for="IsStepAActive" id="IsStepAActiveSwitch" />
+                            <div class="switch-slider-bg"></div>
+                            <div class="switch-labels">
+                                <span class="switch-label-text label-left">WYŁ</span>
+                                <span class="switch-label-text label-right">WŁ</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-card-body">
+                        <div class="step-card-input-row">
+                            <input asp-for="PriceStep" type="number" step="0.01" class="form-control-custom" id="PriceStepInputA" />
+                            <div class="switch-container switch-neutral switch-sm @(Model.IsPriceStepPercent ? "state-right" : "state-left")" onclick="toggleSwitch(this); SG.refresh();">
+                                <input type="checkbox" asp-for="IsPriceStepPercent" id="IsPriceStepPercentInputA" />
+                                <div class="switch-slider-bg"></div>
+                                <div class="switch-labels">
+                                    <span class="switch-label-text label-left">PLN</span>
+                                    <span class="switch-label-text label-right">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="step-card-help">Wartość ujemna = obniżka, dodatnia = podwyżka. Wartość 0 zabroniona.</div>
+                    </div>
+                </div>
+
+                <!-- ═════════ KROK B ═════════ -->
+                <div class="step-card step-card-b @(Model.IsStepBActive ? "" : "step-card-inactive")" id="stepCardB">
+                    <div class="step-card-header">
+                        <div class="step-card-title">
+                            <div class="step-card-letter">B</div>
+                            <div class="step-card-name">Krok B</div>
+                        </div>
+                        <div class="switch-container switch-status switch-sm @(Model.IsStepBActive ? "state-right" : "state-left")" onclick="toggleSwitch(this); SG.refresh();">
+                            <input type="checkbox" asp-for="IsStepBActive" id="IsStepBActiveSwitch" />
+                            <div class="switch-slider-bg"></div>
+                            <div class="switch-labels">
+                                <span class="switch-label-text label-left">WYŁ</span>
+                                <span class="switch-label-text label-right">WŁ</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-card-body">
+                        <div class="step-card-input-row">
+                            <input asp-for="PriceStepB" type="number" step="0.01" class="form-control-custom" id="PriceStepInputB" />
+                            <div class="switch-container switch-neutral switch-sm @(Model.IsPriceStepPercentB ? "state-right" : "state-left")" onclick="toggleSwitch(this); SG.refresh();">
+                                <input type="checkbox" asp-for="IsPriceStepPercentB" id="IsPriceStepPercentInputB" />
+                                <div class="switch-slider-bg"></div>
+                                <div class="switch-labels">
+                                    <span class="switch-label-text label-left">PLN</span>
+                                    <span class="switch-label-text label-right">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="step-card-help">Niezależny krok cenowy — np. podwyżki w godzinach szczytu.</div>
+                    </div>
+                </div>
+
+                <!-- ═════════ KROK C ═════════ -->
+                <div class="step-card step-card-c @(Model.IsStepCActive ? "" : "step-card-inactive")" id="stepCardC">
+                    <div class="step-card-header">
+                        <div class="step-card-title">
+                            <div class="step-card-letter">C</div>
+                            <div class="step-card-name">Krok C</div>
+                        </div>
+                        <div class="switch-container switch-status switch-sm @(Model.IsStepCActive ? "state-right" : "state-left")" onclick="toggleSwitch(this); SG.refresh();">
+                            <input type="checkbox" asp-for="IsStepCActive" id="IsStepCActiveSwitch" />
+                            <div class="switch-slider-bg"></div>
+                            <div class="switch-labels">
+                                <span class="switch-label-text label-left">WYŁ</span>
+                                <span class="switch-label-text label-right">WŁ</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-card-body">
+                        <div class="step-card-input-row">
+                            <input asp-for="PriceStepC" type="number" step="0.01" class="form-control-custom" id="PriceStepInputC" />
+                            <div class="switch-container switch-neutral switch-sm @(Model.IsPriceStepPercentC ? "state-right" : "state-left")" onclick="toggleSwitch(this); SG.refresh();">
+                                <input type="checkbox" asp-for="IsPriceStepPercentC" id="IsPriceStepPercentInputC" />
+                                <div class="switch-slider-bg"></div>
+                                <div class="switch-labels">
+                                    <span class="switch-label-text label-left">PLN</span>
+                                    <span class="switch-label-text label-right">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="step-card-help">Trzeci niezależny krok dla bardziej złożonych strategii.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="Vert">
+        <div class="ipc-box">
+            <div class="ipc-title">Harmonogram Aktywności</div>
+
+            <div class="schedule-controls">
+                <div style="display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap;">
+                    <div>
+                        <span class="control-label">Krok cenowy:</span>
+                        <div class="step-select-group" id="stepSelectGroup">
+                            <button type="button" class="step-select-btn active" data-step="1">
+                                <span class="ssb-letter">A</span>
+                                <span class="ssb-value" id="ssbValue1">—</span>
+                            </button>
+                            <button type="button" class="step-select-btn" data-step="2">
+                                <span class="ssb-letter">B</span>
+                                <span class="ssb-value" id="ssbValue2">—</span>
+                            </button>
+                            <button type="button" class="step-select-btn" data-step="3">
+                                <span class="ssb-letter">C</span>
+                                <span class="ssb-value" id="ssbValue3">—</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="control-label">Blok czasu:</span>
+                        <div class="block-size-group" id="blockSizeGroup">
+                            <button type="button" class="block-size-btn" data-block="10"><span class="btn-dot" data-step="1"></span>10m</button>
+                            <button type="button" class="block-size-btn" data-block="20"><span class="btn-dot" data-step="2"></span>20m</button>
+                            <button type="button" class="block-size-btn" data-block="30"><span class="btn-dot" data-step="3"></span>30m</button>
+                            <button type="button" class="block-size-btn" data-block="40"><span class="btn-dot" data-step="4"></span>40m</button>
+                            <button type="button" class="block-size-btn" data-block="50"><span class="btn-dot" data-step="5"></span>50m</button>
+                            <button type="button" class="block-size-btn" data-block="60"><span class="btn-dot" data-step="6"></span>60m</button>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button type="button" class="quick-action-btn" onclick="SG.fillEmpty()"><i id="fillAllIcon" class="fas fa-check-double" style="margin-right:3px; color:#27ae60;"></i> Wypełnij <span id="fillBtnLetter">A</span></button>
+                        <button type="button" class="quick-action-btn" onclick="SG.clearCurrent()"><i class="fas fa-eraser" style="margin-right:3px; color:#e67e22;"></i> Wyczyść <span id="clearBtnLetter">A</span></button>
+                        <button type="button" class="quick-action-btn" onclick="SG.clearAll()"><i class="fas fa-times" style="margin-right:3px; color:#e74a3b;"></i> Wszystko</button>
+                    </div>
+                </div>
+                <div class="schedule-summary">
+                    <div class="summary-box">
+                        <div class="summary-big" id="weeklyTotal">0</div>
+                        <div class="summary-label">wykonań / tydzień</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="font-size:11px; color:#b7b9cc; margin-bottom:10px;">
+                <i class="fas fa-paint-brush"></i> Wybierz krok (A/B/C) i rozmiar bloku, kliknij i przeciągnij aby kłaść. <strong>Shift + klik</strong> = usuń cały blok. Bloki nie nakładają się — usuń istniejący żeby położyć nowy.
+            </div>
+
+            <div class="schedule-wrapper">
+                <table class="sg-table" id="sgTable">
+                    <thead>
+                        <tr>
+                            <th class="th-time"></th>
+                            <th>Pn</th>
+                            <th>Wt</th>
+                            <th>Śr</th>
+                            <th>Cz</th>
+                            <th>Pt</th>
+                            <th>Sb</th>
+                            <th>Nd</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sgBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</form>
+
+@if (isEdit)
+{
+    <form id="deleteRuleForm" asp-controller="IntervalPrice" asp-action="Delete" asp-route-id="@Model.Id" method="post" style="display:none;"></form>
+}
+
+@section Scripts {
+    <script>
+        window.toggleSwitch = function (c) {
+            const cb = c.querySelector('input[type="checkbox"]');
+            cb.checked = !cb.checked;
+            c.classList.toggle('state-left', !cb.checked);
+            c.classList.toggle('state-right', cb.checked);
+            if (cb.id === 'IsActiveSwitch') {
+                const l = document.getElementById('mainStatusLabel');
+                if (l) { l.innerText = cb.checked ? "INTERWAŁ AKTYWNY" : "INTERWAŁ WYŁĄCZONY"; l.style.color = cb.checked ? "#1cc88a" : "#e74a3b"; }
+            }
+            // Aktualizuj wygląd kart kroków
+            if (cb.id === 'IsStepAActiveSwitch') document.getElementById('stepCardA').classList.toggle('step-card-inactive', !cb.checked);
+            if (cb.id === 'IsStepBActiveSwitch') document.getElementById('stepCardB').classList.toggle('step-card-inactive', !cb.checked);
+            if (cb.id === 'IsStepCActiveSwitch') document.getElementById('stepCardC').classList.toggle('step-card-inactive', !cb.checked);
+        };
+        function confirmDelete() { if (confirm('Usunąć interwał?')) document.getElementById('deleteRuleForm').submit(); }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var ci = document.getElementById('ColorHexInput'), cc = document.getElementById('ColorContainer');
+            if (ci && cc) ci.addEventListener('input', () => cc.style.backgroundColor = ci.value);
+
+            // Setup walidacji "nigdy 0" dla wszystkich 3 inputów kroków
+            setupStepInput('PriceStepInputA', -0.01);
+            setupStepInput('PriceStepInputB', 0.01);
+            setupStepInput('PriceStepInputC', 0.01);
+
+            document.getElementById('intervalRuleForm').addEventListener('submit', function (e) {
+                const checks = [
+                    { id: 'PriceStepInputA', activeId: 'IsStepAActiveSwitch', letter: 'A' },
+                    { id: 'PriceStepInputB', activeId: 'IsStepBActiveSwitch', letter: 'B' },
+                    { id: 'PriceStepInputC', activeId: 'IsStepCActiveSwitch', letter: 'C' }
+                ];
+                for (const c of checks) {
+                    if (!document.getElementById(c.activeId).checked) continue; // pomiń wyłączone
+                    const inp = document.getElementById(c.id);
+                    const v = parseFloat(inp.value);
+                    if (v === 0 || isNaN(v)) {
+                        e.preventDefault();
+                        inp.focus();
+                        SG.refresh();
+                        alert('Krok cenowy ' + c.letter + ' nie może wynosić 0.');
+                        return;
+                    }
+                }
+            });
+        });
+
+        function setupStepInput(inputId, defaultVal) {
+            const input = document.getElementById(inputId);
+            let prev = parseFloat(input.value) || defaultVal;
+            input.addEventListener('input', function () {
+                const v = parseFloat(this.value);
+                if (v === 0) {
+                    const stepSize = parseFloat(this.step) || 0.01;
+                    this.value = prev < 0 ? stepSize : -stepSize;
+                }
+                const nv = parseFloat(this.value);
+                if (!isNaN(nv) && nv !== 0) prev = nv;
+                SG.refresh();
+            });
+            input.addEventListener('change', function () {
+                const v = parseFloat(this.value);
+                if (v === 0 || isNaN(v)) {
+                    this.value = prev || defaultVal;
+                    SG.refresh();
+                } else {
+                    prev = v;
+                }
+            });
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // SCHEDULE GRID — wersja A/B/C
+        //
+        // Wartość slotu w grid[d][s]:
+        //   0                              = pusty
+        //   ±(stepIdx*100 + size)          = blok kroku stepIdx (1=A, 2=B, 3=C)
+        //                                    rozmiar size ∈ {1..6}, dodatnia=start, ujemna=cont
+        //
+        // Migracja: stary format ±1..6 → ±101..106 (krok A) przy załadowaniu
+        // ══════════════════════════════════════════════════════════════
+        const SG = (function () {
+            const DAYS = 7, SLOTS = 144;
+            const STEP_LETTERS = { 1: 'A', 2: 'B', 3: 'C' };
+
+            let grid = [];
+            let brushSize = 1;          // 1..6 (10..60 minut)
+            let blockSizeMin = 10;      // wartość minutowa do PreferredBlockSize
+            let currentStepIdx = 1;     // 1=A, 2=B, 3=C
+            let isDragging = false;
+            let dragMode = null;
+            let lastKey = '';
+            let cells = {};
+
+            let hvD = -1, hvS = -1;
+            let pvCells = [];
+            let shiftHeld = false;
+
+            // ── Helpery koloru ──
+            function hexToRgb(h) {
+                h = h.replace('#', '');
+                return { r: parseInt(h.substr(0, 2), 16), g: parseInt(h.substr(2, 2), 16), b: parseInt(h.substr(4, 2), 16) };
+            }
+            function rgbToHex(r, g, b) {
+                return '#' + [r, g, b].map(x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join('');
+            }
+            function lighten(hex, amt) {
+                const c = hexToRgb(hex);
+                return rgbToHex(c.r + (255 - c.r) * amt, c.g + (255 - c.g) * amt, c.b + (255 - c.b) * amt);
+            }
+            function darken(hex, amt) {
+                const c = hexToRgb(hex);
+                return rgbToHex(c.r * (1 - amt), c.g * (1 - amt), c.b * (1 - amt));
+            }
+            function hexToRgba(hex, a) {
+                const c = hexToRgb(hex);
+                return 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + a + ')';
+            }
+            function buildPalette(baseColors, accent) {
+                const c = {}, hi = {}, lo = {}, pv = {};
+                for (const k in baseColors) {
+                    c[k] = baseColors[k];
+                    hi[k] = lighten(baseColors[k], 0.18);
+                    lo[k] = darken(baseColors[k], 0.22);
+                    pv[k] = hexToRgba(baseColors[k], 0.25);
+                }
+                return { c, hi, lo, pv, accent, pvBorder: hexToRgba(accent, 0.55) };
+            }
+
+            const PALETTES = {
+                '-': buildPalette({ 1: '#145a32', 2: '#1a7a42', 3: '#1e8c4a', 4: '#22a053', 5: '#27ae60', 6: '#2ecc71' }, '#27ae60'),
+                '+': buildPalette({ 1: '#7b1a1a', 2: '#992222', 3: '#b52a2a', 4: '#cc3333', 5: '#e04040', 6: '#e86060' }, '#e04040'),
+            };
+
+            function slotTime(s) {
+                const h = Math.floor((s * 10) / 60), m = (s * 10) % 60;
+                return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+            }
+
+            function getStepInfo(stepIdx) {
+                const letter = STEP_LETTERS[stepIdx];
+                const v = parseFloat(document.getElementById('PriceStepInput' + letter).value) || 0;
+                const pct = document.getElementById('IsPriceStepPercentInput' + letter).checked;
+                const sign = v < 0 ? '-' : '+';
+                const up = v > 0;
+                return {
+                    letter,
+                    value: v,
+                    text: sign + Math.abs(v).toFixed(2) + (pct ? '%' : ' PLN'),
+                    icon: up ? 'fa-arrow-up' : 'fa-arrow-down',
+                    up,
+                    isActive: document.getElementById('IsStepAActiveSwitch') && document.getElementById('IsStep' + letter + 'ActiveSwitch').checked
+                };
+            }
+
+            function getPaletteFor(stepIdx) {
+                const info = getStepInfo(stepIdx);
+                return PALETTES[info.up ? '+' : '-'];
+            }
+
+            // Aktywna paleta dla aktualnego brusha
+            function activePalette() {
+                return getPaletteFor(currentStepIdx);
+            }
+
+            function encodeVal(stepIdx, size) { return stepIdx * 100 + size; }
+            function decodeStep(v) {
+                const a = Math.abs(v);
+                if (a === 0) return 0;
+                if (a >= 1 && a <= 6) return 1; // legacy
+                return Math.floor(a / 100);
+            }
+            function decodeSize(v) {
+                const a = Math.abs(v);
+                if (a === 0) return 0;
+                if (a >= 1 && a <= 6) return a; // legacy
+                return a % 100;
+            }
+
+            function empty() { return Array.from({ length: DAYS }, () => Array(SLOTS).fill(0)); }
+
+            // Migracja starego formatu (±1..6) → nowy (±101..106)
+            function migrateLegacy(g) {
+                for (let d = 0; d < DAYS; d++) {
+                    for (let s = 0; s < SLOTS; s++) {
+                        const v = g[d][s];
+                        if (v >= 1 && v <= 6) g[d][s] = 100 + v;
+                        else if (v >= -6 && v <= -1) g[d][s] = v - 100;
+                    }
+                }
+            }
+
+            // ── Init ──
+            function init() {
+                blockSizeMin = parseInt('@Model.PreferredBlockSize') || 10;
+                brushSize = clampBrush(blockSizeMin);
+
+                const json = document.getElementById('ScheduleJsonInput').value;
+                if (json) {
+                    try {
+                        grid = JSON.parse(json);
+                        if (!Array.isArray(grid) || grid.length !== DAYS) throw 0;
+                        // Compat: boolean[][] → number[][]
+                        if (grid[0] && typeof grid[0][0] === 'boolean') {
+                            grid = grid.map(day => day.map(v => v ? 101 : 0));
+                        }
+                        migrateLegacy(grid);
+                    } catch { grid = empty(); }
+                } else { grid = empty(); }
+
+                buildTable();
+                initBlockBtns();
+                initStepBtns();
+                bindEvents();
+                refresh();
+            }
+
+            function clampBrush(bs) { return Math.max(1, Math.min(6, Math.round(bs / 10))); }
+
+            // ── Budowa tabeli ──
+            function buildTable() {
+                const tbody = document.getElementById('sgBody');
+                tbody.innerHTML = '';
+                cells = {};
+                for (let d = 0; d < DAYS; d++) cells[d] = {};
+
+                const sr = document.createElement('tr');
+                sr.className = 'day-stats-row';
+                const t0 = document.createElement('td');
+                t0.className = 'tc'; t0.style.fontSize = '8px'; t0.textContent = '∑';
+                sr.appendChild(t0);
+                for (let d = 0; d < DAYS; d++) {
+                    const td = document.createElement('td');
+                    td.id = 'ds-' + d;
+                    sr.appendChild(td);
+                }
+                tbody.appendChild(sr);
+
+                for (let s = 0; s < SLOTS; s++) {
+                    const isHour = (s * 10) % 60 === 0;
+                    const tr = document.createElement('tr');
+                    if (isHour) tr.classList.add('hour-boundary');
+                    const tc = document.createElement('td');
+                    tc.className = 'tc' + (isHour ? ' hour-mark' : '');
+                    tc.textContent = slotTime(s);
+                    tr.appendChild(tc);
+                    for (let d = 0; d < DAYS; d++) {
+                        const td = document.createElement('td');
+                        td.className = 'sg-cell';
+                        td.dataset.d = d;
+                        td.dataset.s = s;
+                        cells[d][s] = td;
+                        tr.appendChild(td);
+                    }
+                    tbody.appendChild(tr);
+                }
+            }
+
+            // ══════════════════════════════════════════
+            // BLOCK HELPERS
+            // ══════════════════════════════════════════
+
+            function findBlockAt(d, s) {
+                const v0 = grid[d][s];
+                if (v0 === 0) return null;
+                const stepIdx = decodeStep(v0);
+                const size = decodeSize(v0);
+                let start = s;
+                // Cofnij do startu (wartość > 0 z tym samym stepIdx i size)
+                while (start > 0 && grid[d][start] < 0) {
+                    const prevAbs = Math.abs(grid[d][start]);
+                    if (decodeStep(grid[d][start]) !== stepIdx || decodeSize(grid[d][start]) !== size) break;
+                    start--;
+                }
+                if (grid[d][start] <= 0) return null;
+                let len = 1;
+                while (start + len < SLOTS) {
+                    const nv = grid[d][start + len];
+                    if (nv >= 0) break;
+                    if (decodeStep(nv) !== stepIdx || decodeSize(nv) !== size) break;
+                    len++;
+                }
+                return { start, len, stepIdx, size };
+            }
+
+            function canPlace(d, s) {
+                if (s + brushSize > SLOTS) return false;
+                for (let i = 0; i < brushSize; i++) {
+                    if (grid[d][s + i] !== 0) return false;
+                }
+                return true;
+            }
+
+            function placeBlock(d, s) {
+                const val = encodeVal(currentStepIdx, brushSize);
+                grid[d][s] = val;
+                for (let i = 1; i < brushSize; i++) grid[d][s + i] = -val;
+            }
+
+            function eraseBlock(d, s) {
+                const blk = findBlockAt(d, s);
+                if (!blk) return;
+                for (let i = 0; i < blk.len; i++) grid[d][blk.start + i] = 0;
+            }
+
+            // ══════════════════════════════════════════
+            // RENDERING
+            // ══════════════════════════════════════════
+            function refresh() {
+                let weekBlocks = 0;
+                const dayBlocks = Array(DAYS).fill(0);
+
+                for (let d = 0; d < DAYS; d++) {
+                    for (let s = 0; s < SLOTS; s++) {
+                        const td = cells[d][s];
+                        td.className = 'sg-cell';
+                        td.innerHTML = '';
+                        td.style.cssText = '';
+                    }
+
+                    let s = 0;
+                    while (s < SLOTS) {
+                        const v = grid[d][s];
+                        if (v <= 0) { s++; continue; }
+
+                        const stepIdx = decodeStep(v);
+                        const size = decodeSize(v);
+                        let len = 1;
+                        while (s + len < SLOTS && grid[d][s + len] === -v) len++;
+
+                        const palette = getPaletteFor(stepIdx);
+                        const stepInfo = getStepInfo(stepIdx);
+                        const color = palette.c[size] || palette.c[1];
+                        const colorHi = palette.hi[size] || palette.hi[1];
+                        const colorLo = palette.lo[size] || palette.lo[1];
+                        const timeFrom = slotTime(s);
+                        dayBlocks[d]++;
+                        weekBlocks++;
+
+                        for (let i = 0; i < len; i++) {
+                            const cell = cells[d][s + i];
+                            cell.classList.add('on');
+
+                            let css = 'background:' + color + ';border-color:' + color + ';';
+                            // Wyciszony wygląd dla nieaktywnego kroku
+                            if (!stepInfo.isActive) css += 'opacity:0.45;';
+
+                            let shadows = [];
+
+                            if (len === 1) {
+                                cell.classList.add('blk-single');
+                                shadows.push('inset 0 2px 0 0 ' + colorHi);
+                                shadows.push('inset 0 -2px 0 0 ' + colorLo);
+                                cell.innerHTML = mkLabel(stepIdx, stepInfo, timeFrom);
+                            } else if (i === 0) {
+                                cell.classList.add('blk-start');
+                                shadows.push('inset 0 2px 0 0 ' + colorHi);
+                                cell.innerHTML = mkLabel(stepIdx, stepInfo, timeFrom);
+                            } else if (i === len - 1) {
+                                cell.classList.add('blk-end');
+                                shadows.push('inset 0 -2px 0 0 ' + colorLo);
+                            } else {
+                                cell.classList.add('blk-mid');
+                            }
+
+                            if (shadows.length > 0) {
+                                css += 'box-shadow:' + shadows.join(', ') + ';';
+                            }
+
+                            cell.style.cssText = css;
+                        }
+                        s += len;
+                    }
+                }
+
+                document.getElementById('weeklyTotal').textContent = weekBlocks;
+                const accent = activePalette().accent;
+                for (let d = 0; d < DAYS; d++) {
+                    const el = document.getElementById('ds-' + d);
+                    if (el) {
+                        el.innerHTML = dayBlocks[d] > 0
+                            ? '<span style="color:' + accent + ';font-weight:700;">' + dayBlocks[d] + '</span>'
+                            : '<span style="color:#d0d2d8;">0</span>';
+                    }
+                }
+                updateTheme();
+                sync();
+                showPreview();
+            }
+
+            function mkLabel(stepIdx, info, timeStr) {
+                return '<div class="blk-lbl">'
+                    + '<span class="blk-lbl-left">'
+                    + '<span class="blk-lbl-step blk-lbl-step-' + stepIdx + '">' + STEP_LETTERS[stepIdx] + '</span>'
+                    + '<i class="fas ' + info.icon + '"></i> ' + info.text
+                    + '</span>'
+                    + '<span class="blk-lbl-right">' + timeStr + '</span>'
+                    + '</div>';
+            }
+
+            // Aktualizuj UI motywu (brush dots, ikony, selektor kroku)
+            function updateTheme() {
+                const P = activePalette();
+                document.querySelectorAll('#blockSizeGroup .btn-dot').forEach(dot => {
+                    const st = +dot.dataset.step;
+                    dot.style.background = P.c[st] || P.c[1];
+                });
+                const fillIcon = document.getElementById('fillAllIcon');
+                if (fillIcon) fillIcon.style.color = P.accent;
+
+                const summary = document.getElementById('weeklyTotal');
+                if (summary) summary.style.color = P.accent;
+
+                // Aktualizuj wartości w przyciskach selektora kroku
+                for (let i = 1; i <= 3; i++) {
+                    const el = document.getElementById('ssbValue' + i);
+                    if (el) {
+                        const info = getStepInfo(i);
+                        el.textContent = info.text;
+                    }
+                    // Wizualne oznaczenie nieaktywnego kroku
+                    const btn = document.querySelector('#stepSelectGroup .step-select-btn[data-step="' + i + '"]');
+                    if (btn) {
+                        const info = getStepInfo(i);
+                        btn.classList.toggle('step-disabled', !info.isActive);
+                    }
+                }
+
+                // Litera w przyciskach Wypełnij/Wyczyść
+                const letter = STEP_LETTERS[currentStepIdx];
+                const fbl = document.getElementById('fillBtnLetter');
+                const cbl = document.getElementById('clearBtnLetter');
+                if (fbl) fbl.textContent = letter;
+                if (cbl) cbl.textContent = letter;
+            }
+
+            // ══════════════════════════════════════════
+            // HOVER PREVIEW
+            // ══════════════════════════════════════════
+            function clearPreview() {
+                for (const item of pvCells) {
+                    const cell = cells[item.d][item.s];
+                    cell.classList.remove('pv-paint', 'pv-blocked', 'pv-erase', 'pv-start', 'pv-end', 'pv-mid', 'pv-single');
+                    cell.style.cssText = item.origStyle;
+                }
+                pvCells = [];
+            }
+
+            function showPreview() {
+                clearPreview();
+                if (hvD < 0 || hvS < 0 || isDragging) return;
+
+                const slotVal = grid[hvD][hvS];
+
+                if (slotVal !== 0) {
+                    if (!shiftHeld) return;
+                    const blk = findBlockAt(hvD, hvS);
+                    if (!blk) return;
+                    for (let i = 0; i < blk.len; i++) {
+                        const s = blk.start + i;
+                        const cell = cells[hvD][s];
+                        pvCells.push({ d: hvD, s, origStyle: cell.style.cssText });
+                        cell.classList.add('pv-erase');
+                    }
+                } else {
+                    const fits = canPlace(hvD, hvS);
+                    const pvClass = fits ? 'pv-paint' : 'pv-blocked';
+                    const count = Math.min(brushSize, SLOTS - hvS);
+                    const P = activePalette();
+                    const bdr = P.pvBorder;
+
+                    for (let i = 0; i < count; i++) {
+                        const s = hvS + i;
+                        if (grid[hvD][s] !== 0) break;
+
+                        const cell = cells[hvD][s];
+                        pvCells.push({ d: hvD, s, origStyle: cell.style.cssText });
+                        cell.classList.add(pvClass);
+
+                        const pvColor = fits
+                            ? (P.pv[brushSize] || P.pv[1])
+                            : 'rgba(100,100,100,0.08)';
+                        cell.style.backgroundColor = pvColor;
+
+                        const isLast = (i === count - 1) || (s + 1 < SLOTS && grid[hvD][s + 1] !== 0);
+                        if (fits) {
+                            cell.style.borderColor = bdr;
+                            let shadows = [];
+
+                            if (count === 1 || (i === 0 && isLast)) {
+                                cell.classList.add('pv-single');
+                                shadows.push('inset 0 2px 0 0 ' + bdr, 'inset 0 -2px 0 0 ' + bdr);
+                            } else if (i === 0) {
+                                cell.classList.add('pv-start');
+                                shadows.push('inset 0 2px 0 0 ' + bdr);
+                            } else if (isLast) {
+                                cell.classList.add('pv-end');
+                                shadows.push('inset 0 -2px 0 0 ' + bdr);
+                            } else {
+                                cell.classList.add('pv-mid');
+                            }
+
+                            if (shadows.length > 0) {
+                                cell.style.boxShadow = shadows.join(', ');
+                            }
+                        } else {
+                            const isLast2 = isLast;
+                            if (count === 1 || (i === 0 && isLast2)) cell.classList.add('pv-single');
+                            else if (i === 0) cell.classList.add('pv-start');
+                            else if (isLast2) cell.classList.add('pv-end');
+                            else cell.classList.add('pv-mid');
+                        }
+                        if (isLast && i < count - 1) break;
+                    }
+                }
+            }
+
+            // ══════════════════════════════════════════
+            // EVENTS
+            // ══════════════════════════════════════════
+            function bindEvents() {
+                const tbody = document.getElementById('sgBody');
+
+                document.addEventListener('keydown', e => {
+                    if (e.key === 'Shift' && !shiftHeld) {
+                        shiftHeld = true;
+                        showPreview();
+                    }
+                });
+                document.addEventListener('keyup', e => {
+                    if (e.key === 'Shift' && shiftHeld) {
+                        shiftHeld = false;
+                        showPreview();
+                    }
+                });
+
+                function info(el) {
+                    const td = el.closest('.sg-cell');
+                    return td ? { d: +td.dataset.d, s: +td.dataset.s } : null;
+                }
+
+                tbody.addEventListener('mouseover', e => {
+                    const c = info(e.target);
+                    if (!c) return;
+
+                    if (isDragging) {
+                        const key = c.d + '-' + c.s;
+                        if (key === lastKey) return;
+                        lastKey = key;
+
+                        if (dragMode === 'on' && grid[c.d][c.s] === 0 && canPlace(c.d, c.s)) {
+                            placeBlock(c.d, c.s);
+                            refresh();
+                        } else if (dragMode === 'off' && grid[c.d][c.s] !== 0) {
+                            eraseBlock(c.d, c.s);
+                            refresh();
+                        }
+                    } else {
+                        hvD = c.d; hvS = c.s;
+                        showPreview();
+                    }
+                });
+
+                tbody.addEventListener('mouseleave', () => {
+                    hvD = -1; hvS = -1;
+                    clearPreview();
+                });
+
+                tbody.addEventListener('mousedown', e => {
+                    const c = info(e.target);
+                    if (!c) return;
+                    e.preventDefault();
+                    clearPreview();
+
+                    if (e.shiftKey && grid[c.d][c.s] !== 0) {
+                        isDragging = true;
+                        dragMode = 'off';
+                        eraseBlock(c.d, c.s);
+                        refresh();
+                        lastKey = c.d + '-' + c.s;
+                    } else if (!e.shiftKey && grid[c.d][c.s] === 0 && canPlace(c.d, c.s)) {
+                        isDragging = true;
+                        dragMode = 'on';
+                        placeBlock(c.d, c.s);
+                        refresh();
+                        lastKey = c.d + '-' + c.s;
+                    }
+                });
+
+                document.addEventListener('mouseup', e => {
+                    if (!isDragging) return;
+                    isDragging = false;
+                    const el = document.elementFromPoint(e.clientX, e.clientY);
+                    if (el) {
+                        const c = info(el);
+                        if (c) { hvD = c.d; hvS = c.s; }
+                    }
+                    refresh();
+                });
+
+                tbody.addEventListener('touchstart', e => {
+                    const t = e.touches[0];
+                    const td = document.elementFromPoint(t.clientX, t.clientY)?.closest('.sg-cell');
+                    if (!td) return;
+                    e.preventDefault();
+                    const d = +td.dataset.d, s = +td.dataset.s;
+
+                    if (grid[d][s] !== 0) {
+                        isDragging = true;
+                        dragMode = 'off';
+                        eraseBlock(d, s);
+                        refresh();
+                    } else if (canPlace(d, s)) {
+                        isDragging = true;
+                        dragMode = 'on';
+                        placeBlock(d, s);
+                        refresh();
+                    }
+                    lastKey = d + '-' + s;
+                }, { passive: false });
+
+                tbody.addEventListener('touchmove', e => {
+                    if (!isDragging) return;
+                    e.preventDefault();
+                    const t = e.touches[0];
+                    const td = document.elementFromPoint(t.clientX, t.clientY)?.closest('.sg-cell');
+                    if (!td) return;
+                    const d = +td.dataset.d, s = +td.dataset.s;
+                    const key = d + '-' + s;
+                    if (key === lastKey) return;
+                    lastKey = key;
+
+                    if (dragMode === 'on' && grid[d][s] === 0 && canPlace(d, s)) {
+                        placeBlock(d, s);
+                        refresh();
+                    } else if (dragMode === 'off' && grid[d][s] !== 0) {
+                        eraseBlock(d, s);
+                        refresh();
+                    }
+                }, { passive: false });
+
+                tbody.addEventListener('touchend', () => {
+                    if (isDragging) { isDragging = false; refresh(); }
+                });
+            }
+
+            // ── Block size buttons ──
+            function initBlockBtns() {
+                document.querySelectorAll('#blockSizeGroup .block-size-btn').forEach(btn => {
+                    if (+btn.dataset.block === blockSizeMin) btn.classList.add('active');
+                    btn.addEventListener('click', function () {
+                        document.querySelectorAll('#blockSizeGroup .block-size-btn').forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                        blockSizeMin = +this.dataset.block;
+                        brushSize = clampBrush(blockSizeMin);
+                        document.getElementById('PreferredBlockSizeInput').value = blockSizeMin;
+                        showPreview();
+                    });
+                });
+            }
+
+            // ── Step selector A/B/C ──
+            function initStepBtns() {
+                document.querySelectorAll('#stepSelectGroup .step-select-btn').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        document.querySelectorAll('#stepSelectGroup .step-select-btn').forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                        currentStepIdx = +this.dataset.step;
+                        refresh();
+                    });
+                });
+            }
+
+            function sync() { document.getElementById('ScheduleJsonInput').value = JSON.stringify(grid); }
+
+            // Wypełnij puste sloty bieżącym krokiem
+            function fillEmpty() {
+                const sz = brushSize;
+                for (let d = 0; d < DAYS; d++) {
+                    for (let s = 0; s + sz <= SLOTS; s += sz) {
+                        let canHere = true;
+                        for (let i = 0; i < sz; i++) {
+                            if (grid[d][s + i] !== 0) { canHere = false; break; }
+                        }
+                        if (canHere) {
+                            const val = encodeVal(currentStepIdx, sz);
+                            grid[d][s] = val;
+                            for (let i = 1; i < sz; i++) grid[d][s + i] = -val;
+                        }
+                    }
+                }
+                refresh();
+            }
+
+            // Wyczyść tylko bloki bieżącego kroku
+            function clearCurrent() {
+                for (let d = 0; d < DAYS; d++) {
+                    for (let s = 0; s < SLOTS; s++) {
+                        const v = grid[d][s];
+                        if (v !== 0 && decodeStep(v) === currentStepIdx) {
+                            grid[d][s] = 0;
+                        }
+                    }
+                }
+                refresh();
+            }
+
+            function clearAll() {
+                if (!confirm('Wyczyścić cały harmonogram (wszystkie kroki A/B/C)?')) return;
+                grid = empty();
+                refresh();
+            }
+
+            return { init, refresh, fillEmpty, clearCurrent, clearAll };
         })();
 
         document.addEventListener('DOMContentLoaded', () => SG.init());
