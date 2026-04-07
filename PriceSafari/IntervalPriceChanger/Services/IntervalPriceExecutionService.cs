@@ -375,61 +375,42 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     item.IsSubsidyActive = false;
                     item.CustomerVisiblePrice = currentPrice;
 
-                    // ── KALKULACJA NOWEJ CENY (używa kroku A/B/C przekazanego do metody) ──
-                    decimal step = stepIsPercent
-                        ? currentPrice * (stepValue / 100m)
-                        : stepValue;
+                    // ── DECYZJA — jeden punkt prawdy, wspólny z UI preview ──
+                    var decision = IntervalStepCalculator.Calculate(
+                        currentPrice: currentPrice,
+                        stepValue: stepValue,
+                        stepIsPercent: stepIsPercent,
+                        minLimit: minLimit,
+                        maxLimit: maxLimit);
 
-                    decimal targetPrice = Math.Round(currentPrice + step, 2);
-                    bool limitedMin = false, limitedMax = false;
-
-                    // Sprawdź limit Min (tylko dla obniżek — gdy stepValue < 0)
-                    if (minLimit.HasValue && targetPrice < minLimit.Value)
-                    {
-                        if (Math.Abs(currentPrice - minLimit.Value) < 0.01m)
-                        {
-                            item.PriceAfterTarget = currentPrice;
-                            item.PriceChange = 0;
-                            item.Status = IntervalExecutionItemStatus.BlockedLimitReached;
-                            item.StatusReason = "Cena na Min";
-                            batch.LimitReachedCount++;
-                            _context.Set<IntervalPriceExecutionItem>().Add(item);
-                            continue;
-                        }
-                        targetPrice = minLimit.Value;
-                        limitedMin = true;
-                    }
-
-                    // Sprawdź limit Max (tylko dla podwyżek — gdy stepValue > 0)
-                    if (maxLimit.HasValue && targetPrice > maxLimit.Value)
-                    {
-                        if (Math.Abs(currentPrice - maxLimit.Value) < 0.01m)
-                        {
-                            item.PriceAfterTarget = currentPrice;
-                            item.PriceChange = 0;
-                            item.Status = IntervalExecutionItemStatus.BlockedLimitReached;
-                            item.StatusReason = "Cena na Max";
-                            batch.LimitReachedCount++;
-                            _context.Set<IntervalPriceExecutionItem>().Add(item);
-                            continue;
-                        }
-                        targetPrice = maxLimit.Value;
-                        limitedMax = true;
-                    }
-
-                    decimal priceChange = Math.Round(targetPrice - currentPrice, 2);
-                    if (priceChange == 0)
+                    if (decision.Decision == IntervalStepCalculator.Decision.BlockedLimitReached)
                     {
                         item.PriceAfterTarget = currentPrice;
                         item.PriceChange = 0;
-                        item.Status = IntervalExecutionItemStatus.NoChangeNeeded;
-                        item.StatusReason = "Krok=0 po zaokrągleniu";
+                        item.Status = IntervalExecutionItemStatus.BlockedLimitReached;
+                        item.StatusReason = decision.Reason;
+                        batch.LimitReachedCount++;
                         _context.Set<IntervalPriceExecutionItem>().Add(item);
                         continue;
                     }
 
+                    if (decision.Decision == IntervalStepCalculator.Decision.NoChangeNeeded)
+                    {
+                        item.PriceAfterTarget = currentPrice;
+                        item.PriceChange = 0;
+                        item.Status = IntervalExecutionItemStatus.NoChangeNeeded;
+                        item.StatusReason = decision.Reason;
+                        _context.Set<IntervalPriceExecutionItem>().Add(item);
+                        continue;
+                    }
+
+                    // decision.Decision == Execute
+                    decimal targetPrice = decision.TargetPrice;
+                    bool limitedMin = decision.LimitedByMin;
+                    bool limitedMax = decision.LimitedByMax;
+
                     item.PriceAfterTarget = targetPrice;
-                    item.PriceChange = priceChange;
+                    item.PriceChange = decision.PriceChange;
                     item.WasLimitedByMin = limitedMin;
                     item.WasLimitedByMax = limitedMax;
 
@@ -598,58 +579,42 @@ namespace PriceSafari.IntervalPriceChanger.Services
 
                     item.PriceBefore = currentPrice.Value;
 
-                    // Kalkulacja (używa kroku A/B/C przekazanego do metody)
-                    decimal step = stepIsPercent
-                        ? currentPrice.Value * (stepValue / 100m)
-                        : stepValue;
+                    // ── DECYZJA — jeden punkt prawdy, wspólny z UI preview ──
+                    var decision = IntervalStepCalculator.Calculate(
+                        currentPrice: currentPrice.Value,
+                        stepValue: stepValue,
+                        stepIsPercent: stepIsPercent,
+                        minLimit: minLimit,
+                        maxLimit: maxLimit);
 
-                    decimal targetPrice = Math.Round(currentPrice.Value + step, 2);
-                    bool limitedMin = false, limitedMax = false;
-
-                    if (minLimit.HasValue && targetPrice < minLimit.Value)
-                    {
-                        if (Math.Abs(currentPrice.Value - minLimit.Value) < 0.01m)
-                        {
-                            item.PriceAfterTarget = currentPrice.Value;
-                            item.PriceChange = 0;
-                            item.Status = IntervalExecutionItemStatus.BlockedLimitReached;
-                            item.StatusReason = "Cena na Min";
-                            batch.LimitReachedCount++;
-                            _context.Set<IntervalPriceExecutionItem>().Add(item);
-                            continue;
-                        }
-                        targetPrice = minLimit.Value;
-                        limitedMin = true;
-                    }
-
-                    if (maxLimit.HasValue && targetPrice > maxLimit.Value)
-                    {
-                        if (Math.Abs(currentPrice.Value - maxLimit.Value) < 0.01m)
-                        {
-                            item.PriceAfterTarget = currentPrice.Value;
-                            item.PriceChange = 0;
-                            item.Status = IntervalExecutionItemStatus.BlockedLimitReached;
-                            item.StatusReason = "Cena na Max";
-                            batch.LimitReachedCount++;
-                            _context.Set<IntervalPriceExecutionItem>().Add(item);
-                            continue;
-                        }
-                        targetPrice = maxLimit.Value;
-                        limitedMax = true;
-                    }
-
-                    decimal priceChange = Math.Round(targetPrice - currentPrice.Value, 2);
-                    if (priceChange == 0)
+                    if (decision.Decision == IntervalStepCalculator.Decision.BlockedLimitReached)
                     {
                         item.PriceAfterTarget = currentPrice.Value;
                         item.PriceChange = 0;
-                        item.Status = IntervalExecutionItemStatus.NoChangeNeeded;
+                        item.Status = IntervalExecutionItemStatus.BlockedLimitReached;
+                        item.StatusReason = decision.Reason;
+                        batch.LimitReachedCount++;
                         _context.Set<IntervalPriceExecutionItem>().Add(item);
                         continue;
                     }
 
+                    if (decision.Decision == IntervalStepCalculator.Decision.NoChangeNeeded)
+                    {
+                        item.PriceAfterTarget = currentPrice.Value;
+                        item.PriceChange = 0;
+                        item.Status = IntervalExecutionItemStatus.NoChangeNeeded;
+                        item.StatusReason = decision.Reason;
+                        _context.Set<IntervalPriceExecutionItem>().Add(item);
+                        continue;
+                    }
+
+                    // decision.Decision == Execute
+                    decimal targetPrice = decision.TargetPrice;
+                    bool limitedMin = decision.LimitedByMin;
+                    bool limitedMax = decision.LimitedByMax;
+
                     item.PriceAfterTarget = targetPrice;
-                    item.PriceChange = priceChange;
+                    item.PriceChange = decision.PriceChange;
                     item.WasLimitedByMin = limitedMin;
                     item.WasLimitedByMax = limitedMax;
 

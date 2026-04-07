@@ -671,29 +671,29 @@ namespace PriceSafari.IntervalPriceChanger.Services
             row.NextStepValue = stepVal;
             row.NextStepIsPercent = isPct;
 
-            decimal basePrice = row.EffectiveCurrentPrice.Value;
-            decimal step = isPct ? basePrice * (stepVal / 100m) : stepVal;
+            // ── JEDEN PUNKT PRAWDY — tak samo jak executor ──
+            var decision = IntervalStepCalculator.Calculate(
+                currentPrice: row.EffectiveCurrentPrice.Value,
+                stepValue: stepVal,
+                stepIsPercent: isPct,
+                minLimit: row.MinPriceLimit,
+                maxLimit: row.MaxPriceLimit);
 
-            decimal projected = basePrice + step;
+            // Jeśli blokada kierunkowa — nie pokazujemy projected (status już LimitReached
+            // z DetermineEffectivePriceAndStatus, ale dla pewności nie renderujemy mylącej ceny)
+            if (decision.Decision == IntervalStepCalculator.Decision.BlockedLimitReached)
+                return;
 
-            if (row.MinPriceLimit.HasValue && projected < row.MinPriceLimit.Value)
-            {
-                projected = row.MinPriceLimit.Value;
-                row.IsLimitedByMin = true;
-            }
-            if (row.MaxPriceLimit.HasValue && projected > row.MaxPriceLimit.Value)
-            {
-                projected = row.MaxPriceLimit.Value;
-                row.IsLimitedByMax = true;
-            }
+            row.ProjectedNextPrice = decision.TargetPrice;
+            row.ProjectedPriceChange = decision.PriceChange;
+            row.IsLimitedByMin = decision.LimitedByMin;
+            row.IsLimitedByMax = decision.LimitedByMax;
 
-            row.ProjectedNextPrice = Math.Round(projected, 2);
-            row.ProjectedPriceChange = Math.Round(row.ProjectedNextPrice.Value - Math.Round(basePrice, 2), 2);
-
+            // Ostrzeżenie o marży
             if (row.PurchasePrice.HasValue && row.PurchasePrice > 0)
             {
                 decimal commCost = (row.IsCommissionIncluded && row.CommissionAmount.HasValue) ? row.CommissionAmount.Value : 0;
-                decimal projectedMarkup = projected - row.PurchasePrice.Value - commCost;
+                decimal projectedMarkup = decision.TargetPrice - row.PurchasePrice.Value - commCost;
                 if (projectedMarkup < 0) row.IsMarginWarning = true;
             }
         }
