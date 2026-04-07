@@ -20,20 +20,26 @@
 
     decimal activePct = Model.ActiveSlotsCount > 0 ? Math.Round((Model.ActiveSlotsCount / 1008m) * 100, 1) : 0;
 
-    string stepSign = Model.PriceStep < 0 ? "" : "+";
-    string stepText = $"{stepSign}{Model.PriceStep:F2}{(Model.IsPriceStepPercent ? "%" : " PLN")}";
-    string stepColor = Model.PriceStep < 0 ? "#27ae60" : "#e74a3b";
-    string stepIcon = Model.PriceStep < 0 ? "fa-arrow-down" : "fa-arrow-up";
+    // ═══ HEADER STEP INFO — pokazuje krok który będzie wykonany NASTĘPNIE ═══
+    int headerStepIdx = Model.NextGlobalExecutionStepIdx ?? 1;
+    decimal headerStepVal =
+        headerStepIdx == 2 ? Model.PriceStepB :
+        headerStepIdx == 3 ? Model.PriceStepC :
+        Model.PriceStep;
+    bool headerStepPct =
+        headerStepIdx == 2 ? Model.IsPriceStepPercentB :
+        headerStepIdx == 3 ? Model.IsPriceStepPercentC :
+        Model.IsPriceStepPercent;
+    string headerStepLetter = headerStepIdx == 2 ? "B" : headerStepIdx == 3 ? "C" : "A";
+    string headerStepLetterBg = headerStepIdx == 2 ? "#3498db" : headerStepIdx == 3 ? "#9b59b6" : "#e67e22";
 
-    string nextExecLabel = "-";
-    if (Model.NextGlobalExecution.HasValue)
-    {
-        var diff = Model.NextGlobalExecution.Value - DateTime.Now;
-        if (diff.TotalMinutes < 1) nextExecLabel = "Za chwilę";
-        else if (diff.TotalMinutes < 60) nextExecLabel = $"Za {(int)diff.TotalMinutes} min";
-        else if (diff.TotalHours < 24) nextExecLabel = $"Za {(int)diff.TotalHours}h {diff.Minutes}min";
-        else nextExecLabel = Model.NextGlobalExecution.Value.ToString("dd.MM HH:mm");
-    }
+    string stepSign = headerStepVal < 0 ? "" : "+";
+    string stepText = $"{stepSign}{headerStepVal:F2}{(headerStepPct ? "%" : " PLN")}";
+    string stepColor = headerStepVal < 0 ? "#27ae60" : "#e74a3b";
+    string stepIcon = headerStepVal < 0 ? "fa-arrow-down" : "fa-arrow-up";
+
+    // ISO timestamp dla countdownów JS
+    string nextExecIso = Model.NextGlobalExecution?.ToString("yyyy-MM-ddTHH:mm:ss") ?? "";
 }
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
@@ -41,812 +47,182 @@
 
 <style>
     /* ═══ KOPIOWANE Z GŁÓWNEGO AUTOMATU — wspólne style ═══ */
-    .limit-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 2px 5px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 600;
-        color: #fff !important;
-        margin-right: 6px;
-        min-width: 51px;
-        height: 20.5px;
-        gap: 4px;
-    }
+    .limit-badge { display:inline-flex; align-items:center; justify-content:center; padding:2px 5px; border-radius:4px; font-size:11px; font-weight:600; color:#fff !important; margin-right:6px; min-width:51px; height:20.5px; gap:4px; }
+    .badge-purchase { background-color:#282828; }
+    .badge-min { background-color:rgba(171,37,32,1); }
+    .badge-max { background-color:rgba(0,145,123,1); }
+    .limit-price-text { font-weight:500; font-size:12px; }
+    .rank-icon { width:12px; height:12px; vertical-align:middle; margin-right:5px; }
+    .rank-row { display:flex; align-items:center; }
+    .status-badge { display:inline-flex; align-items:center; justify-content:center; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:500; color:#fff !important; height:20.5px; gap:4px; }
+    .status-ok { background-color:rgba(0,145,123,1); }
+    .status-blocked { background-color:#6C757D; }
+    .status-limited { background-color:#f6c23e; color:#fff !important; }
+    .status-limited-max { background-color:#4d6b3a; color:#fff !important; }
+    .status-paused { background-color:#858796; }
+    .price-row-block { display:flex; align-items:center; gap:4px; }
+    .price-row-space { display:flex; align-items:center; gap:4px; justify-content:space-between; }
+    .price-main-style { font-weight:500; font-size:16px; color:#000; }
+    .price-green { color:#169A23 !important; }
+    .column-flex-min-gap { display:flex; flex-direction:column; gap:2px; }
+    .commission-stack-badge { width:52px; }
+    .price-badge { width:52px; }
+    .text-muted { font-size:12px; }
+    .product-name-wrap { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; min-width:230px; line-height:1.3; }
+    .simulationProductTitle { text-decoration:none; color:inherit; transition:color 0.2s; font-size:13px; }
+    .simulationProductTitle:hover { color:#41C7C7 !important; }
+    .select-product-btn { width:60px; height:25px; }
+    .flag-badge { display:inline-flex; align-items:center; padding:2px 5px; border-radius:4px; border-width:1px; border-style:solid; font-size:11px; font-weight:500; }
+    .table-orders td, .table-orders th { padding:10px 12px; text-align:left; color:#222; font-size:14px; font-weight:400; }
+    .highlighted-text { background-color:rgba(255,235,59,0.6); font-weight:bold; color:#000; border-radius:2px; padding:0 2px; }
 
-    .badge-purchase {
-        background-color: #282828;
-    }
-
-    .badge-min {
-        background-color: rgba(171,37,32,1);
-    }
-
-    .badge-max {
-        background-color: rgba(0,145,123,1);
-    }
-
-    .limit-price-text {
-        font-weight: 500;
-        font-size: 12px;
-    }
-
-    .rank-icon {
-        width: 12px;
-        height: 12px;
-        vertical-align: middle;
-        margin-right: 5px;
-    }
-
-    .rank-row {
-        display: flex;
-        align-items: center;
-    }
-
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 500;
-        color: #fff !important;
-        height: 20.5px;
-        gap: 4px;
-    }
-
-    .status-ok {
-        background-color: rgba(0,145,123,1);
-    }
-
-    .status-blocked {
-        background-color: #6C757D;
-    }
-
-    .status-limited {
-        background-color: #f6c23e;
-        color: #fff !important;
-    }
-
-    .status-limited-max {
-        background-color: #4d6b3a;
-        color: #fff !important;
-    }
-
-    .status-paused {
-        background-color: #858796;
-    }
-
-    .price-row-block {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .price-row-space {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        justify-content: space-between;
-    }
-
-    .price-main-style {
-        font-weight: 500;
-        font-size: 16px;
-        color: #000;
-    }
-
-    .price-green {
-        color: #169A23 !important;
-    }
-
-    .column-flex-min-gap {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-    .commission-stack-badge {
-        width: 52px;
-    }
-
-    .price-badge {
-        width: 52px;
-    }
-
-    .text-muted {
-        font-size: 12px;
-    }
-
-    .product-name-wrap {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        word-break: break-word;
-        min-width: 230px;
-        line-height: 1.3;
-    }
-
-    .simulationProductTitle {
-        text-decoration: none;
-        color: inherit;
-        transition: color 0.2s;
-        font-size: 13px;
-    }
-
-        .simulationProductTitle:hover {
-            color: #41C7C7 !important;
-        }
-
-    .select-product-btn {
-        width: 60px;
-        height: 25px;
-    }
-
-    .flag-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 2px 5px;
-        border-radius: 4px;
-        border-width: 1px;
-        border-style: solid;
-        font-size: 11px;
-        font-weight: 500;
-    }
-
-    .table-orders td, .table-orders th {
-        padding: 10px 12px;
-        text-align: left;
-        color: #222;
-        font-size: 14px;
-        font-weight: 400;
-    }
-
-    .highlighted-text {
-        background-color: rgba(255,235,59,0.6);
-        font-weight: bold;
-        color: #000;
-        border-radius: 2px;
-        padding: 0 2px;
-    }
-
-    /* ═══ STYLE EDYCJI CENY ZAKUPU ═══ */
-    .purchase-wrapper {
-        position: relative;
-        min-width: 184px;
-    }
-
-    .price-actions-display {
-        display: inline-flex;
-        margin-right: 3px;
-        vertical-align: middle;
-        opacity: 0.4;
-        transition: opacity 0.2s;
-    }
-
-    .purchase-row:hover .price-actions-display {
-        opacity: 1;
-    }
-
-    .edit-trigger {
-        cursor: pointer;
-        font-size: 10px;
-        color: #343a40;
-    }
-
-        .edit-trigger:hover {
-            color: #1d2124;
-        }
-
-    .edit-disabled {
-        cursor: not-allowed;
-        font-size: 10px;
-        color: #ccc;
-    }
-
-    .price-edit-input {
-        width: 75px;
-        padding: 2px 5px;
-        border: 1px solid #d1d3e2;
-        border-radius: 4px;
-        font-size: 13px;
-        color: #6e707e;
-        height: 26px;
-    }
-
-    .btn-action-icon {
-        background: none;
-        border: none;
-        padding: 2px 4px;
-        cursor: pointer;
-        color: #858796;
-        transition: color 0.2s;
-        font-size: 13px;
-    }
-
-        .btn-action-icon:hover {
-            color: #5a5c69;
-        }
-
-        .btn-action-icon.save-btn:hover {
-            color: #1cc88a;
-        }
-
-        .btn-action-icon.delete-btn-inner:hover {
-            color: #e74a3b;
-        }
-
-    .d-none {
-        display: none !important;
-    }
+    /* ═══ EDYCJA CENY ZAKUPU ═══ */
+    .purchase-wrapper { position:relative; min-width:184px; }
+    .price-actions-display { display:inline-flex; margin-right:3px; vertical-align:middle; opacity:0.4; transition:opacity 0.2s; }
+    .purchase-row:hover .price-actions-display { opacity:1; }
+    .edit-trigger { cursor:pointer; font-size:10px; color:#343a40; }
+    .edit-trigger:hover { color:#1d2124; }
+    .edit-disabled { cursor:not-allowed; font-size:10px; color:#ccc; }
+    .price-edit-input { width:75px; padding:2px 5px; border:1px solid #d1d3e2; border-radius:4px; font-size:13px; color:#6e707e; height:26px; }
+    .btn-action-icon { background:none; border:none; padding:2px 4px; cursor:pointer; color:#858796; transition:color 0.2s; font-size:13px; }
+    .btn-action-icon:hover { color:#5a5c69; }
+    .btn-action-icon.save-btn:hover { color:#1cc88a; }
+    .btn-action-icon.delete-btn-inner:hover { color:#e74a3b; }
+    .d-none { display:none !important; }
 
     /* ═══ KPI ═══ */
-    .kpi-container {
-        display: flex;
-        gap: 16px;
-        width: 100%;
-        flex-wrap: wrap;
-    }
-
-    .kpi-card {
-        flex: 1;
-        min-width: 200px;
-        background: #fff;
-        border-radius: 12px;
-        padding: 24px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        border: 1px solid rgba(0,0,0,0.03);
-        display: flex;
-        flex-direction: column;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .kpi-title {
-        font-size: 14px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        color: #858796;
-        margin-bottom: 8px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .kpi-value-big {
-        font-size: 28px;
-        font-weight: 700;
-        color: #5a5c69;
-        line-height: 1.2;
-    }
-
-    .kpi-subtext {
-        font-size: 12px;
-        color: #858796;
-        margin-top: 6px;
-        font-weight: 500;
-    }
-
-    .mini-progress-bg {
-        width: 100%;
-        height: 6px;
-        background: #e3e3e3;
-        border-radius: 3px;
-        margin-top: 10px;
-        overflow: hidden;
-    }
-
-    .mini-progress-fill {
-        height: 100%;
-        border-radius: 3px;
-    }
+    .kpi-container { display:flex; gap:16px; width:100%; flex-wrap:wrap; }
+    .kpi-card { flex:1; min-width:200px; background:#fff; border-radius:12px; padding:24px; box-shadow:0 4px 12px rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.03); display:flex; flex-direction:column; position:relative; overflow:hidden; }
+    .kpi-title { font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#858796; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+    .kpi-value-big { font-size:28px; font-weight:700; color:#5a5c69; line-height:1.2; }
+    .kpi-subtext { font-size:12px; color:#858796; margin-top:6px; font-weight:500; }
+    .mini-progress-bg { width:100%; height:6px; background:#e3e3e3; border-radius:3px; margin-top:10px; overflow:hidden; }
+    .mini-progress-fill { height:100%; border-radius:3px; }
 
     /* ═══ NAGŁÓWEK ═══ */
-    .header-info-box {
-        display: inline-flex;
-        padding: 4px 16px;
-        align-items: center;
-        justify-content: center;
-        border-radius: 4px;
-        border: 2px dashed #f1f3f9;
-        min-height: 34px;
-        gap: 12px;
-        margin-left: 15px;
-    }
-
-    .status-indicator-text {
-        font-weight: 600;
-        font-size: 13px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-    }
-
-    .btn-icon-settings {
-        font-size: 24px;
-        color: #858796;
-        background: none;
-        border: none;
-        padding: 0;
-        line-height: 1;
-        cursor: pointer;
-        transition: color 0.2s,transform 0.2s;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-        text-decoration: none !important;
-    }
-
-        .btn-icon-settings:hover {
-            color: #5a5c69;
-            transform: rotate(30deg);
-        }
+    .header-info-box { display:inline-flex; padding:4px 16px; align-items:center; justify-content:center; border-radius:4px; border:2px dashed #f1f3f9; min-height:34px; gap:12px; margin-left:15px; }
+    .status-indicator-text { font-weight:600; font-size:13px; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.3px; }
+    .btn-icon-settings { font-size:24px; color:#858796; background:none; border:none; padding:0; line-height:1; cursor:pointer; transition:color 0.2s,transform 0.2s; display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; text-decoration:none !important; }
+    .btn-icon-settings:hover { color:#5a5c69; transform:rotate(30deg); }
 
     /* ═══ PARENT LINK ═══ */
-    .parent-info-box {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding: 14px 20px;
-        background: #f8f9fc;
-        border: 2px dashed #e3e6f0;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: all 0.2s;
-        text-decoration: none !important;
-        width: 100%;
-    }
-
-        .parent-info-box:hover {
-            border-color: #b7b9cc;
-            background: #fff;
-        }
-
-    .parent-color-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-
-    .parent-badge {
-        font-size: 10px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 3px 8px;
-        border-radius: 4px;
-    }
-
-    .parent-badge-active {
-        background: rgba(28,200,138,0.15);
-        color: #1cc88a;
-    }
-
-    .parent-badge-inactive {
-        background: rgba(231,74,59,0.15);
-        color: #e74a3b;
-    }
+    .parent-info-box { display:flex; align-items:center; gap:16px; padding:14px 20px; background:#f8f9fc; border:2px dashed #e3e6f0; border-radius:10px; cursor:pointer; transition:all 0.2s; text-decoration:none !important; width:100%; }
+    .parent-info-box:hover { border-color:#b7b9cc; background:#fff; }
+    .parent-color-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .parent-badge { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; padding:3px 8px; border-radius:4px; }
+    .parent-badge-active { background:rgba(28,200,138,0.15); color:#1cc88a; }
+    .parent-badge-inactive { background:rgba(231,74,59,0.15); color:#e74a3b; }
 
     /* ═══ FILTR TOOLBAR ═══ */
-    .filter-toolbar-wrapper {
-        background: #fff;
-        border-radius: 8px;
-        padding: 24px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        margin-bottom: 0;
+    .filter-toolbar-wrapper { background:#fff; border-radius:8px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:0; }
+    .filter-toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; }
+    .filter-group { display:flex; align-items:center; gap:6px; padding:8px 12px; background:#f8f9fc; border-radius:6px; border:1px solid #e3e6f0; }
+    .filter-group-label { font-size:11px; font-weight:700; color:#858796; text-transform:uppercase; letter-spacing:0.5px; margin-right:4px; white-space:nowrap; }
+    .filter-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; font-size:12px; font-weight:600; color:#5a5c69; background:#fff; border:1px solid #d1d3e2; border-radius:20px; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
+    .filter-btn:hover { background:#f2f2f2; border-color:#e0e0e0; }
+    .filter-btn.active { background:#282828; color:#fff; border-color:#282828; }
+    .filter-btn.active:hover { background:#000; border-color:#000; }
+    .filter-btn .filter-count { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:18px; padding:0 5px; font-size:10px; font-weight:700; background:rgba(0,0,0,0.1); border-radius:10px; }
+    .filter-btn.active .filter-count { background:rgba(255,255,255,0.25); }
+    .filter-summary { display:flex; align-items:center; justify-content:space-between; margin-top:12px; padding-top:12px; border-top:1px solid #e3e6f0; }
+    .filter-summary-text { font-size:13px; color:#858796; }
+    .filter-reset-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; font-size:12px; font-weight:600; color:#e74a3b; background:#fff; border:1px solid #e74a3b; border-radius:4px; cursor:pointer; transition:all 0.2s; }
+    .filter-reset-btn:hover { background:#e74a3b; color:#fff; }
+    tr.filter-hidden { display:none !important; }
+    .filter-btn[data-filter-key="ready"].active { background:rgba(0,145,123,1); border-color:rgba(0,145,123,1); }
+    .filter-btn[data-filter-key="blocked"].active { background:#6C757D; border-color:#6C757D; }
+    .filter-btn[data-filter-key="limit-reached"].active { background:#f6c23e; border-color:#f6c23e; color:#333; }
+    .filter-btn[data-filter-key="paused"].active { background:#858796; border-color:#858796; }
+    .filter-btn[data-filter-key="has-purchase"].active { background:#282828; border-color:#282828; }
+    .filter-btn[data-filter-key="no-purchase"].active { background:#e74a3b; border-color:#e74a3b; }
+    .filter-btn[data-filter-key="has-min-limit"].active { background:rgba(171,37,32,1); border-color:rgba(171,37,32,1); }
+    .filter-btn[data-filter-key="has-max-limit"].active { background:rgba(0,145,123,1); border-color:rgba(0,145,123,1); }
+    .filter-btn[data-filter-key="margin-warning"].active { background:#fd7e14; border-color:#fd7e14; }
+
+    /* ═══ NASTĘPNY KROK ═══ */
+    .next-step-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:700; letter-spacing:0.3px; }
+    .next-step-down { background:rgba(39,174,96,0.12); color:#27ae60; }
+    .next-step-up { background:rgba(224,64,64,0.12); color:#e04040; }
+    .next-step-neutral { background:rgba(133,135,150,0.12); color:#858796; }
+    .countdown-label { font-size:11px; font-weight:600; color:#858796; display:flex; align-items:center; gap:4px; }
+    .countdown-active { color:#27ae60; }
+    .countdown-paused { color:#f6c23e; }
+    .countdown-blocked { color:#e74a3b; }
+    .countdown-running { color:#8e44ad; font-weight:700; }
+
+    /* ═══ STEP LETTER BADGE (A/B/C) ═══ */
+    .step-letter-badge {
+        display:inline-flex; align-items:center; justify-content:center;
+        width:18px; height:18px; border-radius:50%;
+        color:#fff; font-size:10px; font-weight:800;
+        box-shadow:0 1px 3px rgba(0,0,0,0.2);
+        flex-shrink:0;
     }
-
-    .filter-toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        align-items: flex-start;
-    }
-
-    .filter-group {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        background: #f8f9fc;
-        border-radius: 6px;
-        border: 1px solid #e3e6f0;
-    }
-
-    .filter-group-label {
-        font-size: 11px;
-        font-weight: 700;
-        color: #858796;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-right: 4px;
-        white-space: nowrap;
-    }
-
-    .filter-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
-        font-size: 12px;
-        font-weight: 600;
-        color: #5a5c69;
-        background: #fff;
-        border: 1px solid #d1d3e2;
-        border-radius: 20px;
-        cursor: pointer;
-        transition: all 0.2s;
-        white-space: nowrap;
-    }
-
-        .filter-btn:hover {
-            background: #f2f2f2;
-            border-color: #e0e0e0;
-        }
-
-        .filter-btn.active {
-            background: #282828;
-            color: #fff;
-            border-color: #282828;
-        }
-
-            .filter-btn.active:hover {
-                background: #000;
-                border-color: #000;
-            }
-
-        .filter-btn .filter-count {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 20px;
-            height: 18px;
-            padding: 0 5px;
-            font-size: 10px;
-            font-weight: 700;
-            background: rgba(0,0,0,0.1);
-            border-radius: 10px;
-        }
-
-        .filter-btn.active .filter-count {
-            background: rgba(255,255,255,0.25);
-        }
-
-    .filter-summary {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px solid #e3e6f0;
-    }
-
-    .filter-summary-text {
-        font-size: 13px;
-        color: #858796;
-    }
-
-    .filter-reset-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 14px;
-        font-size: 12px;
-        font-weight: 600;
-        color: #e74a3b;
-        background: #fff;
-        border: 1px solid #e74a3b;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-        .filter-reset-btn:hover {
-            background: #e74a3b;
-            color: #fff;
-        }
-
-    tr.filter-hidden {
-        display: none !important;
-    }
-
-    /* Filter active colors */
-    .filter-btn[data-filter-key="ready"].active {
-        background: rgba(0,145,123,1);
-        border-color: rgba(0,145,123,1);
-    }
-
-    .filter-btn[data-filter-key="blocked"].active {
-        background: #6C757D;
-        border-color: #6C757D;
-    }
-
-    .filter-btn[data-filter-key="limit-reached"].active {
-        background: #f6c23e;
-        border-color: #f6c23e;
-        color: #333;
-    }
-
-    .filter-btn[data-filter-key="paused"].active {
-        background: #858796;
-        border-color: #858796;
-    }
-
-    .filter-btn[data-filter-key="has-purchase"].active {
-        background: #282828;
-        border-color: #282828;
-    }
-
-    .filter-btn[data-filter-key="no-purchase"].active {
-        background: #e74a3b;
-        border-color: #e74a3b;
-    }
-
-    .filter-btn[data-filter-key="has-min-limit"].active {
-        background: rgba(171,37,32,1);
-        border-color: rgba(171,37,32,1);
-    }
-
-    .filter-btn[data-filter-key="has-max-limit"].active {
-        background: rgba(0,145,123,1);
-        border-color: rgba(0,145,123,1);
-    }
-
-    .filter-btn[data-filter-key="margin-warning"].active {
-        background: #fd7e14;
-        border-color: #fd7e14;
-    }
-
-    /* ═══ SEKCJA: Następny krok ═══ */
-    .next-step-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 3px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.3px;
-    }
-
-    .next-step-down {
-        background: rgba(39,174,96,0.12);
-        color: #27ae60;
-    }
-
-    .next-step-up {
-        background: rgba(224,64,64,0.12);
-        color: #e04040;
-    }
-
-    .next-step-neutral {
-        background: rgba(133,135,150,0.12);
-        color: #858796;
-    }
-
-    .countdown-label {
-        font-size: 11px;
-        font-weight: 600;
-        color: #858796;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .countdown-active {
-        color: #27ae60;
-    }
-
-    .countdown-paused {
-        color: #f6c23e;
-    }
-
-    .countdown-blocked {
-        color: #e74a3b;
-    }
+    .step-letter-badge.sm { width:14px; height:14px; font-size:9px; }
+    .step-letter-a { background:#e67e22; }
+    .step-letter-b { background:#3498db; }
+    .step-letter-c { background:#9b59b6; }
 
     /* ═══ COLLAPSIBLE SCHEDULE ═══ */
-    .ipc-box {
-        display: flex;
-        flex-direction: column;
-        padding: 24px;
-        border-radius: 12px;
-        background: #FFF;
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.04);
-        border: 1px solid #edf0f2;
-        width: 100%;
+    .ipc-box { display:flex; flex-direction:column; padding:24px; border-radius:12px; background:#FFF; box-shadow:0px 4px 12px rgba(0,0,0,0.04); border:1px solid #edf0f2; width:100%; }
+    .schedule-collapse-toggle { display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; padding:4px 0; transition:all 0.2s; }
+    .toggle-chevron { font-size:14px; color:#b7b9cc; transition:transform 0.3s ease,color 0.2s; }
+    .toggle-chevron.open { transform:rotate(180deg); }
+    .schedule-collapsible { max-height:0; overflow:hidden; transition:max-height 0.4s ease; }
+    .schedule-collapsible.open { max-height:6000px; }
+
+    /* ═══ STEP CARDS (READ-ONLY) — imitacja kart z Edit ═══ */
+    .step-cards-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:18px; }
+    @@media (max-width: 900px) { .step-cards-grid { grid-template-columns:1fr; } }
+    .step-card-ro {
+        background:#fcfcfd; border:1px solid #e3e6f0; border-radius:10px;
+        padding:14px 16px; border-top-width:4px; transition:opacity 0.2s;
     }
+    .step-card-ro.step-a { border-top-color:#e67e22; }
+    .step-card-ro.step-b { border-top-color:#3498db; }
+    .step-card-ro.step-c { border-top-color:#9b59b6; }
+    .step-card-ro.inactive { opacity:0.45; background:#f8f9fc; }
+    .step-card-ro-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .step-card-ro-title { display:flex; align-items:center; gap:10px; }
+    .step-card-ro-letter { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800; color:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.12); }
+    .step-card-ro.step-a .step-card-ro-letter { background:#e67e22; }
+    .step-card-ro.step-b .step-card-ro-letter { background:#3498db; }
+    .step-card-ro.step-c .step-card-ro-letter { background:#9b59b6; }
+    .step-card-ro-name { font-size:12px; font-weight:700; color:#2e3035; text-transform:uppercase; letter-spacing:0.5px; }
+    .step-card-ro-status { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; padding:3px 7px; border-radius:3px; }
+    .step-card-ro-status.on { background:rgba(28,200,138,0.15); color:#1cc88a; }
+    .step-card-ro-status.off { background:rgba(231,74,59,0.15); color:#e74a3b; }
+    .step-card-ro-value { display:flex; align-items:center; gap:8px; font-size:18px; font-weight:700; }
+    .step-card-ro-value.down { color:#27ae60; }
+    .step-card-ro-value.up { color:#e04040; }
+    .step-card-ro-value i { font-size:14px; }
 
-    .schedule-collapse-toggle {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        cursor: pointer;
-        user-select: none;
-        padding: 4px 0;
-        transition: all 0.2s;
-    }
+    /* ═══ SIATKA ═══ */
+    .sg-table { border-collapse:collapse; width:100%; min-width:750px; user-select:none; table-layout:fixed; }
+    .sg-table th { text-align:center; font-size:10px; font-weight:700; color:#5a5c69; text-transform:uppercase; letter-spacing:0.5px; padding:6px 2px; background:#f8f9fc; border:1px solid #e3e6f0; position:sticky; top:0; z-index:3; }
+    .sg-table th.th-time { width:52px; min-width:52px; text-align:right; padding-right:8px; }
+    .day-stats-row td { text-align:center; font-size:10px; font-weight:700; padding:5px 0; background:#fcfcfd; border:1px solid #e3e6f0; position:sticky; top:28px; z-index:2; color:#b7b9cc; }
+    .sg-table td.tc { text-align:right; padding-right:8px; font-family:'SF Mono','Fira Code','Consolas',monospace; font-size:9px; font-weight:400; color:#d0d2d8; background:#fafbfc; width:52px; min-width:52px; border:1px solid #edf0f2; border-right:2px solid #e3e6f0; height:22px; }
+    .sg-table td.tc.hour-mark { color:#5a5c69; font-weight:700; font-size:10px; background:#f8f9fc; }
+    .sg-table tr.hour-boundary td { border-top:2px solid #cfd2da; }
+    .sg-cell { height:22px; position:relative; border:1px solid #edf0f2; background:#fafbfc; }
+    .sg-cell.inactive-step { filter:grayscale(70%) brightness(0.85); opacity:0.55; }
 
-    .toggle-chevron {
-        font-size: 14px;
-        color: #b7b9cc;
-        transition: transform 0.3s ease,color 0.2s;
-    }
+    .blk-lbl { position:absolute; top:0; bottom:0; left:6px; right:6px; font-size:11px; font-weight:700; color:rgba(255,255,255,0.92); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1; pointer-events:none; display:flex; align-items:center; justify-content:space-between; z-index:1; }
+    .blk-lbl-left { display:flex; align-items:center; gap:4px; }
+    .blk-lbl-left i { font-size:9px; }
+    .blk-lbl-right { font-size:10px; font-weight:600; opacity:0.85; letter-spacing:0.3px; }
+    .blk-lbl-step { display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; border-radius:50%; color:#fff; font-size:9px; font-weight:800; margin-right:2px; box-shadow:0 1px 2px rgba(0,0,0,0.25); }
+    .blk-lbl-step-1 { background:#e67e22; }
+    .blk-lbl-step-2 { background:#3498db; }
+    .blk-lbl-step-3 { background:#9b59b6; }
 
-        .toggle-chevron.open {
-            transform: rotate(180deg);
-        }
+    .sg-cell.now-marker::after { content:''; position:absolute; inset:0; background:rgba(142,68,230,0.30); border:2px solid rgba(142,68,230,0.55); border-radius:2px; z-index:4; pointer-events:none; animation:now-pulse 2.5s ease-in-out infinite; }
+    @@keyframes now-pulse { 0%,100% { opacity:0.7; } 50% { opacity:1; } }
 
-    .schedule-collapsible {
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.4s ease;
-    }
-
-        .schedule-collapsible.open {
-            max-height: 5000px;
-        }
-
-    .sg-table {
-        border-collapse: collapse;
-        width: 100%;
-        min-width: 750px;
-        user-select: none;
-        table-layout: fixed;
-    }
-
-        .sg-table th {
-            text-align: center;
-            font-size: 10px;
-            font-weight: 700;
-            color: #5a5c69;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 6px 2px;
-            background: #f8f9fc;
-            border: 1px solid #e3e6f0;
-            position: sticky;
-            top: 0;
-            z-index: 3;
-        }
-
-            .sg-table th.th-time {
-                width: 52px;
-                min-width: 52px;
-                text-align: right;
-                padding-right: 8px;
-            }
-
-    .day-stats-row td {
-        text-align: center;
-        font-size: 10px;
-        font-weight: 700;
-        padding: 5px 0;
-        background: #fcfcfd;
-        border: 1px solid #e3e6f0;
-        position: sticky;
-        top: 28px;
-        z-index: 2;
-        color: #b7b9cc;
-    }
-
-    .sg-table td.tc {
-        text-align: right;
-        padding-right: 8px;
-        font-family: 'SF Mono','Fira Code','Consolas',monospace;
-        font-size: 9px;
-        font-weight: 400;
-        color: #d0d2d8;
-        background: #fafbfc;
-        width: 52px;
-        min-width: 52px;
-        border: 1px solid #edf0f2;
-        border-right: 2px solid #e3e6f0;
-        height: 22px;
-    }
-
-        .sg-table td.tc.hour-mark {
-            color: #5a5c69;
-            font-weight: 700;
-            font-size: 10px;
-            background: #f8f9fc;
-        }
-
-    .sg-table tr.hour-boundary td {
-        border-top: 2px solid #cfd2da;
-    }
-
-    .sg-cell {
-        height: 22px;
-        position: relative;
-        border: 1px solid #edf0f2;
-        background: #fafbfc;
-    }
-
-    .blk-lbl {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 6px;
-        right: 6px;
-        font-size: 11px;
-        font-weight: 700;
-        color: rgba(255,255,255,0.92);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        line-height: 1;
-        pointer-events: none;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        z-index: 1;
-    }
-
-    .blk-lbl-left {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-        .blk-lbl-left i {
-            font-size: 9px;
-        }
-
-    .blk-lbl-right {
-        font-size: 10px;
-        font-weight: 600;
-        opacity: 0.8;
-        letter-spacing: 0.3px;
-    }
-
-    .sg-cell.now-marker::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: rgba(142,68,230,0.30);
-        border: 2px solid rgba(142,68,230,0.55);
-        border-radius: 2px;
-        z-index: 4;
-        pointer-events: none;
-        animation: now-pulse 2.5s ease-in-out infinite;
-    }
-
-    .inherited-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        background: #fcfcfd;
-        border-radius: 6px;
-        border: 1px solid #eaecf4;
-        font-size: 13px;
-    }
-
-    .inherited-label {
-        font-weight: 700;
-        color: #858796;
-        text-transform: uppercase;
-        font-size: 10px;
-        letter-spacing: 0.5px;
-        min-width: 110px;
-    }
-
-    .inherited-value {
-        font-weight: 600;
-        color: #5a5c69;
-    }
+    .inherited-item { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#fcfcfd; border-radius:6px; border:1px solid #eaecf4; font-size:13px; }
+    .inherited-label { font-weight:700; color:#858796; text-transform:uppercase; font-size:10px; letter-spacing:0.5px; min-width:110px; }
+    .inherited-value { font-weight:600; color:#5a5c69; }
 </style>
 
 <div class="View">
@@ -868,22 +244,15 @@
                     <div class="status-indicator-text" style="color:@(effectivelyActive ? "#1cc88a" : "#e74a3b");">
                         <i class="fa-solid fa-circle" style="font-size:6px;"></i>
                         @if (effectivelyActive)
-                        {
-                            <text>Aktywny</text>
-                        }
+                        { <text>Aktywny</text> }
                         else if (Model.IsActive && !Model.ParentIsActive)
-                        {
-
-                            <text>Zablokowany (rodzic)</text>
-                        }
+                        { <text>Zablokowany (rodzic)</text> }
                         else
-                        {
-
-                            <text>Wyłączony</text>
-                        }
+                        { <text>Wyłączony</text> }
                     </div>
                     <span style="color:#bbb; font-weight:300; font-size:16px;">|</span>
-                    <div style="font-weight:600; font-size:12px; color:@stepColor; display:flex; align-items:center; gap:4px;">
+                    <div style="font-weight:600; font-size:12px; color:@stepColor; display:flex; align-items:center; gap:6px;">
+                        <span class="step-letter-badge sm" style="background:@headerStepLetterBg;">@headerStepLetter</span>
                         <i class="fas @stepIcon" style="font-size:10px;"></i> @stepText
                     </div>
                 </div>
@@ -945,8 +314,16 @@
                 <div class="mini-progress-bg"><div class="mini-progress-fill" style="width:@activePct%; background:#27ae60;"></div></div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-title">Następne Wykonanie <i class="fas fa-bolt text-gray-400"></i></div>
-                <div class="kpi-value-big" style="color:@(effectivelyActive ? "#27ae60" : "#858796");">@nextExecLabel</div>
+                <div class="kpi-title">
+                    Następne Wykonanie
+                    @if (Model.NextGlobalExecutionStepIdx.HasValue)
+                    {
+                        <span class="step-letter-badge sm step-letter-@(headerStepLetter.ToLower())">@headerStepLetter</span>
+                    }
+                </div>
+                <div class="kpi-value-big" id="kpiNextExecLabel"
+                     data-countdown="@nextExecIso"
+                     style="color:@(effectivelyActive ? "#27ae60" : "#858796");">—</div>
                 <div class="kpi-subtext">
                     @if (Model.NextGlobalExecution.HasValue)
                     {
@@ -954,7 +331,6 @@
                     }
                     else
                     {
-
                         <span>Brak aktywnych slotów</span>
                     }
                 </div>
@@ -973,28 +349,18 @@
                     <span class="inherited-label">Min narzut</span>
                     <span class="inherited-value">
                         @if (Model.EnforceMinimalMarkup)
-                        {
-                            @Model.MinimalMarkupValue.ToString("F2") @(Model.IsMinimalMarkupPercent ? "%" : "PLN")
-                        }
+                        { @Model.MinimalMarkupValue.ToString("F2") @(Model.IsMinimalMarkupPercent ? "%" : "PLN") }
                         else
-                        {
-
-                            <span style="color:#b7b9cc;">Wyłączony</span>
-                        }
+                        { <span style="color:#b7b9cc;">Wyłączony</span> }
                     </span>
                 </div>
                 <div class="inherited-item">
                     <span class="inherited-label">Max narzut</span>
                     <span class="inherited-value">
                         @if (Model.EnforceMaxMarkup)
-                        {
-                            @Model.MaxMarkupValue.ToString("F2") @(Model.IsMaxMarkupPercent ? "%" : "PLN")
-                        }
+                        { @Model.MaxMarkupValue.ToString("F2") @(Model.IsMaxMarkupPercent ? "%" : "PLN") }
                         else
-                        {
-
-                            <span style="color:#b7b9cc;">Wyłączony</span>
-                        }
+                        { <span style="color:#b7b9cc;">Wyłączony</span> }
                     </span>
                 </div>
                 @if (isMarketplace)
@@ -1013,17 +379,59 @@
         <div class="ipc-box">
             <div class="schedule-collapse-toggle" onclick="toggleSchedule()">
                 <div style="display:flex; align-items:center; gap:12px;">
-                    <div style="font-size:16px; font-weight:600; color:#2e3035;">Mapa Harmonogramu</div>
+                    <div style="font-size:16px; font-weight:600; color:#2e3035;">Mapa Harmonogramu i Kroki Cenowe</div>
                     <span style="font-size:12px; color:#b7b9cc; font-weight:500;" id="scheduleToggleHint">(kliknij aby rozwinąć)</span>
                 </div>
                 <i class="fas fa-chevron-down toggle-chevron" id="scheduleChevron"></i>
             </div>
             <div class="schedule-collapsible" id="scheduleCollapsible">
-                <div style="margin-top:16px; overflow-x:auto;">
-                    <table class="sg-table" id="sgTable">
-                        <thead><tr><th class="th-time"></th><th>Pn</th><th>Wt</th><th>Śr</th><th>Cz</th><th>Pt</th><th>Sb</th><th>Nd</th></tr></thead>
-                        <tbody id="sgBody"></tbody>
-                    </table>
+                <div style="margin-top:18px;">
+
+                    @* ── KARTY KROKÓW A / B / C (read-only) ── *@
+                    <div class="step-cards-grid">
+                        @{
+                            var stepsData = new[] {
+                                new { Letter = "A", Cls = "step-a", Val = Model.PriceStep,  Pct = Model.IsPriceStepPercent,  Active = Model.IsStepAActive },
+                                new { Letter = "B", Cls = "step-b", Val = Model.PriceStepB, Pct = Model.IsPriceStepPercentB, Active = Model.IsStepBActive },
+                                new { Letter = "C", Cls = "step-c", Val = Model.PriceStepC, Pct = Model.IsPriceStepPercentC, Active = Model.IsStepCActive }
+                            };
+                        }
+                        @foreach (var s in stepsData)
+                        {
+                            bool isDown = s.Val < 0;
+                            string sign = isDown ? "" : "+";
+                            string unit = s.Pct ? "%" : " PLN";
+                            string valClass = isDown ? "down" : "up";
+                            string iconCls = isDown ? "fa-arrow-down" : "fa-arrow-up";
+                            <div class="step-card-ro @s.Cls @(s.Active ? "" : "inactive")">
+                                <div class="step-card-ro-header">
+                                    <div class="step-card-ro-title">
+                                        <div class="step-card-ro-letter">@s.Letter</div>
+                                        <div class="step-card-ro-name">Krok @s.Letter</div>
+                                    </div>
+                                    <div class="step-card-ro-status @(s.Active ? "on" : "off")">
+                                        @(s.Active ? "Aktywny" : "Wyłączony")
+                                    </div>
+                                </div>
+                                <div class="step-card-ro-value @valClass">
+                                    <i class="fas @iconCls"></i>
+                                    <span>@sign@s.Val.ToString("F2")@unit</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div style="font-size:11px; color:#b7b9cc; margin-bottom:8px;">
+                        <i class="fas fa-info-circle"></i> Wyszarzone bloki należą do kroków wyłączonych i nie zostaną wykonane.
+                    </div>
+
+                    @* ── SIATKA ── *@
+                    <div style="overflow-x:auto;">
+                        <table class="sg-table" id="sgTable">
+                            <thead><tr><th class="th-time"></th><th>Pn</th><th>Wt</th><th>Śr</th><th>Cz</th><th>Pt</th><th>Sb</th><th>Nd</th></tr></thead>
+                            <tbody id="sgBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1097,6 +505,15 @@
                                 projMarginBox = "price-box-diff-margin-ib-warning";
                             }
 
+                            // Litery kroków dla kolumn
+                            string nextStepLetter = item.NextStepIdx == 2 ? "B" : item.NextStepIdx == 3 ? "C" : item.NextStepIdx == 1 ? "A" : null;
+                            string nextStepLetterCls = item.NextStepIdx == 2 ? "step-letter-b" : item.NextStepIdx == 3 ? "step-letter-c" : "step-letter-a";
+
+                            string lkStepLetter = item.LastKnownStepIdx == 2 ? "B" : item.LastKnownStepIdx == 3 ? "C" : item.LastKnownStepIdx == 1 ? "A" : null;
+                            string lkStepLetterCls = item.LastKnownStepIdx == 2 ? "step-letter-b" : item.LastKnownStepIdx == 3 ? "step-letter-c" : "step-letter-a";
+
+                            string rowNextExecIso = item.NextExecutionTime?.ToString("yyyy-MM-ddTHH:mm:ss") ?? "";
+
                             <tr data-status="@item.Status.ToString()"
                                 data-has-purchase-price="@item.PurchasePrice.HasValue.ToString().ToLower()"
                                 data-has-min-limit="@item.MinPriceLimit.HasValue.ToString().ToLower()"
@@ -1126,7 +543,6 @@
                                                 }
                                                 else
                                                 {
-
                                                     @item.Name
                                                 }
                                             </div>
@@ -1186,7 +602,6 @@
                                                                 }
                                                                 else
                                                                 {
-
                                                                     <i class="fas fa-lock edit-disabled" title="Brak uprawnień" onclick="showNoAccessAlert()"></i>
                                                                 }
                                                             </span>
@@ -1204,7 +619,6 @@
                                                     }
                                                     else
                                                     {
-
                                                         <i class="fas fa-plus-circle text-gray-300" style="font-size:12px; cursor:not-allowed;" onclick="showNoAccessAlert()"></i>
                                                     }
                                                     Brak ceny zakupu
@@ -1234,21 +648,13 @@
                                             @(item.MarketCurrentPrice.HasValue? item.MarketCurrentPrice.Value.ToString("F2") : "-") PLN
                                         </span>
                                         @if (item.HasCheaperOwnOffer)
-                                        {
-                                            <span class="text-danger" title="Tańsza własna oferta!"><i class="fas fa-exclamation-triangle"></i></span>
-                                        }
+                                        { <span class="text-danger" title="Tańsza własna oferta!"><i class="fas fa-exclamation-triangle"></i></span> }
                                         @if (item.IsBestPriceGuarantee)
-                                        {
-                                            <img src="/images/TopPrice.png" alt="Gwarancja" style="width:18px; height:18px;" title="Gwarancja Najniższej Ceny">
-                                        }
+                                        { <img src="/images/TopPrice.png" alt="Gwarancja" style="width:18px; height:18px;" title="Gwarancja Najniższej Ceny"> }
                                         @if (item.IsSuperPrice)
-                                        {
-                                            <div class="SuperPrice">SUPERCENA</div>
-                                        }
+                                        { <div class="SuperPrice">SUPERCENA</div> }
                                         @if (item.IsTopOffer)
-                                        {
-                                            <div class="TopOffer">Top</div>
-                                        }
+                                        { <div class="TopOffer">Top</div> }
                                     </div>
                                     <div class="small text-muted">@Model.StoreName</div>
                                     @if (item.CommissionAmount.HasValue)
@@ -1285,7 +691,6 @@
                                             }
                                             if (!string.IsNullOrEmpty(item.CurrentRankingCeneo) && item.CurrentRankingCeneo != "-")
                                             {
-
                                                 <div class="rank-row"><img src="/images/Ceneo.png" alt="Ceneo" class="rank-icon"><span class="text-muted">@item.CurrentRankingCeneo</span></div>
                                             }
                                         }
@@ -1299,23 +704,16 @@
                                         <div class="price-row-block">
                                             <span class="price-main-style @(item.CompetitorIsBestPriceGuarantee ? "price-green" : "")">@item.BestCompetitorPrice.Value.ToString("F2") PLN</span>
                                             @if (item.CompetitorIsBestPriceGuarantee)
-                                            {
-                                                <img src="/images/TopPrice.png" alt="Gwarancja" style="width:18px; height:18px;">
-                                            }
+                                            { <img src="/images/TopPrice.png" alt="Gwarancja" style="width:18px; height:18px;"> }
                                             @if (item.CompetitorIsSuperPrice)
-                                            {
-                                                <div class="SuperPrice">SUPERCENA</div>
-                                            }
+                                            { <div class="SuperPrice">SUPERCENA</div> }
                                             @if (item.CompetitorIsTopOffer)
-                                            {
-                                                <div class="TopOffer">Top</div>
-                                            }
+                                            { <div class="TopOffer">Top</div> }
                                         </div>
                                         <div class="small text-muted">@item.CompetitorName</div>
                                     }
                                     else
                                     {
-
                                         <span class="small text-muted">Brak konkurencji</span>
                                     }
                                 </td>
@@ -1331,12 +729,16 @@
                                         {
                                             <div class="small text-muted">@item.LastKnownPriceDate.Value.ToString("dd.MM HH:mm")</div>
                                         }
-                                        <div style="margin-top:4px;">
+                                        <div style="margin-top:4px; display:flex; flex-direction:column; align-items:center; gap:3px;">
                                             @switch (item.LastKnownSource)
                                             {
                                                 case LastKnownPriceSource.Interval:
-                                                    <span style="font-size:10px; padding:2px 6px; border-radius:3px; background:rgba(230,126,34,0.12); color:#e67e22; font-weight:600;">
-                                                        <i class="fas fa-clock" style="margin-right:2px;"></i> Z interwału
+                                                    <span style="font-size:10px; padding:2px 6px; border-radius:3px; background:rgba(230,126,34,0.12); color:#e67e22; font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+                                                        <i class="fas fa-clock"></i> Z interwału
+                                                        @if (lkStepLetter != null)
+                                                        {
+                                                            <span class="step-letter-badge sm @lkStepLetterCls" style="margin-left:2px;">@lkStepLetter</span>
+                                                        }
                                                     </span>
                                                     break;
                                                 case LastKnownPriceSource.Automation:
@@ -1370,9 +772,15 @@
                                     else
                                     {
                                         <div class="price-row-space">
-                                            <span class="price-main-style @(item.IsMarginWarning ? "text-warning" : "text-success")">
-                                                @(item.ProjectedNextPrice?.ToString("F2") ?? "-") PLN
-                                            </span>
+                                            <div style="display:flex; align-items:center; gap:6px;">
+                                                @if (nextStepLetter != null)
+                                                {
+                                                    <span class="step-letter-badge @nextStepLetterCls" title="Krok @nextStepLetter">@nextStepLetter</span>
+                                                }
+                                                <span class="price-main-style @(item.IsMarginWarning ? "text-warning" : "text-success")">
+                                                    @(item.ProjectedNextPrice?.ToString("F2") ?? "-") PLN
+                                                </span>
+                                            </div>
                                             @if (item.ProjectedPriceChange.HasValue && item.ProjectedPriceChange.Value != 0)
                                             {
                                                 bool isDown = item.ProjectedPriceChange.Value < 0;
@@ -1392,7 +800,6 @@
                                             <div style="font-size:10px; color:#4d6b3a; font-weight:600; margin-top:2px;"><i class="fas fa-filter"></i> Ogr. Max</div>
                                         }
 
-                                        @* Narzut po kroku *@
                                         @if (item.ProjectedMarkupAmount.HasValue && item.ProjectedMarkupPercent.HasValue)
                                         {
                                             <div class="price-box-diff-margin-ib @projMarginBox" style="margin-top:4px; width:100%;">
@@ -1401,16 +808,11 @@
                                             </div>
                                         }
 
-                                        @* Czas następnego wykonania *@
                                         <div class="mt-2">
                                             @if (item.WillNextExecutionRun && item.NextExecutionTime.HasValue)
                                             {
-                                                var diff = item.NextExecutionTime.Value - DateTime.Now;
-                                                string timeLabel = diff.TotalMinutes < 60
-                                                ? $"Za {Math.Max(1, (int)diff.TotalMinutes)} min"
-                                                : $"Za {(int)diff.TotalHours}h {diff.Minutes}min";
-                                                <div class="countdown-label countdown-active">
-                                                    <i class="fas fa-clock"></i> @timeLabel
+                                                <div class="countdown-label countdown-active" data-countdown="@rowNextExecIso">
+                                                    <i class="fas fa-clock"></i> —
                                                 </div>
                                             }
                                             else if (item.Status == IntervalProductStatus.Paused)
@@ -1438,12 +840,10 @@
                                         case IntervalProductStatus.LimitReached:
                                             if (item.BlockReason?.Contains("Min") == true)
                                             {
-
                                                 <div class="status-badge status-limited"><i class="fas fa-flag mr-1"></i> @item.BlockReason</div>
                                             }
                                             else
                                             {
-
                                                 <div class="status-badge status-limited-max"><i class="fas fa-flag mr-1"></i> @item.BlockReason</div>
                                             }
                                             break;
@@ -1476,6 +876,25 @@
         const parentRuleId = @Model.ParentRuleId;
         const isAllegroContext = @(isMarketplace ? "true" : "false");
         const flags = @Html.Raw(Json.Serialize(Model.AvailableStoreFlags));
+
+        // Dane 3 kroków do renderingu siatki
+        const STEPS_DATA = {
+            1: {
+                value: @Model.PriceStep.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                pct:   @(Model.IsPriceStepPercent ? "true" : "false"),
+                active:@(Model.IsStepAActive ? "true" : "false")
+            },
+            2: {
+                value: @Model.PriceStepB.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                pct:   @(Model.IsPriceStepPercentB ? "true" : "false"),
+                active:@(Model.IsStepBActive ? "true" : "false")
+            },
+            3: {
+                value: @Model.PriceStepC.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                pct:   @(Model.IsPriceStepPercentC ? "true" : "false"),
+                active:@(Model.IsStepCActive ? "true" : "false")
+            }
+        };
 
         // ═══════════════════════════════════════════════════════
         // MASS ACTIONS
@@ -1518,8 +937,8 @@
         // ═══════════════════════════════════════════════════════
         document.addEventListener("DOMContentLoaded", function () {
             massActions.init();
+            CountdownSystem.init();
 
-            // Select buttons
             $(document).on('click', '.select-product-btn', function(e) {
                 e.stopPropagation();
                 const pid = $(this).data('product-id').toString();
@@ -1527,7 +946,6 @@
                 $(this).text(massActions.isSelected(pid) ? 'Wybrano' : 'Zaznacz').toggleClass('selected', massActions.isSelected(pid));
             });
 
-            // Purchase price edit
             $(document).on('click', '.edit-btn', function(e) {
                 e.preventDefault(); e.stopPropagation();
                 var w = $(this).closest('.purchase-wrapper');
@@ -1580,6 +998,86 @@
                 error: function() { alert("Błąd serwera."); btn.html(orig).prop('disabled', false); }
             });
         }
+
+        // ═══════════════════════════════════════════════════════
+        // COUNTDOWN SYSTEM — aktualizuje wszystkie elementy z data-countdown
+        // co sekundę, bez przeładowania strony
+        // ═══════════════════════════════════════════════════════
+        const CountdownSystem = (function() {
+            let elements = [];
+            let timer = null;
+
+            function formatDiff(ms) {
+                if (ms <= 0) return null;
+                const totalSec = Math.floor(ms / 1000);
+                const days = Math.floor(totalSec / 86400);
+                const h = Math.floor((totalSec % 86400) / 3600);
+                const m = Math.floor((totalSec % 3600) / 60);
+                const s = totalSec % 60;
+                if (days > 0) return `Za ${days}d ${h}h`;
+                if (h > 0) return `Za ${h}h ${m}min`;
+                if (m > 0) return `Za ${m}min ${s}s`;
+                return `Za ${s}s`;
+            }
+
+            function formatKpi(ms) {
+                if (ms <= 0) return null;
+                const totalSec = Math.floor(ms / 1000);
+                const days = Math.floor(totalSec / 86400);
+                const h = Math.floor((totalSec % 86400) / 3600);
+                const m = Math.floor((totalSec % 3600) / 60);
+                const s = totalSec % 60;
+                if (days > 0) return `Za ${days}d ${h}h`;
+                if (h > 0) return `Za ${h}h ${m}m`;
+                if (m > 0) return `Za ${m}m ${s}s`;
+                return `Za ${s}s`;
+            }
+
+            function tick() {
+                const now = Date.now();
+                elements.forEach(el => {
+                    const iso = el.getAttribute('data-countdown');
+                    if (!iso) return;
+                    const target = new Date(iso).getTime();
+                    const diff = target - now;
+                    const isKpi = el.id === 'kpiNextExecLabel';
+
+                    if (diff <= 0) {
+                        // Wykonuje się — zostaw, bez reloada
+                        if (isKpi) {
+                            el.textContent = 'Wykonuje się...';
+                            el.style.color = '#8e44ad';
+                        } else {
+                            // Row countdown — zmień klasę na running + tekst
+                            el.classList.remove('countdown-active');
+                            el.classList.add('countdown-running');
+                            el.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Wykonuje się...';
+                        }
+                        return;
+                    }
+
+                    const txt = isKpi ? formatKpi(diff) : formatDiff(diff);
+                    if (isKpi) {
+                        el.textContent = txt;
+                    } else {
+                        // Zachowaj ikonę fa-clock
+                        el.innerHTML = '<i class="fas fa-clock"></i> ' + txt;
+                    }
+                });
+            }
+
+            function init() {
+                elements = Array.from(document.querySelectorAll('[data-countdown]')).filter(el => {
+                    const iso = el.getAttribute('data-countdown');
+                    return iso && iso.length > 0;
+                });
+                if (elements.length === 0) return;
+                tick();
+                timer = setInterval(tick, 1000);
+            }
+
+            return { init };
+        })();
 
         // ═══════════════════════════════════════════════════════
         // WYSZUKIWANIE
@@ -1662,7 +1160,6 @@
             function init() {
                 allRows = Array.from(document.querySelectorAll('#intervalTable tbody tr'));
 
-                // Dynamic flag filters
                 const flagMap = new Map();
                 allRows.forEach(row => {
                     const ids = row.getAttribute('data-flag-ids');
@@ -1785,7 +1282,17 @@
         $(document).ready(function() { FilterSystem.init(); });
 
         // ═══════════════════════════════════════════════════════
-        // HARMONOGRAM (READ-ONLY) — identyczny jak dotychczasowy
+        // HARMONOGRAM (READ-ONLY) z obsługą A/B/C
+        //
+        // Format slotu w grid:
+        //   0                      = pusty
+        //   ±1..6                  = legacy (krok A, bez prefixu)
+        //   ±101..106              = krok A (nowy)
+        //   ±201..206              = krok B
+        //   ±301..306              = krok C
+        //
+        // Kolor: green=obniżka (step<0), red=podwyżka (step>0)
+        // Wyłączony krok → wyszarzony blok
         // ═══════════════════════════════════════════════════════
         let scheduleOpen = false, scheduleBuilt = false;
 
@@ -1799,74 +1306,187 @@
 
         const SG = (function () {
             const DAYS = 7, SLOTS = 144;
+            const STEP_LETTERS = { 1: 'A', 2: 'B', 3: 'C' };
             let grid = [], cells = {};
+
             const serverNow = new Date('@DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")');
-            const nowDayIndex = (serverNow.getDay() + 6) % 7;
+            const nowDayIndex = ((serverNow.getDay() + 6) % 7);
             const nowSlotIndex = Math.floor((serverNow.getHours() * 60 + serverNow.getMinutes()) / 10);
 
-            const G = { c:{1:'#145a32',2:'#1a7a42',3:'#1e8c4a',4:'#22a053',5:'#27ae60',6:'#2ecc71'}, hi:{1:'#1a7040',2:'#20904e',3:'#26a458',4:'#2cb862',5:'#34d870',6:'#3ee882'}, lo:{1:'#0f4426',2:'#145a32',3:'#18703c',4:'#1c8646',5:'#209c50',6:'#24b25a'}, accent:'#27ae60' };
-            const R = { c:{1:'#7b1a1a',2:'#992222',3:'#b52a2a',4:'#cc3333',5:'#e04040',6:'#e86060'}, hi:{1:'#922222',2:'#aa2e2e',3:'#c43636',4:'#d94040',5:'#ec5050',6:'#f07070'}, lo:{1:'#5c1212',2:'#6e1818',3:'#841e1e',4:'#9a2626',5:'#b03030',6:'#c43a3a'}, accent:'#e04040' };
-            let P = G;
+            // Dwie palety — zielony dla obniżek, czerwony dla podwyżek
+            const G = {
+                c:  {1:'#145a32',2:'#1a7a42',3:'#1e8c4a',4:'#22a053',5:'#27ae60',6:'#2ecc71'},
+                hi: {1:'#1a7040',2:'#20904e',3:'#26a458',4:'#2cb862',5:'#34d870',6:'#3ee882'},
+                lo: {1:'#0f4426',2:'#145a32',3:'#18703c',4:'#1c8646',5:'#209c50',6:'#24b25a'},
+                accent:'#27ae60'
+            };
+            const R = {
+                c:  {1:'#7b1a1a',2:'#992222',3:'#b52a2a',4:'#cc3333',5:'#e04040',6:'#e86060'},
+                hi: {1:'#922222',2:'#aa2e2e',3:'#c43636',4:'#d94040',5:'#ec5050',6:'#f07070'},
+                lo: {1:'#5c1212',2:'#6e1818',3:'#841e1e',4:'#9a2626',5:'#b03030',6:'#c43a3a'},
+                accent:'#e04040'
+            };
 
             function slotTime(s) { const h = Math.floor((s*10)/60), m = (s*10)%60; return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); }
-            function getStepInfo() {
-                const v = @(Model.PriceStep.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                const pct = @(Model.IsPriceStepPercent ? "true" : "false");
-                return { text: (v<0?'':'+') + Math.abs(v).toFixed(2) + (pct?'%':' PLN'), icon: v>0?'fa-arrow-up':'fa-arrow-down', up: v>0 };
+
+            function decodeVal(v) {
+                const a = Math.abs(v);
+                if (a === 0) return { stepIdx: 0, size: 0 };
+                if (a >= 1 && a <= 6) return { stepIdx: 1, size: a }; // legacy = A
+                return { stepIdx: Math.floor(a/100), size: a % 100 };
+            }
+
+            function getStepInfo(stepIdx) {
+                const data = STEPS_DATA[stepIdx] || STEPS_DATA[1];
+                const v = data.value, pct = data.pct, active = data.active;
+                return {
+                    stepIdx: stepIdx,
+                    letter: STEP_LETTERS[stepIdx] || 'A',
+                    value: v,
+                    active: active,
+                    up: v > 0,
+                    text: (v<0?'':'+') + Math.abs(v).toFixed(2) + (pct?'%':' PLN'),
+                    icon: v>0?'fa-arrow-up':'fa-arrow-down',
+                    palette: v>0 ? R : G
+                };
             }
 
             function init() {
-                try { grid = JSON.parse('@Html.Raw(Model.ScheduleJson ?? "[]")'); if (!Array.isArray(grid) || grid.length !== DAYS) throw 0; } catch { grid = Array.from({length:DAYS}, () => Array(SLOTS).fill(0)); }
-                buildTable(); render();
+                try {
+                    grid = JSON.parse('@Html.Raw(Model.ScheduleJson ?? "[]")');
+                    if (!Array.isArray(grid) || grid.length !== DAYS) throw 0;
+                } catch {
+                    grid = Array.from({length:DAYS}, () => Array(SLOTS).fill(0));
+                }
+                buildTable();
+                render();
             }
 
             function buildTable() {
-                const tbody = document.getElementById('sgBody'); tbody.innerHTML = ''; cells = {};
+                const tbody = document.getElementById('sgBody');
+                tbody.innerHTML = '';
+                cells = {};
                 for (let d = 0; d < DAYS; d++) cells[d] = {};
-                const sr = document.createElement('tr'); sr.className = 'day-stats-row';
-                const t0 = document.createElement('td'); t0.className = 'tc'; t0.style.fontSize = '8px'; t0.textContent = '∑'; sr.appendChild(t0);
-                for (let d = 0; d < DAYS; d++) { const td = document.createElement('td'); td.id = 'ds-'+d; sr.appendChild(td); }
+
+                const sr = document.createElement('tr');
+                sr.className = 'day-stats-row';
+                const t0 = document.createElement('td');
+                t0.className = 'tc'; t0.style.fontSize = '8px'; t0.textContent = '∑';
+                sr.appendChild(t0);
+                for (let d = 0; d < DAYS; d++) {
+                    const td = document.createElement('td');
+                    td.id = 'ds-'+d;
+                    sr.appendChild(td);
+                }
                 tbody.appendChild(sr);
+
                 for (let s = 0; s < SLOTS; s++) {
-                    const isHour = (s*10)%60===0, tr = document.createElement('tr');
+                    const isHour = (s*10)%60 === 0;
+                    const tr = document.createElement('tr');
                     if (isHour) tr.classList.add('hour-boundary');
-                    const tc = document.createElement('td'); tc.className = 'tc'+(isHour?' hour-mark':''); tc.textContent = slotTime(s); tr.appendChild(tc);
-                    for (let d = 0; d < DAYS; d++) { const td = document.createElement('td'); td.className = 'sg-cell'; td.dataset.d = d; td.dataset.s = s; cells[d][s] = td; tr.appendChild(td); }
+                    const tc = document.createElement('td');
+                    tc.className = 'tc' + (isHour?' hour-mark':'');
+                    tc.textContent = slotTime(s);
+                    tr.appendChild(tc);
+                    for (let d = 0; d < DAYS; d++) {
+                        const td = document.createElement('td');
+                        td.className = 'sg-cell';
+                        td.dataset.d = d;
+                        td.dataset.s = s;
+                        cells[d][s] = td;
+                        tr.appendChild(td);
+                    }
                     tbody.appendChild(tr);
                 }
             }
 
-            function mkLabel(si, t) { return '<div class="blk-lbl"><span class="blk-lbl-left"><i class="fas '+si.icon+'"></i> '+si.text+'</span><span class="blk-lbl-right">'+t+'</span></div>'; }
+            function mkLabel(info, timeStr) {
+                return '<div class="blk-lbl">'
+                    + '<span class="blk-lbl-left">'
+                    + '<span class="blk-lbl-step blk-lbl-step-' + info.stepIdx + '">' + info.letter + '</span>'
+                    + '<i class="fas ' + info.icon + '"></i> ' + info.text
+                    + '</span>'
+                    + '<span class="blk-lbl-right">' + timeStr + '</span>'
+                    + '</div>';
+            }
 
             function render() {
-                const si = getStepInfo(); P = si.up ? R : G;
-                const dayBlocks = Array(DAYS).fill(0);
+                // Reset wszystkich komórek
                 for (let d = 0; d < DAYS; d++) {
-                    for (let s = 0; s < SLOTS; s++) { cells[d][s].className = 'sg-cell'; cells[d][s].innerHTML = ''; cells[d][s].style.cssText = ''; }
+                    for (let s = 0; s < SLOTS; s++) {
+                        const td = cells[d][s];
+                        td.className = 'sg-cell';
+                        td.innerHTML = '';
+                        td.style.cssText = '';
+                    }
+                }
+
+                const dayBlocks = Array(DAYS).fill(0);
+                let totalBlocks = 0;
+
+                for (let d = 0; d < DAYS; d++) {
                     let s = 0;
                     while (s < SLOTS) {
-                        const v = grid[d][s]; if (v <= 0) { s++; continue; }
-                        let len = 1; while (s+len<SLOTS && grid[d][s+len]===-v) len++;
-                        const c = P.c[v]||P.c[1], hi = P.hi[v]||P.hi[1], lo = P.lo[v]||P.lo[1];
+                        const v = grid[d][s];
+                        if (v <= 0) { s++; continue; }
+
+                        // Znajdź długość bloku (kontynuacje = -v)
+                        let len = 1;
+                        while (s+len < SLOTS && grid[d][s+len] === -v) len++;
+
+                        const decoded = decodeVal(v);
+                        const info = getStepInfo(decoded.stepIdx);
+                        const size = decoded.size;
+                        const color = info.palette.c[size] || info.palette.c[1];
+                        const colorHi = info.palette.hi[size] || info.palette.hi[1];
+                        const colorLo = info.palette.lo[size] || info.palette.lo[1];
+                        const timeFrom = slotTime(s);
+
                         dayBlocks[d]++;
+                        totalBlocks++;
+
                         for (let i = 0; i < len; i++) {
-                            const cell = cells[d][s+i]; cell.classList.add('on');
-                            let css = 'background:'+c+';border-color:'+c+';', shadows = [];
-                            if (len===1) { shadows.push('inset 0 2px 0 0 '+hi,'inset 0 -2px 0 0 '+lo); cell.innerHTML = mkLabel(si, slotTime(s)); }
-                            else if (i===0) { shadows.push('inset 0 2px 0 0 '+hi); cell.innerHTML = mkLabel(si, slotTime(s)); }
-                            else if (i===len-1) { shadows.push('inset 0 -2px 0 0 '+lo); }
+                            const cell = cells[d][s+i];
+                            let css = 'background:'+color+';border-color:'+color+';';
+                            const shadows = [];
+
+                            if (!info.active) {
+                                cell.classList.add('inactive-step');
+                            }
+
+                            if (len === 1) {
+                                shadows.push('inset 0 2px 0 0 '+colorHi, 'inset 0 -2px 0 0 '+colorLo);
+                                cell.innerHTML = mkLabel(info, timeFrom);
+                            } else if (i === 0) {
+                                shadows.push('inset 0 2px 0 0 '+colorHi);
+                                cell.innerHTML = mkLabel(info, timeFrom);
+                            } else if (i === len-1) {
+                                shadows.push('inset 0 -2px 0 0 '+colorLo);
+                            }
+
                             if (shadows.length) css += 'box-shadow:'+shadows.join(',')+';';
                             cell.style.cssText = css;
                         }
                         s += len;
                     }
                 }
+
+                // Podsumowania dzienne
                 for (let d = 0; d < DAYS; d++) {
                     const el = document.getElementById('ds-'+d);
-                    if (el) el.innerHTML = dayBlocks[d]>0 ? '<span style="color:'+P.accent+';font-weight:700;">'+dayBlocks[d]+'</span>' : '<span style="color:#d0d2d8;">0</span>';
+                    if (el) {
+                        el.innerHTML = dayBlocks[d]>0
+                            ? '<span style="color:#5a5c69;font-weight:700;">'+dayBlocks[d]+'</span>'
+                            : '<span style="color:#d0d2d8;">0</span>';
+                    }
                 }
-                if (nowDayIndex>=0 && nowDayIndex<DAYS && nowSlotIndex>=0 && nowSlotIndex<SLOTS) cells[nowDayIndex][nowSlotIndex].classList.add('now-marker');
+
+                // Znacznik "teraz"
+                if (nowDayIndex>=0 && nowDayIndex<DAYS && nowSlotIndex>=0 && nowSlotIndex<SLOTS) {
+                    cells[nowDayIndex][nowSlotIndex].classList.add('now-marker');
+                }
             }
+
             return { init };
         })();
     </script>

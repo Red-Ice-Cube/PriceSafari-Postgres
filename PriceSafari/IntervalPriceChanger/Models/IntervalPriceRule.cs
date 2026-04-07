@@ -397,5 +397,24 @@ namespace PriceSafari.IntervalPriceChanger.Models
                 return (true, stepIdx);
             }
         }
+
+        /// <summary>
+        /// Zwraca surową wartość slotu z JSON-a (bez dekodowania).
+        /// Dodatnia = start bloku, ujemna = kontynuacja, 0 = pusty.
+        /// </summary>
+        public int GetRawSlotValue(int dayOfWeek, int slotIndex)
+        {
+            if (string.IsNullOrEmpty(ScheduleJson)) return 0;
+            try
+            {
+                var schedule = System.Text.Json.JsonSerializer.Deserialize<int[][]>(ScheduleJson);
+                if (schedule == null || dayOfWeek < 0 || dayOfWeek > 6) return 0;
+                if (schedule.Length <= dayOfWeek) return 0;
+                var daySlots = schedule[dayOfWeek];
+                if (daySlots == null || slotIndex < 0 || slotIndex >= daySlots.Length) return 0;
+                return daySlots[slotIndex];
+            }
+            catch { return 0; }
+        }
     }
 }

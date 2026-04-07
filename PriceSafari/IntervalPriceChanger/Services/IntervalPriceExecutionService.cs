@@ -70,9 +70,15 @@ namespace PriceSafari.IntervalPriceChanger.Services
             foreach (var r in allRules)
             {
                 if (!r.IsEffectivelyActive) continue;
+
+                // Wykonanie tylko na STARCIE bloku — pomijamy kontynuacje.
+                // Start = wartość dodatnia w slocie; kontynuacja = ujemna.
+                int rawVal = r.GetRawSlotValue(dayIndex, slotIndex);
+                if (rawVal <= 0) continue;
+
                 int stepIdx = r.GetSlotStepIndex(dayIndex, slotIndex);
-                if (stepIdx == 0) continue;                // brak slotu
-                if (!r.IsStepActive(stepIdx)) continue;    // krok wyłączony
+                if (stepIdx == 0) continue;
+                if (!r.IsStepActive(stepIdx)) continue;
                 qualifyingRules.Add((r, stepIdx));
             }
 
