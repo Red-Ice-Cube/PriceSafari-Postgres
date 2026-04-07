@@ -43,11 +43,15 @@ namespace PriceSafari.IntervalPriceChanger.Models
         public decimal PriceStepApplied { get; set; }
         public bool IsPriceStepPercent { get; set; }
 
+        [StringLength(1)]
+        public string StepLetter { get; set; } = "A";
+
         [StringLength(2000)]
         public string? Comment { get; set; }
 
         [StringLength(100)]
         public string DeviceName { get; set; }
+
 
         // ═══ NAWIGACJA ═══
         [ValidateNever]

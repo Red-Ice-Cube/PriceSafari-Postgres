@@ -53,18 +53,28 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 dayIndex, slotIndex, now.ToString("HH:mm"));
 
             var allRules = await _context.IntervalPriceRules
-            .Include(r => r.AutomationRule)
-                .ThenInclude(ar => ar.Store)
-            .Where(r => r.IsActive
-                     && r.AutomationRule.IsActive
-                     && r.AutomationRule.Store.RemainingDays > 0
-                     && r.ScheduleJson != null)
-            .ToListAsync(ct);
+                .Include(r => r.AutomationRule)
+                    .ThenInclude(ar => ar.Store)
+                .Where(r => r.IsActive
+                         && r.AutomationRule.IsActive
+                         && r.AutomationRule.Store.RemainingDays > 0
+                         && r.ScheduleJson != null)
+                .ToListAsync(ct);
 
-            // Filtruj do tych z aktywnym slotem TERAZ
-            var qualifyingRules = allRules
-                .Where(r => r.IsEffectivelyActive && r.IsSlotActive(dayIndex, slotIndex))
-                .ToList();
+            // ═══ Filtrowanie z uwzględnieniem kroków A/B/C ═══
+            // Reguła kwalifikuje się tylko jeśli:
+            //  1. Jest efektywnie aktywna (IsEffectivelyActive)
+            //  2. W bieżącym slocie jest zapisany krok (1/2/3)
+            //  3. Ten krok jest aktywny (IsStepActive)
+            var qualifyingRules = new List<(IntervalPriceRule rule, int stepIdx)>();
+            foreach (var r in allRules)
+            {
+                if (!r.IsEffectivelyActive) continue;
+                int stepIdx = r.GetSlotStepIndex(dayIndex, slotIndex);
+                if (stepIdx == 0) continue;                // brak slotu
+                if (!r.IsStepActive(stepIdx)) continue;    // krok wyłączony
+                qualifyingRules.Add((r, stepIdx));
+            }
 
             if (!qualifyingRules.Any())
             {
@@ -77,14 +87,14 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 qualifyingRules.Count);
 
             // Grupuj po sklepie
-            var byStore = qualifyingRules.GroupBy(r => r.AutomationRule.StoreId);
+            var byStore = qualifyingRules.GroupBy(x => x.rule.AutomationRule.StoreId);
 
             foreach (var storeGroup in byStore)
             {
                 if (ct.IsCancellationRequested) break;
 
                 var storeId = storeGroup.Key;
-                var store = storeGroup.First().AutomationRule.Store;
+                var store = storeGroup.First().rule.AutomationRule.Store;
 
                 // ═══ LOCK: Interwał NIGDY nie czeka — jeśli sklep zajęty, pomija ═══
                 // Główny automat używa AcquireAsync() z timeoutem — ma pierwszeństwo.
@@ -98,8 +108,9 @@ namespace PriceSafari.IntervalPriceChanger.Services
                         store.StoreName, storeId);
 
                     // Zapisz informację w batch logach dla każdego pominiętego interwału
-                    foreach (var rule in storeGroup)
+                    foreach (var (rule, stepIdx) in storeGroup)
                     {
+                        var letter = StepLetterOf(stepIdx);
                         var skipBatch = new IntervalPriceExecutionBatch
                         {
                             IntervalPriceRuleId = rule.Id,
@@ -108,8 +119,9 @@ namespace PriceSafari.IntervalPriceChanger.Services
                             EndDate = DateTime.Now,
                             SlotIndex = slotIndex,
                             DayIndex = dayIndex,
-                            PriceStepApplied = rule.PriceStep,
-                            IsPriceStepPercent = rule.IsPriceStepPercent,
+                            PriceStepApplied = rule.GetStepValue(stepIdx),
+                            IsPriceStepPercent = rule.IsStepPercent(stepIdx),
+                            StepLetter = letter,
                             DeviceName = deviceName,
                             Comment = "POMINIĘTO — sklep zajęty przez główny automat."
                         };
@@ -123,13 +135,13 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     "⏱️ [IntervalExec] Lock zdobyty. Przetwarzam sklep '{StoreName}' — {Count} interwałów.",
                     store.StoreName, storeGroup.Count());
 
-                foreach (var rule in storeGroup)
+                foreach (var (rule, stepIdx) in storeGroup)
                 {
                     if (ct.IsCancellationRequested) break;
 
                     try
                     {
-                        await ExecuteSingleIntervalAsync(rule, store, dayIndex, slotIndex, deviceName, ct);
+                        await ExecuteSingleIntervalAsync(rule, store, dayIndex, slotIndex, stepIdx, deviceName, ct);
                     }
                     catch (Exception ex)
                     {
@@ -154,17 +166,23 @@ namespace PriceSafari.IntervalPriceChanger.Services
             StoreClass store,
             int dayIndex,
             int slotIndex,
+            int stepIdx,
             string deviceName,
             CancellationToken ct)
         {
             var parent = rule.AutomationRule;
             bool isMarketplace = parent.SourceType == AutomationSourceType.Marketplace;
 
+            decimal stepValue = rule.GetStepValue(stepIdx);
+            bool stepIsPercent = rule.IsStepPercent(stepIdx);
+            string letter = StepLetterOf(stepIdx);
+
             _logger.LogInformation(
-                "🔄 [Interval:{Name}] Start. Krok: {Step}{Unit}, Typ: {Type}",
+                "🔄 [Interval:{Name}] Start. Krok {Letter}: {Step}{Unit}, Typ: {Type}",
                 rule.Name,
-                rule.PriceStep.ToString("F2"),
-                rule.IsPriceStepPercent ? "%" : " PLN",
+                letter,
+                stepValue.ToString("F2"),
+                stepIsPercent ? "%" : " PLN",
                 isMarketplace ? "Allegro" : "Sklep");
 
             var batch = new IntervalPriceExecutionBatch
@@ -174,8 +192,9 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 ExecutionDate = DateTime.Now,
                 SlotIndex = slotIndex,
                 DayIndex = dayIndex,
-                PriceStepApplied = rule.PriceStep,
-                IsPriceStepPercent = rule.IsPriceStepPercent,
+                PriceStepApplied = stepValue,
+                IsPriceStepPercent = stepIsPercent,
+                StepLetter = letter,
                 DeviceName = deviceName
             };
 
@@ -187,9 +206,9 @@ namespace PriceSafari.IntervalPriceChanger.Services
             try
             {
                 if (isMarketplace)
-                    await ExecuteMarketplaceInterval(rule, parent, store, batch, ct);
+                    await ExecuteMarketplaceInterval(rule, parent, store, batch, stepValue, stepIsPercent, letter, ct);
                 else
-                    await ExecuteComparisonInterval(rule, parent, store, batch, ct);
+                    await ExecuteComparisonInterval(rule, parent, store, batch, stepValue, stepIsPercent, letter, ct);
             }
             catch (Exception ex)
             {
@@ -204,8 +223,9 @@ namespace PriceSafari.IntervalPriceChanger.Services
             await _context.SaveChangesAsync(ct);
 
             _logger.LogInformation(
-                "✅ [Interval:{Name}] Zakończono. Sukces={S}, Blokady={B}, Błędy={F}, Limity={L}",
-                rule.Name, batch.SuccessCount, batch.BlockedCount,
+                "✅ [Interval:{Name}] Krok {Letter}. Sukces={S}, Blokady={B}, Błędy={F}, Limity={L}",
+                rule.Name, letter,
+                batch.SuccessCount, batch.BlockedCount,
                 batch.FailedCount, batch.LimitReachedCount);
         }
 
@@ -218,6 +238,9 @@ namespace PriceSafari.IntervalPriceChanger.Services
             AutomationRule parent,
             StoreClass store,
             IntervalPriceExecutionBatch batch,
+            decimal stepValue,
+            bool stepIsPercent,
+            string stepLetter,
             CancellationToken ct)
         {
             var assignments = await _context.IntervalPriceProductAssignments
@@ -277,6 +300,7 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     AllegroProductId = product.AllegroProductId,
                     AllegroOfferId = product.IdOnAllegro,
                     PurchasePrice = product.AllegroMarginPrice,
+                    StepLetter = stepLetter,
                 };
 
                 // ── BLOKADY ──
@@ -345,15 +369,15 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     item.IsSubsidyActive = false;
                     item.CustomerVisiblePrice = currentPrice;
 
-                    // ── KALKULACJA NOWEJ CENY ──
-                    decimal step = rule.IsPriceStepPercent
-                        ? currentPrice * (rule.PriceStep / 100m)
-                        : rule.PriceStep;
+                    // ── KALKULACJA NOWEJ CENY (używa kroku A/B/C przekazanego do metody) ──
+                    decimal step = stepIsPercent
+                        ? currentPrice * (stepValue / 100m)
+                        : stepValue;
 
                     decimal targetPrice = Math.Round(currentPrice + step, 2);
                     bool limitedMin = false, limitedMax = false;
 
-                    // Sprawdź limit Min
+                    // Sprawdź limit Min (tylko dla obniżek — gdy stepValue < 0)
                     if (minLimit.HasValue && targetPrice < minLimit.Value)
                     {
                         if (Math.Abs(currentPrice - minLimit.Value) < 0.01m)
@@ -370,7 +394,7 @@ namespace PriceSafari.IntervalPriceChanger.Services
                         limitedMin = true;
                     }
 
-                    // Sprawdź limit Max
+                    // Sprawdź limit Max (tylko dla podwyżek — gdy stepValue > 0)
                     if (maxLimit.HasValue && targetPrice > maxLimit.Value)
                     {
                         if (Math.Abs(currentPrice - maxLimit.Value) < 0.01m)
@@ -482,6 +506,9 @@ namespace PriceSafari.IntervalPriceChanger.Services
             AutomationRule parent,
             StoreClass store,
             IntervalPriceExecutionBatch batch,
+            decimal stepValue,
+            bool stepIsPercent,
+            string stepLetter,
             CancellationToken ct)
         {
             var assignments = await _context.IntervalPriceProductAssignments
@@ -521,6 +548,7 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     BatchId = batch.Id,
                     ProductId = product.ProductId,
                     PurchasePrice = product.MarginPrice,
+                    StepLetter = stepLetter,
                 };
 
                 // Blokady
@@ -564,10 +592,10 @@ namespace PriceSafari.IntervalPriceChanger.Services
 
                     item.PriceBefore = currentPrice.Value;
 
-                    // Kalkulacja
-                    decimal step = rule.IsPriceStepPercent
-                        ? currentPrice.Value * (rule.PriceStep / 100m)
-                        : rule.PriceStep;
+                    // Kalkulacja (używa kroku A/B/C przekazanego do metody)
+                    decimal step = stepIsPercent
+                        ? currentPrice.Value * (stepValue / 100m)
+                        : stepValue;
 
                     decimal targetPrice = Math.Round(currentPrice.Value + step, 2);
                     bool limitedMin = false, limitedMax = false;
@@ -696,6 +724,18 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 maxLimit = Math.Round(max, 2);
             }
         }
+
+        // ═══════════════════════════════════════════════════════
+        // HELPER — konwersja stepIdx → litera
+        // ═══════════════════════════════════════════════════════
+
+        private static string StepLetterOf(int stepIdx) => stepIdx switch
+        {
+            1 => "A",
+            2 => "B",
+            3 => "C",
+            _ => "A"
+        };
 
         // ═══════════════════════════════════════════════════════
         // ALLEGRO API

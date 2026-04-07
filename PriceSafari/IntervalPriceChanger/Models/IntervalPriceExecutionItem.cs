@@ -75,6 +75,9 @@ namespace PriceSafari.IntervalPriceChanger.Models
 
         [StringLength(200)]
         public string? StatusReason { get; set; }
+
+        [StringLength(1)]
+        public string StepLetter { get; set; } = "A";
     }
 
     public enum IntervalExecutionItemStatus

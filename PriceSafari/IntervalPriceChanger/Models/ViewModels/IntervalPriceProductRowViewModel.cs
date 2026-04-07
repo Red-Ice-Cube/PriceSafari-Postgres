@@ -158,6 +158,33 @@
         /// Skąd pochodzi ostatnia znana cena.
         /// </summary>
         public LastKnownPriceSource LastKnownSource { get; set; } = LastKnownPriceSource.None;
+
+
+        // ═══════════════════════════════════════════════════════
+        // KROK A/B/C — kontekst dla renderowania badge'y
+        // ═══════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Indeks kroku (1=A, 2=B, 3=C) który zostanie wykonany w najbliższym slocie.
+        /// Null jeśli brak aktywnego wykonania.
+        /// </summary>
+        public int? NextStepIdx { get; set; }
+
+        /// <summary>
+        /// Wartość kroku używanego do ProjectedNextPrice (z uwzględnieniem A/B/C).
+        /// </summary>
+        public decimal? NextStepValue { get; set; }
+
+        /// <summary>
+        /// Czy next step jest w %.
+        /// </summary>
+        public bool NextStepIsPercent { get; set; }
+
+        /// <summary>
+        /// Jeśli LastKnownSource == Interval — który krok był wykonany.
+        /// Null jeśli źródło inne lub nie wiadomo.
+        /// </summary>
+        public int? LastKnownStepIdx { get; set; }
     }
 
 

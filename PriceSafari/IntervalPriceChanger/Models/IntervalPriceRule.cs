@@ -314,18 +314,87 @@ namespace PriceSafari.IntervalPriceChanger.Models
         }
 
         [NotMapped]
-        public bool IsCurrentlyArmed
+        public bool IsCurrentlyArmed => CurrentArmedStep.armed;
+
+        /// <summary>
+        /// Zwraca surowy indeks kroku w slocie (1/2/3) lub 0 jeśli pusty.
+        /// NIE sprawdza czy krok jest aktywny — tylko format.
+        /// (alias do istniejącego GetSlotStepIndex dla czytelności)
+        /// </summary>
+        public int GetRawStepIndexAt(int dayOfWeek, int slotIndex)
+            => GetSlotStepIndex(dayOfWeek, slotIndex);
+
+        /// <summary>
+        /// Szuka następnego wykonania w harmonogramie od "teraz".
+        /// Pomija sloty należące do kroków wyłączonych (IsStep?Active=false).
+        /// Zwraca (czas, stepIdx) lub null.
+        /// </summary>
+        public (DateTime time, int stepIdx)? FindNextActiveExecution(DateTime fromNow)
+        {
+            if (string.IsNullOrEmpty(ScheduleJson)) return null;
+
+            int[][] schedule;
+            try
+            {
+                schedule = System.Text.Json.JsonSerializer.Deserialize<int[][]>(ScheduleJson);
+                if (schedule == null || schedule.Length != 7) return null;
+            }
+            catch { return null; }
+
+            int currentDayIndex = ((int)fromNow.DayOfWeek + 6) % 7;
+            int currentSlot = (fromNow.Hour * 60 + fromNow.Minute) / 10;
+
+            for (int dayOffset = 0; dayOffset < 7; dayOffset++)
+            {
+                int dayIdx = (currentDayIndex + dayOffset) % 7;
+                var daySlots = schedule[dayIdx];
+                if (daySlots == null || daySlots.Length != 144) continue;
+
+                int startSlot = (dayOffset == 0) ? currentSlot + 1 : 0;
+
+                for (int s = startSlot; s < 144; s++)
+                {
+                    int v = daySlots[s];
+                    if (v <= 0) continue; // Start bloku = wartość dodatnia
+
+                    int abs = Math.Abs(v);
+                    int stepIdx;
+                    if (abs >= 1 && abs <= 6) stepIdx = 1;              // legacy
+                    else if (abs >= 101 && abs <= 106) stepIdx = 1;
+                    else if (abs >= 201 && abs <= 206) stepIdx = 2;
+                    else if (abs >= 301 && abs <= 306) stepIdx = 3;
+                    else continue;
+
+                    // Pomijaj kroki wyłączone
+                    if (!IsStepActive(stepIdx)) continue;
+
+                    var targetDate = fromNow.Date.AddDays(dayOffset);
+                    int totalMinutes = s * 10;
+                    return (targetDate.AddMinutes(totalMinutes), stepIdx);
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Override — czy interwał JEST uzbrojony w tym momencie.
+        /// Slot musi istnieć I należeć do aktywnego kroku.
+        /// (zastępuje starą wersję IsCurrentlyArmed — zachowaj tę nazwę, usuwając starą)
+        /// </summary>
+        [NotMapped]
+        public (bool armed, int stepIdx) CurrentArmedStep
         {
             get
             {
-                if (!IsEffectivelyActive) return false;
+                if (!IsEffectivelyActive) return (false, 0);
                 var now = DateTime.Now;
                 int dayIndex = ((int)now.DayOfWeek + 6) % 7;
                 int slotIndex = (now.Hour * 60 + now.Minute) / 10;
                 int stepIdx = GetSlotStepIndex(dayIndex, slotIndex);
-                if (stepIdx == 0) return false;
-                // Slot musi należeć do AKTYWNEGO kroku
-                return IsStepActive(stepIdx);
+                if (stepIdx == 0) return (false, 0);
+                if (!IsStepActive(stepIdx)) return (false, stepIdx); // istnieje ale nieaktywny
+                return (true, stepIdx);
             }
         }
     }

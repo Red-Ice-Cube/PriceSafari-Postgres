@@ -13,8 +13,32 @@ namespace PriceSafari.IntervalPriceChanger.Models.ViewModels
         public string ColorHex { get; set; }
         public bool IsActive { get; set; }
         public bool IsEffectivelyActive { get; set; }
+        // ═══════════════════════════════════════════════════════
+        // KROKI CENOWE A / B / C
+        // ═══════════════════════════════════════════════════════
+
+        // Krok A (legacy: PriceStep)
         public decimal PriceStep { get; set; }
         public bool IsPriceStepPercent { get; set; }
+        public bool IsStepAActive { get; set; }
+
+        // Krok B
+        public decimal PriceStepB { get; set; }
+        public bool IsPriceStepPercentB { get; set; }
+        public bool IsStepBActive { get; set; }
+
+        // Krok C
+        public decimal PriceStepC { get; set; }
+        public bool IsPriceStepPercentC { get; set; }
+        public bool IsStepCActive { get; set; }
+
+        // ═══════════════════════════════════════════════════════
+        // NASTĘPNE WYKONANIE (globalne)
+        // ═══════════════════════════════════════════════════════
+        public DateTime? NextGlobalExecution { get; set; }
+
+        /// <summary>Który krok (1/2/3) zostanie wykonany jako następny globalnie.</summary>
+        public int? NextGlobalExecutionStepIdx { get; set; }
         public string ScheduleJson { get; set; }
         public int ActiveSlotsCount { get; set; }
         public int PreferredBlockSize { get; set; }
@@ -70,9 +94,6 @@ namespace PriceSafari.IntervalPriceChanger.Models.ViewModels
         public int CountLimitReached => Products.Count(p => p.Status == IntervalProductStatus.LimitReached);
         public int CountPaused => Products.Count(p => p.Status == IntervalProductStatus.Paused);
 
-        // ═══════════════════════════════════════════════════════
-        // NASTĘPNE WYKONANIE (globalne — najbliższy slot)
-        // ═══════════════════════════════════════════════════════
-        public DateTime? NextGlobalExecution { get; set; }
+       
     }
 }
