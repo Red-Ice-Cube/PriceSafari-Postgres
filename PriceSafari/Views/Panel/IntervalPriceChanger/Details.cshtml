@@ -176,11 +176,9 @@
     @@media (max-width: 900px) { .step-cards-grid { grid-template-columns:1fr; } }
     .step-card-ro {
         background:#fcfcfd; border:1px solid #e3e6f0; border-radius:10px;
-        padding:14px 16px; border-top-width:4px; transition:opacity 0.2s;
+        padding:14px 16px;  transition:opacity 0.2s;
     }
-    .step-card-ro.step-a { border-top-color:#e67e22; }
-    .step-card-ro.step-b { border-top-color:#3498db; }
-    .step-card-ro.step-c { border-top-color:#9b59b6; }
+
     .step-card-ro.inactive { opacity:0.45; background:#f8f9fc; }
     .step-card-ro-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
     .step-card-ro-title { display:flex; align-items:center; gap:10px; }
@@ -223,6 +221,15 @@
     .inherited-item { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#fcfcfd; border-radius:6px; border:1px solid #eaecf4; font-size:13px; }
     .inherited-label { font-weight:700; color:#858796; text-transform:uppercase; font-size:10px; letter-spacing:0.5px; min-width:110px; }
     .inherited-value { font-weight:600; color:#5a5c69; }
+
+    .filter-btn[data-filter-key="limited-by-min"].active {
+    background: rgba(171,37,32,1);
+    border-color: rgba(171,37,32,1);
+}
+.filter-btn[data-filter-key="limited-by-max"].active {
+    background: rgba(0,145,123,1);
+    border-color: rgba(0,145,123,1);
+}
 </style>
 
 <div class="View">
@@ -476,9 +483,9 @@
                             <th style="max-width:170px; min-width:165px;">Limity Cenowe</th>
                             <th style="min-width:235px;">Dane z rynku - Twoja oferta</th>
                             <th style="min-width:200px;">Najlepszy Rywal</th>
-                            <th style="min-width:170px;">Ostatnia Znana Cena</th>
-                            <th style="min-width:220px;" class="bg-gradient-light border-left-primary">Następny Krok</th>
-                            <th style="min-width:100px;">Status</th>
+                            <th style="min-width:190px;">Ostatnia Znana Cena</th>
+                            <th style="min-width:240px;" class="bg-gradient-light border-left-primary">Następny Krok</th>
+                            <th style="min-width:110px;">Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -518,6 +525,8 @@
                                 data-has-purchase-price="@item.PurchasePrice.HasValue.ToString().ToLower()"
                                 data-has-min-limit="@item.MinPriceLimit.HasValue.ToString().ToLower()"
                                 data-has-max-limit="@item.MaxPriceLimit.HasValue.ToString().ToLower()"
+                                data-limited-by-min="@item.IsLimitedByMin.ToString().ToLower()"
+                                data-limited-by-max="@item.IsLimitedByMax.ToString().ToLower()"
                                 data-has-margin-warning="@item.IsMarginWarning.ToString().ToLower()"
                                 data-flag-ids="@(item.FlagIds != null ? string.Join(",", item.FlagIds) : "")">
 
@@ -548,7 +557,7 @@
                                             </div>
                                             @if (item.FlagIds != null && item.FlagIds.Any())
                                             {
-                                                <div class="flags-container d-flex flex-wrap mt-1" style="gap:4px;">
+                                                <div class="flags-container d-flex flex-wrap mt-1" style="gap:4px; justify-content: flex-start;">
                                                     @foreach (var flagId in item.FlagIds)
                                                     {
                                                         var flag = Model.AvailableStoreFlags?.FirstOrDefault(f => f.FlagId == flagId);
@@ -1147,8 +1156,8 @@
                     filters: [
                         { key: 'has-purchase', label: 'Ma cenę zakupu', icon: 'fa-tag', attr: 'data-has-purchase-price', value: 'true' },
                         { key: 'no-purchase', label: 'Brak ceny zakupu', icon: 'fa-tag', attr: 'data-has-purchase-price', value: 'false' },
-                        { key: 'has-min-limit', label: 'Limit Min', icon: 'fa-arrow-down', attr: 'data-has-min-limit', value: 'true' },
-                        { key: 'has-max-limit', label: 'Limit Max', icon: 'fa-arrow-up', attr: 'data-has-max-limit', value: 'true' },
+                        { key: 'limited-by-min', label: 'Limit Min', icon: 'fa-arrow-down', attr: 'data-limited-by-min', value: 'true' },
+                        { key: 'limited-by-max', label: 'Limit Max', icon: 'fa-arrow-up', attr: 'data-limited-by-max', value: 'true' },
                         { key: 'margin-warning', label: 'Ostrzeżenie narzutu', icon: 'fa-exclamation', attr: 'data-has-margin-warning', value: 'true' }
                     ]
                 }

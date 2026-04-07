@@ -636,13 +636,13 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 if (row.MinPriceLimit.HasValue && stepVal < 0 && effectivePrice.Value <= row.MinPriceLimit.Value)
                 {
                     row.Status = IntervalProductStatus.LimitReached;
-                    row.BlockReason = "Osiągnięto Min";
+                    row.BlockReason = "Limit Min";
                     return;
                 }
                 if (row.MaxPriceLimit.HasValue && stepVal > 0 && effectivePrice.Value >= row.MaxPriceLimit.Value)
                 {
                     row.Status = IntervalProductStatus.LimitReached;
-                    row.BlockReason = "Osiągnięto Max";
+                    row.BlockReason = "Limit Max";
                     return;
                 }
             }
