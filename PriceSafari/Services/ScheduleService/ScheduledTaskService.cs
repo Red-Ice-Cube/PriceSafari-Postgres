@@ -900,10 +900,14 @@ public class ScheduledTaskService : BackgroundService
             int processedRules = 0;
             int totalChanges = 0;
             var sb = new StringBuilder();
-
             foreach (var rule in executableRules)
             {
-                // Główny automat czeka na lock (max 5 min) — ma pierwszeństwo
+                if (ct.IsCancellationRequested)
+                {
+                    sb.Append($"[PREEMPCJA: przerwano przed {rule.Name}] ");
+                    break;
+                }
+
                 using var storeLock = await StoreLockManager.AcquireAsync(rule.StoreId, TimeSpan.FromMinutes(5));
 
                 if (storeLock == null)
@@ -942,8 +946,8 @@ public class ScheduledTaskService : BackgroundService
                 // Lock zwalniany automatycznie przez using
             }
 
-            // 4. Aktualizacja logu
-            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            // 4. Log
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, CancellationToken.None);
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
@@ -953,21 +957,21 @@ public class ScheduledTaskService : BackgroundService
                 }
                 else
                 {
-                    finishedLog.Comment += " | Brak aktywnych reguł Marketplace dla sklepów w tym zadaniu.";
+                    finishedLog.Comment += " | Brak aktywnych reguł Porównywarek dla sklepów w tym zadaniu.";
                 }
                 context.TaskExecutionLogs.Update(finishedLog);
-                await context.SaveChangesAsync(ct);
+                await context.SaveChangesAsync(CancellationToken.None);
             }
         }
         catch (Exception ex)
         {
-            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, CancellationToken.None);
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
                 finishedLog.Comment += $" | Krytyczny błąd automatyzacji: {ex.Message}";
                 context.TaskExecutionLogs.Update(finishedLog);
-                await context.SaveChangesAsync(ct);
+                await context.SaveChangesAsync(CancellationToken.None);
             }
         }
     }
@@ -1010,6 +1014,13 @@ public class ScheduledTaskService : BackgroundService
 
             foreach (var rule in executableRules)
             {
+                if (ct.IsCancellationRequested)
+                {
+                    sb.Append($"[PREEMPCJA: przerwano przed {rule.Name}] ");
+                    break;
+                }
+
+                // Główny automat czeka na lock (max 5 min) — ma pierwszeństwo
                 using var storeLock = await StoreLockManager.AcquireAsync(rule.StoreId, TimeSpan.FromMinutes(5));
 
                 if (storeLock == null)
@@ -1041,7 +1052,7 @@ public class ScheduledTaskService : BackgroundService
             }
 
             // 4. Log
-            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, CancellationToken.None);
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
@@ -1054,18 +1065,18 @@ public class ScheduledTaskService : BackgroundService
                     finishedLog.Comment += " | Brak aktywnych reguł Porównywarek dla sklepów w tym zadaniu.";
                 }
                 context.TaskExecutionLogs.Update(finishedLog);
-                await context.SaveChangesAsync(ct);
+                await context.SaveChangesAsync(CancellationToken.None);
             }
         }
         catch (Exception ex)
         {
-            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, CancellationToken.None);
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
                 finishedLog.Comment += $" | Krytyczny błąd automatyzacji: {ex.Message}";
                 context.TaskExecutionLogs.Update(finishedLog);
-                await context.SaveChangesAsync(ct);
+                await context.SaveChangesAsync(CancellationToken.None);
             }
         }
     }
