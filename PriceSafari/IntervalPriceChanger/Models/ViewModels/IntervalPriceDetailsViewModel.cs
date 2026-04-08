@@ -12,6 +12,9 @@ namespace PriceSafari.IntervalPriceChanger.Models.ViewModels
         public string IntervalName { get; set; }
         public string ColorHex { get; set; }
         public bool IsActive { get; set; }
+
+        public int StoreIntervalLimit { get; set; }
+        public int StoreIntervalUsed { get; set; }
         public bool IsEffectivelyActive { get; set; }
         // ═══════════════════════════════════════════════════════
         // KROKI CENOWE A / B / C

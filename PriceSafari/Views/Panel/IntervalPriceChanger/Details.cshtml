@@ -293,11 +293,44 @@
     @* ── KPI ── *@
     <div class="Vert">
         <div class="kpi-container">
-            <div class="kpi-card">
+           <div class="kpi-card">
                 <div class="kpi-title">Produkty <i class="fas fa-cube text-gray-400"></i></div>
                 <div class="kpi-value-big">@Model.TotalProducts<span style="font-size:14px; color:#858796; font-weight:400;"> / @Model.ParentProductCount</span></div>
                 <div class="kpi-subtext">w interwale / w automacie-rodzicu</div>
-                <div class="kpi-subtext" style="display:flex; align-items:center; gap:6px; margin-top:3px;">
+
+                @{
+                    int limit = Model.StoreIntervalLimit;
+                    int used = Model.StoreIntervalUsed;
+                    double pct = limit > 0 ? Math.Round((double)used / limit * 100, 1) : 0;
+                    string barColor = pct >= 90 ? "#e74a3b" : pct >= 70 ? "#f6c23e" : "#27ae60";
+                    string sourceLabel = isMarketplace ? "Allegro" : "por\u00f3wnywarki";
+                }
+
+                <div style="margin-top:10px; padding-top:10px; border-top:1px solid #eaecf4;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:600; color:#858796; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px;">
+                        <span>Limit sklepu (@sourceLabel)</span>
+                        <span style="color:@barColor;">@used / @(limit > 0 ? limit.ToString() : "\u2014")</span>
+                    </div>
+                    @if (limit > 0)
+                    {
+                        <div class="mini-progress-bg">
+                            <div class="mini-progress-fill" style="width:@Math.Min(pct, 100)%; background:@barColor;"></div>
+                        </div>
+                        @if (used >= limit)
+                        {
+                            <div style="font-size:10px; color:#e74a3b; font-weight:600; margin-top:4px;">
+                                <i class="fas fa-exclamation-triangle"></i> Limit osi\u0105gni\u0119ty \u2014 nie mo\u017cna doda\u0107 wi\u0119cej produkt\u00f3w
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div style="font-size:10px; color:#e74a3b; font-weight:600;">
+                            <i class="fas fa-ban"></i> Sklep ma limit 0 \u2014 skontaktuj si\u0119 z biuro@pricesafari.pl
+                        </div>
+                    }
+                </div>
+                <div class="kpi-subtext" style="display:flex; align-items:center; gap:6px; margin-top:6px;">
                     <i class="fas fa-clock" style="font-size:12px; width:12px; text-align:center;"></i>
                     <span>Scrap: @(Model.LastScrapDate.HasValue? Model.LastScrapDate.Value.ToString("dd.MM HH:mm") : "-")</span>
                 </div>

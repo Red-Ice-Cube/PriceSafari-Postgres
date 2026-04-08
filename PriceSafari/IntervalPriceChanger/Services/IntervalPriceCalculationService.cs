@@ -74,6 +74,17 @@ namespace PriceSafari.IntervalPriceChanger.Services
             model.NextGlobalExecution = nextExec?.time;
             model.NextGlobalExecutionStepIdx = nextExec?.stepIdx;
 
+            var storeLimitField = isMarketplace
+            ? store?.AllegroIntervalLimitOfProducts ?? 0
+            : store?.IntervalLimitOfProducts ?? 0;
+
+            model.StoreIntervalLimit = storeLimitField;
+            model.StoreIntervalUsed = await _context.IntervalPriceProductAssignments
+                .Where(a => a.Rule.AutomationRule.StoreId == parent.StoreId
+                         && a.Rule.AutomationRule.SourceType == parent.SourceType
+                         && (isMarketplace ? a.AllegroProductId.HasValue : a.ProductId.HasValue))
+                .CountAsync();
+
             // Liczba produktów w automacie-rodzicu
             model.ParentProductCount = await _context.AutomationProductAssignments
                 .CountAsync(a => a.AutomationRuleId == parent.Id);

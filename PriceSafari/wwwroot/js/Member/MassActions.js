@@ -612,31 +612,7 @@
                 .finally(function () { hideLoading(); });
         }
 
-        // ═══════════════════════════════════════════════════════
-        // EXTRA ACTIONS — dynamiczne przyciski i modale
-        //
-        // Każdy extraAction to obiekt:
-        // {
-        //   id: string,              — unikalny identyfikator
-        //   label: string,           — tekst na przycisku
-        //   icon: string,            — klasa FontAwesome (np. 'fa-clock')
-        //   btnStyle: string,        — inline CSS dla przycisku
-        //   btnHoverStyle: string,   — inline CSS przy hover (opcjonalny)
-        //   modalHtml: string,       — HTML modala do wstrzyknięcia (opcjonalny)
-        //   onClick: function(ctx),  — handler kliknięcia
-        // }
-        //
-        // ctx przekazywany do onClick:
-        // {
-        //   selectedIds: int[],
-        //   count: int,
-        //   closeMainModal: function,
-        //   showLoading: function,
-        //   hideLoading: function,
-        //   askContinueOrFinish: function(refreshCallback),
-        //   clearSelection: function
-        // }
-        // ═══════════════════════════════════════════════════════
+     
 
         function _initExtraActions() {
             var btnContainer = document.getElementById('massActionExtraButtons');
