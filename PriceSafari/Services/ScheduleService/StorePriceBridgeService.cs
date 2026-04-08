@@ -1,17 +1,17 @@
-﻿
-
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.DTOs;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
@@ -31,6 +31,9 @@ namespace PriceSafari.Services.ScheduleService
 
     public class StorePriceBridgeService
     {
+        private const int ParallelDegree = 8;
+        private const int HttpTimeoutSeconds = 15;
+
         private readonly PriceSafariContext _context;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<StorePriceBridgeService> _logger;
@@ -117,6 +120,7 @@ namespace PriceSafari.Services.ScheduleService
 
             return items.Count;
         }
+
         public async Task<StorePriceBridgeResult> ExecuteStorePriceChangesAsync(
                     int storeId,
                     int scrapHistoryId,
@@ -161,7 +165,6 @@ namespace PriceSafari.Services.ScheduleService
                         itemsToBridge,
                         isAutomation,
                         automationRuleId,
-                        // Przekazujemy WSZYSTKIE statystyki dalej:
                         totalProductsInRule,
                         targetMetCount,
                         targetUnmetCount,
@@ -191,7 +194,6 @@ namespace PriceSafari.Services.ScheduleService
             List<PriceBridgeItemRequest> itemsToBridge,
             bool isAutomation,
             int? automationRuleId,
-            // Odbieramy parametry:
             int totalProductsInRule,
             int targetMetCount,
             int targetUnmetCount,
@@ -216,14 +218,11 @@ namespace PriceSafari.Services.ScheduleService
                 AutomationRuleId = automationRuleId,
                 BridgeItems = new List<PriceBridgeItem>(),
 
-               
                 TotalProductsCount = totalProductsInRule > 0 ? totalProductsInRule : itemsToBridge.Count,
 
-              
                 TargetMetCount = targetMetCount,
                 TargetUnmetCount = targetUnmetCount,
 
-           
                 PriceIncreasedCount = (isAutomation && totalProductsInRule > 0)
                                       ? priceIncreasedCount
                                       : itemsToBridge.Count(x => x.NewPrice > x.CurrentPrice),
@@ -244,128 +243,197 @@ namespace PriceSafari.Services.ScheduleService
                 result.Errors.Add(new StorePriceBridgeError { ProductId = "ALL", Message = "Brak konfiguracji API." });
                 return result;
             }
+
             var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(HttpTimeoutSeconds);
 
             string maskedKey = store.StoreApiKey.Length > 4 ? store.StoreApiKey.Substring(0, 4) + "..." : "***";
-            _logger.LogInformation($"[PrestaShop] Konfiguracja klienta HTTP. URL: {store.StoreApiUrl}, Key: {maskedKey}");
+            _logger.LogInformation($"[PrestaShop] Konfiguracja klienta HTTP. URL: {store.StoreApiUrl}, Key: {maskedKey}, Timeout: {HttpTimeoutSeconds}s");
 
             var authToken = Encoding.ASCII.GetBytes($"{store.StoreApiKey}:");
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(authToken));
 
-            var itemsToVerify = new List<PriceBridgeItem>();
-
             _logger.LogInformation($"[PrestaShop] Rozpoczynam przetwarzanie {itemsToBridge.Count} produktów.");
 
-            foreach (var itemRequest in itemsToBridge)
+            // === PRELOAD wszystkich produktów jedną query (zamiast N FindAsync) ===
+            var productIds = itemsToBridge.Select(x => x.ProductId).Distinct().ToList();
+            var productsDict = await _context.Products
+                .AsNoTracking()
+                .Where(p => productIds.Contains(p.ProductId))
+                .ToDictionaryAsync(p => p.ProductId);
+
+            // === RÓWNOLEGŁY PATCH z semaforem ===
+            using var semaphore = new SemaphoreSlim(ParallelDegree);
+
+            var patchTasks = itemsToBridge.Select(async itemRequest =>
             {
-                var product = await _context.Products.FindAsync(itemRequest.ProductId);
-
-                if (product == null || product.ExternalId == null)
+                await semaphore.WaitAsync();
+                try
                 {
-                    string msg = product == null ? "Produkt nie znaleziony w bazie." : "Produkt nie ma ExternalId (ID sklepu).";
-                    _logger.LogWarning($"[PrestaShop] Pominięto produkt ID {itemRequest.ProductId}: {msg}");
+                    productsDict.TryGetValue(itemRequest.ProductId, out var product);
 
+                    if (product == null || product.ExternalId == null)
+                    {
+                        string msg = product == null ? "Produkt nie znaleziony w bazie." : "Produkt nie ma ExternalId (ID sklepu).";
+                        _logger.LogWarning($"[PrestaShop] Pominięto produkt ID {itemRequest.ProductId}: {msg}");
+                        return new PatchOutcome
+                        {
+                            ItemRequest = itemRequest,
+                            BridgeItem = null,
+                            Success = false,
+                            ErrorMsg = msg,
+                            ShopProductId = null
+                        };
+                    }
+
+                    string shopProductId = product.ExternalId.ToString();
+
+                    var bridgeItem = new PriceBridgeItem
+                    {
+                        Batch = newBatch,
+                        ProductId = itemRequest.ProductId,
+                        PriceBefore = itemRequest.CurrentPrice,
+                        PriceAfter = itemRequest.NewPrice,
+                        MarginPrice = itemRequest.MarginPrice,
+                        RankingGoogleBefore = itemRequest.CurrentGoogleRanking,
+                        RankingCeneoBefore = itemRequest.CurrentCeneoRanking,
+                        RankingGoogleAfterSimulated = itemRequest.NewGoogleRanking,
+                        RankingCeneoAfterSimulated = itemRequest.NewCeneoRanking,
+                        Mode = itemRequest.Mode,
+                        PriceIndexTarget = itemRequest.PriceIndexTarget,
+                        StepPriceApplied = itemRequest.StepPriceApplied
+                    };
+
+                    bool success = false;
+                    string errorMsg = "";
+
+                    try
+                    {
+                        _logger.LogDebug($"[PrestaShop] Aktualizuję produkt ID {shopProductId} na cenę {itemRequest.NewPrice}...");
+                        (success, errorMsg) = await UpdatePrestaShopProductXmlAsync(client, store.StoreApiUrl, shopProductId, itemRequest.NewPrice);
+
+                        if (!success)
+                            _logger.LogWarning($"[PrestaShop] Nieudana aktualizacja ID {shopProductId}. Błąd: {errorMsg}");
+                    }
+                    catch (Exception ex)
+                    {
+                        success = false;
+                        errorMsg = ex.Message;
+                        _logger.LogError(ex, $"[PrestaShop] Wyjątek podczas aktualizacji produktu ID {shopProductId}");
+                    }
+
+                    bridgeItem.Success = success;
+
+                    return new PatchOutcome
+                    {
+                        ItemRequest = itemRequest,
+                        BridgeItem = bridgeItem,
+                        Success = success,
+                        ErrorMsg = errorMsg,
+                        ShopProductId = shopProductId
+                    };
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            }).ToList();
+
+            var patchOutcomes = await Task.WhenAll(patchTasks);
+
+            // === Single-threaded dokładanie wyników do EF ===
+            var itemsToVerify = new List<PriceBridgeItem>();
+            foreach (var outcome in patchOutcomes)
+            {
+                if (outcome.BridgeItem == null)
+                {
+                    // Produkt nie istniał w bazie / brak ExternalId
                     result.FailedCount++;
-                    result.Errors.Add(new StorePriceBridgeError { ProductId = itemRequest.ProductId.ToString(), Message = msg });
+                    result.Errors.Add(new StorePriceBridgeError
+                    {
+                        ProductId = outcome.ItemRequest.ProductId.ToString(),
+                        Message = outcome.ErrorMsg
+                    });
                     continue;
                 }
 
-                string shopProductId = product.ExternalId.ToString();
-
-                var bridgeItem = new PriceBridgeItem
-                {
-                    Batch = newBatch,
-                    ProductId = itemRequest.ProductId,
-                    PriceBefore = itemRequest.CurrentPrice,
-                    PriceAfter = itemRequest.NewPrice,
-                    MarginPrice = itemRequest.MarginPrice,
-
-                    RankingGoogleBefore = itemRequest.CurrentGoogleRanking,
-                    RankingCeneoBefore = itemRequest.CurrentCeneoRanking,
-                    RankingGoogleAfterSimulated = itemRequest.NewGoogleRanking,
-                    RankingCeneoAfterSimulated = itemRequest.NewCeneoRanking,
-
-                    Mode = itemRequest.Mode,
-                    PriceIndexTarget = itemRequest.PriceIndexTarget,
-                    StepPriceApplied = itemRequest.StepPriceApplied
-                };
-
-                bool success = false;
-                string errorMsg = "";
-
-                try
-                {
-                    _logger.LogDebug($"[PrestaShop] Aktualizuję produkt ID {shopProductId} na cenę {itemRequest.NewPrice}...");
-
-                    (success, errorMsg) = await UpdatePrestaShopProductXmlAsync(client, store.StoreApiUrl, shopProductId, itemRequest.NewPrice);
-
-                    if (!success)
-                    {
-                        _logger.LogWarning($"[PrestaShop] Nieudana aktualizacja ID {shopProductId}. Błąd: {errorMsg}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    success = false;
-                    errorMsg = ex.Message;
-                    _logger.LogError(ex, $"[PrestaShop] Wyjątek podczas aktualizacji produktu ID {shopProductId}");
-                }
-
-                bridgeItem.Success = success;
-
-                if (!success)
+                if (!outcome.Success)
                 {
                     result.FailedCount++;
-                    result.Errors.Add(new StorePriceBridgeError { ProductId = shopProductId, Message = errorMsg });
+                    result.Errors.Add(new StorePriceBridgeError
+                    {
+                        ProductId = outcome.ShopProductId,
+                        Message = outcome.ErrorMsg
+                    });
                 }
                 else
                 {
                     result.SuccessfulCount++;
-                    itemsToVerify.Add(bridgeItem);
+                    itemsToVerify.Add(outcome.BridgeItem);
                 }
 
-                newBatch.BridgeItems.Add(bridgeItem);
+                newBatch.BridgeItems.Add(outcome.BridgeItem);
             }
 
             await _context.SaveChangesAsync();
             _logger.LogInformation($"[PrestaShop] Zakończono wysyłanie. Sukcesy: {result.SuccessfulCount}, Błędy: {result.FailedCount}. Batch ID: {newBatch.Id}");
 
+            // === RÓWNOLEGŁA WERYFIKACJA ===
             if (itemsToVerify.Any())
             {
-                _logger.LogInformation($"[PrestaShop] Oczekiwanie 2s przed weryfikacją (Boomerang)...");
-                await Task.Delay(2000);
+                _logger.LogInformation($"[PrestaShop] Oczekiwanie 500ms przed weryfikacją (Boomerang)...");
+                await Task.Delay(500);
 
-                foreach (var bridgeItem in itemsToVerify)
+                // Mapowanie bridgeItem -> shopProductId, żeby nie odpytywać dict w równoległym bloku niepotrzebnie
+                var verifyTasks = itemsToVerify.Select(async bridgeItem =>
                 {
+                    await semaphore.WaitAsync();
                     try
                     {
-                        var product = await _context.Products.FindAsync(bridgeItem.ProductId);
-                        if (product?.ExternalId == null) continue;
+                        if (!productsDict.TryGetValue(bridgeItem.ProductId, out var product) || product?.ExternalId == null)
+                            return new VerifyOutcome { BridgeItem = bridgeItem, VerifiedPrice = null, ShopProductId = null };
 
                         string shopProductId = product.ExternalId.ToString();
 
                         _logger.LogDebug($"[PrestaShop] Weryfikacja ceny dla ID {shopProductId}...");
-
                         decimal? verifiedPrice = await GetPrestaShopPriceAsync(client, store.StoreApiUrl, shopProductId);
 
-                        if (verifiedPrice.HasValue)
-                        {
-                            bridgeItem.PriceAfter = verifiedPrice.Value;
-                        }
-                        else
-                        {
+                        if (!verifiedPrice.HasValue)
                             _logger.LogWarning($"[PrestaShop] Nie udało się zweryfikować ceny dla ID {shopProductId} (zwrócono null).");
-                        }
 
-                        result.SuccessfulChangesDetails.Add(new StorePriceBridgeSuccessDetail
+                        return new VerifyOutcome
                         {
-                            ExternalId = shopProductId,
-                            FetchedNewPrice = verifiedPrice
-                        });
+                            BridgeItem = bridgeItem,
+                            VerifiedPrice = verifiedPrice,
+                            ShopProductId = shopProductId
+                        };
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, $"[PrestaShop] Błąd weryfikacji ceny dla produktu ID {bridgeItem.ProductId}");
+                        return new VerifyOutcome { BridgeItem = bridgeItem, VerifiedPrice = null, ShopProductId = null };
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                }).ToList();
+
+                var verifyOutcomes = await Task.WhenAll(verifyTasks);
+
+                // Single-threaded dokładanie wyników weryfikacji
+                foreach (var vo in verifyOutcomes)
+                {
+                    if (vo.VerifiedPrice.HasValue)
+                        vo.BridgeItem.PriceAfter = vo.VerifiedPrice.Value;
+
+                    if (vo.ShopProductId != null)
+                    {
+                        result.SuccessfulChangesDetails.Add(new StorePriceBridgeSuccessDetail
+                        {
+                            ExternalId = vo.ShopProductId,
+                            FetchedNewPrice = vo.VerifiedPrice
+                        });
                     }
                 }
 
@@ -381,7 +449,6 @@ namespace PriceSafari.Services.ScheduleService
         {
             try
             {
-
                 decimal taxRate = 1.23m;
                 decimal priceNet = Math.Round(newPriceBrutto / taxRate, 6);
 
@@ -389,12 +456,7 @@ namespace PriceSafari.Services.ScheduleService
 
                 string apiUrl = $"{baseUrl.TrimEnd('/')}/products/{productId}";
 
-                var getResponse = await client.GetAsync(apiUrl + "?display=[id]");
-
-                if (!getResponse.IsSuccessStatusCode)
-                {
-                    return (false, $"GET Check Failed {getResponse.StatusCode}: Produkt nie odpowiada, przerywam zmianę ceny.");
-                }
+                // Zbędny GET-check został usunięty — PATCH sam zwróci 404 jeśli produkt nie istnieje
 
                 string minXml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
                 <prestashop xmlns:xlink=""http://www.w3.org/1999/xlink"">
@@ -421,6 +483,10 @@ namespace PriceSafari.Services.ScheduleService
                     return (false, $"PATCH Error: {response.StatusCode}. Detale: {errorBody}");
                 }
             }
+            catch (TaskCanceledException)
+            {
+                return (false, $"Timeout ({HttpTimeoutSeconds}s) przy PATCH dla produktu {productId}.");
+            }
             catch (Exception ex)
             {
                 return (false, "Exception w UpdatePrestaShopProductXmlAsync: " + ex.Message);
@@ -429,7 +495,6 @@ namespace PriceSafari.Services.ScheduleService
 
         private async Task<decimal?> GetPrestaShopPriceAsync(HttpClient client, string baseUrl, string productId)
         {
-
             string apiUrl = $"{baseUrl.TrimEnd('/')}/products/{productId}?display=[price]";
 
             try
@@ -448,13 +513,16 @@ namespace PriceSafari.Services.ScheduleService
 
                 if (priceElement != null && decimal.TryParse(priceElement.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal priceNetto))
                 {
-
                     decimal priceBrutto = Math.Round(priceNetto * 1.23m, 2);
-
                     return priceBrutto;
                 }
 
                 _logger.LogWarning($"[PrestaShop] Nie udało się sparsować ceny z XML weryfikacyjnego dla ID {productId}.");
+                return null;
+            }
+            catch (TaskCanceledException)
+            {
+                _logger.LogWarning($"[PrestaShop] Timeout ({HttpTimeoutSeconds}s) przy weryfikacji GET dla ID {productId}");
                 return null;
             }
             catch (Exception ex)
@@ -462,6 +530,23 @@ namespace PriceSafari.Services.ScheduleService
                 _logger.LogError(ex, $"[PrestaShop] Wyjątek podczas weryfikacji GET dla ID {productId}");
                 return null;
             }
+        }
+
+        // === Pomocnicze klasy wyników (prywatne) ===
+        private class PatchOutcome
+        {
+            public PriceBridgeItemRequest ItemRequest { get; set; }
+            public PriceBridgeItem BridgeItem { get; set; }
+            public bool Success { get; set; }
+            public string ErrorMsg { get; set; }
+            public string ShopProductId { get; set; }
+        }
+
+        private class VerifyOutcome
+        {
+            public PriceBridgeItem BridgeItem { get; set; }
+            public decimal? VerifiedPrice { get; set; }
+            public string ShopProductId { get; set; }
         }
     }
 }
