@@ -17,10 +17,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
             _context = context;
         }
 
-        // ═══════════════════════════════════════════════════════
-        // GŁÓWNA METODA — przygotowanie danych dla Details
-        // ═══════════════════════════════════════════════════════
-
         public async Task<IntervalPriceDetailsViewModel> PrepareDetailsDataAsync(IntervalPriceRule rule)
         {
             var parent = rule.AutomationRule;
@@ -35,7 +31,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 IsActive = rule.IsActive,
                 IsEffectivelyActive = rule.IsEffectivelyActive,
 
-                // Kroki A/B/C
                 PriceStep = rule.PriceStep,
                 IsPriceStepPercent = rule.IsPriceStepPercent,
                 IsStepAActive = rule.IsStepAActive,
@@ -69,7 +64,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 StoreName = store?.StoreName ?? "Nieznany sklep",
             };
 
-            // Następne globalne wykonanie — z uwzględnieniem aktywności kroków A/B/C
             var nextExec = rule.FindNextActiveExecution(DateTime.Now);
             model.NextGlobalExecution = nextExec?.time;
             model.NextGlobalExecutionStepIdx = nextExec?.stepIdx;
@@ -85,7 +79,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                          && (isMarketplace ? a.AllegroProductId.HasValue : a.ProductId.HasValue))
                 .CountAsync();
 
-            // Liczba produktów w automacie-rodzicu
             model.ParentProductCount = await _context.AutomationProductAssignments
                 .CountAsync(a => a.AutomationRuleId == parent.Id);
 
@@ -100,16 +93,11 @@ namespace PriceSafari.IntervalPriceChanger.Services
             return model;
         }
 
-        // ═══════════════════════════════════════════════════════
-        // MARKETPLACE (Allegro)
-        // ═══════════════════════════════════════════════════════
-
         private async Task PrepareMarketplaceProducts(IntervalPriceRule rule, IntervalPriceDetailsViewModel model)
         {
             var parent = rule.AutomationRule;
             string myStoreName = parent.Store.StoreNameAllegro ?? "";
 
-            // Pobierz przypisania interwału
             var assignments = await _context.IntervalPriceProductAssignments
                 .Where(a => a.IntervalPriceRuleId == rule.Id && a.AllegroProductId.HasValue)
                 .Include(a => a.AllegroProduct)
@@ -119,7 +107,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
 
             var productIds = assignments.Select(a => a.AllegroProductId.Value).ToList();
 
-            // Ostatni scrap
             var latestScrap = await _context.AllegroScrapeHistories
                 .Where(sh => sh.StoreId == parent.StoreId)
                 .OrderByDescending(sh => sh.Date)
@@ -132,7 +119,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
             if (latestScrap == null) return;
             int scrapId = latestScrap.Id;
 
-            // Historia cen ze scrapu
             var priceHistories = await _context.AllegroPriceHistories
                 .Where(ph => ph.AllegroScrapeHistoryId == scrapId && productIds.Contains(ph.AllegroProductId))
                 .ToListAsync();
@@ -142,12 +128,10 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 .Select(g => g.First())
                 .ToList();
 
-            // Extended info (dopłaty, prowizja)
             var extendedInfos = await _context.AllegroPriceHistoryExtendedInfos
                 .Where(x => x.ScrapHistoryId == scrapId && productIds.Contains(x.AllegroProductId))
                 .ToListAsync();
 
-            // Committed changes z automatu-rodzica
             var committedChanges = await _context.AllegroPriceBridgeItems
                 .Include(i => i.PriceBridgeBatch)
                 .Where(i => i.PriceBridgeBatch.StoreId == parent.StoreId
@@ -159,7 +143,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 .GroupBy(i => i.AllegroProductId)
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.PriceBridgeBatch.ExecutionDate).First());
 
-            // Flagi hurtowo
             var productFlagsLookup = await _context.ProductFlags
                 .Where(pf => pf.AllegroProductId.HasValue
                           && productIds.Contains(pf.AllegroProductId.Value)
@@ -171,8 +154,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
             DateTime? nextExecution = model.NextGlobalExecution;
             int? nextExecStepIdx = model.NextGlobalExecutionStepIdx;
 
-            // ═══ OSTATNIE WYKONANIA INTERWAŁU (z literą kroku) ═══
-            // Pobieramy surowo i grupujemy client-side — EF ma problem z wyborem całego rekordu z grupy
             var intervalExecutionRaw = await _context.Set<IntervalPriceExecutionItem>()
                 .Where(i => i.Batch.IntervalPriceRuleId == rule.Id
                          && i.Success
@@ -221,7 +202,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
 
                 var extInfo = extendedInfos.FirstOrDefault(x => x.AllegroProductId == p.AllegroProductId);
 
-                // Najlepszy konkurent
                 var competitors = histories
                     .Where(h => h.Price > 0
                         && (targetOfferId == null || h.IdAllegro != targetOfferId)
@@ -231,7 +211,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
 
                 var bestCompetitor = competitors.FirstOrDefault();
 
-                // Sprawdź tańszą własną ofertę
                 bool hasCheaperOwn = false;
                 if (myHistory != null && myHistory.Price > 0)
                 {
@@ -242,7 +221,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                             && h.Price > 0 && h.Price < myHistory.Price);
                 }
 
-                // Ranking
                 var competitorPrices = competitors.Select(c => c.Price).ToList();
                 string currentRank = "-";
                 if (myHistory != null && myHistory.Price > 0)
@@ -300,14 +278,12 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     LastKnownSource = LastKnownPriceSource.None,
                 };
 
-                // ═══ OSTATNIA ZNANA CENA — najnowsza z: interwał, automat, scrap ═══
                 {
                     decimal? lkPrice = null;
                     DateTime? lkDate = null;
                     var lkSource = LastKnownPriceSource.None;
                     int? lkStepIdx = null;
 
-                    // Kandydat 1: Interwał
                     if (intervalExecutionData.TryGetValue(p.AllegroProductId, out var execData))
                     {
                         lkPrice = execData.LatestPrice;
@@ -316,7 +292,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                         lkStepIdx = LetterToStepIdx(execData.StepLetter);
                     }
 
-                    // Kandydat 2: Automat (committed) — jeśli nowszy
                     if (committedLookup.TryGetValue(p.AllegroProductId, out var ciLk))
                     {
                         var commitDate = ciLk.PriceBridgeBatch.ExecutionDate;
@@ -326,11 +301,11 @@ namespace PriceSafari.IntervalPriceChanger.Services
                             lkPrice = commitPrice;
                             lkDate = commitDate;
                             lkSource = LastKnownPriceSource.Automation;
-                            lkStepIdx = null; // Automat nie ma kroku A/B/C
+                            lkStepIdx = null;
+
                         }
                     }
 
-                    // Kandydat 3: Scrap — fallback
                     if (!lkPrice.HasValue && marketPrice.HasValue && marketPrice.Value > 0)
                     {
                         lkPrice = marketPrice;
@@ -345,20 +320,15 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     row.LastKnownStepIdx = lkStepIdx;
                 }
 
-                // Następny krok — globalny dla wszystkich produktów interwału
                 row.NextStepIdx = nextExecStepIdx;
                 row.NextExecutionTime = nextExecution;
 
-                // Limity min/max
                 CalculatePriceLimits(parent, row);
 
-                // Efektywna cena bazowa i status (używa NextStepIdx → musi być ustawione wcześniej)
                 DetermineEffectivePriceAndStatus(rule, parent, row, myHistory != null && myHistory.Price > 0, committedPrice);
 
-                // Narzut obecny
                 CalculateCurrentMarkup(row);
 
-                // Projected step (używa NextStepIdx)
                 CalculateProjectedStep(rule, row);
                 CalculateProjectedMarkup(row);
 
@@ -367,10 +337,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 model.Products.Add(row);
             }
         }
-
-        // ═══════════════════════════════════════════════════════
-        // COMPARISON (Ceneo / Google)
-        // ═══════════════════════════════════════════════════════
 
         private async Task PrepareComparisonProducts(IntervalPriceRule rule, IntervalPriceDetailsViewModel model)
         {
@@ -402,7 +368,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 .Where(ph => ph.ScrapHistoryId == scrapId && productIds.Contains(ph.ProductId))
                 .ToListAsync();
 
-            // Committed changes z automatu-rodzica
             var committedChanges = await _context.PriceBridgeItems
                 .Include(i => i.Batch)
                 .Where(i => i.Batch.StoreId == parent.StoreId
@@ -422,7 +387,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 .GroupBy(pf => pf.ProductId.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
-            // ═══ OSTATNIE WYKONANIA INTERWAŁU (z literą kroku) ═══
             var intervalExecutionRaw = await _context.Set<IntervalPriceExecutionItem>()
                 .Where(i => i.Batch.IntervalPriceRuleId == rule.Id
                          && i.Success
@@ -516,7 +480,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     LastKnownSource = LastKnownPriceSource.None,
                 };
 
-                // ═══ OSTATNIA ZNANA CENA ═══
                 {
                     decimal? lkPrice = null;
                     DateTime? lkDate = null;
@@ -558,7 +521,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     row.LastKnownStepIdx = lkStepIdx;
                 }
 
-                // Następny krok
                 row.NextStepIdx = nextExecStepIdx;
                 row.NextExecutionTime = nextExecution;
 
@@ -573,10 +535,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 model.Products.Add(row);
             }
         }
-
-        // ═══════════════════════════════════════════════════════
-        // KALKULACJE
-        // ═══════════════════════════════════════════════════════
 
         private void CalculatePriceLimits(AutomationRule parent, IntervalPriceProductRowViewModel row)
         {
@@ -640,7 +598,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 && row.MinPriceLimit.Value > row.MaxPriceLimit.Value)
             { ApplyBlock(row, "Konflikt Min/Max"); return; }
 
-            // Sprawdź limit używając kroku który BĘDZIE wykonany (NextStepIdx)
             if (row.NextStepIdx.HasValue && row.NextStepIdx.Value > 0)
             {
                 decimal stepVal = rule.GetStepValue(row.NextStepIdx.Value);
@@ -682,7 +639,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
             row.NextStepValue = stepVal;
             row.NextStepIsPercent = isPct;
 
-            // ── JEDEN PUNKT PRAWDY — tak samo jak executor ──
             var decision = IntervalStepCalculator.Calculate(
                 currentPrice: row.EffectiveCurrentPrice.Value,
                 stepValue: stepVal,
@@ -690,8 +646,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 minLimit: row.MinPriceLimit,
                 maxLimit: row.MaxPriceLimit);
 
-            // Jeśli blokada kierunkowa — nie pokazujemy projected (status już LimitReached
-            // z DetermineEffectivePriceAndStatus, ale dla pewności nie renderujemy mylącej ceny)
             if (decision.Decision == IntervalStepCalculator.Decision.BlockedLimitReached)
                 return;
 
@@ -700,7 +654,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
             row.IsLimitedByMin = decision.LimitedByMin;
             row.IsLimitedByMax = decision.LimitedByMax;
 
-            // Ostrzeżenie o marży
             if (row.PurchasePrice.HasValue && row.PurchasePrice > 0)
             {
                 decimal commCost = (row.IsCommissionIncluded && row.CommissionAmount.HasValue) ? row.CommissionAmount.Value : 0;
@@ -738,14 +691,9 @@ namespace PriceSafari.IntervalPriceChanger.Services
             row.ProjectedPriceChange = null;
         }
 
-        // ═══════════════════════════════════════════════════════
-        // HARMONOGRAM — LEGACY (zachowane dla wstecznej kompatybilności)
-        // ═══════════════════════════════════════════════════════
-
         public static DateTime? CalculateNextExecutionTime(string scheduleJson)
         {
-            // Stara wersja — zwraca pierwszy slot NIEZALEŻNIE od aktywności kroków.
-            // Nowy kod używa IntervalPriceRule.FindNextActiveExecution.
+
             if (string.IsNullOrEmpty(scheduleJson)) return null;
 
             int[][] schedule;
@@ -779,10 +727,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
             }
             return null;
         }
-
-        // ═══════════════════════════════════════════════════════
-        // HELPERY
-        // ═══════════════════════════════════════════════════════
 
         private static int? LetterToStepIdx(string letter) => letter switch
         {

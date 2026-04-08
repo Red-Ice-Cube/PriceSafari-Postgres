@@ -1,8 +1,4 @@
-﻿
-
-
-
-(function () {
+﻿(function () {
     'use strict';
     function MassActions(config) {
 
@@ -11,7 +7,7 @@
         const storageKey = config.storageKey;
         const flags = config.flags || [];
 
-        // ═══ NOWE: Dodatkowe akcje dynamiczne ═══
+
         const extraActions = config.extraActions || [];
 
         const getAllPrices = config.getAllPrices;
@@ -722,7 +718,7 @@
                 }
             });
 
-            // ═══ NOWE: Inicjalizacja dodatkowych akcji ═══
+
             _initExtraActions();
 
             updateSelectionUI();

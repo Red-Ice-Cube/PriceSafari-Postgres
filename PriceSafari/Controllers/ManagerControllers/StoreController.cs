@@ -153,14 +153,14 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.OnGoogle = store.OnGoogle;
             existingStore.OnAllegro = store.OnAllegro;
             existingStore.ProductsToScrapAllegro = store.ProductsToScrapAllegro;
-            // --- NOWE ZMIENNE: Limity Interwałów ---
+
             existingStore.IntervalLimitOfProducts = store.IntervalLimitOfProducts;
             existingStore.AllegroIntervalLimitOfProducts = store.AllegroIntervalLimitOfProducts;
-            // ---------------------------------------
+
             existingStore.IsAllegroPriceBridgeActive = store.IsAllegroPriceBridgeActive;
             existingStore.FetchExtendedAllegroData = store.FetchExtendedAllegroData;
             existingStore.IsPayingCustomer = store.IsPayingCustomer;
-            existingStore.GetAllegroSkuByApi= store.GetAllegroSkuByApi;
+            existingStore.GetAllegroSkuByApi = store.GetAllegroSkuByApi;
             existingStore.SubscriptionStartDate = store.SubscriptionStartDate;
             existingStore.UseKSeF = store.UseKSeF;
             existingStore.GoogleGetTitle = store.GoogleGetTitle;
@@ -329,9 +329,8 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             try
             {
-                int chunkSize = 1000; // Zwiększamy paczkę, Postgres świetnie sobie radzi
+                int chunkSize = 1000;
 
-                // 1. Usuwanie ProductFlags
                 await _context.Database.ExecuteSqlRawAsync($@"
             DELETE FROM ""ProductFlags"" 
             WHERE ""ProductFlagId"" IN (
@@ -341,8 +340,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 WHERE F.""StoreId"" = {storeId}
             )");
 
-                // 2. Usuwanie AllegroOffersToScrape (Uproszczone dzięki natywnym tablicom Postgresa)
-                // Usuwamy te rekordy, gdzie w tablicy AllegroProductIds znajduje się jakiekolwiek ID należące do sklepu
                 await _context.Database.ExecuteSqlRawAsync($@"
             DELETE FROM ""AllegroOffersToScrape""
             WHERE ""Id"" IN (
@@ -354,14 +351,12 @@ namespace PriceSafari.Controllers.ManagerControllers
                 )
             )");
 
-                // 3. Zabezpieczanie faktur
                 await _context.Database.ExecuteSqlRawAsync(@"
             UPDATE ""Invoices"" 
             SET ""ArchivedStoreName"" = (SELECT ""StoreName"" FROM ""Stores"" WHERE ""Stores"".""StoreId"" = ""Invoices"".""StoreId""),
                 ""StoreId"" = NULL 
             WHERE ""StoreId"" = {0}", storeId);
 
-                // 4. Usuwanie powiązań modułów
                 await _context.Database.ExecuteSqlRawAsync(@"
             DELETE FROM ""AutomationProductAssignments"" 
             WHERE ""AutomationRuleId"" IN (SELECT ""Id"" FROM ""AutomationRules"" WHERE ""StoreId"" = {0})", storeId);
@@ -374,13 +369,10 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 await DeleteInChunksAsync("AllegroPriceBridgeBatches", "StoreId", storeId);
 
-                // 5. Usuwanie historii cen (PriceHistories - miliony rekordów)
-                // W Postgresie przyśpieszamy to usuwając bezpośrednio przez JOIN
                 await _context.Database.ExecuteSqlRawAsync(@"
             DELETE FROM ""PriceHistories"" 
             WHERE ""ProductId"" IN (SELECT ""ProductId"" FROM ""Products"" WHERE ""StoreId"" = {0})", storeId);
 
-                // 6. Reszta tabel
                 await DeleteInChunksAsync("ProductMaps", "StoreId", storeId);
                 await DeleteInChunksAsync("Products", "StoreId", storeId);
                 await DeleteInChunksAsync("Categories", "StoreId", storeId);
@@ -401,8 +393,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         private async Task<int> DeleteInChunksAsync(string tableName, string whereColumn, int storeId)
         {
-            // W Postgresie usuwanie całościowe w transakcji jest zazwyczaj szybsze niż chunkowanie,
-            // ale jeśli chcesz zachować logikę paczek dla logów:
+
             string sql = $@"
         DELETE FROM ""{tableName}""
         WHERE ""{whereColumn}"" = {storeId}";

@@ -1,6 +1,4 @@
-﻿
-
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PriceSafari.Attributes;
@@ -24,10 +22,6 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
             _context = context;
             _calcService = calcService;
         }
-
-        // ═══════════════════════════════════════════════════════
-        // TWORZENIE
-        // ═══════════════════════════════════════════════════════
 
         [HttpGet]
         [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
@@ -87,10 +81,6 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
             return View("~/Views/Panel/IntervalPriceChanger/CreateOrEdit.cshtml", rule);
         }
 
-        // ═══════════════════════════════════════════════════════
-        // EDYCJA
-        // ═══════════════════════════════════════════════════════
-
         [HttpGet]
         [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> Edit(int id)
@@ -139,10 +129,6 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
             return View("~/Views/Panel/IntervalPriceChanger/CreateOrEdit.cshtml", rule);
         }
 
-        // ═══════════════════════════════════════════════════════
-        // SZCZEGÓŁY
-        // ═══════════════════════════════════════════════════════
-
         [HttpGet]
         [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public async Task<IActionResult> Details(int id)
@@ -161,10 +147,6 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
 
             return View("~/Views/Panel/IntervalPriceChanger/Details.cshtml", model);
         }
-
-        // ═══════════════════════════════════════════════════════
-        // USUWANIE
-        // ═══════════════════════════════════════════════════════
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -185,10 +167,6 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
 
             return RedirectToAction("Details", "PriceAutomation", new { id = parentId });
         }
-
-        // ═══════════════════════════════════════════════════════
-        // PRZYPISYWANIE PRODUKTÓW
-        // ═══════════════════════════════════════════════════════
 
         [HttpGet]
         [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
@@ -290,9 +268,6 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
                 .Select(id => id.Value)
                 .ToHashSet();
 
-
-
-            // ═══ LIMIT SKLEPU ═══
             var (limit, used) = await GetIntervalLimitInfoAsync(rule.AutomationRule.StoreId, isAllegro);
             int remaining = Math.Max(0, limit - used);
 
@@ -387,10 +362,6 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
             return Ok(new { success = true, removed = toRemove.Count });
         }
 
-        // ═══════════════════════════════════════════════════════
-        // API: Aktualizacja harmonogramu (AJAX)
-        // ═══════════════════════════════════════════════════════
-
         [HttpPost]
         [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> UpdateSchedule([FromBody] UpdateScheduleRequest request)
@@ -454,7 +425,6 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
             if (rule == null) return NotFound();
             bool isAllegro = rule.SourceType == AutomationSourceType.Marketplace;
             var (storeLimit, storeUsed) = await GetIntervalLimitInfoAsync(rule.StoreId, isAllegro);
-       
 
             var intervals = await _context.IntervalPriceRules
                 .Where(r => r.AutomationRuleId == request.AutomationRuleId)
@@ -464,15 +434,15 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
                     r.Name,
                     r.ColorHex,
                     r.IsActive,
-                    // Krok A
+
                     r.PriceStep,
                     r.IsPriceStepPercent,
                     r.IsStepAActive,
-                    // Krok B
+
                     r.PriceStepB,
                     r.IsPriceStepPercentB,
                     r.IsStepBActive,
-                    // Krok C
+
                     r.PriceStepC,
                     r.IsPriceStepPercentC,
                     r.IsStepCActive,
@@ -500,17 +470,20 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
             public List<int> ProductIds { get; set; } = new();
         }
 
-        // ═══════════════════════════════════════════════════════
-        // HELPERY
-        // ═══════════════════════════════════════════════════════
+        // <summary>
 
-        /// <summary>
-        /// Walidacja formatu siatki harmonogramu.
-        /// Akceptuje:
-        ///   - 0 (pusty slot)
-        ///   - ±1..6   (legacy: krok A bez step-prefix)
-        ///   - ±101..106 / ±201..206 / ±301..306 (nowy format A/B/C)
-        /// </summary>
+        // Walidacja formatu siatki harmonogramu.
+
+        // Akceptuje:
+
+        //   - 0 (pusty slot)
+
+        //   - ±1..6   (legacy: krok A bez step-prefix)
+
+        //   - ±101..106 / ±201..206 / ±301..306 (nowy format A/B/C)
+
+        // </summary>
+
         private bool ValidateScheduleJson(string json)
         {
             if (string.IsNullOrEmpty(json)) return true;
@@ -525,9 +498,9 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
                     {
                         if (v == 0) continue;
                         int abs = Math.Abs(v);
-                        // Legacy
+
                         if (abs >= 1 && abs <= 6) continue;
-                        // Nowy format
+
                         if (abs >= 101 && abs <= 106) continue;
                         if (abs >= 201 && abs <= 206) continue;
                         if (abs >= 301 && abs <= 306) continue;
@@ -539,9 +512,12 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
             catch { return false; }
         }
 
-        /// <summary>
-        /// Zwraca informacje o limicie produkt\u00f3w w interwa\u0142ach dla danego sklepu i \u017ar\u00f3d\u0142a.
-        /// </summary>
+        // <summary>
+
+        // Zwraca informacje o limicie produkt\u00f3w w interwa\u0142ach dla danego sklepu i \u017ar\u00f3d\u0142a.
+
+        // </summary>
+
         private async Task<(int limit, int used)> GetIntervalLimitInfoAsync(int storeId, bool isAllegro)
         {
             var store = await _context.Stores.FindAsync(storeId);
@@ -549,7 +525,6 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
 
             int limit = isAllegro ? store.AllegroIntervalLimitOfProducts : store.IntervalLimitOfProducts;
 
-            // Licz wszystkie produkty przypisane do JAKIEGOKOLWIEK interwa\u0142u tego sklepu w danym \u017ar\u00f3dle
             int used = await _context.IntervalPriceProductAssignments
                 .Where(a => a.Rule.AutomationRule.StoreId == storeId
                          && a.Rule.AutomationRule.SourceType == (isAllegro
@@ -560,10 +535,6 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
 
             return (limit, used);
         }
-
-        // ═══════════════════════════════════════════════════════
-        // DTOs
-        // ═══════════════════════════════════════════════════════
 
         public class UpdateScheduleRequest
         {

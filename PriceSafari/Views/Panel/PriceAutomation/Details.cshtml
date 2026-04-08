@@ -865,7 +865,6 @@
         color: #f6c23e;
     }
 
-    /* ── Time schedule box (inline) ── */
     .time-schedule-box {
         display: inline-flex;
         align-items: center;
@@ -931,7 +930,7 @@
         color: #858796;
     }
 
-    /* ── Progress bar with triangle marker ── */
+ 
     .time-progress-wrapper {
         display: inline-flex;
         flex-direction: column;
@@ -2407,14 +2406,9 @@ else
     const sourceTypeInt = isAllegroContext ? 1 : 0;
     const flags = @Html.Raw(Json.Serialize(Model.AvailableStoreFlags ?? new List<FlagViewModel>()));
 
-    // ═══════════════════════════════════════════════════════
-    // EXTRA ACTIONS — Interwały Cenowe (warunkowo)
-    // ═══════════════════════════════════════════════════════
      const extraActionsConfig = [];
 
-        // ═══════════════════════════════════════════════════════
-        // INTERWAŁY — Modal HTML + Rendering
-        // ═══════════════════════════════════════════════════════
+  
         const _intervalModalHtml = [
             '<div id="intervalSelectionModal" class="modal fade" tabindex="-1" style="z-index:1060;">',
             '<div class="modal-dialog modal-lg"><div class="modal-content" style="border-radius:10px; overflow:hidden;">',
@@ -2437,7 +2431,7 @@ else
                 return;
                 }
 
-                // ── Statystyki zaznaczenia ──
+              
                 var totalAssignedInSelection = 0;
                 intervals.forEach(function (iv) { totalAssignedInSelection += (iv.matchingCount || 0); });
                 var totalUnassigned = ctx.count - totalAssignedInSelection;
@@ -2461,7 +2455,6 @@ else
                 + '</div>';
                 container.appendChild(statsHeader);
 
-                // ── Limit sklepu (NOWE) ──
                 if (limitInfo && typeof limitInfo.storeLimit !== 'undefined') {
                 var storeLimit = limitInfo.storeLimit || 0;
                 var storeUsed = limitInfo.storeUsed || 0;
@@ -2469,7 +2462,7 @@ else
                 var pct = storeLimit > 0 ? Math.min(100, (storeUsed / storeLimit) * 100) : 0;
                 var barColor = pct >= 90 ? '#e74a3b' : pct >= 70 ? '#f6c23e' : '#27ae60';
 
-                // Ile NOWYCH produktów użytkownik chce dodać (poza tymi, które już są w interwałach tego automatu)
+            
                 var newToAdd = Math.max(0, ctx.count - totalAssignedInSelection);
                 var willBeAdded = Math.min(newToAdd, storeRemaining);
                 var willBeTruncated = newToAdd - willBeAdded;
@@ -2490,7 +2483,7 @@ else
                 + '</div>'
                 + '<div style="font-size:11px; color:#858796; margin-top:6px;">Wolnych miejsc: <strong style="color:#27ae60;">' + storeRemaining + '</strong></div>';
 
-                // Ostrzeżenie gdy zaznaczenie przekracza limit
+               
                 if (willBeTruncated > 0) {
                 limitHtml +=
                 '<div style="margin-top:10px; padding:10px 12px; background:rgba(231,74,59,0.08); border-left:3px solid #e74a3b; border-radius:4px; font-size:12px; color:#5a5c69; line-height:1.4;">'
@@ -2516,7 +2509,6 @@ else
                 container.appendChild(limitBox);
                 }
 
-                // ── Opcja: Odepnij z interwałów ──
                 var hasAssignments = totalAssignedInSelection > 0;
                 var unassignDiv = document.createElement('div');
                 unassignDiv.style.cssText =
@@ -2548,7 +2540,7 @@ else
                 + (!hasAssignments ? ' background-color:#ccc; border-color:#ccc;' : '') + '">Odepnij</button>';
                 container.appendChild(unassignDiv);
 
-                // ── Karty interwałów (bez zmian) ──
+            
                 intervals.forEach(function (interval) {
                 var statusColor = interval.isActive ? '#1cc88a' : '#e74a3b';
                 var alreadyIn = interval.matchingCount || 0;
@@ -2594,7 +2586,6 @@ else
                 
         }
 
-        // ── Assign ──
         function _executeIntervalAssign(intervalId, ctx) {
             $('#intervalSelectionModal').modal('hide');
             ctx.showLoading();
@@ -2621,9 +2612,9 @@ else
             });
         }
 
-        // ── Unassign ──
+   
         function _executeIntervalUnassign(intervals, ctx) {
-            // Zbierz ID wszystkich interwałów tego automatu i odepnij po kolei
+          
             $('#intervalSelectionModal').modal('hide');
             ctx.showLoading();
 
@@ -2689,9 +2680,7 @@ else
     
     }
 
-    // ═══════════════════════════════════════════════════════
-    // MASS ACTIONS — inicjalizacja
-    // ═══════════════════════════════════════════════════════
+   
     const massActions = new window.MassActions({
         storeId: storeId,
         isAllegro: isAllegroContext,

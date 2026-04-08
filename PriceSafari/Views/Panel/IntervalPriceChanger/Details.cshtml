@@ -46,7 +46,7 @@
 @Html.AntiForgeryToken()
 
 <style>
-    /* ═══ KOPIOWANE Z GŁÓWNEGO AUTOMATU — wspólne style ═══ */
+  
     .limit-badge { display:inline-flex; align-items:center; justify-content:center; padding:2px 5px; border-radius:4px; font-size:11px; font-weight:600; color:#fff !important; margin-right:6px; min-width:51px; height:20.5px; gap:4px; }
     .badge-purchase { background-color:#282828; }
     .badge-min { background-color:rgba(171,37,32,1); }
@@ -76,7 +76,7 @@
     .table-orders td, .table-orders th { padding:10px 12px; text-align:left; color:#222; font-size:14px; font-weight:400; }
     .highlighted-text { background-color:rgba(255,235,59,0.6); font-weight:bold; color:#000; border-radius:2px; padding:0 2px; }
 
-    /* ═══ EDYCJA CENY ZAKUPU ═══ */
+    
     .purchase-wrapper { position:relative; min-width:184px; }
     .price-actions-display { display:inline-flex; margin-right:3px; vertical-align:middle; opacity:0.4; transition:opacity 0.2s; }
     .purchase-row:hover .price-actions-display { opacity:1; }
@@ -90,7 +90,7 @@
     .btn-action-icon.delete-btn-inner:hover { color:#e74a3b; }
     .d-none { display:none !important; }
 
-    /* ═══ KPI ═══ */
+  
     .kpi-container { display:flex; gap:16px; width:100%; flex-wrap:wrap; }
     .kpi-card { flex:1; min-width:200px; background:#fff; border-radius:12px; padding:24px; box-shadow:0 4px 12px rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.03); display:flex; flex-direction:column; position:relative; overflow:hidden; }
     .kpi-title { font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#858796; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
@@ -99,13 +99,13 @@
     .mini-progress-bg { width:100%; height:6px; background:#e3e3e3; border-radius:3px; margin-top:10px; overflow:hidden; }
     .mini-progress-fill { height:100%; border-radius:3px; }
 
-    /* ═══ NAGŁÓWEK ═══ */
+
     .header-info-box { display:inline-flex; padding:4px 16px; align-items:center; justify-content:center; border-radius:4px; border:2px dashed #f1f3f9; min-height:34px; gap:12px; margin-left:15px; }
     .status-indicator-text { font-weight:600; font-size:13px; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.3px; }
     .btn-icon-settings { font-size:24px; color:#858796; background:none; border:none; padding:0; line-height:1; cursor:pointer; transition:color 0.2s,transform 0.2s; display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; text-decoration:none !important; }
     .btn-icon-settings:hover { color:#5a5c69; transform:rotate(30deg); }
 
-    /* ═══ PARENT LINK ═══ */
+   
     .parent-info-box { display:flex; align-items:center; gap:16px; padding:14px 20px; background:#f8f9fc; border:2px dashed #e3e6f0; border-radius:10px; cursor:pointer; transition:all 0.2s; text-decoration:none !important; width:100%; }
     .parent-info-box:hover { border-color:#b7b9cc; background:#fff; }
     .parent-color-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
@@ -113,7 +113,7 @@
     .parent-badge-active { background:rgba(28,200,138,0.15); color:#1cc88a; }
     .parent-badge-inactive { background:rgba(231,74,59,0.15); color:#e74a3b; }
 
-    /* ═══ FILTR TOOLBAR ═══ */
+   
     .filter-toolbar-wrapper { background:#fff; border-radius:8px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:0; }
     .filter-toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; }
     .filter-group { display:flex; align-items:center; gap:6px; padding:8px 12px; background:#f8f9fc; border-radius:6px; border:1px solid #e3e6f0; }
@@ -139,7 +139,7 @@
     .filter-btn[data-filter-key="has-max-limit"].active { background:rgba(0,145,123,1); border-color:rgba(0,145,123,1); }
     .filter-btn[data-filter-key="margin-warning"].active { background:#fd7e14; border-color:#fd7e14; }
 
-    /* ═══ NASTĘPNY KROK ═══ */
+   
     .next-step-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:700; letter-spacing:0.3px; }
     .next-step-down { background:rgba(39,174,96,0.12); color:#27ae60; }
     .next-step-up { background:rgba(224,64,64,0.12); color:#e04040; }
@@ -150,7 +150,7 @@
     .countdown-blocked { color:#e74a3b; }
     .countdown-running { color:#8e44ad; font-weight:700; }
 
-    /* ═══ STEP LETTER BADGE (A/B/C) ═══ */
+   
     .step-letter-badge {
         display:inline-flex; align-items:center; justify-content:center;
         width:18px; height:18px; border-radius:50%;
@@ -163,7 +163,7 @@
     .step-letter-b { background:#3498db; }
     .step-letter-c { background:#9b59b6; }
 
-    /* ═══ COLLAPSIBLE SCHEDULE ═══ */
+   
     .ipc-box { display:flex; flex-direction:column; padding:24px; border-radius:12px; background:#FFF; box-shadow:0px 4px 12px rgba(0,0,0,0.04); border:1px solid #edf0f2; width:100%; }
     .schedule-collapse-toggle { display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; padding:4px 0; transition:all 0.2s; }
     .toggle-chevron { font-size:14px; color:#b7b9cc; transition:transform 0.3s ease,color 0.2s; }
@@ -171,9 +171,9 @@
     .schedule-collapsible { max-height:0; overflow:hidden; transition:max-height 0.4s ease; }
     .schedule-collapsible.open { max-height:6000px; }
 
-    /* ═══ STEP CARDS (READ-ONLY) — imitacja kart z Edit ═══ */
+   
     .step-cards-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:18px; }
-    @@media (max-width: 900px) { .step-cards-grid { grid-template-columns:1fr; } }
+    
     .step-card-ro {
         background:#fcfcfd; border:1px solid #e3e6f0; border-radius:10px;
         padding:14px 16px;  transition:opacity 0.2s;
@@ -195,7 +195,7 @@
     .step-card-ro-value.up { color:#e04040; }
     .step-card-ro-value i { font-size:14px; }
 
-    /* ═══ SIATKA ═══ */
+    
     .sg-table { border-collapse:collapse; width:100%; min-width:750px; user-select:none; table-layout:fixed; }
     .sg-table th { text-align:center; font-size:10px; font-weight:700; color:#5a5c69; text-transform:uppercase; letter-spacing:0.5px; padding:6px 2px; background:#f8f9fc; border:1px solid #e3e6f0; position:sticky; top:0; z-index:3; }
     .sg-table th.th-time { width:52px; min-width:52px; text-align:right; padding-right:8px; }
@@ -216,7 +216,7 @@
     .blk-lbl-step-3 { background:#9b59b6; }
 
     .sg-cell.now-marker::after { content:''; position:absolute; inset:0; background:rgba(142,68,230,0.30); border:2px solid rgba(142,68,230,0.55); border-radius:2px; z-index:4; pointer-events:none; animation:now-pulse 2.5s ease-in-out infinite; }
-    @@keyframes now-pulse { 0%,100% { opacity:0.7; } 50% { opacity:1; } }
+   
 
     .inherited-item { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#fcfcfd; border-radius:6px; border:1px solid #eaecf4; font-size:13px; }
     .inherited-label { font-weight:700; color:#858796; text-transform:uppercase; font-size:10px; letter-spacing:0.5px; min-width:110px; }
@@ -234,7 +234,7 @@
 
 <div class="View">
 
-    @* ── NAGŁÓWEK ── *@
+
     <div class="Vert">
         <div class="Date" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
             <div style="display:flex; align-items:center;">
@@ -272,7 +272,7 @@
         </div>
     </div>
 
-    @* ── AUTOMAT-RODZIC ── *@
+ 
     <div class="Vert">
         <a href="@Url.Action("Details", "PriceAutomation", new { id = Model.ParentRuleId })" class="parent-info-box">
             <div class="parent-color-dot" style="background-color:@Model.ParentColorHex;"></div>
@@ -290,7 +290,7 @@
         </a>
     </div>
    
-    @* ── KPI ── *@
+
     <div class="Vert">
         <div class="kpi-container">
            <div class="kpi-card">
@@ -379,7 +379,7 @@
         </div>
     </div>
 
-    @* ── DZIEDZICZONE USTAWIENIA ── *@
+  
     <div class="Vert">
         <div class="ipc-box">
             <div style="font-size:16px; font-weight:600; color:#2e3035; display:flex; align-items:center; gap:8px; margin-bottom:16px;">
@@ -415,7 +415,7 @@
         </div>
     </div>
 
-    @* ── HARMONOGRAM (COLLAPSIBLE) ── *@
+
     <div class="Vert">
         <div class="ipc-box">
             <div class="schedule-collapse-toggle" onclick="toggleSchedule()">
@@ -428,7 +428,7 @@
             <div class="schedule-collapsible" id="scheduleCollapsible">
                 <div style="margin-top:18px;">
 
-                    @* ── KARTY KROKÓW A / B / C (read-only) ── *@
+                 
                     <div class="step-cards-grid">
                         @{
                             var stepsData = new[] {
@@ -466,7 +466,7 @@
                         <i class="fas fa-info-circle"></i> Wyszarzone bloki należą do kroków wyłączonych i nie zostaną wykonane.
                     </div>
 
-                    @* ── SIATKA ── *@
+              
                     <div style="overflow-x:auto;">
                         <table class="sg-table" id="sgTable">
                             <thead><tr><th class="th-time"></th><th>Pn</th><th>Wt</th><th>Śr</th><th>Cz</th><th>Pt</th><th>Sb</th><th>Nd</th></tr></thead>
@@ -478,7 +478,7 @@
         </div>
     </div>
 
-    @* ── TOOLBAR WYSZUKIWANIA I SELEKCJI ── *@
+  
     <div class="Vert">
         <div class="Date" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
             <div style="display:flex; align-items:center; gap:6px;">
@@ -495,7 +495,7 @@
         </div>
     </div>
 
-    @* ── FILTRY ── *@
+
     <div class="Vert">
         <div class="filter-toolbar-wrapper">
             <div class="filter-toolbar" id="filterToolbar"></div>
@@ -507,7 +507,6 @@
             </div>
         </div>
 
-        @* ── TABELA PRODUKTÓW ── *@
         <div class="Vert-full">
             <div class="Vert-table" style="height:90vh; margin-top:0px;">
                 <table class="table-orders" id="intervalTable" width="100%">
@@ -546,7 +545,6 @@
                                 projMarginBox = "price-box-diff-margin-ib-warning";
                             }
 
-                            // Litery kroków dla kolumn
                             string nextStepLetter = item.NextStepIdx == 2 ? "B" : item.NextStepIdx == 3 ? "C" : item.NextStepIdx == 1 ? "A" : null;
                             string nextStepLetterCls = item.NextStepIdx == 2 ? "step-letter-b" : item.NextStepIdx == 3 ? "step-letter-c" : "step-letter-a";
 
@@ -564,7 +562,7 @@
                                 data-has-margin-warning="@item.IsMarginWarning.ToString().ToLower()"
                                 data-flag-ids="@(item.FlagIds != null ? string.Join(",", item.FlagIds) : "")">
 
-                                @* ── KOLUMNA 1: Produkt ── *@
+                              
                                 <td class="align-middle">
                                     <div style="display:flex; gap:10px; align-items:flex-start;">
                                         @if (!isMarketplace && !string.IsNullOrEmpty(item.ImageUrl))
@@ -610,7 +608,6 @@
                                     </div>
                                 </td>
 
-                                @* ── KOLUMNA 2: Limity Cenowe ── *@
                                 <td class="align-middle">
                                     <div class="purchase-wrapper" data-id="@item.ProductId" data-store-id="@Model.StoreId" data-is-marketplace="@isMarketplace.ToString().ToLower()">
                                         <div class="display-mode">
@@ -683,7 +680,7 @@
                                         </div>
                                     </div>
                                 </td>
-                              @* ── KOLUMNA 3: Dane z rynku ── *@
+                           
                                 <td class="align-middle text-right">
                                     <div class="price-row-block">
                                         <span class="price-main-style @(item.IsBestPriceGuarantee ? "price-green" : "")">
@@ -698,11 +695,11 @@
                                         @if (item.IsTopOffer)
                                         { <div class="TopOffer">Top</div> }
                                     </div>
-    
-                                    @* --- BLOK SKLEPU I RANKINGÓW W JEDNEJ LINII --- *@
+
+                              
                                     <div class="d-flex align-items-center mt-1" style="gap:8px;">
                                         <div class="small text-muted">@Model.StoreName</div>
-        
+
                                         <div class="d-flex align-items-center" style="gap: 6px; font-size: 11px;">
                                             @if (isMarketplace && !string.IsNullOrEmpty(item.CurrentRankingAllegro) && item.CurrentRankingAllegro != "-")
                                             {
@@ -717,13 +714,13 @@
                                                 {
                                                     <div class="rank-row"><img src="/images/GoogleShopping.png" alt="Google" class="rank-icon"><span class="text-muted">@item.CurrentRankingGoogle</span></div>
                                                 }
-                
-                                                @* Wstawiamy separator "|" jeśli są obie wartości *@
+
+                                         
                                                 if (hasGoogle && hasCeneo)
                                                 {
                                                     <span style="color: #d1d3e2;">|</span>
                                                 }
-                
+
                                                 if (hasCeneo)
                                                 {
                                                     <div class="rank-row"><img src="/images/Ceneo.png" alt="Ceneo" class="rank-icon"><span class="text-muted">@item.CurrentRankingCeneo</span></div>
@@ -731,7 +728,7 @@
                                             }
                                         </div>
                                     </div>
-                                    @* ---------------------------------------------- *@
+                               
 
                                     @if (item.CommissionAmount.HasValue)
                                     {
@@ -756,7 +753,7 @@
                                     }
                                 </td>
 
-                                @* ── KOLUMNA 4: Najlepszy Rywal ── *@
+                           
                                 <td class="align-middle text-right">
                                     @if (item.BestCompetitorPrice.HasValue)
                                     {
@@ -777,7 +774,7 @@
                                     }
                                 </td>
 
-                                @* ── KOLUMNA 5: Ostatnia Znana Cena ── *@
+                              
                                 <td class="align-middle text-center">
                                     @if (item.LastKnownPrice.HasValue)
                                     {
@@ -821,7 +818,6 @@
                                     }
                                 </td>
 
-                                @* ── KOLUMNA 6: Następny Krok ── *@
                                 <td class="align-middle text-right bg-light border-left-primary">
                                     @if (item.Status == IntervalProductStatus.Blocked)
                                     {
@@ -886,7 +882,7 @@
                                     }
                                 </td>
 
-                                @* ── KOLUMNA 7: Status ── *@
+                          
                                 <td class="align-middle text-center">
                                     @switch (item.Status)
                                     {
@@ -920,7 +916,7 @@
     </div>
 </div>
 
-<!-- ═══ MODAL: Odpinanie z interwału ═══ -->
+
 <div id="intervalUnassignModal" class="modal fade" tabindex="-1" style="z-index:1060;">
     <div class="modal-dialog modal-lg">
         <div class="modal-content" style="border-radius:10px; overflow:hidden;">
@@ -948,16 +944,13 @@
     <script src="~/js/member/MassActions.js"></script>
 
     <script>
-        // ═══════════════════════════════════════════════════════
-        // KONFIGURACJA
-        // ═══════════════════════════════════════════════════════
+
         const storeId = @Model.StoreId;
         const intervalRuleId = @Model.IntervalRuleId;
         const parentRuleId = @Model.ParentRuleId;
         const isAllegroContext = @(isMarketplace ? "true" : "false");
         const flags = @Html.Raw(Json.Serialize(Model.AvailableStoreFlags));
 
-        // Dane 3 kroków do renderingu siatki
         const STEPS_DATA = {
             1: {
                 value: @Model.PriceStep.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -976,21 +969,16 @@
             }
         };
 
-
-        // ═══════════════════════════════════════════════════════
-// INTERVAL UNASSIGN UI
-// ═══════════════════════════════════════════════════════
 function _renderIntervalUnassignUI(data, ctx) {
     var container = document.getElementById('intervalUnassignContainer');
     container.innerHTML = '';
 
     var intervals = data.intervals || [];
-    // Znajdź obecny interwał w liście (po intervalRuleId)
+
     var currentInterval = intervals.find(function (iv) { return iv.id === intervalRuleId; });
     var matchingInCurrent = currentInterval ? (currentInterval.matchingCount || 0) : 0;
     var notInCurrent = ctx.count - matchingInCurrent;
 
-    // ── Statystyki zaznaczenia ──
     var statsHeader = document.createElement('div');
     statsHeader.style.cssText = 'background-color:#f8f9fa; border:1px solid #e3e6f0; border-radius:8px; padding:15px; margin-bottom:16px; display:flex; justify-content:space-around; align-items:center; text-align:center;';
     statsHeader.innerHTML =
@@ -1010,7 +998,6 @@ function _renderIntervalUnassignUI(data, ctx) {
         + '</div>';
     container.appendChild(statsHeader);
 
-    // ── Pasek limitu sklepu ──
     if (typeof data.storeLimit !== 'undefined') {
         var storeLimit = data.storeLimit || 0;
         var storeUsed = data.storeUsed || 0;
@@ -1052,7 +1039,6 @@ function _renderIntervalUnassignUI(data, ctx) {
         container.appendChild(limitBox);
     }
 
-    // ── Opcja: Odepnij z tego interwału ──
     var hasToUnassign = matchingInCurrent > 0;
     var unassignDiv = document.createElement('div');
     unassignDiv.style.cssText =
@@ -1109,9 +1095,7 @@ function _executeIntervalUnassign(ctx) {
     });
 }
 
-        // ═══════════════════════════════════════════════════════
-        // MASS ACTIONS
-        // ═══════════════════════════════════════════════════════
+
 
 
         const massActions = new window.MassActions({
@@ -1175,9 +1159,6 @@ function _executeIntervalUnassign(ctx) {
 
         function showNoAccessAlert() { alert('@Html.Raw(noAccessMessage)'); }
 
-        // ═══════════════════════════════════════════════════════
-        // INIT
-        // ═══════════════════════════════════════════════════════
         document.addEventListener("DOMContentLoaded", function () {
             massActions.init();
             CountdownSystem.init();
@@ -1242,10 +1223,6 @@ function _executeIntervalUnassign(ctx) {
             });
         }
 
-        // ═══════════════════════════════════════════════════════
-        // COUNTDOWN SYSTEM — aktualizuje wszystkie elementy z data-countdown
-        // co sekundę, bez przeładowania strony
-        // ═══════════════════════════════════════════════════════
         const CountdownSystem = (function() {
             let elements = [];
             let timer = null;
@@ -1286,12 +1263,12 @@ function _executeIntervalUnassign(ctx) {
                     const isKpi = el.id === 'kpiNextExecLabel';
 
                     if (diff <= 0) {
-                        // Wykonuje się — zostaw, bez reloada
+
                         if (isKpi) {
                             el.textContent = 'Wykonuje się...';
                             el.style.color = '#8e44ad';
                         } else {
-                            // Row countdown — zmień klasę na running + tekst
+
                             el.classList.remove('countdown-active');
                             el.classList.add('countdown-running');
                             el.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Wykonuje się...';
@@ -1303,7 +1280,7 @@ function _executeIntervalUnassign(ctx) {
                     if (isKpi) {
                         el.textContent = txt;
                     } else {
-                        // Zachowaj ikonę fa-clock
+
                         el.innerHTML = '<i class="fas fa-clock"></i> ' + txt;
                     }
                 });
@@ -1322,9 +1299,6 @@ function _executeIntervalUnassign(ctx) {
             return { init };
         })();
 
-        // ═══════════════════════════════════════════════════════
-        // WYSZUKIWANIE
-        // ═══════════════════════════════════════════════════════
         (function() {
             const searchInput = document.getElementById('productSearch');
             const tableBody = document.querySelector('#intervalTable tbody');
@@ -1371,9 +1345,6 @@ function _executeIntervalUnassign(ctx) {
             }
         })();
 
-        // ═══════════════════════════════════════════════════════
-        // SYSTEM FILTRÓW
-        // ═══════════════════════════════════════════════════════
         const FilterSystem = (function() {
             const filterGroups = [
                 {
@@ -1524,19 +1495,6 @@ function _executeIntervalUnassign(ctx) {
 
         $(document).ready(function() { FilterSystem.init(); });
 
-        // ═══════════════════════════════════════════════════════
-        // HARMONOGRAM (READ-ONLY) z obsługą A/B/C
-        //
-        // Format slotu w grid:
-        //   0                      = pusty
-        //   ±1..6                  = legacy (krok A, bez prefixu)
-        //   ±101..106              = krok A (nowy)
-        //   ±201..206              = krok B
-        //   ±301..306              = krok C
-        //
-        // Kolor: green=obniżka (step<0), red=podwyżka (step>0)
-        // Wyłączony krok → wyszarzony blok
-        // ═══════════════════════════════════════════════════════
         let scheduleOpen = false, scheduleBuilt = false;
 
         function toggleSchedule() {
@@ -1556,7 +1514,6 @@ function _executeIntervalUnassign(ctx) {
             const nowDayIndex = ((serverNow.getDay() + 6) % 7);
             const nowSlotIndex = Math.floor((serverNow.getHours() * 60 + serverNow.getMinutes()) / 10);
 
-            // Dwie palety — zielony dla obniżek, czerwony dla podwyżek
             const G = {
                 c:  {1:'#145a32',2:'#1a7a42',3:'#1e8c4a',4:'#22a053',5:'#27ae60',6:'#2ecc71'},
                 hi: {1:'#1a7040',2:'#20904e',3:'#26a458',4:'#2cb862',5:'#34d870',6:'#3ee882'},
@@ -1575,7 +1532,8 @@ function _executeIntervalUnassign(ctx) {
             function decodeVal(v) {
                 const a = Math.abs(v);
                 if (a === 0) return { stepIdx: 0, size: 0 };
-                if (a >= 1 && a <= 6) return { stepIdx: 1, size: a }; // legacy = A
+                if (a >= 1 && a <= 6) return { stepIdx: 1, size: a }; 
+
                 return { stepIdx: Math.floor(a/100), size: a % 100 };
             }
 
@@ -1654,7 +1612,7 @@ function _executeIntervalUnassign(ctx) {
             }
 
             function render() {
-                // Reset wszystkich komórek
+
                 for (let d = 0; d < DAYS; d++) {
                     for (let s = 0; s < SLOTS; s++) {
                         const td = cells[d][s];
@@ -1673,7 +1631,6 @@ function _executeIntervalUnassign(ctx) {
                         const v = grid[d][s];
                         if (v <= 0) { s++; continue; }
 
-                        // Znajdź długość bloku (kontynuacje = -v)
                         let len = 1;
                         while (s+len < SLOTS && grid[d][s+len] === -v) len++;
 
@@ -1714,7 +1671,6 @@ function _executeIntervalUnassign(ctx) {
                     }
                 }
 
-                // Podsumowania dzienne
                 for (let d = 0; d < DAYS; d++) {
                     const el = document.getElementById('ds-'+d);
                     if (el) {
@@ -1724,7 +1680,6 @@ function _executeIntervalUnassign(ctx) {
                     }
                 }
 
-                // Znacznik "teraz"
                 if (nowDayIndex>=0 && nowDayIndex<DAYS && nowSlotIndex>=0 && nowSlotIndex<SLOTS) {
                     cells[nowDayIndex][nowSlotIndex].classList.add('now-marker');
                 }
@@ -1734,3 +1689,4 @@ function _executeIntervalUnassign(ctx) {
         })();
     </script>
 }
+
