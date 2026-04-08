@@ -334,7 +334,9 @@
                     <button class="Button-Page-Small" style="white-space: nowrap;" id="exportToExcelButton">
                         <i class="fa-solid fa-floppy-disk" style="margin-top:2px;"></i>Eksport
                     </button>
-                  
+                    <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="allegroApiExportSettingsBtn" data-toggle="modal" data-target="#allegroApiExportModal">
+                        <i class="fa-solid fa-code" style="margin-top:2px;"></i>Feed
+                    </button>
                     <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px; height:33.99px;" data-toggle="modal" data-target="#infoModal">
                         <i class="fa fa-info-circle"></i>
                     </button>
@@ -653,6 +655,70 @@
     </div>
 </div>
 @await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassExport.cshtml")
+
+<div class="modal fade" id="allegroApiExportModal" tabindex="-1" role="dialog" aria-labelledby="allegroApiExportModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content" style="width:620px;">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="allegroApiExportModalLabel">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> Zewnętrzny Feed Danych Allegro (JSON / XML)
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; font-size: 14px; color: #666; line-height: 1.5;">
+                    Udostępnij najświeższe dane z Allegro (ceny, sprzedaż, odznaki, prowizje) bezpośrednio do swojego systemu ERP lub sklepu. Po włączeniu tej opcji, system utworzy statyczny plik z danymi, dostępny pod zabezpieczonym linkiem.
+                </p>
+
+                <div style="background-color: #e8f4fd; border-left: 4px solid #41C7C7; padding: 12px 15px; margin-bottom: 25px; border-radius: 4px; font-size: 13px; color: #333;">
+                    <i class="fa-solid fa-circle-info" style="color: #41C7C7; margin-right: 5px;"></i>
+                    <strong>Ważne:</strong> Plik z danymi zostanie wygenerowany (lub zaktualizowany) <b>dopiero po zakończeniu najbliższego procesu pobierania i analizy cen Allegro</b>. Jeśli włączasz tę opcję po raz pierwszy, linki zaczną działać po najbliższym scrapowaniu.
+                </div>
+
+                <div class="custom-switch-wrapper">
+                    <label class="switch-ui" style="margin-bottom: 0;">
+                        <input type="checkbox" id="enableAllegroApiExportCheckbox">
+                        <span class="slider"></span>
+                    </label>
+                    <label for="enableAllegroApiExportCheckbox" class="custom-switch-label">
+                        Włącz generowanie pliku feed Allegro (JSON / XML)
+                    </label>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">Twój unikalny token dostępu</label>
+                    <div class="export-input-group">
+                        <input type="text" id="allegroApiTokenInput" class="export-input" readonly>
+                        <button type="button" id="generateAllegroTokenBtn" class="export-btn export-btn-primary"><i class="fa-solid fa-arrows-rotate"></i> Generuj nowy</button>
+                        <button type="button" class="export-btn export-btn-secondary copy-btn" data-target="allegroApiTokenInput" title="Kopiuj token"><i class="fa-regular fa-copy"></i></button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">Link dostępowy (Format JSON)</label>
+                    <div class="export-input-group">
+                        <input type="text" id="allegroApiUrlJsonInput" class="export-input" readonly>
+                        <button type="button" class="export-btn export-btn-secondary copy-btn" data-target="allegroApiUrlJsonInput"><i class="fa-regular fa-copy"></i> Kopiuj</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">Link dostępowy (Format XML)</label>
+                    <div class="export-input-group">
+                        <input type="text" id="allegroApiUrlXmlInput" class="export-input" readonly>
+                        <button type="button" class="export-btn export-btn-secondary copy-btn" data-target="allegroApiUrlXmlInput"><i class="fa-regular fa-copy"></i> Kopiuj</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content:space-between;">
+                <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Zamknij</button>
+                <button type="button" class="Button-Page-Small-bl" id="saveAllegroApiExportBtn">Zapisz ustawienia</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

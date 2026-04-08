@@ -1928,6 +1928,45 @@ namespace PriceSafari.Controllers.MemberControllers
             return Json(result);
         }
 
+
+        [HttpGet]
+        public async Task<IActionResult> GetAllegroApiExportSettings(int storeId)
+        {
+            if (!await UserHasAccessToStore(storeId)) return Forbid();
+
+            var store = await _context.Stores
+                .Where(s => s.StoreId == storeId)
+                .Select(s => new
+                {
+                    isApiExportEnabled = s.AllegroIsApiExportEnabled,
+                    apiExportToken = s.AllegroApiExportToken
+                })
+                .FirstOrDefaultAsync();
+
+            if (store == null) return NotFound();
+            return Json(store);
+        }
+
+        public class AllegroApiExportSettingsDto
+        {
+            public bool IsEnabled { get; set; }
+            public string Token { get; set; }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SaveAllegroApiExportSettings(int storeId, [FromBody] AllegroApiExportSettingsDto dto)
+        {
+            if (!await UserHasAccessToStore(storeId)) return Forbid();
+
+            var store = await _context.Stores.FirstOrDefaultAsync(s => s.StoreId == storeId);
+            if (store == null) return NotFound("Sklep nie istnieje");
+
+            store.AllegroIsApiExportEnabled = dto.IsEnabled;
+            store.AllegroApiExportToken = dto.Token;
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = "Ustawienia Feed API Allegro zostały zapisane." });
+        }
         public class PriceBridgeError
         {
             public string OfferId { get; set; }

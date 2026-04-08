@@ -2499,273 +2499,7 @@
             hideLoading();
         }, 10);
     }
-    //function filterAndSortPrices(resetPageFlag = true) {
-    //    if (resetPageFlag) currentPage = 1;
-    //    showLoading();
-
-    //    setTimeout(() => {
-    //        let filtered = [...allPrices];
-
-    //        if (isCatalogViewActive) {
-    //            filtered = groupAndFilterByCatalog(filtered);
-    //        }
-    //        if (activeCatalogGroupFilter) {
-    //            filtered = filtered.filter(item => activeCatalogGroupFilter.has(item.productId));
-    //        }
-    //        const productSearchRaw = document.getElementById('productSearch').value.trim();
-    //        if (productSearchRaw) {
-    //            const sanitizedSearch = productSearchRaw.replace(/[^a-zA-Z0-9\s.-]/g, '').toLowerCase().replace(/\s+/g, '');
-    //            filtered = filtered.filter(p => {
-    //                const name = p.productName || '';
-    //                const ean = p.ean || '';
-    //                const id = p.myIdAllegro ? p.myIdAllegro.toString() : '';
-    //                const code = p.producerCode || '';
-    //                const combinedData = `${name} ${ean} ${id} ${code}`.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
-    //                return combinedData.includes(sanitizedSearch);
-    //            });
-    //        }
-
-    //        const storeSearch = document.getElementById('storeSearch').value.toLowerCase();
-    //        if (storeSearch) {
-    //            filtered = filtered.filter(p => (p.storeName && p.storeName.toLowerCase().includes(storeSearch)) || (myStoreName && myStoreName.toLowerCase().includes(storeSearch)));
-    //        }
-
-    //        if (typeof currentViewMode !== 'undefined' && currentViewMode === 'profit') {
-    //            const selectedBuckets = Array.from(document.querySelectorAll('.bucketFilter:checked')).map(checkbox => checkbox.value);
-    //            if (selectedBuckets.length > 0) {
-    //                filtered = filtered.filter(item => {
-    //                    let bucket = item.marketBucket;
-    //                    if (item.colorClass === 'prNoOffer' || !item.myPrice || parseFloat(item.myPrice) <= 0.01) {
-    //                        bucket = 'market-unavailable';
-    //                    } else if (item.colorClass === 'prOnlyMe' || bucket === 'market-solo') {
-    //                        bucket = 'market-solo';
-    //                    } else if (!bucket) {
-    //                        bucket = 'market-average';
-    //                    }
-    //                    return selectedBuckets.includes(bucket);
-    //                });
-    //            }
-    //        } else {
-    //            const selectedColors = Array.from(document.querySelectorAll('.colorFilter:checked')).map(cb => cb.value);
-    //            if (selectedColors.length > 0) {
-    //                filtered = filtered.filter(p => selectedColors.includes(p.colorClass));
-    //            }
-    //        }
-
-    //        const selectedProducer = document.getElementById('producerFilterDropdown').value;
-    //        if (selectedProducer) filtered = filtered.filter(p => p.producer === selectedProducer);
-
-    //        if (selectedFlagsExclude.size > 0) {
-    //            filtered = filtered.filter(item => {
-    //                if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return false;
-    //                return !item.flagIds || !item.flagIds.some(fid => selectedFlagsExclude.has(String(fid)));
-    //            });
-    //        }
-
-    //        if (selectedFlagsInclude.size > 0) {
-    //            filtered = filtered.filter(item => {
-    //                if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return true;
-    //                return item.flagIds && item.flagIds.some(fid => selectedFlagsInclude.has(String(fid)));
-    //            });
-    //        }
-
-    //        if (selectedAutomationsExclude.size > 0) {
-    //            filtered = filtered.filter(item => {
-    //                const ruleId = item.automationRuleId ? item.automationRuleId.toString() : 'noRule';
-    //                return !selectedAutomationsExclude.has(ruleId);
-    //            });
-    //        }
-
-    //        if (selectedAutomationsInclude.size > 0) {
-    //            filtered = filtered.filter(item => {
-    //                const ruleId = item.automationRuleId ? item.automationRuleId.toString() : 'noRule';
-    //                return selectedAutomationsInclude.has(ruleId);
-    //            });
-    //        }
-
-    //        if (selectedMyBadges.size > 0) {
-    //            filtered = filtered.filter(item => {
-    //                for (const badge of selectedMyBadges) {
-    //                    if (item[badge] === true) return true;
-    //                }
-    //                return false;
-    //            });
-    //        }
-
-    //        if (showCommittedOnly) {
-    //            filtered = filtered.filter(item => item.committed);
-    //        }
-    //        const filterNewCheckboxEl = document.getElementById('filter-new');
-    //        if (filterNewCheckboxEl && filterNewCheckboxEl.checked) {
-    //            filtered = filtered.filter(item => item.isNew === true);
-    //        }
-    //        const filterCatalogMulti = document.getElementById('filter-catalog-multi');
-    //        if (filterCatalogMulti && filterCatalogMulti.checked) {
-    //            filtered = filtered.filter(item => catalogGroupMap.has(item.productId));
-    //        }
-
-    //        const filterCatalogLeader = document.getElementById('filter-catalog-leader');
-    //        if (filterCatalogLeader && filterCatalogLeader.checked) {
-    //            filtered = filtered.filter(item => {
-    //                const info = catalogGroupMap.get(item.productId);
-    //                return info && info.isLeader;
-    //            });
-    //        }
-    //        filtered.forEach(item => {
-    //            const suggestionData = calculateCurrentSuggestion(item);
-    //            if (suggestionData) {
-    //                item.calculatedTotalChangeAmount = suggestionData.totalChangeAmount;
-    //                item.calculatedPercentageChange = suggestionData.percentageChange;
-    //            } else {
-    //                item.calculatedTotalChangeAmount = null;
-    //                item.calculatedPercentageChange = null;
-    //            }
-    //        });
-
-    //        for (const [key, direction] of Object.entries(sortingState)) {
-    //            if (direction) {
-
-    //                if (key === 'sortName') {
-    //                    filtered.sort((a, b) => {
-    //                        const valA = a.productName || '';
-    //                        const valB = b.productName || '';
-    //                        return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    //                    });
-    //                }
-
-    //                else {
-
-    //                    if (key === 'sortRaiseAmount' || key === 'sortRaisePercentage') {
-
-    //                        filtered = filtered.filter(item => item.calculatedTotalChangeAmount !== null && item.calculatedTotalChangeAmount > 0);
-    //                    }
-    //                    else if (key === 'sortLowerAmount' || key === 'sortLowerPercentage') {
-
-    //                        filtered = filtered.filter(item => item.calculatedTotalChangeAmount !== null && item.calculatedTotalChangeAmount < 0);
-    //                    }
-    //                    else if (key === 'sortMarginAmount' || key === 'sortMarginPercentage') {
-
-    //                        filtered = filtered.filter(item => item.marginAmount !== null);
-    //                    }
-
-    //                    filtered.sort((a, b) => {
-    //                        let valA, valB;
-    //                        switch (key) {
-    //                            case 'sortPrice':
-    //                                valA = a.myPrice;
-    //                                valB = b.myPrice;
-    //                                break;
-    //                            case 'sortRaiseAmount':
-    //                                valA = a.calculatedTotalChangeAmount;
-
-    //                                valB = b.calculatedTotalChangeAmount;
-    //                                break;
-    //                            case 'sortRaisePercentage':
-    //                                valA = a.calculatedPercentageChange;
-
-    //                                valB = b.calculatedPercentageChange;
-    //                                break;
-    //                            case 'sortLowerAmount':
-    //                                valA = a.calculatedTotalChangeAmount;
-
-    //                                valB = b.calculatedTotalChangeAmount;
-    //                                break;
-    //                            case 'sortLowerPercentage':
-    //                                valA = a.calculatedPercentageChange;
-
-    //                                valB = b.calculatedPercentageChange;
-    //                                break;
-    //                            case 'sortMarginAmount':
-    //                                valA = a.marginAmount;
-    //                                valB = b.marginAmount;
-    //                                break;
-    //                            case 'sortMarginPercentage':
-    //                                valA = a.marginPercentage;
-    //                                valB = b.marginPercentage;
-    //                                break;
-    //                            case 'sortTotalPopularity':
-    //                                valA = a.totalPopularity;
-    //                                valB = b.totalPopularity;
-    //                                break;
-    //                            case 'sortMyPopularity':
-    //                                valA = a.myTotalPopularity;
-    //                                valB = b.myTotalPopularity;
-    //                                break;
-    //                            case 'sortMarketShare':
-    //                                valA = a.marketSharePercentage;
-    //                                valB = b.marketSharePercentage;
-    //                                break;
-    //                            default:
-    //                                return 0;
-    //                        }
-
-    //                        if (direction === 'asc') {
-    //                            return (valB ?? -Infinity) - (valA ?? -Infinity);
-    //                        } else {
-    //                            return (valA ?? Infinity) - (valB ?? Infinity);
-    //                        }
-    //                    });
-    //                }
-    //                break;
-
-    //            }
-    //        }
-    //        if (positionSlider && offerSlider && myPriceSlider) {
-             
-    //            const positionValues = positionSlider.noUiSlider.get();
-    //            const positionMin = parseInt(positionValues[0]);
-    //            const positionMax = parseInt(positionValues[1]);
-
-              
-    //            const offerValues = offerSlider.noUiSlider.get();
-    //            const offerMin = parseInt(offerValues[0]);
-    //            const offerMax = parseInt(offerValues[1]);
-
-             
-    //            const rawPriceValues = myPriceSlider.noUiSlider.get();
-    //            const priceMin = parseFloat(rawPriceValues[0].replace(' PLN', '').replace(/\s/g, '').replace(',', '.'));
-    //            const priceMax = parseFloat(rawPriceValues[1].replace(' PLN', '').replace(/\s/g, '').replace(',', '.'));
-
-    //            filtered = filtered.filter(item => {
-                
-    //                const currentPos = extractRankNumber(item.myPricePosition);
-    //                let positionMatch = true;
-    //                if (currentPos !== null) {
-    //                    positionMatch = currentPos >= positionMin && currentPos <= positionMax;
-    //                }
-
-                   
-    //                const currentOffers = item.totalOfferCount || 0;
-    //                const offerMatch = (currentOffers === 0) ? true : (currentOffers >= offerMin && currentOffers <= offerMax);
-
-                 
-    //                const myPriceVal = item.myPrice != null ? parseFloat(item.myPrice) : 0;
-    //                let priceMatch = false;
-
-    //                if (item.isRejected || myPriceVal <= 0.01) {
-    //                    priceMatch = true;
-    //                } else {
-
-    //                    priceMatch = myPriceVal >= priceMin && myPriceVal <= priceMax;
-    //                }
-
-    //                return positionMatch && offerMatch && priceMatch;
-    //            });
-    //        }
-    //        renderPrices(filtered);
-    //        debouncedRenderChart(filtered);
-    //        updateColorCounts(filtered);
-    //        updateFlagCounts(filtered);
-    //        updateBadgeCounts(filtered);
-    //        updateStatusCounts(filtered);
-    //        updateAutomationFilterUI(filtered);
-    //        updateNewProductCount(filtered);
-    //        updateCatalogFilterCounts(filtered);
-    //        hideLoading();
-    //    }, 10);
-    //}
- 
-
+   
 
 
     function setupFlagFilterListeners() {
@@ -3626,6 +3360,123 @@
 
         window.loadPrices = loadPrices;
     }
+
+
+    function generateAllegroSecureToken() {
+        return 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    function updateAllegroApiUrls(token) {
+        if (!token) {
+            $('#allegroApiUrlJsonInput').val("Wygeneruj token, aby zobaczyć link.");
+            $('#allegroApiUrlXmlInput').val("Wygeneruj token, aby zobaczyć link.");
+            return;
+        }
+
+        const baseUrl = window.location.origin;
+        const baseApiRoute = `${baseUrl}/DataTree/export-allegro/${storeId}?token=${token}`;
+
+        $('#allegroApiUrlJsonInput').val(`${baseApiRoute}&format=json`);
+        $('#allegroApiUrlXmlInput').val(`${baseApiRoute}&format=xml`);
+    }
+
+    $('#allegroApiExportModal').on('show.bs.modal', function () {
+        $('#allegroApiTokenInput').val('Ładowanie...');
+        $('#allegroApiUrlJsonInput').val('');
+        $('#allegroApiUrlXmlInput').val('');
+
+        $.ajax({
+            url: `/AllegroPriceHistory/GetAllegroApiExportSettings?storeId=${storeId}`,
+            type: 'GET',
+            success: function (data) {
+                $('#enableAllegroApiExportCheckbox').prop('checked', data.isApiExportEnabled);
+
+                if (data.apiExportToken) {
+                    $('#allegroApiTokenInput').val(data.apiExportToken);
+                    updateAllegroApiUrls(data.apiExportToken);
+                } else {
+                    $('#allegroApiTokenInput').val('');
+                    updateAllegroApiUrls('');
+                }
+            },
+            error: function () {
+                alert('Błąd pobierania ustawień Feed API Allegro.');
+            }
+        });
+    });
+
+    $('#generateAllegroTokenBtn').click(function () {
+        const newToken = generateAllegroSecureToken();
+        $('#allegroApiTokenInput').val(newToken);
+        updateAllegroApiUrls(newToken);
+    });
+
+    $('#saveAllegroApiExportBtn').click(function () {
+        const isEnabled = $('#enableAllegroApiExportCheckbox').is(':checked');
+        const token = $('#allegroApiTokenInput').val();
+
+        if (isEnabled && (!token || token.trim() === '' || token === 'Ładowanie...')) {
+            alert('Jeśli włączasz Feed API, musisz wygenerować token!');
+            return;
+        }
+
+        showLoading();
+
+        $.ajax({
+            url: `/AllegroPriceHistory/SaveAllegroApiExportSettings?storeId=${storeId}`,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                isEnabled: isEnabled,
+                token: token
+            }),
+            success: function (response) {
+                hideLoading();
+                $('#allegroApiExportModal').modal('hide');
+                showGlobalUpdate(response.message);
+            },
+            error: function () {
+                hideLoading();
+                showGlobalNotification('Błąd podczas zapisywania ustawień Feed API Allegro.');
+            }
+        });
+    });
+
+
+    $(document).on('click', '#allegroApiExportModal .copy-btn', function () {
+        const targetId = $(this).data('target');
+        const inputElement = document.getElementById(targetId);
+
+        if (!inputElement.value || inputElement.value.includes("Wygeneruj token")) {
+            return;
+        }
+
+        inputElement.select();
+        inputElement.setSelectionRange(0, 99999);
+
+        navigator.clipboard.writeText(inputElement.value).then(() => {
+            const $btn = $(this);
+            const originalHtml = $btn.html();
+            const isJustIcon = originalHtml.indexOf('Kopiuj') === -1;
+
+            if (isJustIcon) {
+                $btn.html('<i class="fa-solid fa-check"></i>');
+            } else {
+                $btn.html('<i class="fa-solid fa-check"></i> Skopiowano');
+                $btn.css('background-color', '#198754');
+            }
+
+            setTimeout(() => {
+                $btn.html(originalHtml);
+                $btn.css('background-color', '');
+            }, 2000);
+        }).catch(err => {
+            console.error("Błąd kopiowania: ", err);
+        });
+    });
 
     let globalNotificationTimeoutId, globalUpdateTimeoutId;
 

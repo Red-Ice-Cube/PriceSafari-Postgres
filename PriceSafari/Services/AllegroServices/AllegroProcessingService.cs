@@ -320,7 +320,103 @@ namespace PriceSafari.Services.AllegroServices
 
             await _context.SaveChangesAsync();
 
+            if (userStore.AllegroIsApiExportEnabled && !string.IsNullOrEmpty(userStore.AllegroApiExportToken))
+            {
+                try
+                {
+                    await GenerateAllegroExportFilesAsync(userStore, storeProducts, newPriceHistories);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AllegroFeed] Błąd generowania feeda dla sklepu {storeId}: {ex.Message}");
+                }
+            }
+
             return (scrapeHistory.ProcessedUrlsCount, scrapeHistory.SavedOffersCount);
+        }
+
+
+        private async Task GenerateAllegroExportFilesAsync(
+            StoreClass store,
+            List<AllegroProductClass> products,
+            List<AllegroPriceHistory> newPriceHistories)
+        {
+            var feed = new PriceSafari.Models.DTOs.AllegroExportFeedDto
+            {
+                StoreId = store.StoreId,
+                StoreName = store.StoreName,
+                StoreNameAllegro = store.StoreNameAllegro,
+                GeneratedAt = DateTime.Now
+            };
+
+            var historiesByProduct = newPriceHistories
+                .GroupBy(p => p.AllegroProductId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var product in products)
+            {
+                if (!historiesByProduct.TryGetValue(product.AllegroProductId, out var productHistories))
+                    continue;
+
+                var offers = productHistories
+                    .Where(ph => ph.SellerName != null)
+                    .Select(ph => new PriceSafari.Models.DTOs.AllegroExportOfferDto
+                    {
+                        SellerName = ph.SellerName,
+                        IdAllegro = ph.IdAllegro,
+                        StoreIdOnAllegro = ph.StoreIdOnAllegro,
+                        Price = ph.Price,
+                        DeliveryCost = ph.DeliveryCost,
+                        DeliveryTime = ph.DeliveryTime,
+                        Popularity = ph.Popularity,
+                        SuperSeller = ph.SuperSeller,
+                        Smart = ph.Smart,
+                        IsBestPriceGuarantee = ph.IsBestPriceGuarantee,
+                        TopOffer = ph.TopOffer,
+                        SuperPrice = ph.SuperPrice,
+                        Promoted = ph.Promoted,
+                        Sponsored = ph.Sponsored,
+                        RatingCount = ph.RatingCount,
+                        RatingPositivePercent = ph.RatingPositivePercent
+                    })
+                    .OrderBy(o => o.Price)
+                    .ToList();
+
+                feed.Products.Add(new PriceSafari.Models.DTOs.AllegroExportProductDto
+                {
+                    AllegroProductName = product.AllegroProductName,
+                    AllegroEan = product.AllegroEan,
+                    AllegroSku = product.AllegroSku,
+                    Producer = product.Producer,
+                    AllegroOfferUrl = product.AllegroOfferUrl,
+                    IdOnAllegro = product.IdOnAllegro,
+                    PurchasePrice = product.AllegroMarginPrice,
+                    Offers = offers
+                });
+            }
+
+            var exportFolder = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "PriceSafari", "PriceExports");
+
+            if (!System.IO.Directory.Exists(exportFolder))
+                System.IO.Directory.CreateDirectory(exportFolder);
+
+            var jsonPath = System.IO.Path.Combine(exportFolder, $"feed_allegro_{store.StoreId}.json");
+            var xmlPath = System.IO.Path.Combine(exportFolder, $"feed_allegro_{store.StoreId}.xml");
+
+            var jsonOptions = new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            };
+            var jsonString = System.Text.Json.JsonSerializer.Serialize(feed, jsonOptions);
+            await System.IO.File.WriteAllTextAsync(jsonPath, jsonString);
+
+            var xmlSerializer = new System.Xml.Serialization.XmlSerializer(typeof(PriceSafari.Models.DTOs.AllegroExportFeedDto));
+            using var stream = new System.IO.FileStream(xmlPath, System.IO.FileMode.Create);
+            xmlSerializer.Serialize(stream, feed);
         }
     }
 }

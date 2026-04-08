@@ -125,7 +125,14 @@ namespace PriceSafari.Models
         [Display(Name = "Token dostępu do API (JSON/XML)")]
         [MaxLength(100)]
         public string? ApiExportToken { get; set; }
-       
+
+        [Display(Name = "Eksport XML/JSON Allegro dla API włączony")]
+        public bool AllegroIsApiExportEnabled { get; set; } = false;
+
+        [Display(Name = "Token dostępu do API Allegro (JSON/XML)")]
+        [MaxLength(100)]
+        public string? AllegroApiExportToken { get; set; }
+
 
         public bool UseKSeF { get; set; } = false;
 
