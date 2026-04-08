@@ -61,4 +61,45 @@ public class ExportApiController : ControllerBase
 
         return PhysicalFile(filePath, contentType);
     }
+    // GET: /DataTree/export-allegro/{storeId}?token=TWOJ_TOKEN&format=json
+    [HttpGet("/DataTree/export-allegro/{storeId}")]
+    public async Task<IActionResult> GetAllegroFeed(int storeId, [FromQuery] string token, [FromQuery] string format = "json")
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new { error = "Brak tokenu dostępu." });
+        }
+
+        var store = await _context.Stores
+            .AsNoTracking()
+            .Select(s => new { s.StoreId, s.AllegroIsApiExportEnabled, s.AllegroApiExportToken })
+            .FirstOrDefaultAsync(s => s.StoreId == storeId);
+
+        if (store == null)
+        {
+            return NotFound(new { error = "Sklep nie istnieje." });
+        }
+
+        if (!store.AllegroIsApiExportEnabled)
+        {
+            return StatusCode(403, new { error = "Eksport API Allegro dla tego sklepu jest wyłączony." });
+        }
+
+        if (store.AllegroApiExportToken != token)
+        {
+            return Unauthorized(new { error = "Nieprawidłowy token dostępu." });
+        }
+
+        var extension = format.ToLower() == "xml" ? "xml" : "json";
+        var exportFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "PriceSafari", "PriceExports");
+        var filePath = Path.Combine(exportFolder, $"feed_allegro_{storeId}.{extension}");
+
+        if (!System.IO.File.Exists(filePath))
+        {
+            return NotFound(new { error = "Plik z danymi jeszcze nie istnieje. Poczekaj na zakończenie pierwszego skanowania Allegro." });
+        }
+
+        var contentType = extension == "xml" ? "application/xml" : "application/json";
+        return PhysicalFile(filePath, contentType);
+    }
 }
