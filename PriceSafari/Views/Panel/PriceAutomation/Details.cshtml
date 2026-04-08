@@ -2427,25 +2427,24 @@ else
             '</div></div></div>'
         ].join('');
 
-        function _renderIntervalList(intervals, ctx) {
-            var container = document.getElementById('intervalRulesListContainer');
-            container.innerHTML = '';
+                function _renderIntervalList(intervals, ctx, limitInfo) {
+                var container = document.getElementById('intervalRulesListContainer');
+                container.innerHTML = '';
 
-            if (!intervals || intervals.length === 0) {
+                if (!intervals || intervals.length === 0) {
                 container.innerHTML = '<div class="alert alert-warning text-center">Brak interwałów.'
-                    + ' <a href="/IntervalPrice/Create?automationRuleId=' + currentRuleId + '">Utwórz nowy</a>.</div>';
+                + ' <a href="/IntervalPrice/Create?automationRuleId=' + currentRuleId + '">Utwórz nowy</a>.</div>';
                 return;
-            }
+                }
 
-            // ── Oblicz statystyki ──
-            var totalAssignedInSelection = 0;
-            intervals.forEach(function (iv) { totalAssignedInSelection += (iv.matchingCount || 0); });
-            var totalUnassigned = ctx.count - totalAssignedInSelection;
+                // ── Statystyki zaznaczenia ──
+                var totalAssignedInSelection = 0;
+                intervals.forEach(function (iv) { totalAssignedInSelection += (iv.matchingCount || 0); });
+                var totalUnassigned = ctx.count - totalAssignedInSelection;
 
-            // ── Nagłówek statystyk ──
-            var statsHeader = document.createElement('div');
-            statsHeader.style.cssText = 'background-color:#f8f9fa; border:1px solid #e3e6f0; border-radius:8px; padding:15px; margin-bottom:20px; display:flex; justify-content:space-around; align-items:center; text-align:center;';
-            statsHeader.innerHTML =
+                var statsHeader = document.createElement('div');
+                statsHeader.style.cssText = 'background-color:#f8f9fa; border:1px solid #e3e6f0; border-radius:8px; padding:15px; margin-bottom:16px; display:flex; justify-content:space-around; align-items:center; text-align:center;';
+                statsHeader.innerHTML =
                 '<div>'
                 + '<div style="font-size:11px; color:#858796; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Zaznaczonych</div>'
                 + '<div style="font-size:20px; font-weight:700; color:#5a5c69;">' + ctx.count + '</div>'
@@ -2460,42 +2459,97 @@ else
                 + '<div style="font-size:11px; color:#858796; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Bez interwału</div>'
                 + '<div style="font-size:20px; font-weight:700; color:#858796;">' + Math.max(0, totalUnassigned) + '</div>'
                 + '</div>';
-            container.appendChild(statsHeader);
+                container.appendChild(statsHeader);
 
-            // ── Opcja: Odepnij z interwałów ──
-            var hasAssignments = totalAssignedInSelection > 0;
-            var unassignDiv = document.createElement('div');
-            unassignDiv.style.cssText =
+                // ── Limit sklepu (NOWE) ──
+                if (limitInfo && typeof limitInfo.storeLimit !== 'undefined') {
+                var storeLimit = limitInfo.storeLimit || 0;
+                var storeUsed = limitInfo.storeUsed || 0;
+                var storeRemaining = Math.max(0, limitInfo.storeRemaining || 0);
+                var pct = storeLimit > 0 ? Math.min(100, (storeUsed / storeLimit) * 100) : 0;
+                var barColor = pct >= 90 ? '#e74a3b' : pct >= 70 ? '#f6c23e' : '#27ae60';
+
+                // Ile NOWYCH produktów użytkownik chce dodać (poza tymi, które już są w interwałach tego automatu)
+                var newToAdd = Math.max(0, ctx.count - totalAssignedInSelection);
+                var willBeAdded = Math.min(newToAdd, storeRemaining);
+                var willBeTruncated = newToAdd - willBeAdded;
+
+                var limitBox = document.createElement('div');
+                limitBox.style.cssText = 'background:#fff; border:1px solid #e3e6f0; border-radius:8px; padding:14px 18px; margin-bottom:20px;';
+
+                var limitHtml =
+                '<div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:700; color:#858796; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">'
+                + '  <span><i class="fas fa-database" style="margin-right:5px;"></i>Limit produktów w interwale (sklep)</span>'
+                + '  <span style="color:' + barColor + ';">' + storeUsed + ' / ' + (storeLimit > 0 ? storeLimit : '—') + '</span>'
+                + '</div>';
+
+                if (storeLimit > 0) {
+                limitHtml +=
+                '<div style="width:100%; height:8px; background:#e3e3e3; border-radius:4px; overflow:hidden;">'
+                + '  <div style="width:' + pct + '%; height:100%; background:' + barColor + '; border-radius:4px; transition:width 0.3s;"></div>'
+                + '</div>'
+                + '<div style="font-size:11px; color:#858796; margin-top:6px;">Wolnych miejsc: <strong style="color:#27ae60;">' + storeRemaining + '</strong></div>';
+
+                // Ostrzeżenie gdy zaznaczenie przekracza limit
+                if (willBeTruncated > 0) {
+                limitHtml +=
+                '<div style="margin-top:10px; padding:10px 12px; background:rgba(231,74,59,0.08); border-left:3px solid #e74a3b; border-radius:4px; font-size:12px; color:#5a5c69; line-height:1.4;">'
+                + '<i class="fas fa-exclamation-triangle" style="color:#e74a3b; margin-right:6px;"></i>'
+                + 'Zaznaczono <strong>' + newToAdd + '</strong> nowych produktów, ale limit pozwala dodać tylko <strong style="color:#27ae60;">' + willBeAdded + '</strong>. '
+                + '<strong style="color:#e74a3b;">' + willBeTruncated + '</strong> zostanie pominiętych.'
+                + '</div>';
+                } else if (storeRemaining === 0) {
+                limitHtml +=
+                '<div style="margin-top:10px; padding:10px 12px; background:rgba(231,74,59,0.08); border-left:3px solid #e74a3b; border-radius:4px; font-size:12px; color:#5a5c69;">'
+                + '<i class="fas fa-ban" style="color:#e74a3b; margin-right:6px;"></i>'
+                + 'Limit wyczerpany — nie można przypisać nowych produktów do interwałów.'
+                + '</div>';
+                }
+                } else {
+                limitHtml +=
+                '<div style="font-size:11px; color:#e74a3b; font-weight:600;">'
+                + '<i class="fas fa-ban" style="margin-right:4px;"></i>Sklep ma limit 0 — skontaktuj się z biuro@pricesafari.pl'
+                + '</div>';
+                }
+
+                limitBox.innerHTML = limitHtml;
+                container.appendChild(limitBox);
+                }
+
+                // ── Opcja: Odepnij z interwałów ──
+                var hasAssignments = totalAssignedInSelection > 0;
+                var unassignDiv = document.createElement('div');
+                unassignDiv.style.cssText =
                 'border:1px dashed ' + (hasAssignments ? '#e74a3b' : '#ccc') + '; '
                 + 'border-radius:8px; padding:10px 15px; '
                 + 'cursor:' + (hasAssignments ? 'pointer' : 'default') + '; '
                 + 'background-color:#fff; display:flex; justify-content:space-between; align-items:center; '
                 + 'transition:background-color 0.2s; margin-bottom:20px; opacity:' + (hasAssignments ? '1' : '0.6') + ';';
 
-            if (hasAssignments) {
+                if (hasAssignments) {
                 unassignDiv.onmouseover = function () { unassignDiv.style.backgroundColor = '#fff5f5'; };
                 unassignDiv.onmouseout = function () { unassignDiv.style.backgroundColor = '#fff'; };
                 unassignDiv.addEventListener('click', function () {
-                    _executeIntervalUnassign(intervals, ctx);
+                _executeIntervalUnassign(intervals, ctx);
                 });
-            }
+                }
 
-            unassignDiv.innerHTML =
+                unassignDiv.innerHTML =
                 '<div style="display:flex; align-items:center; gap:15px;">'
                 + '<div style="width:6px; height:45px; background-color:' + (hasAssignments ? '#e74a3b' : '#ccc') + '; border-radius:3px;"></div>'
                 + '<div>'
                 + '<div style="font-weight:600; font-size:15px; color:' + (hasAssignments ? '#e74a3b' : '#888') + ';">Odepnij z interwałów</div>'
                 + '<div style="font-size:13px; color:#666; margin-top:2px;">'
                 + (hasAssignments
-                    ? 'Odepnij <strong>' + totalAssignedInSelection + '</strong> zaznaczonych produktów z ich interwałów.'
-                    : 'Żaden z zaznaczonych produktów nie jest przypisany do interwału.')
+                ? 'Odepnij <strong>' + totalAssignedInSelection + '</strong> zaznaczonych produktów z ich interwałów.'
+                : 'Żaden z zaznaczonych produktów nie jest przypisany do interwału.')
                 + '</div></div></div>'
                 + '<button class="Button-Page-Small-r" type="button" style="pointer-events:none;'
                 + (!hasAssignments ? ' background-color:#ccc; border-color:#ccc;' : '') + '">Odepnij</button>';
-            container.appendChild(unassignDiv);
+                container.appendChild(unassignDiv);
 
-            // ── Karty interwałów (przypisywanie) ──
-            intervals.forEach(function (interval) {
+                // ── Karty interwałów (bez zmian) ──
+                intervals.forEach(function (interval) {
                 var statusColor = interval.isActive ? '#1cc88a' : '#e74a3b';
                 var alreadyIn = interval.matchingCount || 0;
                 var toBeAdded = ctx.count - alreadyIn;
@@ -2512,31 +2566,32 @@ else
                 div.onmouseout = function () { div.style.borderColor = '#e3e6f0'; div.style.backgroundColor = backgroundStyle; };
 
                 div.innerHTML =
-                    '<div style="display:flex; align-items:center; gap:14px; flex-grow:1;">'
-                    + '<div style="width:5px; height:50px; background:' + interval.colorHex + '; border-radius:3px;"></div>'
-                    + '<div style="flex-grow:1;">'
-                    + '<div style="display:flex; gap:12px; align-items:center;">'
-                    + '<div style="font-weight:600; font-size:15px; color:#333;">' + interval.name + '</div>'
-                    + '<div style="font-size:12px; display:flex; align-items:center; gap:6px;">'
-                    + '<span style="color:' + stepColor + '; font-weight:600;"><i class="fas ' + stepIcon + '" style="margin-right:3px;"></i>' + stepText + '</span>'
-                    + '<span style="color:#e3e6f0;">|</span>'
-                    + '<span style="color:' + statusColor + '; font-weight:500;">' + (interval.isActive ? 'Aktywny' : 'Wyłączony') + '</span>'
-                    + '</div></div>'
-                    + '<div style="display:flex; gap:15px; margin-top:6px; font-size:12px; color:#666;">'
-                    + '<span><i class="fas fa-database" style="color:#999; margin-right:4px;"></i>W interwale: <strong>' + interval.totalAssigned + '</strong></span>'
-                    + '<span style="color:#e3e6f0;">|</span>'
-                    + '<span><i class="fas fa-check-double" style="color:#999; margin-right:4px;"></i>Z wybranych: <strong>' + alreadyIn + '</strong></span>'
-                    + '<span style="color:#e3e6f0;">|</span>'
-                    + '<span>Nowych: <strong style="color:#1cc88a;">+' + Math.max(0, toBeAdded) + '</strong></span>'
-                    + '</div></div></div>'
-                    + '<button class="Button-Page-Small-bl" style="pointer-events:none; white-space:nowrap; padding:5px 15px;">Przypisz</button>';
+                '<div style="display:flex; align-items:center; gap:14px; flex-grow:1;">'
+                + '<div style="width:5px; height:50px; background:' + interval.colorHex + '; border-radius:3px;"></div>'
+                + '<div style="flex-grow:1;">'
+                + '<div style="display:flex; gap:12px; align-items:center;">'
+                + '<div style="font-weight:600; font-size:15px; color:#333;">' + interval.name + '</div>'
+                + '<div style="font-size:12px; display:flex; align-items:center; gap:6px;">'
+                + '<span style="color:' + stepColor + '; font-weight:600;"><i class="fas ' + stepIcon + '" style="margin-right:3px;"></i>' + stepText + '</span>'
+                + '<span style="color:#e3e6f0;">|</span>'
+                + '<span style="color:' + statusColor + '; font-weight:500;">' + (interval.isActive ? 'Aktywny' : 'Wyłączony') + '</span>'
+                + '</div></div>'
+                + '<div style="display:flex; gap:15px; margin-top:6px; font-size:12px; color:#666;">'
+                + '<span><i class="fas fa-database" style="color:#999; margin-right:4px;"></i>W interwale: <strong>' + interval.totalAssigned + '</strong></span>'
+                + '<span style="color:#e3e6f0;">|</span>'
+                + '<span><i class="fas fa-check-double" style="color:#999; margin-right:4px;"></i>Z wybranych: <strong>' + alreadyIn + '</strong></span>'
+                + '<span style="color:#e3e6f0;">|</span>'
+                + '<span>Nowych: <strong style="color:#1cc88a;">+' + Math.max(0, toBeAdded) + '</strong></span>'
+                + '</div></div></div>'
+                + '<button class="Button-Page-Small-bl" style="pointer-events:none; white-space:nowrap; padding:5px 15px;">Przypisz</button>';
 
                 div.addEventListener('click', function () {
-                    _executeIntervalAssign(interval.id, ctx);
+                _executeIntervalAssign(interval.id, ctx);
                 });
 
                 container.appendChild(div);
-            });
+                });
+                
         }
 
         // ── Assign ──
@@ -2617,14 +2672,14 @@ else
                     '<div class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Ładowanie...</div>';
                 ctx.closeMainModal();
 
-                fetch('/IntervalPrice/GetIntervalStatusForProducts', {
+               fetch('/IntervalPrice/GetIntervalStatusForProducts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ automationRuleId: currentRuleId, productIds: ctx.selectedIds })
                 })
                 .then(function (r) { return r.json(); })
-                .then(function (intervals) {
-                    _renderIntervalList(intervals, ctx);
+                .then(function (data) {
+                    _renderIntervalList(data.intervals || [], ctx, data);
                     $('#intervalSelectionModal').modal('show');
                 })
                 .catch(function (err) { console.error(err); alert('Błąd ładowania interwałów.'); });

@@ -153,7 +153,10 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.OnGoogle = store.OnGoogle;
             existingStore.OnAllegro = store.OnAllegro;
             existingStore.ProductsToScrapAllegro = store.ProductsToScrapAllegro;
-
+            // --- NOWE ZMIENNE: Limity Interwałów ---
+            existingStore.IntervalLimitOfProducts = store.IntervalLimitOfProducts;
+            existingStore.AllegroIntervalLimitOfProducts = store.AllegroIntervalLimitOfProducts;
+            // ---------------------------------------
             existingStore.IsAllegroPriceBridgeActive = store.IsAllegroPriceBridgeActive;
             existingStore.FetchExtendedAllegroData = store.FetchExtendedAllegroData;
             existingStore.IsPayingCustomer = store.IsPayingCustomer;

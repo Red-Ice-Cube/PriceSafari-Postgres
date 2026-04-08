@@ -292,7 +292,7 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
 
 
 
-            // \u2550\u2550\u2550 LIMIT SKLEPU \u2550\u2550\u2550
+            // ═══ LIMIT SKLEPU ═══
             var (limit, used) = await GetIntervalLimitInfoAsync(rule.AutomationRule.StoreId, isAllegro);
             int remaining = Math.Max(0, limit - used);
 
@@ -323,10 +323,10 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
 
             await _context.SaveChangesAsync();
 
-            string message = $"Przypisano {added} produkt\u00f3w do interwa\u0142u: {rule.Name}";
-            if (skipped > 0) message += $" (pomini\u0119to {skipped})";
+            string message = $"Przypisano {added} produktów do interwału: {rule.Name}";
+            if (skipped > 0) message += $" (pominięto {skipped})";
             if (blockedByLimit > 0)
-                message += $" \u2014 {blockedByLimit} produkt\u00f3w nie dodano z powodu limitu sklepu ({limit}).";
+                message += $" — {blockedByLimit} produktów nie dodano z powodu limitu sklepu ({limit}).";
 
             return Ok(new
             {

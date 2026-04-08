@@ -289,7 +289,7 @@
             <i class="fas fa-chevron-right" style="color:#d1d3e2;"></i>
         </a>
     </div>
-
+   
     @* ── KPI ── *@
     <div class="Vert">
         <div class="kpi-container">
@@ -302,31 +302,32 @@
                     int limit = Model.StoreIntervalLimit;
                     int used = Model.StoreIntervalUsed;
                     double pct = limit > 0 ? Math.Round((double)used / limit * 100, 1) : 0;
+                    string pctCss = Math.Min(pct, 100).ToString(System.Globalization.CultureInfo.InvariantCulture);
                     string barColor = pct >= 90 ? "#e74a3b" : pct >= 70 ? "#f6c23e" : "#27ae60";
-                    string sourceLabel = isMarketplace ? "Allegro" : "por\u00f3wnywarki";
+                    string sourceLabel = isMarketplace ? "Allegro" : "porównywarki";
                 }
 
                 <div style="margin-top:10px; padding-top:10px; border-top:1px solid #eaecf4;">
                     <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:600; color:#858796; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px;">
-                        <span>Limit sklepu (@sourceLabel)</span>
-                        <span style="color:@barColor;">@used / @(limit > 0 ? limit.ToString() : "\u2014")</span>
+                        <span>Limit produktów w interwale (@sourceLabel)</span>
+                        <span style="color:@barColor;">@used / @(limit > 0 ? limit.ToString() : "—")</span>
                     </div>
                     @if (limit > 0)
                     {
                         <div class="mini-progress-bg">
-                            <div class="mini-progress-fill" style="width:@Math.Min(pct, 100)%; background:@barColor;"></div>
+                            <div class="mini-progress-fill" style="width:@(pctCss)%; background:@barColor;"></div>
                         </div>
                         @if (used >= limit)
                         {
                             <div style="font-size:10px; color:#e74a3b; font-weight:600; margin-top:4px;">
-                                <i class="fas fa-exclamation-triangle"></i> Limit osi\u0105gni\u0119ty \u2014 nie mo\u017cna doda\u0107 wi\u0119cej produkt\u00f3w
+                                <i class="fas fa-exclamation-triangle"></i> Limit osiągnięty — nie można dodać więcej produktów
                             </div>
                         }
                     }
                     else
                     {
                         <div style="font-size:10px; color:#e74a3b; font-weight:600;">
-                            <i class="fas fa-ban"></i> Sklep ma limit 0 \u2014 skontaktuj si\u0119 z biuro@pricesafari.pl
+                            <i class="fas fa-ban"></i> Sklep ma limit 0 — skontaktuj się z biuro@pricesafari.pl
                         </div>
                     }
                 </div>
@@ -682,12 +683,11 @@
                                         </div>
                                     </div>
                                 </td>
-
-                                @* ── KOLUMNA 3: Dane z rynku ── *@
+                              @* ── KOLUMNA 3: Dane z rynku ── *@
                                 <td class="align-middle text-right">
                                     <div class="price-row-block">
                                         <span class="price-main-style @(item.IsBestPriceGuarantee ? "price-green" : "")">
-                                            @(item.MarketCurrentPrice.HasValue? item.MarketCurrentPrice.Value.ToString("F2") : "-") PLN
+                                            @(item.MarketCurrentPrice.HasValue ? item.MarketCurrentPrice.Value.ToString("F2") : "-") PLN
                                         </span>
                                         @if (item.HasCheaperOwnOffer)
                                         { <span class="text-danger" title="Tańsza własna oferta!"><i class="fas fa-exclamation-triangle"></i></span> }
@@ -698,10 +698,44 @@
                                         @if (item.IsTopOffer)
                                         { <div class="TopOffer">Top</div> }
                                     </div>
-                                    <div class="small text-muted">@Model.StoreName</div>
+    
+                                    @* --- BLOK SKLEPU I RANKINGÓW W JEDNEJ LINII --- *@
+                                    <div class="d-flex align-items-center mt-1" style="gap:8px;">
+                                        <div class="small text-muted">@Model.StoreName</div>
+        
+                                        <div class="d-flex align-items-center" style="gap: 6px; font-size: 11px;">
+                                            @if (isMarketplace && !string.IsNullOrEmpty(item.CurrentRankingAllegro) && item.CurrentRankingAllegro != "-")
+                                            {
+                                                <div class="rank-row"><img src="/images/AllegroIcon.png" alt="Allegro" class="rank-icon"><span class="text-muted">@item.CurrentRankingAllegro</span></div>
+                                            }
+                                            @if (!isMarketplace)
+                                            {
+                                                bool hasGoogle = !string.IsNullOrEmpty(item.CurrentRankingGoogle) && item.CurrentRankingGoogle != "-";
+                                                bool hasCeneo = !string.IsNullOrEmpty(item.CurrentRankingCeneo) && item.CurrentRankingCeneo != "-";
+
+                                                if (hasGoogle)
+                                                {
+                                                    <div class="rank-row"><img src="/images/GoogleShopping.png" alt="Google" class="rank-icon"><span class="text-muted">@item.CurrentRankingGoogle</span></div>
+                                                }
+                
+                                                @* Wstawiamy separator "|" jeśli są obie wartości *@
+                                                if (hasGoogle && hasCeneo)
+                                                {
+                                                    <span style="color: #d1d3e2;">|</span>
+                                                }
+                
+                                                if (hasCeneo)
+                                                {
+                                                    <div class="rank-row"><img src="/images/Ceneo.png" alt="Ceneo" class="rank-icon"><span class="text-muted">@item.CurrentRankingCeneo</span></div>
+                                                }
+                                            }
+                                        </div>
+                                    </div>
+                                    @* ---------------------------------------------- *@
+
                                     @if (item.CommissionAmount.HasValue)
                                     {
-                                        <div class="Commission-stack">
+                                        <div class="Commission-stack mt-1">
                                             <span class="commission-stack-badge">Prowizja</span>
                                             <p>@item.CommissionAmount.Value.ToString("F2") PLN @(item.IsCommissionIncluded ? "| uwzg." : "| nieuwzg.")</p>
                                         </div>
@@ -720,23 +754,6 @@
                                             <p>@(item.ApiAllegroPriceFromUser?.ToString("F2") ?? "-") PLN</p>
                                         </div>
                                     }
-                                    <div class="column-flex-min-gap mt-1">
-                                        @if (isMarketplace && !string.IsNullOrEmpty(item.CurrentRankingAllegro) && item.CurrentRankingAllegro != "-")
-                                        {
-                                            <div class="rank-row"><img src="/images/AllegroIcon.png" alt="Allegro" class="rank-icon"><span class="text-muted">@item.CurrentRankingAllegro</span></div>
-                                        }
-                                        @if (!isMarketplace)
-                                        {
-                                            if (!string.IsNullOrEmpty(item.CurrentRankingGoogle) && item.CurrentRankingGoogle != "-")
-                                            {
-                                                <div class="rank-row"><img src="/images/GoogleShopping.png" alt="Google" class="rank-icon"><span class="text-muted">@item.CurrentRankingGoogle</span></div>
-                                            }
-                                            if (!string.IsNullOrEmpty(item.CurrentRankingCeneo) && item.CurrentRankingCeneo != "-")
-                                            {
-                                                <div class="rank-row"><img src="/images/Ceneo.png" alt="Ceneo" class="rank-icon"><span class="text-muted">@item.CurrentRankingCeneo</span></div>
-                                            }
-                                        }
-                                    </div>
                                 </td>
 
                                 @* ── KOLUMNA 4: Najlepszy Rywal ── *@
@@ -903,6 +920,27 @@
     </div>
 </div>
 
+<!-- ═══ MODAL: Odpinanie z interwału ═══ -->
+<div id="intervalUnassignModal" class="modal fade" tabindex="-1" style="z-index:1060;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius:10px; overflow:hidden;">
+            <div class="modal-header">
+                <div class="price-box-column-name">Zarządzaj interwałem</div>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body" style="padding:20px;">
+                <p style="color:#666; margin-bottom:16px;">
+                    Odepnij zaznaczone produkty (<strong><span id="intervalUnassignCountDisplay">0</span></strong>) z tego interwału cenowego.
+                </p>
+                <div id="intervalUnassignContainer"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Anuluj</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
 
 @section Scripts {
@@ -938,15 +976,178 @@
             }
         };
 
+
+        // ═══════════════════════════════════════════════════════
+// INTERVAL UNASSIGN UI
+// ═══════════════════════════════════════════════════════
+function _renderIntervalUnassignUI(data, ctx) {
+    var container = document.getElementById('intervalUnassignContainer');
+    container.innerHTML = '';
+
+    var intervals = data.intervals || [];
+    // Znajdź obecny interwał w liście (po intervalRuleId)
+    var currentInterval = intervals.find(function (iv) { return iv.id === intervalRuleId; });
+    var matchingInCurrent = currentInterval ? (currentInterval.matchingCount || 0) : 0;
+    var notInCurrent = ctx.count - matchingInCurrent;
+
+    // ── Statystyki zaznaczenia ──
+    var statsHeader = document.createElement('div');
+    statsHeader.style.cssText = 'background-color:#f8f9fa; border:1px solid #e3e6f0; border-radius:8px; padding:15px; margin-bottom:16px; display:flex; justify-content:space-around; align-items:center; text-align:center;';
+    statsHeader.innerHTML =
+        '<div>'
+        + '<div style="font-size:11px; color:#858796; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Zaznaczonych</div>'
+        + '<div style="font-size:20px; font-weight:700; color:#5a5c69;">' + ctx.count + '</div>'
+        + '</div>'
+        + '<div style="border-left:1px solid #e3e6f0; height:30px;"></div>'
+        + '<div>'
+        + '<div style="font-size:11px; color:#e67e22; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">W tym interwale</div>'
+        + '<div style="font-size:20px; font-weight:700; color:#e67e22;">' + matchingInCurrent + '</div>'
+        + '</div>'
+        + '<div style="border-left:1px solid #e3e6f0; height:30px;"></div>'
+        + '<div>'
+        + '<div style="font-size:11px; color:#858796; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Poza interwałem</div>'
+        + '<div style="font-size:20px; font-weight:700; color:#858796;">' + Math.max(0, notInCurrent) + '</div>'
+        + '</div>';
+    container.appendChild(statsHeader);
+
+    // ── Pasek limitu sklepu ──
+    if (typeof data.storeLimit !== 'undefined') {
+        var storeLimit = data.storeLimit || 0;
+        var storeUsed = data.storeUsed || 0;
+        var storeRemaining = Math.max(0, data.storeRemaining || 0);
+        var pct = storeLimit > 0 ? Math.min(100, (storeUsed / storeLimit) * 100) : 0;
+        var barColor = pct >= 90 ? '#e74a3b' : pct >= 70 ? '#f6c23e' : '#27ae60';
+
+        var limitBox = document.createElement('div');
+        limitBox.style.cssText = 'background:#fff; border:1px solid #e3e6f0; border-radius:8px; padding:14px 18px; margin-bottom:20px;';
+
+        var limitHtml =
+            '<div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:700; color:#858796; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">'
+            + '  <span><i class="fas fa-database" style="margin-right:5px;"></i>Limit produktów w interwale (sklep)</span>'
+            + '  <span style="color:' + barColor + ';">' + storeUsed + ' / ' + (storeLimit > 0 ? storeLimit : '—') + '</span>'
+            + '</div>';
+
+        if (storeLimit > 0) {
+            limitHtml +=
+                '<div style="width:100%; height:8px; background:#e3e3e3; border-radius:4px; overflow:hidden;">'
+                + '  <div style="width:' + pct + '%; height:100%; background:' + barColor + '; border-radius:4px; transition:width 0.3s;"></div>'
+                + '</div>'
+                + '<div style="font-size:11px; color:#858796; margin-top:6px;">Wolnych miejsc: <strong style="color:#27ae60;">' + storeRemaining + '</strong></div>';
+
+            if (matchingInCurrent > 0) {
+                limitHtml +=
+                    '<div style="margin-top:10px; padding:10px 12px; background:rgba(28,200,138,0.08); border-left:3px solid #1cc88a; border-radius:4px; font-size:12px; color:#5a5c69; line-height:1.4;">'
+                    + '<i class="fas fa-info-circle" style="color:#1cc88a; margin-right:6px;"></i>'
+                    + 'Po odpięciu zwolni się <strong style="color:#1cc88a;">' + matchingInCurrent + '</strong> miejsc w limicie sklepu.'
+                    + '</div>';
+            }
+        } else {
+            limitHtml +=
+                '<div style="font-size:11px; color:#e74a3b; font-weight:600;">'
+                + '<i class="fas fa-ban" style="margin-right:4px;"></i>Sklep ma limit 0'
+                + '</div>';
+        }
+
+        limitBox.innerHTML = limitHtml;
+        container.appendChild(limitBox);
+    }
+
+    // ── Opcja: Odepnij z tego interwału ──
+    var hasToUnassign = matchingInCurrent > 0;
+    var unassignDiv = document.createElement('div');
+    unassignDiv.style.cssText =
+        'border:1px dashed ' + (hasToUnassign ? '#e74a3b' : '#ccc') + '; '
+        + 'border-radius:8px; padding:14px 18px; '
+        + 'cursor:' + (hasToUnassign ? 'pointer' : 'default') + '; '
+        + 'background-color:#fff; display:flex; justify-content:space-between; align-items:center; '
+        + 'transition:background-color 0.2s; opacity:' + (hasToUnassign ? '1' : '0.6') + ';';
+
+    if (hasToUnassign) {
+        unassignDiv.onmouseover = function () { unassignDiv.style.backgroundColor = '#fff5f5'; };
+        unassignDiv.onmouseout = function () { unassignDiv.style.backgroundColor = '#fff'; };
+        unassignDiv.addEventListener('click', function () { _executeIntervalUnassign(ctx); });
+    }
+
+    unassignDiv.innerHTML =
+        '<div style="display:flex; align-items:center; gap:15px;">'
+        + '<div style="width:6px; height:50px; background-color:' + (hasToUnassign ? '#e74a3b' : '#ccc') + '; border-radius:3px;"></div>'
+        + '<div>'
+        + '<div style="font-weight:600; font-size:15px; color:' + (hasToUnassign ? '#e74a3b' : '#888') + ';">Odepnij z tego interwału</div>'
+        + '<div style="font-size:13px; color:#666; margin-top:2px;">'
+        + (hasToUnassign
+            ? 'Odepnij <strong>' + matchingInCurrent + '</strong> zaznaczonych produktów z tego interwału.'
+            : 'Żaden z zaznaczonych produktów nie jest w tym interwale.')
+        + '</div></div></div>'
+        + '<button class="Button-Page-Small-r" type="button" style="pointer-events:none;'
+        + (!hasToUnassign ? ' background-color:#ccc; border-color:#ccc;' : '') + '">Odepnij</button>';
+    container.appendChild(unassignDiv);
+}
+
+function _executeIntervalUnassign(ctx) {
+    $('#intervalUnassignModal').modal('hide');
+    ctx.showLoading();
+
+    fetch('/IntervalPrice/UnassignProducts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intervalRuleId: intervalRuleId, productIds: ctx.selectedIds })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        ctx.hideLoading();
+        if (data.success) {
+            ctx.askContinueOrFinish(function () { location.reload(); });
+        } else {
+            alert('Błąd: ' + (data.message || 'Nieznany'));
+            $('#intervalUnassignModal').modal('show');
+        }
+    })
+    .catch(function () {
+        ctx.hideLoading();
+        alert('Błąd komunikacji.');
+        $('#intervalUnassignModal').modal('show');
+    });
+}
+
         // ═══════════════════════════════════════════════════════
         // MASS ACTIONS
         // ═══════════════════════════════════════════════════════
+
+
         const massActions = new window.MassActions({
             storeId: storeId,
             isAllegro: isAllegroContext,
             storageKey: `intervalDetails_selected_${intervalRuleId}_${storeId}`,
             flags: flags,
-            extraActions: [],
+            extraActions: [{
+                id: 'intervals',
+                label: 'Interwały Cenowe',
+                icon: 'fa-clock',
+                btnStyle: 'background-color:#e67e22; border:1px solid #e67e22; color:#fff;',
+                btnHoverStyle: 'background-color:#cf6d17; border:1px solid #cf6d17; color:#fff;',
+                modalHtml: '',
+                onClick: function (ctx) {
+                    document.getElementById('intervalUnassignCountDisplay').textContent = ctx.count;
+                    document.getElementById('intervalUnassignContainer').innerHTML =
+                        '<div class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Ładowanie...</div>';
+                    ctx.closeMainModal();
+
+                    fetch('/IntervalPrice/GetIntervalStatusForProducts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ automationRuleId: parentRuleId, productIds: ctx.selectedIds })
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        _renderIntervalUnassignUI(data, ctx);
+                        $('#intervalUnassignModal').modal('show');
+                    })
+                    .catch(function (err) {
+                        console.error(err);
+                        alert('Błąd ładowania danych interwału.');
+                    });
+                }
+            }],
             getAllPrices: function() {
                 return Array.from(document.querySelectorAll('#intervalTable tbody tr')).map(row => {
                     const btn = row.querySelector('.select-product-btn');
