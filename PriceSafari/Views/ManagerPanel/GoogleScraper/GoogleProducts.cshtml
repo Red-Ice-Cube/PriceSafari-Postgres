@@ -243,6 +243,13 @@
                     <input type="checkbox" class="form-check-input" id="extUseGpid" />
                     <label class="form-check-label small">Użyj CID + GID (tryb GPID)</label>
                 </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="extEnableColorVariantSearch" />
+                    <label class="form-check-label small">
+                        <span class="text-primary fw-bold">🎨 Szukaj wariantów kolorystycznych</span>
+                        <br /><small class="text-muted">Scrapuje każdy kolor osobno (wolniej, ale znajduje więcej ofert)</small>
+                    </label>
+                </div>
             </div>
         </div>
 
@@ -408,6 +415,7 @@
             <th>Product URL</th>
             <th>Status</th>
             <th>Google URL</th>
+            <th>Kolor</th>
             <th>Akcja</th>
             <th>GID/CID</th>
         </tr>
@@ -521,6 +529,7 @@
                     $('#extMullvadCity').val(data.mullvadCityCode || 'waw');
                     $('#extModemUrl').val(data.modemUrl || 'http://192.168.1.1');
                     $('#extModemWait').val(data.modemRestartWaitSeconds || 50);
+                    $('#extEnableColorVariantSearch').prop('checked', data.enableColorVariantSearch === true);
 
                     $('#extNetworkResetMethod').trigger('change');
                     addExtLog('Ustawienia załadowane', 'success');
@@ -546,8 +555,9 @@
             modemUrl: $('#extModemUrl').val(),
             useGpid: $('#extUseGpid').is(':checked'),
             modemPassword: $('#extModemPassword').val() || null,
-            modemRestartWaitSeconds: parseInt($('#extModemWait').val()) || 50 // Tutaj był główny błąd
-        };
+            modemRestartWaitSeconds: parseInt($('#extModemWait').val()) || 50, 
+            enableColorVariantSearch: $('#extEnableColorVariantSearch').is(':checked')
+            };
 
             try {
                 const response = await fetch('/api/external-scraper/settings', {
@@ -845,6 +855,17 @@
                     let googleLinkHtml = product.generatedGoogleUrl ? `<a href="${product.generatedGoogleUrl}" target="_blank" class="btn btn-sm btn-outline-primary">Szukaj</a>` : '';
                     let mainGoogleUrl = product.googleUrl ? `<a href="${product.googleUrl}" target="_blank" style="word-break: break-all; font-size: 0.85rem;">${product.googleUrl}</a>` : '';
 
+                    let colorCellHtml = '';
+                    if (product.googleColor) {
+                        colorCellHtml = `
+                            <div style="font-size: 0.7rem; line-height: 1.15;">
+                                <span class="badge bg-info text-dark" style="font-size: 0.7rem;">${product.googleColor}</span>
+                                ${product.googleColorCode ? `<br/><code style="font-size: 0.65rem; color: #6c757d;">${product.googleColorCode}</code>` : ''}
+                            </div>`;
+                    } else {
+                        colorCellHtml = '<span class="text-muted small">—</span>';
+                    }
+
                     let row = `
                         <tr id="productRow-${product.productId}" class="${hasExtraCatalogs ? 'table-info' : ''}">
                             <td><input type="checkbox" class="product-checkbox" value="${product.productId}" /></td>
@@ -856,6 +877,7 @@
                             </td>
                             <td>${statusBadge}</td>
                             <td>${mainGoogleUrl}</td>
+                            <td>${colorCellHtml}</td>
                             <td>${googleLinkHtml}</td>
                             <td>${mainIdsHtml}</td>
                         </tr>`;
@@ -895,6 +917,7 @@
                                             Link do Google
                                         </a>
                                     </td>
+                                    <td></td>
                                     <td></td>
                                     <td>${subIdsHtml}</td>
                                 </tr>`;

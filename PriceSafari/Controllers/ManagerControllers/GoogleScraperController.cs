@@ -108,6 +108,35 @@ public class GoogleScraperController : Controller
                 }
             }
         }
+
+        private string _googleColor;
+        public string GoogleColor
+        {
+            get => _googleColor;
+            set
+            {
+                if (_googleColor != value)
+                {
+                    _googleColor = value;
+                    IsDirty = true;
+                }
+            }
+        }
+
+        private string _googleColorCode;
+        public string GoogleColorCode
+        {
+            get => _googleColorCode;
+            set
+            {
+                if (_googleColorCode != value)
+                {
+                    _googleColorCode = value;
+                    IsDirty = true;
+                }
+            }
+        }
+
         public int? ProcessingByTaskId { get; set; }
         public bool IsDirty { get; set; }
 
@@ -133,6 +162,8 @@ public class GoogleScraperController : Controller
                 _status = ProductStatus.Found;
                 _googleUrl = product.GoogleUrl;
                 _googleGid = product.GoogleGid;
+                _googleColor = product.GoogleColor;
+                _googleColorCode = product.GoogleColorCode;
             }
             else if (product.FoundOnGoogle == false)
             {
@@ -179,7 +210,7 @@ public class GoogleScraperController : Controller
             }
         }
 
-        public void UpdateStatus(ProductStatus newStatus, string googleUrl = null, string cid = null, string gid = null)
+        public void UpdateStatus(ProductStatus newStatus, string googleUrl = null, string cid = null, string gid = null, string googleColor = null, string googleColorCode = null)
         {
             if (this.Status == ProductStatus.Found && (newStatus == ProductStatus.NotFound || newStatus == ProductStatus.Error))
             {
@@ -192,6 +223,8 @@ public class GoogleScraperController : Controller
                 this.GoogleUrl = googleUrl;
                 this.Cid = cid;
                 this.GoogleGid = gid;
+                this.GoogleColor = googleColor;
+                this.GoogleColorCode = googleColorCode;
             }
         }
 
@@ -1625,6 +1658,8 @@ public class GoogleScraperController : Controller
                 string currentGoogleUrlSnapshot = null;
                 string currentCidSnapshot = null;
                 string currentGidSnapshot = null;
+                string currentGoogleColorSnapshot = null;
+                string currentGoogleColorCodeSnapshot = null;
                 bool processThisProduct = false;
 
                 lock (productState)
@@ -1636,6 +1671,8 @@ public class GoogleScraperController : Controller
                         currentGoogleUrlSnapshot = productState.GoogleUrl;
                         currentCidSnapshot = productState.Cid;
                         currentGidSnapshot = productState.GoogleGid;
+                        currentGoogleColorSnapshot = productState.GoogleColor;
+                        currentGoogleColorCodeSnapshot = productState.GoogleColorCode;
                     }
                 }
 
@@ -1653,11 +1690,17 @@ public class GoogleScraperController : Controller
                         if (currentStatusSnapshot == ProductStatus.Found)
                         {
 
-                            if (dbProduct.FoundOnGoogle != true || dbProduct.GoogleUrl != currentGoogleUrlSnapshot || dbProduct.GoogleGid != currentGidSnapshot)
+                            if (dbProduct.FoundOnGoogle != true
+                                || dbProduct.GoogleUrl != currentGoogleUrlSnapshot
+                                || dbProduct.GoogleGid != currentGidSnapshot
+                                || dbProduct.GoogleColor != currentGoogleColorSnapshot
+                                || dbProduct.GoogleColorCode != currentGoogleColorCodeSnapshot)
                             {
                                 dbProduct.FoundOnGoogle = true;
                                 dbProduct.GoogleUrl = currentGoogleUrlSnapshot;
                                 dbProduct.GoogleGid = currentGidSnapshot;
+                                dbProduct.GoogleColor = currentGoogleColorSnapshot;
+                                dbProduct.GoogleColorCode = currentGoogleColorCodeSnapshot;
                                 changedInDb = true;
                             }
 
@@ -1665,11 +1708,13 @@ public class GoogleScraperController : Controller
                         else if (currentStatusSnapshot == ProductStatus.NotFound)
                         {
 
-                            if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null || dbProduct.GoogleGid != null)
+                            if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null || dbProduct.GoogleGid != null || dbProduct.GoogleColor != null || dbProduct.GoogleColorCode != null)
                             {
                                 dbProduct.FoundOnGoogle = false;
                                 dbProduct.GoogleUrl = null;
                                 dbProduct.GoogleGid = null;
+                                dbProduct.GoogleColor = null;
+                                dbProduct.GoogleColorCode = null;
                                 changedInDb = true;
                             }
                         }
@@ -2093,6 +2138,8 @@ int udmValue = 3)
                     p.Ean,
                     p.ProducerCode,
                     p.GoogleGid,
+                    p.GoogleColor,
+                    p.GoogleColorCode,
 
                     GeneratedGoogleUrl = generatedUrl,
 
@@ -2826,6 +2873,10 @@ int udmValue = 3)
 
         [JsonPropertyName("searchModeUdm")]
         public int SearchModeUdm { get; set; } = 3;
+
+
+        [JsonPropertyName("enableColorVariantSearch")]
+        public bool EnableColorVariantSearch { get; set; } = false;
     }
 
     public class ExternalScraperTask
@@ -2943,6 +2994,16 @@ int udmValue = 3)
         [JsonPropertyName("foundGid")]
         public string FoundGid { get; set; }
 
+        [JsonPropertyName("foundColor")]
+        public string FoundColor { get; set; }
+
+        [JsonPropertyName("foundColorFilter")]
+        public string FoundColorFilter { get; set; }
+
+        [JsonPropertyName("colorModeUsed")]
+        public bool ColorModeUsed { get; set; }
+
+
         [JsonPropertyName("matchedProducts")]
         public List<MatchedProductDto> MatchedProducts { get; set; }
     }
@@ -2983,6 +3044,12 @@ int udmValue = 3)
 
         [JsonPropertyName("gid")]
         public string Gid { get; set; }
+
+        [JsonPropertyName("color")]
+        public string Color { get; set; }
+
+        [JsonPropertyName("colorFilter")]
+        public string ColorFilter { get; set; }
     }
 
     public class NukeReportDto
@@ -3568,7 +3635,13 @@ int udmValue = 3)
                         switch (result.FinalStatus)
                         {
                             case "Found":
-                                productState.UpdateStatus(ProductStatus.Found, result.FoundGoogleUrl, result.FoundCid, result.FoundGid);
+                                productState.UpdateStatus(
+                                    ProductStatus.Found,
+                                    result.FoundGoogleUrl,
+                                    result.FoundCid,
+                                    result.FoundGid,
+                                    result.FoundColor,
+                                    result.FoundColorFilter);
 
                                 lock (_consoleLock)
                                 {
@@ -3578,6 +3651,13 @@ int udmValue = 3)
                                     Console.WriteLine($" ├─ Nazwa       : {productState.ProductNameInStoreForGoogle}");
                                     Console.WriteLine($" ├─ URL z bazy  : {productState.CleanedUrl}");
                                     Console.WriteLine($" ├─ CID Google  : {result.FoundCid}");
+                                    if (!string.IsNullOrEmpty(result.FoundColor))
+                                    {
+                                        Console.ForegroundColor = ConsoleColor.Magenta;
+                                        Console.WriteLine($" ├─ 🎨 Kolor    : {result.FoundColor}");
+                                        Console.WriteLine($" ├─ 🎨 PVF Code : {result.FoundColorFilter}");
+                                        Console.ForegroundColor = ConsoleColor.Green;
+                                    }
                                     Console.WriteLine($" └─ URL Google  : {result.FoundGoogleUrl}");
                                     Console.ResetColor();
                                 }
@@ -3627,7 +3707,13 @@ int udmValue = 3)
                         {
                             if (matchedState.Status != ProductStatus.Found)
                             {
-                                matchedState.UpdateStatus(ProductStatus.Found, matched.GoogleUrl, matched.Cid, matched.Gid);
+                                matchedState.UpdateStatus(
+                                    ProductStatus.Found,
+                                    matched.GoogleUrl,
+                                    matched.Cid,
+                                    matched.Gid,
+                                    matched.Color,
+                                    matched.ColorFilter);
 
                                 lock (_consoleLock)
                                 {
@@ -3638,6 +3724,11 @@ int udmValue = 3)
                                     Console.WriteLine($" ├─ Nazwa w bazie: {matchedState.ProductNameInStoreForGoogle}");
                                     Console.WriteLine($" ├─ URL z bazy   : {matchedState.CleanedUrl}");
                                     Console.WriteLine($" ├─ CID Google   : {matched.Cid}");
+                                    if (!string.IsNullOrEmpty(matched.Color))
+                                    {
+                                        Console.WriteLine($" ├─ 🎨 Kolor     : {matched.Color}");
+                                        Console.WriteLine($" ├─ 🎨 PVF Code  : {matched.ColorFilter}");
+                                    }
                                     Console.WriteLine($" └─ URL Google   : {matched.GoogleUrl}");
                                     Console.ResetColor();
                                 }
