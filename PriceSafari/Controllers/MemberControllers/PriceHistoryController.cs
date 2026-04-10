@@ -254,6 +254,7 @@ namespace PriceSafari.Controllers.MemberControllers
                                 ProductId = p.ProductId,
                                 ProductName = p.ProductName,
                                 Producer = p.Producer,
+                                GoogleColor = p.GoogleColor,
                                 Price = (ph != null ? ph.Price : (decimal?)null),
                                 StoreName = (ph != null ? ph.StoreName : null),
                                 ScrapHistoryId = (ph != null ? ph.ScrapHistoryId : (int?)null),
@@ -629,6 +630,7 @@ namespace PriceSafari.Controllers.MemberControllers
                            ProductId = product.ProductId,
                            ProductName = product.ProductName,
                            Producer = product.Producer,
+                           GoogleColor = product.GoogleColor,
                            LowestPrice = finalBestPrice,
                            StoreName = finalBestPriceEntry?.StoreName,
                            MyPrice = myPrice,
@@ -1269,6 +1271,7 @@ namespace PriceSafari.Controllers.MemberControllers
             public int ProductId { get; set; }
             public string ProductName { get; set; }
             public string? Producer { get; set; }
+            public string? GoogleColor { get; set; }
             public decimal? Price { get; set; }
             public string? StoreName { get; set; }
             public int? ScrapHistoryId { get; set; }
