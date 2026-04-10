@@ -136,9 +136,6 @@ namespace PriceSafari.Models
 
         public bool UseKSeF { get; set; } = false;
 
-
-        // Rozszerzone ustaweinia systemu, do scrapowania GS 
-        // Rozszerzone ustaweinia systemu, do scrapowania GS 
         [Display(Name = "Pobieraj tytuł z Google")]
         public bool GoogleGetTitle { get; set; } = false;
 
@@ -149,7 +146,9 @@ namespace PriceSafari.Models
         [Display(Name = "Kalkulacja cen za kilogram (Per KG)")]
         public bool UseCalculationEnginePerKG { get; set; } = false;
 
-        [Display(Name = "Szukaj wariantów kolorystycznych w Google")]
+
+        // nowe flagi
+        [Display(Name = "Tryb wariantów kolorystycznych")]
         public bool UseColorVariantSearch { get; set; } = false;
         public int IntervalLimitOfProducts { get; set; } = 0;
         public int AllegroIntervalLimitOfProducts { get; set; } = 0;

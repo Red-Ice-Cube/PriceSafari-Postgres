@@ -166,6 +166,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.GoogleGetTitle = store.GoogleGetTitle;
             existingStore.GoogleCountryCode = store.GoogleCountryCode;
             existingStore.UseCalculationEnginePerKG = store.UseCalculationEnginePerKG;
+            existingStore.UseColorVariantSearch = store.UseColorVariantSearch;
 
             if (!isPaymentDataEmpty && store.PaymentData != null)
             {
