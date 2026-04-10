@@ -33,6 +33,9 @@ public class CoOfrClass
     public List<string> StoreNames { get; set; } = new List<string>();
     public List<string> StoreProfiles { get; set; } = new List<string>();
 
+    public bool UseColorFilter { get; set; } = false;
+    public string? GoogleColorCode { get; set; }
+
     public virtual ICollection<CoOfrStoreData> StoreData { get; set; } = new List<CoOfrStoreData>();
 
     public string? GoogleCid { get; set; }

@@ -96,21 +96,23 @@ namespace PriceSafari.Services.GoogleScraping
                     "Scraper odpytał ponownie - ma aktywną paczkę", existingBatch.BatchId);
 
                 var existingTasks = await _context.CoOfrs
-                    .Where(c => existingBatch.TaskIds.Contains(c.Id))
-                    .Select(c => new
-                    {
-                        taskId = c.Id,
-                        url = c.GoogleOfferUrl,
-                        googleCid = c.GoogleCid,
-                        googleGid = c.GoogleGid,
-                        googleHid = c.GoogleHid,
-                        useGoogleHidOffer = c.UseGoogleHidOffer,
-                        useGPID = c.UseGPID,
-                        useWRGA = c.UseWRGA,
-                        googleGetTitle = c.GoogleGetTitle,
-                        googleCountryCode = c.GoogleCountryCode
-                    })
-                    .ToListAsync();
+                     .Where(c => existingBatch.TaskIds.Contains(c.Id))
+                     .Select(c => new
+                     {
+                         taskId = c.Id,
+                         url = c.GoogleOfferUrl,
+                         googleCid = c.GoogleCid,
+                         googleGid = c.GoogleGid,
+                         googleHid = c.GoogleHid,
+                         useGoogleHidOffer = c.UseGoogleHidOffer,
+                         useGPID = c.UseGPID,
+                         useWRGA = c.UseWRGA,
+                         googleGetTitle = c.GoogleGetTitle,
+                         googleCountryCode = c.GoogleCountryCode,
+                         useColorFilter = c.UseColorFilter,
+                         googleColorCode = c.GoogleColorCode
+                     })
+                     .ToListAsync();
 
                 return Ok(new
                 {
@@ -219,7 +221,9 @@ namespace PriceSafari.Services.GoogleScraping
                 useWRGA = c.UseWRGA,
                 collectGoogleStoreLinks = c.CollectGoogleStoreLinks,
                 googleGetTitle = c.GoogleGetTitle,
-                googleCountryCode = c.GoogleCountryCode
+                googleCountryCode = c.GoogleCountryCode,
+                useColorFilter = c.UseColorFilter,
+                googleColorCode = c.GoogleColorCode
             });
 
             _logger.LogInformation("Przydzielono paczkę {BatchId} ({Count} URLi) do {ScraperName}",

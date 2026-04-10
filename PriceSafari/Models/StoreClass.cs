@@ -149,7 +149,8 @@ namespace PriceSafari.Models
         [Display(Name = "Kalkulacja cen za kilogram (Per KG)")]
         public bool UseCalculationEnginePerKG { get; set; } = false;
 
-
+        [Display(Name = "Szukaj wariantów kolorystycznych w Google")]
+        public bool UseColorVariantSearch { get; set; } = false;
         public int IntervalLimitOfProducts { get; set; } = 0;
         public int AllegroIntervalLimitOfProducts { get; set; } = 0;
 
