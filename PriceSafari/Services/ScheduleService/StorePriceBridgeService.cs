@@ -128,11 +128,11 @@ namespace PriceSafari.Services.ScheduleService
                     List<PriceBridgeItemRequest> itemsToBridge,
                     bool isAutomation = false,
                     int? automationRuleId = null,
-                    // Parametry statystyk:
+
                     int totalProductsInRule = 0,
                     int targetMetCount = 0,
                     int targetUnmetCount = 0,
-                    // DODANE BRAKUJĄCE PARAMETRY:
+
                     int priceIncreasedCount = 0,
                     int priceDecreasedCount = 0,
                     int priceMaintainedCount = 0
@@ -255,14 +255,12 @@ namespace PriceSafari.Services.ScheduleService
 
             _logger.LogInformation($"[PrestaShop] Rozpoczynam przetwarzanie {itemsToBridge.Count} produktów.");
 
-            // === PRELOAD wszystkich produktów jedną query (zamiast N FindAsync) ===
             var productIds = itemsToBridge.Select(x => x.ProductId).Distinct().ToList();
             var productsDict = await _context.Products
                 .AsNoTracking()
                 .Where(p => productIds.Contains(p.ProductId))
                 .ToDictionaryAsync(p => p.ProductId);
 
-            // === RÓWNOLEGŁY PATCH z semaforem ===
             using var semaphore = new SemaphoreSlim(ParallelDegree);
 
             var patchTasks = itemsToBridge.Select(async itemRequest =>
@@ -341,13 +339,12 @@ namespace PriceSafari.Services.ScheduleService
 
             var patchOutcomes = await Task.WhenAll(patchTasks);
 
-            // === Single-threaded dokładanie wyników do EF ===
             var itemsToVerify = new List<PriceBridgeItem>();
             foreach (var outcome in patchOutcomes)
             {
                 if (outcome.BridgeItem == null)
                 {
-                    // Produkt nie istniał w bazie / brak ExternalId
+
                     result.FailedCount++;
                     result.Errors.Add(new StorePriceBridgeError
                     {
@@ -378,13 +375,11 @@ namespace PriceSafari.Services.ScheduleService
             await _context.SaveChangesAsync();
             _logger.LogInformation($"[PrestaShop] Zakończono wysyłanie. Sukcesy: {result.SuccessfulCount}, Błędy: {result.FailedCount}. Batch ID: {newBatch.Id}");
 
-            // === RÓWNOLEGŁA WERYFIKACJA ===
             if (itemsToVerify.Any())
             {
                 _logger.LogInformation($"[PrestaShop] Oczekiwanie 500ms przed weryfikacją (Boomerang)...");
                 await Task.Delay(500);
 
-                // Mapowanie bridgeItem -> shopProductId, żeby nie odpytywać dict w równoległym bloku niepotrzebnie
                 var verifyTasks = itemsToVerify.Select(async bridgeItem =>
                 {
                     await semaphore.WaitAsync();
@@ -421,7 +416,6 @@ namespace PriceSafari.Services.ScheduleService
 
                 var verifyOutcomes = await Task.WhenAll(verifyTasks);
 
-                // Single-threaded dokładanie wyników weryfikacji
                 foreach (var vo in verifyOutcomes)
                 {
                     if (vo.VerifiedPrice.HasValue)
@@ -455,8 +449,6 @@ namespace PriceSafari.Services.ScheduleService
                 string priceNetString = priceNet.ToString(CultureInfo.InvariantCulture);
 
                 string apiUrl = $"{baseUrl.TrimEnd('/')}/products/{productId}";
-
-                // Zbędny GET-check został usunięty — PATCH sam zwróci 404 jeśli produkt nie istnieje
 
                 string minXml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
                 <prestashop xmlns:xlink=""http://www.w3.org/1999/xlink"">
@@ -532,7 +524,6 @@ namespace PriceSafari.Services.ScheduleService
             }
         }
 
-        // === Pomocnicze klasy wyników (prywatne) ===
         private class PatchOutcome
         {
             public PriceBridgeItemRequest ItemRequest { get; set; }
