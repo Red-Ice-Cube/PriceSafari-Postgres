@@ -104,11 +104,6 @@ namespace PriceSafari.Services.ScheduleService
 
             // 4. Dla każdego produktu bez oferty — spróbuj dokleić
             var markerLower = (mapping.InStockMarkerValue ?? "").Trim().ToLower();
-            int maxGooglePosition = priceHistoriesBag
-                .Where(ph => ph.IsGoogle)
-                .Select(ph => ph.Position ?? 0)
-                .DefaultIfEmpty(0)
-                .Max();
 
             int appended = 0;
             foreach (var product in productsWithoutGoogleOffer)
@@ -139,7 +134,7 @@ namespace PriceSafari.Services.ScheduleService
                     ProductId = product.ProductId,
                     StoreName = canonicalStoreName,
                     Price = row.Price.Value,
-                    Position = ++maxGooglePosition,
+                    Position = null,
                     IsBidding = "XML",
                     ScrapHistory = scrapHistory,
                     IsGoogle = true,
