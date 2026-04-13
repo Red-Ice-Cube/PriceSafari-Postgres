@@ -176,30 +176,27 @@ namespace PriceSafari.Services.ScheduleService
         {
             var client = _httpClientFactory.CreateClient();
 
-            // Autoryzacja Basic Auth - IdoSell wymaga loginu i hasła.
-            // Zakładamy, że w bazie w kolumnie StoreApiKey przechowasz dane w formacie "login:hasło"
-            var authToken = Encoding.UTF8.GetBytes(store.StoreApiKey);
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(authToken));
+            // 1. Nowa, poprawna autoryzacja - dedykowany klucz API wstawiany z bazy
+            client.DefaultRequestHeaders.Add("X-API-KEY", store.StoreApiKey);
 
             // Wymagany przez IdoSell nagłówek Accept
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            // Zabezpieczenie przez podwójnym slashem w URL
+            // Zabezpieczenie przed podwójnym slashem w URL
             string baseUrl = store.StoreApiUrl.TrimEnd('/');
 
-            // Dzielimy na paczki (IdoSell ma limity zapytań, paczki po np. 50 sztuk są bezpieczne)
+            // Dzielimy na paczki po 50 sztuk
             var chunks = items.Chunk(50).ToList();
 
             foreach (var chunk in chunks)
             {
                 try
                 {
-                    // Endpoint API Admin v3 w IdoSell do pobierania detali produktów
                     string requestUrl = $"{baseUrl}/api/admin/v3/products/products/get";
 
                     var requestBody = new
                     {
-                        @params = new // <--- Dodany znak @ przed słowem kluczowym
+                        @params = new
                         {
                             products = chunk.Select(x => int.Parse(x.ProductExternalId)).ToArray()
                         }
@@ -213,8 +210,8 @@ namespace PriceSafari.Services.ScheduleService
                         var jsonString = await response.Content.ReadAsStringAsync();
                         var rootNode = JsonNode.Parse(jsonString);
 
-                        // Odpowiedzi w IdoSell są zazwyczaj pakowane w tablicę 'results'
-                        var productsArray = rootNode?["results"]?.AsArray();
+                        // IdoSell v3 zwraca produkty bezpośrednio w formie tablicy na głównym poziomie
+                        var productsArray = rootNode as JsonArray;
 
                         if (productsArray != null)
                         {
@@ -222,23 +219,21 @@ namespace PriceSafari.Services.ScheduleService
                             {
                                 var idStr = productNode?["productId"]?.ToString();
 
-                                // Ścieżka do ceny (zależy nieco od konfiguracji cen detalicznych/hurtowych w panelu)
-                                // W domyślnym zachowaniu cena widnieje w węźle retailPrice / price / gross
-                                var priceStr = productNode?["prices"]?["retailPrice"]?["gross"]?.ToString()
-                                            ?? productNode?["prices"]?["price"]?["gross"]?.ToString();
+                                // 2. Nowa ścieżka do ceny - dopasowana do Twojego JSON-a
+                                var priceStr = productNode?["productRetailPrice"]?.ToString();
 
                                 var itemToUpdate = chunk.FirstOrDefault(x => x.ProductExternalId == idStr);
 
                                 if (itemToUpdate != null && decimal.TryParse(priceStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal price))
                                 {
-                                    // Zakładamy, że pobraliśmy cenę brutto, więc nie dodajemy 1.23m jak w Preście
+                                    // Mamy cenę brutto z IdoSell
                                     itemToUpdate.ExtendedDataApiPrice = Math.Round(price, 2);
                                     itemToUpdate.IsApiProcessed = true;
                                 }
                             }
                         }
 
-                        // Oznaczamy resztę (np. produkty usunięte w IdoSell, których API nie zwróciło)
+                        // Oznaczamy resztę jako przetworzoną (np. produkty usunięte ze sklepu)
                         foreach (var item in chunk)
                         {
                             if (!item.IsApiProcessed) item.IsApiProcessed = true;
@@ -256,7 +251,6 @@ namespace PriceSafari.Services.ScheduleService
                     foreach (var item in chunk) item.IsApiProcessed = true;
                 }
 
-                // Opóźnienie zabezpieczające przed błędem "429 Too Many Requests" (Throttling)
                 await Task.Delay(300);
             }
         }
