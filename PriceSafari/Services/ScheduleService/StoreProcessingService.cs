@@ -2,6 +2,7 @@
 using PriceSafari.Data;
 using PriceSafari.Models;
 using PriceSafari.Models.DTOs;
+using PriceSafari.Services.ScheduleService;
 
 using System;
 using System.Collections.Concurrent;
@@ -252,7 +253,9 @@ public class StoreProcessingService
                 foundOurStoreCeneo = true;
             }
 
-            if (store.UseGoogleXMLFeedPrice && !foundOurStoreGoogle && (product.GoogleXMLPrice ?? 0) > 0)
+            // UWAGA: gdy CopyXMLPrices=true, pomijamy stary mechanizm UseGoogleXMLFeedPrice
+            // (nowy serwis CopyXmlPricesService zrobi to po pętli, mapując dynamicznie z XML)
+            if (store.UseGoogleXMLFeedPrice && !store.CopyXMLPrices && !foundOurStoreGoogle && (product.GoogleXMLPrice ?? 0) > 0)
             {
                 priceHistoriesBag.Add(new PriceHistoryClass
                 {
@@ -278,6 +281,27 @@ public class StoreProcessingService
                 }
             }
         }));
+
+        // ─── DOKLEJANIE CEN Z XML (CopyXMLPrices) ───
+        // Jeśli włączone — dla produktów którym nie znaleziono naszej oferty w Google,
+        // pobiera ceny z feedu XML używając zapisanego mapowania (EAN/ExternalId → cena, dostępność, shipping).
+        if (store.CopyXMLPrices)
+        {
+            var copyXmlService = new CopyXmlPricesService(_context);
+            var copyResult = await copyXmlService.AppendPricesForStoreAsync(
+                store, products, priceHistoriesBag, scrapHistory, canonicalStoreName);
+
+            // Produkty którym dokleiliśmy cenę → odznacz IsRejected
+            foreach (var pid in copyResult.ProductIdsWithAppended)
+            {
+                var prod = products.FirstOrDefault(p => p.ProductId == pid);
+                if (prod != null && prod.IsRejected)
+                {
+                    prod.IsRejected = false;
+                    updatedProductsBag.Add(prod);
+                }
+            }
+        }
 
         scrapHistory.PriceCount = priceHistoriesBag.Count;
         _context.ScrapHistories.Add(scrapHistory);
@@ -417,9 +441,7 @@ public class StoreProcessingService
         var jsonOptions = new JsonSerializerOptions
         {
             WriteIndented = true,
-            // To sprawi, że znaki takie jak + czy / będą czytelne w pliku tekstowym
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            // Opcjonalnie: upewnij się, że null-e nie zaśmiecają pliku, jeśli chcesz
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
         var jsonString = JsonSerializer.Serialize(feed, jsonOptions);
@@ -432,14 +454,6 @@ public class StoreProcessingService
         }
     }
 }
-
-
-
-
-
-
-
-
 
 
 

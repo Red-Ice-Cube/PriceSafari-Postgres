@@ -32,6 +32,7 @@
                             <th>Akcje</th>
                             <th>Wizard Ceneo</th>
                             <th>Wizard Google</th>
+                            <th>Wizard Copy XML</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -87,6 +88,21 @@
                                     else
                                     {
                                         <span>Brak URL do mapowania z Google Shopping</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(store.ProductMapXmlUrlGoogle))
+                                    {
+                                        <a asp-controller="CopyXmlPricesWizard"
+                                               asp-action="ShowCopyXmlWizard"
+                                               asp-route-storeId="@store.StoreId"
+                                               class="btn @(store.CopyXMLPrices ? "btn-success" : "btn-outline-secondary")">
+                                            @(store.CopyXMLPrices ? "✓ " : "") Doklejanie cen XML
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span>Brak URL Google XML</span>
                                     }
                                 </td>
                             </tr>

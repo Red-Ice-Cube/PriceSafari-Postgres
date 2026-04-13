@@ -80,7 +80,7 @@ namespace PriceSafari.Data
 
         public DbSet<IntervalPriceExecutionBatch> IntervalPriceExecutionBatches { get; set; }
         public DbSet<IntervalPriceExecutionItem> IntervalPriceExecutionItems { get; set; }
-
+        public DbSet<CopyXmlPriceMapping> CopyXmlPriceMappings { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

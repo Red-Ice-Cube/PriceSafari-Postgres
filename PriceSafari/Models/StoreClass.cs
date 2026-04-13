@@ -117,7 +117,8 @@ namespace PriceSafari.Models
         public bool CollectGoogleStoreLinks { get; set; } = false;
 
 
-  
+        [Display(Name = "Doklejanie cen z XML gdy brak oferty w Google")]
+        public bool CopyXMLPrices { get; set; } = false;
 
         [Display(Name = "Eksport XML/JSON dla API włączony")]
         public bool IsApiExportEnabled { get; set; } = false;
