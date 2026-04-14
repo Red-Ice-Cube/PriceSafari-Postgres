@@ -11,9 +11,11 @@ catch (e) { existingMappings = []; }
 let mappingForField = {
     "ExternalId": null, "Url": null, "GoogleEan": null, "GoogleImage": null,
     "GoogleExportedName": null, "GoogleExportedProducer": null,
-    "GoogleExportedProducerCode": null, "GoogleXMLPrice": null, "GoogleDeliveryXMLPrice": null
+    "GoogleExportedProducerCode": null,
+    "GoogleXMLPrice": null,
+    "GoogleXMLPromoPrice": null, // <--- DODANE
+    "GoogleDeliveryXMLPrice": null
 };
-
 existingMappings.forEach(m => {
     if (m.fieldName) mappingForField[m.fieldName] = { xpath: m.localName, nodeCount: 0, firstValue: "" };
 });
@@ -453,6 +455,22 @@ function extractProductsFromXml() {
     function extractChunk() {
         const end = Math.min(idx + CHUNK, entries.length);
         for (let i = idx; i < end; i++) {
+
+            // --- NOWA LOGIKA WYBORU CENY ---
+            const standardPriceRaw = getVal(entries[i], "GoogleXMLPrice", productNodeNameWithPredicate);
+            const promoPriceRaw = getVal(entries[i], "GoogleXMLPromoPrice", productNodeNameWithPredicate);
+
+            const parsedStandard = parseFloat(parsePrice(standardPriceRaw));
+            const parsedPromo = parseFloat(parsePrice(promoPriceRaw));
+
+            let finalPrice = null;
+            if (!isNaN(parsedPromo)) {
+                finalPrice = parsedPromo; // Nadpisuje, jeśli istnieje poprawna cena promocyjna
+            } else if (!isNaN(parsedStandard)) {
+                finalPrice = parsedStandard; // W przeciwnym razie bierze normalną
+            }
+            // -------------------------------
+
             const pm = {
                 StoreId: storeId.toString(),
                 ExternalId: getVal(entries[i], "ExternalId", productNodeNameWithPredicate),
@@ -462,9 +480,13 @@ function extractProductsFromXml() {
                 GoogleExportedName: getVal(entries[i], "GoogleExportedName", productNodeNameWithPredicate),
                 GoogleExportedProducer: getVal(entries[i], "GoogleExportedProducer", productNodeNameWithPredicate),
                 GoogleExportedProducerCode: getVal(entries[i], "GoogleExportedProducerCode", productNodeNameWithPredicate),
-                GoogleXMLPrice: parseFloat(parsePrice(getVal(entries[i], "GoogleXMLPrice", productNodeNameWithPredicate))) || null,
+
+                // Używamy wyliczonej ceny finałowej:
+                GoogleXMLPrice: finalPrice,
+
                 GoogleDeliveryXMLPrice: parseFloat(parsePrice(getVal(entries[i], "GoogleDeliveryXMLPrice", productNodeNameWithPredicate))) || null
             };
+
             if (onlyEan && (!pm.GoogleEan || !pm.GoogleEan.trim())) continue;
             if (pm.Url) {
                 const qIdx = pm.Url.indexOf('?');
@@ -484,7 +506,7 @@ function extractProductsFromXml() {
         }
     }
 
-    // Dwa rAF na starcie żeby pasek zdążył się pojawić
+    
     requestAnimationFrame(() => requestAnimationFrame(extractChunk));
 }
 
