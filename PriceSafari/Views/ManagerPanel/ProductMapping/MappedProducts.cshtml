@@ -24,6 +24,7 @@
     var googleEanCount = Model.Count(p => !string.IsNullOrEmpty(p.EanGoogle));
     var urlCount = Model.Count(p => !string.IsNullOrEmpty(p.Url));
     var externalIdCount = Model.Count(p => p.ExternalId.HasValue);
+    var noExternalIdCount = Model.Count(p => !p.ExternalId.HasValue);
     var googleXmlPriceCount = Model.Count(p => p.GoogleXMLPrice.HasValue);
     var ceneoXmlPriceCount = Model.Count(p => p.CeneoXMLPrice.HasValue);
     var googleScrapPriceCount = Model.Count(p => p.LastGooglePrice.HasValue);
@@ -71,7 +72,8 @@
                         <li>Z ceną C (Scrap): @ceneoScrapPriceCount</li>
                         <li>Z ceną G (XML): @googleXmlPriceCount</li>
                         <li>Z ceną C (XML): @ceneoXmlPriceCount</li>
-                        <li>Z External ID: @externalIdCount</li>
+                 
+                        <li>Z External ID: @externalIdCount <small class="text-muted">(bez: @noExternalIdCount)</small></li>
                         <li>Z kodem producenta: @producerCodeCount</li>
                         <li><small>(Różnica EAN G&ne;C: @eanMismatchCount)</small></li>
                     </ul>
@@ -110,8 +112,30 @@
                                 Nadpisz OfferUrl (Ceneo) z duplikatów na główny produkt
                             </label>
                         </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="fixExternalIds" value="true" id="fixExternalIdsCheck" />
+                            <label class="form-check-label" for="fixExternalIdsCheck">
+                                Napraw ExternalId z ProductMap
+                            </label>
+                        </div>
+                        <div class="mb-2 ms-4" id="fixIdMatchByWrapper" style="display: none;">
+                            <label class="form-label small mb-1">Dopasuj po:</label>
+                            <select class="form-select form-select-sm" name="fixIdMatchBy">
+                                <option value="url" selected>URL produktu</option>
+                                <option value="ean">EAN</option>
+                            </select>
+                        </div>
                         <button type="submit" class="btn btn-info w-100">
                             <i class="fas fa-link me-1"></i> Mapuj Produkty (połącz istniejące)
+                        </button>
+                    </form>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <form asp-action="ClearExternalIds" asp-controller="ProductMapping" method="post"
+                          onsubmit="return confirm('Czy na pewno wyczyścić ExternalId dla WSZYSTKICH produktów w sklepie @storeName? Następnie uruchom \'Utwórz / Zaktualizuj produkty z XML Map\', żeby zasilić ID na nowo z ProductMaps.');">
+                        <input type="hidden" name="storeId" value="@storeId" />
+                        <button type="submit" class="btn btn-outline-danger w-100">
+                            <i class="fas fa-eraser me-1"></i> Wyczyść ExternalId (reset)
                         </button>
                     </form>
                 </div>
@@ -246,6 +270,10 @@
                             <input class="form-check-input mismatch-filter" type="checkbox" id="show-api-mismatch">
                             <label class="form-check-label text-danger fw-bold" for="show-api-mismatch">Pokaż różnice Scrap &ne; API</label>
                         </div>
+                        <div class="form-check">
+                            <input class="form-check-input mismatch-filter" type="checkbox" id="show-no-external-id">
+                            <label class="form-check-label fw-bold" for="show-no-external-id">Pokaż tylko bez External ID</label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -316,7 +344,7 @@
                         bool apiMismatch = productVm.ExternalApiPrice.HasValue &&
                         ((productVm.LastGooglePrice.HasValue && productVm.LastGooglePrice != productVm.ExternalApiPrice) ||
                         (productVm.LastCeneoPrice.HasValue && productVm.LastCeneoPrice != productVm.ExternalApiPrice));
-
+                        bool noExternalId = !productVm.ExternalId.HasValue;
                         string rowClass = "";
                         if (gcScrapMismatch) rowClass += " gc-scrap-mismatch";
                         if (googleScrapXmlMismatch) rowClass += " google-scrap-xml-mismatch";
@@ -334,6 +362,7 @@
                             data-xml-prices-mismatch="@(xmlPricesMismatch.ToString().ToLower())"
                             data-ean-mismatch="@(eanMismatch.ToString().ToLower())"
                             data-api-mismatch="@(apiMismatch.ToString().ToLower())"
+                            data-no-external-id="@(noExternalId.ToString().ToLower())"
                             class="@rowClass.Trim()">
                             <td class="id-cell"><strong>@productVm.ProductId</strong></td>
                             <td>
@@ -584,7 +613,7 @@
             const tableRows = document.querySelectorAll('#product-table tbody tr');
             const visibleCountSpan = document.getElementById('visible-count');
             const tableVisibleCountSpan = document.getElementById('table-visible-count');
-
+            const showNoExternalIdCheckbox = document.getElementById('show-no-external-id');
             function applyFilters() {
                 const selectedStatuses = Array.from(statusCheckboxes)
                     .filter(ch => ch.checked).map(ch => ch.dataset.status);
@@ -596,6 +625,7 @@
                 const showXmlPricesMismatch = showXmlPricesMismatchCheckbox?.checked ?? false;
                 const showEanMismatch = showEanMismatchCheckbox?.checked ?? false;
                 const showApiMismatch = showApiMismatchCheckbox?.checked ?? false;
+                const showNoExternalId = showNoExternalIdCheckbox?.checked ?? false;
 
                 let visibleRowCount = 0;
                 tableRows.forEach(row => {
@@ -610,9 +640,10 @@
                     let xmlPricesMismatchMatch = !showXmlPricesMismatch || row.dataset.xmlPricesMismatch === 'true';
                     let eanMismatchMatch = !showEanMismatch || row.dataset.eanMismatch === 'true';
                     let apiMismatchMatch = !showApiMismatch || row.dataset.apiMismatch === 'true';
-
+                    let noExternalIdMatch = !showNoExternalId || row.dataset.noExternalId === 'true';
                     if (statusMatch && platformMatch && gcScrapMismatchMatch && googleScrapXmlMismatchMatch &&
-                        ceneoScrapXmlMismatchMatch && xmlPricesMismatchMatch && eanMismatchMatch && apiMismatchMatch) {
+                    ceneoScrapXmlMismatchMatch && xmlPricesMismatchMatch && eanMismatchMatch && apiMismatchMatch &&
+                    noExternalIdMatch) {
                         row.style.display = '';
                         visibleRowCount++;
                     } else {
@@ -631,7 +662,7 @@
             if (showXmlPricesMismatchCheckbox) showXmlPricesMismatchCheckbox.addEventListener('change', applyFilters);
             if (showEanMismatchCheckbox) showEanMismatchCheckbox.addEventListener('change', applyFilters);
             if (showApiMismatchCheckbox) showApiMismatchCheckbox.addEventListener('change', applyFilters);
-
+            if (showNoExternalIdCheckbox) showNoExternalIdCheckbox.addEventListener('change', applyFilters);
             // ================================================================
             // USUWANIE WIDOCZNYCH (bez zmian)
             // ================================================================
@@ -750,6 +781,17 @@
                         const cell = e.target.closest('.offer-url-cell');
                         if (cell) cell.querySelector('.offer-url-cancel-btn')?.click();
                     }
+                });
+            }
+
+            // ================================================================
+            // TOGGLE: pokazywanie selecta "Dopasuj po" dla naprawy ExternalId
+            // ================================================================
+            const fixIdsCheckbox = document.getElementById('fixExternalIdsCheck');
+            const fixIdMatchByWrapper = document.getElementById('fixIdMatchByWrapper');
+            if (fixIdsCheckbox && fixIdMatchByWrapper) {
+                fixIdsCheckbox.addEventListener('change', () => {
+                    fixIdMatchByWrapper.style.display = fixIdsCheckbox.checked ? '' : 'none';
                 });
             }
 

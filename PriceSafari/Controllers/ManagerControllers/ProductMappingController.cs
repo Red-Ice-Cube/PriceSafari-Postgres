@@ -284,11 +284,83 @@ namespace PriceSafari.Controllers.ManagerControllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> MapProducts(int storeId, bool mergeExisting = false)
+        public async Task<IActionResult> MapProducts(int storeId, bool mergeExisting = false, bool fixExternalIds = false, string fixIdMatchBy = "url")
         {
             var storeProducts = await _context.Products
                 .Where(p => p.StoreId == storeId)
                 .ToListAsync();
+
+            int fixedExternalIdCount = 0;
+
+            // ====================================================================
+            // KROK 0 (OPCJONALNY): Naprawa ExternalId z ProductMap
+            // Wykonujemy PRZED scalaniem, żeby grupowanie po ExternalId w kroku 1
+            // dostało już naprawione wartości i mogło połączyć produkty
+            // które wcześniej miały zepsute ID (np. 60431 zamiast 60).
+            // ====================================================================
+            if (fixExternalIds)
+            {
+                var productMaps = await _context.ProductMaps
+                    .Where(pm => pm.StoreId == storeId)
+                    .ToListAsync();
+
+                // Budujemy lookup z ProductMaps wg wybranego kryterium.
+                // Klucz = url/ean, wartość = ExternalId jako int (po normalizacji)
+                var idLookup = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var pm in productMaps)
+                {
+                    // ProductMap.ExternalId jest stringiem - parsujemy do int
+                    if (!int.TryParse(pm.ExternalId, out var parsedId)) continue;
+
+                    string key = null;
+                    if (fixIdMatchBy == "ean")
+                    {
+                        // Preferujemy GoogleEan, fallback na Ean
+                        key = !string.IsNullOrWhiteSpace(pm.GoogleEan) ? pm.GoogleEan.Trim()
+                            : !string.IsNullOrWhiteSpace(pm.Ean) ? pm.Ean.Trim()
+                            : null;
+                    }
+                    else // domyślnie "url"
+                    {
+                        key = !string.IsNullOrWhiteSpace(pm.Url) ? pm.Url.Trim() : null;
+                    }
+
+                    if (string.IsNullOrEmpty(key)) continue;
+
+                    // Last-write-wins; jeśli kilka mapów ma ten sam URL/EAN bierzemy ostatni.
+                    // Dla bezpieczeństwa moglibyśmy logować konflikty, ale zwykle to są warianty
+                    // tego samego produktu które po normalizacji ExternalId i tak dadzą tę samą wartość.
+                    idLookup[key] = parsedId;
+                }
+
+                foreach (var product in storeProducts)
+                {
+                    string productKey = null;
+                    if (fixIdMatchBy == "ean")
+                    {
+                        productKey = !string.IsNullOrWhiteSpace(product.EanGoogle) ? product.EanGoogle.Trim()
+                                   : !string.IsNullOrWhiteSpace(product.Ean) ? product.Ean.Trim()
+                                   : null;
+                    }
+                    else
+                    {
+                        productKey = !string.IsNullOrWhiteSpace(product.Url) ? product.Url.Trim() : null;
+                    }
+
+                    if (string.IsNullOrEmpty(productKey)) continue;
+
+                    if (idLookup.TryGetValue(productKey, out var correctId))
+                    {
+                        if (!product.ExternalId.HasValue || product.ExternalId.Value != correctId)
+                        {
+                            product.ExternalId = correctId;
+                            _context.Products.Update(product);
+                            fixedExternalIdCount++;
+                        }
+                    }
+                }
+            }
 
             // Zbiór ID produktów już scalonych (żeby nie wchodzić w nie ponownie)
             var mergedProductIds = new HashSet<int>();
@@ -364,7 +436,13 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = $"Scalono produkty. Przetworzono {mergedProductIds.Count} produktów w {groupsByExternalId.Count + groupsByEan.Count + groupsByName.Count} grupach.";
+            var msg = $"Scalono produkty. Przetworzono {mergedProductIds.Count} produktów w {groupsByExternalId.Count + groupsByEan.Count + groupsByName.Count} grupach.";
+            if (fixExternalIds)
+            {
+                msg += $" Naprawiono ExternalId (po {fixIdMatchBy}): {fixedExternalIdCount}.";
+            }
+            TempData["SuccessMessage"] = msg;
+
             return RedirectToAction("MappedProducts", new { storeId });
         }
 
@@ -784,7 +862,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         private void MapProductFields(ProductClass product, ProductMap mappedProduct, bool addGooglePrices)
         {
-
             if (!product.ExternalId.HasValue && int.TryParse(mappedProduct.ExternalId, out var externalId))
             {
                 product.ExternalId = externalId;
@@ -797,7 +874,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             if (!string.IsNullOrEmpty(mappedProduct.GoogleExportedName))
             {
-
                 if (string.IsNullOrEmpty(product.ProductName))
                     product.ProductName = mappedProduct.GoogleExportedName;
                 if (string.IsNullOrEmpty(product.ProductNameInStoreForGoogle))
@@ -810,7 +886,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
             else if (!string.IsNullOrEmpty(mappedProduct.ExportedName))
             {
-
                 if (string.IsNullOrEmpty(product.ProductName))
                     product.ProductName = mappedProduct.ExportedName;
                 if (string.IsNullOrEmpty(product.ExportedNameCeneo))
@@ -818,7 +893,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
             else
             {
-
                 if (string.IsNullOrEmpty(product.ProductName))
                     product.ProductName = "Brak nazwy produktu";
             }
@@ -851,7 +925,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             if (addGooglePrices)
             {
-
                 if (mappedProduct.GoogleXMLPrice.HasValue)
                 {
                     product.GoogleXMLPrice = mappedProduct.GoogleXMLPrice;
@@ -902,7 +975,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                     product.ProducerCode = mappedProduct.CeneoExportedProducerCode;
                 }
             }
-
         }
 
         [HttpPost]
@@ -994,7 +1066,33 @@ namespace PriceSafari.Controllers.ManagerControllers
             return Json(new { success = true, count = deletedCount });
         }
 
+        [HttpPost]
+        public async Task<IActionResult> ClearExternalIds(int storeId)
+        {
+            if (storeId <= 0)
+            {
+                TempData["ErrorMessage"] = "Nieprawidłowy identyfikator sklepu.";
+                return RedirectToAction("Index");
+            }
 
+            try
+            {
+                // ExecuteUpdateAsync - jedno zapytanie SQL, bez ładowania encji do pamięci.
+                // Działa na PostgreSQL, MS SQL i innych dostawcach EF Core 7+.
+                var clearedCount = await _context.Products
+                    .Where(p => p.StoreId == storeId && p.ExternalId != null)
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.ExternalId, (int?)null));
+
+                TempData["SuccessMessage"] = $"Wyczyszczono ExternalId dla {clearedCount} produktów. " +
+                    "Możesz teraz uruchomić 'Utwórz / Zaktualizuj produkty z XML Map', żeby zasilić je poprawnymi ID z ProductMaps.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Błąd przy czyszczeniu ExternalId: {ex.Message}";
+            }
+
+            return RedirectToAction("MappedProducts", new { storeId });
+        }
         public class MappedProductAllegroViewModel
         {
             public int AllegroProductId { get; set; }

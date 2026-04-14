@@ -154,80 +154,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             public string LocalName { get; set; }
         }
 
-        //[HttpPost]
-        //public async Task<IActionResult> SaveProductMapsFromFront([FromBody] List<ProductMapDto> productMaps)
-        //{
-        //    if (productMaps == null || productMaps.Count == 0)
-        //    {
-        //        return Json(new { success = false, message = "Brak productMaps" });
-        //    }
 
-        //    int storeId = productMaps[0].StoreId;
-        //    var existing = await _context.ProductMaps
-        //        .Where(pm => pm.StoreId == storeId)
-        //        .ToListAsync();
-
-        //    int added = 0, updated = 0;
-
-        //    foreach (var pmDto in productMaps)
-        //    {
-
-        //        if (!string.IsNullOrEmpty(pmDto.ExternalId))
-        //        {
-        //            pmDto.ExternalId = new string(pmDto.ExternalId.Where(c => char.IsDigit(c)).ToArray());
-        //        }
-
-        //        var found = existing.FirstOrDefault(x =>
-        //            x.Url == pmDto.Url
-        //            && x.ExternalId == pmDto.ExternalId
-        //        );
-
-        //        if (found == null)
-        //        {
-
-        //            var newMap = new ProductMap
-        //            {
-        //                StoreId = pmDto.StoreId,
-        //                ExternalId = pmDto.ExternalId,
-        //                Url = pmDto.Url,
-        //                GoogleEan = pmDto.GoogleEan,
-        //                GoogleImage = pmDto.GoogleImage,
-        //                GoogleExportedName = pmDto.GoogleExportedName,
-        //                GoogleExportedProducer = pmDto.GoogleExportedProducer,
-
-        //                GoogleXMLPrice = pmDto.GoogleXMLPrice,
-        //                GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice,
-        //                GoogleExportedProducerCode = pmDto.GoogleExportedProducerCode,
-
-        //            };
-
-        //            _context.ProductMaps.Add(newMap);
-        //            existing.Add(newMap);
-        //            added++;
-        //        }
-        //        else
-        //        {
-
-        //            found.ExternalId = pmDto.ExternalId;
-        //            found.Url = pmDto.Url;
-        //            found.GoogleEan = pmDto.GoogleEan;
-        //            found.GoogleImage = pmDto.GoogleImage;
-        //            found.GoogleExportedName = pmDto.GoogleExportedName;
-        //            found.GoogleExportedProducer = pmDto.GoogleExportedProducer;
-
-        //            found.GoogleXMLPrice = pmDto.GoogleXMLPrice;
-        //            found.GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice;
-
-        //            found.GoogleExportedProducerCode = pmDto.GoogleExportedProducerCode;
-
-        //            _context.ProductMaps.Update(found);
-        //            updated++;
-        //        }
-        //    }
-
-        //    await _context.SaveChangesAsync();
-        //    return Json(new { success = true, message = $"Dodano {added}, zaktualizowano {updated}." });
-        //}
 
         [HttpPost]
         public async Task<IActionResult> SaveProductMapsFromFront([FromBody] List<ProductMapDto> productMaps)
@@ -237,28 +164,68 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             int storeId = productMaps[0].StoreId;
 
-            // 1. Zabezpieczenie przed duplikatami z FRONTENDU
-            // Grupujemy po ExternalId i Url, bierzemy tylko pierwszy element z grupy
+            // 1. Najpierw normalizujemy ExternalId dla wszystkich DTO,
+            //    żeby grupowanie i lookupy działały na już oczyszczonych wartościach.
+            //
+            //    Format z XML: "55-431" gdzie 55 = productId, 431 = wariant rozmiaru.
+            //    Wszystkie warianty rozmiaru tego samego produktu mają tę samą cenę,
+            //    więc monitorujemy tylko bazowe productId (część przed pierwszym myślnikiem).
+            foreach (var pmDto in productMaps)
+            {
+                pmDto.ExternalId = NormalizeExternalId(pmDto.ExternalId);
+            }
+
+            // 2. Zabezpieczenie przed duplikatami z FRONTENDU - po normalizacji ExternalId
+            //    wiele wariantów (28-S, 28-M, 28-L) zlepi się w jeden klucz (28, url),
+            //    więc bierzemy tylko pierwszy z każdej grupy.
             var uniqueProductMaps = productMaps
                 .GroupBy(pm => new { pm.ExternalId, pm.Url })
                 .Select(g => g.First())
                 .ToList();
 
-            // 2. Pobierz istniejące z bazy do szybkiego wyszukiwania (Słownik)
-            var existingDict = await _context.ProductMaps
+            // 3. Pobierz istniejące rekordy z bazy
+            var existingList = await _context.ProductMaps
                 .Where(pm => pm.StoreId == storeId)
-                .ToDictionaryAsync(pm => new { pm.ExternalId, pm.Url });
+                .ToListAsync();
 
-            int added = 0, updated = 0;
+            // 3a. Główny słownik wyszukiwania - po (ExternalId, Url)
+            var existingByKey = existingList
+                .GroupBy(pm => new { pm.ExternalId, pm.Url })
+                .ToDictionary(g => g.Key, g => g.First());
+
+            // 3b. Dodatkowy lookup po samym Url - łapie przypadki gdzie zmienił się parser ExternalId
+            //     (stary rekord ma "60431", nowy przychodzi z "60", ale URL ten sam)
+            var existingByUrl = existingList
+                .Where(pm => !string.IsNullOrEmpty(pm.Url))
+                .GroupBy(pm => pm.Url)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            int added = 0, updated = 0, fixedIds = 0;
 
             foreach (var pmDto in uniqueProductMaps)
             {
-                if (!string.IsNullOrEmpty(pmDto.ExternalId))
-                    pmDto.ExternalId = new string(pmDto.ExternalId.Where(c => char.IsDigit(c)).ToArray());
-
                 var key = new { ExternalId = pmDto.ExternalId, Url = pmDto.Url };
+                ProductMap found = null;
 
-                if (existingDict.TryGetValue(key, out var found))
+                // Próba 1: dokładne dopasowanie po (ExternalId, Url)
+                if (existingByKey.TryGetValue(key, out var byKey))
+                {
+                    found = byKey;
+                }
+                // Próba 2: fallback po samym URL - łapie stare rekordy z błędnym ExternalId
+                else if (!string.IsNullOrEmpty(pmDto.Url) && existingByUrl.TryGetValue(pmDto.Url, out var byUrl))
+                {
+                    found = byUrl;
+
+                    // Naprawiamy stary, zepsuty ExternalId
+                    if (found.ExternalId != pmDto.ExternalId)
+                    {
+                        found.ExternalId = pmDto.ExternalId;
+                        fixedIds++;
+                    }
+                }
+
+                if (found != null)
                 {
                     // Aktualizacja istniejącego
                     found.GoogleEan = pmDto.GoogleEan;
@@ -269,8 +236,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                     found.GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice;
                     found.GoogleExportedProducerCode = pmDto.GoogleExportedProducerCode;
 
-                    // _context.Update(found) NIE JEST KONIECZNE, jeśli 'found' pochodzi bezpośrednio
-                    // z kontekstu bazy (EF sam śledzi zmiany). Ale można zostawić dla pewności.
                     updated++;
                 }
                 else
@@ -296,9 +261,35 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
 
             await _context.SaveChangesAsync();
-            return Json(new { success = true, message = $"Dodano {added}, zaktualizowano {updated}." });
+            return Json(new
+            {
+                success = true,
+                message = $"Dodano {added}, zaktualizowano {updated}, naprawiono ID: {fixedIds}."
+            });
         }
 
+        /// <summary>
+        /// Normalizuje ExternalId z formatu XML do bazowego productId.
+        /// Format wejściowy: "55-431", "70-143", "28-S" → bierzemy część przed pierwszym myślnikiem.
+        /// Następnie zostawiamy tylko cyfry (na wypadek prefiksów typu "ABC123" lub spacji).
+        /// </summary>
+        private static string NormalizeExternalId(string rawExternalId)
+        {
+            if (string.IsNullOrEmpty(rawExternalId))
+                return rawExternalId;
+
+            var trimmed = rawExternalId.Trim();
+
+            // Bierzemy tylko część przed pierwszym myślnikiem
+            var dashIndex = trimmed.IndexOf('-');
+            if (dashIndex > 0)
+            {
+                trimmed = trimmed.Substring(0, dashIndex);
+            }
+
+            // Zostawiamy tylko cyfry
+            return new string(trimmed.Where(char.IsDigit).ToArray());
+        }
         public class ProductMapDto
         {
             public int StoreId { get; set; }
