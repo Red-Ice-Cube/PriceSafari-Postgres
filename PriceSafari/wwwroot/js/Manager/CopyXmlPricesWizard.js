@@ -9,14 +9,13 @@ try {
     existingMapping = raw && raw !== "null" ? JSON.parse(raw) : null;
 } catch (e) { existingMapping = null; }
 
-// Mapa pól: Key, Price, PriceWithShipping, InStock
 let mappingForField = {
     "Key": null,
     "Price": null,
+    "PromoPrice": null, // <--- NOWE
     "PriceWithShipping": null,
     "InStock": null
 };
-
 let xmlDoc = null;
 let scrapableProducts = null; // cache produktów sklepu
 const RENDER_CHUNK = 1000;
@@ -30,6 +29,7 @@ if (existingMapping) {
     }
     if (existingMapping.keyXPath) mappingForField.Key = { xpath: existingMapping.keyXPath, nodeCount: 0, firstValue: "" };
     if (existingMapping.priceXPath) mappingForField.Price = { xpath: existingMapping.priceXPath, nodeCount: 0, firstValue: "" };
+    if (existingMapping.promoPriceXPath) mappingForField.PromoPrice = { xpath: existingMapping.promoPriceXPath, nodeCount: 0, firstValue: "" };
     if (existingMapping.priceWithShippingXPath) mappingForField.PriceWithShipping = { xpath: existingMapping.priceWithShippingXPath, nodeCount: 0, firstValue: "" };
     if (existingMapping.inStockXPath) mappingForField.InStock = { xpath: existingMapping.inStockXPath, nodeCount: 0, firstValue: "" };
     if (existingMapping.inStockMarkerValue) document.getElementById("inStockMarker").value = existingMapping.inStockMarkerValue;
@@ -221,7 +221,8 @@ function applyExistingMappings() {
 function renderMappingTable() {
     const tb = document.getElementById("mappingTable").querySelector("tbody");
     tb.innerHTML = "";
-    const labels = { Key: "Klucz (EAN/ID)", Price: "Cena", PriceWithShipping: "Cena z dostawą", InStock: "Dostępność" };
+    // Dodaj tłumaczenie etykiety dla tabelki:
+    const labels = { Key: "Klucz (EAN/ID)", Price: "Cena", PromoPrice: "Cena promocyjna", PriceWithShipping: "Cena z dostawą", InStock: "Dostępność" };
     for (const f in mappingForField) {
         const info = mappingForField[f];
         const tr = document.createElement("tr");
@@ -262,6 +263,7 @@ document.getElementById("saveMapping").addEventListener("click", function () {
         productNodeXPath: productNode,
         keyXPath: mappingForField.Key?.xpath,
         priceXPath: mappingForField.Price?.xpath,
+        promoPriceXPath: mappingForField.PromoPrice?.xpath,
         priceWithShippingXPath: mappingForField.PriceWithShipping?.xpath,
         inStockXPath: mappingForField.InStock?.xpath,
         inStockMarkerValue: document.getElementById("inStockMarker").value || null
@@ -282,6 +284,7 @@ document.getElementById("reloadMapping").addEventListener("click", function () {
             document.getElementById("keyFieldSelector").value = (d.keyField === 1 || d.keyField === "ExternalId") ? "ExternalId" : "Ean";
             if (d.keyXPath) mappingForField.Key = { xpath: d.keyXPath, nodeCount: 0, firstValue: "" };
             if (d.priceXPath) mappingForField.Price = { xpath: d.priceXPath, nodeCount: 0, firstValue: "" };
+            if (d.promoPriceXPath) mappingForField.PromoPrice = { xpath: d.promoPriceXPath, nodeCount: 0, firstValue: "" };
             if (d.priceWithShippingXPath) mappingForField.PriceWithShipping = { xpath: d.priceWithShippingXPath, nodeCount: 0, firstValue: "" };
             if (d.inStockXPath) mappingForField.InStock = { xpath: d.inStockXPath, nodeCount: 0, firstValue: "" };
             document.getElementById("inStockMarker").value = d.inStockMarkerValue || "";
@@ -324,9 +327,22 @@ document.getElementById("previewMapping").addEventListener("click", async functi
         const keyVal = getVal(entries[i], mappingForField.Key.xpath, lastSegment);
         if (!keyVal) continue;
         const k = keyVal.trim();
-        if (!k || xmlIndex[k]) continue; // pierwsze wystąpienie
+        if (!k || xmlIndex[k]) continue;
+
+        // --- LOGIKA CENY Z PROMOCJĄ ---
+        const parsedStandard = parsePrice(getVal(entries[i], mappingForField.Price.xpath, lastSegment));
+        const parsedPromo = mappingForField.PromoPrice ? parsePrice(getVal(entries[i], mappingForField.PromoPrice.xpath, lastSegment)) : null;
+
+        let finalPrice = null;
+        if (parsedPromo !== null && !isNaN(parsedPromo)) {
+            finalPrice = parsedPromo;
+        } else if (parsedStandard !== null && !isNaN(parsedStandard)) {
+            finalPrice = parsedStandard;
+        }
+        // ------------------------------
+
         xmlIndex[k] = {
-            price: parsePrice(getVal(entries[i], mappingForField.Price.xpath, lastSegment)),
+            price: finalPrice, // używamy wyliczonej ceny finalnej
             priceWithShipping: mappingForField.PriceWithShipping
                 ? parsePrice(getVal(entries[i], mappingForField.PriceWithShipping.xpath, lastSegment))
                 : null,

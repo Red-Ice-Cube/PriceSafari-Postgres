@@ -23,10 +23,14 @@ namespace PriceSafari.Services.ScheduleService
             public HashSet<int> ProductIdsWithAppended { get; set; } = new();
         }
 
-        /// <summary>
-        /// Dokleja ceny z XML dla produktów które NIE mają jeszcze naszej oferty w Google
-        /// w przekazanym zbiorze priceHistoriesBag.
-        /// </summary>
+        // <summary>
+
+        // Dokleja ceny z XML dla produktów które NIE mają jeszcze naszej oferty w Google
+
+        // w przekazanym zbiorze priceHistoriesBag.
+
+        // </summary>
+
         public async Task<CopyResult> AppendPricesForStoreAsync(
             StoreClass store,
             List<ProductClass> products,
@@ -56,7 +60,6 @@ namespace PriceSafari.Services.ScheduleService
                 return result;
             }
 
-            // 1. Zestaw ProductId które JUŻ mają naszą ofertę w Google
             var storeNameLower = canonicalStoreName.ToLower().Trim();
             var productsWithGoogleOffer = priceHistoriesBag
                 .Where(ph => ph.IsGoogle && ph.StoreName != null
@@ -74,7 +77,6 @@ namespace PriceSafari.Services.ScheduleService
                 return result;
             }
 
-            // 2. Załaduj XML
             string xmlContent;
             try
             {
@@ -86,7 +88,6 @@ namespace PriceSafari.Services.ScheduleService
                 return result;
             }
 
-            // 3. Parsuj XML i zbuduj index po kluczu
             var xmlDoc = new XmlDocument();
             try { xmlDoc.LoadXml(xmlContent); }
             catch (Exception ex)
@@ -102,7 +103,6 @@ namespace PriceSafari.Services.ScheduleService
                 return result;
             }
 
-            // 4. Dla każdego produktu bez oferty — spróbuj dokleić
             var markerLower = (mapping.InStockMarkerValue ?? "").Trim().ToLower();
 
             int appended = 0;
@@ -116,7 +116,6 @@ namespace PriceSafari.Services.ScheduleService
                 if (!index.TryGetValue(key, out var row)) continue;
                 if (row.Price == null || row.Price <= 0) continue;
 
-                // Dostępność
                 bool inStock = true;
                 if (mapping.InStockXPath != null && !string.IsNullOrEmpty(markerLower))
                 {
@@ -152,8 +151,6 @@ namespace PriceSafari.Services.ScheduleService
             return result;
         }
 
-        // ─── HELPERS ──────────────────────────
-
         private async Task<string> LoadXmlAsync(string url)
         {
             if (url.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
@@ -169,6 +166,8 @@ namespace PriceSafari.Services.ScheduleService
         private class XmlRow
         {
             public decimal? Price { get; set; }
+            public decimal? PromoPrice { get; set; }
+
             public decimal? PriceWithShipping { get; set; }
             public string? InStockRaw { get; set; }
         }
@@ -177,7 +176,6 @@ namespace PriceSafari.Services.ScheduleService
         {
             var result = new Dictionary<string, XmlRow>();
 
-            // Węzeł produktu: ostatni segment z ProductNodeXPath
             var productTag = mapping.ProductNodeXPath!.Split('/').LastOrDefault()?.Split('[').FirstOrDefault();
             if (string.IsNullOrEmpty(productTag)) return result;
 
@@ -187,11 +185,15 @@ namespace PriceSafari.Services.ScheduleService
                 var keyVal = ExtractValue(entry, mapping.KeyXPath!, mapping.ProductNodeXPath!);
                 if (string.IsNullOrWhiteSpace(keyVal)) continue;
                 var k = keyVal.Trim();
-                if (result.ContainsKey(k)) continue; // pierwsze wystąpienie
+                if (result.ContainsKey(k)) continue;
 
                 var row = new XmlRow
                 {
                     Price = ParsePrice(ExtractValue(entry, mapping.PriceXPath!, mapping.ProductNodeXPath!)),
+
+                    PromoPrice = !string.IsNullOrEmpty(mapping.PromoPriceXPath)
+                        ? ParsePrice(ExtractValue(entry, mapping.PromoPriceXPath, mapping.ProductNodeXPath!))
+                        : null,
                     PriceWithShipping = mapping.PriceWithShippingXPath != null
                         ? ParsePrice(ExtractValue(entry, mapping.PriceWithShippingXPath, mapping.ProductNodeXPath!))
                         : null,
@@ -199,15 +201,17 @@ namespace PriceSafari.Services.ScheduleService
                         ? ExtractValue(entry, mapping.InStockXPath, mapping.ProductNodeXPath!)
                         : null
                 };
+
+                if (row.PromoPrice.HasValue && row.PromoPrice.Value > 0)
+                {
+                    row.Price = row.PromoPrice.Value;
+                }
+
                 result[k] = row;
             }
             return result;
         }
 
-        /// <summary>
-        /// Wyciąga wartość z węzła produktu używając xpath pełnego (liczonego od korzenia).
-        /// Konwertuje na ścieżkę względną identycznie jak JS getVal().
-        /// </summary>
         private string? ExtractValue(XmlNode entryNode, string fullXPath, string productNodePath)
         {
             string productNodeName = productNodePath.Split('/').LastOrDefault() ?? "";
@@ -226,13 +230,12 @@ namespace PriceSafari.Services.ScheduleService
             bool valueMode = fullXPath.EndsWith("/#value");
             if (valueMode) relative = relative.Substring(0, relative.Length - "/#value".Length);
 
-            // Namespace Google Shopping
             var nsMgr = new XmlNamespaceManager(entryNode.OwnerDocument!.NameTable);
             nsMgr.AddNamespace("g", "http://base.google.com/ns/1.0");
 
             try
             {
-                // Obsługa ścieżki atrybutowej: /element/@attr
+
                 var attrMatch = Regex.Match(relative, @"^(.*)/@([^/]+)$");
                 if (attrMatch.Success)
                 {
@@ -245,7 +248,7 @@ namespace PriceSafari.Services.ScheduleService
                 var result = entryNode.SelectSingleNode(relative, nsMgr);
                 if (result == null)
                 {
-                    // Fallback po localName
+
                     var tag = relative.Replace(".", "").TrimStart('/').Split('/').LastOrDefault()?.Split(':').LastOrDefault();
                     if (!string.IsNullOrEmpty(tag))
                     {
