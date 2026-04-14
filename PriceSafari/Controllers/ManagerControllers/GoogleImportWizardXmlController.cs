@@ -235,7 +235,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                     found.GoogleXMLPrice = pmDto.GoogleXMLPrice;
                     found.GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice;
                     found.GoogleExportedProducerCode = pmDto.GoogleExportedProducerCode;
-
+                    found.OtherVariantEans = pmDto.OtherVariantEans;
                     updated++;
                 }
                 else
@@ -253,6 +253,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                         GoogleXMLPrice = pmDto.GoogleXMLPrice,
                         GoogleDeliveryXMLPrice = pmDto.GoogleDeliveryXMLPrice,
                         GoogleExportedProducerCode = pmDto.GoogleExportedProducerCode,
+                        OtherVariantEans = pmDto.OtherVariantEans,
                     };
 
                     _context.ProductMaps.Add(newMap);
@@ -302,6 +303,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             public decimal? GoogleXMLPrice { get; set; }
             public decimal? GoogleDeliveryXMLPrice { get; set; }
             public string? GoogleExportedProducerCode { get; set; }
+            public string? OtherVariantEans { get; set; }
 
         }
 

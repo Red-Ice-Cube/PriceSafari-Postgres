@@ -151,6 +151,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                  p.GoogleXMLPrice,
                  p.CeneoXMLPrice,
                  p.ProducerCode,
+                 p.OtherVariantEans,
              })
              .ToListAsync();
 
@@ -206,7 +207,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                     PriceDifference = diff,
                     ScrapId = latestScrapId,
                     ProducerCode = pData.ProducerCode,
-                    // 3. NOWE: Przypisanie ceny API
+                    OtherVariantEans = pData.OtherVariantEans,
                     ExternalApiPrice = apiPrice
                 };
                 vmList.Add(vm);
@@ -255,6 +256,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             public string? ProducerCode { get; set; }
             public string? GoogleProducerCode { get; set; }
             public string? CeneoProducerCode { get; set; }
+            public string? OtherVariantEans { get; set; }
         }
 
         [HttpPost]
@@ -454,6 +456,9 @@ namespace PriceSafari.Controllers.ManagerControllers
             var simplifiedName = Regex.Replace(name, @"[^\w]", "").ToUpperInvariant();
             return simplifiedName;
         }
+
+
+
         private void MergeProductData(ProductClass mainProduct, ProductClass duplicateProduct, bool mergeExisting = false)
         {
             // --- NOWE: Nadpisywanie OfferUrl gdy mergeExisting ---
@@ -530,7 +535,14 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (string.IsNullOrEmpty(mainProduct.ProducerCode) && !string.IsNullOrEmpty(duplicateProduct.ProducerCode))
             {
                 mainProduct.ProducerCode = duplicateProduct.ProducerCode;
+            
             }
+
+            mainProduct.OtherVariantEans = MergeVariantEans(
+                mainProduct.OtherVariantEans,
+                duplicateProduct.OtherVariantEans,
+                mainProduct.Ean,
+                mainProduct.EanGoogle);
 
             mainProduct.PriceHistories ??= new List<PriceHistoryClass>();
             foreach (var priceHistory in duplicateProduct.PriceHistories ?? Enumerable.Empty<PriceHistoryClass>())
@@ -553,6 +565,25 @@ namespace PriceSafari.Controllers.ManagerControllers
                     mainProduct.ProductFlags.Add(productFlag);
                 }
             }
+        }
+
+        private static string? MergeVariantEans(string? a, string? b, string? mainEan, string? mainEanGoogle)
+        {
+            var all = new List<string>();
+            if (!string.IsNullOrWhiteSpace(a)) all.AddRange(a.Split(',', StringSplitOptions.RemoveEmptyEntries));
+            if (!string.IsNullOrWhiteSpace(b)) all.AddRange(b.Split(',', StringSplitOptions.RemoveEmptyEntries));
+
+            var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(mainEan)) excluded.Add(mainEan.Trim());
+            if (!string.IsNullOrWhiteSpace(mainEanGoogle)) excluded.Add(mainEanGoogle.Trim());
+
+            var unique = all
+                .Select(e => e.Trim())
+                .Where(e => e.Length > 0 && !excluded.Contains(e))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            return unique.Count == 0 ? null : string.Join(",", unique);
         }
 
         [HttpPost]
@@ -705,7 +736,7 @@ namespace PriceSafari.Controllers.ManagerControllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateOrUpdateProductsFromProductMap(int storeId, bool addGooglePrices)
+        public async Task<IActionResult> CreateOrUpdateProductsFromProductMap(int storeId, bool addGooglePrices, bool addVariantEans)
         {
             var mappedProducts = await _context.ProductMaps
                 .Where(p => p.StoreId == storeId)
@@ -753,7 +784,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                 if (existingProduct != null)
                 {
-                    MapProductFields(existingProduct, mappedProduct, addGooglePrices);
+                    MapProductFields(existingProduct, mappedProduct, addGooglePrices, addVariantEans);
                     _context.Products.Update(existingProduct);
 
                     // --- NOWE: Szukaj sierot z pasującą nazwą Ceneo i scalaj ---
@@ -796,7 +827,7 @@ namespace PriceSafari.Controllers.ManagerControllers
                         Url = url
                     };
 
-                    MapProductFields(newProduct, mappedProduct, addGooglePrices);
+                    MapProductFields(newProduct, mappedProduct, addGooglePrices, addVariantEans);
                     _context.Products.Add(newProduct);
                 }
             }
@@ -860,7 +891,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("MappedProducts", new { storeId });
         }
 
-        private void MapProductFields(ProductClass product, ProductMap mappedProduct, bool addGooglePrices)
+        private void MapProductFields(ProductClass product, ProductMap mappedProduct, bool addGooglePrices, bool addVariantEans)
         {
             if (!product.ExternalId.HasValue && int.TryParse(mappedProduct.ExternalId, out var externalId))
             {
@@ -974,6 +1005,12 @@ namespace PriceSafari.Controllers.ManagerControllers
                 {
                     product.ProducerCode = mappedProduct.CeneoExportedProducerCode;
                 }
+            }
+            if (addVariantEans)
+            {
+                product.OtherVariantEans = string.IsNullOrWhiteSpace(mappedProduct.OtherVariantEans)
+                    ? null
+                    : mappedProduct.OtherVariantEans;
             }
         }
 
@@ -1152,11 +1189,30 @@ namespace PriceSafari.Controllers.ManagerControllers
             public int ProductId { get; set; }
         }
 
-        // ==================== NOWE METODY KONTROLERA ====================
+        [HttpPost]
+        public async Task<IActionResult> ClearVariantEans(int storeId)
+        {
+            if (storeId <= 0)
+            {
+                TempData["ErrorMessage"] = "Nieprawidłowy identyfikator sklepu.";
+                return RedirectToAction("Index");
+            }
 
-        /// <summary>
-        /// GET (AJAX → JSON): Podgląd klonowania ofert z Google do Ceneo.
-        /// </summary>
+            try
+            {
+                var clearedCount = await _context.Products
+                    .Where(p => p.StoreId == storeId && p.OtherVariantEans != null)
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.OtherVariantEans, (string?)null));
+
+                TempData["SuccessMessage"] = $"Wyczyszczono EAN-y wariantów dla {clearedCount} produktów.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Błąd przy czyszczeniu EAN-ów wariantów: {ex.Message}";
+            }
+
+            return RedirectToAction("MappedProducts", new { storeId });
+        }
         [HttpGet]
         public async Task<IActionResult> CloneGoogleOffersToCeneoPreview(int storeId)
         {

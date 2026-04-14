@@ -450,13 +450,12 @@ function extractProductsFromXml() {
     let productMaps = [];
     let countUrlsWithParams = 0;
     let idx = 0;
-    const CHUNK = 100; 
+    const CHUNK = 100;
 
     function extractChunk() {
         const end = Math.min(idx + CHUNK, entries.length);
         for (let i = idx; i < end; i++) {
 
-            // --- NOWA LOGIKA WYBORU CENY ---
             const standardPriceRaw = getVal(entries[i], "GoogleXMLPrice", productNodeNameWithPredicate);
             const promoPriceRaw = getVal(entries[i], "GoogleXMLPromoPrice", productNodeNameWithPredicate);
 
@@ -465,11 +464,10 @@ function extractProductsFromXml() {
 
             let finalPrice = null;
             if (!isNaN(parsedPromo)) {
-                finalPrice = parsedPromo; // Nadpisuje, jeśli istnieje poprawna cena promocyjna
+                finalPrice = parsedPromo;
             } else if (!isNaN(parsedStandard)) {
-                finalPrice = parsedStandard; // W przeciwnym razie bierze normalną
+                finalPrice = parsedStandard;
             }
-            // -------------------------------
 
             const pm = {
                 StoreId: storeId.toString(),
@@ -480,11 +478,9 @@ function extractProductsFromXml() {
                 GoogleExportedName: getVal(entries[i], "GoogleExportedName", productNodeNameWithPredicate),
                 GoogleExportedProducer: getVal(entries[i], "GoogleExportedProducer", productNodeNameWithPredicate),
                 GoogleExportedProducerCode: getVal(entries[i], "GoogleExportedProducerCode", productNodeNameWithPredicate),
-
-                // Używamy wyliczonej ceny finałowej:
                 GoogleXMLPrice: finalPrice,
-
-                GoogleDeliveryXMLPrice: parseFloat(parsePrice(getVal(entries[i], "GoogleDeliveryXMLPrice", productNodeNameWithPredicate))) || null
+                GoogleDeliveryXMLPrice: parseFloat(parsePrice(getVal(entries[i], "GoogleDeliveryXMLPrice", productNodeNameWithPredicate))) || null,
+                OtherVariantEans: null  // zostanie wypełnione w finishExtraction, jeśli checkbox włączony
             };
 
             if (onlyEan && (!pm.GoogleEan || !pm.GoogleEan.trim())) continue;
@@ -499,20 +495,33 @@ function extractProductsFromXml() {
         updateProgress(`Ekstrakcja ${idx} / ${entries.length} produktów... (znaleziono: ${productMaps.length})`, pct);
 
         if (idx < entries.length) {
-            // requestAnimationFrame zamiast setTimeout – przeglądarka odrysuje pasek przed następnym chunkiem
             requestAnimationFrame(() => setTimeout(extractChunk, 0));
         } else {
             finishExtraction(productMaps, countUrlsWithParams);
         }
     }
 
-    
     requestAnimationFrame(() => requestAnimationFrame(extractChunk));
 }
 
 function finishExtraction(productMaps, countUrlsWithParams) {
     hideProgress();
     document.getElementById("urlParamsInfo").textContent = "Liczba URL zawierających parametry: " + countUrlsWithParams;
+
+
+    const addVariantEansCheckbox = document.getElementById("addVariantEans");
+    const addVariantEans = addVariantEansCheckbox ? addVariantEansCheckbox.checked : false;
+
+    let eansByUrl = {};
+    if (addVariantEans) {
+        productMaps.forEach(pm => {
+            if (!pm.Url) return;
+            const ean = (pm.GoogleEan || "").trim();
+            if (!ean) return; // pomijamy puste EAN-y
+            if (!eansByUrl[pm.Url]) eansByUrl[pm.Url] = [];
+            if (!eansByUrl[pm.Url].includes(ean)) eansByUrl[pm.Url].push(ean);
+        });
+    }
 
     if (document.getElementById("removeDuplicateUrls").checked) {
         const seen = {};
@@ -525,6 +534,23 @@ function finishExtraction(productMaps, countUrlsWithParams) {
     if (document.getElementById("removeDuplicateProducerCodes").checked) {
         const seen = {};
         productMaps = productMaps.filter(pm => { if (!pm.GoogleExportedProducerCode) return true; if (seen[pm.GoogleExportedProducerCode]) return false; seen[pm.GoogleExportedProducerCode] = true; return true; });
+    }
+
+
+    if (addVariantEans) {
+        let productsWithVariants = 0;
+        let totalVariantEans = 0;
+        productMaps.forEach(pm => {
+            if (!pm.Url || !eansByUrl[pm.Url]) return;
+            const mainEan = (pm.GoogleEan || "").trim();
+            const variants = eansByUrl[pm.Url].filter(e => e !== mainEan);
+            if (variants.length > 0) {
+                pm.OtherVariantEans = variants.join(",");
+                productsWithVariants++;
+                totalVariantEans += variants.length;
+            }
+        });
+        console.log(`Warianty EAN: dodano do ${productsWithVariants} produktów, łącznie ${totalVariantEans} dodatkowych EAN-ów.`);
     }
 
     document.getElementById("productMapsPreview").textContent = JSON.stringify(productMaps, null, 2);

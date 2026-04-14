@@ -42,8 +42,12 @@ namespace PriceSafari.Models
         public string? CeneoExportedProducer { get; set; }
 
 
+
+
         // nowe pola kod producenta, 
         public string? GoogleExportedProducerCode { get; set; }
         public string? CeneoExportedProducerCode { get; set; }
+
+        public string? OtherVariantEans { get; set; }
     }
 }

@@ -99,6 +99,12 @@
                                 Dodaj ceny Google (Price + Delivery) z XML
                             </label>
                         </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="addVariantEans" value="true" id="addVariantEansCheck" />
+                            <label class="form-check-label" for="addVariantEansCheck">
+                                Dodaj EAN-y wariantów (OtherVariantEans) z ProductMap
+                            </label>
+                        </div>
                         <button type="submit" class="btn btn-success w-100">
                             <i class="fas fa-sync-alt me-1"></i> Utwórz / Zaktualizuj produkty z XML Map
                         </button>
@@ -170,6 +176,15 @@
                     <button type="button" class="btn btn-outline-primary w-100" id="btn-open-clone-modal">
                         <i class="fas fa-clone me-1"></i> Klonuj oferty Google → Ceneo
                     </button>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <form asp-action="ClearVariantEans" asp-controller="ProductMapping" method="post"
+                          onsubmit="return confirm('Czy na pewno wyczyścić wszystkie EAN-y wariantów (OtherVariantEans) dla sklepu @storeName?');">
+                        <input type="hidden" name="storeId" value="@storeId" />
+                        <button type="submit" class="btn btn-outline-warning w-100">
+                            <i class="fas fa-barcode me-1"></i> Wyczyść EAN-y wariantów
+                        </button>
+                    </form>
                 </div>
             </div>
             <div class="row">
@@ -312,6 +327,7 @@
                         <th>Nazwa (Google) <small>(@googleNameCount)</small></th>
                         <th>EAN (C) <small>(@ceneoEanCount)</small></th>
                         <th>EAN (G) <small>(@googleEanCount)</small></th>
+                        <th>EAN warianty</th>
                         <th>Kod Prod. (gl.) <small>(@producerCodeCount)</small></th>
                         <th>Kod Prod. (C) <small>(@ceneoProducerCodeCount)</small></th>
                         <th>Kod Prod. (G) <small>(@googleProducerCodeCount)</small></th>
@@ -334,7 +350,7 @@
                     @if (!Model.Any())
                     {
                         <tr>
-                            <td colspan="23" class="text-center text-muted">Brak zmapowanych produktów dla tego sklepu. Użyj akcji powyżej lub kreatorów importu.</td>
+                            <td colspan="24" class="text-center text-muted">Brak zmapowanych produktów dla tego sklepu. Użyj akcji powyżej lub kreatorów importu.</td>
                         </tr>
                     }
                     @foreach (var productVm in Model)
@@ -398,6 +414,20 @@
                             <td class="name-cell">@(productVm.NameGoogle ?? "(brak)")</td>
                             <td class="@(eanMismatch ? "ean-mismatch-cell text-danger fw-bold" : "")">@(productVm.EanCeneo ?? "(brak)")</td>
                             <td class="@(eanMismatch ? "ean-mismatch-cell text-danger fw-bold" : "")">@(productVm.EanGoogle ?? "(brak)")</td>
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(productVm.OtherVariantEans))
+                                {
+                                    var variants = productVm.OtherVariantEans.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                                    <span class="badge bg-info" title="@productVm.OtherVariantEans">+@variants.Length</span>
+                                    <div class="small text-muted" style="word-break: break-all; max-width: 160px;">
+                                        @string.Join(", ", variants)
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">—</span>
+                                }
+                            </td>
                             <td class="text-primary fw-bold">@(productVm.ProducerCode ?? "(brak)")</td>
                             <td class="@(productVm.GoogleProducerCode != productVm.CeneoProducerCode ? "text-danger fw-bold" : "")">@(productVm.CeneoProducerCode ?? "(brak)")</td>
                             <td class="@(productVm.GoogleProducerCode != productVm.CeneoProducerCode ? "text-danger fw-bold" : "")">@(productVm.GoogleProducerCode ?? "(brak)")</td>
