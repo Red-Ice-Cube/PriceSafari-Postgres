@@ -564,8 +564,8 @@
             useGpid: $('#extUseGpid').is(':checked'),
             modemPassword: $('#extModemPassword').val() || null,
             modemRestartWaitSeconds: parseInt($('#extModemWait').val()) || 50, 
-            enableColorVariantSearch: $('#extEnableColorVariantSearch').is(':checked')
-        useVariantEans: $('#extUseVariantEans').is(':checked')
+            enableColorVariantSearch: $('#extEnableColorVariantSearch').is(':checked'),
+            useVariantEans: $('#extUseVariantEans').is(':checked')
             };
 
             try {
@@ -614,6 +614,7 @@
         $.ajax({
         url: '@Url.Action("StartExternalScraping", "GoogleScraper")',
         type: 'POST',
+        traditional: true,
        data: {
             storeId: '@storeId',
             productIds: selectedProductIds,
