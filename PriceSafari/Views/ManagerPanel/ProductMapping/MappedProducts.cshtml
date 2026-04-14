@@ -140,6 +140,15 @@
                     </form>
                 </div>
                 <div class="col-md-4 mb-3">
+                    <form asp-action="ClearXmlPrices" asp-controller="ProductMapping" method="post"
+                          onsubmit="return confirm('Czy na pewno chcesz usunąć wszystkie ceny z XML (Google i Ceneo) dla sklepu @storeName?');">
+                        <input type="hidden" name="storeId" value="@storeId" />
+                        <button type="submit" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-comment-dollar me-1"></i> Wyczyść ceny XML
+                        </button>
+                    </form>
+                </div>
+                <div class="col-md-4 mb-3">
                     <form asp-action="UpdateEansFromProductMap" method="post" onsubmit="return confirm('Czy na pewno chcesz zaktualizować EANy dla produktów w sklepie \'@storeName\' na podstawie danych z ProductMap XML? Ta operacja może nadpisać istniejące EANy w bazie danych.');">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="storeId" value="@storeId" />

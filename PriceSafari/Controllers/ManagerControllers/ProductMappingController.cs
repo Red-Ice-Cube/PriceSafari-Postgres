@@ -1390,5 +1390,34 @@ namespace PriceSafari.Controllers.ManagerControllers
                 return Json(new { success = false, message = ex.Message });
             }
         }
+
+
+        [HttpPost]
+        public async Task<IActionResult> ClearXmlPrices(int storeId)
+        {
+            if (storeId <= 0)
+            {
+                TempData["ErrorMessage"] = "Nieprawidłowy identyfikator sklepu.";
+                return RedirectToAction("Index");
+            }
+
+            try
+            {
+                // ExecuteUpdateAsync pozwala zaktualizować oba pola naraz w jednym zapytaniu SQL
+                var clearedCount = await _context.Products
+                    .Where(p => p.StoreId == storeId && (p.GoogleXMLPrice != null || p.CeneoXMLPrice != null))
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(p => p.GoogleXMLPrice, (decimal?)null)
+                        .SetProperty(p => p.CeneoXMLPrice, (decimal?)null));
+
+                TempData["SuccessMessage"] = $"Pomyślnie wyczyszczono ceny XML (Google i Ceneo) dla {clearedCount} produktów.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Błąd przy czyszczeniu cen XML: {ex.Message}";
+            }
+
+            return RedirectToAction("MappedProducts", new { storeId });
+        }
     }
 }
