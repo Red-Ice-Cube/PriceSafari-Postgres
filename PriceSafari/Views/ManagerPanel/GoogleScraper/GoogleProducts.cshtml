@@ -250,6 +250,13 @@
                         <br /><small class="text-muted">Scrapuje każdy kolor osobno (wolniej, ale znajduje więcej ofert)</small>
                     </label>
                 </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="extUseVariantEans" />
+                    <label class="form-check-label small">
+                        <span class="text-info fw-bold">🏷️ Używaj dodatkowych EAN-ów wariantów</span>
+                        <br /><small class="text-muted">Dla "EAN → Shopping": jeśli główny EAN nie da dopasowania, próbuje kolejne warianty</small>
+                    </label>
+                </div>
             </div>
         </div>
 
@@ -411,6 +418,7 @@
             <th><input type="checkbox" id="selectAllProducts" /></th>
             <th>Product Name</th>
             <th>EAN</th>
+            <th>EAN warianty</th>
             <th>Kod Producenta</th>
             <th>Product URL</th>
             <th>Status</th>
@@ -530,7 +538,7 @@
                     $('#extModemUrl').val(data.modemUrl || 'http://192.168.1.1');
                     $('#extModemWait').val(data.modemRestartWaitSeconds || 50);
                     $('#extEnableColorVariantSearch').prop('checked', data.enableColorVariantSearch === true);
-
+        $('#extUseVariantEans').prop('checked', data.useVariantEans === true);
                     $('#extNetworkResetMethod').trigger('change');
                     addExtLog('Ustawienia załadowane', 'success');
                 }
@@ -557,6 +565,7 @@
             modemPassword: $('#extModemPassword').val() || null,
             modemRestartWaitSeconds: parseInt($('#extModemWait').val()) || 50, 
             enableColorVariantSearch: $('#extEnableColorVariantSearch').is(':checked')
+        useVariantEans: $('#extUseVariantEans').is(':checked')
             };
 
             try {
@@ -605,15 +614,16 @@
         $.ajax({
         url: '@Url.Action("StartExternalScraping", "GoogleScraper")',
         type: 'POST',
-        data: {
-        storeId: '@storeId',
-        productIds: selectedProductIds,
-        mode: mode,
-        maxCids: maxCids,
-        udm: udm,
-        prefix: prefix, // Przekazujemy wartość z nowego pola
-        appendProducerCode: appendCode,
-        compareOnlyCode: compareOnly
+       data: {
+            storeId: '@storeId',
+            productIds: selectedProductIds,
+            mode: mode,
+            maxCids: maxCids,
+            udm: udm,
+            prefix: prefix,
+            appendProducerCode: appendCode,
+            compareOnlyCode: compareOnly,
+            useVariantEans: $('#extUseVariantEans').is(':checked')  // NOWE
         },
         success: function(response) {
         if (response.success) {
@@ -866,11 +876,23 @@
                         colorCellHtml = '<span class="text-muted small">—</span>';
                     }
 
+                    let variantEansHtml = '';
+                    if (product.otherVariantEans && product.otherVariantEans.trim()) {
+                        const variants = product.otherVariantEans.split(',').map(e => e.trim()).filter(e => e);
+                        variantEansHtml = `<div class="small text-muted" style="word-break: break-all; max-width: 160px;" title="${product.otherVariantEans}">
+                            <span class="badge bg-info">+${variants.length}</span>
+                            <div style="font-size: 0.7rem; margin-top: 2px;">${variants.join(', ')}</div>
+                        </div>`;
+                    } else {
+                        variantEansHtml = '<span class="text-muted small">—</span>';
+                    }
+
                     let row = `
                         <tr id="productRow-${product.productId}" class="${hasExtraCatalogs ? 'table-info' : ''}">
                             <td><input type="checkbox" class="product-checkbox" value="${product.productId}" /></td>
                             <td><small>${product.productNameInStoreForGoogle || ''}</small><br/>${typeBadge}</td>
                             <td>${product.ean || ''}</td>
+        <td>${variantEansHtml}</td>
                             <td class="fw-bold text-primary">${product.producerCode || ''}</td>
                             <td style="max-width: 250px; word-break: break-all;">
                                 <a href="${product.url || '#'}" target="_blank">${product.url || '-'}</a>
@@ -908,7 +930,7 @@
                             let subRow = `
                                 <tr style="background-color: #f0faff;">
                                     <td></td>
-                                    <td colspan="4" class="text-end text-muted small">
+                                    <td colspan="5" class="text-end text-muted small">
                                         <i class="bi bi-arrow-return-right"></i> Dodatkowy (${i+1}):
                                     </td>
                                     <td>${subTypeBadge}</td>

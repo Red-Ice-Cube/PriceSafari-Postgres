@@ -50,6 +50,7 @@ public class GoogleScraperController : Controller
         public string ProductNameInStoreForGoogle { get; set; }
 
         public string Ean { get; set; }
+        public string OtherVariantEans { get; set; }
         public string ProducerCode { get; set; }
 
         private ProductStatus _status;
@@ -155,6 +156,7 @@ public class GoogleScraperController : Controller
 
             ProductNameInStoreForGoogle = product.ProductNameInStoreForGoogle;
             Ean = product.Ean;
+            OtherVariantEans = product.OtherVariantEans;
             ProducerCode = product.ProducerCode;
 
             if (product.FoundOnGoogle == true)
@@ -2140,7 +2142,7 @@ int udmValue = 3)
                     p.GoogleGid,
                     p.GoogleColor,
                     p.GoogleColorCode,
-
+                    p.OtherVariantEans,
                     GeneratedGoogleUrl = generatedUrl,
 
                     GoogleCatalogs = p.GoogleCatalogs?.Select(gc => new {
@@ -2877,6 +2879,9 @@ int udmValue = 3)
 
         [JsonPropertyName("enableColorVariantSearch")]
         public bool EnableColorVariantSearch { get; set; } = false;
+
+        [JsonPropertyName("useVariantEans")]
+        public bool UseVariantEans { get; set; } = false;
     }
 
     public class ExternalScraperTask
@@ -2911,6 +2916,8 @@ int udmValue = 3)
 
         [JsonPropertyName("ean")]
         public string Ean { get; set; }
+        [JsonPropertyName("extraEans")]
+        public List<string> ExtraEans { get; set; } = new();
 
         [JsonPropertyName("producerCode")]
         public string ProducerCode { get; set; }
@@ -3246,6 +3253,7 @@ int udmValue = 3)
                     targetCode = task.TargetCode,
                     eligibleProductsMap = task.EligibleProductsMap,
                     useGpid = task.UseGpid,
+                    extraEans = task.ExtraEans,
                 }
             });
         }
@@ -3371,7 +3379,8 @@ int udmValue = 3)
          bool appendProducerCode = false,
          bool compareOnlyCode = false,
          string prefix = null,
-         int udm = 3)
+         int udm = 3,
+         bool useVariantEans = false)
     {
 
         int activeScrapers = _registeredScrapers.Values.Count(s => s.IsActive);
@@ -3398,6 +3407,7 @@ int udmValue = 3)
             _externalScraperSettings.CompareOnlyCurrentProductCode = compareOnlyCode;
             _externalScraperSettings.ProductNamePrefix = prefix;
             _externalScraperSettings.SearchModeUdm = udm;
+            _externalScraperSettings.UseVariantEans = useVariantEans;
         }
 
         InitializeMasterProductListIfNeeded(storeId, productIds, false, requireUrl: mode == "Standard");
@@ -3458,12 +3468,28 @@ int udmValue = 3)
             else
             {
                 searchTerm = product.ProductNameInStoreForGoogle;
-
                 if (appendProducerCode && !string.IsNullOrEmpty(product.ProducerCode))
                     searchTerm = $"{searchTerm} {product.ProducerCode}";
-
                 if (!string.IsNullOrEmpty(prefix))
                     searchTerm = $"{prefix} {searchTerm}";
+            }
+
+            // NOWE: rozpakowanie i normalizacja wariantów EAN - tylko dla MatchByEan gdy flaga on
+            List<string> extraEans = new();
+            if (mode == "MatchByEan" && useVariantEans && !string.IsNullOrWhiteSpace(product.OtherVariantEans))
+            {
+                var mainEanTrimmed = product.Ean?.Trim() ?? "";
+                extraEans = product.OtherVariantEans
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(e => e.Trim())
+                    .Where(e => e.Length > 0 && !string.Equals(e, mainEanTrimmed, StringComparison.OrdinalIgnoreCase))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (extraEans.Any())
+                {
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] [MatchByEan] Produkt ID {product.ProductId}: główny EAN={product.Ean}, dodatkowych wariantów: {extraEans.Count} ({string.Join(",", extraEans)})");
+                }
             }
 
             var task = new ExternalScraperTask
@@ -3483,6 +3509,7 @@ int udmValue = 3)
                 EligibleProductsMap = eligibleProductsMap,
                 TargetCode = product.ProducerCode,
                 UseGpid = _externalScraperSettings.UseGpid,
+                ExtraEans = extraEans,  // NOWE
             };
 
             _externalTaskQueue.Enqueue(task);
@@ -3807,6 +3834,26 @@ int udmValue = 3)
                         searchTerm = $"{_externalScraperSettings.ProductNamePrefix} {searchTerm}";
                 }
 
+                // NOWE: rozpakowanie i normalizacja wariantów EAN — tylko dla MatchByEan gdy flaga on
+                List<string> extraEans = new();
+                if (mode == "MatchByEan"
+                    && _externalScraperSettings.UseVariantEans
+                    && !string.IsNullOrWhiteSpace(product.OtherVariantEans))
+                {
+                    var mainEanTrimmed = product.Ean?.Trim() ?? "";
+                    extraEans = product.OtherVariantEans
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(e => e.Trim())
+                        .Where(e => e.Length > 0 && !string.Equals(e, mainEanTrimmed, StringComparison.OrdinalIgnoreCase))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    if (extraEans.Any())
+                    {
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] [MatchByEan] Produkt ID {product.ProductId}: główny EAN={product.Ean}, dodatkowych wariantów: {extraEans.Count} ({string.Join(",", extraEans)})");
+                    }
+                }
+
                 var task = new ExternalScraperTask
                 {
                     TaskId = $"product_{product.ProductId}_{Guid.NewGuid():N}",
@@ -3825,6 +3872,7 @@ int udmValue = 3)
 
                     TargetCode = product.ProducerCode,
                     UseGpid = _externalScraperSettings.UseGpid,
+                    ExtraEans = extraEans,  // NOWE
                 };
 
                 _externalTaskQueue.Enqueue(task);
