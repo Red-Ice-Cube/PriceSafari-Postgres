@@ -175,56 +175,60 @@ namespace PriceSafari.Services.ScheduleService
         private async Task ProcessIdoSellBatchAsync(StoreClass store, List<CoOfrStoreData> items)
         {
             var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Add("X-API-KEY", store.StoreApiKey);
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            client.Timeout = TimeSpan.FromSeconds(60);
 
             string baseUrl = store.StoreApiUrl.TrimEnd('/');
-            var chunks = items.Chunk(50).ToList();
+            var chunks = items.Chunk(100).ToList(); // GET endpoint pozwala na 100 ID per request
 
-            _logger.LogInformation($"[{store.StoreName}] IdoSell: {items.Count} produktów do pobrania, podzielone na {chunks.Count} paczek (po max 50).");
+            _logger.LogInformation($"[{store.StoreName}] IdoSell: {items.Count} produktów do pobrania, podzielone na {chunks.Count} paczek (po max 100).");
 
             int chunkIndex = 0;
             int totalMatched = 0;
             int totalPriceParsed = 0;
+            int totalRetriedLater = 0;
 
             foreach (var chunk in chunks)
             {
                 chunkIndex++;
-                // IdoSell ebikeserwis.pl - działa v3, v5 zwraca 404
-                string requestUrl = $"{baseUrl}/api/admin/v3/products/products/get";
 
-                var productIds = new List<int>();
+                // Mapa: int productId -> CoOfrStoreData
+                var itemsById = new Dictionary<int, CoOfrStoreData>();
                 foreach (var x in chunk)
                 {
                     if (int.TryParse(x.ProductExternalId, out int pid))
-                        productIds.Add(pid);
+                    {
+                        itemsById[pid] = x;
+                    }
                     else
-                        _logger.LogWarning($"[{store.StoreName}] IdoSell: pomijam nieprawidłowe ProductExternalId='{x.ProductExternalId}'.");
+                    {
+                        _logger.LogWarning($"[{store.StoreName}] IdoSell: pomijam nieprawidłowe ProductExternalId='{x.ProductExternalId}', oznaczam jako przetworzone.");
+                        x.IsApiProcessed = true;
+                    }
                 }
 
-                if (productIds.Count == 0)
+                if (itemsById.Count == 0)
                 {
-                    _logger.LogWarning($"[{store.StoreName}] IdoSell: paczka {chunkIndex}/{chunks.Count} - brak prawidłowych ID, oznaczam jako przetworzone.");
-                    foreach (var item in chunk) item.IsApiProcessed = true;
+                    _logger.LogWarning($"[{store.StoreName}] IdoSell: paczka {chunkIndex}/{chunks.Count} - brak prawidłowych ID, pomijam.");
                     continue;
                 }
 
-                var requestBody = new
-                {
-                    @params = new
-                    {
-                        products = productIds.ToArray()
-                    }
-                };
+                // GET endpoint /api/admin/v3/products/products z parametrem productIds w query stringu.
+                // IdoSell przyjmuje wartości oddzielone przecinkiem. Max 100 ID per request.
+                var idsCsv = string.Join(",", itemsById.Keys);
+                string requestUrl = $"{baseUrl}/api/admin/v3/products/products?productIds={idsCsv}";
 
-                var requestJson = System.Text.Json.JsonSerializer.Serialize(requestBody);
-                _logger.LogInformation($"[{store.StoreName}] IdoSell: paczka {chunkIndex}/{chunks.Count} -> POST {requestUrl} | IDs: [{string.Join(",", productIds)}]");
-                _logger.LogDebug($"[{store.StoreName}] IdoSell: request body = {requestJson}");
+                _logger.LogInformation($"[{store.StoreName}] IdoSell: paczka {chunkIndex}/{chunks.Count} -> GET (productIds: {itemsById.Count})");
+                _logger.LogDebug($"[{store.StoreName}] IdoSell: full URL = {requestUrl}");
+
+                bool transientError = false;
 
                 try
                 {
-                    var jsonContent = new StringContent(requestJson, Encoding.UTF8, "application/json");
-                    var response = await client.PostAsync(requestUrl, jsonContent);
+                    using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+                    request.Headers.Add("X-API-KEY", store.StoreApiKey);
+                    request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                    using var response = await client.SendAsync(request);
                     var jsonString = await response.Content.ReadAsStringAsync();
 
                     _logger.LogInformation($"[{store.StoreName}] IdoSell: paczka {chunkIndex}/{chunks.Count} <- HTTP {(int)response.StatusCode}, długość odpowiedzi: {jsonString?.Length ?? 0} znaków");
@@ -234,24 +238,40 @@ namespace PriceSafari.Services.ScheduleService
 
                     if (!response.IsSuccessStatusCode)
                     {
-                        _logger.LogWarning($"[{store.StoreName}] IdoSell: błąd HTTP {(int)response.StatusCode}. Treść: {preview}");
-                        foreach (var item in chunk) item.IsApiProcessed = true;
+                        int status = (int)response.StatusCode;
+                        if (status >= 500)
+                        {
+                            transientError = true;
+                            _logger.LogWarning($"[{store.StoreName}] IdoSell: HTTP {status} (przejściowy). Paczka {chunkIndex} zostanie ponowiona w kolejnym przebiegu.");
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"[{store.StoreName}] IdoSell: HTTP {status} (trwały). Treść: {preview}. Oznaczam paczkę jako przetworzoną.");
+                            foreach (var item in itemsById.Values) item.IsApiProcessed = true;
+                        }
                         continue;
                     }
 
-                    var rootNode = JsonNode.Parse(jsonString);
+                    JsonNode rootNode;
+                    try
+                    {
+                        rootNode = JsonNode.Parse(jsonString);
+                    }
+                    catch (Exception parseEx)
+                    {
+                        _logger.LogError(parseEx, $"[{store.StoreName}] IdoSell: błąd parsowania JSON. Treść: {preview}");
+                        foreach (var item in itemsById.Values) item.IsApiProcessed = true;
+                        continue;
+                    }
 
-                    // IdoSell v3 zwraca { "results": [...] }. Awaryjnie obsługujemy też "products" oraz tablicę top-level.
-                    JsonArray productsArray =
-                        (rootNode?["results"] as JsonArray)
-                        ?? (rootNode?["products"] as JsonArray)
-                        ?? (rootNode as JsonArray);
+                    // Endpoint GET /products/products zwraca { "resultsLimit": N, "results": [...] }
+                    JsonArray productsArray = rootNode?["results"] as JsonArray;
 
                     if (productsArray == null)
                     {
                         var keys = rootNode is JsonObject obj ? string.Join(",", obj.Select(k => k.Key)) : "(brak/inny typ)";
-                        _logger.LogWarning($"[{store.StoreName}] IdoSell: nie znaleziono tablicy 'results'/'products' w odpowiedzi. Klucze top-level: {keys}");
-                        foreach (var item in chunk) item.IsApiProcessed = true;
+                        _logger.LogWarning($"[{store.StoreName}] IdoSell: nie znaleziono tablicy 'results'. Klucze top-level: {keys}. Oznaczam paczkę.");
+                        foreach (var item in itemsById.Values) item.IsApiProcessed = true;
                         continue;
                     }
 
@@ -265,17 +285,21 @@ namespace PriceSafari.Services.ScheduleService
                         if (productNode == null) continue;
 
                         var idStr = productNode["productId"]?.ToString();
-
-                        decimal? grossPrice = ExtractIdoSellGrossPrice(productNode, store.StoreName, idStr);
-
-                        var itemToUpdate = chunk.FirstOrDefault(x => x.ProductExternalId == idStr);
-                        if (itemToUpdate == null)
+                        if (!int.TryParse(idStr, out int productIdInt))
                         {
-                            _logger.LogWarning($"[{store.StoreName}] IdoSell: nie znaleziono dopasowania w paczce dla productId={idStr}.");
+                            _logger.LogWarning($"[{store.StoreName}] IdoSell: produkt z odpowiedzi ma nieprawidłowe productId='{idStr}', pomijam.");
+                            continue;
+                        }
+
+                        if (!itemsById.TryGetValue(productIdInt, out var itemToUpdate))
+                        {
+                            _logger.LogWarning($"[{store.StoreName}] IdoSell: API zwróciło productId={productIdInt}, którego nie pytaliśmy.");
                             continue;
                         }
 
                         matchedInChunk++;
+
+                        decimal? grossPrice = ExtractIdoSellGrossPrice(productNode, store.StoreName, idStr);
 
                         if (grossPrice.HasValue && grossPrice.Value > 0)
                         {
@@ -283,97 +307,70 @@ namespace PriceSafari.Services.ScheduleService
                             itemToUpdate.IsApiProcessed = true;
                             priceParsedInChunk++;
 
-                            _logger.LogInformation($"[{store.StoreName}] IdoSell: id={idStr} -> cena BRUTTO {itemToUpdate.ExtendedDataApiPrice} PLN");
+                            _logger.LogInformation($"[{store.StoreName}] IdoSell: id={productIdInt} -> cena BRUTTO {itemToUpdate.ExtendedDataApiPrice} PLN");
                         }
                         else
                         {
-                            _logger.LogWarning($"[{store.StoreName}] IdoSell: id={idStr} - nie udało się wyciągnąć ceny brutto.");
+                            itemToUpdate.IsApiProcessed = true;
+                        }
+                    }
+
+                    // Produkty z naszej paczki, których API w ogóle nie zwróciło (np. usunięte ze sklepu)
+                    int notReturnedCount = 0;
+                    foreach (var item in itemsById.Values)
+                    {
+                        if (!item.IsApiProcessed)
+                        {
+                            item.IsApiProcessed = true;
+                            notReturnedCount++;
                         }
                     }
 
                     totalMatched += matchedInChunk;
                     totalPriceParsed += priceParsedInChunk;
 
-                    _logger.LogInformation($"[{store.StoreName}] IdoSell: paczka {chunkIndex} - dopasowanych: {matchedInChunk}/{chunk.Length}, sparsowanych cen: {priceParsedInChunk}");
-
-                    foreach (var item in chunk)
-                    {
-                        if (!item.IsApiProcessed) item.IsApiProcessed = true;
-                    }
+                    _logger.LogInformation($"[{store.StoreName}] IdoSell: paczka {chunkIndex} - dopasowanych: {matchedInChunk}/{itemsById.Count}, z ceną: {priceParsedInChunk}, niezwróconych przez API: {notReturnedCount}");
+                }
+                catch (TaskCanceledException tcEx)
+                {
+                    transientError = true;
+                    _logger.LogWarning(tcEx, $"[{store.StoreName}] IdoSell: timeout w paczce {chunkIndex}/{chunks.Count}. Ponowimy w kolejnym przebiegu.");
+                }
+                catch (HttpRequestException httpEx)
+                {
+                    transientError = true;
+                    _logger.LogWarning(httpEx, $"[{store.StoreName}] IdoSell: błąd sieciowy w paczce {chunkIndex}/{chunks.Count}. Ponowimy w kolejnym przebiegu.");
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"[{store.StoreName}] IdoSell: wyjątek w paczce {chunkIndex}/{chunks.Count}.");
-                    foreach (var item in chunk) item.IsApiProcessed = true;
+                    _logger.LogError(ex, $"[{store.StoreName}] IdoSell: nieoczekiwany wyjątek w paczce {chunkIndex}/{chunks.Count}. Oznaczam paczkę jako przetworzoną.");
+                    foreach (var item in itemsById.Values) item.IsApiProcessed = true;
+                }
+
+                if (transientError)
+                {
+                    totalRetriedLater += itemsById.Count;
                 }
 
                 await Task.Delay(300);
             }
 
-            _logger.LogInformation($"[{store.StoreName}] IdoSell: ZAKOŃCZONO. Łącznie dopasowanych: {totalMatched}, sparsowanych cen: {totalPriceParsed} z {items.Count} produktów.");
+            _logger.LogInformation($"[{store.StoreName}] IdoSell: ZAKOŃCZONO. Dopasowanych: {totalMatched}, z ceną: {totalPriceParsed}, do ponowienia: {totalRetriedLater}, łącznie produktów: {items.Count}.");
         }
 
-        /// <summary>
-        /// Wyciąga finalną cenę BRUTTO produktu z odpowiedzi IdoSell v3.
-        /// IdoSell zwraca productRetailPrice już jako brutto (dla produktów ze stawką VAT).
-        /// Strategia:
-        ///   1) productRetailPrice na głównym poziomie produktu (najczęstsze, działa dla produktów bez wariantów)
-        ///   2) productShopsAttributes[].productRetailPrice (gdy główny poziom jest zerowy)
-        ///   3) productSizesAttributes[].productRetailPrice (pierwszy rozmiar z niezerową ceną)
-        /// UWAGA: NIE używamy productPosPrice - to cena dla POS, inna od ceny e-commerce.
-        /// </summary>
         private decimal? ExtractIdoSellGrossPrice(JsonNode productNode, string storeName, string productId)
         {
-            // ŚCIEŻKA 1: productRetailPrice na głównym poziomie
-            var topLevelStr = productNode["productRetailPrice"]?.ToString();
-            _logger.LogDebug($"[{storeName}] IdoSell: id={productId} - top-level productRetailPrice='{topLevelStr ?? "(null)"}'");
+            var priceStr = productNode["productRetailPrice"]?.ToString();
+            _logger.LogDebug($"[{storeName}] IdoSell: id={productId} - productRetailPrice='{priceStr ?? "(null)"}'");
 
-            if (decimal.TryParse(topLevelStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal topPrice) && topPrice > 0)
+            if (decimal.TryParse(priceStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal price) && price > 0)
             {
-                return topPrice;
+                return price;
             }
 
-            // ŚCIEŻKA 2: productShopsAttributes - cena per sklep (przydatne gdy są multi-shopy)
-            var shopsAttrs = productNode["productShopsAttributes"] as JsonArray;
-            if (shopsAttrs != null)
-            {
-                foreach (var shopAttr in shopsAttrs)
-                {
-                    if (shopAttr == null) continue;
-                    var shopPriceStr = shopAttr["productRetailPrice"]?.ToString();
-                    _logger.LogDebug($"[{storeName}] IdoSell: id={productId} - shopAttr productRetailPrice='{shopPriceStr ?? "(null)"}'");
-
-                    if (decimal.TryParse(shopPriceStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal shopPrice) && shopPrice > 0)
-                    {
-                        return shopPrice;
-                    }
-                }
-            }
-
-            // ŚCIEŻKA 3: productSizesAttributes - per rozmiar/wariant
-            var sizesAttrs = productNode["productSizesAttributes"] as JsonArray;
-            if (sizesAttrs != null)
-            {
-                _logger.LogDebug($"[{storeName}] IdoSell: id={productId} - znaleziono {sizesAttrs.Count} rozmiarów w productSizesAttributes.");
-
-                foreach (var size in sizesAttrs)
-                {
-                    if (size == null) continue;
-                    var sizeId = size["sizeId"]?.ToString();
-                    var sizePriceStr = size["productRetailPrice"]?.ToString();
-                    _logger.LogDebug($"[{storeName}] IdoSell: id={productId} - rozmiar '{sizeId}' productRetailPrice='{sizePriceStr ?? "(null)"}'");
-
-                    if (decimal.TryParse(sizePriceStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal sizePrice) && sizePrice > 0)
-                    {
-                        return sizePrice;
-                    }
-                }
-            }
-
-            _logger.LogWarning($"[{storeName}] IdoSell: id={productId} - żadna ze ścieżek nie zwróciła ceny > 0.");
+            _logger.LogWarning($"[{storeName}] IdoSell: id={productId} - brak ceny w productRetailPrice (wartość: '{priceStr ?? "(null)"}').");
             return null;
         }
-
         private void MarkAsProcessed(List<CoOfrStoreData> items)
         {
             foreach (var item in items) item.IsApiProcessed = true;
