@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using NPOI.OOXML.XSSF.UserModel;
 using NPOI.SS.UserModel;
 using NPOI.SS.Util;
 using NPOI.XSSF.UserModel;
@@ -1654,8 +1655,12 @@ namespace PriceSafari.VSA.MassExporter
         private ICellStyle CreateColoredStyle(XSSFWorkbook wb, byte[] rgb, bool bold, short fontColorIndex)
         {
             var style = (XSSFCellStyle)wb.CreateCellStyle();
-            var ctColor = new NPOI.OpenXmlFormats.Spreadsheet.CT_Color { rgb = rgb };
-            style.SetFillForegroundColor(new XSSFColor(ctColor));
+
+            // NOWE PODEJŚCIE DLA NPOI 2.6.x / 2.7.x:
+            // Tworzymy domyślną mapę kolorów i przekazujemy ją do konstruktora XSSFColor
+            var colorMap = new DefaultIndexedColorMap();
+            style.SetFillForegroundColor(new XSSFColor(rgb, colorMap));
+
             style.FillPattern = FillPattern.SolidForeground;
 
             if (bold || fontColorIndex > 0)
@@ -1668,7 +1673,6 @@ namespace PriceSafari.VSA.MassExporter
 
             return style;
         }
-
         // ====================================================================
         // METODY POMOCNICZE
         // ====================================================================
