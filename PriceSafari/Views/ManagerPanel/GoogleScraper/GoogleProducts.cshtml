@@ -1,6 +1,5 @@
 ﻿
 
-
 @model IEnumerable<PriceSafari.Models.ProductClass>
 
 @{
@@ -136,6 +135,36 @@
             background-color: #bb2d3b;
             color: white;
         }
+
+    /* === FILTRY TABELI === */
+    .table-filters-bar {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .table-filters-bar .filter-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+        display: block;
+    }
+
+    /* Kluczowe: monospace + preserve white-space dla widoczności spacji */
+    #productSearchInput {
+        font-family: 'Consolas', 'Courier New', monospace;
+        white-space: pre;
+    }
+
+    .visible-counter {
+        font-size: 0.85rem;
+        color: #495057;
+        font-weight: 600;
+    }
 </style>
 
 <h2 class="mt-4 mb-4">
@@ -412,10 +441,60 @@
     <p>Liczba produktów nieznalezionych: <span id="notFoundCount" class="badge bg-danger">0</span></p>
 </div>
 
+<!-- === NOWY PASEK FILTRÓW === -->
+<div class="table-filters-bar">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+            <label class="filter-label" for="productSearchInput">
+                <i class="bi bi-search"></i> Szukaj w nazwie / EAN / kodzie producenta (spacje są zachowywane!)
+            </label>
+            <div class="input-group input-group-sm">
+                <input type="text" class="form-control" id="productSearchInput"
+                       placeholder='np. "rower " (ze spacją na końcu = dokładne dopasowanie)'
+                       autocomplete="off" spellcheck="false" />
+                <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn" title="Wyczyść">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <small class="text-muted" id="searchHint">Wyszukiwanie zachowuje spacje i wielkość liter (case-insensitive). Wpisz spację, aby zawęzić wynik.</small>
+        </div>
+
+        <div class="col-md-3">
+            <label class="filter-label" for="statusFilter">
+                <i class="bi bi-funnel"></i> Filtr statusu
+            </label>
+            <select class="form-select form-select-sm" id="statusFilter">
+                <option value="all">Wszystkie statusy</option>
+                <option value="found">✅ Found (znalezione)</option>
+                <option value="pending">⏳ Pending (oczekujące)</option>
+                <option value="notfound">❌ Not Found (nieznalezione)</option>
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <label class="filter-label">
+                <i class="bi bi-check2-square"></i> Masowe zaznaczanie
+            </label>
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                <button type="button" class="btn btn-success btn-sm" id="selectAllVisibleBtn">
+                    <i class="bi bi-check-all"></i> Zaznacz widoczne
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="deselectAllVisibleBtn">
+                    <i class="bi bi-x-square"></i> Odznacz widoczne
+                </button>
+                <span class="visible-counter ms-auto">
+                    Widocznych: <span id="visibleCount" class="badge bg-primary">0</span>
+                    | Zaznaczonych: <span id="selectedCount" class="badge bg-warning text-dark">0</span>
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
 <table class="table table-bordered table-striped table-hover">
     <thead class="table-dark">
         <tr>
-            <th><input type="checkbox" id="selectAllProducts" /></th>
+            <th><input type="checkbox" id="selectAllProducts" title="Zaznacza/odznacza wszystkie WIDOCZNE wiersze" /></th>
             <th>Product Name</th>
             <th>EAN</th>
             <th>EAN warianty</th>
@@ -632,6 +711,7 @@
         refreshExtStatus();
         $('#selectAllProducts').prop('checked', false);
         $('.product-checkbox').prop('checked', false);
+        updateSelectionCounter();
         } else {
         addExtLog('BŁĄD: ' + response.message, 'error');
         }
@@ -686,7 +766,15 @@
         }
 
         // =========================================================================
-        // ORYGINALNY SKRYPT - BEZ ZMIAN
+        // GLOBALNE FUNKCJE FILTROWANIA (potrzebne też dla updateSelectionCounter z startExternalScraping)
+        // =========================================================================
+        function updateSelectionCounter() {
+            const selected = $('.product-checkbox:checked').length;
+            $('#selectedCount').text(selected);
+        }
+
+        // =========================================================================
+        // ORYGINALNY SKRYPT + NOWE FILTRY
         // =========================================================================
 
         $(document).ready(function () {
@@ -705,7 +793,7 @@
             }
 
             $('#filterMultiCatalog').change(function() {
-                updateTable(cachedProducts);
+                applyFilters();
             });
 
             $('#searchTermSource').change(function () {
@@ -727,8 +815,44 @@
 
             $('#ensureNameMatch').change(toggleIntermediateOptions).trigger('change');
 
+            // === NOWE: Master checkbox - zaznacza tylko WIDOCZNE wiersze ===
             $('#selectAllProducts').click(function () {
-                $('.product-checkbox').prop('checked', this.checked);
+                const isChecked = this.checked;
+                $('#productTable tr:visible .product-checkbox').prop('checked', isChecked);
+                updateSelectionCounter();
+            });
+
+            // === NOWE: Wyszukiwarka (debounce, ZACHOWUJE SPACJE) ===
+            let searchDebounce;
+            $('#productSearchInput').on('input', function() {
+                clearTimeout(searchDebounce);
+                searchDebounce = setTimeout(applyFilters, 150);
+            });
+
+            $('#clearSearchBtn').click(function() {
+                $('#productSearchInput').val('').focus();
+                applyFilters();
+            });
+
+            // === NOWE: Filtr statusu ===
+            $('#statusFilter').change(function() {
+                applyFilters();
+            });
+
+            // === NOWE: Masowe zaznaczanie widocznych ===
+            $('#selectAllVisibleBtn').click(function() {
+                $('#productTable tr:visible .product-checkbox').prop('checked', true);
+                updateSelectionCounter();
+            });
+
+            $('#deselectAllVisibleBtn').click(function() {
+                $('#productTable tr:visible .product-checkbox').prop('checked', false);
+                updateSelectionCounter();
+            });
+
+            // Aktualizuj licznik gdy ktokolwiek kliknie checkbox w wierszu
+            $('#productTable').on('change', '.product-checkbox', function() {
+                updateSelectionCounter();
             });
 
             // === BUTTON HANDLERS ===
@@ -824,11 +948,65 @@
                 });
             }
 
+            // =========================================================================
+            // NOWA FUNKCJA: applyFilters - filtruje WIERSZE w DOM (bez przerysowania)
+            // Współpracuje z: search input, status filter, multi-catalog filter
+            // =========================================================================
+            function applyFilters() {
+                // UWAGA: NIE robimy .trim() - chcemy zachować spacje końcowe!
+                const rawSearch = $('#productSearchInput').val() || '';
+                const searchLower = rawSearch.toLowerCase();
+                const statusFilter = $('#statusFilter').val();
+                const onlyMulti = $('#filterMultiCatalog').is(':checked');
+
+                let visibleCount = 0;
+
+                $('#productTable tr[data-product-row="1"]').each(function() {
+                    const $row = $(this);
+                    const productId = $row.attr('data-product-id');
+                    const status = $row.attr('data-status'); // 'found' | 'pending' | 'notfound'
+                    const hasMulti = $row.attr('data-has-multi') === '1';
+
+                    // Pole searchable zawiera wszystkie tekstowe pola (nazwa, EAN, kod producenta, warianty EAN)
+                    const searchable = ($row.attr('data-searchable') || '').toLowerCase();
+
+                    let show = true;
+
+                    // 1) Filtr Multi-Catalog
+                    if (onlyMulti && !hasMulti) show = false;
+
+                    // 2) Filtr statusu
+                    if (show && statusFilter !== 'all' && status !== statusFilter) show = false;
+
+                    // 3) Filtr wyszukiwania (zachowuje spacje!)
+                    if (show && searchLower.length > 0) {
+                        if (searchable.indexOf(searchLower) === -1) show = false;
+                    }
+
+                    // Pokaż/ukryj wiersz produktu I wszystkie jego sub-rows (dodatkowe katalogi)
+                    if (show) {
+                        $row.show();
+                        // Pokaż powiązane sub-rows
+                        $(`tr[data-parent-product-id="${productId}"]`).show();
+                        visibleCount++;
+                    } else {
+                        $row.hide();
+                        $(`tr[data-parent-product-id="${productId}"]`).hide();
+                        // Odznacz checkbox ukrytego wiersza, żeby nie został przypadkiem wysłany
+                        $row.find('.product-checkbox').prop('checked', false);
+                    }
+                });
+
+                $('#visibleCount').text(visibleCount);
+                updateSelectionCounter();
+
+                // Reset master checkbox state
+                $('#selectAllProducts').prop('checked', false);
+            }
+
             function updateTable(products) {
                 const tableBody = $('#productTable');
                 tableBody.empty();
-
-                const onlyMulti = $('#filterMultiCatalog').is(':checked');
 
                 let foundCount = 0;
                 let pendingCount = 0;
@@ -837,17 +1015,15 @@
                 $.each(products, function (index, product) {
                     const hasExtraCatalogs = product.googleCatalogs && product.googleCatalogs.length > 0;
 
-                    if (onlyMulti && !hasExtraCatalogs) {
-                        return true;
-                    }
-
-                    if (product.foundOnGoogle === true) foundCount++;
-                    else if (product.foundOnGoogle === false) notFoundCount++;
-                    else pendingCount++;
+                    // Wyznacz status jako string
+                    let statusKey = 'pending';
+                    if (product.foundOnGoogle === true) { statusKey = 'found'; foundCount++; }
+                    else if (product.foundOnGoogle === false) { statusKey = 'notfound'; notFoundCount++; }
+                    else { pendingCount++; }
 
                     let statusBadge = '<span class="badge bg-secondary">Pending</span>';
-                    if (product.foundOnGoogle === true) statusBadge = '<span class="badge bg-success">Found</span>';
-                    else if (product.foundOnGoogle === false) statusBadge = '<span class="badge bg-danger">Not Found</span>';
+                    if (statusKey === 'found') statusBadge = '<span class="badge bg-success">Found</span>';
+                    else if (statusKey === 'notfound') statusBadge = '<span class="badge bg-danger">Not Found</span>';
 
                     let typeBadge = '';
                     if (product.googleCid) {
@@ -888,8 +1064,26 @@
                         variantEansHtml = '<span class="text-muted small">—</span>';
                     }
 
+                    // === NOWE: data-attributes do filtrowania ===
+                    // Pole searchable agreguje wszystko po czym chcemy szukać
+                    const searchableText = [
+                        product.productNameInStoreForGoogle || '',
+                        product.ean || '',
+                        product.producerCode || '',
+                        product.otherVariantEans || ''
+                    ].join(' ');
+
+                    // Escape dla atrybutu HTML
+                    const searchableEscaped = $('<div>').text(searchableText).html().replace(/"/g, '&quot;');
+
                     let row = `
-                        <tr id="productRow-${product.productId}" class="${hasExtraCatalogs ? 'table-info' : ''}">
+                        <tr id="productRow-${product.productId}"
+                            data-product-row="1"
+                            data-product-id="${product.productId}"
+                            data-status="${statusKey}"
+                            data-has-multi="${hasExtraCatalogs ? '1' : '0'}"
+                            data-searchable="${searchableEscaped}"
+                            class="${hasExtraCatalogs ? 'table-info' : ''}">
                             <td><input type="checkbox" class="product-checkbox" value="${product.productId}" /></td>
                             <td><small>${product.productNameInStoreForGoogle || ''}</small><br/>${typeBadge}</td>
                             <td>${product.ean || ''}</td>
@@ -928,8 +1122,9 @@
                                     ${cat.googleHid ? `Hid: ${cat.googleHid}` : ''}
                                 </div>`;
 
+                            // Sub-rows powiązane z parent przez data-parent-product-id
                             let subRow = `
-                                <tr style="background-color: #f0faff;">
+                                <tr data-parent-product-id="${product.productId}" style="background-color: #f0faff;">
                                     <td></td>
                                     <td colspan="5" class="text-end text-muted small">
                                         <i class="bi bi-arrow-return-right"></i> Dodatkowy (${i+1}):
@@ -952,6 +1147,9 @@
                 $('#foundCount').text(foundCount);
                 $('#pendingCount').text(pendingCount);
                 $('#notFoundCount').text(notFoundCount);
+
+                // Po przebudowaniu tabeli zastosuj aktywne filtry
+                applyFilters();
             }
         });
     </script>
