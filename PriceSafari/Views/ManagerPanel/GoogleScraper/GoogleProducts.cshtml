@@ -232,11 +232,11 @@
                 <div class="row g-2">
                     <div class="col-6">
                         <label class="form-label small">Workerów</label>
-                        <input type="number" class="form-control form-control-sm" id="extMaxWorkers" value="1" min="1" max="20" />
+                        <input type="number" class="form-control form-control-sm" id="extMaxWorkers" value="1" min="1" max="60" />
                     </div>
                     <div class="col-6">
                         <label class="form-label small">Max Wyników</label>
-                        <input type="number" class="form-control form-control-sm" id="extMaxCids" value="3" min="1" max="20" />
+                        <input type="number" class="form-control form-control-sm" id="extMaxCids" value="3" min="1" max="60" />
                     </div>
                     <div class="col-6">
                         <label class="form-label small">Tryb UDM</label>
@@ -504,13 +504,13 @@
             <th>Google URL</th>
             <th>Kolor</th>
             <th>Akcja</th>
-            <th>GID/CID</th>
+            <th>HID (Oferta)</th>
+            <th>GID/CID (Katalog)</th>
         </tr>
     </thead>
     <tbody id="productTable">
     </tbody>
 </table>
-
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
@@ -1005,152 +1005,167 @@
             }
 
             function updateTable(products) {
-                const tableBody = $('#productTable');
-                tableBody.empty();
+        const tableBody = $('#productTable');
+        tableBody.empty();
 
-                let foundCount = 0;
-                let pendingCount = 0;
-                let notFoundCount = 0;
+        let foundCount = 0;
+        let pendingCount = 0;
+        let notFoundCount = 0;
 
-                $.each(products, function (index, product) {
-                    const hasExtraCatalogs = product.googleCatalogs && product.googleCatalogs.length > 0;
+        $.each(products, function (index, product) {
+            const hasExtraCatalogs = product.googleCatalogs && product.googleCatalogs.length > 0;
 
-                    // Wyznacz status jako string
-                    let statusKey = 'pending';
-                    if (product.foundOnGoogle === true) { statusKey = 'found'; foundCount++; }
-                    else if (product.foundOnGoogle === false) { statusKey = 'notfound'; notFoundCount++; }
-                    else { pendingCount++; }
+            // Wyznacz status jako string
+            let statusKey = 'pending';
+            if (product.foundOnGoogle === true) { statusKey = 'found'; foundCount++; }
+            else if (product.foundOnGoogle === false) { statusKey = 'notfound'; notFoundCount++; }
+            else { pendingCount++; }
 
-                    let statusBadge = '<span class="badge bg-secondary">Pending</span>';
-                    if (statusKey === 'found') statusBadge = '<span class="badge bg-success">Found</span>';
-                    else if (statusKey === 'notfound') statusBadge = '<span class="badge bg-danger">Not Found</span>';
+            let statusBadge = '<span class="badge bg-secondary">Pending</span>';
+            if (statusKey === 'found') statusBadge = '<span class="badge bg-success">Found</span>';
+            else if (statusKey === 'notfound') statusBadge = '<span class="badge bg-danger">Not Found</span>';
 
-                    let typeBadge = '';
-                    if (product.googleCid) {
-                        typeBadge = '<span class="badge bg-success" style="font-size: 0.7rem;">KATALOG</span>';
-                    } else if (product.googleHid) {
-                        typeBadge = '<span class="badge bg-warning text-dark" style="font-size: 0.7rem;">OFERTA</span>';
-                    }
-
-                    let mainIdsHtml = `
-                        <div style="font-size: 0.75rem; line-height: 1.2;">
-                            ${product.googleGid ? `GID: ${product.googleGid}<br/>` : ''}
-                            ${product.googleCid ? `CID: ${product.googleCid}<br/>` : ''}
-                            ${product.googleHid ? `HID: ${product.googleHid}` : ''}
-                        </div>`;
-
-                    let googleLinkHtml = product.generatedGoogleUrl ? `<a href="${product.generatedGoogleUrl}" target="_blank" class="btn btn-sm btn-outline-primary">Szukaj</a>` : '';
-                    let mainGoogleUrl = product.googleUrl ? `<a href="${product.googleUrl}" target="_blank" style="word-break: break-all; font-size: 0.85rem;">${product.googleUrl}</a>` : '';
-
-                    let colorCellHtml = '';
-                    if (product.googleColor) {
-                        colorCellHtml = `
-                            <div style="font-size: 0.7rem; line-height: 1.15;">
-                                <span class="badge bg-info text-dark" style="font-size: 0.7rem;">${product.googleColor}</span>
-                                ${product.googleColorCode ? `<br/><code style="font-size: 0.65rem; color: #6c757d;">${product.googleColorCode}</code>` : ''}
-                            </div>`;
-                    } else {
-                        colorCellHtml = '<span class="text-muted small">—</span>';
-                    }
-
-                    let variantEansHtml = '';
-                    if (product.otherVariantEans && product.otherVariantEans.trim()) {
-                        const variants = product.otherVariantEans.split(',').map(e => e.trim()).filter(e => e);
-                        variantEansHtml = `<div class="small text-muted" style="word-break: break-all; max-width: 160px;" title="${product.otherVariantEans}">
-                            <span class="badge bg-info">+${variants.length}</span>
-                            <div style="font-size: 0.7rem; margin-top: 2px;">${variants.join(', ')}</div>
-                        </div>`;
-                    } else {
-                        variantEansHtml = '<span class="text-muted small">—</span>';
-                    }
-
-                    // === NOWE: data-attributes do filtrowania ===
-                    // Pole searchable agreguje wszystko po czym chcemy szukać
-                    const searchableText = [
-                        product.productNameInStoreForGoogle || '',
-                        product.ean || '',
-                        product.producerCode || '',
-                        product.otherVariantEans || ''
-                    ].join(' ');
-
-                    // Escape dla atrybutu HTML
-                    const searchableEscaped = $('<div>').text(searchableText).html().replace(/"/g, '&quot;');
-
-                    let row = `
-                        <tr id="productRow-${product.productId}"
-                            data-product-row="1"
-                            data-product-id="${product.productId}"
-                            data-status="${statusKey}"
-                            data-has-multi="${hasExtraCatalogs ? '1' : '0'}"
-                            data-searchable="${searchableEscaped}"
-                            class="${hasExtraCatalogs ? 'table-info' : ''}">
-                            <td><input type="checkbox" class="product-checkbox" value="${product.productId}" /></td>
-                            <td><small>${product.productNameInStoreForGoogle || ''}</small><br/>${typeBadge}</td>
-                            <td>${product.ean || ''}</td>
-        <td>${variantEansHtml}</td>
-                            <td class="fw-bold text-primary">${product.producerCode || ''}</td>
-                            <td style="max-width: 250px; word-break: break-all;">
-                                <a href="${product.url || '#'}" target="_blank">${product.url || '-'}</a>
-                            </td>
-                            <td>${statusBadge}</td>
-                            <td>${mainGoogleUrl}</td>
-                            <td>${colorCellHtml}</td>
-                            <td>${googleLinkHtml}</td>
-                            <td>${mainIdsHtml}</td>
-                        </tr>`;
-
-                    tableBody.append(row);
-
-                    if (hasExtraCatalogs) {
-                        $.each(product.googleCatalogs, function(i, cat) {
-                            let dynamicUrl = '';
-                            let subTypeBadge = '';
-
-                            if (cat.isExtendedOfferByHid) {
-                                let name = encodeURIComponent(product.productNameInStoreForGoogle);
-                                dynamicUrl = `https://www.google.com/search?q=${name}&udm=28#oshopproduct=gid:${cat.googleGid},hid:${cat.googleHid},pvt:hg,pvo:3&oshop=apv`;
-                                subTypeBadge = '<span class="badge bg-warning text-dark" style="font-size: 0.6rem;">OFERTA</span>';
-                            } else {
-                                dynamicUrl = `https://www.google.com/shopping/product/${cat.googleCid}`;
-                                subTypeBadge = '<span class="badge bg-success" style="font-size: 0.6rem;">KATALOG</span>';
-                            }
-
-                            let subIdsHtml = `
-                                <div style="font-size: 0.7rem; line-height: 1.1;">
-                                    ${cat.googleGid ? `Gid: ${cat.googleGid}<br/>` : ''}
-                                    ${cat.googleCid ? `Cid: ${cat.googleCid}<br/>` : ''}
-                                    ${cat.googleHid ? `Hid: ${cat.googleHid}` : ''}
-                                </div>`;
-
-                            // Sub-rows powiązane z parent przez data-parent-product-id
-                            let subRow = `
-                                <tr data-parent-product-id="${product.productId}" style="background-color: #f0faff;">
-                                    <td></td>
-                                    <td colspan="5" class="text-end text-muted small">
-                                        <i class="bi bi-arrow-return-right"></i> Dodatkowy (${i+1}):
-                                    </td>
-                                    <td>${subTypeBadge}</td>
-                                    <td>
-                                        <a href="${dynamicUrl}" target="_blank" style="word-break: break-all; font-size: 0.8rem;">
-                                            Link do Google
-                                        </a>
-                                    </td>
-                                    <td></td>
-                                    <td></td>
-                                    <td>${subIdsHtml}</td>
-                                </tr>`;
-                            tableBody.append(subRow);
-                        });
-                    }
-                });
-
-                $('#foundCount').text(foundCount);
-                $('#pendingCount').text(pendingCount);
-                $('#notFoundCount').text(notFoundCount);
-
-                // Po przebudowaniu tabeli zastosuj aktywne filtry
-                applyFilters();
+            let typeBadge = '';
+            if (product.googleCid) {
+                typeBadge = '<span class="badge bg-success" style="font-size: 0.7rem;">KATALOG</span>';
+            } else if (product.googleHid) {
+                typeBadge = '<span class="badge bg-warning text-dark" style="font-size: 0.7rem;">OFERTA</span>';
             }
+
+            // === ZMIANA: Rozdzielenie HID i GID/CID na dwie osobne zmienne ===
+            let hidHtml = `
+                <div style="font-size: 0.75rem; line-height: 1.2; word-break: break-all;">
+                    ${product.googleHid ? `<span class="text-primary fw-bold">${product.googleHid}</span>` : '<span class="text-muted small">—</span>'}
+                </div>`;
+
+            let mainIdsHtml = `
+                <div style="font-size: 0.75rem; line-height: 1.2;">
+                    ${product.googleGid ? `GID: ${product.googleGid}<br/>` : ''}
+                    ${product.googleCid ? `CID: ${product.googleCid}` : ''}
+                </div>`;
+            // =================================================================
+
+            let googleLinkHtml = product.generatedGoogleUrl ? `<a href="${product.generatedGoogleUrl}" target="_blank" class="btn btn-sm btn-outline-primary">Szukaj</a>` : '';
+            let mainGoogleUrl = product.googleUrl ? `<a href="${product.googleUrl}" target="_blank" style="word-break: break-all; font-size: 0.85rem;">${product.googleUrl}</a>` : '';
+
+            let colorCellHtml = '';
+            if (product.googleColor) {
+                colorCellHtml = `
+                    <div style="font-size: 0.7rem; line-height: 1.15;">
+                        <span class="badge bg-info text-dark" style="font-size: 0.7rem;">${product.googleColor}</span>
+                        ${product.googleColorCode ? `<br/><code style="font-size: 0.65rem; color: #6c757d;">${product.googleColorCode}</code>` : ''}
+                    </div>`;
+            } else {
+                colorCellHtml = '<span class="text-muted small">—</span>';
+            }
+
+            let variantEansHtml = '';
+            if (product.otherVariantEans && product.otherVariantEans.trim()) {
+                const variants = product.otherVariantEans.split(',').map(e => e.trim()).filter(e => e);
+                variantEansHtml = `
+                    <div class="small text-muted" style="word-break: break-all; max-width: 160px;" title="${product.otherVariantEans}">
+                        <span class="badge bg-info">+${variants.length}</span>
+                        <div style="font-size: 0.7rem; margin-top: 2px;">${variants.join(', ')}</div>
+                    </div>`;
+            } else {
+                variantEansHtml = '<span class="text-muted small">—</span>';
+            }
+
+            // Pole searchable agreguje wszystko po czym chcemy szukać
+            const searchableText = [
+                product.productNameInStoreForGoogle || '',
+                product.ean || '',
+                product.producerCode || '',
+                product.otherVariantEans || ''
+            ].join(' ');
+
+            // Escape dla atrybutu HTML
+            const searchableEscaped = $('<div>').text(searchableText).html().replace(/"/g, '&quot;');
+
+            // Zmodyfikowany główny wiersz (dodane <td>${hidHtml}</td>)
+            let row = `
+                <tr id="productRow-${product.productId}"
+                    data-product-row="1"
+                    data-product-id="${product.productId}"
+                    data-status="${statusKey}"
+                    data-has-multi="${hasExtraCatalogs ? '1' : '0'}"
+                    data-searchable="${searchableEscaped}"
+                    class="${hasExtraCatalogs ? 'table-info' : ''}">
+                    <td><input type="checkbox" class="product-checkbox" value="${product.productId}" /></td>
+                    <td><small>${product.productNameInStoreForGoogle || ''}</small><br/>${typeBadge}</td>
+                    <td>${product.ean || ''}</td>
+                    <td>${variantEansHtml}</td>
+                    <td class="fw-bold text-primary">${product.producerCode || ''}</td>
+                    <td style="max-width: 250px; word-break: break-all;">
+                        <a href="${product.url || '#'}" target="_blank">${product.url || '-'}</a>
+                    </td>
+                    <td>${statusBadge}</td>
+                    <td>${mainGoogleUrl}</td>
+                    <td>${colorCellHtml}</td>
+                    <td>${googleLinkHtml}</td>
+                    <td>${hidHtml}</td>
+                    <td>${mainIdsHtml}</td>
+                </tr>`;
+
+            tableBody.append(row);
+
+            if (hasExtraCatalogs) {
+                $.each(product.googleCatalogs, function(i, cat) {
+                    let dynamicUrl = '';
+                    let subTypeBadge = '';
+
+                    if (cat.isExtendedOfferByHid) {
+                        let name = encodeURIComponent(product.productNameInStoreForGoogle);
+                        dynamicUrl = `https://www.google.com/search?q=${name}&udm=28#oshopproduct=gid:${cat.googleGid},hid:${cat.googleHid},pvt:hg,pvo:3&oshop=apv`;
+                        subTypeBadge = '<span class="badge bg-warning text-dark" style="font-size: 0.6rem;">OFERTA</span>';
+                    } else {
+                        dynamicUrl = `https://www.google.com/shopping/product/${cat.googleCid}`;
+                        subTypeBadge = '<span class="badge bg-success" style="font-size: 0.6rem;">KATALOG</span>';
+                    }
+
+                    // === ZMIANA: Rozdzielenie HID i GID/CID dla sub-katalogów ===
+                    let subHidHtml = `
+                        <div style="font-size: 0.7rem; line-height: 1.1; word-break: break-all;">
+                            ${cat.googleHid ? `<span class="text-primary fw-bold">${cat.googleHid}</span>` : '<span class="text-muted">—</span>'}
+                        </div>`;
+
+                    let subIdsHtml = `
+                        <div style="font-size: 0.7rem; line-height: 1.1;">
+                            ${cat.googleGid ? `Gid: ${cat.googleGid}<br/>` : ''}
+                            ${cat.googleCid ? `Cid: ${cat.googleCid}` : ''}
+                        </div>`;
+                    // =============================================================
+
+                    // Sub-rows powiązane z parent przez data-parent-product-id
+                    let subRow = `
+                        <tr data-parent-product-id="${product.productId}" style="background-color: #f0faff;">
+                            <td></td>
+                            <td colspan="5" class="text-end text-muted small">
+                                <i class="bi bi-arrow-return-right"></i> Dodatkowy (${i+1}):
+                            </td>
+                            <td>${subTypeBadge}</td>
+                            <td>
+                                <a href="${dynamicUrl}" target="_blank" style="word-break: break-all; font-size: 0.8rem;">
+                                    Link do Google
+                                </a>
+                            </td>
+                            <td></td>
+                            <td></td>
+                            <td>${subHidHtml}</td>
+                            <td>${subIdsHtml}</td>
+                        </tr>`;
+                    tableBody.append(subRow);
+                });
+            }
+        });
+
+        $('#foundCount').text(foundCount);
+        $('#pendingCount').text(pendingCount);
+        $('#notFoundCount').text(notFoundCount);
+
+        // Po przebudowaniu tabeli zastosuj aktywne filtry
+        applyFilters();
+    }
         });
     </script>
 }

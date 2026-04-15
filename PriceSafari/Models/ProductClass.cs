@@ -63,7 +63,7 @@ namespace PriceSafari.Models
         public string? Url { get; set; }
         public string? GoogleUrl { get; set; }
         public string? GoogleGid { get; set; }
-
+        public string? GoogleHid { get; set; }
         public string? GoogleColor { get; set; }       // np. "Blue Sage", "Lava", "Czarny"
         public string? GoogleColorCode { get; set; }   // kod pvf, np. "EgsI4NajARCuj-HFBA"
 

@@ -57,7 +57,7 @@ public class GoogleScraperController : Controller
         private string _googleUrl;
         private string _cid;
         private string _googleGid;
-
+        private string _googleHid;
         public ProductStatus Status
         {
             get => _status;
@@ -105,6 +105,19 @@ public class GoogleScraperController : Controller
                 if (_googleGid != value)
                 {
                     _googleGid = value;
+                    IsDirty = true;
+                }
+            }
+        }
+
+        public string GoogleHid
+        {
+            get => _googleHid;
+            set
+            {
+                if (_googleHid != value)
+                {
+                    _googleHid = value;
                     IsDirty = true;
                 }
             }
@@ -164,6 +177,7 @@ public class GoogleScraperController : Controller
                 _status = ProductStatus.Found;
                 _googleUrl = product.GoogleUrl;
                 _googleGid = product.GoogleGid;
+                _googleHid = product.GoogleHid;
                 _googleColor = product.GoogleColor;
                 _googleColorCode = product.GoogleColorCode;
             }
@@ -212,7 +226,7 @@ public class GoogleScraperController : Controller
             }
         }
 
-        public void UpdateStatus(ProductStatus newStatus, string googleUrl = null, string cid = null, string gid = null, string googleColor = null, string googleColorCode = null)
+        public void UpdateStatus(ProductStatus newStatus, string googleUrl = null, string cid = null, string gid = null, string hid = null, string googleColor = null, string googleColorCode = null)
         {
             if (this.Status == ProductStatus.Found && (newStatus == ProductStatus.NotFound || newStatus == ProductStatus.Error))
             {
@@ -225,6 +239,7 @@ public class GoogleScraperController : Controller
                 this.GoogleUrl = googleUrl;
                 this.Cid = cid;
                 this.GoogleGid = gid;
+                this.GoogleHid = hid;
                 this.GoogleColor = googleColor;
                 this.GoogleColorCode = googleColorCode;
             }
@@ -1660,6 +1675,7 @@ public class GoogleScraperController : Controller
                 string currentGoogleUrlSnapshot = null;
                 string currentCidSnapshot = null;
                 string currentGidSnapshot = null;
+                string currentHidSnapshot = null;
                 string currentGoogleColorSnapshot = null;
                 string currentGoogleColorCodeSnapshot = null;
                 bool processThisProduct = false;
@@ -1673,6 +1689,7 @@ public class GoogleScraperController : Controller
                         currentGoogleUrlSnapshot = productState.GoogleUrl;
                         currentCidSnapshot = productState.Cid;
                         currentGidSnapshot = productState.GoogleGid;
+                        currentHidSnapshot = productState.GoogleHid;
                         currentGoogleColorSnapshot = productState.GoogleColor;
                         currentGoogleColorCodeSnapshot = productState.GoogleColorCode;
                     }
@@ -1695,12 +1712,14 @@ public class GoogleScraperController : Controller
                             if (dbProduct.FoundOnGoogle != true
                                 || dbProduct.GoogleUrl != currentGoogleUrlSnapshot
                                 || dbProduct.GoogleGid != currentGidSnapshot
+                                || dbProduct.GoogleHid != currentHidSnapshot
                                 || dbProduct.GoogleColor != currentGoogleColorSnapshot
                                 || dbProduct.GoogleColorCode != currentGoogleColorCodeSnapshot)
                             {
                                 dbProduct.FoundOnGoogle = true;
                                 dbProduct.GoogleUrl = currentGoogleUrlSnapshot;
                                 dbProduct.GoogleGid = currentGidSnapshot;
+                                dbProduct.GoogleHid = currentHidSnapshot;
                                 dbProduct.GoogleColor = currentGoogleColorSnapshot;
                                 dbProduct.GoogleColorCode = currentGoogleColorCodeSnapshot;
                                 changedInDb = true;
@@ -1715,6 +1734,7 @@ public class GoogleScraperController : Controller
                                 dbProduct.FoundOnGoogle = false;
                                 dbProduct.GoogleUrl = null;
                                 dbProduct.GoogleGid = null;
+                                dbProduct.GoogleHid = null;
                                 dbProduct.GoogleColor = null;
                                 dbProduct.GoogleColorCode = null;
                                 changedInDb = true;
@@ -3001,6 +3021,9 @@ int udmValue = 3)
         [JsonPropertyName("foundGid")]
         public string FoundGid { get; set; }
 
+        [JsonPropertyName("foundHid")]
+        public string FoundHid { get; set; }
+
         [JsonPropertyName("foundColor")]
         public string FoundColor { get; set; }
 
@@ -3051,6 +3074,9 @@ int udmValue = 3)
 
         [JsonPropertyName("gid")]
         public string Gid { get; set; }
+
+        [JsonPropertyName("hid")]
+        public string Hid { get; set; }
 
         [JsonPropertyName("color")]
         public string Color { get; set; }
@@ -3667,6 +3693,7 @@ int udmValue = 3)
                                     result.FoundGoogleUrl,
                                     result.FoundCid,
                                     result.FoundGid,
+                                    result.FoundHid,
                                     result.FoundColor,
                                     result.FoundColorFilter);
 
@@ -3739,6 +3766,7 @@ int udmValue = 3)
                                     matched.GoogleUrl,
                                     matched.Cid,
                                     matched.Gid,
+                                    matched.Hid,
                                     matched.Color,
                                     matched.ColorFilter);
 
