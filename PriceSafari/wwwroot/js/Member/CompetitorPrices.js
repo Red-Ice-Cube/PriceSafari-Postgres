@@ -425,8 +425,7 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
                 let url;
 
                 if (isAllegro) {
-
-                    url = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${productId}`;
+                    url = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${productId}&scrapId=${scrapId}`;
                 } else {
 
                     url = `/PriceHistory/Details?productId=${productId}&scrapId=${scrapId}`;

@@ -679,7 +679,17 @@
         }
 
         showLoadingState();
-        fetch(`/AllegroPriceHistory/GetProductPriceDetails?storeId=${storeId}&productId=${productId}`)
+        
+        
+        const scrapIdStr = '@(ViewBag.ScrapId != null ? ViewBag.ScrapId.ToString() : "")';
+        let fetchUrl = `/AllegroPriceHistory/GetProductPriceDetails?storeId=${storeId}&productId=${productId}`;
+        
+
+        if (scrapIdStr) {
+            fetchUrl += `&scrapId=${scrapIdStr}`;
+        }
+
+        fetch(fetchUrl)
         .then(response => response.ok ? response.json() : Promise.reject('Błąd sieci'))
         .then(result => {
         if (loadingOverlay) loadingOverlay.style.display = 'none';

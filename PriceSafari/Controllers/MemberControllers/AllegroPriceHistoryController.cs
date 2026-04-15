@@ -1351,7 +1351,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
         // ═══ ZAKTUALIZOWANA AKCJA DETAILS — zastąp istniejącą ═══
         [HttpGet]
-        public async Task<IActionResult> Details(int storeId, int productId)
+        public async Task<IActionResult> Details(int storeId, int productId, int? scrapId = null)
         {
             if (!await UserHasAccessToStore(storeId)) return Forbid();
 
@@ -1423,12 +1423,13 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.AutomationRuleIsActive = automationAssignment?.IsActive ?? false;
             ViewBag.AutomationRuleId = automationAssignment?.RuleId;
             ViewBag.IsAutomationPaused = isAutomationPaused;
-
+            ViewBag.ScrapId = scrapId;
             return View("~/Views/Panel/AllegroPriceHistory/Details.cshtml");
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetProductPriceDetails(int storeId, int productId)
+        // DODANO: int? scrapId = null
+        public async Task<IActionResult> GetProductPriceDetails(int storeId, int productId, int? scrapId = null)
         {
             if (!await UserHasAccessToStore(storeId)) return Forbid();
 
@@ -1438,12 +1439,25 @@ namespace PriceSafari.Controllers.MemberControllers
             var product = await _context.AllegroProducts.FindAsync(productId);
             if (product == null) return NotFound("Product not found.");
 
-            var latestScrap = await _context.AllegroScrapeHistories
-                .Where(sh => sh.StoreId == storeId)
-                .OrderByDescending(sh => sh.Date)
-                .FirstOrDefaultAsync();
+            // ZMIANA: Zamiast "latestScrap", szukamy konkretnego "selectedScrap"
+            AllegroScrapeHistory selectedScrap;
 
-            if (latestScrap == null)
+            if (scrapId.HasValue && scrapId.Value > 0)
+            {
+                // Jeśli podano scrapId w URL, pobierz ten konkretny
+                selectedScrap = await _context.AllegroScrapeHistories
+                    .FirstOrDefaultAsync(sh => sh.Id == scrapId.Value && sh.StoreId == storeId);
+            }
+            else
+            {
+                // Jeśli nie podano (wejście z innego miejsca), pobierz najnowszy
+                selectedScrap = await _context.AllegroScrapeHistories
+                    .Where(sh => sh.StoreId == storeId)
+                    .OrderByDescending(sh => sh.Date)
+                    .FirstOrDefaultAsync();
+            }
+
+            if (selectedScrap == null)
             {
                 return Json(new { data = new List<object>() });
             }
@@ -1458,14 +1472,15 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Where(ci => ci.DataSource == DataSourceType.Allegro)
                 .ToDictionary(ci => ci.StoreName.ToLower().Trim(), ci => ci.UseCompetitor);
 
+            // ZMIANA: Tutaj zamieniamy "latestScrap.Id" na "selectedScrap.Id"
             var allOffersForProduct = await _context.AllegroPriceHistories
-            .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id &&
+            .Where(aph => aph.AllegroScrapeHistoryId == selectedScrap.Id &&
                             aph.AllegroProductId == productId &&
                             aph.Price > 0)
             .ToListAsync();
 
-                    // ── Deduplikacja: jedna oferta per IdAllegro ──
-                    allOffersForProduct = allOffersForProduct
+            // ── Deduplikacja: jedna oferta per IdAllegro ──
+            allOffersForProduct = allOffersForProduct
                         .GroupBy(aph => aph.IdAllegro)
                         .Select(g => g.First())
                         .ToList();
@@ -1587,7 +1602,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 mainOfferId,
                 data = dataForJson,
                 totalProductPopularity = totalPopularity,
-                lastScrapeDate = latestScrap.Date,
+                lastScrapeDate = selectedScrap.Date,
                 setPrice1 = priceSettings?.AllegroSetPrice1 ?? 0.01m,
                 setPrice2 = priceSettings?.AllegroSetPrice2 ?? 2.00m,
                 activePresetName = activePresetName
