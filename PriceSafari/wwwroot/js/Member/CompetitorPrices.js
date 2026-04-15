@@ -319,7 +319,7 @@ function displayProducts(productsToDisplay, sortedScrapIds) {
         const productInfoDiv = document.createElement('div');
         productInfoDiv.className = 'product-info-cell';
 
-        const isAllegro = competitorStoreName && competitorStoreName.toLowerCase().includes('allegro');
+        const isAllegro = apiConfig.getPricesUrl.toLowerCase().includes('allegro');
 
         if (!isAllegro && product.mainUrl && product.mainUrl.length > 5) {
             const img = document.createElement('img');
