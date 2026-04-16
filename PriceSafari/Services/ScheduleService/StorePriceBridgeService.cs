@@ -1568,12 +1568,12 @@ namespace PriceSafari.Services.ScheduleService
     public class StorePriceBridgeService
     {
         // PrestaShop: PATCH sekwencyjnie, 1 na raz
-        private const int PrestaParallelDegree = 2;
-        private const int PrestaTimeoutSeconds = 20;
+        private const int PrestaParallelDegree = 5;
+        private const int PrestaTimeoutSeconds = 7;
 
         // IdoSell: osobne ustawienia
         private const int IdoSellParallelDegree = 2;
-        private const int IdoSellTimeoutSeconds = 20;
+        private const int IdoSellTimeoutSeconds = 5;
 
         // Batch GET weryfikacja - ile ID w jednym uzyciu filtra
         private const int VerifyBatchSize = 50;
@@ -1831,7 +1831,7 @@ namespace PriceSafari.Services.ScheduleService
                         Content = new StringContent(xml, Encoding.UTF8, "application/xml")
                     };
 
-                    var resp = await client.SendAsync(req, cts.Token);
+                    var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
                     var body = await resp.Content.ReadAsStringAsync();
                     sw.Stop();
 
@@ -1862,12 +1862,23 @@ namespace PriceSafari.Services.ScheduleService
 
                     return (v, true, string.Empty);
                 }
+                // Fragment wewnątrz catch (TaskCanceledException):
                 catch (TaskCanceledException)
                 {
                     sw.Stop();
                     _logger.LogError($"[PrestaShop] TIMEOUT PATCH ID {v.shopProductId} po {sw.ElapsedMilliseconds}ms (limit {PrestaTimeoutSeconds}s)");
                     Interlocked.Increment(ref patchTimeout);
-                    return (v, false, $"Timeout ({PrestaTimeoutSeconds}s) po {sw.ElapsedMilliseconds}ms");
+
+                    // ZMIANA: Dodaj ten produkt do weryfikacji! Presta mogła przetworzyć zmianę po cichu.
+                    lock (expectedPrices)
+                    {
+                        expectedPrices[v.shopProductId] = v.expectedPriceBrutto;
+                        patchedShopIds.Add(v.shopProductId);
+                    }
+
+                    // Zwróć informację, że był timeout, ale potraktujemy to jako "potencjalny sukces do weryfikacji"
+                    // Możesz stworzyć nową flagę w krotce np. "NeedsVerification" zamiast bool success.
+                    return (v, true, $"Timeout ({PrestaTimeoutSeconds}s) po {sw.ElapsedMilliseconds}ms - Oczekuje na GET");
                 }
                 catch (Exception ex)
                 {
@@ -1941,12 +1952,21 @@ namespace PriceSafari.Services.ScheduleService
                 }
                 else
                 {
-                    // Brak weryfikacji - zakladamy sukces PATCH
-                    _logger.LogWarning($"[PrestaShop] Brak danych weryfikacji dla ID {v.shopProductId} - zakladam sukces PATCH.");
-                    v.bridgeItem.Success = true;
-                    allOutcomes.Add(new PatchOutcome { ItemRequest = v.itemRequest, BridgeItem = v.bridgeItem, Success = true, ErrorMsg = string.Empty, ShopProductId = v.shopProductId });
+                    // Brak weryfikacji z GET
+                    if (patchError.Contains("Timeout"))
+                    {
+                        _logger.LogError($"[PrestaShop] Timeout PATCH dla ID {v.shopProductId} i brak danych z weryfikacji GET. Uznaję za BŁĄD.");
+                        v.bridgeItem.Success = false;
+                        allOutcomes.Add(new PatchOutcome { ItemRequest = v.itemRequest, BridgeItem = v.bridgeItem, Success = false, ErrorMsg = "Timeout PATCH oraz brak potwierdzenia w BATCH GET", ShopProductId = v.shopProductId });
+                    }
+                    else
+                    {
+                        // Brak weryfikacji GET, ale PATCH odpowiedział pomyślnie (200 OK) - zakladamy sukces
+                        _logger.LogWarning($"[PrestaShop] Brak danych weryfikacji dla ID {v.shopProductId} - zakladam sukces PATCH.");
+                        v.bridgeItem.Success = true;
+                        allOutcomes.Add(new PatchOutcome { ItemRequest = v.itemRequest, BridgeItem = v.bridgeItem, Success = true, ErrorMsg = string.Empty, ShopProductId = v.shopProductId });
+                    }
                 }
-
                 result.SuccessfulChangesDetails.Add(new StorePriceBridgeSuccessDetail { ExternalId = v.shopProductId, FetchedNewPrice = actualPrice });
             }
 
