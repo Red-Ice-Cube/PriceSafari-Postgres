@@ -25,30 +25,32 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var userStores = await _context.UserStores
+            // Od razu robimy projekcję do ViewModelu za pomocą .Select()
+            // Nie używamy .Include() - dzięki temu baza zwróci TYLKO te kolumny, o które prosimy.
+            var storeDetails = await _context.UserStores
                 .Where(us => us.UserId == userId)
-                .Include(us => us.StoreClass)
-                    .ThenInclude(s => s.ScrapHistories)
-                .Include(us => us.StoreClass)
-                    .ThenInclude(s => s.AllegroScrapeHistories)
+                .Select(us => new ChanelViewModel
+                {
+                    StoreId = us.StoreClass.StoreId,
+                    StoreName = us.StoreClass.StoreName,
+                    LogoUrl = us.StoreClass.StoreLogoUrl,
+                    OnCeneo = us.StoreClass.OnCeneo,
+                    OnGoogle = us.StoreClass.OnGoogle,
+                    OnAllegro = us.StoreClass.OnAllegro,
+
+                    // Podzapytanie: PostgreSQL pobierze tylko jedną datę dla każdego sklepu
+                    LastScrapeDate = us.StoreClass.ScrapHistories
+                        .OrderByDescending(sh => sh.Date)
+                        .Select(sh => (DateTime?)sh.Date)
+                        .FirstOrDefault(),
+
+                    // Podzapytanie dla Allegro
+                    AllegroLastScrapeDate = us.StoreClass.AllegroScrapeHistories
+                        .OrderByDescending(ash => ash.Date)
+                        .Select(ash => (DateTime?)ash.Date)
+                        .FirstOrDefault()
+                })
                 .ToListAsync();
-
-            var stores = userStores.Select(us => us.StoreClass).ToList();
-
-            var storeDetails = stores.Select(store => new ChanelViewModel
-            {
-                StoreId = store.StoreId,
-                StoreName = store.StoreName,
-                LogoUrl = store.StoreLogoUrl,
-
-                LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,
-
-                AllegroLastScrapeDate = store.AllegroScrapeHistories.OrderByDescending(ash => ash.Date).FirstOrDefault()?.Date,
-
-                OnCeneo = store.OnCeneo,
-                OnGoogle = store.OnGoogle,
-                OnAllegro = store.OnAllegro
-            }).ToList();
 
             return View("~/Views/Panel/Chanel/Index.cshtml", storeDetails);
         }
