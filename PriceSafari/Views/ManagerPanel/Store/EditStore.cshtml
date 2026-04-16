@@ -97,13 +97,23 @@
                         </div>
                         <div class="form-group col-md-6">
                             <label asp-for="StoreApiKey">Klucz API</label>
-                            @* ZMIANA: Zwykłe pole tekstowe (type="text"), bez oka, bez ukrywania *@
+                           
                             <input asp-for="StoreApiKey" class="form-control" type="text" autocomplete="off" />
                             <span asp-validation-for="StoreApiKey" class="text-danger"></span>
                         </div>
                     </div>
                 </div>
-
+            <div class="form-group mt-3 pt-3 border-top border-light">
+                <div class="custom-control custom-switch">
+                    <input asp-for="IsStorePriceBridgeActive" type="checkbox" class="custom-control-input" id="storePriceBridgeSwitch">
+                    <label class="custom-control-label font-weight-bold text-success" for="storePriceBridgeSwitch">
+                        <i class="fas fa-sync-alt"></i> @Html.DisplayNameFor(m => m.IsStorePriceBridgeActive)
+                    </label>
+                    <small class="form-text text-muted">
+                        Włącza możliwość automatycznej zmiany (aktualizacji) cen bezpośrednio w docelowym sklepie za pomocą jego API.
+                    </small>
+                </div>
+            </div>
                 <h6 class="text-secondary mb-3"><i class="fas fa-file-code"></i> Pliki XML (Feed Produktowy)</h6>
                 <div class="form-row">
                     <div class="form-group col-md-6">

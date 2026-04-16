@@ -158,6 +158,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.AllegroIntervalLimitOfProducts = store.AllegroIntervalLimitOfProducts;
 
             existingStore.IsAllegroPriceBridgeActive = store.IsAllegroPriceBridgeActive;
+            existingStore.IsStorePriceBridgeActive = store.IsStorePriceBridgeActive;
             existingStore.FetchExtendedAllegroData = store.FetchExtendedAllegroData;
             existingStore.IsPayingCustomer = store.IsPayingCustomer;
             existingStore.GetAllegroSkuByApi = store.GetAllegroSkuByApi;

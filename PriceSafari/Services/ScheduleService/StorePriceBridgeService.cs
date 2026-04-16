@@ -542,6 +542,17 @@
 //    }
 //}
 
+
+
+
+
+
+
+
+
+
+
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PriceSafari.Data;
@@ -1344,8 +1355,11 @@ namespace PriceSafari.Services.ScheduleService
 
                 string apiUrl = $"{baseUrl.TrimEnd('/')}/api/admin/v3/products/products";
 
-                // Format wymagany przez IdoSell: { "params": [ { "productId": ..., "productRetailPrice": ... } ] }
-                string jsonBody = $@"{{""params"":[{{""productId"":{productIdInt},""productRetailPrice"":{priceString}}}]}}";
+                // Potwierdzony działający format IdoSell API Admin 3:
+                // { "params": { "products": [ { "productId": N, "productRetailPrice": X.XX } ] } }
+                string jsonBody = $@"{{""params"":{{""products"":[{{""productId"":{productIdInt},""productRetailPrice"":{priceString}}}]}}}}";
+
+                _logger.LogDebug($"[IdoSell] PUT body dla ID {productId}: {jsonBody}");
 
                 using var request = new HttpRequestMessage(HttpMethod.Put, apiUrl)
                 {
@@ -1355,30 +1369,83 @@ namespace PriceSafari.Services.ScheduleService
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
                 using var response = await client.SendAsync(request);
+                var body = await response.Content.ReadAsStringAsync();
 
-                if (response.IsSuccessStatusCode)
+                // Loguj zawsze body - IdoSell zwraca 207 Multi-Status i wynik jest w body
+                var preview = body != null && body.Length > 1500 ? body.Substring(0, 1500) + "...[ucięte]" : body;
+                _logger.LogInformation($"[IdoSell] PUT ID {productId} <- HTTP {(int)response.StatusCode}, body: {preview}");
+
+                // HTTP 4xx/5xx (bez 207) = ewidentny błąd
+                if (!response.IsSuccessStatusCode && (int)response.StatusCode != 207)
                 {
-                    // IdoSell potrafi zwrócić 200 z błędem w body (faults), więc warto sprawdzić treść
-                    var body = await response.Content.ReadAsStringAsync();
-                    try
+                    return (false, $"PUT Error: {response.StatusCode}. Detale: {preview}");
+                }
+
+                // Parsuj body - dla IdoSell nawet przy HTTP 200/207 wynik może być błędem
+                try
+                {
+                    var root = JsonNode.Parse(body);
+
+                    // Wariant 1: "errors" na poziomie root - IdoSell zwraca to jako OBIEKT przy błędzie parametrów
+                    // Przykład: {"errors":{"faultString":"...","faultCode":"no_products"},"results":{}}
+                    var errorsNode = root?["errors"];
+                    if (errorsNode != null)
                     {
-                        var root = JsonNode.Parse(body);
-                        var faultCode = root?["faultCode"]?.ToString();
-                        var faultString = root?["faultString"]?.ToString();
-                        if (!string.IsNullOrEmpty(faultCode) && faultCode != "0")
+                        if (errorsNode is JsonObject errorsObj && errorsObj.Count > 0)
                         {
-                            return (false, $"IdoSell fault {faultCode}: {faultString}");
+                            var errFaultCode = errorsObj["faultCode"]?.ToString();
+                            var errFaultString = errorsObj["faultString"]?.ToString();
+                            if (!string.IsNullOrEmpty(errFaultCode) && errFaultCode != "0")
+                            {
+                                return (false, $"IdoSell błąd '{errFaultCode}': {errFaultString}");
+                            }
+                        }
+                        else if (errorsNode is JsonArray errorsArr && errorsArr.Count > 0)
+                        {
+                            var firstErr = errorsArr[0]?.ToJsonString();
+                            return (false, $"IdoSell errors: {firstErr}");
                         }
                     }
-                    catch { /* jeśli nie da się sparsować, zakładamy sukces po HTTP 200 */ }
 
-                    return (true, string.Empty);
+                    // Wariant 2: faultCode/faultString na poziomie root
+                    var faultCode = root?["faultCode"]?.ToString();
+                    var faultString = root?["faultString"]?.ToString();
+                    if (!string.IsNullOrEmpty(faultCode) && faultCode != "0")
+                    {
+                        return (false, $"IdoSell fault {faultCode}: {faultString}");
+                    }
+
+                    // Wariant 3: results.productsResults[] - typowy format sukcesu IdoSell
+                    // Przykład sukcesu: {"results":{"productsResults":[{"faults":[],"productId":4916,...}]}}
+                    // Przykład błędu per-produkt: {"results":{"productsResults":[{"faults":[{"faultCode":X,"faultString":"..."}],...}]}}
+                    var productsResults = root?["results"]?["productsResults"] as JsonArray;
+                    if (productsResults != null)
+                    {
+                        foreach (var resNode in productsResults)
+                        {
+                            if (resNode == null) continue;
+
+                            var resIdStr = resNode["productId"]?.ToString();
+                            if (!string.IsNullOrEmpty(resIdStr) && resIdStr != productId)
+                                continue;
+
+                            // Sprawdź faults per produkt
+                            if (resNode["faults"] is JsonArray faultsArr && faultsArr.Count > 0)
+                            {
+                                var firstFault = faultsArr[0];
+                                var fCode = firstFault?["faultCode"]?.ToString();
+                                var fString = firstFault?["faultString"]?.ToString();
+                                return (false, $"IdoSell fault produktu {resIdStr}: {fCode} - {fString}");
+                            }
+                        }
+                    }
                 }
-                else
+                catch (Exception parseEx)
                 {
-                    var errorBody = await response.Content.ReadAsStringAsync();
-                    return (false, $"PUT Error: {response.StatusCode}. Detale: {errorBody}");
+                    _logger.LogWarning(parseEx, $"[IdoSell] Nie udało się sparsować body odpowiedzi dla ID {productId}, zakładam sukces po HTTP {(int)response.StatusCode}");
                 }
+
+                return (true, string.Empty);
             }
             catch (TaskCanceledException)
             {
