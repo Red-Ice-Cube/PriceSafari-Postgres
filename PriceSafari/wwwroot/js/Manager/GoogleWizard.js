@@ -448,6 +448,7 @@ function extractProductsFromXml() {
 
     const onlyEan = document.getElementById("onlyEanProducts").checked;
     const removeParams = document.getElementById("cleanUrlParameters").checked;
+    const stringToRemoveFromUrl = document.getElementById("removeStringFromUrl") ? document.getElementById("removeStringFromUrl").value : "";
     let productMaps = [];
     let countUrlsWithParams = 0;
     let idx = 0;
@@ -487,6 +488,11 @@ function extractProductsFromXml() {
 
             if (onlyEan && (!pm.GoogleEan || !pm.GoogleEan.trim())) continue;
             if (pm.Url) {
+              
+                if (stringToRemoveFromUrl) {
+                    pm.Url = pm.Url.split(stringToRemoveFromUrl).join('');
+                }
+
                 const qIdx = pm.Url.indexOf('?');
                 if (qIdx !== -1) { countUrlsWithParams++; if (removeParams) pm.Url = pm.Url.substring(0, qIdx); }
             }
@@ -576,13 +582,15 @@ function checkDuplicates(productMaps) {
 
 document.getElementById("extractProducts").addEventListener("click", extractProductsFromXml);
 document.getElementById("cleanUrlParameters").addEventListener("change", extractProductsFromXml);
+const removeStringInput = document.getElementById("removeStringFromUrl");
+if (removeStringInput) {
+    removeStringInput.addEventListener("change", extractProductsFromXml);
+}
 document.getElementById("removeDuplicateUrls").addEventListener("change", extractProductsFromXml);
 document.getElementById("removeDuplicateEans").addEventListener("change", extractProductsFromXml);
 document.getElementById("removeDuplicateProducerCodes").addEventListener("change", extractProductsFromXml);
 
-// ─────────────────────────────────────────────────────────────
-// getVal – oryginalna logika bez zmian
-// ─────────────────────────────────────────────────────────────
+
 const nsResolver = prefix => ({ 'g': 'http://base.google.com/ns/1.0' })[prefix] || null;
 
 function getVal(entryNode, fieldName, productNodeName) {
