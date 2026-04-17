@@ -49,5 +49,6 @@ namespace PriceSafari.Models
         public string? CeneoExportedProducerCode { get; set; }
 
         public string? OtherVariantEans { get; set; }
+        public string? Adnotation { get; set; }
     }
 }

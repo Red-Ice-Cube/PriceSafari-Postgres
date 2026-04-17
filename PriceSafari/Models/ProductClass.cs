@@ -100,6 +100,7 @@ namespace PriceSafari.Models
 
 
         public string? ProducerCode { get; set; }
+        public string? Adnotation { get; set; }
         public string? OtherVariantEans { get; set; }
 
 

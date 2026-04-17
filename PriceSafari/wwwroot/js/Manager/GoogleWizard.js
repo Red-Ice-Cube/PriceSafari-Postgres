@@ -14,7 +14,8 @@ let mappingForField = {
     "GoogleExportedProducerCode": null,
     "GoogleXMLPrice": null,
     "GoogleXMLPromoPrice": null, // <--- DODANE
-    "GoogleDeliveryXMLPrice": null
+    "GoogleDeliveryXMLPrice": null,
+    "Adnotation": null
 };
 existingMappings.forEach(m => {
     if (m.fieldName) mappingForField[m.fieldName] = { xpath: m.localName, nodeCount: 0, firstValue: "" };
@@ -480,7 +481,8 @@ function extractProductsFromXml() {
                 GoogleExportedProducerCode: getVal(entries[i], "GoogleExportedProducerCode", productNodeNameWithPredicate),
                 GoogleXMLPrice: finalPrice,
                 GoogleDeliveryXMLPrice: parseFloat(parsePrice(getVal(entries[i], "GoogleDeliveryXMLPrice", productNodeNameWithPredicate))) || null,
-                OtherVariantEans: null  // zostanie wypełnione w finishExtraction, jeśli checkbox włączony
+                OtherVariantEans: null,  // zostanie wypełnione w finishExtraction, jeśli checkbox włączony
+                Adnotation: getVal(entries[i], "Adnotation", productNodeNameWithPredicate)  // <--- DODANE
             };
 
             if (onlyEan && (!pm.GoogleEan || !pm.GoogleEan.trim())) continue;

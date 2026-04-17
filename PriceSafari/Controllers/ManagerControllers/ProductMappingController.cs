@@ -461,7 +461,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
         private void MergeProductData(ProductClass mainProduct, ProductClass duplicateProduct, bool mergeExisting = false)
         {
-            // --- NOWE: Nadpisywanie OfferUrl gdy mergeExisting ---
+          
             if (mergeExisting && !string.IsNullOrEmpty(duplicateProduct.OfferUrl))
             {
                 mainProduct.OfferUrl = duplicateProduct.OfferUrl;
@@ -532,11 +532,38 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (!mainProduct.GoogleDeliveryXMLPrice.HasValue && duplicateProduct.GoogleDeliveryXMLPrice.HasValue)
                 mainProduct.GoogleDeliveryXMLPrice = duplicateProduct.GoogleDeliveryXMLPrice;
 
+         
+            if (string.IsNullOrEmpty(mainProduct.GoogleGid) && !string.IsNullOrEmpty(duplicateProduct.GoogleGid))
+            {
+                mainProduct.GoogleGid = duplicateProduct.GoogleGid;
+            }
+
+            if (string.IsNullOrEmpty(mainProduct.GoogleHid) && !string.IsNullOrEmpty(duplicateProduct.GoogleHid))
+            {
+                mainProduct.GoogleHid = duplicateProduct.GoogleHid;
+            }
+
+            if (string.IsNullOrEmpty(mainProduct.GoogleColor) && !string.IsNullOrEmpty(duplicateProduct.GoogleColor))
+            {
+                mainProduct.GoogleColor = duplicateProduct.GoogleColor;
+            }
+
+            if (string.IsNullOrEmpty(mainProduct.GoogleColorCode) && !string.IsNullOrEmpty(duplicateProduct.GoogleColorCode))
+            {
+                mainProduct.GoogleColorCode = duplicateProduct.GoogleColorCode;
+            }
+
             if (string.IsNullOrEmpty(mainProduct.ProducerCode) && !string.IsNullOrEmpty(duplicateProduct.ProducerCode))
             {
                 mainProduct.ProducerCode = duplicateProduct.ProducerCode;
             
             }
+
+            if (string.IsNullOrEmpty(mainProduct.Adnotation) && !string.IsNullOrEmpty(duplicateProduct.Adnotation))
+                mainProduct.Adnotation = duplicateProduct.Adnotation;
+
+            if (string.IsNullOrEmpty(mainProduct.Producer) && !string.IsNullOrEmpty(duplicateProduct.Producer))
+                mainProduct.Producer = duplicateProduct.Producer;
 
             mainProduct.OtherVariantEans = MergeVariantEans(
                 mainProduct.OtherVariantEans,
@@ -1011,6 +1038,15 @@ namespace PriceSafari.Controllers.ManagerControllers
                 product.OtherVariantEans = string.IsNullOrWhiteSpace(mappedProduct.OtherVariantEans)
                     ? null
                     : mappedProduct.OtherVariantEans;
+            }
+
+ 
+            if (!string.IsNullOrEmpty(mappedProduct.Adnotation))
+            {
+                if (string.IsNullOrEmpty(product.Adnotation))
+                {
+                    product.Adnotation = mappedProduct.Adnotation;
+                }
             }
         }
 

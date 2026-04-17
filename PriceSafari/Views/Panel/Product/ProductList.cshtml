@@ -904,7 +904,7 @@
                         '<input type="checkbox" class="scrapable-checkbox ' + statusInfo.checkboxClass + '" data-product-id="' + product.productId + '"' +
                             ' style="position:absolute;top:0;left:0;z-index:2;"' +
                             (product.isScrapable ? ' checked' : '') +
-                            (isNotFound ? ' disabled' : '') + ' />' +
+                            (isNotFound && !product.isScrapable ? ' disabled' : '') + ' />' +
                         '<div class="StatusBoxProduct ' + statusInfo.boxClass + '" style="position:absolute;top:0;left:20px;z-index:1;">' + statusInfo.text + '</div>' +
                     '</div></td>' +
                     '<td>' + createFlagsHTML(product) + '</td>';
@@ -961,7 +961,8 @@
             function batchToggle(turnOn) {
                 var idsToSend = [];
                 filteredProducts.forEach(function (p) {
-                    if (getProductPlatformStatus(p).notFound) return;
+                   if (turnOn && getProductPlatformStatus(p).notFound) return;
+    
                     if (turnOn && !p.isScrapable)   idsToSend.push(p.productId);
                     else if (!turnOn && p.isScrapable) idsToSend.push(p.productId);
                 });
