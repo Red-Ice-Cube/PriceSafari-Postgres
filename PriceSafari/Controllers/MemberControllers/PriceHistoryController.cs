@@ -1570,6 +1570,7 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.SetPrice2 = priceValues.SetPrice2;
             ViewBag.ProductId = productId;
             ViewBag.ExternalId = product.ExternalId;
+            ViewBag.Sku = product.CatalogNumber;
             ViewBag.Img = product.MainUrl;
             ViewBag.Ean = product.Ean;
             ViewBag.CatalogNum = product.CatalogNumber;

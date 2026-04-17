@@ -14,7 +14,9 @@
     var externalUrl = ViewBag.ExternalUrl as string;
     var img = ViewBag.Img as string;
     decimal basePrice = 0;
-
+    var ean = ViewBag.Ean as string;
+    var sku = ViewBag.Sku as string;
+    var externalId = ViewBag.ExternalId as int?;
     var totalOffers = Model.Count();
     var googleOffers = Model.Count(x => x.IsGoogle == true);
     var ceneoOffers = totalOffers - googleOffers;
@@ -165,6 +167,21 @@
         <div class="form-check-orders" style="margin-bottom:16px;">
             <div>
                 <p><strong>Wykonano:</strong> @scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
+
+                <div style="display: flex; flex-direction: column; ">
+                    @if (externalId.HasValue)
+                    {
+                        <span><strong>ID:</strong> @externalId</span>
+                    }
+                    @if (!string.IsNullOrEmpty(sku))
+                    {
+                        <span><strong>SKU:</strong> @sku</span>
+                    }
+                    @if (!string.IsNullOrEmpty(ean))
+                    {
+                        <span><strong>EAN:</strong> @ean</span>
+                    }
+                </div>
             </div>
         </div>
 
