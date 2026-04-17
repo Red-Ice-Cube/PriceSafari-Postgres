@@ -1685,13 +1685,21 @@
                                                 <button class="select-product-btn"
                                                         data-product-id="@item.ProductId"
                                                         data-product-name="@item.Name"
-                                                        data-identifier="@item.Identifier"
+                                                        data-identifier="@((!isMarketplace && item.ExternalId.HasValue) ? item.ExternalId.ToString() : item.Identifier)"
                                                         style="font-size: 11px; padding: 2px 8px; pointer-events: auto;">
                                                     Zaznacz
                                                 </button>
 
                                                 <div class="small text-muted" style="line-height: 1;">
-                                                    ID: @item.Identifier
+                                                    @if (!isMarketplace && item.ExternalId.HasValue)
+                                                    {
+                                                        <text>ID: @item.ExternalId</text>
+                                                    }
+                                                    else
+                                                    {
+                                                        <text>ID: @item.Identifier</text>
+                                                    }
+
                                                     @if (item.ApiPriceFromUser.HasValue)
                                                     {
                                                         <span class="text-xs ml-1 text-gray-500" title="Cena pobrana z API"> | API: @item.ApiPriceFromUser</span>

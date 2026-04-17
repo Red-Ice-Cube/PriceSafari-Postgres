@@ -76,7 +76,7 @@ namespace PriceSafari.Models.ViewModels
     public class AutomationProductRowViewModel
     {
         public int ProductId { get; set; }
-
+        public int? ExternalId { get; set; }
         public string Name { get; set; }
         public string ImageUrl { get; set; }
         public string Identifier { get; set; }

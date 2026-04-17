@@ -93,6 +93,7 @@ namespace PriceSafari.Services.PriceAutomationService
                     itemsToBridge.Add(new PriceBridgeItemRequest
                     {
                         ProductId = row.ProductId,
+                  
                         CurrentPrice = row.CurrentPrice ?? 0,
                         NewPrice = row.SuggestedPrice.Value,
                         MarginPrice = row.PurchasePrice,
@@ -397,6 +398,7 @@ namespace PriceSafari.Services.PriceAutomationService
                 var row = new AutomationProductRowViewModel
                 {
                     ProductId = p.ProductId,
+                    ExternalId = p.ExternalId,
                     Name = p.ProductName,
                     ImageUrl = p.MainUrl,
                     Identifier = p.ProductId.ToString(),
