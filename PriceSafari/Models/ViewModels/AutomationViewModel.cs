@@ -126,7 +126,7 @@ namespace PriceSafari.Models.ViewModels
         public bool CompetitorIsSuperPrice { get; set; }
         public bool CompetitorIsTopOffer { get; set; }
 
-        public decimal? ApiAllegroPriceFromUser { get; set; }
+        public decimal? ApiPriceFromUser { get; set; }
 
         public DateTime? PurchasePriceUpdatedDate { get; set; }
 

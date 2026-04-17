@@ -308,6 +308,11 @@ namespace PriceSafari.Services.PriceAutomationService
             bool includeGoogle = rule.CompetitorPreset == null || rule.CompetitorPreset.SourceGoogle;
             bool includeCeneo = rule.CompetitorPreset == null || rule.CompetitorPreset.SourceCeneo;
 
+            // 🔴 DODANE: Pobranie rozszerzonych informacji (w tym ceny API) dla produktów z porównywarek
+            var extendedInfos = await _context.PriceHistoryExtendedInfos
+                .Where(x => x.ScrapHistoryId == scrapId && productIds.Contains(x.ProductId))
+                .ToListAsync();
+
             // POBIERAMY FLAGI HURTOWO DLA WSZYSTKICH PRODUKTÓW (TYLKO ID)
             var productFlagsLookup = await _context.ProductFlags
                 .Where(pf => pf.ProductId.HasValue
@@ -350,7 +355,7 @@ namespace PriceSafari.Services.PriceAutomationService
                 var myGoogle = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle == true);
                 var myCeneo = histories.FirstOrDefault(h => h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase) && h.IsGoogle != true);
 
-               
+                var extInfo = extendedInfos.FirstOrDefault(x => x.ProductId == p.ProductId);
 
                 var rawCompetitors = histories
                     .Where(h => h.Price > 0 && h != myHistory && (h.StoreName == null || !h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase)))
@@ -394,7 +399,7 @@ namespace PriceSafari.Services.PriceAutomationService
                     ProductId = p.ProductId,
                     Name = p.ProductName,
                     ImageUrl = p.MainUrl,
-                    Identifier = p.Ean,
+                    Identifier = p.ProductId.ToString(),
                     CurrentPrice = myHistory?.Price,
                     PurchasePrice = p.MarginPrice,
                     BestCompetitorPrice = bestCompetitor?.Price,
@@ -408,7 +413,8 @@ namespace PriceSafari.Services.PriceAutomationService
                     HasScrapedPrice = myHistory != null && myHistory.Price > 0,
                     FlagIds = productFlagsLookup.ContainsKey(p.ProductId)
                       ? productFlagsLookup[p.ProductId]
-                      : new List<int>()
+                      : new List<int>(),
+                    ApiPriceFromUser = extInfo?.ExtendedDataApiPrice
 
                 };
                 row.HasInterval = productsInInterval.Contains(p.ProductId);
@@ -687,7 +693,7 @@ namespace PriceSafari.Services.PriceAutomationService
                     CurrentRankingAllegro = currentRankAllegro,
                     IsInStock = true,
                     CommissionAmount = extInfo?.ApiAllegroCommission,
-                    ApiAllegroPriceFromUser = extInfo?.ApiAllegroPriceFromUser,
+                    ApiPriceFromUser = extInfo?.ApiAllegroPriceFromUser,
                     IsInAnyCampaign = extInfo?.AnyPromoActive ?? false,
                     IsSubsidyActive = extInfo?.IsSubsidyActive ?? false,
                     IsBestPriceGuarantee = myHistory?.IsBestPriceGuarantee ?? false,
@@ -816,7 +822,7 @@ namespace PriceSafari.Services.PriceAutomationService
         private void CalculateSuggestedPrice(AutomationRule rule, AutomationProductRowViewModel row)
         {
 
-            decimal basePrice = row.ApiAllegroPriceFromUser ?? row.CurrentPrice ?? 0;
+            decimal basePrice = row.ApiPriceFromUser ?? row.CurrentPrice ?? 0;
 
             if (!row.IsProductScrapable || row.IsProductRejected || !row.HasScrapedPrice)
             {
@@ -868,6 +874,27 @@ namespace PriceSafari.Services.PriceAutomationService
             {
                 ApplyBlock(row, "Konflikt Min/Max");
                 return;
+            }
+
+            if (row.ApiPriceFromUser.HasValue &&
+            row.CurrentPrice.HasValue &&
+            Math.Round(row.ApiPriceFromUser.Value, 2) != Math.Round(row.CurrentPrice.Value, 2))
+            {
+                if (rule.SourceType == AutomationSourceType.Marketplace)
+                {
+     
+                    if (!row.IsSubsidyActive && !row.IsInAnyCampaign)
+                    {
+                        ApplyBlock(row, "Rozbierzność API");
+                        return;
+                    }
+                }
+                else
+                {
+                    
+                    ApplyBlock(row, "Rozbierzność API");
+                    return;
+                }
             }
 
             if (rule.SourceType == AutomationSourceType.Marketplace)
@@ -1154,7 +1181,7 @@ namespace PriceSafari.Services.PriceAutomationService
 
         private void CalculateCurrentMarkup(AutomationProductRowViewModel row)
         {
-            decimal basePriceForMarkup = row.ApiAllegroPriceFromUser ?? row.CurrentPrice ?? 0;
+            decimal basePriceForMarkup = row.ApiPriceFromUser ?? row.CurrentPrice ?? 0;
 
             if (basePriceForMarkup > 0 && row.PurchasePrice.HasValue && row.PurchasePrice.Value > 0)
             {
@@ -1176,7 +1203,7 @@ namespace PriceSafari.Services.PriceAutomationService
         {
             row.Status = AutomationCalculationStatus.Blocked;
             row.BlockReason = reason;
-            row.SuggestedPrice = row.ApiAllegroPriceFromUser ?? row.CurrentPrice;
+            row.SuggestedPrice = row.ApiPriceFromUser ?? row.CurrentPrice;
             row.PriceChange = 0;
             row.IsGradualDecreaseApplied = false;
             row.IsGradualIncreaseApplied = false;

@@ -1692,9 +1692,9 @@
 
                                                 <div class="small text-muted" style="line-height: 1;">
                                                     ID: @item.Identifier
-                                                    @if (item.ApiAllegroPriceFromUser.HasValue)
+                                                    @if (item.ApiPriceFromUser.HasValue)
                                                     {
-                                                        <span class="text-xs ml-1 text-gray-500" title="Cena bazowa w API (przed dopłatami)"> | API: @item.ApiAllegroPriceFromUser</span>
+                                                        <span class="text-xs ml-1 text-gray-500" title="Cena pobrana z API"> | API: @item.ApiPriceFromUser</span>
                                                     }
                                                 </div>
                                             </div>
@@ -1872,14 +1872,14 @@
                                         </div>
                                     }
 
-                                    @if (item.ApiAllegroPriceFromUser.HasValue)
+                                    @if (item.ApiPriceFromUser.HasValue)
                                     {
 
                                         if (item.IsSubsidyActive)
                                         {
                                             <div class="subsidy-stack" style="margin-top: 4px;">
                                                 <span class="subsidy-stack-badge">Dopłaty | Twoja cena</span>
-                                                <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
+                                                <p>@item.ApiPriceFromUser.Value.ToString("F2") PLN</p>
                                             </div>
                                         }
 
@@ -1887,7 +1887,7 @@
                                         {
                                             <div class="Campaign-stack" style="margin-top: 4px;">
                                                 <span class="campaign-stack-badge">Kampania | Twoja cena</span>
-                                                <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
+                                                <p>@item.ApiPriceFromUser.Value.ToString("F2") PLN</p>
                                             </div>
                                         }
                                     }
