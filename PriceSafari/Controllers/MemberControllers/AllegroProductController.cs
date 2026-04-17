@@ -234,8 +234,12 @@ namespace PriceSafari.Controllers
                     }
                 }
 
-                // Autodopasowanie szerokości kolumn
-                for (int i = 0; i < 5; i++) sheet.AutoSizeColumn(i);
+                // Stałe szerokości kolumn (w jednostkach NPOI: 256 = 1 znak)
+                sheet.SetColumnWidth(0, 20 * 256);  // ID
+                sheet.SetColumnWidth(1, 18 * 256);  // EAN
+                sheet.SetColumnWidth(2, 16 * 256);  // SKU
+                sheet.SetColumnWidth(3, 14 * 256);  // CENA
+                sheet.SetColumnWidth(4, 30 * 256);  // FLAGI
 
                 using (var stream = new MemoryStream())
                 {
