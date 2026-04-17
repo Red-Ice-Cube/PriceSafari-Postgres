@@ -143,6 +143,7 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.StoreNameGoogle = store.StoreNameGoogle;
             existingStore.StoreNameCeneo = store.StoreNameCeneo;
             existingStore.FetchExtendedData = store.FetchExtendedData;
+            existingStore.GetPurchasePriceFromApi = store.GetPurchasePriceFromApi;
             existingStore.StoreSystemType = store.StoreSystemType;
             existingStore.UseGPID = store.UseGPID;
             existingStore.UseWRGA = store.UseWRGA;

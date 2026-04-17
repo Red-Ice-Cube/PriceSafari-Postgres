@@ -47,7 +47,8 @@ public class StoreProcessingService
 
         var apiStoreData = await _context.CoOfrStoreDatas
             .AsNoTracking()
-            .Where(sd => sd.StoreId == storeId && sd.IsApiProcessed && sd.ExtendedDataApiPrice.HasValue)
+            .Where(sd => sd.StoreId == storeId && sd.IsApiProcessed
+                         && (sd.ExtendedDataApiPrice.HasValue || sd.PurchasePriceFromApi.HasValue))
             .ToListAsync();
 
         var scrapHistory = new ScrapHistoryClass
@@ -281,6 +282,35 @@ public class StoreProcessingService
                 }
             }
         }));
+
+        // ─── AKTUALIZACJA CEN ZAKUPU Z API ───
+        if (store.GetPurchasePriceFromApi && apiStoreData.Any(sd => sd.PurchasePriceFromApi.HasValue))
+        {
+            foreach (var product in products)
+            {
+                var relatedCoOfrs = coOfrClasses
+                    .Where(co => co.ProductIds.Contains(product.ProductId)
+                                 || co.ProductIdsGoogle.Contains(product.ProductId))
+                    .ToList();
+
+                if (!relatedCoOfrs.Any()) continue;
+
+                var matchingApiData = apiStoreData
+                    .FirstOrDefault(sd => sd.PurchasePriceFromApi.HasValue
+                                          && relatedCoOfrs.Any(co => co.Id == sd.CoOfrClassId));
+
+                if (matchingApiData?.PurchasePriceFromApi == null) continue;
+
+                decimal newMarginPrice = matchingApiData.PurchasePriceFromApi.Value;
+
+                if (product.MarginPrice != newMarginPrice)
+                {
+                    product.MarginPrice = newMarginPrice;
+                    product.MarginPriceUpdatedDate = DateTime.Now;
+                    updatedProductsBag.Add(product);
+                }
+            }
+        }
 
         // ─── DOKLEJANIE CEN Z XML (CopyXMLPrices) ───
         // Jeśli włączone — dla produktów którym nie znaleziono naszej oferty w Google,

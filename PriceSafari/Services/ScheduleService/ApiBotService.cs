@@ -178,7 +178,7 @@ namespace PriceSafari.Services.ScheduleService
             client.Timeout = TimeSpan.FromSeconds(60);
 
             string baseUrl = store.StoreApiUrl.TrimEnd('/');
-            var chunks = items.Chunk(100).ToList(); // GET endpoint pozwala na 100 ID per request
+            var chunks = items.Chunk(100).ToList(); 
 
             _logger.LogInformation($"[{store.StoreName}] IdoSell: {items.Count} produktów do pobrania, podzielone na {chunks.Count} paczek (po max 100).");
 
@@ -191,7 +191,7 @@ namespace PriceSafari.Services.ScheduleService
             {
                 chunkIndex++;
 
-                // Mapa: int productId -> CoOfrStoreData
+           
                 var itemsById = new Dictionary<int, CoOfrStoreData>();
                 foreach (var x in chunk)
                 {
@@ -212,8 +212,7 @@ namespace PriceSafari.Services.ScheduleService
                     continue;
                 }
 
-                // GET endpoint /api/admin/v3/products/products z parametrem productIds w query stringu.
-                // IdoSell przyjmuje wartości oddzielone przecinkiem. Max 100 ID per request.
+               
                 var idsCsv = string.Join(",", itemsById.Keys);
                 string requestUrl = $"{baseUrl}/api/admin/v3/products/products?productIds={idsCsv}";
 
@@ -300,7 +299,6 @@ namespace PriceSafari.Services.ScheduleService
                         matchedInChunk++;
 
                         decimal? grossPrice = ExtractIdoSellGrossPrice(productNode, store.StoreName, idStr);
-
                         if (grossPrice.HasValue && grossPrice.Value > 0)
                         {
                             itemToUpdate.ExtendedDataApiPrice = Math.Round(grossPrice.Value, 2);
@@ -312,6 +310,17 @@ namespace PriceSafari.Services.ScheduleService
                         else
                         {
                             itemToUpdate.IsApiProcessed = true;
+                        }
+
+                        // Pobieranie ceny zakupu (productMinimalPrice) jeśli włączone
+                        if (store.GetPurchasePriceFromApi)
+                        {
+                            decimal? minimalPrice = ExtractIdoSellMinimalPrice(productNode, store.StoreName, idStr);
+                            if (minimalPrice.HasValue && minimalPrice.Value > 0)
+                            {
+                                itemToUpdate.PurchasePriceFromApi = Math.Round(minimalPrice.Value, 2);
+                                _logger.LogInformation($"[{store.StoreName}] IdoSell: id={productIdInt} -> cena ZAKUPU (minimalna) {itemToUpdate.PurchasePriceFromApi} PLN");
+                            }
                         }
                     }
 
@@ -371,6 +380,21 @@ namespace PriceSafari.Services.ScheduleService
             _logger.LogWarning($"[{storeName}] IdoSell: id={productId} - brak ceny w productRetailPrice (wartość: '{priceStr ?? "(null)"}').");
             return null;
         }
+        private decimal? ExtractIdoSellMinimalPrice(JsonNode productNode, string storeName, string productId)
+        {
+            var priceStr = productNode["productMinimalPrice"]?.ToString();
+            _logger.LogDebug($"[{storeName}] IdoSell: id={productId} - productMinimalPrice='{priceStr ?? "(null)"}'");
+
+            if (decimal.TryParse(priceStr, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out decimal price) && price > 0)
+            {
+                return price;
+            }
+
+            _logger.LogWarning($"[{storeName}] IdoSell: id={productId} - brak ceny w productMinimalPrice (wartość: '{priceStr ?? "(null)"}').");
+            return null;
+        }
+
         private void MarkAsProcessed(List<CoOfrStoreData> items)
         {
             foreach (var item in items) item.IsApiProcessed = true;

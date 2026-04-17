@@ -81,6 +81,8 @@ namespace PriceSafari.Models
         public bool IsRejected { get; set; } = false;
 
         public string? ExportedNameCeneo { get; set; }
+
+        // Cena zakupu
         public decimal? MarginPrice { get; set; }
 
         public DateTime? MarginPriceUpdatedDate { get; set; }

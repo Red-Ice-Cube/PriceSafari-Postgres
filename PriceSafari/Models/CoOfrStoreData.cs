@@ -16,13 +16,18 @@ namespace PriceSafari.Models
 
         public int StoreId { get; set; }
 
-        // Pomocnicze ID produktu w sklepie (np. ID z Shoplo, Shoper itp.)
-        // Przepisujemy to z ProductClass, żeby bot API nie musiał szukać produktu ponownie
+
         public string? ProductExternalId { get; set; }
 
         // Miejsce na wynik działania bota API
         [Column(TypeName = "decimal(18, 2)")]
         public decimal? ExtendedDataApiPrice { get; set; }
+
+        /// <summary>
+        /// Cena zakupu (minimalna) pobrana z API sklepu (np. productMinimalPrice z IdoSell)
+        /// </summary>
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal? PurchasePriceFromApi { get; set; }
 
         // Flaga statusu - czy bot API już tu był i zapisał dane?
         public bool IsApiProcessed { get; set; } = false;

@@ -58,6 +58,9 @@ namespace PriceSafari.Models
         [Display(Name = "Pobieraj dane z API Sklepu")]
         public bool FetchExtendedData { get; set; } = false;
 
+        [Display(Name = "Pobieraj cenę zakupu z API Sklepu")]
+        public bool GetPurchasePriceFromApi { get; set; } = false;
+
         [Display(Name = "System Sklepowy (Silnik)")]
         public StoreSystemType StoreSystemType { get; set; } = StoreSystemType.Custom;
 
