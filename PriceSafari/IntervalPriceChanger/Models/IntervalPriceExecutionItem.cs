@@ -91,6 +91,7 @@ namespace PriceSafari.IntervalPriceChanger.Models
         BlockedLimitReached,
         BlockedNoPriceData,
         BlockedMinMaxConflict,
+        BlockedActivePromotion,   // ← NOWA: dopłaty/kampania — slot pominięty, ponowi się w następnym wykonaniu
         SkippedCollision,
         FailedApi,
         FailedAuth,

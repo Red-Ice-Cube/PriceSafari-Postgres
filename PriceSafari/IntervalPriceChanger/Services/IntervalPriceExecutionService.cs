@@ -361,6 +361,32 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     apiRequests++;
                     item.CommissionBefore = commission;
 
+                    // ═══ NOWE: Sprawdź promocje na żywo ═══
+                    var promoStatus = await GetOfferPromotionStatus(accessToken, product.IdOnAllegro, offerData);
+                    apiRequests += 2; // badges + ewent. submitted-offers
+
+                    item.IsInCampaign = promoStatus.IsInAnyCampaign;
+                    item.IsSubsidyActive = promoStatus.IsSubsidyActive;
+                    item.CustomerVisiblePrice = promoStatus.CustomerVisiblePrice ?? currentPrice;
+
+                    // ── BLOKADA PROMOCJI ──
+                    // Dziedziczymy z rodzica: jeśli rodzic NIE zezwala na zmiany gdy jest kampania,
+                    // to interwał też pomija — i w kolejnym slocie spróbuje ponownie.
+                    if (!parent.MarketplaceChangePriceForBadgeInCampaign)
+                    {
+                        if (promoStatus.IsSubsidyActive)
+                        {
+                            SetBlocked(item, batch, IntervalExecutionItemStatus.BlockedActivePromotion,
+                                "Aktywne dopłaty — pominięto ten slot");
+                            continue;
+                        }
+                        if (promoStatus.IsInAnyCampaign)
+                        {
+                            SetBlocked(item, batch, IntervalExecutionItemStatus.BlockedActivePromotion,
+                                "Aktywna kampania — pominięto ten slot");
+                            continue;
+                        }
+                    }
                     // Przelicz limity z prowizją jeśli rodzic tego wymaga
                     if (parent.MarketplaceIncludeCommission && commission.HasValue)
                     {
@@ -741,6 +767,129 @@ namespace PriceSafari.IntervalPriceChanger.Services
             var feeStr = feeNode?["commissions"]?[0]?["fee"]?["amount"]?.ToString();
             return decimal.TryParse(feeStr, CultureInfo.InvariantCulture, out var fee) ? fee : null;
         }
+
+
+        private class PromotionStatus
+        {
+            public bool IsSubsidyActive { get; set; }
+            public bool IsInAnyCampaign { get; set; }
+            public decimal? CustomerVisiblePrice { get; set; }
+        }
+
+        /// <summary>
+        /// Sprawdza aktywne promocje (dopłaty AlleObniżka/Discount + kampanie badge'owe typu subsidy/bargain).
+        /// Logika identyczna jak w AllegroApiBotService.FetchApiDataForOfferWithDiagnostics.
+        /// </summary>
+        private async Task<PromotionStatus> GetOfferPromotionStatus(string token, string offerId, JsonNode offerData)
+        {
+            var status = new PromotionStatus();
+
+            // 1) Pobierz badge'y dla tej oferty
+            var badgesRequest = new HttpRequestMessage(HttpMethod.Get,
+                $"https://api.allegro.pl/sale/badges?marketplace.id=allegro-pl&offer.id={offerId}&limit=100");
+            badgesRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            badgesRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
+
+            List<(string CampaignName, JsonNode BadgeNode)> activeBadges = new();
+
+            try
+            {
+                var badgesResp = await _allegroHttpClient.SendAsync(badgesRequest);
+                if (badgesResp.IsSuccessStatusCode)
+                {
+                    var badgesJson = JsonNode.Parse(await badgesResp.Content.ReadAsStringAsync());
+                    var badgesArray = badgesJson?["badges"]?.AsArray();
+                    if (badgesArray != null)
+                    {
+                        foreach (var b in badgesArray)
+                        {
+                            if (b?["process"]?["status"]?.ToString() != "ACTIVE") continue;
+                            var name = b?["campaign"]?["name"]?.ToString() ?? "";
+                            activeBadges.Add((name, b));
+                        }
+                    }
+                }
+            }
+            catch { /* brak krytyki — leci dalej */ }
+
+            // 2) AlleDiscount / AlleObniżka — sprawdź endpoint submitted-offers dla campaignId
+            var alleDiscountBadges = activeBadges
+                .Where(x => x.CampaignName.Contains("AlleObniżka") || x.CampaignName.Contains("AlleDiscount"))
+                .ToList();
+
+            foreach (var (_, badgeNode) in alleDiscountBadges)
+            {
+                var campaignId = badgeNode?["campaign"]?["id"]?.ToString();
+                if (string.IsNullOrEmpty(campaignId)) continue;
+
+                try
+                {
+                    var subReq = new HttpRequestMessage(HttpMethod.Get,
+                        $"https://api.allegro.pl/sale/alle-discount/{campaignId}/submitted-offers?offer.id={offerId}");
+                    subReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                    subReq.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
+
+                    var subResp = await _allegroHttpClient.SendAsync(subReq);
+                    if (!subResp.IsSuccessStatusCode) continue;
+
+                    var subJson = JsonNode.Parse(await subResp.Content.ReadAsStringAsync());
+                    var arr = subJson?["submittedOffers"]?.AsArray();
+                    if (arr == null) continue;
+
+                    foreach (var item in arr)
+                    {
+                        if (item?["offer"]?["id"]?.ToString() != offerId) continue;
+                        if (item?["process"]?["status"]?.ToString() != "ACTIVE") continue;
+
+                        status.IsSubsidyActive = true;
+                        status.IsInAnyCampaign = true;
+
+                        var custPriceStr = item?["prices"]?["maximumSellingPrice"]?["amount"]?.ToString();
+                        if (decimal.TryParse(custPriceStr, CultureInfo.InvariantCulture, out var cp))
+                            status.CustomerVisiblePrice = cp;
+                        break;
+                    }
+                }
+                catch { }
+            }
+
+            // 3) Badge'e z subsidy (bez AlleDiscount) — uznajemy jako dopłata
+            if (!status.IsSubsidyActive)
+            {
+                var subsidyBadge = activeBadges.FirstOrDefault(b =>
+                    b.BadgeNode?["prices"]?["subsidy"] != null &&
+                    b.BadgeNode?["prices"]?["subsidy"]?.ToString() != "null");
+
+                if (subsidyBadge.BadgeNode != null)
+                {
+                    status.IsSubsidyActive = true;
+                    status.IsInAnyCampaign = true;
+
+                    var tpStr = subsidyBadge.BadgeNode?["prices"]?["subsidy"]?["targetPrice"]?["amount"]?.ToString();
+                    if (decimal.TryParse(tpStr, CultureInfo.InvariantCulture, out var tp))
+                        status.CustomerVisiblePrice = tp;
+                }
+            }
+
+            // 4) Badge'e z bargain — kampania bez dopłaty
+            if (!status.IsInAnyCampaign)
+            {
+                var bargainBadge = activeBadges.FirstOrDefault(b =>
+                    b.BadgeNode?["prices"]?["bargain"] != null);
+
+                if (bargainBadge.BadgeNode != null)
+                {
+                    status.IsInAnyCampaign = true;
+
+                    var bpStr = bargainBadge.BadgeNode?["prices"]?["bargain"]?["amount"]?.ToString();
+                    if (decimal.TryParse(bpStr, CultureInfo.InvariantCulture, out var bp))
+                        status.CustomerVisiblePrice = bp;
+                }
+            }
+
+            return status;
+        }
+
 
         private async Task<(bool Success, string Error)> SetAllegroPrice(string token, string offerId, decimal newPrice)
         {

@@ -68,5 +68,7 @@ namespace PriceSafari.IntervalPriceChanger.Models.ViewModels
         public int CountLimitReached => Products.Count(p => p.Status == IntervalProductStatus.LimitReached);
         public int CountPaused => Products.Count(p => p.Status == IntervalProductStatus.Paused);
 
+        public bool MarketplaceChangePriceForBadgeInCampaign { get; set; }
+
     }
 }

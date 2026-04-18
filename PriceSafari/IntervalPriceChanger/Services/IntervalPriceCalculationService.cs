@@ -59,7 +59,7 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 IsMaxMarkupPercent = parent.IsMaxMarkupPercent,
                 MaxMarkupValue = parent.MaxMarkupValue,
                 MarketplaceIncludeCommission = parent.MarketplaceIncludeCommission,
-
+                MarketplaceChangePriceForBadgeInCampaign = parent.MarketplaceChangePriceForBadgeInCampaign,
                 StoreId = parent.StoreId,
                 StoreName = store?.StoreName ?? "Nieznany sklep",
             };
@@ -570,15 +570,19 @@ namespace PriceSafari.IntervalPriceChanger.Services
         }
 
         private void DetermineEffectivePriceAndStatus(
-            IntervalPriceRule rule,
-            AutomationRule parent,
-            IntervalPriceProductRowViewModel row,
-            bool hasScrapedPrice,
-            decimal? committedPrice)
+       IntervalPriceRule rule,
+       AutomationRule parent,
+       IntervalPriceProductRowViewModel row,
+       bool hasScrapedPrice,
+       decimal? committedPrice)
         {
-            decimal? effectivePrice = row.LastKnownPrice
-                ?? row.ApiAllegroPriceFromUser
-                ?? row.MarketCurrentPrice;
+            // ═══ EFFECTIVE PRICE — priorytet jak w głównym automacie ═══
+            // Dla Marketplace: gdy są dopłaty, cena sprzedawcy (ApiAllegroPriceFromUser) to realna baza.
+            // Dla porównywarek: ApiAllegroPriceFromUser jest nullem, więc i tak leci MarketCurrentPrice.
+            // LastKnownPrice używamy TYLKO gdy API i scrape są puste (np. produkt zniknął z rynku).
+            decimal? effectivePrice = row.ApiAllegroPriceFromUser
+                ?? row.MarketCurrentPrice
+                ?? row.LastKnownPrice;
 
             row.EffectiveCurrentPrice = effectivePrice;
 
@@ -597,6 +601,18 @@ namespace PriceSafari.IntervalPriceChanger.Services
             if (row.MinPriceLimit.HasValue && row.MaxPriceLimit.HasValue
                 && row.MinPriceLimit.Value > row.MaxPriceLimit.Value)
             { ApplyBlock(row, "Konflikt Min/Max"); return; }
+
+            // ═══ BLOKADA KAMPANIA/DOPŁATY ═══
+            // Dziedziczona z rodzica: jeśli rodzic NIE pozwala na zmiany gdy jest kampania,
+            // i produkt ma aktywną kampanię lub dopłaty — pełna blokada (Blocked, nie Paused).
+            // Executor i tak sprawdzi na żywo w momencie wykonania — blokada tylko wizualna w preview.
+            if (parent.SourceType == AutomationSourceType.Marketplace
+                && !parent.MarketplaceChangePriceForBadgeInCampaign
+                && (row.IsSubsidyActive || row.IsInAnyCampaign))
+            {
+                ApplyBlock(row, row.IsSubsidyActive ? "Aktywne dopłaty" : "Aktywna kampania");
+                return;
+            }
 
             if (row.NextStepIdx.HasValue && row.NextStepIdx.Value > 0)
             {
@@ -624,7 +640,6 @@ namespace PriceSafari.IntervalPriceChanger.Services
 
             row.Status = IntervalProductStatus.Ready;
         }
-
         private void CalculateProjectedStep(IntervalPriceRule rule, IntervalPriceProductRowViewModel row)
         {
             if (!row.EffectiveCurrentPrice.HasValue || row.EffectiveCurrentPrice.Value <= 0)

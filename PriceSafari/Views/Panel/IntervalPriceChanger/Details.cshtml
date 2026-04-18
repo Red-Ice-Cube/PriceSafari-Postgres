@@ -138,6 +138,8 @@
     .filter-btn[data-filter-key="has-min-limit"].active { background:rgba(171,37,32,1); border-color:rgba(171,37,32,1); }
     .filter-btn[data-filter-key="has-max-limit"].active { background:rgba(0,145,123,1); border-color:rgba(0,145,123,1); }
     .filter-btn[data-filter-key="margin-warning"].active { background:#fd7e14; border-color:#fd7e14; }
+    .filter-btn[data-filter-key="subsidy"].active { background:#1cc88a; border-color:#1cc88a; }
+    .filter-btn[data-filter-key="campaign"].active { background:#ffc107; border-color:#ffc107; color:#333; }
 
    
     .next-step-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:700; letter-spacing:0.3px; }
@@ -404,11 +406,24 @@
                         { <span style="color:#b7b9cc;">Wyłączony</span> }
                     </span>
                 </div>
-                @if (isMarketplace)
+             @if (isMarketplace)
                 {
                     <div class="inherited-item">
                         <span class="inherited-label">Prowizja</span>
                         <span class="inherited-value">@(Model.MarketplaceIncludeCommission ? "Uwzględniana" : "Nieuwzg.")</span>
+                    </div>
+                    <div class="inherited-item">
+                        <span class="inherited-label">Kampanie</span>
+                        <span class="inherited-value" style="color:@(Model.MarketplaceChangePriceForBadgeInCampaign ? "#1cc88a" : "#e74a3b");">
+                            @if (Model.MarketplaceChangePriceForBadgeInCampaign)
+                            {
+                                <i class="fas fa-check-circle" style="margin-right:4px;"></i> <text>Pozwala na zmiany</text>
+                            }
+                            else
+                            {
+                                <i class="fas fa-ban" style="margin-right:4px;"></i> <text>Blokuje zmiany</text>
+                            }
+                        </span>
                     </div>
                 }
             </div>
@@ -560,6 +575,8 @@
                                 data-limited-by-min="@item.IsLimitedByMin.ToString().ToLower()"
                                 data-limited-by-max="@item.IsLimitedByMax.ToString().ToLower()"
                                 data-has-margin-warning="@item.IsMarginWarning.ToString().ToLower()"
+                                data-is-subsidy="@item.IsSubsidyActive.ToString().ToLower()"
+                                data-is-campaign="@item.IsInAnyCampaign.ToString().ToLower()"
                                 data-flag-ids="@(item.FlagIds != null ? string.Join(",", item.FlagIds) : "")">
 
                               
@@ -744,12 +761,24 @@
                                             <p>@item.CurrentMarkupAmount.Value.ToString("F2") PLN (@item.CurrentMarkupPercent.Value.ToString("F2")%)</p>
                                         </div>
                                     }
-                                    @if (item.IsSubsidyActive)
+
+                                    @* ═══ NOWY BLOK: Dopłaty / Kampania — identyczny jak w głównym automacie ═══ *@
+                                    @if (item.ApiAllegroPriceFromUser.HasValue)
                                     {
-                                        <div class="subsidy-stack" style="margin-top:4px;">
-                                            <span class="subsidy-stack-badge">Dopłaty</span>
-                                            <p>@(item.ApiAllegroPriceFromUser?.ToString("F2") ?? "-") PLN</p>
-                                        </div>
+                                        if (item.IsSubsidyActive)
+                                        {
+                                            <div class="subsidy-stack" style="margin-top: 4px;">
+                                                <span class="subsidy-stack-badge">Dopłaty | Twoja cena</span>
+                                                <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
+                                            </div>
+                                        }
+                                        else if (item.IsInAnyCampaign)
+                                        {
+                                            <div class="Campaign-stack" style="margin-top: 4px;">
+                                                <span class="campaign-stack-badge">Kampania | Twoja cena</span>
+                                                <p>@item.ApiAllegroPriceFromUser.Value.ToString("F2") PLN</p>
+                                            </div>
+                                        }
                                     }
                                 </td>
 
@@ -1346,6 +1375,8 @@ function _executeIntervalUnassign(ctx) {
         })();
 
         const FilterSystem = (function() {
+            const isMarketplaceCtx = @(isMarketplace ? "true" : "false");
+
             const filterGroups = [
                 {
                     id: 'status', label: 'Status',
@@ -1367,6 +1398,16 @@ function _executeIntervalUnassign(ctx) {
                     ]
                 }
             ];
+
+            if (isMarketplaceCtx) {
+                filterGroups.push({
+                    id: 'allegro', label: 'Allegro',
+                    filters: [
+                        { key: 'subsidy', label: 'Dopłaty', icon: 'fa-hand-holding-usd', attr: 'data-is-subsidy', value: 'true' },
+                        { key: 'campaign', label: 'Kampania', icon: 'fa-bullhorn', attr: 'data-is-campaign', value: 'true' }
+                    ]
+                });
+            }
 
             let activeFilters = new Map();
             let allRows = [];
@@ -1689,4 +1730,3 @@ function _executeIntervalUnassign(ctx) {
         })();
     </script>
 }
-
