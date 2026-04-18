@@ -576,13 +576,17 @@ namespace PriceSafari.IntervalPriceChanger.Services
        bool hasScrapedPrice,
        decimal? committedPrice)
         {
-            // ═══ EFFECTIVE PRICE — priorytet jak w głównym automacie ═══
-            // Dla Marketplace: gdy są dopłaty, cena sprzedawcy (ApiAllegroPriceFromUser) to realna baza.
-            // Dla porównywarek: ApiAllegroPriceFromUser jest nullem, więc i tak leci MarketCurrentPrice.
-            // LastKnownPrice używamy TYLKO gdy API i scrape są puste (np. produkt zniknął z rynku).
-            decimal? effectivePrice = row.ApiAllegroPriceFromUser
-                ?? row.MarketCurrentPrice
-                ?? row.LastKnownPrice;
+            decimal? effectivePrice;
+            if (row.IsSubsidyActive && row.ApiAllegroPriceFromUser.HasValue && row.ApiAllegroPriceFromUser.Value > 0)
+            {
+                effectivePrice = row.ApiAllegroPriceFromUser;
+            }
+            else
+            {
+                effectivePrice = row.LastKnownPrice
+                    ?? row.ApiAllegroPriceFromUser
+                    ?? row.MarketCurrentPrice;
+            }
 
             row.EffectiveCurrentPrice = effectivePrice;
 
