@@ -593,6 +593,9 @@ namespace PriceSafari.IntervalPriceChanger.Services
             if (!hasScrapedPrice && row.LastKnownPrice == null)
             { ApplyBlock(row, "Brak danych ze scrapu"); return; }
 
+            if (!row.MarketCurrentPrice.HasValue || row.MarketCurrentPrice.Value <= 0)
+            { ApplyBlock(row, "Brak Oferty"); return; }
+
             if (!effectivePrice.HasValue || effectivePrice.Value <= 0)
             { ApplyBlock(row, "Brak ceny bazowej"); return; }
 
@@ -606,10 +609,7 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 && row.MinPriceLimit.Value > row.MaxPriceLimit.Value)
             { ApplyBlock(row, "Konflikt Min/Max"); return; }
 
-            // ═══ BLOKADA KAMPANIA/DOPŁATY ═══
-            // Dziedziczona z rodzica: jeśli rodzic NIE pozwala na zmiany gdy jest kampania,
-            // i produkt ma aktywną kampanię lub dopłaty — pełna blokada (Blocked, nie Paused).
-            // Executor i tak sprawdzi na żywo w momencie wykonania — blokada tylko wizualna w preview.
+           
             if (parent.SourceType == AutomationSourceType.Marketplace
                 && !parent.MarketplaceChangePriceForBadgeInCampaign
                 && (row.IsSubsidyActive || row.IsInAnyCampaign))
