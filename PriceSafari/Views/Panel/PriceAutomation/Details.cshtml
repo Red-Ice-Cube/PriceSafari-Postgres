@@ -1045,7 +1045,15 @@
         background: #fd7e14;
         border-color: #fd7e14;
     }
+    .filter-btn[data-filter-key="in-interval"].active {
+    background: #e67e22;
+    border-color: #e67e22;
+    }
 
+    .filter-btn[data-filter-key="no-interval"].active {
+        background: #858796;
+        border-color: #858796;
+    }
 
 
     .interval-info-box {
@@ -1621,7 +1629,8 @@
                                 data-no-competition="@isNoCompetition.ToString().ToLower()"
                                 data-gradual-decrease="@(item.IsGradualDecreaseApplied.ToString().ToLower())"
                                 data-gradual-increase="@(item.IsGradualIncreaseApplied.ToString().ToLower())"
-                                data-flag-ids="@(item.FlagIds != null ? string.Join(",", item.FlagIds) : "")">
+                                data-flag-ids="@(item.FlagIds != null ? string.Join(",", item.FlagIds) : "")"
+                                data-has-interval="@item.HasInterval.ToString().ToLower()">
                           
                                 <td class="align-middle">
                                     <div style="display: flex; gap: 10px; align-items: flex-start;">
@@ -3760,6 +3769,15 @@ else
                         { key: 'campaign', label: 'Kampania', icon: 'fa-bullhorn', attr: 'data-is-campaign', value: 'true' },
                         { key: 'subsidy', label: 'Dopłaty', icon: 'fa-hand-holding-usd', attr: 'data-is-subsidy', value: 'true' },
                         { key: 'cheaper-own', label: 'Tańsza własna', icon: 'fa-exclamation-triangle', attr: 'data-has-cheaper-own', value: 'true' }
+                    ]
+                },              
+                {
+                    id: 'interval',
+                    label: 'Interwał',
+                    showIf: '@(Model.IntervalRuleId.HasValue ? "true" : "false")' === 'true',
+                    filters: [
+                        { key: 'in-interval', label: 'W interwale', icon: 'fa-clock', attr: 'data-has-interval', value: 'true' },
+                        { key: 'no-interval', label: 'Bez interwału', icon: 'fa-clock', attr: 'data-has-interval', value: 'false' }
                     ]
                 }
             ];
