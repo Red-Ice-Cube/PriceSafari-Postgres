@@ -596,8 +596,8 @@
                                                     : (Model.LatestScrapId.HasValue ? $"/PriceHistory/Details?scrapId={Model.LatestScrapId}&productId={item.ProductId}" : null);
                                                 }
                                                 @if (!string.IsNullOrEmpty(linkUrl))
-                                                {
-                                                    <a href="@linkUrl" target="_blank" rel="noopener noreferrer" class="simulationProductTitle">@item.Name</a>
+                                                {<a href="@linkUrl" class="simulationProductTitle">
+                                                        @item.Name</a>
                                                 }
                                                 else
                                                 {

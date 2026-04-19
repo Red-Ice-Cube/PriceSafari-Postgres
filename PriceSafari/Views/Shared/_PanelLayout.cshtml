@@ -8,9 +8,9 @@
 
 @{
     bool isManager = User.IsInRole("Manager");
-    bool isAdmin =  User.IsInRole("Admin");
+    bool isAdmin = User.IsInRole("Admin");
     bool isMember = User.IsInRole("Member");
-      bool isPreMember = User.IsInRole("PreMember");
+    bool isPreMember = User.IsInRole("PreMember");
 }
 
 <!DOCTYPE html>
@@ -40,6 +40,79 @@
         ViewData["Title"] = "_PanelLayout";
     }
 
+    <style>
+        /* ── Nawigacja wstecz ── */
+        .nav-back-section {
+            display: none;
+            padding: 4px 14px 8px 14px;
+        }
+        .nav-back-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            width: 100%;
+            text-align: left;
+        }
+        .nav-back-btn:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            border-color: rgba(255,255,255,0.3);
+        }
+        .nav-back-btn svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+        .nav-back-label {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .nav-back-depth {
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        /* Wersja dla zwiniętego sidebara */
+        .nav-back-section-mini {
+            display: none;
+            padding: 6px 0;
+            justify-content: center;
+        }
+        .nav-back-btn-mini {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            color: rgba(255,255,255,0.7);
+            width: 36px;
+            height: 30px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .nav-back-btn-mini:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            border-color: rgba(255,255,255,0.3);
+        }
+        .nav-back-btn-mini svg {
+            width: 16px;
+            height: 16px;
+        }
+    </style>
+
     <script>
         document.write('<style>.Sidebar, .Sidebar-hide { display: none; }</style>');
         var sidebarState = localStorage.getItem('sidebarState');
@@ -53,6 +126,12 @@
 </head>
 
 <body>
+
+    @{
+        var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
+        var actionName = ViewContext.RouteData.Values["action"]?.ToString();
+    }
+
     <div class="Sidebar">
         <div class="Sidebar-box" style="justify-content:flex-start;">
             <div class="Sidebar-box-name">
@@ -63,7 +142,6 @@
                         <img src="~/images/Menu-hide-bone.svg" alt="Menu" style="width: 24px; height: 24px;" />
                     </button>
                 </div>
-
             </div>
             <div class="Sidebar-box-container">
                 <div class="Sidebar-box-item-left">
@@ -72,34 +150,37 @@
                         <a class="nav-link" asp-controller="Payment" asp-action="StorePlans">Plan</a>
                     </div>
                 </div>
-
             </div>
+
+            <!-- ══ Przycisk cofania (rozwinięty sidebar) ══ -->
+            <div class="nav-back-section" id="navBackSection">
+                <button class="nav-back-btn" id="navBackBtn" title="Cofnij">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    <span class="nav-back-label" id="navBackLabel">Cofnij</span>
+                    <span class="nav-back-depth" id="navBackDepth"></span>
+                </button>
+            </div>
+
         </div>
         <div class="Menu">
 
-           
-            @{
-            
-                var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
-                var actionName = ViewContext.RouteData.Values["action"]?.ToString();
-            }
-
             @if (isPreMember)
             {
-             
                 <div class="@(controllerName == "SetUp" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "SetUp")'">
                     <img src="~/images/Settings-bone.svg" alt="Konfiguracja Icon" class="menu-icon" />Konfiguracja
                 </div>
             }
             else if (isMember)
             {
-             
                 <div class="@(controllerName == "Chanel" || controllerName == "PriceHistory" || controllerName == "AllegroPriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Ceny
                 </div>
                 @if (user?.AccesToViewPriceAutomation == true)
                 {
-                    <div class="@(controllerName == "AutomationRules" || controllerName == "PriceAutomation" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
+                    <div class="@(controllerName == "AutomationRules" || controllerName == "PriceAutomation" || controllerName == "IntervalPrice" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
                         <img src="~/images/Robot-bone.svg" alt="Panel Icon" class="menu-icon" />Automatyzacja
                     </div>
                 }
@@ -113,20 +194,16 @@
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Konkurencja
                 </div>
 
-            
                 @if (user?.AccesToViewSafari == true)
                 {
                     <div class="@(controllerName == "Safari" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Chanel", "Safari")'">
                         <img src="~/images/Globe-bone.svg" alt="Panel Icon" class="menu-icon" />Safari
                     </div>
                 }
-
-              
             }
 
             @if (isAdmin)
             {
-            
                 <div class="@(controllerName == "Store" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Store")'">
                     <img src="~/images/Chart-bone.svg" alt="Panel Icon" class="menu-icon" />Sklepy
                 </div>
@@ -172,9 +249,8 @@
                 </div>
 
                 <div class="@(controllerName == "AllegroGather" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "AllegroGather")'">
-                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Allegro Colector  
+                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Allegro Colector
                 </div>
-           
 
                 <div class="@(controllerName == "Plan" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Plan")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Plany
@@ -183,12 +259,10 @@
                 <div class="@(controllerName == "Invoice" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Invoice")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Faktury
                 </div>
-
             }
 
-            @if (isManager){
-
-
+            @if (isManager)
+            {
                 <div class="@(controllerName == "ClientProfile" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ClientProfile")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />Klienci
                 </div>
@@ -197,7 +271,7 @@
         </div>
         <div class="Sidebar-box" style="justify-content:flex-end;">
             <div class="PriceSafari">
-                    <img src="~/images/PriceSafari.png" alt="Menu" width="135" height="38" />
+                <img src="~/images/PriceSafari.png" alt="Menu" width="135" height="38" />
             </div>
         </div>
     </div>
@@ -208,55 +282,61 @@
             <button id="toggleSidebar2" class="upper-menu-link">
                 <img src="~/images/Menu-expand-bone.svg" alt="Menu" style="width: 24px; height: 24px;" />
             </button>
+
+            <!-- ══ Przycisk cofania (zwinięty sidebar) ══ -->
+            <div class="nav-back-section-mini" id="navBackSectionMini">
+                <button class="nav-back-btn-mini" id="navBackBtnMini" title="Cofnij">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+            </div>
+
         </div>
         <div class="Menu-hide">
 
             @if (isPreMember)
-    {
-        
-        <div class="@(controllerName == "SetUp" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "SetUp")'">
-            <img src="~/images/Settings-bone.svg" alt="Konfiguracja Icon" class="menu-icon" />
-        </div>
-    }
-    else if (isMember)
-    {
-
-        <div class="@(controllerName == "Chanel" || controllerName == "PriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
-            <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />
-        </div>
+            {
+                <div class="@(controllerName == "SetUp" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "SetUp")'">
+                    <img src="~/images/Settings-bone.svg" alt="Konfiguracja Icon" class="menu-icon" />
+                </div>
+            }
+            else if (isMember)
+            {
+                <div class="@(controllerName == "Chanel" || controllerName == "PriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
+                    <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
 
                 @if (user?.AccesToViewPriceAutomation == true)
                 {
-                    <div class="@(controllerName == "AutomationRules" || controllerName == "PriceAutomation" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
+                    <div class="@(controllerName == "AutomationRules" || controllerName == "PriceAutomation" || controllerName == "IntervalPrice" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
                         <img src="~/images/Robot-bone.svg" alt="Panel Icon" class="menu-icon" />
                     </div>
                 }
 
-        <div class="@(controllerName == "Dashboard" || controllerName == "AllegroDashboard" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Dashboard")'">
-            <img src="~/images/Campaigns-bone.svg" alt="Panel Icon" class="menu-icon" />
-        </div>
+                <div class="@(controllerName == "Dashboard" || controllerName == "AllegroDashboard" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Dashboard")'">
+                    <img src="~/images/Campaigns-bone.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
 
-        <div class="@(controllerName == "Product" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("StoreList", "Product")'">
-            <img src="~/images/Product-bone.svg" alt="Panel Icon" class="menu-icon" />
-        </div>
+                <div class="@(controllerName == "Product" || controllerName == "AllegroProduct" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("StoreList", "Product")'">
+                    <img src="~/images/Product-bone.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
 
-        <div class="@(controllerName == "Competitors" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Competitors")'">
-            <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
-        </div>
+                <div class="@(controllerName == "Competitors" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Competitors")'">
+                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
+                </div>
 
-        
-        @if (user?.AccesToViewSafari == true)
-        {
-            <div class="@(controllerName == "Safari" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Chanel", "Safari")'">
-                <img src="~/images/Globe-bone.svg" alt="Panel Icon" class="menu-icon" />
-            </div>
-        }
-    }
+                @if (user?.AccesToViewSafari == true)
+                {
+                    <div class="@(controllerName == "Safari" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Chanel", "Safari")'">
+                        <img src="~/images/Globe-bone.svg" alt="Panel Icon" class="menu-icon" />
+                    </div>
+                }
+            }
 
             @if (isAdmin)
             {
-      
-
                 <div class="@(controllerName == "Store" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Store")'">
                     <img src="~/images/Chart-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
@@ -308,9 +388,6 @@
 
             @if (isManager)
             {
-
-            
-
                 <div class="@(controllerName == "ClientProfile" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ClientProfile")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
@@ -329,6 +406,120 @@
 </html>
 
 <script>
+    // ══════════════════════════════════════════════════════════════════
+    //  SYSTEM NAWIGACJI WSTECZ
+    //
+    //  Zasada działania:
+    //  - Klik w menu boczne (.menu-link) → ustawia flagę "reset" i resetuje stos
+    //  - Każda inna nawigacja (link w widoku, formularz) → push na globalny stos
+    //  - Przycisk cofania → pop i nawiguj do poprzedniej strony
+    //
+    //  Brak mapowania routingu = brak problemu z bezpieczeństwem,
+    //  brak problemu z cross-zone, brak konieczności utrzymywania mapy.
+    // ══════════════════════════════════════════════════════════════════
+    (function () {
+        var STACK_KEY = 'ps_nav_stack';
+        var RESET_KEY = 'ps_nav_reset';
+        var MAX_DEPTH = 15;
+
+        var currentUrl = window.location.pathname + window.location.search;
+
+        // ── 1. Przechwycenie kliknięć w menu boczne (capture phase) ──
+        //    Działa PRZED onclick="location.href=..." więc flaga jest ustawiona
+        //    zanim nastąpi nawigacja. Nie trzeba modyfikować żadnego onclick w menu.
+        document.addEventListener('click', function (e) {
+            var menuLink = e.target.closest('.menu-link');
+            if (menuLink) {
+                sessionStorage.setItem(RESET_KEY, '1');
+            }
+        }, true);
+
+        // ── 2. Odczytaj stos ──
+        var stack = [];
+        try {
+            stack = JSON.parse(sessionStorage.getItem(STACK_KEY) || '[]');
+            if (!Array.isArray(stack)) stack = [];
+        } catch (e) {
+            stack = [];
+        }
+
+        // ── 3. Logika stosu ──
+        var wasReset = sessionStorage.getItem(RESET_KEY) === '1';
+        sessionStorage.removeItem(RESET_KEY);
+
+        if (wasReset) {
+            // Klik z menu bocznego — nowy root, resetuj stos
+            stack = [currentUrl];
+        } else {
+            // Nawigacja wewnętrzna (link w widoku, formularz, itp.)
+            var topUrl = stack.length > 0 ? stack[stack.length - 1] : null;
+
+            if (topUrl === currentUrl) {
+                // Odświeżenie strony lub powrót na tę samą — nic nie rób
+            } else {
+                // Sprawdź czy URL już jest na stosie (user cofnął się i przechodzi dalej)
+                var existingIndex = stack.indexOf(currentUrl);
+                if (existingIndex >= 0) {
+                    // Obetnij stos do tego punktu
+                    stack = stack.slice(0, existingIndex + 1);
+                } else {
+                    // Nowa strona — push
+                    stack.push(currentUrl);
+                }
+            }
+        }
+
+        // Ogranicz głębokość
+        if (stack.length > MAX_DEPTH) {
+            stack = stack.slice(stack.length - MAX_DEPTH);
+        }
+
+        // ── 4. Zapisz stos ──
+        sessionStorage.setItem(STACK_KEY, JSON.stringify(stack));
+
+        // ── 5. Przycisk cofania ──
+        var canGoBack = stack.length > 1;
+        var backUrl = canGoBack ? stack[stack.length - 2] : null;
+        var depth = stack.length - 1; // ile kroków w głąb od roota
+
+        function navigateBack() {
+            if (!backUrl) return;
+            // Zdejmij bieżący element PRZED nawigacją
+            stack.pop();
+            sessionStorage.setItem(STACK_KEY, JSON.stringify(stack));
+            window.location.href = backUrl;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // ── Rozwinięty sidebar ──
+            var section = document.getElementById('navBackSection');
+            var btn = document.getElementById('navBackBtn');
+            var label = document.getElementById('navBackLabel');
+            var depthSpan = document.getElementById('navBackDepth');
+
+            if (canGoBack && section && btn) {
+                label.textContent = 'Cofnij';
+                depthSpan.textContent = depth > 1 ? '(' + depth + ')' : '';
+                btn.title = 'Cofnij do poprzedniego widoku';
+                section.style.display = 'block';
+                btn.addEventListener('click', navigateBack);
+            }
+
+            // ── Zwinięty sidebar ──
+            var sectionMini = document.getElementById('navBackSectionMini');
+            var btnMini = document.getElementById('navBackBtnMini');
+
+            if (canGoBack && sectionMini && btnMini) {
+                btnMini.title = 'Cofnij (' + depth + ')';
+                sectionMini.style.display = 'flex';
+                btnMini.addEventListener('click', navigateBack);
+            }
+        });
+    })();
+</script>
+
+<script>
+    // ══ Sidebar toggle ══
     document.addEventListener('DOMContentLoaded', function () {
         var sidebar = document.querySelector('.Sidebar');
         var sidebarHide = document.querySelector('.Sidebar-hide');
