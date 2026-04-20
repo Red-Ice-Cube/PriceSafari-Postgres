@@ -8,7 +8,8 @@
 @inject UserManager<PriceSafariUser> UserManager
 
 @{
-    ViewData["Title"] = "Reguły Automatyzacji";
+
+    ViewBag.Title = "Reguły Automatyzacji " + ViewBag.StoreName;
     int storeId = ViewBag.StoreId;
     string storeName = ViewBag.StoreName;
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
@@ -179,7 +180,7 @@
     <div class="Vert-full">
         <div class="d-sm-flex align-items-center justify-content-between mb-4">
             <div class="Order-Container-Title" style="margin-bottom:0;">
-                Automaty cenowe @storeName
+                Reguły Automatyzacji @storeName
             </div>
 
             @if (canEdit)

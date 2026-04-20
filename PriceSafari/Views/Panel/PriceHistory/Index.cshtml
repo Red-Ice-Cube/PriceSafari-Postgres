@@ -2,7 +2,7 @@
 @using PriceSafari.Models.ViewModels
 
 @{
-    ViewData["Title"] = "Historia Cen";
+    ViewBag.Title = "Panel Monitoringu Cen " + ViewBag.StoreName;
     var latestScrap = ViewBag.LatestScrap as PriceSafari.Models.ScrapHistoryClass;
     var storeId = ViewBag.StoreId;
 

@@ -30,96 +30,124 @@
     <script src="https://cdn.ckeditor.com/4.16.0/standard/ckeditor.js"></script>
 
     <link rel="icon" type="image/png" sizes="16x16" href="~/icon/icon.png">
-
+    <title>@ViewData["Title"]</title>
     <link href="~/css/panel.css" rel="stylesheet" asp-append-version="true" />
 
     @RenderSection("Scripts", required: false)
     @await RenderSectionAsync("Styles", required: false)
 
-    @{
-        ViewData["Title"] = "_PanelLayout";
-    }
-
     <style>
-        /* ── Nawigacja wstecz ── */
-        .nav-back-section {
-            display: none;
-            padding: 4px 14px 8px 14px;
-        }
-        .nav-back-btn {
+        /* ══ TopBar ══ */
+        .TopBar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 34px;
+            background: #222222;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            z-index: 1000;
             display: flex;
             align-items: center;
-            gap: 6px;
-            background: none;
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 6px;
-            color: rgba(255,255,255,0.7);
-            font-size: 13px;
-            padding: 5px 10px;
+            padding: 0 16px;
+            gap: 0;
+        }
+        .TopBar.sidebar-expanded { left: 240px; }
+        .TopBar.sidebar-collapsed { left: 75px; }
+
+        .View { padding-top: 34px; }
+
+        /* Treść TopBara — ukryta do momentu aż JS ją wypełni */
+        .topbar-back-btn,
+        .topbar-sep,
+        .topbar-crumbs {
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        .TopBar.ready .topbar-back-btn,
+        .TopBar.ready .topbar-sep,
+        .TopBar.ready .topbar-crumbs {
+            opacity: 1;
+        }
+
+        .topbar-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 5px;
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+            font-weight: 500;
+            padding: 3px 10px;
             cursor: pointer;
-            transition: all 0.15s ease;
-            width: 100%;
-            text-align: left;
-        }
-        .nav-back-btn:hover {
-            background: rgba(255,255,255,0.08);
-            color: #fff;
-            border-color: rgba(255,255,255,0.3);
-        }
-        .nav-back-btn svg {
-            width: 14px;
-            height: 14px;
+            height: 24px;
+            line-height: 1;
             flex-shrink: 0;
         }
-        .nav-back-label {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .topbar-back-btn:hover {
+            background: rgba(255,255,255,0.14);
+            color: #fff;
+            border-color: rgba(255,255,255,0.25);
         }
-        .nav-back-depth {
-            font-size: 11px;
-            color: rgba(255,255,255,0.4);
-            margin-left: auto;
+        .topbar-back-btn svg {
+            width: 11px;
+            height: 11px;
+            flex-shrink: 0;
+        }
+        .topbar-back-btn.disabled {
+            opacity: 0.25;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .topbar-sep {
+            width: 1px;
+            height: 16px;
+            background: rgba(255,255,255,0.08);
+            margin: 0 10px;
             flex-shrink: 0;
         }
 
-        /* Wersja dla zwiniętego sidebara */
-        .nav-back-section-mini {
-            display: none;
-            padding: 6px 0;
-            justify-content: center;
-        }
-        .nav-back-btn-mini {
+        .topbar-crumbs {
             display: flex;
             align-items: center;
-            justify-content: center;
-            background: none;
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 6px;
-            color: rgba(255,255,255,0.7);
-            width: 36px;
-            height: 30px;
-            cursor: pointer;
-            transition: all 0.15s ease;
+            gap: 0;
+            font-size: 12px;
+            color: rgba(255,255,255,0.35);
+            overflow: hidden;
+            white-space: nowrap;
+            min-width: 0;
         }
-        .nav-back-btn-mini:hover {
-            background: rgba(255,255,255,0.08);
-            color: #fff;
-            border-color: rgba(255,255,255,0.3);
+        .topbar-crumb {
+            display: inline-flex;
+            align-items: center;
+            color: rgba(255,255,255,0.35);
+            text-decoration: none;
+            transition: color 0.15s;
+            cursor: default;
         }
-        .nav-back-btn-mini svg {
-            width: 16px;
-            height: 16px;
+        .topbar-crumb.clickable { cursor: pointer; }
+        .topbar-crumb.clickable:hover { color: rgba(255,255,255,0.7); }
+        .topbar-crumb.current { color: rgba(255,255,255,0.8); font-weight: 600; }
+        .topbar-crumb-chevron {
+            margin: 0 6px;
+            color: rgba(255,255,255,0.12);
+            font-size: 9px;
+            flex-shrink: 0;
         }
     </style>
 
+    <!-- ══ Natychmiastowe ustawienie sidebar + TopBar (przed renderem, zero migania) ══ -->
     <script>
         document.write('<style>.Sidebar, .Sidebar-hide { display: none; }</style>');
         var sidebarState = localStorage.getItem('sidebarState');
         if (sidebarState === 'hidden') {
             document.write('<style>.Sidebar-hide { display: flex; }</style>');
+            document.write('<style>.TopBar { left: 75px; }</style>');
         } else {
             document.write('<style>.Sidebar { display: flex; }</style>');
+            document.write('<style>.TopBar { left: 240px; }</style>');
         }
     </script>
 
@@ -132,11 +160,23 @@
         var actionName = ViewContext.RouteData.Values["action"]?.ToString();
     }
 
+    <!-- ══ Górna belka nawigacyjna ══ -->
+    <div class="TopBar" id="topBar">
+        <button class="topbar-back-btn disabled" id="topBarBackBtn" title="Cofnij">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            Cofnij
+        </button>
+        <div class="topbar-sep"></div>
+        <div class="topbar-crumbs" id="topBarCrumbs"></div>
+    </div>
+
     <div class="Sidebar">
         <div class="Sidebar-box" style="justify-content:flex-start;">
             <div class="Sidebar-box-name">
                 <div class="BigB">@fullName</div>
-
                 <div class="Sidebar-box-item-right">
                     <button id="toggleSidebar1" class="upper-menu-link">
                         <img src="~/images/Menu-hide-bone.svg" alt="Menu" style="width: 24px; height: 24px;" />
@@ -151,19 +191,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- ══ Przycisk cofania (rozwinięty sidebar) ══ -->
-            <div class="nav-back-section" id="navBackSection">
-                <button class="nav-back-btn" id="navBackBtn" title="Cofnij">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>
-                    <span class="nav-back-label" id="navBackLabel">Cofnij</span>
-                    <span class="nav-back-depth" id="navBackDepth"></span>
-                </button>
-            </div>
-
         </div>
         <div class="Menu">
 
@@ -176,7 +203,7 @@
             else if (isMember)
             {
                 <div class="@(controllerName == "Chanel" || controllerName == "PriceHistory" || controllerName == "AllegroPriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
-                    <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Ceny
+                    <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Monitoring Cen
                 </div>
                 @if (user?.AccesToViewPriceAutomation == true)
                 {
@@ -193,7 +220,6 @@
                 <div class="@(controllerName == "Competitors" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Competitors")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Konkurencja
                 </div>
-
                 @if (user?.AccesToViewSafari == true)
                 {
                     <div class="@(controllerName == "Safari" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Chanel", "Safari")'">
@@ -207,55 +233,43 @@
                 <div class="@(controllerName == "Store" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Store")'">
                     <img src="~/images/Chart-bone.svg" alt="Panel Icon" class="menu-icon" />Sklepy
                 </div>
-
                 <div class="@(controllerName == "CategoryScraper" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "CategoryScraper")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Kategorie
                 </div>
-
                 <div class="@(controllerName == "DatabaseSize" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "DatabaseSize")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Baza danych
                 </div>
-
                 <div class="@((controllerName == "ManagerAffiliate" && actionName == "Accounts") || controllerName == "Settings" || controllerName == "UserManagement" ? "active-link" : "inactive-link")
                     menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">
                     <img src="~/images/Settings-bone.svg" alt="Assign Icon" class="menu-icon" />Ustawienia
                 </div>
-
                 <div class="@(controllerName == "SchedulePlan" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "SchedulePlan")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Taski
                 </div>
-
                 <div class="@(controllerName == "ProductMapping" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ProductMapping")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Mapowanie
                 </div>
                 <div class="@(controllerName == "ClientProfile" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ClientProfile")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />Klienci
                 </div>
-
                 <div class="@(controllerName == "Region" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Region")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />Region
                 </div>
-
                 <div class="@(controllerName == "Prepare" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Prepare", "GoogleScraping")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />Raporty kolejka
                 </div>
-
                 <div class="@(controllerName == "PreparedProducts" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("PreparedProducts", "GoogleScraping")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Google Scraper
                 </div>
-
                 <div class="@(controllerName == "LoadUnpreparedReports" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("LoadUnpreparedReports", "GoogleScraping")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Generuj raporty
                 </div>
-
                 <div class="@(controllerName == "AllegroGather" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "AllegroGather")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Allegro Colector
                 </div>
-
                 <div class="@(controllerName == "Plan" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Plan")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Plany
                 </div>
-
                 <div class="@(controllerName == "Invoice" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Invoice")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />Faktury
                 </div>
@@ -278,21 +292,9 @@
 
     <div class="Sidebar-hide">
         <div class="Sidebar-box" style="justify-content:flex-start;">
-
             <button id="toggleSidebar2" class="upper-menu-link">
                 <img src="~/images/Menu-expand-bone.svg" alt="Menu" style="width: 24px; height: 24px;" />
             </button>
-
-            <!-- ══ Przycisk cofania (zwinięty sidebar) ══ -->
-            <div class="nav-back-section-mini" id="navBackSectionMini">
-                <button class="nav-back-btn-mini" id="navBackBtnMini" title="Cofnij">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>
-                </button>
-            </div>
-
         </div>
         <div class="Menu-hide">
 
@@ -307,26 +309,21 @@
                 <div class="@(controllerName == "Chanel" || controllerName == "PriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 @if (user?.AccesToViewPriceAutomation == true)
                 {
                     <div class="@(controllerName == "AutomationRules" || controllerName == "PriceAutomation" || controllerName == "IntervalPrice" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Dashboard", "AutomationRules")'">
                         <img src="~/images/Robot-bone.svg" alt="Panel Icon" class="menu-icon" />
                     </div>
                 }
-
                 <div class="@(controllerName == "Dashboard" || controllerName == "AllegroDashboard" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Dashboard")'">
                     <img src="~/images/Campaigns-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 <div class="@(controllerName == "Product" || controllerName == "AllegroProduct" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("StoreList", "Product")'">
                     <img src="~/images/Product-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 <div class="@(controllerName == "Competitors" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Competitors")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 @if (user?.AccesToViewSafari == true)
                 {
                     <div class="@(controllerName == "Safari" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Chanel", "Safari")'">
@@ -340,47 +337,37 @@
                 <div class="@(controllerName == "Store" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Store")'">
                     <img src="~/images/Chart-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 <div class="@(controllerName == "CategoryScraper" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "CategoryScraper")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 <div class="@(controllerName == "DatabaseSize" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "DatabaseSize")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 <div class="@((controllerName == "ManagerAffiliate" && actionName == "Accounts") || controllerName == "Settings" || controllerName == "UserManagement" ? "active-link" : "inactive-link")
                     menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">
                     <img src="~/images/Settings-bone.svg" alt="Assign Icon" class="menu-icon" />
                 </div>
-
                 <div class="@(controllerName == "ProductMapping" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ProductMapping")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Mapowanie
                 </div>
                 <div class="@(controllerName == "ClientProfile" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ClientProfile")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 <div class="@(controllerName == "Region" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Region")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 <div class="@(controllerName == "Prepare" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Prepare", "GoogleScraping")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 <div class="@(controllerName == "PreparedProducts" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("PreparedProducts", "GoogleScraping")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 <div class="@(controllerName == "LoadUnpreparedReports" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("LoadUnpreparedReports", "GoogleScraping")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 <div class="@(controllerName == "Plan" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Plan")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-
                 <div class="@(controllerName == "Invoice" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Invoice")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
@@ -407,15 +394,7 @@
 
 <script>
     // ══════════════════════════════════════════════════════════════════
-    //  SYSTEM NAWIGACJI WSTECZ
-    //
-    //  Zasada działania:
-    //  - Klik w menu boczne (.menu-link) → ustawia flagę "reset" i resetuje stos
-    //  - Każda inna nawigacja (link w widoku, formularz) → push na globalny stos
-    //  - Przycisk cofania → pop i nawiguj do poprzedniej strony
-    //
-    //  Brak mapowania routingu = brak problemu z bezpieczeństwem,
-    //  brak problemu z cross-zone, brak konieczności utrzymywania mapy.
+    //  SYSTEM NAWIGACJI + TOPBAR
     // ══════════════════════════════════════════════════════════════════
     (function () {
         var STACK_KEY = 'ps_nav_stack';
@@ -424,102 +403,139 @@
 
         var currentUrl = window.location.pathname + window.location.search;
 
-        // ── 1. Przechwycenie kliknięć w menu boczne (capture phase) ──
-        //    Działa PRZED onclick="location.href=..." więc flaga jest ustawiona
-        //    zanim nastąpi nawigacja. Nie trzeba modyfikować żadnego onclick w menu.
+        // ── Tytuł strony z <title> (ustawiany przez ViewData["Title"]) ──
+        var pageTitle = (document.title || '').trim();
+        if (pageTitle.indexOf(' - ') > 0) {
+            pageTitle = pageTitle.substring(0, pageTitle.indexOf(' - ')).trim();
+        }
+        if (!pageTitle || pageTitle === '_PanelLayout') {
+            var parts = currentUrl.split('?')[0].split('/').filter(function (p) { return p.length > 0; });
+            pageTitle = parts.length > 0 ? parts.slice(0, 2).join(' / ') : 'Start';
+        }
+
+        // ── Przechwycenie kliknięć w menu boczne ──
         document.addEventListener('click', function (e) {
-            var menuLink = e.target.closest('.menu-link');
-            if (menuLink) {
+            if (e.target.closest('.menu-link')) {
                 sessionStorage.setItem(RESET_KEY, '1');
             }
         }, true);
 
-        // ── 2. Odczytaj stos ──
+        // ── Odczytaj stos ──
         var stack = [];
         try {
-            stack = JSON.parse(sessionStorage.getItem(STACK_KEY) || '[]');
-            if (!Array.isArray(stack)) stack = [];
-        } catch (e) {
-            stack = [];
-        }
+            var raw = JSON.parse(sessionStorage.getItem(STACK_KEY) || '[]');
+            if (Array.isArray(raw)) {
+                stack = raw.map(function (item) {
+                    if (typeof item === 'string') {
+                        return { url: item, title: item.split('?')[0].split('/').filter(function (p) { return p.length > 0; }).slice(0, 2).join(' / ') || 'Start' };
+                    }
+                    return item;
+                });
+            }
+        } catch (e) { stack = []; }
 
-        // ── 3. Logika stosu ──
+        // ── Logika stosu ──
         var wasReset = sessionStorage.getItem(RESET_KEY) === '1';
         sessionStorage.removeItem(RESET_KEY);
 
         if (wasReset) {
-            // Klik z menu bocznego — nowy root, resetuj stos
-            stack = [currentUrl];
+            stack = [{ url: currentUrl, title: pageTitle }];
         } else {
-            // Nawigacja wewnętrzna (link w widoku, formularz, itp.)
-            var topUrl = stack.length > 0 ? stack[stack.length - 1] : null;
+            var topEntry = stack.length > 0 ? stack[stack.length - 1] : null;
+            var topUrl = topEntry ? topEntry.url : null;
 
             if (topUrl === currentUrl) {
-                // Odświeżenie strony lub powrót na tę samą — nic nie rób
+                stack[stack.length - 1].title = pageTitle;
             } else {
-                // Sprawdź czy URL już jest na stosie (user cofnął się i przechodzi dalej)
-                var existingIndex = stack.indexOf(currentUrl);
+                var existingIndex = -1;
+                for (var i = 0; i < stack.length; i++) {
+                    if (stack[i].url === currentUrl) { existingIndex = i; break; }
+                }
                 if (existingIndex >= 0) {
-                    // Obetnij stos do tego punktu
                     stack = stack.slice(0, existingIndex + 1);
+                    stack[stack.length - 1].title = pageTitle;
                 } else {
-                    // Nowa strona — push
-                    stack.push(currentUrl);
+                    stack.push({ url: currentUrl, title: pageTitle });
                 }
             }
         }
 
-        // Ogranicz głębokość
-        if (stack.length > MAX_DEPTH) {
-            stack = stack.slice(stack.length - MAX_DEPTH);
-        }
-
-        // ── 4. Zapisz stos ──
+        if (stack.length > MAX_DEPTH) stack = stack.slice(stack.length - MAX_DEPTH);
         sessionStorage.setItem(STACK_KEY, JSON.stringify(stack));
 
-        // ── 5. Przycisk cofania ──
+        // ── Dane nawigacji ──
         var canGoBack = stack.length > 1;
-        var backUrl = canGoBack ? stack[stack.length - 2] : null;
-        var depth = stack.length - 1; // ile kroków w głąb od roota
+        var backEntry = canGoBack ? stack[stack.length - 2] : null;
 
         function navigateBack() {
-            if (!backUrl) return;
-            // Zdejmij bieżący element PRZED nawigacją
+            if (!backEntry) return;
             stack.pop();
             sessionStorage.setItem(STACK_KEY, JSON.stringify(stack));
-            window.location.href = backUrl;
+            window.location.href = backEntry.url;
+        }
+
+        function navigateToStackIndex(idx) {
+            if (idx < 0 || idx >= stack.length - 1) return;
+            stack = stack.slice(0, idx + 1);
+            sessionStorage.setItem(STACK_KEY, JSON.stringify(stack));
+            window.location.href = stack[idx].url;
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            // ── Rozwinięty sidebar ──
-            var section = document.getElementById('navBackSection');
-            var btn = document.getElementById('navBackBtn');
-            var label = document.getElementById('navBackLabel');
-            var depthSpan = document.getElementById('navBackDepth');
+            var btn = document.getElementById('topBarBackBtn');
+            var crumbsEl = document.getElementById('topBarCrumbs');
 
-            if (canGoBack && section && btn) {
-                label.textContent = 'Cofnij';
-                depthSpan.textContent = depth > 1 ? '(' + depth + ')' : '';
-                btn.title = 'Cofnij do poprzedniego widoku';
-                section.style.display = 'block';
+            // ── Przycisk cofania ──
+            if (canGoBack) {
+                btn.classList.remove('disabled');
                 btn.addEventListener('click', navigateBack);
             }
 
-            // ── Zwinięty sidebar ──
-            var sectionMini = document.getElementById('navBackSectionMini');
-            var btnMini = document.getElementById('navBackBtnMini');
-
-            if (canGoBack && sectionMini && btnMini) {
-                btnMini.title = 'Cofnij (' + depth + ')';
-                sectionMini.style.display = 'flex';
-                btnMini.addEventListener('click', navigateBack);
+            // ── Breadcrumbs ──
+            var html = '';
+            for (var i = 0; i < stack.length; i++) {
+                if (i > 0) {
+                    html += '<span class="topbar-crumb-chevron">›</span>';
+                }
+                var entry = stack[i];
+                var isCurrent = (i === stack.length - 1);
+                if (isCurrent) {
+                    html += '<span class="topbar-crumb current">' + entry.title + '</span>';
+                } else {
+                    html += '<span class="topbar-crumb clickable" data-stack-idx="' + i + '">' + entry.title + '</span>';
+                }
             }
+            crumbsEl.innerHTML = html;
+
+            // ── Klikanie w breadcrumby ──
+            crumbsEl.addEventListener('click', function (e) {
+                var crumb = e.target.closest('.topbar-crumb.clickable');
+                if (crumb) {
+                    navigateToStackIndex(parseInt(crumb.dataset.stackIdx, 10));
+                }
+            });
+
+            // ── Sync + pokaż treść TopBara z fade-in ──
+            syncTopBar();
+            document.getElementById('topBar').classList.add('ready');
         });
+
+        // ══ Synchronizacja pozycji TopBar z sidebar ══
+        function syncTopBar() {
+            var topBar = document.getElementById('topBar');
+            if (!topBar) return;
+            var sidebar = document.querySelector('.Sidebar');
+            var sidebarVisible = sidebar && sidebar.style.display !== 'none';
+            topBar.classList.remove('sidebar-expanded', 'sidebar-collapsed');
+            topBar.classList.add(sidebarVisible ? 'sidebar-expanded' : 'sidebar-collapsed');
+        }
+
+        window.__syncTopBarWithSidebar = syncTopBar;
     })();
 </script>
 
 <script>
-    // ══ Sidebar toggle ══
+    // ══ Sidebar toggle + TopBar sync ══
     document.addEventListener('DOMContentLoaded', function () {
         var sidebar = document.querySelector('.Sidebar');
         var sidebarHide = document.querySelector('.Sidebar-hide');
@@ -532,6 +548,8 @@
             sidebar.style.display = "flex";
             sidebarHide.style.display = "none";
         }
+
+        if (window.__syncTopBarWithSidebar) window.__syncTopBarWithSidebar();
 
         document.getElementById('toggleSidebar1').addEventListener('click', toggleSidebar);
         document.getElementById('toggleSidebar2').addEventListener('click', toggleSidebar);
@@ -546,6 +564,7 @@
                 sidebar.style.display = "none";
                 localStorage.setItem('sidebarState', 'hidden');
             }
+            if (window.__syncTopBarWithSidebar) window.__syncTopBarWithSidebar();
         }
     });
 </script>

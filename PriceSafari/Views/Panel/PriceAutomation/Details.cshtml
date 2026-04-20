@@ -6,7 +6,7 @@
 @inject UserManager<PriceSafariUser> UserManager
 
 @{
-    ViewData["Title"] = $"Szczegóły Reguły: {Model.RuleName}";
+    ViewData["Title"] = $"Automat Cenowy {Model.RuleName}";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 
     var user = await UserManager.GetUserAsync(User);
@@ -1109,7 +1109,7 @@
 
             <div style="display: flex; align-items: center;">
                 <div class="Order-Container-Title" style="font-size: 23px;">
-                    Automat cenowy <strong>@Model.RuleName</strong>
+                    Automat Cenowy <strong>@Model.RuleName</strong>
 
                 </div>
 

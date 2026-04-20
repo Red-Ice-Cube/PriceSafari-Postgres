@@ -1,7 +1,8 @@
 ﻿@using PriceSafari.Models.ViewModels
 
 @{
-    ViewData["Title"] = "Historia Cen Allegro";
+  
+    ViewBag.Title = "Panel Monitoringu Cen Allegro " + ViewBag.StoreName;
     var latestScrap = ViewBag.LatestScrap as PriceSafari.Models.AllegroScrapeHistory;
     var storeId = ViewBag.StoreId;
     var storeLogo = ViewBag.StoreLogo;
