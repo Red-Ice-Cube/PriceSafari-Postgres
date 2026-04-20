@@ -19,10 +19,6 @@
     <div class="Page-Box">
         <div class="Page-Box-Container">
             <div class="Page-Box-Category">
-                <div>
-                    <img src="@ViewBag.StoreLogo" class="img-container" />
-                </div>
-
                 <div class="mode-switch-container">
                     <button class="mode-switch-btn active" id="btn-mode-comp" title="Strategia maksymalizacji wolumenu sprzedaży">
                         <i class="fa-solid fa-bolt"></i> Lider Rynku
@@ -33,6 +29,11 @@
                     </button>
                 </div>
 
+                <div>
+                    <img src="@ViewBag.StoreLogo" class="img-container" />
+                </div>
+
+             
                 <div class="side-chart-box">
                     <canvas id="colorChart"></canvas>
                 </div>
@@ -108,11 +109,17 @@
                         <span id="unitLabelStepPrice" style="display:flex; align-items:center;"></span>
                     </div>
 
-                    <div>
-                        <input class="diffCheckBox" style="margin-top: 10px;" type="checkbox" id="usePriceDifference" checked />
-                    </div>
+                    <div style="display: flex; gap: 4px; margin-top: 8px; width: 100%;">
 
-                    <button class="Button-Page-Small" style="margin-top: 4px;" id="savePriceValues">Przelicz i zapisz</button>
+                        <div style="flex: 1; display: flex;">
+                            <input class="diffCheckBox" style="margin: 0; width: 100%;" type="checkbox" id="usePriceDifference" checked />
+                        </div>
+
+                        <button class="Button-Page-Small" style="margin: 0; flex: 1; width: 100%; padding-left: 0; padding-right: 0;" id="savePriceValues">
+                            Przelicz i zapisz
+                        </button>
+
+                    </div>
                 </div>
 
                 <div class="store-section" id="filters-profit" style="display: none;">
@@ -323,28 +330,34 @@
             </div>
             <div class="Horizontal">
                 <div class="order-upper-box">
-                    <input type="text" id="productSearch" style="max-width:150px; height:33.99px;" placeholder="Wyszukaj produkt">
-                    <input type="text" id="storeSearch" style="max-width:150px; height:33.99px;" placeholder="Wyszukaj sklep">
-                    <select id="producerFilterDropdown" class="DropDown" style="max-width:150px; height:33.99px;">
+                    <input type="text" id="productSearch" style="max-width:140px; height:34px;" placeholder="Wyszukaj produkt">
+
+                    <input type="text" id="storeSearch" style="max-width:140px; height:34px;" placeholder="Wyszukaj sklep">
+
+                    <select id="producerFilterDropdown" class="DropDown" style="max-width:140px; height:34px;">
                         <option value="">Wszystkie marki</option>
                     </select>
 
-                    <button type="button" class="Button-Page-Small" style="white-space: nowrap; height:33.99px;" id="presetButton" onclick="openCompetitorsModal()">
-                        Presety
+                    <button type="button" class="Button-Page-Small" style="height: 34px; max-width: 250px; padding: 0 12px; text-align: left; display: inline-flex; align-items: center;" id="presetButton" onclick="openCompetitorsModal()">
+                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;">
+                            Presety
+                        </span>
                     </button>
+
                     <button class="Button-Page-Small" style="white-space: nowrap;" id="exportToExcelButton">
                         <i class="fa-solid fa-floppy-disk" style="margin-top:2px;"></i>Eksport
                     </button>
+
                     <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="allegroApiExportSettingsBtn" data-toggle="modal" data-target="#allegroApiExportModal">
                         <i class="fa-solid fa-code" style="margin-top:2px;"></i>Feed
                     </button>
-                    <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px; height:33.99px;" data-toggle="modal" data-target="#infoModal">
+
+                    <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px;" data-toggle="modal" data-target="#infoModal">
                         <i class="fa fa-info-circle"></i>
                     </button>
-
                     <div class="SimpleSpace" style="justify-content:flex-end; margin-right: 12px;">
                         <div id="selectionContainer" class="selection-container">
-                            <span id="selectedProductsCounter" class="ProductCount" style="width:126px; height:33.99px;">Wybrano: 0</span>
+                            <span id="selectedProductsCounter" class="ProductCount" style="width:126px; height:34px;">Wybrano: 0</span>
                             <button id="selectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Zaznacz wszystkie widoczne produkty">
                                 <i class="fa-solid fa-square-check"></i>
                             </button>

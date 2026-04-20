@@ -42,34 +42,34 @@
             position: fixed;
             top: 0;
             right: 0;
-            height: 34px;
+            height: 48px;
             background: #222222;
             border-bottom: 1px solid rgba(255,255,255,0.06);
-            z-index: 1000;
+            z-index: 500;
             display: flex;
             align-items: center;
-            padding: 0 16px;
+            padding: 0 10px;
             gap: 0;
         }
         .TopBar.sidebar-expanded { left: 240px; }
         .TopBar.sidebar-collapsed { left: 75px; }
 
-        /* Przesunięcie całego layoutu pod TopBar */
         body {
-        padding-top: 34px;
-        box-sizing: border-box;
+            padding-top: 48px;
+            box-sizing: border-box;
         }
 
-        /* Treść TopBara — ukryta do momentu aż JS ją wypełni */
         .topbar-back-btn,
         .topbar-sep,
-        .topbar-crumbs {
+        .topbar-crumbs,
+        .topbar-right {
             opacity: 0;
             transition: opacity 0.15s ease;
         }
         .TopBar.ready .topbar-back-btn,
         .TopBar.ready .topbar-sep,
-        .TopBar.ready .topbar-crumbs {
+        .TopBar.ready .topbar-crumbs,
+        .TopBar.ready .topbar-right {
             opacity: 1;
         }
 
@@ -85,7 +85,7 @@
             font-weight: 500;
             padding: 3px 10px;
             cursor: pointer;
-            height: 24px;
+            height: 26px;
             line-height: 1;
             flex-shrink: 0;
         }
@@ -94,16 +94,8 @@
             color: #fff;
             border-color: rgba(255,255,255,0.25);
         }
-        .topbar-back-btn svg {
-            width: 11px;
-            height: 11px;
-            flex-shrink: 0;
-        }
-        .topbar-back-btn.disabled {
-            opacity: 0.25;
-            cursor: default;
-            pointer-events: none;
-        }
+        .topbar-back-btn svg { width: 11px; height: 11px; flex-shrink: 0; }
+        .topbar-back-btn.disabled { opacity: 0.25; cursor: default; pointer-events: none; }
 
         .topbar-sep {
             width: 1px;
@@ -140,18 +132,121 @@
             font-size: 9px;
             flex-shrink: 0;
         }
+
+        /* ══ TopBar — prawa strona (logout) ══ */
+        .topbar-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .topbar-logout-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 5px;
+            color: rgba(255,255,255,0.35);
+            font-size: 11px;
+            font-weight: 400;
+            padding: 3px 10px;
+            cursor: pointer;
+            height: 26px;
+            line-height: 1;
+            transition: 0.15s ease;
+        }
+        .topbar-logout-btn:hover {
+            background: rgba(255,80,80,0.15);
+            color: rgba(255,120,120,0.9);
+            border-color: rgba(255,80,80,0.25);
+        }
+        .topbar-logout-btn svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+        /* ══ Sidebar header — kompaktowy ══ */
+        .Sidebar-header {
+            display: flex;
+            flex-direction: column;
+            padding: 10px 16px 10px 16px;
+            align-self: stretch;
+            flex-shrink: 0;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .Sidebar-header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size:22px;
+        }
+        .Sidebar-header-name {
+            color: #fff;
+            font-size: 21px;
+            font-weight: 400;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+       .Sidebar-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%; /* Wymusza zajęcie całej dostępnej szerokości */
+        }
+        .Sidebar-header-actions .sidebar-pill {
+            flex: 1; /* Dzieli przestrzeń na równe części */
+            padding-left: 0; 
+            padding-right: 0; /* Zdejmujemy boczne paddingi, aby uniknąć rozpychania na bardzo wąskich ekranach */
+        }
+        .sidebar-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3px 14px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            color: rgba(255,255,255,0.55);
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            text-decoration: none;
+            height: 26px;
+            line-height: 1;
+            transition: 0.15s ease;
+        }
+        .sidebar-pill:hover {
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            text-decoration: none;
+            border-color: rgba(255,255,255,0.20);
+        }
+
+        /* ══ Sidebar-hide header ══ */
+        .Sidebar-hide-top {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 0;
+            align-self: stretch;
+            height: 48px;
+            flex-shrink: 0;
+        }
     </style>
 
-    <!-- ══ Natychmiastowe ustawienie sidebar + TopBar (przed renderem, zero migania) ══ -->
     <script>
         document.write('<style>.Sidebar, .Sidebar-hide { display: none; }</style>');
         var sidebarState = localStorage.getItem('sidebarState');
         if (sidebarState === 'hidden') {
             document.write('<style>.Sidebar-hide { display: flex; }</style>');
-            document.write('<style>.TopBar { left: 75px; }</style>');
+            document.write('<style>.TopBar { left: 75px; height: 48px; }</style>');
+            document.write('<style>body { padding-top: 48px; }</style>');
         } else {
             document.write('<style>.Sidebar { display: flex; }</style>');
-            document.write('<style>.TopBar { left: 240px; }</style>');
+            document.write('<style>.TopBar { left: 240px; height: 48px; }</style>');
+            document.write('<style>body { padding-top: 48px; }</style>');
         }
     </script>
 
@@ -164,7 +259,7 @@
         var actionName = ViewContext.RouteData.Values["action"]?.ToString();
     }
 
-    <!-- ══ Górna belka nawigacyjna ══ -->
+    <!-- ══ TopBar ══ -->
     <div class="TopBar" id="topBar">
         <button class="topbar-back-btn disabled" id="topBarBackBtn" title="Cofnij">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -175,29 +270,54 @@
         </button>
         <div class="topbar-sep"></div>
         <div class="topbar-crumbs" id="topBarCrumbs"></div>
+
+        <div class="topbar-right">
+            <form method="post" asp-area="Identity" asp-page="/Account/Logout" style="margin:0;padding:0;">
+                <button type="submit" class="topbar-logout-btn" title="Wyloguj">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    Wyloguj
+                </button>
+            </form>
+        </div>
     </div>
 
+    <!-- ══ Sidebar EXPANDED ══ -->
     <div class="Sidebar">
-        <div class="Sidebar-box" style="justify-content:flex-start;">
-            <div class="Sidebar-box-name">
-                <div class="BigB">@fullName</div>
-                <div class="Sidebar-box-item-right">
-                    <button id="toggleSidebar1" class="upper-menu-link">
-                        <img src="~/images/Menu-hide-bone.svg" alt="Menu" style="width: 24px; height: 24px;" />
-                    </button>
-                </div>
+        <div class="Sidebar-header">
+            <div class="Sidebar-header-top">
+                <div class="Sidebar-header-name">@fullName</div>
+                <button id="toggleSidebar1" class="upper-menu-link">
+                    <img src="~/images/Menu-hide-bone.svg" alt="Menu" style="width: 22px; height: 22px;" />
+                </button>
             </div>
-            <div class="Sidebar-box-container">
-                <div class="Sidebar-box-item-left">
-                    <div class="upper-menu-link">
-                        <partial name="_LoginPartial" />
-                        <a class="nav-link" asp-controller="Payment" asp-action="StorePlans">Plan</a>
-                    </div>
-                </div>
+            <div class="Sidebar-header-actions">
+                <a class="sidebar-pill" asp-area="Identity" asp-page="/Account/Manage/Index">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                         style="width: 12px; height: 12px; margin-right: 5px; flex-shrink: 0;">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    Konto
+                </a>
+                <a class="sidebar-pill" asp-controller="Payment" asp-action="StorePlans">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                         style="width: 12px; height: 12px; margin-right: 5px; flex-shrink: 0;">
+                        <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                        <line x1="2" y1="10" x2="22" y2="10"></line>
+                    </svg>
+                    Płatności
+                </a>
             </div>
         </div>
-        <div class="Menu">
 
+        <div class="Menu">
             @if (isPreMember)
             {
                 <div class="@(controllerName == "SetUp" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "SetUp")'">
@@ -243,8 +363,7 @@
                 <div class="@(controllerName == "DatabaseSize" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "DatabaseSize")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Baza danych
                 </div>
-                <div class="@((controllerName == "ManagerAffiliate" && actionName == "Accounts") || controllerName == "Settings" || controllerName == "UserManagement" ? "active-link" : "inactive-link")
-                    menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">
+                <div class="@((controllerName == "ManagerAffiliate" && actionName == "Accounts") || controllerName == "Settings" || controllerName == "UserManagement" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">
                     <img src="~/images/Settings-bone.svg" alt="Assign Icon" class="menu-icon" />Ustawienia
                 </div>
                 <div class="@(controllerName == "SchedulePlan" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "SchedulePlan")'">
@@ -285,8 +404,8 @@
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />Klienci
                 </div>
             }
-
         </div>
+
         <div class="Sidebar-box" style="justify-content:flex-end;">
             <div class="PriceSafari">
                 <img src="~/images/PriceSafari.png" alt="Menu" width="135" height="38" />
@@ -294,14 +413,14 @@
         </div>
     </div>
 
+    <!-- ══ Sidebar COLLAPSED ══ -->
     <div class="Sidebar-hide">
-        <div class="Sidebar-box" style="justify-content:flex-start;">
+        <div class="Sidebar-hide-top">
             <button id="toggleSidebar2" class="upper-menu-link">
                 <img src="~/images/Menu-expand-bone.svg" alt="Menu" style="width: 24px; height: 24px;" />
             </button>
         </div>
         <div class="Menu-hide">
-
             @if (isPreMember)
             {
                 <div class="@(controllerName == "SetUp" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "SetUp")'">
@@ -347,12 +466,11 @@
                 <div class="@(controllerName == "DatabaseSize" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "DatabaseSize")'">
                     <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
-                <div class="@((controllerName == "ManagerAffiliate" && actionName == "Accounts") || controllerName == "Settings" || controllerName == "UserManagement" ? "active-link" : "inactive-link")
-                    menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">
+                <div class="@((controllerName == "ManagerAffiliate" && actionName == "Accounts") || controllerName == "Settings" || controllerName == "UserManagement" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Accounts", "ManagerAffiliate")'">
                     <img src="~/images/Settings-bone.svg" alt="Assign Icon" class="menu-icon" />
                 </div>
                 <div class="@(controllerName == "ProductMapping" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ProductMapping")'">
-                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />Mapowanie
+                    <img src="~/images/Link-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
                 <div class="@(controllerName == "ClientProfile" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "ClientProfile")'">
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
@@ -383,10 +501,8 @@
                     <img src="~/images/Affiliate-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
             }
-
         </div>
-        <div class="Sidebar-box">
-        </div>
+        <div class="Sidebar-box"></div>
     </div>
 
     <div class="View">
@@ -397,48 +513,34 @@
 </html>
 
 <script>
-    // ══════════════════════════════════════════════════════════════════
-    //  SYSTEM NAWIGACJI + TOPBAR
-    // ══════════════════════════════════════════════════════════════════
     (function () {
         var STACK_KEY = 'ps_nav_stack';
         var RESET_KEY = 'ps_nav_reset';
         var MAX_DEPTH = 15;
-
         var currentUrl = window.location.pathname + window.location.search;
 
-        // ── Tytuł strony z <title> (ustawiany przez ViewData["Title"]) ──
         var pageTitle = (document.title || '').trim();
-        if (pageTitle.indexOf(' - ') > 0) {
-            pageTitle = pageTitle.substring(0, pageTitle.indexOf(' - ')).trim();
-        }
+        if (pageTitle.indexOf(' - ') > 0) pageTitle = pageTitle.substring(0, pageTitle.indexOf(' - ')).trim();
         if (!pageTitle || pageTitle === '_PanelLayout') {
             var parts = currentUrl.split('?')[0].split('/').filter(function (p) { return p.length > 0; });
             pageTitle = parts.length > 0 ? parts.slice(0, 2).join(' / ') : 'Start';
         }
 
-        // ── Przechwycenie kliknięć w menu boczne ──
         document.addEventListener('click', function (e) {
-            if (e.target.closest('.menu-link')) {
-                sessionStorage.setItem(RESET_KEY, '1');
-            }
+            if (e.target.closest('.menu-link')) sessionStorage.setItem(RESET_KEY, '1');
         }, true);
 
-        // ── Odczytaj stos ──
         var stack = [];
         try {
             var raw = JSON.parse(sessionStorage.getItem(STACK_KEY) || '[]');
             if (Array.isArray(raw)) {
                 stack = raw.map(function (item) {
-                    if (typeof item === 'string') {
-                        return { url: item, title: item.split('?')[0].split('/').filter(function (p) { return p.length > 0; }).slice(0, 2).join(' / ') || 'Start' };
-                    }
+                    if (typeof item === 'string') return { url: item, title: item.split('?')[0].split('/').filter(function (p) { return p.length > 0; }).slice(0, 2).join(' / ') || 'Start' };
                     return item;
                 });
             }
         } catch (e) { stack = []; }
 
-        // ── Logika stosu ──
         var wasReset = sessionStorage.getItem(RESET_KEY) === '1';
         sessionStorage.removeItem(RESET_KEY);
 
@@ -446,28 +548,19 @@
             stack = [{ url: currentUrl, title: pageTitle }];
         } else {
             var topEntry = stack.length > 0 ? stack[stack.length - 1] : null;
-            var topUrl = topEntry ? topEntry.url : null;
-
-            if (topUrl === currentUrl) {
+            if (topEntry && topEntry.url === currentUrl) {
                 stack[stack.length - 1].title = pageTitle;
             } else {
                 var existingIndex = -1;
-                for (var i = 0; i < stack.length; i++) {
-                    if (stack[i].url === currentUrl) { existingIndex = i; break; }
-                }
-                if (existingIndex >= 0) {
-                    stack = stack.slice(0, existingIndex + 1);
-                    stack[stack.length - 1].title = pageTitle;
-                } else {
-                    stack.push({ url: currentUrl, title: pageTitle });
-                }
+                for (var i = 0; i < stack.length; i++) { if (stack[i].url === currentUrl) { existingIndex = i; break; } }
+                if (existingIndex >= 0) { stack = stack.slice(0, existingIndex + 1); stack[stack.length - 1].title = pageTitle; }
+                else stack.push({ url: currentUrl, title: pageTitle });
             }
         }
 
         if (stack.length > MAX_DEPTH) stack = stack.slice(stack.length - MAX_DEPTH);
         sessionStorage.setItem(STACK_KEY, JSON.stringify(stack));
 
-        // ── Dane nawigacji ──
         var canGoBack = stack.length > 1;
         var backEntry = canGoBack ? stack[stack.length - 2] : null;
 
@@ -477,7 +570,6 @@
             sessionStorage.setItem(STACK_KEY, JSON.stringify(stack));
             window.location.href = backEntry.url;
         }
-
         function navigateToStackIndex(idx) {
             if (idx < 0 || idx >= stack.length - 1) return;
             stack = stack.slice(0, idx + 1);
@@ -489,42 +581,26 @@
             var btn = document.getElementById('topBarBackBtn');
             var crumbsEl = document.getElementById('topBarCrumbs');
 
-            // ── Przycisk cofania ──
-            if (canGoBack) {
-                btn.classList.remove('disabled');
-                btn.addEventListener('click', navigateBack);
-            }
+            if (canGoBack) { btn.classList.remove('disabled'); btn.addEventListener('click', navigateBack); }
 
-            // ── Breadcrumbs ──
             var html = '';
             for (var i = 0; i < stack.length; i++) {
-                if (i > 0) {
-                    html += '<span class="topbar-crumb-chevron">›</span>';
-                }
+                if (i > 0) html += '<span class="topbar-crumb-chevron">\u203A</span>';
                 var entry = stack[i];
-                var isCurrent = (i === stack.length - 1);
-                if (isCurrent) {
-                    html += '<span class="topbar-crumb current">' + entry.title + '</span>';
-                } else {
-                    html += '<span class="topbar-crumb clickable" data-stack-idx="' + i + '">' + entry.title + '</span>';
-                }
+                if (i === stack.length - 1) html += '<span class="topbar-crumb current">' + entry.title + '</span>';
+                else html += '<span class="topbar-crumb clickable" data-stack-idx="' + i + '">' + entry.title + '</span>';
             }
             crumbsEl.innerHTML = html;
 
-            // ── Klikanie w breadcrumby ──
             crumbsEl.addEventListener('click', function (e) {
                 var crumb = e.target.closest('.topbar-crumb.clickable');
-                if (crumb) {
-                    navigateToStackIndex(parseInt(crumb.dataset.stackIdx, 10));
-                }
+                if (crumb) navigateToStackIndex(parseInt(crumb.dataset.stackIdx, 10));
             });
 
-            // ── Sync + pokaż treść TopBara z fade-in ──
             syncTopBar();
             document.getElementById('topBar').classList.add('ready');
         });
 
-        // ══ Synchronizacja pozycji TopBar z sidebar ══
         function syncTopBar() {
             var topBar = document.getElementById('topBar');
             if (!topBar) return;
@@ -533,25 +609,18 @@
             topBar.classList.remove('sidebar-expanded', 'sidebar-collapsed');
             topBar.classList.add(sidebarVisible ? 'sidebar-expanded' : 'sidebar-collapsed');
         }
-
         window.__syncTopBarWithSidebar = syncTopBar;
     })();
 </script>
 
 <script>
-    // ══ Sidebar toggle + TopBar sync ══
     document.addEventListener('DOMContentLoaded', function () {
         var sidebar = document.querySelector('.Sidebar');
         var sidebarHide = document.querySelector('.Sidebar-hide');
 
         var sidebarState = localStorage.getItem('sidebarState');
-        if (sidebarState === 'hidden') {
-            sidebarHide.style.display = "flex";
-            sidebar.style.display = "none";
-        } else {
-            sidebar.style.display = "flex";
-            sidebarHide.style.display = "none";
-        }
+        if (sidebarState === 'hidden') { sidebarHide.style.display = "flex"; sidebar.style.display = "none"; }
+        else { sidebar.style.display = "flex"; sidebarHide.style.display = "none"; }
 
         if (window.__syncTopBarWithSidebar) window.__syncTopBarWithSidebar();
 
@@ -560,13 +629,9 @@
 
         function toggleSidebar() {
             if (sidebar.style.display === "none" || sidebar.style.display === "") {
-                sidebar.style.display = "flex";
-                sidebarHide.style.display = "none";
-                localStorage.setItem('sidebarState', 'visible');
+                sidebar.style.display = "flex"; sidebarHide.style.display = "none"; localStorage.setItem('sidebarState', 'visible');
             } else {
-                sidebarHide.style.display = "flex";
-                sidebar.style.display = "none";
-                localStorage.setItem('sidebarState', 'hidden');
+                sidebarHide.style.display = "flex"; sidebar.style.display = "none"; localStorage.setItem('sidebarState', 'hidden');
             }
             if (window.__syncTopBarWithSidebar) window.__syncTopBarWithSidebar();
         }

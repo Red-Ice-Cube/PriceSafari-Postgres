@@ -1139,10 +1139,21 @@
                 marginSettings.usePriceWithDelivery = response.usePriceWithDelivery;
 
                 if (response.presetName) {
-                    if (response.presetName === 'PriceSafari') {
-                        document.getElementById('presetButton').textContent = 'Presety - Widok standardowy PriceSafari';
+                    const presetSpan = document.querySelector('#presetButton span');
+
+                  
+                    if (presetSpan) {
+                        if (response.presetName === 'PriceSafari') {
+                            presetSpan.textContent = 'Presety - Widok PriceSafari';
+                        } else {
+                            presetSpan.textContent = 'Presety - ' + response.presetName;
+                        }
                     } else {
-                        document.getElementById('presetButton').textContent = 'Presety - ' + response.presetName;
+                        if (response.presetName === 'PriceSafari') {
+                            document.getElementById('presetButton').textContent = 'Presety - Widok PriceSafari';
+                        } else {
+                            document.getElementById('presetButton').textContent = 'Presety - ' + response.presetName;
+                        }
                     }
                 }
 

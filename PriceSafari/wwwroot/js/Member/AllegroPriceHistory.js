@@ -3233,9 +3233,15 @@
                 updateUnits(usePriceDifference);
 
                 if (data.presetName) {
-                    const presetButton = document.getElementById('presetButton');
-                    if (presetButton) {
-                        presetButton.textContent = data.presetName === 'PriceSafari' ? 'Presety - Widok standardowy PriceSafari' : 'Presety - ' + data.presetName;
+                    const presetSpan = document.querySelector('#presetButton span');
+                    if (presetSpan) {
+                        presetSpan.textContent = data.presetName === 'PriceSafari' ? 'Presety - Widok PriceSafari' : 'Presety - ' + data.presetName;
+                    } else {
+
+                        const presetButton = document.getElementById('presetButton');
+                        if (presetButton) {
+                            presetButton.textContent = data.presetName === 'PriceSafari' ? 'Presety - Widok PriceSafari' : 'Presety - ' + data.presetName;
+                        }
                     }
                 }
 

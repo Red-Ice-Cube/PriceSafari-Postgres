@@ -6,7 +6,7 @@
 
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-
+    ViewData["Title"] = "Zarządzaj Planem";
     var safePaymentDataList = Model.PaymentDataList.Select(data => new
     {
         data.CompanyName,

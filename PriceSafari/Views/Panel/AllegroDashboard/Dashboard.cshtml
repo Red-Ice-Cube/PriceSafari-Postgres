@@ -81,9 +81,7 @@
         }
 
             .table-price thead th {
-                position: sticky;
-                top: 0;
-                z-index: 5;
+             
                 background: #222;
                 color: #fff;
                 padding: 12px 16px;
@@ -208,33 +206,33 @@
         }
 
     .btn-view-switch {
-        padding: 6px 16px;
-        border: 1px solid #ddd;
-        background: #fff;
-        cursor: pointer;
-        border-radius: 4px;
-        font-weight: 500;
+        display: flex;
+        padding: 6px 16px; 
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px; 
         font-size: 14px;
-        transition: all 0.2s;
-        color: #555;
-        margin-left: 15px;
+        font-weight: 400;
+        color: #4E4E4E; 
+        background: transparent;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-left: 0; 
     }
 
-        .btn-view-switch:first-child {
-            margin-left: 0;
+        .btn-view-switch:hover {
+            color: #222;
+            background: rgba(0, 0, 0, 0.03); 
         }
 
         .btn-view-switch.active {
             background: #222;
             color: #fff;
-            border-color: #222;
+        
         }
 
-    .view-switch-group {
-        display: flex;
-        align-items: center;
-        margin-left: 25px;
-    }
+
 
 </style>
 
@@ -243,33 +241,34 @@
 <div class="Vert">
     <div class="Date" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
 
-        <div style="display: flex; align-items: center;">
-            <div class="Order-Container-Title" style="margin-bottom: 0;">Analiza cen Allegro @ViewBag.StoreName</div>
+        <div class="Order-Container-Title" style="margin-bottom: 0;">Analiza cen Allegro @ViewBag.StoreName</div>
 
-            <div class="view-switch-group">
+        <div style="display: flex; align-items: center; gap: 24px;">
+
+            <div class="view-switch-group" style="display: flex; gap: 4px; margin: 0;">
                 <button id="viewAnalysisBtn" class="btn-view-switch active">Wszystkie zmiany cen</button>
-                <button id="viewHistoryBtn" class="btn-view-switch" style="margin-left: 5px;">Zmiany cen wprowadzone z PriceSafari</button>
+                <button id="viewHistoryBtn" class="btn-view-switch">Zmiany cen wprowadzone z PriceSafari</button>
             </div>
-        </div>
 
-        <div>
-            <div id="analysisDateShortcuts" class="Select-Line" style="gap:2px;">
-                <button class="dateShortcut active" data-count="7">7</button>
-                <button class="dateShortcut" data-count="14">14</button>
-                <button class="dateShortcut" data-count="30">30</button>
-            </div>
-            @* FIX: klasa historyDateShortcut zamiast dateShortcut *@
-            <div id="historyDateShortcuts" class="Select-Line" style="gap:2px; display: none;">
-                <button class="historyDateShortcut active" data-count="7">7</button>
-                <button class="historyDateShortcut" data-count="14">14</button>
-                <button class="historyDateShortcut" data-count="30">30</button>
-            </div>
-        </div>
+            <div>
+                <div id="analysisDateShortcuts" class="Select-Line" style="display: flex; gap: 4px;">
+                    <button class="dateShortcut active" data-count="7">7</button>
+                    <button class="dateShortcut" data-count="14">14</button>
+                    <button class="dateShortcut" data-count="30">30</button>
+                </div>
 
+                <div id="historyDateShortcuts" class="Select-Line" style="display: none; gap: 4px;">
+                    <button class="dateShortcut historyDateShortcut active" data-count="7">7</button>
+                    <button class="dateShortcut historyDateShortcut" data-count="14">14</button>
+                    <button class="dateShortcut historyDateShortcut" data-count="30">30</button>
+                </div>
+            </div>
+
+        </div>
     </div>
 </div>
 
-<div id="analysisViewContainer" class="View" style="padding:0px;">
+<div id="analysisViewContainer" style="padding: 0px; width: 100%; display: flex; flex-direction: column; flex: 1;">
     <div class="Vert" style="margin-bottom:16px;">
         <div class="Charts-Bar-a" style="max-height:350px;">
             <div class="Charts-Box-Bar-a">
@@ -297,7 +296,7 @@
     </div>
 </div>
 
-<div id="historyViewContainer" style="display: none; padding:0px;" class="View">
+<div id="historyViewContainer" style="display: none; padding: 0px; width: 100%; display: flex; flex-direction: column; flex: 1;">
     <div class="Vert">
         <div class="Vert-full">
             <div class="Vert-table" style="height:90vh;">
