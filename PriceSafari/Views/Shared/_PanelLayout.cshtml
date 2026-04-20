@@ -37,7 +37,7 @@
     @await RenderSectionAsync("Styles", required: false)
 
     <style>
-        /* ══ TopBar ══ */
+   
         .TopBar {
             position: fixed;
             top: 0;
@@ -133,7 +133,7 @@
             flex-shrink: 0;
         }
 
-        /* ══ TopBar — prawa strona (logout) ══ */
+
         .topbar-right {
             margin-left: auto;
             display: flex;
@@ -164,7 +164,6 @@
         }
         .topbar-logout-btn svg { width: 12px; height: 12px; flex-shrink: 0; }
 
-        /* ══ Sidebar header — kompaktowy ══ */
         .Sidebar-header {
             display: flex;
             flex-direction: column;
@@ -194,12 +193,12 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            width: 100%; /* Wymusza zajęcie całej dostępnej szerokości */
+            width: 100%; 
         }
         .Sidebar-header-actions .sidebar-pill {
-            flex: 1; /* Dzieli przestrzeń na równe części */
+            flex: 1; 
             padding-left: 0; 
-            padding-right: 0; /* Zdejmujemy boczne paddingi, aby uniknąć rozpychania na bardzo wąskich ekranach */
+            padding-right: 0; 
         }
         .sidebar-pill {
             display: inline-flex;
@@ -259,7 +258,6 @@
         var actionName = ViewContext.RouteData.Values["action"]?.ToString();
     }
 
-    <!-- ══ TopBar ══ -->
     <div class="TopBar" id="topBar">
         <button class="topbar-back-btn disabled" id="topBarBackBtn" title="Cofnij">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -286,7 +284,6 @@
         </div>
     </div>
 
-    <!-- ══ Sidebar EXPANDED ══ -->
     <div class="Sidebar">
         <div class="Sidebar-header">
             <div class="Sidebar-header-top">
@@ -413,7 +410,6 @@
         </div>
     </div>
 
-    <!-- ══ Sidebar COLLAPSED ══ -->
     <div class="Sidebar-hide">
         <div class="Sidebar-hide-top">
             <button id="toggleSidebar2" class="upper-menu-link">
@@ -637,3 +633,4 @@
         }
     });
 </script>
+
