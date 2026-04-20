@@ -20,7 +20,6 @@
 
     decimal activePct = Model.ActiveSlotsCount > 0 ? Math.Round((Model.ActiveSlotsCount / 1008m) * 100, 1) : 0;
 
-    // ═══ HEADER STEP INFO — pokazuje krok który będzie wykonany NASTĘPNIE ═══
     int headerStepIdx = Model.NextGlobalExecutionStepIdx ?? 1;
     decimal headerStepVal =
         headerStepIdx == 2 ? Model.PriceStepB :
@@ -38,7 +37,7 @@
     string stepColor = headerStepVal < 0 ? "#27ae60" : "#e74a3b";
     string stepIcon = headerStepVal < 0 ? "fa-arrow-down" : "fa-arrow-up";
 
-    // ISO timestamp dla countdownów JS
+
     string nextExecIso = Model.NextGlobalExecution?.ToString("yyyy-MM-ddTHH:mm:ss") ?? "";
 }
 
@@ -234,7 +233,6 @@
 }
 </style>
 
-<div class="View">
 
 
     <div class="Vert">
@@ -943,7 +941,6 @@
             </div>
         </div>
     </div>
-</div>
 
 
 <div id="intervalUnassignModal" class="modal fade" tabindex="-1" style="z-index:1060;">

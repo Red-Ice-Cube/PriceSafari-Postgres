@@ -54,7 +54,11 @@
         .TopBar.sidebar-expanded { left: 240px; }
         .TopBar.sidebar-collapsed { left: 75px; }
 
-        .View { padding-top: 34px; }
+        /* Przesunięcie całego layoutu pod TopBar */
+        body {
+        padding-top: 34px;
+        box-sizing: border-box;
+        }
 
         /* Treść TopBara — ukryta do momentu aż JS ją wypełni */
         .topbar-back-btn,
