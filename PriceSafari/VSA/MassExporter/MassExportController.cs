@@ -25,8 +25,8 @@ namespace PriceSafari.VSA.MassExporter
             if (request?.ScrapIds == null || !request.ScrapIds.Any())
                 return BadRequest("Nie wybrano żadnych analiz.");
 
-            if (request.ScrapIds.Count > 30)
-                return BadRequest("Maksymalnie 30 analiz.");
+            if (request.ScrapIds.Count() > 90)
+                return BadRequest("Maksymalnie 90 analiz.");
 
             var userId = _userManager.GetUserId(User);
 

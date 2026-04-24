@@ -36,8 +36,8 @@
                             <input type="radio" name="exportType" value="priceChange" />
                             <div class="export-type-icon"><i class="fa-solid fa-gavel"></i></div>
                             <div class="export-type-text">
-                                <div class="export-type-title">Analiza zmian cen (MAP)</div>
-                                <div class="export-type-desc">Kto i kiedy złamał cenę — vs cena oferty i vs cena zakupu (zip z 2 plikami)</div>
+                                <div class="export-type-title">Analiza wyłomu</div>
+                                <div class="export-type-desc">Kto i kiedy pierwszy złamał cenę</div>
                             </div>
                         </label>
                     </div>
@@ -46,9 +46,12 @@
 
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <span id="exportSelectionCounter" style="font-weight: 600; font-size: 14px; color: #333;">
-                            Wybrano: 0 / 30
+                            Wybrano: 0 / 90
                         </span>
                         <div style="display: flex; gap: 6px;">
+                            <button type="button" id="exportSelectAllBtn" class="Button-Page-Small" style="font-size: 12px; padding: 4px 10px; height: auto;">
+                                Wszystkie
+                            </button>
                             <button type="button" id="exportSelectLastBtn" class="Button-Page-Small" style="font-size: 12px; padding: 4px 10px; height: auto;">
                                 Ostatnia
                             </button>

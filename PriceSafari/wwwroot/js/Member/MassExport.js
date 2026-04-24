@@ -1,6 +1,6 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
     const EXPORT_HUB_URL = '/scrapingHub';
-    const EXPORT_MAX_SCRAPS = 30;
+    const EXPORT_MAX_SCRAPS = 90;
     const exportSourceType = (typeof presetTypeContext !== 'undefined' && presetTypeContext === 1) ? 'marketplace' : 'comparison';
     const exportButton = document.getElementById("exportToExcelButton");
 
@@ -160,6 +160,27 @@
                 row.classList.remove('selected');
             }
             updateExportSelectionUI();
+        }
+
+        const exportSelectAllBtn = document.getElementById('exportSelectAllBtn');
+
+        if (exportSelectAllBtn) {
+            exportSelectAllBtn.addEventListener('click', function () {
+                exportSelectedIds.clear();
+        
+                const limit = Math.min(EXPORT_MAX_SCRAPS, exportAvailableScraps.length);
+
+                for (let i = 0; i < limit; i++) {
+                    exportSelectedIds.add(exportAvailableScraps[i].id);
+                }
+
+                refreshScrapCheckboxes();
+                updateExportSelectionUI();
+
+                if (exportAvailableScraps.length > EXPORT_MAX_SCRAPS) {
+                    showGlobalNotification(`<p>Zaznaczono pierwsze ${EXPORT_MAX_SCRAPS} analiz (limit).</p>`);
+                }
+            });
         }
 
         function updateExportSelectionUI() {

@@ -1744,11 +1744,6 @@
 
 
 
-
-
-
-
-
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NPOI.OOXML.XSSF.UserModel;
@@ -1770,7 +1765,7 @@ namespace PriceSafari.VSA.MassExporter
 
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, DateTime> _exportCooldowns = new();
         private static readonly TimeSpan ExportCooldown = TimeSpan.FromMinutes(5);
-        public const int MAX_SCRAPS = 30;
+        public const int MAX_SCRAPS = 90;
 
         public MassExportService(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, ILogger<MassExportService> logger)
         {
@@ -1989,10 +1984,19 @@ namespace PriceSafari.VSA.MassExporter
             int processedScraps = 0;
             int grandTotalPrices = 0;
 
+            // Zapobieganie kolizji nazw arkuszy — jeśli mamy wiele scrapów tego samego dnia,
+            // dla wszystkich z tej daty dodajemy godzinę do nazwy arkusza (spójnie w obrębie scrapu).
+            var dateCounts = scraps.GroupBy(s => s.Date.Date).ToDictionary(g => g.Key, g => g.Count());
+
             foreach (var scrap in scraps)
             {
-                var scrapDateStr = scrap.Date.ToString("dd.MM.yyyy");
-                var scrapDateShort = scrap.Date.ToString("dd.MM");
+                bool ambiguousDate = dateCounts[scrap.Date.Date] > 1;
+                var scrapDateStr = ambiguousDate
+                    ? scrap.Date.ToString("dd.MM.yyyy HH-mm")
+                    : scrap.Date.ToString("dd.MM.yyyy");
+                var scrapDateShort = ambiguousDate
+                    ? scrap.Date.ToString("dd.MM HH-mm")
+                    : scrap.Date.ToString("dd.MM");
 
                 await SendExportProgress(connectionId, new
                 {
@@ -2128,10 +2132,19 @@ namespace PriceSafari.VSA.MassExporter
             int processedScraps = 0;
             int grandTotalPrices = 0;
 
+            // Zapobieganie kolizji nazw arkuszy — jeśli mamy wiele scrapów tego samego dnia,
+            // dla wszystkich z tej daty dodajemy godzinę do nazwy arkusza (spójnie w obrębie scrapu).
+            var dateCounts = scraps.GroupBy(s => s.Date.Date).ToDictionary(g => g.Key, g => g.Count());
+
             foreach (var scrap in scraps)
             {
-                var scrapDateStr = scrap.Date.ToString("dd.MM.yyyy");
-                var scrapDateShort = scrap.Date.ToString("dd.MM");
+                bool ambiguousDate = dateCounts[scrap.Date.Date] > 1;
+                var scrapDateStr = ambiguousDate
+                    ? scrap.Date.ToString("dd.MM.yyyy HH-mm")
+                    : scrap.Date.ToString("dd.MM.yyyy");
+                var scrapDateShort = ambiguousDate
+                    ? scrap.Date.ToString("dd.MM HH-mm")
+                    : scrap.Date.ToString("dd.MM");
 
                 await SendExportProgress(connectionId, new
                 {
@@ -2341,31 +2354,15 @@ namespace PriceSafari.VSA.MassExporter
                 percentComplete = 80
             });
 
-            // Zbuduj 2 pliki xlsx
-            var flatBytes = BuildPriceChangeWorkbookFlat(matrix, scraps, storeName, isMarketplace);
-            var blockBytes = BuildPriceChangeWorkbookBlock(matrix, scraps, storeName, isMarketplace);
+            // Zbuduj jeden plik xlsx z wieloma zakładkami
+            var xlsxBytes = BuildPriceChangeWorkbookFlat(matrix, scraps, storeName, isMarketplace);
 
             var dateRange = scraps.Count == 1
                 ? scraps[0].Date.ToString("yyyy-MM-dd")
                 : $"{scraps.First().Date:yyyy-MM-dd}_do_{scraps.Last().Date:yyyy-MM-dd}";
 
             var label = isMarketplace ? "Allegro" : "Ceneo-Google";
-            var flatName = $"Analiza_Zmian_Cen_Plaska_{label}_{storeName}_{dateRange}.xlsx";
-            var blockName = $"Analiza_Zmian_Cen_Blokowa_{label}_{storeName}_{dateRange}.xlsx";
-
-            byte[] zipBytes;
-            using (var zipStream = new MemoryStream())
-            {
-                using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
-                {
-                    var e1 = archive.CreateEntry(flatName, CompressionLevel.Optimal);
-                    using (var s = e1.Open()) s.Write(flatBytes, 0, flatBytes.Length);
-
-                    var e2 = archive.CreateEntry(blockName, CompressionLevel.Optimal);
-                    using (var s = e2.Open()) s.Write(blockBytes, 0, blockBytes.Length);
-                }
-                zipBytes = zipStream.ToArray();
-            }
+            var fileName = $"Analiza_Zmian_Cen_{label}_{storeName}_{dateRange}.xlsx";
 
             await SendExportProgress(connectionId, new
             {
@@ -2378,8 +2375,7 @@ namespace PriceSafari.VSA.MassExporter
                 percentComplete = 100
             });
 
-            var zipFileName = $"Analiza_Zmian_Cen_{label}_{storeName}_{dateRange}.zip";
-            return (zipBytes, zipFileName, "application/zip");
+            return (xlsxBytes, fileName, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         }
 
         // ====================================================================
@@ -2446,6 +2442,7 @@ namespace PriceSafari.VSA.MassExporter
             }
 
             int idx = 0;
+            int runningPriceCount = 0;
             foreach (var scrap in scraps)
             {
                 idx++;
@@ -2454,9 +2451,9 @@ namespace PriceSafari.VSA.MassExporter
                     step = "processing",
                     currentIndex = idx,
                     totalScraps = scraps.Count,
-                    scrapDate = scrap.Date.ToString("dd.MM.yyyy"),
+                    scrapDate = scrap.Date.ToString("dd.MM.yyyy HH:mm"),
                     priceCount = 0,
-                    grandTotalPrices = 0,
+                    grandTotalPrices = runningPriceCount,
                     percentComplete = (int)(5 + (double)idx / scraps.Count * 70)
                 });
 
@@ -2480,6 +2477,18 @@ namespace PriceSafari.VSA.MassExporter
                 }
 
                 var rawList = await query.ToListAsync();
+                runningPriceCount += rawList.Count;
+
+                await SendExportProgress(connectionId, new
+                {
+                    step = "processing",
+                    currentIndex = idx,
+                    totalScraps = scraps.Count,
+                    scrapDate = scrap.Date.ToString("dd.MM.yyyy HH:mm"),
+                    priceCount = rawList.Count,
+                    grandTotalPrices = runningPriceCount,
+                    percentComplete = (int)(5 + (double)idx / scraps.Count * 70)
+                });
 
                 foreach (var row in rawList)
                 {
@@ -2622,6 +2631,7 @@ namespace PriceSafari.VSA.MassExporter
             }
 
             int idx = 0;
+            int runningPriceCount = 0;
             foreach (var scrap in scraps)
             {
                 idx++;
@@ -2630,9 +2640,9 @@ namespace PriceSafari.VSA.MassExporter
                     step = "processing",
                     currentIndex = idx,
                     totalScraps = scraps.Count,
-                    scrapDate = scrap.Date.ToString("dd.MM.yyyy"),
+                    scrapDate = scrap.Date.ToString("dd.MM.yyyy HH:mm"),
                     priceCount = 0,
-                    grandTotalPrices = 0,
+                    grandTotalPrices = runningPriceCount,
                     percentComplete = (int)(5 + (double)idx / scraps.Count * 70)
                 });
 
@@ -2653,6 +2663,18 @@ namespace PriceSafari.VSA.MassExporter
                     .GroupBy(x => new { x.AllegroProductId, x.IdAllegro })
                     .Select(g => g.First())
                     .ToList();
+
+                runningPriceCount += rawPrices.Count;
+                await SendExportProgress(connectionId, new
+                {
+                    step = "processing",
+                    currentIndex = idx,
+                    totalScraps = scraps.Count,
+                    scrapDate = scrap.Date.ToString("dd.MM.yyyy HH:mm"),
+                    priceCount = rawPrices.Count,
+                    grandTotalPrices = runningPriceCount,
+                    percentComplete = (int)(5 + (double)idx / scraps.Count * 70)
+                });
 
                 foreach (var row in rawPrices)
                 {
@@ -2743,6 +2765,7 @@ namespace PriceSafari.VSA.MassExporter
             public DateTime? FirstViolationScrapDate { get; set; }
             public int ViolationCount { get; set; }
             public decimal MaxViolationPercent { get; set; }
+            public decimal AvgViolationPercent { get; set; }
         }
 
         private CompetitorStats ComputeCompetitorStats(
@@ -2750,6 +2773,7 @@ namespace PriceSafari.VSA.MassExporter
             List<(int Id, DateTime Date)> scraps, PriceChangeRef refType)
         {
             var stats = new CompetitorStats();
+            decimal sumPct = 0m;
 
             foreach (var scrap in scraps)
             {
@@ -2771,8 +2795,12 @@ namespace PriceSafari.VSA.MassExporter
                     var violationPct = (reference.Value - price.Value) / reference.Value * 100m;
                     if (violationPct > stats.MaxViolationPercent)
                         stats.MaxViolationPercent = Math.Round(violationPct, 2);
+                    sumPct += violationPct;
                 }
             }
+
+            if (stats.ViolationCount > 0)
+                stats.AvgViolationPercent = Math.Round(sumPct / stats.ViolationCount, 2);
 
             return stats;
         }
@@ -2838,557 +2866,862 @@ namespace PriceSafari.VSA.MassExporter
         // ZAPIS — PŁASKI LAYOUT (workbook)
         // ====================================================================
 
+        // ====================================================================
+        // BUDOWA WORKBOOKA PRICE CHANGE — 5 ZAKŁADEK
+        // vs Oferta, vs Zakup, Zbieżność, Podsumowanie, Legenda
+        // ====================================================================
+
         private byte[] BuildPriceChangeWorkbookFlat(List<PriceChangeProduct> matrix, List<(int Id, DateTime Date)> scraps, string storeName, bool isMarketplace)
         {
             using var wb = new XSSFWorkbook();
             var styles = CreateExportStyles(wb);
 
             var firstBreakersOffer = DetermineFirstBreakers(matrix, scraps, PriceChangeRef.Offer);
-            WritePriceChangeFlatSheet(wb, "Plaska - vs Oferta", matrix, scraps, storeName, PriceChangeRef.Offer, firstBreakersOffer, styles, isMarketplace);
-
             var firstBreakersPurchase = DetermineFirstBreakers(matrix, scraps, PriceChangeRef.Purchase);
-            WritePriceChangeFlatSheet(wb, "Plaska - vs Zakup", matrix, scraps, storeName, PriceChangeRef.Purchase, firstBreakersPurchase, styles, isMarketplace);
 
-            WritePriceChangeSummarySheet(wb, "Podsumowanie", matrix, scraps, firstBreakersOffer, firstBreakersPurchase, styles);
+            // Wstępnie wylicz stats per (produkt, konkurent, referencja) — wykorzystywane przez wszystkie zakładki
+            var classMap = BuildClassificationMap(matrix, scraps);
+
+            WritePriceChangeFlatSheet(wb, "vs Oferta", matrix, scraps, storeName,
+                PriceChangeRef.Offer, firstBreakersOffer, classMap, styles, isMarketplace);
+
+            WritePriceChangeFlatSheet(wb, "vs Zakup", matrix, scraps, storeName,
+                PriceChangeRef.Purchase, firstBreakersPurchase, classMap, styles, isMarketplace);
+
+            WritePriceChangeComplianceSheet(wb, "Zbieżność", matrix, scraps, classMap, styles, isMarketplace);
+
+            WritePriceChangeSummarySheet(wb, "Podsumowanie", matrix, scraps,
+                firstBreakersOffer, firstBreakersPurchase, classMap, styles);
+
+            WritePriceChangeLegendSheet(wb, "Legenda", styles, isMarketplace);
 
             using var ms = new MemoryStream();
             wb.Write(ms);
             return ms.ToArray();
         }
 
+        // ====================================================================
+        // ZAKŁADKA: vs Oferta / vs Zakup — płaska siatka z dodatkową statystyką
+        // ====================================================================
+
         private void WritePriceChangeFlatSheet(XSSFWorkbook wb, string sheetName,
-            List<PriceChangeProduct> matrix, List<(int Id, DateTime Date)> scraps,
-            string storeName, PriceChangeRef refType,
-            Dictionary<(int, string), bool> firstBreakers,
-            ExportStyles s, bool isMarketplace)
+            List<PriceChangeProduct> matrix, List<(int Id, DateTime Date)> scraps, string storeName,
+            PriceChangeRef refType, Dictionary<(int prodId, string compKey), bool> firstBreakers,
+            Dictionary<(int prodId, string compKey), ClassificationEntry> classMap,
+            ExportStyles styles, bool isMarketplace)
         {
             var sheet = wb.CreateSheet(sheetName);
 
-            string refLabel = refType == PriceChangeRef.Offer ? "ceny oferty" : "ceny zakupu";
-            string dateRange = scraps.Count == 1
-                ? scraps[0].Date.ToString("dd.MM.yyyy HH:mm")
-                : $"{scraps.First().Date:dd.MM.yyyy} – {scraps.Last().Date:dd.MM.yyyy}";
+            // --------------------------------------------------------------------
+            // Wstęp — intro box (3 wiersze), tłumaczenie co tu jest
+            // --------------------------------------------------------------------
+            var refLabel = refType == PriceChangeRef.Offer ? "cenę oferty" : "cenę zakupu";
+            var refShortLabel = refType == PriceChangeRef.Offer ? "Oferta" : "Zakup";
 
-            int r = 0;
-            var titleRow = sheet.CreateRow(r++);
-            var titleCell = titleRow.CreateCell(0);
-            titleCell.SetCellValue($"Analiza zmian cen ({refLabel}) — {storeName} — {dateRange} — {(isMarketplace ? "Allegro" : "Ceneo/Google")}");
-            titleCell.CellStyle = s.InfoHeader;
-            sheet.AddMergedRegion(new CellRangeAddress(0, 0, 0, Math.Min(12 + scraps.Count, 25)));
+            var introRow = sheet.CreateRow(0);
+            introRow.HeightInPoints = 22;
+            var introCell = introRow.CreateCell(0);
+            introCell.SetCellValue($"Kto i kiedy złamał {refLabel} — {(isMarketplace ? "Allegro" : "Google/Ceneo")} / {storeName}");
+            introCell.CellStyle = styles.HeaderDark;
+            sheet.AddMergedRegion(new CellRangeAddress(0, 0, 0, 8 + scraps.Count + 6));
 
-            r++;
+            var descRow = sheet.CreateRow(1);
+            descRow.HeightInPoints = 30;
+            var descCell = descRow.CreateCell(0);
+            descCell.SetCellValue(
+                "Każdy wiersz = konkurent dla danego produktu. Kolorowe komórki w kolumnach dat = konkurent miał cenę niższą od " + refLabel +
+                ". Intensywność czerwieni = skala wyłamu (od 0% do 50%+). Złota komórka (🥇) = pierwszy, który złamał w całym oknie analizy. " +
+                "Zobacz zakładki: [Zbieżność] — kto nas kopiuje / odstaje, [Podsumowanie] — ranking konkurentów, [Legenda] — opis kolorów i kolumn.");
+            descCell.CellStyle = styles.Default;
+            var wrap = wb.CreateCellStyle();
+            wrap.CloneStyleFrom(styles.Default);
+            wrap.WrapText = true;
+            wrap.VerticalAlignment = VerticalAlignment.Top;
+            descCell.CellStyle = wrap;
+            sheet.AddMergedRegion(new CellRangeAddress(1, 1, 0, 8 + scraps.Count + 6));
 
-            // Legenda
-            var legRow = sheet.CreateRow(r++);
-            var leg0 = legRow.CreateCell(0); leg0.SetCellValue("Legenda:");
-            var leg1 = legRow.CreateCell(1); leg1.SetCellValue("zgodne"); leg1.CellStyle = s.ComplianceCurrency;
-            var leg2 = legRow.CreateCell(2); leg2.SetCellValue("naruszenie 0-5%"); leg2.CellStyle = s.CellRed2;
-            var leg3 = legRow.CreateCell(3); leg3.SetCellValue("5-15%"); leg3.CellStyle = s.CellRed4;
-            var leg4 = legRow.CreateCell(4); leg4.SetCellValue("15-30%"); leg4.CellStyle = s.CellRed7;
-            var leg5 = legRow.CreateCell(5); leg5.SetCellValue("30%+"); leg5.CellStyle = s.CellRed10;
-            var leg6 = legRow.CreateCell(6); leg6.SetCellValue("🥇 pierwszy wyłom"); leg6.CellStyle = s.FirstBreakerMarker;
-            var leg7 = legRow.CreateCell(7); leg7.SetCellValue("brak danych"); leg7.CellStyle = s.NoDataCell;
+            // Wiersz 2 — pusty
+            int headerRowIdx = 3;
 
-            r++;
+            // --------------------------------------------------------------------
+            // Nagłówek
+            // --------------------------------------------------------------------
+            var headerRow = sheet.CreateRow(headerRowIdx);
+            headerRow.HeightInPoints = 28;
 
-            // Nagłówek kolumn
-            var headerRow = sheet.CreateRow(r++);
-            int c = 0;
-            string[] metaHeaders = {
-                "ID", "Produkt", "EAN", "SKU", "Marka", "Flagi",
-                "Cena ref. (aktualna)", "Uczestnik", "Status"
+            string[] metaHeaders = new[]
+            {
+                "Produkt", "EAN", "SKU", "Marka", "Flagi",
+                $"Nasza cena ({refShortLabel})",
+                "Sklep (konkurent)", "Typ źródła"
             };
+
+            int col = 0;
             foreach (var h in metaHeaders)
             {
-                var cell = headerRow.CreateCell(c++);
-                cell.SetCellValue(h);
-                cell.CellStyle = s.HeaderDark;
+                var c = headerRow.CreateCell(col++);
+                c.SetCellValue(h);
+                c.CellStyle = styles.HeaderDark;
             }
 
+            int scrapStartCol = col;
             foreach (var scrap in scraps)
             {
-                var cell = headerRow.CreateCell(c++);
-                cell.SetCellValue(scrap.Date.ToString("dd.MM HH:mm"));
-                cell.CellStyle = s.HeaderDark;
+                var c = headerRow.CreateCell(col++);
+                c.SetCellValue(scrap.Date.ToString("dd.MM HH:mm"));
+                c.CellStyle = styles.HeaderDark;
             }
+            int scrapEndCol = col - 1;
 
-            string[] statHeaders = { "1-szy wyłom", "Dni w wyłomie", "Max %" };
+            string[] statHeaders = new[]
+            {
+                "Wyłomów (dni)",
+                "Max % poniżej",
+                "Średnie % poniżej",
+                "Pierwszy wyłom (data)",
+                "🥇 Pierwszy",
+                "Status (ost. scrap)"
+            };
+
             foreach (var h in statHeaders)
             {
-                var cell = headerRow.CreateCell(c++);
-                cell.SetCellValue(h);
-                cell.CellStyle = s.HeaderDark;
+                var c = headerRow.CreateCell(col++);
+                c.SetCellValue(h);
+                c.CellStyle = styles.HeaderDark;
             }
+            int lastColIdx = col - 1;
 
-            sheet.CreateFreezePane(9, r);
-
+            // --------------------------------------------------------------------
             // Wiersze danych
+            // --------------------------------------------------------------------
+            int rowIdx = headerRowIdx + 1;
+
             foreach (var product in matrix)
             {
-                decimal? latestRef = refType == PriceChangeRef.Offer ? product.LatestOurPrice : product.PurchasePrice;
-                bool hasAnyRef = refType == PriceChangeRef.Offer
-                    ? product.OurPricePerScrap.Any(v => v.Value.HasValue)
-                    : product.PurchasePrice.HasValue;
-
-                // Najpierw wiersz "Nasza oferta" (baseline)
-                var ourRow = sheet.CreateRow(r++);
-                c = 0;
-                ourRow.CreateCell(c++).SetCellValue(product.ExternalId?.ToString() ?? product.ProductId.ToString());
-                ourRow.CreateCell(c++).SetCellValue(product.ProductName);
-                ourRow.CreateCell(c++).SetCellValue(product.Ean);
-                ourRow.CreateCell(c++).SetCellValue(product.Sku);
-                ourRow.CreateCell(c++).SetCellValue(product.Producer);
-                ourRow.CreateCell(c++).SetCellValue(product.FlagsCsv);
-
-                if (latestRef.HasValue)
-                {
-                    var refCell = ourRow.CreateCell(c++);
-                    refCell.SetCellValue((double)latestRef.Value);
-                    refCell.CellStyle = s.Currency;
-                }
-                else { ourRow.CreateCell(c++).SetCellValue("-"); }
-
-                var baselineCell = ourRow.CreateCell(c++);
-                baselineCell.SetCellValue(refType == PriceChangeRef.Offer ? "[TWOJA OFERTA]" : "[CENA ZAKUPU]");
-                baselineCell.CellStyle = s.BaselineCell;
-
-                var statusCell = ourRow.CreateCell(c++);
-                statusCell.SetCellValue(hasAnyRef ? "referencja" : "brak referencji");
-                statusCell.CellStyle = s.BaselineCell;
-
-                foreach (var scrap in scraps)
-                {
-                    var scrapCell = ourRow.CreateCell(c++);
-                    decimal? val = refType == PriceChangeRef.Offer
-                        ? product.OurPricePerScrap[scrap.Id]
-                        : product.PurchasePrice;
-                    if (val.HasValue)
+                // Określ porządek konkurentów: 🥇 pierwsi, potem po dacie złamania, potem alfabetycznie
+                var ordered = product.Competitors
+                    .Select(c =>
                     {
-                        scrapCell.SetCellValue((double)val.Value);
-                        scrapCell.CellStyle = s.BaselineCurrency;
+                        var compKey = c.StoreName.ToLower().Trim();
+                        bool isFirst = firstBreakers.GetValueOrDefault((product.ProductId, compKey), false);
+                        var stats = ComputeCompetitorStats(product, c, scraps, refType);
+                        return new { Comp = c, IsFirst = isFirst, Stats = stats, CompKey = compKey };
+                    })
+                    .OrderByDescending(x => x.IsFirst)
+                    .ThenBy(x => x.Stats.FirstViolationScrapDate ?? DateTime.MaxValue)
+                    .ThenBy(x => x.Comp.StoreName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                foreach (var entry in ordered)
+                {
+                    var row = sheet.CreateRow(rowIdx++);
+                    col = 0;
+
+                    row.CreateCell(col++).SetCellValue(product.ProductName ?? "");
+                    row.CreateCell(col++).SetCellValue(product.Ean ?? "");
+                    row.CreateCell(col++).SetCellValue(product.Sku ?? "");
+                    row.CreateCell(col++).SetCellValue(product.Producer ?? "");
+                    row.CreateCell(col++).SetCellValue(product.FlagsCsv ?? "");
+
+                    decimal? ourRef = null;
+                    if (refType == PriceChangeRef.Offer) ourRef = product.LatestOurPrice;
+                    else ourRef = product.PurchasePrice;
+
+                    var refCell = row.CreateCell(col++);
+                    if (ourRef.HasValue)
+                    {
+                        refCell.SetCellValue((double)ourRef.Value);
+                        refCell.CellStyle = styles.BaselineCurrency;
                     }
                     else
                     {
-                        scrapCell.CellStyle = s.NoDataCell;
-                    }
-                }
-                for (int i = 0; i < 3; i++)
-                {
-                    var cell = ourRow.CreateCell(c++);
-                    cell.SetCellValue("-");
-                    cell.CellStyle = s.BaselineCell;
-                }
-
-                // Wiersze konkurentów
-                foreach (var comp in product.Competitors)
-                {
-                    var compRow = sheet.CreateRow(r++);
-                    c = 0;
-                    compRow.CreateCell(c++).SetCellValue(product.ExternalId?.ToString() ?? product.ProductId.ToString());
-                    compRow.CreateCell(c++).SetCellValue(product.ProductName);
-                    compRow.CreateCell(c++).SetCellValue(product.Ean);
-                    compRow.CreateCell(c++).SetCellValue(product.Sku);
-                    compRow.CreateCell(c++).SetCellValue(product.Producer);
-                    compRow.CreateCell(c++).SetCellValue(product.FlagsCsv);
-
-                    if (latestRef.HasValue)
-                    {
-                        var refCell = compRow.CreateCell(c++);
-                        refCell.SetCellValue((double)latestRef.Value);
-                        refCell.CellStyle = s.Currency;
-                    }
-                    else { compRow.CreateCell(c++).SetCellValue("-"); }
-
-                    bool isFirst = firstBreakers.GetValueOrDefault((product.ProductId, comp.StoreName.ToLower().Trim()), false);
-
-                    var nameCell = compRow.CreateCell(c++);
-                    nameCell.SetCellValue(isFirst ? $"🥇 {comp.StoreName}" : comp.StoreName);
-                    if (isFirst) nameCell.CellStyle = s.FirstBreakerMarker;
-
-                    var stats = ComputeCompetitorStats(product, comp, scraps, refType);
-                    var statusCell2 = compRow.CreateCell(c++);
-                    if (!hasAnyRef)
-                    {
-                        statusCell2.SetCellValue("brak referencji");
-                        statusCell2.CellStyle = s.NoDataCell;
-                    }
-                    else if (stats.ViolationCount == 0)
-                    {
-                        statusCell2.SetCellValue("OK");
-                        statusCell2.CellStyle = s.ComplianceStatus;
-                    }
-                    else
-                    {
-                        statusCell2.SetCellValue(isFirst ? "1-szy wyłom" : "wyłom");
-                        statusCell2.CellStyle = isFirst ? s.FirstBreakerMarker : s.CellRed5;
+                        refCell.SetCellValue("—");
+                        refCell.CellStyle = styles.NoDataCell;
                     }
 
+                    row.CreateCell(col++).SetCellValue(entry.Comp.StoreName ?? "");
+                    row.CreateCell(col++).SetCellValue(isMarketplace ? "Marketplace (Allegro)" : "Porównywarka (Google/Ceneo)");
+
+                    // Kolumny per scrap
                     foreach (var scrap in scraps)
                     {
-                        var cell = compRow.CreateCell(c++);
-                        var price = comp.PricePerScrap[scrap.Id];
-                        decimal? reference = GetReference(product, scrap.Id, refType);
+                        var cell = row.CreateCell(col++);
+                        var pr = entry.Comp.PricePerScrap.GetValueOrDefault(scrap.Id);
+                        var reference = GetReference(product, scrap.Id, refType);
 
-                        if (!price.HasValue) { cell.CellStyle = s.NoDataCell; continue; }
-
-                        cell.SetCellValue((double)price.Value);
-
-                        if (!reference.HasValue) { cell.CellStyle = s.NoDataCurrency; continue; }
-
-                        if (price.Value >= reference.Value)
+                        if (!pr.HasValue)
                         {
-                            cell.CellStyle = s.ComplianceCurrency;
+                            cell.SetCellValue("—");
+                            cell.CellStyle = styles.NoDataCell;
+                            continue;
+                        }
+
+                        cell.SetCellValue((double)pr.Value);
+
+                        if (!reference.HasValue)
+                        {
+                            cell.CellStyle = styles.ComplianceCurrency;
+                            continue;
+                        }
+
+                        if (pr.Value >= reference.Value)
+                        {
+                            // Konkurent >= nas — zgodność
+                            cell.CellStyle = styles.ComplianceCurrency;
                         }
                         else
                         {
-                            decimal diffPct = reference.Value > 0
-                                ? (reference.Value - price.Value) / reference.Value * 100m
-                                : 0m;
-                            cell.CellStyle = GetViolationStyle(s, diffPct, isFirst && stats.FirstViolationScrapId == scrap.Id);
+                            decimal pct = (reference.Value - pr.Value) / reference.Value * 100m;
+                            bool isFirstScrapAtBreak = entry.IsFirst && entry.Stats.FirstViolationScrapId == scrap.Id;
+                            cell.CellStyle = GetViolationStyle(styles, pct, isFirstScrapAtBreak);
                         }
                     }
 
-                    var firstCell = compRow.CreateCell(c++);
-                    firstCell.SetCellValue(stats.FirstViolationScrapDate?.ToString("dd.MM.yyyy HH:mm") ?? "-");
-                    if (isFirst) firstCell.CellStyle = s.FirstBreakerMarker;
+                    // Kolumny statystyczne
+                    var stats = entry.Stats;
+                    row.CreateCell(col++).SetCellValue(stats.ViolationCount);
 
-                    var countCell = compRow.CreateCell(c++);
-                    countCell.SetCellValue(stats.ViolationCount);
-
-                    var maxCell = compRow.CreateCell(c++);
+                    var maxCell = row.CreateCell(col++);
                     if (stats.ViolationCount > 0)
                     {
                         maxCell.SetCellValue((double)stats.MaxViolationPercent);
-                        maxCell.CellStyle = s.Percent;
+                        maxCell.CellStyle = styles.PercentRed;
                     }
-                    else maxCell.SetCellValue("-");
+                    else
+                    {
+                        maxCell.SetCellValue("—");
+                    }
+
+                    var avgCell = row.CreateCell(col++);
+                    if (stats.ViolationCount > 0)
+                    {
+                        avgCell.SetCellValue((double)stats.AvgViolationPercent);
+                        avgCell.CellStyle = styles.Percent;
+                    }
+                    else
+                    {
+                        avgCell.SetCellValue("—");
+                    }
+
+                    var firstDateCell = row.CreateCell(col++);
+                    if (stats.FirstViolationScrapDate.HasValue)
+                        firstDateCell.SetCellValue(stats.FirstViolationScrapDate.Value.ToString("dd.MM.yyyy HH:mm"));
+                    else
+                        firstDateCell.SetCellValue("—");
+
+                    var firstCell = row.CreateCell(col++);
+                    firstCell.SetCellValue(entry.IsFirst ? "🥇 TAK" : "");
+                    if (entry.IsFirst) firstCell.CellStyle = styles.FirstBreakerMarker;
+
+                    // Status — klasyfikacja na ostatnim scrapie wg wybranej referencji
+                    var classKey = (product.ProductId, entry.CompKey);
+                    var cls = classMap.GetValueOrDefault(classKey);
+                    var statusCell = row.CreateCell(col++);
+                    var statusInfo = refType == PriceChangeRef.Offer ? cls?.OfferLast : cls?.PurchaseLast;
+                    statusCell.SetCellValue(statusInfo?.Label ?? "—");
+                    if (statusInfo != null) statusCell.CellStyle = GetClassificationStyle(styles, statusInfo.Code);
                 }
-
-                r++;
             }
 
-            try
+            int lastDataRowIdx = rowIdx - 1;
+
+            // --------------------------------------------------------------------
+            // Freeze + AutoFilter
+            // --------------------------------------------------------------------
+            sheet.CreateFreezePane(scrapStartCol, headerRowIdx + 1);
+
+            if (lastDataRowIdx >= headerRowIdx + 1)
             {
-                for (int i = 0; i < 9; i++) sheet.AutoSizeColumn(i);
-                if (sheet.GetColumnWidth(1) > 14000) sheet.SetColumnWidth(1, 14000);
+                sheet.SetAutoFilter(new CellRangeAddress(headerRowIdx, lastDataRowIdx, 0, lastColIdx));
             }
-            catch { }
+
+            // Szerokości kolumn
+            sheet.SetColumnWidth(0, 40 * 256); // Produkt
+            sheet.SetColumnWidth(1, 15 * 256); // EAN
+            sheet.SetColumnWidth(2, 15 * 256); // SKU
+            sheet.SetColumnWidth(3, 18 * 256); // Marka
+            sheet.SetColumnWidth(4, 22 * 256); // Flagi
+            sheet.SetColumnWidth(5, 16 * 256); // Nasza cena
+            sheet.SetColumnWidth(6, 24 * 256); // Sklep
+            sheet.SetColumnWidth(7, 22 * 256); // Typ
+
+            for (int i = scrapStartCol; i <= scrapEndCol; i++)
+                sheet.SetColumnWidth(i, 13 * 256);
+
+            for (int i = scrapEndCol + 1; i <= lastColIdx; i++)
+                sheet.SetColumnWidth(i, 17 * 256);
         }
 
         // ====================================================================
-        // ZAPIS — BLOKOWY LAYOUT (workbook)
+        // ZAKŁADKA: Zbieżność — kto nas kopiuje, kto odstaje, kto się zbliża
         // ====================================================================
 
-        private byte[] BuildPriceChangeWorkbookBlock(List<PriceChangeProduct> matrix, List<(int Id, DateTime Date)> scraps, string storeName, bool isMarketplace)
-        {
-            using var wb = new XSSFWorkbook();
-            var styles = CreateExportStyles(wb);
-
-            var firstBreakersOffer = DetermineFirstBreakers(matrix, scraps, PriceChangeRef.Offer);
-            WritePriceChangeBlockSheet(wb, "Blok - vs Oferta", matrix, scraps, storeName, PriceChangeRef.Offer, firstBreakersOffer, styles, isMarketplace);
-
-            var firstBreakersPurchase = DetermineFirstBreakers(matrix, scraps, PriceChangeRef.Purchase);
-            WritePriceChangeBlockSheet(wb, "Blok - vs Zakup", matrix, scraps, storeName, PriceChangeRef.Purchase, firstBreakersPurchase, styles, isMarketplace);
-
-            WritePriceChangeSummarySheet(wb, "Podsumowanie", matrix, scraps, firstBreakersOffer, firstBreakersPurchase, styles);
-
-            using var ms = new MemoryStream();
-            wb.Write(ms);
-            return ms.ToArray();
-        }
-
-        private void WritePriceChangeBlockSheet(XSSFWorkbook wb, string sheetName,
+        private void WritePriceChangeComplianceSheet(XSSFWorkbook wb, string sheetName,
             List<PriceChangeProduct> matrix, List<(int Id, DateTime Date)> scraps,
-            string storeName, PriceChangeRef refType,
-            Dictionary<(int, string), bool> firstBreakers,
-            ExportStyles s, bool isMarketplace)
+            Dictionary<(int prodId, string compKey), ClassificationEntry> classMap,
+            ExportStyles styles, bool isMarketplace)
         {
             var sheet = wb.CreateSheet(sheetName);
-            string refLabel = refType == PriceChangeRef.Offer ? "ceny oferty" : "ceny zakupu";
-            string dateRange = scraps.Count == 1
-                ? scraps[0].Date.ToString("dd.MM.yyyy HH:mm")
-                : $"{scraps.First().Date:dd.MM.yyyy} – {scraps.Last().Date:dd.MM.yyyy}";
 
-            int r = 0;
-            var titleRow = sheet.CreateRow(r++);
-            var titleCell = titleRow.CreateCell(0);
-            titleCell.SetCellValue($"Analiza zmian cen ({refLabel}) — {storeName} — {dateRange} — {(isMarketplace ? "Allegro" : "Ceneo/Google")}");
-            titleCell.CellStyle = s.InfoHeader;
-            sheet.AddMergedRegion(new CellRangeAddress(0, 0, 0, Math.Min(3 + scraps.Count, 20)));
+            // Intro
+            var introRow = sheet.CreateRow(0);
+            introRow.HeightInPoints = 22;
+            var introCell = introRow.CreateCell(0);
+            introCell.SetCellValue("Zbieżność cen — jak blisko/daleko konkurenci poruszają się względem nas");
+            introCell.CellStyle = styles.HeaderDark;
+            sheet.AddMergedRegion(new CellRangeAddress(0, 0, 0, 14));
 
-            r++;
+            var descRow = sheet.CreateRow(1);
+            descRow.HeightInPoints = 45;
+            var descCell = descRow.CreateCell(0);
+            descCell.SetCellValue(
+                "Dla każdej pary (produkt × konkurent) liczone są dni (scrapy), w których cena konkurenta była względem nas: " +
+                "IDENTYCZNA (±0.5%), BLISKO (±2%), NIŻEJ (>2% poniżej), WYŻEJ (>2% powyżej). Procenty = udział dni z daną klasyfikacją. " +
+                "Osobno dla referencji 'Oferta' (nasza cena na rynku) i 'Zakup' (nasza cena zakupowa — MAP). " +
+                "Sortuj po kolumnie '% Identyczny (Oferta)' malejąco żeby zobaczyć kto nas najdokładniej kopiuje. " +
+                "Sortuj po 'Max % niżej (Oferta)' żeby zobaczyć największych agresorów.");
+            var wrap = wb.CreateCellStyle();
+            wrap.CloneStyleFrom(styles.Default);
+            wrap.WrapText = true;
+            wrap.VerticalAlignment = VerticalAlignment.Top;
+            descCell.CellStyle = wrap;
+            sheet.AddMergedRegion(new CellRangeAddress(1, 1, 0, 14));
 
+            int headerRowIdx = 3;
+            var headerRow = sheet.CreateRow(headerRowIdx);
+            headerRow.HeightInPoints = 28;
+
+            string[] headers = new[]
+            {
+                "Produkt", "EAN", "SKU", "Marka",
+                "Sklep (konkurent)",
+                "% Identyczny (Oferta)",
+                "% Blisko (Oferta)",
+                "% Niżej (Oferta)",
+                "% Wyżej (Oferta)",
+                "Max % niżej (Oferta)",
+                "% Identyczny (Zakup)",
+                "% Blisko (Zakup)",
+                "% Niżej (Zakup)",
+                "Max % niżej (Zakup)",
+                "Status ostatni (Oferta)"
+            };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var c = headerRow.CreateCell(i);
+                c.SetCellValue(headers[i]);
+                c.CellStyle = styles.HeaderDark;
+            }
+
+            int rowIdx = headerRowIdx + 1;
+
+            // Posortujmy wiersze: najpierw po % Identyczny (Oferta) malejąco, potem Max % niżej malejąco
+            var allRows = new List<(PriceChangeProduct Prod, PriceChangeCompetitor Comp, ClassificationEntry Cls)>();
             foreach (var product in matrix)
             {
-                decimal? latestRef = refType == PriceChangeRef.Offer ? product.LatestOurPrice : product.PurchasePrice;
-
-                // Header produktu
-                var prodHeaderRow = sheet.CreateRow(r++);
-                var ph0 = prodHeaderRow.CreateCell(0);
-                ph0.SetCellValue($"{product.ProductName}  |  EAN: {product.Ean}  |  SKU: {product.Sku}  |  Marka: {product.Producer}"
-                    + (string.IsNullOrEmpty(product.FlagsCsv) ? "" : $"  |  Flagi: {product.FlagsCsv}"));
-                ph0.CellStyle = s.ProductBlockHeader;
-                sheet.AddMergedRegion(new CellRangeAddress(r - 1, r - 1, 0, Math.Min(3 + scraps.Count, 20)));
-
-                // Dane referencyjne
-                var refInfoRow = sheet.CreateRow(r++);
-                var ri0 = refInfoRow.CreateCell(0);
-                string refStr = refType == PriceChangeRef.Offer
-                    ? $"Cena oferty (ostatnia): {(latestRef?.ToString("0.00") ?? "brak")} PLN"
-                    : $"Cena zakupu: {(latestRef?.ToString("0.00") ?? "brak")} PLN";
-                ri0.SetCellValue(refStr);
-                ri0.CellStyle = s.ProductBlockSubHeader;
-
-                // Nagłówek kolumn
-                var hdrRow = sheet.CreateRow(r++);
-                int c = 0;
-                var hc = hdrRow.CreateCell(c++); hc.SetCellValue("Uczestnik"); hc.CellStyle = s.HeaderDark;
-                foreach (var scrap in scraps)
+                foreach (var comp in product.Competitors)
                 {
-                    var cell = hdrRow.CreateCell(c++);
-                    cell.SetCellValue(scrap.Date.ToString("dd.MM HH:mm"));
-                    cell.CellStyle = s.HeaderDark;
+                    var key = (product.ProductId, comp.StoreName.ToLower().Trim());
+                    if (!classMap.TryGetValue(key, out var cls)) continue;
+                    allRows.Add((product, comp, cls));
                 }
-                var h1 = hdrRow.CreateCell(c++); h1.SetCellValue("1-szy wyłom"); h1.CellStyle = s.HeaderDark;
-                var h2 = hdrRow.CreateCell(c++); h2.SetCellValue("Dni"); h2.CellStyle = s.HeaderDark;
-                var h3 = hdrRow.CreateCell(c++); h3.SetCellValue("Max %"); h3.CellStyle = s.HeaderDark;
-
-                // Wiersz: baseline
-                var ourRow = sheet.CreateRow(r++);
-                c = 0;
-                var ourName = ourRow.CreateCell(c++);
-                ourName.SetCellValue(refType == PriceChangeRef.Offer ? "[TWOJA OFERTA]" : "[CENA ZAKUPU]");
-                ourName.CellStyle = s.BaselineCell;
-
-                foreach (var scrap in scraps)
-                {
-                    var cell = ourRow.CreateCell(c++);
-                    decimal? val = refType == PriceChangeRef.Offer
-                        ? product.OurPricePerScrap[scrap.Id]
-                        : product.PurchasePrice;
-                    if (val.HasValue)
-                    {
-                        cell.SetCellValue((double)val.Value);
-                        cell.CellStyle = s.BaselineCurrency;
-                    }
-                    else cell.CellStyle = s.NoDataCell;
-                }
-                for (int i = 0; i < 3; i++)
-                {
-                    var cell = ourRow.CreateCell(c++);
-                    cell.SetCellValue("-");
-                    cell.CellStyle = s.BaselineCell;
-                }
-
-                // Konkurenci — sortowani: pierwsi łamacze, potem po dacie pierwszego wyłomu
-                var compsWithStats = product.Competitors.Select(comp => new
-                {
-                    Comp = comp,
-                    Stats = ComputeCompetitorStats(product, comp, scraps, refType),
-                    IsFirst = firstBreakers.GetValueOrDefault((product.ProductId, comp.StoreName.ToLower().Trim()), false)
-                })
-                .OrderByDescending(x => x.IsFirst)
-                .ThenBy(x => x.Stats.FirstViolationScrapDate ?? DateTime.MaxValue)
-                .ThenBy(x => x.Comp.StoreName)
-                .ToList();
-
-                foreach (var entry in compsWithStats)
-                {
-                    var compRow = sheet.CreateRow(r++);
-                    c = 0;
-                    var nameCell = compRow.CreateCell(c++);
-                    nameCell.SetCellValue(entry.IsFirst ? $"🥇 {entry.Comp.StoreName}" : entry.Comp.StoreName);
-                    nameCell.CellStyle = entry.IsFirst ? s.FirstBreakerMarker : s.Default;
-
-                    foreach (var scrap in scraps)
-                    {
-                        var cell = compRow.CreateCell(c++);
-                        var price = entry.Comp.PricePerScrap[scrap.Id];
-                        decimal? reference = GetReference(product, scrap.Id, refType);
-
-                        if (!price.HasValue) { cell.CellStyle = s.NoDataCell; continue; }
-
-                        cell.SetCellValue((double)price.Value);
-                        if (!reference.HasValue) { cell.CellStyle = s.NoDataCurrency; continue; }
-
-                        if (price.Value >= reference.Value)
-                        {
-                            cell.CellStyle = s.ComplianceCurrency;
-                        }
-                        else
-                        {
-                            decimal diffPct = reference.Value > 0
-                                ? (reference.Value - price.Value) / reference.Value * 100m
-                                : 0m;
-                            cell.CellStyle = GetViolationStyle(s, diffPct, entry.IsFirst && entry.Stats.FirstViolationScrapId == scrap.Id);
-                        }
-                    }
-
-                    var firstCell = compRow.CreateCell(c++);
-                    firstCell.SetCellValue(entry.Stats.FirstViolationScrapDate?.ToString("dd.MM.yyyy HH:mm") ?? "-");
-                    if (entry.IsFirst) firstCell.CellStyle = s.FirstBreakerMarker;
-
-                    var countCell = compRow.CreateCell(c++);
-                    countCell.SetCellValue(entry.Stats.ViolationCount);
-
-                    var maxCell = compRow.CreateCell(c++);
-                    if (entry.Stats.ViolationCount > 0)
-                    {
-                        maxCell.SetCellValue((double)entry.Stats.MaxViolationPercent);
-                        maxCell.CellStyle = s.Percent;
-                    }
-                    else maxCell.SetCellValue("-");
-                }
-
-                // Odstęp między blokami
-                r++;
-                r++;
             }
 
-            try
+            foreach (var entry in allRows
+                .OrderByDescending(x => x.Cls.OfferIdenticalPct)
+                .ThenByDescending(x => x.Cls.OfferMaxBelowPct))
             {
-                sheet.AutoSizeColumn(0);
-                if (sheet.GetColumnWidth(0) > 14000) sheet.SetColumnWidth(0, 14000);
+                var row = sheet.CreateRow(rowIdx++);
+                int col = 0;
+
+                row.CreateCell(col++).SetCellValue(entry.Prod.ProductName ?? "");
+                row.CreateCell(col++).SetCellValue(entry.Prod.Ean ?? "");
+                row.CreateCell(col++).SetCellValue(entry.Prod.Sku ?? "");
+                row.CreateCell(col++).SetCellValue(entry.Prod.Producer ?? "");
+                row.CreateCell(col++).SetCellValue(entry.Comp.StoreName ?? "");
+
+                WritePct(row.CreateCell(col++), entry.Cls.OfferIdenticalPct, styles);
+                WritePct(row.CreateCell(col++), entry.Cls.OfferClosePct, styles);
+                WritePct(row.CreateCell(col++), entry.Cls.OfferBelowPct, styles);
+                WritePct(row.CreateCell(col++), entry.Cls.OfferAbovePct, styles);
+                WritePct(row.CreateCell(col++), entry.Cls.OfferMaxBelowPct, styles, tintRed: entry.Cls.OfferMaxBelowPct > 0);
+
+                WritePct(row.CreateCell(col++), entry.Cls.PurchaseIdenticalPct, styles);
+                WritePct(row.CreateCell(col++), entry.Cls.PurchaseClosePct, styles);
+                WritePct(row.CreateCell(col++), entry.Cls.PurchaseBelowPct, styles);
+                WritePct(row.CreateCell(col++), entry.Cls.PurchaseMaxBelowPct, styles, tintRed: entry.Cls.PurchaseMaxBelowPct > 0);
+
+                var lastCell = row.CreateCell(col++);
+                var last = entry.Cls.OfferLast;
+                lastCell.SetCellValue(last?.Label ?? "—");
+                if (last != null) lastCell.CellStyle = GetClassificationStyle(styles, last.Code);
             }
-            catch { }
+
+            int lastDataRowIdx = rowIdx - 1;
+
+            sheet.CreateFreezePane(5, headerRowIdx + 1);
+            if (lastDataRowIdx >= headerRowIdx + 1)
+                sheet.SetAutoFilter(new CellRangeAddress(headerRowIdx, lastDataRowIdx, 0, headers.Length - 1));
+
+            sheet.SetColumnWidth(0, 40 * 256);
+            sheet.SetColumnWidth(1, 15 * 256);
+            sheet.SetColumnWidth(2, 15 * 256);
+            sheet.SetColumnWidth(3, 18 * 256);
+            sheet.SetColumnWidth(4, 24 * 256);
+            for (int i = 5; i < headers.Length - 1; i++) sheet.SetColumnWidth(i, 15 * 256);
+            sheet.SetColumnWidth(headers.Length - 1, 24 * 256);
+        }
+
+        private void WritePct(ICell cell, decimal value, ExportStyles styles, bool tintRed = false)
+        {
+            cell.SetCellValue((double)value);
+            if (tintRed && value >= 5m)
+                cell.CellStyle = styles.PercentRed;
+            else
+                cell.CellStyle = styles.Percent;
         }
 
         // ====================================================================
-        // PODSUMOWANIE — ranking pierwszych łamaczy
+        // ZAKŁADKA: Podsumowanie — ranking konkurentów wg naruszeń
         // ====================================================================
 
         private void WritePriceChangeSummarySheet(XSSFWorkbook wb, string sheetName,
             List<PriceChangeProduct> matrix, List<(int Id, DateTime Date)> scraps,
-            Dictionary<(int, string), bool> firstBreakersOffer,
-            Dictionary<(int, string), bool> firstBreakersPurchase,
-            ExportStyles s)
+            Dictionary<(int prodId, string compKey), bool> firstBreakersOffer,
+            Dictionary<(int prodId, string compKey), bool> firstBreakersPurchase,
+            Dictionary<(int prodId, string compKey), ClassificationEntry> classMap,
+            ExportStyles styles)
+        {
+            var sheet = wb.CreateSheet(sheetName);
+
+            var introRow = sheet.CreateRow(0);
+            introRow.HeightInPoints = 22;
+            var introCell = introRow.CreateCell(0);
+            introCell.SetCellValue("Ranking konkurentów — kto najczęściej łamie cenę");
+            introCell.CellStyle = styles.HeaderDark;
+            sheet.AddMergedRegion(new CellRangeAddress(0, 0, 0, 9));
+
+            var descRow = sheet.CreateRow(1);
+            descRow.HeightInPoints = 45;
+            var descCell = descRow.CreateCell(0);
+            descCell.SetCellValue(
+                "Agregat per konkurent — ile produktów ma, w ilu łamie cenę oferty, w ilu łamie cenę zakupu (MAP), " +
+                "jak często był pierwszym łamaczem (🥇) oraz ogólne % zbieżności z naszą ceną oferty. " +
+                "Sortuj malejąco po 'Produkty z wyłomem Oferty' żeby zobaczyć największych agresorów, " +
+                "albo po '% Identyczny (Oferta)' żeby znaleźć tych którzy nas najbardziej śledzą.");
+            var wrap = wb.CreateCellStyle();
+            wrap.CloneStyleFrom(styles.Default);
+            wrap.WrapText = true;
+            wrap.VerticalAlignment = VerticalAlignment.Top;
+            descCell.CellStyle = wrap;
+            sheet.AddMergedRegion(new CellRangeAddress(1, 1, 0, 9));
+
+            int headerRowIdx = 3;
+            var headerRow = sheet.CreateRow(headerRowIdx);
+            headerRow.HeightInPoints = 28;
+
+            string[] headers = new[]
+            {
+                "Sklep (konkurent)",
+                "Produkty (łącznie)",
+                "Produkty z wyłomem Oferty",
+                "Produkty z wyłomem Zakupu",
+                "🥇 Pierwszy łamacz (Oferta)",
+                "🥇 Pierwszy łamacz (Zakup)",
+                "Avg % Identyczny (Oferta)",
+                "Avg % Blisko (Oferta)",
+                "Avg % Niżej (Oferta)",
+                "Avg Max % niżej (Oferta)"
+            };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var c = headerRow.CreateCell(i);
+                c.SetCellValue(headers[i]);
+                c.CellStyle = styles.HeaderDark;
+            }
+
+            // Agregacja per konkurent
+            var agg = new Dictionary<string, SummaryAgg>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var product in matrix)
+            {
+                foreach (var comp in product.Competitors)
+                {
+                    var compKey = comp.StoreName.ToLower().Trim();
+                    if (!agg.TryGetValue(compKey, out var a))
+                    {
+                        a = new SummaryAgg { StoreName = comp.StoreName };
+                        agg[compKey] = a;
+                    }
+                    a.ProductsTotal++;
+
+                    var statsOffer = ComputeCompetitorStats(product, comp, scraps, PriceChangeRef.Offer);
+                    var statsPurchase = ComputeCompetitorStats(product, comp, scraps, PriceChangeRef.Purchase);
+
+                    if (statsOffer.ViolationCount > 0) a.ProductsWithOfferBreach++;
+                    if (statsPurchase.ViolationCount > 0) a.ProductsWithPurchaseBreach++;
+
+                    if (firstBreakersOffer.GetValueOrDefault((product.ProductId, compKey), false))
+                        a.FirstBreakerOfferCount++;
+                    if (firstBreakersPurchase.GetValueOrDefault((product.ProductId, compKey), false))
+                        a.FirstBreakerPurchaseCount++;
+
+                    if (classMap.TryGetValue((product.ProductId, compKey), out var cls))
+                    {
+                        a.SumIdentical += cls.OfferIdenticalPct;
+                        a.SumClose += cls.OfferClosePct;
+                        a.SumBelow += cls.OfferBelowPct;
+                        a.SumMaxBelow += cls.OfferMaxBelowPct;
+                        a.ClassCount++;
+                    }
+                }
+            }
+
+            int rowIdx = headerRowIdx + 1;
+            foreach (var a in agg.Values
+                .OrderByDescending(x => x.ProductsWithOfferBreach)
+                .ThenByDescending(x => x.ProductsWithPurchaseBreach)
+                .ThenBy(x => x.StoreName, StringComparer.OrdinalIgnoreCase))
+            {
+                var row = sheet.CreateRow(rowIdx++);
+                int col = 0;
+
+                row.CreateCell(col++).SetCellValue(a.StoreName ?? "");
+                row.CreateCell(col++).SetCellValue(a.ProductsTotal);
+                row.CreateCell(col++).SetCellValue(a.ProductsWithOfferBreach);
+                row.CreateCell(col++).SetCellValue(a.ProductsWithPurchaseBreach);
+                row.CreateCell(col++).SetCellValue(a.FirstBreakerOfferCount);
+                row.CreateCell(col++).SetCellValue(a.FirstBreakerPurchaseCount);
+
+                decimal avgIdent = a.ClassCount > 0 ? a.SumIdentical / a.ClassCount : 0;
+                decimal avgClose = a.ClassCount > 0 ? a.SumClose / a.ClassCount : 0;
+                decimal avgBelow = a.ClassCount > 0 ? a.SumBelow / a.ClassCount : 0;
+                decimal avgMaxBelow = a.ClassCount > 0 ? a.SumMaxBelow / a.ClassCount : 0;
+
+                WritePct(row.CreateCell(col++), avgIdent, styles);
+                WritePct(row.CreateCell(col++), avgClose, styles);
+                WritePct(row.CreateCell(col++), avgBelow, styles);
+                WritePct(row.CreateCell(col++), avgMaxBelow, styles, tintRed: avgMaxBelow >= 5m);
+            }
+
+            int lastDataRowIdx = rowIdx - 1;
+
+            sheet.CreateFreezePane(1, headerRowIdx + 1);
+            if (lastDataRowIdx >= headerRowIdx + 1)
+                sheet.SetAutoFilter(new CellRangeAddress(headerRowIdx, lastDataRowIdx, 0, headers.Length - 1));
+
+            sheet.SetColumnWidth(0, 26 * 256);
+            for (int i = 1; i < headers.Length; i++)
+                sheet.SetColumnWidth(i, 20 * 256);
+        }
+
+        private class SummaryAgg
+        {
+            public string StoreName { get; set; }
+            public int ProductsTotal { get; set; }
+            public int ProductsWithOfferBreach { get; set; }
+            public int ProductsWithPurchaseBreach { get; set; }
+            public int FirstBreakerOfferCount { get; set; }
+            public int FirstBreakerPurchaseCount { get; set; }
+            public decimal SumIdentical { get; set; }
+            public decimal SumClose { get; set; }
+            public decimal SumBelow { get; set; }
+            public decimal SumMaxBelow { get; set; }
+            public int ClassCount { get; set; }
+        }
+
+        // ====================================================================
+        // ZAKŁADKA: Legenda — tłumaczenie kolorów i kolumn
+        // ====================================================================
+
+        private void WritePriceChangeLegendSheet(XSSFWorkbook wb, string sheetName, ExportStyles styles, bool isMarketplace)
         {
             var sheet = wb.CreateSheet(sheetName);
 
             int r = 0;
-            var titleRow = sheet.CreateRow(r++);
-            var titleCell = titleRow.CreateCell(0);
-            titleCell.SetCellValue("Podsumowanie — kto najczęściej łamie ceny (agregacja per konkurent)");
-            titleCell.CellStyle = s.InfoHeader;
-            sheet.AddMergedRegion(new CellRangeAddress(0, 0, 0, 8));
+            var title = sheet.CreateRow(r++);
+            title.HeightInPoints = 24;
+            var titleCell = title.CreateCell(0);
+            titleCell.SetCellValue("Legenda — jak czytać ten raport");
+            titleCell.CellStyle = styles.HeaderDark;
+            sheet.AddMergedRegion(new CellRangeAddress(0, 0, 0, 2));
 
             r++;
 
-            var hdr = sheet.CreateRow(r++);
-            string[] headers = {
-                "Konkurent", "Produktów obserwowanych",
-                "Wyłomy vs Oferta", "1-szy wyłom vs Oferta",
-                "Wyłomy vs Zakup", "1-szy wyłom vs Zakup",
-                "Śr. Max % vs Oferta", "Śr. Max % vs Zakup",
-                "Ostatnie złamanie"
-            };
-            for (int i = 0; i < headers.Length; i++)
-            {
-                var cell = hdr.CreateCell(i);
-                cell.SetCellValue(headers[i]);
-                cell.CellStyle = s.HeaderDark;
-            }
+            // Sekcja 1 — zakładki
+            WriteLegendHeader(sheet, r++, "Zakładki w tym pliku", styles);
+            WriteLegendPair(sheet, r++, "vs Oferta", "Porównanie cen konkurentów z naszą aktualną ceną oferty (na rynku). Każdy wiersz = konkurent dla produktu.", styles);
+            WriteLegendPair(sheet, r++, "vs Zakup", "Porównanie z ceną zakupu (koszt dla nas / MAP). Wyłom = ktoś sprzedaje taniej niż nam kosztuje → alarm.", styles);
+            WriteLegendPair(sheet, r++, "Zbieżność", "Klasyfikacja zachowania konkurenta: % dni z identyczną/bliską/niższą/wyższą ceną. Pokazuje kto nas kopiuje, kto odstaje, kto nas podgryza.", styles);
+            WriteLegendPair(sheet, r++, "Podsumowanie", "Ranking konkurentów — ilu produktów dotyczy, ile razy byli pierwsi w łamaniu, jak blisko nas oscylują.", styles);
+            WriteLegendPair(sheet, r++, "Legenda", "Ten arkusz.", styles);
 
-            // Agregaty per konkurent (vs Oferta)
-            var offerAgg = new Dictionary<string, (int Products, int FirstCount, int Violations, decimal SumMax, DateTime? Last)>(StringComparer.OrdinalIgnoreCase);
-            foreach (var p in matrix)
-            {
-                foreach (var c in p.Competitors)
-                {
-                    var stats = ComputeCompetitorStats(p, c, scraps, PriceChangeRef.Offer);
-                    var key = c.StoreName;
-                    if (!offerAgg.TryGetValue(key, out var agg)) agg = (0, 0, 0, 0m, null);
-                    agg.Products++;
-                    bool isFirst = firstBreakersOffer.GetValueOrDefault((p.ProductId, c.StoreName.ToLower().Trim()), false);
-                    if (isFirst) agg.FirstCount++;
-                    agg.Violations += stats.ViolationCount;
-                    agg.SumMax += stats.MaxViolationPercent;
-                    if (stats.FirstViolationScrapDate.HasValue &&
-                        (!agg.Last.HasValue || stats.FirstViolationScrapDate.Value > agg.Last.Value))
-                        agg.Last = stats.FirstViolationScrapDate;
-                    offerAgg[key] = agg;
-                }
-            }
+            r++;
 
-            // Agregaty per konkurent (vs Zakup)
-            var purchaseAgg = new Dictionary<string, (int Products, int FirstCount, int Violations, decimal SumMax)>(StringComparer.OrdinalIgnoreCase);
-            foreach (var p in matrix)
-            {
-                foreach (var c in p.Competitors)
-                {
-                    var stats = ComputeCompetitorStats(p, c, scraps, PriceChangeRef.Purchase);
-                    var key = c.StoreName;
-                    if (!purchaseAgg.TryGetValue(key, out var agg)) agg = (0, 0, 0, 0m);
-                    if (p.PurchasePrice.HasValue) agg.Products++;
-                    bool isFirst = firstBreakersPurchase.GetValueOrDefault((p.ProductId, c.StoreName.ToLower().Trim()), false);
-                    if (isFirst) agg.FirstCount++;
-                    agg.Violations += stats.ViolationCount;
-                    agg.SumMax += stats.MaxViolationPercent;
-                    purchaseAgg[key] = agg;
-                }
-            }
+            // Sekcja 2 — Kolory w komórkach cenowych
+            WriteLegendHeader(sheet, r++, "Kolory komórek z cenami (kolumny scrapów w 'vs Oferta' / 'vs Zakup')", styles);
 
-            var allCompetitors = offerAgg.Keys
-                .Union(purchaseAgg.Keys, StringComparer.OrdinalIgnoreCase)
-                .OrderByDescending(k =>
-                {
-                    int oV = offerAgg.TryGetValue(k, out var o) ? o.Violations : 0;
-                    int pV = purchaseAgg.TryGetValue(k, out var pp) ? pp.Violations : 0;
-                    return oV + pV;
-                })
-                .ToList();
+            WriteLegendColor(sheet, r++, styles.BaselineCurrency, "Nasza cena referencyjna", "Cena oferty (ostatnia znana) lub cena zakupu — do tej ceny porównywani są wszyscy konkurenci.", styles);
+            WriteLegendColor(sheet, r++, styles.ComplianceCurrency, "Zgodność — konkurent NIE taniej od nas", "Cena konkurenta równa lub wyższa od referencji. Nic się nie dzieje, MAP OK.", styles);
+            WriteLegendColor(sheet, r++, styles.NoDataCell, "Brak danych", "W tym scrapie konkurent nie miał oferty dla tego produktu.", styles);
 
-            foreach (var key in allCompetitors)
-            {
-                var row = sheet.CreateRow(r++);
-                int c = 0;
-                row.CreateCell(c++).SetCellValue(key);
+            WriteLegendColor(sheet, r++, styles.CellRed1, "Wyłom 0-2%", "Konkurent delikatnie taniej (do 2% poniżej referencji).", styles);
+            WriteLegendColor(sheet, r++, styles.CellRed3, "Wyłom 5-8%", "Wyraźna agresja.", styles);
+            WriteLegendColor(sheet, r++, styles.CellRed6, "Wyłom 16-20%", "Silny undercut.", styles);
+            WriteLegendColor(sheet, r++, styles.CellRed9, "Wyłom 30-40%", "Bardzo agresywne.", styles);
+            WriteLegendColor(sheet, r++, styles.CellRed11, "Wyłom 50%+", "Drastyczny — często błąd w cenie albo wyprzedaż.", styles);
 
-                offerAgg.TryGetValue(key, out var oAgg);
-                purchaseAgg.TryGetValue(key, out var pAgg);
+            WriteLegendColor(sheet, r++, styles.FirstBreakerViolation, "🥇 Pierwszy łamacz", "To ten konkurent złamał cenę jako pierwszy w całym oknie analizy. Kluczowy sygnał — śledzić uważnie.", styles);
 
-                row.CreateCell(c++).SetCellValue(oAgg.Products);
+            r++;
 
-                var cellOfferV = row.CreateCell(c++);
-                cellOfferV.SetCellValue(oAgg.Violations);
-                if (oAgg.Violations > 0) cellOfferV.CellStyle = s.CellRed5;
+            // Sekcja 3 — Klasyfikacje (Status)
+            WriteLegendHeader(sheet, r++, "Klasyfikacja statusu (kolumna 'Status (ost. scrap)' w 'vs Oferta' / 'vs Zakup' i w 'Zbieżność')", styles);
+            WriteLegendColor(sheet, r++, GetClassificationStyle(styles, ClassCode.Identical), "🎯 Identyczny", "Cena konkurenta w przedziale ±0.5% od naszej. Prawdopodobnie nas kopiuje (skrypt lub ręcznie).", styles);
+            WriteLegendColor(sheet, r++, GetClassificationStyle(styles, ClassCode.Close), "🟢 Blisko", "Cena w przedziale ±2% od naszej (ale poza ±0.5%). Świadomy konkurent dopasowuje się do naszej strategii.", styles);
+            WriteLegendColor(sheet, r++, GetClassificationStyle(styles, ClassCode.SlightlyBelow), "🔵 Nieco niżej (2-5%)", "Konkurent taniej o 2-5%. Delikatna agresja — warto monitorować.", styles);
+            WriteLegendColor(sheet, r++, GetClassificationStyle(styles, ClassCode.Below), "🟠 Niżej (5-15%)", "Wyraźny undercut — tracisz pozycję cenową.", styles);
+            WriteLegendColor(sheet, r++, GetClassificationStyle(styles, ClassCode.DeepBelow), "🔴 Mocno niżej (>15%)", "Bardzo agresywna cena. Alarm — zweryfikuj czy to nie błąd feed'a albo celowa wyprzedaż.", styles);
+            WriteLegendColor(sheet, r++, GetClassificationStyle(styles, ClassCode.Above), "🟡 Powyżej (>2%)", "Konkurent drożej od nas — mamy przewagę cenową.", styles);
+            WriteLegendColor(sheet, r++, GetClassificationStyle(styles, ClassCode.NoData), "— Brak danych", "Brak ceny w ostatnim scrapie.", styles);
 
-                var cellOfferFirst = row.CreateCell(c++);
-                cellOfferFirst.SetCellValue(oAgg.FirstCount);
-                if (oAgg.FirstCount > 0) cellOfferFirst.CellStyle = s.FirstBreakerMarker;
+            r++;
 
-                var cellPurchV = row.CreateCell(c++);
-                cellPurchV.SetCellValue(pAgg.Violations);
-                if (pAgg.Violations > 0) cellPurchV.CellStyle = s.CellRed5;
+            // Sekcja 4 — Kolumny statystyczne
+            WriteLegendHeader(sheet, r++, "Kolumny statystyczne (koniec wiersza w 'vs Oferta' / 'vs Zakup')", styles);
+            WriteLegendPair(sheet, r++, "Wyłomów (dni)", "W ilu scrapach z wybranego okna konkurent miał cenę niższą od naszej referencji.", styles);
+            WriteLegendPair(sheet, r++, "Max % poniżej", "Największe odchylenie w dół w całym oknie. Przydatne do wyłapania jednostkowych alarmów.", styles);
+            WriteLegendPair(sheet, r++, "Średnie % poniżej", "Średnie odchylenie, liczone TYLKO z dni w których był wyłom (nie rozcieńcza średniej dniami zgodnymi).", styles);
+            WriteLegendPair(sheet, r++, "Pierwszy wyłom (data)", "Data pierwszego scrapu w którym pojawił się wyłom dla tego konkurenta.", styles);
+            WriteLegendPair(sheet, r++, "🥇 Pierwszy", "Czy ten konkurent był pierwszym który w ogóle złamał cenę tego produktu w całym oknie (zwycięzca wyścigu w dół).", styles);
+            WriteLegendPair(sheet, r++, "Status (ost. scrap)", "Klasyfikacja konkurenta na ostatnim scrapie — patrz sekcja 'Klasyfikacja statusu' wyżej.", styles);
 
-                var cellPurchFirst = row.CreateCell(c++);
-                cellPurchFirst.SetCellValue(pAgg.FirstCount);
-                if (pAgg.FirstCount > 0) cellPurchFirst.CellStyle = s.FirstBreakerMarker;
+            r++;
 
-                var avgOffer = oAgg.Products > 0 ? Math.Round(oAgg.SumMax / oAgg.Products, 2) : 0m;
-                var cellAvgO = row.CreateCell(c++);
-                if (avgOffer > 0)
-                {
-                    cellAvgO.SetCellValue((double)avgOffer);
-                    cellAvgO.CellStyle = s.PercentRed;
-                }
-                else cellAvgO.SetCellValue("-");
+            // Sekcja 5 — Zbieżność
+            WriteLegendHeader(sheet, r++, "Kolumny w zakładce 'Zbieżność'", styles);
+            WriteLegendPair(sheet, r++, "% Identyczny (Oferta/Zakup)", "Odsetek scrapów w których cena konkurenta była w ±0.5% od naszej. Wysokie = kopiuje nas.", styles);
+            WriteLegendPair(sheet, r++, "% Blisko", "Odsetek scrapów w których cena była w ±2% (ale poza ±0.5%). Aktywny follower.", styles);
+            WriteLegendPair(sheet, r++, "% Niżej", "Odsetek scrapów w których cena konkurenta była niżej od naszej (>2% poniżej).", styles);
+            WriteLegendPair(sheet, r++, "% Wyżej", "Odsetek scrapów powyżej naszej ceny (>2% wyżej).", styles);
+            WriteLegendPair(sheet, r++, "Max % niżej", "Najniższy punkt do którego konkurent zszedł w stosunku do nas — skala najgorszego wyłomu.", styles);
 
-                var avgPurch = pAgg.Products > 0 ? Math.Round(pAgg.SumMax / pAgg.Products, 2) : 0m;
-                var cellAvgP = row.CreateCell(c++);
-                if (avgPurch > 0)
-                {
-                    cellAvgP.SetCellValue((double)avgPurch);
-                    cellAvgP.CellStyle = s.PercentRed;
-                }
-                else cellAvgP.SetCellValue("-");
+            r++;
 
-                var lastCell = row.CreateCell(c++);
-                lastCell.SetCellValue(oAgg.Last?.ToString("dd.MM.yyyy HH:mm") ?? "-");
-            }
+            // Sekcja 6 — Tips
+            WriteLegendHeader(sheet, r++, "Wskazówki użycia", styles);
+            WriteLegendPair(sheet, r++, "Sortowanie", "Kliknij strzałkę przy nagłówku dowolnej kolumny — autofiltr jest już włączony.", styles);
+            WriteLegendPair(sheet, r++, "Filtrowanie po konkurencie", "W 'vs Oferta' użyj filtra kolumny 'Sklep (konkurent)' żeby zobaczyć co robi jeden gracz w całym asortymencie.", styles);
+            WriteLegendPair(sheet, r++, "Znajdź kopiujących", "Sortuj 'Zbieżność' malejąco po '% Identyczny (Oferta)' — górna część listy to sklepy kopiujące twoje ceny.", styles);
+            WriteLegendPair(sheet, r++, "Znajdź agresorów", "W 'Podsumowanie' sortuj po 'Produkty z wyłomem Oferty' malejąco.", styles);
+            WriteLegendPair(sheet, r++, "MAP enforcement", "Zakładka 'vs Zakup' — każda czerwona komórka oznacza sklep sprzedający poniżej ceny zakupu, co zwykle narusza politykę MAP (Minimum Advertised Price).", styles);
 
-            for (int i = 0; i < headers.Length; i++) { try { sheet.AutoSizeColumn(i); } catch { } }
+            sheet.SetColumnWidth(0, 38 * 256);
+            sheet.SetColumnWidth(1, 34 * 256);
+            sheet.SetColumnWidth(2, 80 * 256);
         }
+
+        private void WriteLegendHeader(ISheet sheet, int r, string text, ExportStyles styles)
+        {
+            var row = sheet.CreateRow(r);
+            row.HeightInPoints = 22;
+            var cell = row.CreateCell(0);
+            cell.SetCellValue(text);
+            cell.CellStyle = styles.ProductBlockHeader;
+            sheet.AddMergedRegion(new CellRangeAddress(r, r, 0, 2));
+        }
+
+        private void WriteLegendPair(ISheet sheet, int r, string what, string desc, ExportStyles styles)
+        {
+            var row = sheet.CreateRow(r);
+            var c1 = row.CreateCell(0);
+            c1.SetCellValue(what);
+            c1.CellStyle = styles.ProductBlockSubHeader;
+            var c2 = row.CreateCell(1);
+            c2.SetCellValue(desc);
+            var wrap = sheet.Workbook.CreateCellStyle();
+            wrap.WrapText = true;
+            wrap.VerticalAlignment = VerticalAlignment.Top;
+            c2.CellStyle = wrap;
+            sheet.AddMergedRegion(new CellRangeAddress(r, r, 1, 2));
+            row.HeightInPoints = 30;
+        }
+
+        private void WriteLegendColor(ISheet sheet, int r, ICellStyle sample, string what, string desc, ExportStyles styles)
+        {
+            var row = sheet.CreateRow(r);
+            row.HeightInPoints = 24;
+
+            var cSample = row.CreateCell(0);
+            cSample.SetCellValue("PRZYKŁAD");
+            cSample.CellStyle = sample;
+
+            var cWhat = row.CreateCell(1);
+            cWhat.SetCellValue(what);
+            cWhat.CellStyle = styles.ProductBlockSubHeader;
+
+            var cDesc = row.CreateCell(2);
+            cDesc.SetCellValue(desc);
+            var wrap = sheet.Workbook.CreateCellStyle();
+            wrap.WrapText = true;
+            wrap.VerticalAlignment = VerticalAlignment.Top;
+            cDesc.CellStyle = wrap;
+        }
+
+        // ====================================================================
+        // KLASYFIKACJA — kto jak blisko nas stoi
+        // ====================================================================
+
+        private enum ClassCode { NoData, Identical, Close, SlightlyBelow, Below, DeepBelow, Above }
+
+        private class ClassificationStatus
+        {
+            public ClassCode Code { get; set; }
+            public string Label { get; set; }
+        }
+
+        private class ClassificationEntry
+        {
+            // Per referencja (Offer/Purchase): % dni identycznych / bliskich / niżej / wyżej + max % niżej
+            public decimal OfferIdenticalPct { get; set; }
+            public decimal OfferClosePct { get; set; }
+            public decimal OfferBelowPct { get; set; }
+            public decimal OfferAbovePct { get; set; }
+            public decimal OfferMaxBelowPct { get; set; }
+
+            public decimal PurchaseIdenticalPct { get; set; }
+            public decimal PurchaseClosePct { get; set; }
+            public decimal PurchaseBelowPct { get; set; }
+            public decimal PurchaseMaxBelowPct { get; set; }
+
+            // Status na ostatnim scrapie
+            public ClassificationStatus OfferLast { get; set; }
+            public ClassificationStatus PurchaseLast { get; set; }
+        }
+
+        private Dictionary<(int, string), ClassificationEntry> BuildClassificationMap(
+            List<PriceChangeProduct> matrix, List<(int Id, DateTime Date)> scraps)
+        {
+            var result = new Dictionary<(int, string), ClassificationEntry>();
+
+            foreach (var product in matrix)
+            {
+                foreach (var comp in product.Competitors)
+                {
+                    var key = (product.ProductId, comp.StoreName.ToLower().Trim());
+                    var e = new ClassificationEntry();
+
+                    // ==== OFERTA ====
+                    int oDays = 0, oIdent = 0, oClose = 0, oBelow = 0, oAbove = 0;
+                    decimal oMaxBelow = 0m;
+                    ClassificationStatus oLast = new ClassificationStatus { Code = ClassCode.NoData, Label = "—" };
+
+                    foreach (var scrap in scraps)
+                    {
+                        var pr = comp.PricePerScrap.GetValueOrDefault(scrap.Id);
+                        var refPrice = GetReference(product, scrap.Id, PriceChangeRef.Offer);
+                        if (!pr.HasValue || !refPrice.HasValue || refPrice.Value == 0) continue;
+
+                        oDays++;
+                        decimal diffPct = (pr.Value - refPrice.Value) / refPrice.Value * 100m;
+                        var cls = ClassifyDelta(diffPct);
+
+                        if (cls.Code == ClassCode.Identical) oIdent++;
+                        else if (cls.Code == ClassCode.Close) oClose++;
+                        else if (cls.Code == ClassCode.SlightlyBelow || cls.Code == ClassCode.Below || cls.Code == ClassCode.DeepBelow) oBelow++;
+                        else if (cls.Code == ClassCode.Above) oAbove++;
+
+                        if (diffPct < 0 && -diffPct > oMaxBelow) oMaxBelow = -diffPct;
+                        oLast = cls; // przy iteracji rosnąco — ostatni nadpisuje
+                    }
+
+                    if (oDays > 0)
+                    {
+                        e.OfferIdenticalPct = (decimal)oIdent / oDays * 100m;
+                        e.OfferClosePct = (decimal)oClose / oDays * 100m;
+                        e.OfferBelowPct = (decimal)oBelow / oDays * 100m;
+                        e.OfferAbovePct = (decimal)oAbove / oDays * 100m;
+                        e.OfferMaxBelowPct = oMaxBelow;
+                        e.OfferLast = oLast;
+                    }
+                    else
+                    {
+                        e.OfferLast = new ClassificationStatus { Code = ClassCode.NoData, Label = "—" };
+                    }
+
+                    // ==== ZAKUP ====
+                    int pDays = 0, pIdent = 0, pClose = 0, pBelow = 0;
+                    decimal pMaxBelow = 0m;
+                    ClassificationStatus pLast = new ClassificationStatus { Code = ClassCode.NoData, Label = "—" };
+
+                    foreach (var scrap in scraps)
+                    {
+                        var pr = comp.PricePerScrap.GetValueOrDefault(scrap.Id);
+                        var refPrice = GetReference(product, scrap.Id, PriceChangeRef.Purchase);
+                        if (!pr.HasValue || !refPrice.HasValue || refPrice.Value == 0) continue;
+
+                        pDays++;
+                        decimal diffPct = (pr.Value - refPrice.Value) / refPrice.Value * 100m;
+                        var cls = ClassifyDelta(diffPct);
+
+                        if (cls.Code == ClassCode.Identical) pIdent++;
+                        else if (cls.Code == ClassCode.Close) pClose++;
+                        else if (cls.Code == ClassCode.SlightlyBelow || cls.Code == ClassCode.Below || cls.Code == ClassCode.DeepBelow) pBelow++;
+
+                        if (diffPct < 0 && -diffPct > pMaxBelow) pMaxBelow = -diffPct;
+                        pLast = cls;
+                    }
+
+                    if (pDays > 0)
+                    {
+                        e.PurchaseIdenticalPct = (decimal)pIdent / pDays * 100m;
+                        e.PurchaseClosePct = (decimal)pClose / pDays * 100m;
+                        e.PurchaseBelowPct = (decimal)pBelow / pDays * 100m;
+                        e.PurchaseMaxBelowPct = pMaxBelow;
+                        e.PurchaseLast = pLast;
+                    }
+                    else
+                    {
+                        e.PurchaseLast = new ClassificationStatus { Code = ClassCode.NoData, Label = "—" };
+                    }
+
+                    result[key] = e;
+                }
+            }
+
+            return result;
+        }
+
+        private ClassificationStatus ClassifyDelta(decimal diffPct)
+        {
+            // diffPct = (konkurent - my) / my * 100
+            // ujemne => konkurent taniej, dodatnie => droższy
+            decimal abs = Math.Abs(diffPct);
+            if (abs <= 0.5m) return new ClassificationStatus { Code = ClassCode.Identical, Label = "🎯 Identyczny" };
+            if (abs <= 2m) return new ClassificationStatus { Code = ClassCode.Close, Label = "🟢 Blisko" };
+
+            if (diffPct > 0) return new ClassificationStatus { Code = ClassCode.Above, Label = "🟡 Powyżej" };
+
+            // Ujemne — jak głęboko?
+            if (abs <= 5m) return new ClassificationStatus { Code = ClassCode.SlightlyBelow, Label = "🔵 Nieco niżej" };
+            if (abs <= 15m) return new ClassificationStatus { Code = ClassCode.Below, Label = "🟠 Niżej" };
+            return new ClassificationStatus { Code = ClassCode.DeepBelow, Label = "🔴 Mocno niżej" };
+        }
+
+        private ICellStyle GetClassificationStyle(ExportStyles s, ClassCode code)
+        {
+            switch (code)
+            {
+                case ClassCode.Identical: return s.ClsIdentical;
+                case ClassCode.Close: return s.ClsClose;
+                case ClassCode.SlightlyBelow: return s.ClsSlightlyBelow;
+                case ClassCode.Below: return s.ClsBelow;
+                case ClassCode.DeepBelow: return s.ClsDeepBelow;
+                case ClassCode.Above: return s.ClsAbove;
+                default: return s.NoDataCell;
+            }
+        }
+
 
         // ====================================================================
         // GRADIENT NARUSZEŃ — wybór stylu per %
@@ -4035,6 +4368,13 @@ namespace PriceSafari.VSA.MassExporter
                 }
             }
 
+            // Freeze pierwszego wiersza + 6 meta kolumn, autofilter na meta+stats
+            sheet.CreateFreezePane(6, 1);
+            if (rowIdx > 1)
+            {
+                sheet.SetAutoFilter(new CellRangeAddress(0, rowIdx - 1, 0, 17));
+            }
+
             for (int i = 0; i < 18; i++) { try { sheet.AutoSizeColumn(i); } catch { } }
         }
 
@@ -4538,6 +4878,14 @@ namespace PriceSafari.VSA.MassExporter
             public ICellStyle FirstBreakerViolation { get; set; }
             public ICellStyle ProductBlockHeader { get; set; }
             public ICellStyle ProductBlockSubHeader { get; set; }
+
+            // Klasyfikacje statusu (Zbieżność / Status w ostatnim scrapie)
+            public ICellStyle ClsIdentical { get; set; }
+            public ICellStyle ClsClose { get; set; }
+            public ICellStyle ClsSlightlyBelow { get; set; }
+            public ICellStyle ClsBelow { get; set; }
+            public ICellStyle ClsDeepBelow { get; set; }
+            public ICellStyle ClsAbove { get; set; }
         }
 
         private ExportStyles CreateExportStyles(XSSFWorkbook wb)
@@ -4631,6 +4979,14 @@ namespace PriceSafari.VSA.MassExporter
             s.ProductBlockHeader = CreateColoredStyle(wb, new byte[] { 26, 39, 68 }, true, IndexedColors.White.Index);
             s.ProductBlockSubHeader = CreateColoredStyle(wb, new byte[] { 222, 228, 240 }, true, 0);
 
+            // Klasyfikacje (używane w 'Zbieżność' i kolumnie 'Status' w vs Oferta / vs Zakup)
+            s.ClsIdentical = CreateColoredStyle(wb, new byte[] { 196, 230, 252 }, true, 0);  // jasny niebieski — kopiuje nas
+            s.ClsClose = CreateColoredStyle(wb, new byte[] { 212, 237, 218 }, true, 0);  // jasna zieleń — blisko
+            s.ClsSlightlyBelow = CreateColoredStyle(wb, new byte[] { 255, 240, 200 }, true, 0);  // jasny żółty — niewielkie zagrożenie
+            s.ClsBelow = CreateColoredStyle(wb, new byte[] { 255, 200, 140 }, true, 0);  // pomarańczowy — wyraźne zagrożenie
+            s.ClsDeepBelow = CreateColoredStyle(wb, new byte[] { 220, 53, 69 }, true, IndexedColors.White.Index); // czerwony alarm
+            s.ClsAbove = CreateColoredStyle(wb, new byte[] { 230, 230, 230 }, true, 0);  // szary — mamy przewagę
+
             return s;
         }
 
@@ -4714,6 +5070,3 @@ namespace PriceSafari.VSA.MassExporter
         }
     }
 }
-
-
-
