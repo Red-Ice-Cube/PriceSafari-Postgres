@@ -1,8 +1,7 @@
 ﻿<div class="modal fade" id="exportScrapSelectorModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
     <div class="modal-dialog" role="document" style="max-width: 560px;">
         <div class="modal-content">
- 
-           
+
             <div id="exportStep_select">
                 <div class="modal-header">
                     <div class="price-box-column-name">
@@ -13,10 +12,9 @@
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
- 
+
                 <div class="modal-body" style="padding: 15px 20px;">
- 
-          
+
                     <div class="export-type-selector">
                         <label class="export-type-option selected" data-type="prices">
                             <input type="radio" name="exportType" value="prices" checked />
@@ -34,14 +32,21 @@
                                 <div class="export-type-desc">Analiza pozycji cenowej vs. konkurentów wg progów i marek</div>
                             </div>
                         </label>
+                        <label class="export-type-option" data-type="priceChange">
+                            <input type="radio" name="exportType" value="priceChange" />
+                            <div class="export-type-icon"><i class="fa-solid fa-gavel"></i></div>
+                            <div class="export-type-text">
+                                <div class="export-type-title">Analiza zmian cen (MAP)</div>
+                                <div class="export-type-desc">Kto i kiedy złamał cenę — vs cena oferty i vs cena zakupu (zip z 2 plikami)</div>
+                            </div>
+                        </label>
                     </div>
- 
+
                     <hr style="margin: 15px 0 12px;">
- 
-                  
+
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <span id="exportSelectionCounter" style="font-weight: 600; font-size: 14px; color: #333;">
-                            Wybrano: 0 / 12
+                            Wybrano: 0 / 30
                         </span>
                         <div style="display: flex; gap: 6px;">
                             <button type="button" id="exportSelectLastBtn" class="Button-Page-Small" style="font-size: 12px; padding: 4px 10px; height: auto;">
@@ -55,7 +60,7 @@
                             </button>
                         </div>
                     </div>
- 
+
                     <div id="exportScrapList" style="
                         max-height: 380px;
                         overflow-y: auto;
@@ -69,7 +74,7 @@
                         </div>
                     </div>
                 </div>
- 
+
                 <div class="modal-footer" style="justify-content: space-between;">
                     <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Anuluj</button>
                     <button type="button" id="exportStartBtn" class="Button-Page-Small-gr" disabled>
@@ -77,8 +82,7 @@
                     </button>
                 </div>
             </div>
- 
-          
+
             <div id="exportStep_progress" style="display: none;">
                 <div class="modal-header" style="border-bottom: none;">
                     <div class="price-box-column-name">
@@ -86,20 +90,20 @@
                         Generowanie pliku Excel
                     </div>
                 </div>
- 
+
                 <div class="modal-body" style="text-align: center; padding: 20px 30px 30px;">
                     <div style="margin-bottom: 18px;">
                         <i class="fa-solid fa-gears" id="exportProgressIcon" style="font-size: 36px; color: #198754;"></i>
                     </div>
- 
+
                     <p id="exportProgressStatus" style="font-size: 15px; font-weight: 600; color: #333; margin-bottom: 4px;">
                         Przygotowywanie...
                     </p>
- 
+
                     <p id="exportProgressDetail" style="font-size: 13px; color: #777; margin-bottom: 16px;">
                         &nbsp;
                     </p>
- 
+
                     <div style="width: 100%; background-color: #e9ecef; border-radius: 8px; overflow: hidden; height: 10px; margin-bottom: 8px;">
                         <div id="exportProgressBar" style="
                         width: 0%;
@@ -109,11 +113,11 @@
                         transition: width 0.4s ease;
                         "></div>
                     </div>
- 
+
                     <p id="exportProgressPercent" style="font-size: 13px; color: #888; margin-bottom: 0;">
                         0%
                     </p>
- 
+
                     <div id="exportProgressStats" style="
                         margin-top: 18px;
                         padding: 10px 14px;
@@ -134,7 +138,7 @@
                         </div>
                     </div>
                 </div>
- 
+
                 <div id="exportErrorBox" style="display: none; padding: 0 30px 20px; text-align: center;">
                     <i class="fa-solid fa-circle-exclamation" style="font-size: 32px; color: #dc3545; margin-bottom: 10px;"></i>
                     <p id="exportErrorText" style="color: #dc3545; font-size: 14px;"></p>

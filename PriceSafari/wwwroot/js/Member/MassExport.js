@@ -1,6 +1,6 @@
 ﻿document.addEventListener("DOMContentLoaded", function () {
     const EXPORT_HUB_URL = '/scrapingHub';
-    const EXPORT_MAX_SCRAPS = 12;
+    const EXPORT_MAX_SCRAPS = 30;
     const exportSourceType = (typeof presetTypeContext !== 'undefined' && presetTypeContext === 1) ? 'marketplace' : 'comparison';
     const exportButton = document.getElementById("exportToExcelButton");
 
@@ -50,7 +50,7 @@
                 <p style="margin-top: 10px;">Ładowanie listy analiz...</p>
             </div>`;
 
-            // ZMIANA: Strzał do nowego API
+
             fetch(`/api/MassExport/GetAvailableScraps?storeId=${storeId}&sourceType=${exportSourceType}`)
                 .then(r => r.json())
                 .then(scraps => {
@@ -240,7 +240,7 @@
                         scrapIds: scrapIds,
                         connectionId: connectionId,
                         exportType: exportType,
-                        sourceType: exportSourceType   
+                        sourceType: exportSourceType
                     })
                 });
 
@@ -250,7 +250,8 @@
                 }
 
                 const disposition = response.headers.get('Content-Disposition');
-                let filename = 'eksport.xlsx';
+                // Domyślna nazwa — rozszerzenie dobierane wg trybu (priceChange = zip)
+                let filename = exportType === 'priceChange' ? 'eksport.zip' : 'eksport.xlsx';
                 if (disposition) {
                     const match = disposition.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i);
                     if (match) filename = decodeURIComponent(match[1].replace(/"/g, ''));
