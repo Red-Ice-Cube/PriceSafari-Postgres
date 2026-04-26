@@ -183,6 +183,39 @@
         text-align: center;
         color: #999;
     }
+
+    .logs-tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 2px solid #dee2e6;
+        margin-bottom: 4px;
+    }
+
+    .log-tab {
+        padding: 10px 18px;
+        font-weight: 600;
+        color: #6c757d;
+        text-decoration: none;
+        border: 1px solid transparent;
+        border-bottom: none;
+        border-radius: 6px 6px 0 0;
+        margin-bottom: -2px;
+        transition: all 0.15s;
+        font-size: 0.9rem;
+    }
+
+        .log-tab:hover {
+            background: #f1f3f5;
+            color: #343a40;
+            text-decoration: none;
+        }
+
+        .log-tab.active {
+            background: #fff;
+            color: #0d6efd;
+            border-color: #dee2e6;
+            border-bottom: 2px solid #fff;
+        }
 </style>
 
 <div class="Page-Box">
@@ -194,7 +227,15 @@
 
         <div class="logs-wrapper">
 
-            <!-- Filters -->
+            <!-- Tabs przełącznik -->
+            <div class="logs-tabs">
+                <a asp-action="TaskExecutionLog" class="log-tab active">
+                    <i class="fas fa-list-check me-1"></i> Logi zadań
+                </a>
+                <a asp-action="IntervalExecutionLog" class="log-tab">
+                    <i class="fas fa-clock me-1"></i> Logi interwałów
+                </a>
+            </div>
             <div class="logs-filters">
                 <label><i class="fas fa-filter me-1"></i> Operacja:</label>
                 <select id="operationFilter">

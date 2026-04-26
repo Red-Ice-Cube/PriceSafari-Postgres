@@ -1,0 +1,778 @@
+﻿@using PriceSafari.IntervalPriceChanger.Models
+@model List<PriceSafari.IntervalPriceChanger.Models.IntervalPriceExecutionBatch>
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+    var distinctStores = Model
+        .Where(b => b.IntervalRule?.AutomationRule?.Store != null)
+        .Select(b => b.IntervalRule.AutomationRule.Store.StoreName)
+        .Distinct()
+        .OrderBy(x => x)
+        .ToList();
+
+    var distinctIntervals = Model
+        .Where(b => b.IntervalRule != null)
+        .Select(b => b.IntervalRule.Name)
+        .Distinct()
+        .OrderBy(x => x)
+        .ToList();
+
+    var grouped = Model
+        .GroupBy(b => b.ExecutionDate.Date)
+        .OrderByDescending(g => g.Key)
+        .ToList();
+
+    var today = DateTime.Today;
+
+    string StatusBadge(IntervalExecutionItemStatus s) => s switch
+    {
+        IntervalExecutionItemStatus.Success => "badge-ok",
+        IntervalExecutionItemStatus.SuccessLimitedMin => "badge-ok",
+        IntervalExecutionItemStatus.SuccessLimitedMax => "badge-ok",
+        IntervalExecutionItemStatus.NoChangeNeeded => "badge-neutral",
+        IntervalExecutionItemStatus.SkippedCollision => "badge-neutral",
+        IntervalExecutionItemStatus.FailedApi => "badge-fail",
+        IntervalExecutionItemStatus.FailedAuth => "badge-fail",
+        _ => "badge-blocked"
+    };
+
+    string StatusLabel(IntervalExecutionItemStatus s) => s switch
+    {
+        IntervalExecutionItemStatus.Pending => "Oczekuje",
+        IntervalExecutionItemStatus.Success => "Sukces",
+        IntervalExecutionItemStatus.SuccessLimitedMin => "Sukces (Min)",
+        IntervalExecutionItemStatus.SuccessLimitedMax => "Sukces (Max)",
+        IntervalExecutionItemStatus.BlockedNoPurchasePrice => "Brak ceny zakupu",
+        IntervalExecutionItemStatus.BlockedNoMinLimit => "Brak limitu Min",
+        IntervalExecutionItemStatus.BlockedLimitReached => "Limit osiągnięty",
+        IntervalExecutionItemStatus.BlockedNoPriceData => "Brak danych ceny",
+        IntervalExecutionItemStatus.BlockedMinMaxConflict => "Konflikt Min/Max",
+        IntervalExecutionItemStatus.BlockedActivePromotion => "Aktywna kampania",
+        IntervalExecutionItemStatus.BlockedNoMarketOffer => "Brak oferty na rynku",
+        IntervalExecutionItemStatus.SkippedCollision => "Pominięto (kolizja)",
+        IntervalExecutionItemStatus.FailedApi => "Błąd API",
+        IntervalExecutionItemStatus.FailedAuth => "Błąd autoryzacji",
+        IntervalExecutionItemStatus.NoChangeNeeded => "Brak zmiany",
+        _ => s.ToString()
+    };
+}
+
+<style>
+    .logs-wrapper {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        gap: 12px;
+        max-height: 82vh;
+        overflow-y: auto;
+    }
+
+    .logs-tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 2px solid #dee2e6;
+        margin-bottom: 4px;
+    }
+
+    .log-tab {
+        padding: 10px 18px;
+        font-weight: 600;
+        color: #6c757d;
+        text-decoration: none;
+        border: 1px solid transparent;
+        border-bottom: none;
+        border-radius: 6px 6px 0 0;
+        margin-bottom: -2px;
+        transition: all 0.15s;
+        font-size: 0.9rem;
+    }
+
+        .log-tab:hover {
+            background: #f1f3f5;
+            color: #343a40;
+            text-decoration: none;
+        }
+
+        .log-tab.active {
+            background: #fff;
+            color: #0d6efd;
+            border-color: #dee2e6;
+            border-bottom: 2px solid #fff;
+        }
+
+    .logs-filters {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 10px 14px;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+        .logs-filters label {
+            font-weight: 600;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        .logs-filters select {
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid #ced4da;
+            font-size: 0.88rem;
+            background: #fff;
+        }
+
+        .logs-filters .spacer {
+            flex: 1;
+        }
+
+    .btn-clear-all {
+        background: #dc3545;
+        color: #fff;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 5px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .btn-clear-all:hover {
+            background: #bb2d3b;
+        }
+
+    .day-section {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    .day-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 16px;
+        background: #e9ecef;
+        cursor: pointer;
+        user-select: none;
+    }
+
+        .day-section-header:hover {
+            background: #dde1e5;
+        }
+
+        .day-section-header.is-today {
+            background: #cfe2ff;
+            border-left: 4px solid #0d6efd;
+        }
+
+            .day-section-header.is-today:hover {
+                background: #b6d4fe;
+            }
+
+        .day-section-header .day-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+            .day-section-header .day-title .count {
+                font-weight: 400;
+                color: #6c757d;
+                font-size: 0.85rem;
+            }
+
+    .chevron {
+        transition: transform 0.2s;
+        color: #6c757d;
+        font-size: 0.8rem;
+    }
+
+    .day-section.collapsed .chevron {
+        transform: rotate(-90deg);
+    }
+
+    .day-section.collapsed .day-section-body {
+        display: none;
+    }
+
+    .batch-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.87rem;
+    }
+
+        .batch-table thead th {
+            background: #343a40;
+            color: #fff;
+            padding: 8px 12px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+    .batch-row {
+        cursor: pointer;
+        transition: background 0.1s;
+    }
+
+        .batch-row:hover {
+            background: #f1f3f5;
+        }
+
+        .batch-row td {
+            padding: 7px 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .batch-row .td-time {
+            white-space: nowrap;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+
+        .batch-row .td-step-letter {
+            font-weight: 700;
+            text-align: center;
+        }
+
+    .step-letter-a {
+        color: #e67e22;
+    }
+
+    .step-letter-b {
+        color: #3498db;
+    }
+
+    .step-letter-c {
+        color: #9b59b6;
+    }
+
+    .batch-stats-cell {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+
+    .stat-pill {
+        padding: 1px 7px;
+        border-radius: 9px;
+        font-size: 0.74rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .pill-ok {
+        background: #c6f6c6;
+        color: #1a5c1a;
+    }
+
+    .pill-blocked {
+        background: #e0e0e0;
+        color: #555;
+    }
+
+    .pill-fail {
+        background: #f9c6c6;
+        color: #8b1a1a;
+    }
+
+    .pill-limit {
+        background: #fff3cd;
+        color: #6b5a00;
+    }
+
+    .pill-skip {
+        background: #e0e7ff;
+        color: #2c3e80;
+    }
+
+    .batch-row.has-error {
+        background: #fff5f5;
+    }
+
+    .batch-row.skipped-collision {
+        background: #fffcc0;
+    }
+
+    .batch-detail-row {
+        background: #fafbfc;
+    }
+
+        .batch-detail-row td {
+            padding: 0;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+    .batch-detail-content {
+        padding: 16px 22px;
+    }
+
+    .batch-comment {
+        font-size: 0.83rem;
+        color: #555;
+        padding: 8px 12px;
+        background: #fff;
+        border-left: 3px solid #6c757d;
+        margin-bottom: 12px;
+        word-break: break-word;
+    }
+
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+        background: #fff;
+    }
+
+        .items-table thead th {
+            background: #6c757d;
+            color: #fff;
+            padding: 6px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.78rem;
+        }
+
+        .items-table tbody td {
+            padding: 5px 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .items-table .td-mono {
+            font-family: monospace;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+    .status-badge-sm {
+        padding: 2px 7px;
+        border-radius: 3px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        white-space: nowrap;
+        display: inline-block;
+    }
+
+    .badge-ok {
+        background: #c6f6c6;
+        color: #1a5c1a;
+    }
+
+    .badge-blocked {
+        background: #e0e0e0;
+        color: #555;
+    }
+
+    .badge-fail {
+        background: #f9c6c6;
+        color: #8b1a1a;
+    }
+
+    .badge-neutral {
+        background: #e0e7ff;
+        color: #2c3e80;
+    }
+
+    .batch-detail-row {
+        display: none;
+    }
+
+    .batch-row.expanded + .batch-detail-row {
+        display: table-row;
+    }
+
+    .batch-row .row-chevron {
+        transition: transform 0.2s;
+        color: #aaa;
+        font-size: 0.8rem;
+        margin-right: 4px;
+    }
+
+    .batch-row.expanded .row-chevron {
+        transform: rotate(90deg);
+        color: #0d6efd;
+    }
+
+    .price-arrow {
+        color: #888;
+        margin: 0 3px;
+        font-size: 0.7rem;
+    }
+
+    .price-down {
+        color: #1a5c1a;
+        font-weight: 600;
+    }
+
+    .price-up {
+        color: #8b1a1a;
+        font-weight: 600;
+    }
+
+    .price-same {
+        color: #6c757d;
+    }
+
+    .empty-msg {
+        padding: 30px;
+        text-align: center;
+        color: #999;
+    }
+</style>
+
+<div class="Page-Box">
+    <div class="Page-Box-Container">
+        <div class="Page-Box-Category">
+            <div class="Category-Box-Title">Logi zadań</div>
+            <partial name="_ManageNavCol" />
+        </div>
+
+        <div class="logs-wrapper">
+
+            <!-- Tabs -->
+            <div class="logs-tabs">
+                <a asp-action="TaskExecutionLog" class="log-tab">
+                    <i class="fas fa-list-check me-1"></i> Logi zadań
+                </a>
+                <a asp-action="IntervalExecutionLog" class="log-tab active">
+                    <i class="fas fa-clock me-1"></i> Logi interwałów
+                </a>
+            </div>
+
+            <!-- Filters -->
+            <div class="logs-filters">
+                <label><i class="fas fa-store me-1"></i> Sklep:</label>
+                <select id="storeFilter">
+                    <option value="">Wszystkie</option>
+                    @foreach (var s in distinctStores)
+                    {
+                        <option value="@s.ToLower()">@s</option>
+                    }
+                </select>
+
+                <label><i class="fas fa-clock me-1"></i> Interwał:</label>
+                <select id="intervalFilter">
+                    <option value="">Wszystkie</option>
+                    @foreach (var n in distinctIntervals)
+                    {
+                        <option value="@n.ToLower()">@n</option>
+                    }
+                </select>
+
+                <label><i class="fas fa-flag me-1"></i> Status:</label>
+                <select id="statusFilter">
+                    <option value="">Wszystkie</option>
+                    <option value="success">Z sukcesami</option>
+                    <option value="blocked">Z blokadami</option>
+                    <option value="failed">Z błędami</option>
+                    <option value="empty">Pusty (0 produktów)</option>
+                </select>
+
+                <div class="spacer"></div>
+
+                <form asp-action="ClearAllIntervalLogs" method="post" style="margin:0;"
+                      onsubmit="return confirm('Czy na pewno chcesz usunąć WSZYSTKIE logi interwałów dla wszystkich sklepów? Tej operacji nie można cofnąć.');">
+                    <button type="submit" class="btn-clear-all">
+                        <i class="fas fa-trash me-1"></i>Kasuj wszystkie logi interwałów
+                    </button>
+                </form>
+            </div>
+
+            <!-- Day groups -->
+            @if (!grouped.Any())
+            {
+                <div class="empty-msg">Brak logów interwałów do wyświetlenia.</div>
+            }
+
+            @foreach (var dayGroup in grouped)
+            {
+                var date = dayGroup.Key;
+                var isToday = date == today;
+                var isYesterday = date == today.AddDays(-1);
+                var items = dayGroup.OrderByDescending(x => x.ExecutionDate).ToList();
+
+                var totalSuccess = items.Sum(b => b.SuccessCount);
+                var totalBlocked = items.Sum(b => b.BlockedCount);
+                var totalFailed = items.Sum(b => b.FailedCount);
+
+                var polishDay = date.DayOfWeek switch
+                {
+                    DayOfWeek.Monday => "Poniedziałek",
+                    DayOfWeek.Tuesday => "Wtorek",
+                    DayOfWeek.Wednesday => "Środa",
+                    DayOfWeek.Thursday => "Czwartek",
+                    DayOfWeek.Friday => "Piątek",
+                    DayOfWeek.Saturday => "Sobota",
+                    DayOfWeek.Sunday => "Niedziela",
+                    _ => ""
+                };
+                var prefix = isToday ? "Dzisiaj" : isYesterday ? "Wczoraj" : "";
+                var headerText = !string.IsNullOrEmpty(prefix)
+                    ? $"{prefix} — {polishDay}, {date:dd.MM.yyyy}"
+                    : $"{polishDay}, {date:dd.MM.yyyy}";
+
+                <div class="day-section @(isToday ? "" : "collapsed")">
+                    <div class="day-section-header @(isToday ? "is-today" : "")"
+                         onclick="this.parentElement.classList.toggle('collapsed')">
+                        <span class="day-title">
+                            <i class="fas fa-chevron-down chevron me-2"></i>
+                            @headerText
+                            <span class="count ms-2">(@items.Count wykonań)</span>
+                        </span>
+                        <div class="batch-stats-cell">
+                            @if (totalSuccess > 0)
+                            {
+                                <span class="stat-pill pill-ok">✓ @totalSuccess</span>
+                            }
+                            @if (totalBlocked > 0)
+                            {
+                                <span class="stat-pill pill-blocked">⊘ @totalBlocked</span>
+                            }
+                            @if (totalFailed > 0)
+                            {
+                                <span class="stat-pill pill-fail">✗ @totalFailed</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="day-section-body">
+                        <table class="batch-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:30px;"></th>
+                                    <th>Czas</th>
+                                    <th>Sklep</th>
+                                    <th>Interwał</th>
+                                    <th style="width:50px;">Krok</th>
+                                    <th>Wartość</th>
+                                    <th>Wynik</th>
+                                    <th>Urządzenie</th>
+                                    <th style="width:40px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var b in items)
+                                {
+                                    var hasError = b.FailedCount > 0;
+                                    var isCollisionSkip = !string.IsNullOrEmpty(b.Comment) &&
+                                                          b.Comment.Contains("POMINIĘTO", StringComparison.OrdinalIgnoreCase);
+                                    var rowClass = "";
+                                    if (hasError) rowClass = "has-error";
+                                    else if (isCollisionSkip) rowClass = "skipped-collision";
+
+                                    var stepLetterCls = b.StepLetter switch
+                                    {
+                                        "B" => "step-letter-b",
+                                        "C" => "step-letter-c",
+                                        _ => "step-letter-a"
+                                    };
+
+                                    var sign = b.PriceStepApplied < 0 ? "" : "+";
+                                    var unit = b.IsPriceStepPercent ? "%" : " PLN";
+                                    var stepText = $"{sign}{b.PriceStepApplied.ToString("F2")}{unit}";
+
+                                    var storeName = b.IntervalRule?.AutomationRule?.Store?.StoreName ?? "—";
+                                    var intervalName = b.IntervalRule?.Name ?? "—";
+
+                                    <tr class="batch-row @rowClass"
+                                        data-store="@storeName.ToLower()"
+                                        data-interval="@intervalName.ToLower()"
+                                        data-has-success="@(b.SuccessCount > 0 ? "true" : "false")"
+                                        data-has-blocked="@(b.BlockedCount > 0 ? "true" : "false")"
+                                        data-has-failed="@(b.FailedCount > 0 ? "true" : "false")"
+                                        data-empty="@(b.TotalProductsInInterval == 0 ? "true" : "false")"
+                                        onclick="toggleBatchRow(this)">
+                                        <td><i class="fas fa-chevron-right row-chevron"></i></td>
+                                        <td class="td-time">@b.ExecutionDate.ToString("HH:mm:ss")</td>
+                                        <td>@storeName</td>
+                                        <td>@intervalName</td>
+                                        <td class="td-step-letter @stepLetterCls">@b.StepLetter</td>
+                                        <td>@stepText</td>
+                                        <td>
+                                            <div class="batch-stats-cell">
+                                                <span class="stat-pill pill-ok">@b.SuccessCount / @b.TotalProductsInInterval</span>
+                                                @if (b.BlockedCount > 0)
+                                                {
+                                                    <span class="stat-pill pill-blocked">⊘ @b.BlockedCount</span>
+                                                }
+                                                @if (b.LimitReachedCount > 0)
+                                                {
+                                                    <span class="stat-pill pill-limit">⚑ @b.LimitReachedCount</span>
+                                                }
+                                                @if (b.FailedCount > 0)
+                                                {
+                                                    <span class="stat-pill pill-fail">✗ @b.FailedCount</span>
+                                                }
+                                                @if (isCollisionSkip)
+                                                {
+                                                    <span class="stat-pill pill-skip">pominięto</span>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>@b.DeviceName</td>
+                                        <td onclick="event.stopPropagation();">
+                                            <a asp-action="DeleteIntervalBatch" asp-route-id="@b.Id"
+                                               onclick="return confirm('Usunąć ten log?');"
+                                               class="btn-clear-all" style="padding:2px 8px; font-size:.75rem;" title="Usuń">
+                                                <i class="fas fa-times"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    <tr class="batch-detail-row">
+                                        <td colspan="9">
+                                            <div class="batch-detail-content">
+                                                @if (!string.IsNullOrEmpty(b.Comment))
+                                                {
+                                                    <div class="batch-comment">
+                                                        <i class="fas fa-info-circle me-1"></i> @b.Comment
+                                                    </div>
+                                                }
+
+                                                @if (b.Items != null && b.Items.Any())
+                                                {
+                                                    <table class="items-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Produkt (ID)</th>
+                                                                <th>Oferta / EAN</th>
+                                                                <th>Cena przed</th>
+                                                                <th>Cena cel</th>
+                                                                <th>Cena potw.</th>
+                                                                <th>Zmiana</th>
+                                                                <th>Limit Min/Max</th>
+                                                                <th>Kampania</th>
+                                                                <th>Status</th>
+                                                                <th>Powód</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var it in b.Items.OrderBy(x => x.Status))
+                                                            {
+                                                                var pid = it.AllegroProductId?.ToString() ?? it.ProductId?.ToString() ?? "—";
+                                                                string changeCls = "price-same";
+                                                                string changeStr = "—";
+                                                                if (it.PriceChange.HasValue && it.PriceChange.Value != 0)
+                                                                {
+                                                                    changeCls = it.PriceChange.Value < 0 ? "price-down" : "price-up";
+                                                                    var s = it.PriceChange.Value < 0 ? "" : "+";
+                                                                    changeStr = $"{s}{it.PriceChange.Value:F2}";
+                                                                }
+
+                                                                <tr>
+                                                                    <td>@pid</td>
+                                                                    <td class="td-mono">@(it.AllegroOfferId ?? "—")</td>
+                                                                    <td class="td-mono">@(it.PriceBefore?.ToString("F2") ?? "—")</td>
+                                                                    <td class="td-mono">@(it.PriceAfterTarget?.ToString("F2") ?? "—")</td>
+                                                                    <td class="td-mono">@(it.PriceAfterVerified?.ToString("F2") ?? "—")</td>
+                                                                    <td class="td-mono @changeCls">@changeStr</td>
+                                                                    <td class="td-mono">
+                                                                        @(it.MinPriceLimit?.ToString("F2") ?? "—")
+                                                                        <span class="price-arrow">/</span>
+                                                                        @(it.MaxPriceLimit?.ToString("F2") ?? "—")
+                                                                        @if (it.WasLimitedByMin)
+                                                                        {
+                                                                            <span class="stat-pill pill-limit" style="margin-left:4px;">Min</span>
+                                                                        }
+                                                                        @if (it.WasLimitedByMax)
+                                                                        {
+                                                                            <span class="stat-pill pill-limit" style="margin-left:4px;">Max</span>
+                                                                        }
+                                                                    </td>
+                                                                    <td>
+                                                                        @if (it.IsSubsidyActive)
+                                                                        {
+                                                                            <span class="stat-pill pill-skip">Dopłata</span>
+                                                                        }
+                                                                        else if (it.IsInCampaign)
+                                                                        {
+                                                                            <span class="stat-pill pill-skip">Kampania</span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span class="price-same">—</span>
+                                                                        }
+                                                                    </td>
+                                                                    <td>
+                                                                        <span class="status-badge-sm @StatusBadge(it.Status)">@StatusLabel(it.Status)</span>
+                                                                    </td>
+                                                                    <td>@(it.StatusReason ?? "")</td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                }
+                                                else
+                                                {
+                                                    <div style="padding: 10px; color:#999; font-style:italic;">
+                                                        Brak szczegółowych pozycji dla tego wykonania.
+                                                    </div>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function toggleBatchRow(row) {
+            row.classList.toggle('expanded');
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const sf = document.getElementById('storeFilter');
+            const inf = document.getElementById('intervalFilter');
+            const stf = document.getElementById('statusFilter');
+
+            function applyFilters() {
+                const sv = sf.value.trim().toLowerCase();
+                const iv = inf.value.trim().toLowerCase();
+                const tv = stf.value;
+
+                document.querySelectorAll('.batch-row').forEach(function (row) {
+                    const rs = row.dataset.store || '';
+                    const ri = row.dataset.interval || '';
+                    let visible = (sv === '' || rs === sv) && (iv === '' || ri === iv);
+
+                    if (visible && tv) {
+                        if (tv === 'success' && row.dataset.hasSuccess !== 'true') visible = false;
+                        if (tv === 'blocked' && row.dataset.hasBlocked !== 'true') visible = false;
+                        if (tv === 'failed' && row.dataset.hasFailed !== 'true') visible = false;
+                        if (tv === 'empty' && row.dataset.empty !== 'true') visible = false;
+                    }
+
+                    row.style.display = visible ? '' : 'none';
+                    const detail = row.nextElementSibling;
+                    if (detail && detail.classList.contains('batch-detail-row')) {
+                        detail.style.display = visible ? '' : 'none';
+                    }
+                });
+
+                document.querySelectorAll('.day-section').forEach(function (section) {
+                    const visible = Array.from(section.querySelectorAll('.batch-row'))
+                        .filter(r => r.style.display !== 'none');
+                    section.style.display = visible.length > 0 ? '' : 'none';
+                });
+            }
+
+            sf.addEventListener('change', applyFilters);
+            inf.addEventListener('change', applyFilters);
+            stf.addEventListener('change', applyFilters);
+        });
+    </script>
+}
