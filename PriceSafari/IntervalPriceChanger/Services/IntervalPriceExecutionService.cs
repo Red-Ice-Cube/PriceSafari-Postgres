@@ -179,6 +179,15 @@ namespace PriceSafari.IntervalPriceChanger.Services
             var parent = rule.AutomationRule;
             bool isMarketplace = parent.SourceType == AutomationSourceType.Marketplace;
 
+            int orphanedRemoved = await CleanupOrphanedIntervalAssignmentsAsync(
+    rule.Id, parent.Id, isMarketplace, ct);
+            if (orphanedRemoved > 0)
+            {
+                _logger.LogInformation(
+                    "🧹 [Interval:{Name}] Usunięto {Count} osieroconych przypisań (poza automatem-rodzicem).",
+                    rule.Name, orphanedRemoved);
+            }
+
             decimal stepValue = rule.GetStepValue(stepIdx);
             bool stepIsPercent = rule.IsStepPercent(stepIdx);
             string letter = StepLetterOf(stepIdx);
@@ -262,6 +271,10 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 return;
             }
 
+            var allProductIds = assignments.Select(a => a.AllegroProductId.Value).ToList();
+            var productsWithMarketOffer = await GetMarketplaceProductsWithMyOfferAsync(
+                store.StoreId, store.StoreNameAllegro ?? "", allProductIds, ct);
+
             // Token
             string accessToken = await _authTokenService.GetValidAccessTokenAsync(store.StoreId);
             if (string.IsNullOrEmpty(accessToken))
@@ -309,7 +322,13 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     StepLetter = stepLetter,
                 };
 
-                // ── BLOKADY ──
+                if (!productsWithMarketOffer.Contains(product.AllegroProductId))
+                {
+                    SetBlocked(item, batch, IntervalExecutionItemStatus.BlockedNoMarketOffer,
+                        "Brak naszej oferty w danych z rynku");
+                    continue;
+                }
+
 
                 if (!product.AllegroMarginPrice.HasValue || product.AllegroMarginPrice <= 0)
                 {
@@ -396,10 +415,7 @@ namespace PriceSafari.IntervalPriceChanger.Services
                         item.MaxPriceLimit = maxLimit;
                     }
 
-                    // Kampanie / Dopłaty — na razie false, docelowo rozbudujemy
-                    item.IsInCampaign = false;
-                    item.IsSubsidyActive = false;
-                    item.CustomerVisiblePrice = currentPrice;
+                  
 
                     // ── DECYZJA — jeden punkt prawdy, wspólny z UI preview ──
                     var decision = IntervalStepCalculator.Calculate(
@@ -543,6 +559,9 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 batch.FailedCount = assignments.Count;
                 return;
             }
+            var allProductIds = assignments.Select(a => a.ProductId.Value).ToList();
+            var productsWithMarketOffer = await GetComparisonProductsWithMyOfferAsync(
+                store.StoreId, store.StoreName ?? "", allProductIds, ct);
 
             var client = _httpClientFactory.CreateClient();
             var authToken = Encoding.ASCII.GetBytes($"{store.StoreApiKey}:");
@@ -563,6 +582,13 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     PurchasePrice = product.MarginPrice,
                     StepLetter = stepLetter,
                 };
+
+                if (!productsWithMarketOffer.Contains(product.ProductId))
+                {
+                    SetBlocked(item, batch, IntervalExecutionItemStatus.BlockedNoMarketOffer,
+                        "Brak naszej oferty w danych z rynku");
+                    continue;
+                }
 
                 // Blokady
                 if (!product.MarginPrice.HasValue || product.MarginPrice <= 0)
@@ -969,6 +995,155 @@ namespace PriceSafari.IntervalPriceChanger.Services
         private class AllegroAuthException : Exception
         {
             public AllegroAuthException(string message) : base(message) { }
+        }
+
+
+        // ═══════════════════════════════════════════════════════
+        // HELPER — Sprzątanie osieroconych przypisań (POPRAWKA #1)
+        // ═══════════════════════════════════════════════════════
+
+        private async Task<int> CleanupOrphanedIntervalAssignmentsAsync(
+            int intervalRuleId, int automationRuleId, bool isMarketplace, CancellationToken ct)
+        {
+            HashSet<int> parentSet;
+            if (isMarketplace)
+            {
+                var parentIds = await _context.AutomationProductAssignments
+                    .Where(a => a.AutomationRuleId == automationRuleId && a.AllegroProductId.HasValue)
+                    .Select(a => a.AllegroProductId.Value)
+                    .ToListAsync(ct);
+                parentSet = new HashSet<int>(parentIds);
+            }
+            else
+            {
+                var parentIds = await _context.AutomationProductAssignments
+                    .Where(a => a.AutomationRuleId == automationRuleId && a.ProductId.HasValue)
+                    .Select(a => a.ProductId.Value)
+                    .ToListAsync(ct);
+                parentSet = new HashSet<int>(parentIds);
+            }
+
+            List<IntervalPriceProductAssignment> orphaned;
+            if (isMarketplace)
+            {
+                orphaned = await _context.IntervalPriceProductAssignments
+                    .Where(a => a.IntervalPriceRuleId == intervalRuleId
+                             && a.AllegroProductId.HasValue
+                             && !parentSet.Contains(a.AllegroProductId.Value))
+                    .ToListAsync(ct);
+            }
+            else
+            {
+                orphaned = await _context.IntervalPriceProductAssignments
+                    .Where(a => a.IntervalPriceRuleId == intervalRuleId
+                             && a.ProductId.HasValue
+                             && !parentSet.Contains(a.ProductId.Value))
+                    .ToListAsync(ct);
+            }
+
+            if (orphaned.Any())
+            {
+                _context.IntervalPriceProductAssignments.RemoveRange(orphaned);
+                await _context.SaveChangesAsync(ct);
+            }
+
+            return orphaned.Count;
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // HELPER — Produkty z naszą ofertą w najnowszym scrapie Allegro (POPRAWKA #2)
+        // Logika dopasowania identyczna jak w IntervalPriceCalculationService:
+        //   - jeśli IdOnAllegro daje się sparsować — szukamy po IdAllegro
+        //   - w przeciwnym razie szukamy po SellerName
+        // ═══════════════════════════════════════════════════════
+
+        private async Task<HashSet<int>> GetMarketplaceProductsWithMyOfferAsync(
+            int storeId, string myStoreName, List<int> productIds, CancellationToken ct)
+        {
+            var result = new HashSet<int>();
+            if (!productIds.Any()) return result;
+
+            var latestScrapId = await _context.AllegroScrapeHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => sh.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (latestScrapId == 0) return result; // brak scrapów = nic nie pewne, blokujemy wszystko
+
+            var products = await _context.AllegroProducts
+                .Where(p => productIds.Contains(p.AllegroProductId))
+                .Select(p => new { p.AllegroProductId, p.IdOnAllegro })
+                .ToListAsync(ct);
+
+            var histories = await _context.AllegroPriceHistories
+                .Where(ph => ph.AllegroScrapeHistoryId == latestScrapId
+                          && productIds.Contains(ph.AllegroProductId)
+                          && ph.Price > 0)
+                .Select(ph => new { ph.AllegroProductId, ph.IdAllegro, ph.SellerName })
+                .ToListAsync(ct);
+
+            var historyByProduct = histories
+                .GroupBy(h => h.AllegroProductId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var p in products)
+            {
+                if (!historyByProduct.TryGetValue(p.AllegroProductId, out var hList)) continue;
+
+                long? targetOfferId = null;
+                if (long.TryParse(p.IdOnAllegro, out var parsedId)) targetOfferId = parsedId;
+
+                bool hasMyOffer;
+                if (targetOfferId.HasValue)
+                {
+                    hasMyOffer = hList.Any(h => h.IdAllegro == targetOfferId.Value);
+                }
+                else
+                {
+                    hasMyOffer = hList.Any(h => h.SellerName != null
+                        && h.SellerName.Equals(myStoreName, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (hasMyOffer) result.Add(p.AllegroProductId);
+            }
+
+            return result;
+        }
+
+  
+
+        private async Task<HashSet<int>> GetComparisonProductsWithMyOfferAsync(
+            int storeId, string myStoreName, List<int> productIds, CancellationToken ct)
+        {
+            var result = new HashSet<int>();
+            if (!productIds.Any()) return result;
+
+            var latestScrapId = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Select(sh => sh.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (latestScrapId == 0) return result;
+
+            var histories = await _context.PriceHistories
+                .Where(ph => ph.ScrapHistoryId == latestScrapId
+                          && productIds.Contains(ph.ProductId)
+                          && ph.Price > 0)
+                .Select(ph => new { ph.ProductId, ph.StoreName })
+                .ToListAsync(ct);
+
+            foreach (var grp in histories.GroupBy(h => h.ProductId))
+            {
+                bool hasMyOffer = grp.Any(h =>
+                    (h.StoreName != null && h.StoreName.Contains(myStoreName, StringComparison.OrdinalIgnoreCase))
+                    || h.StoreName == null
+                );
+                if (hasMyOffer) result.Add(grp.Key);
+            }
+
+            return result;
         }
     }
 }

@@ -23,6 +23,9 @@ namespace PriceSafari.IntervalPriceChanger.Services
             var store = parent?.Store;
             bool isMarketplace = parent.SourceType == AutomationSourceType.Marketplace;
 
+            await CleanupOrphanedIntervalAssignmentsAsync(rule.Id, parent.Id, isMarketplace);
+
+
             var model = new IntervalPriceDetailsViewModel
             {
                 IntervalRuleId = rule.Id,
@@ -782,6 +785,56 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     IsMarketplace = f.IsMarketplace
                 })
                 .ToListAsync();
+        }
+
+
+
+        private async Task<int> CleanupOrphanedIntervalAssignmentsAsync(
+            int intervalRuleId, int automationRuleId, bool isMarketplace)
+        {
+            HashSet<int> parentSet;
+            if (isMarketplace)
+            {
+                var parentIds = await _context.AutomationProductAssignments
+                    .Where(a => a.AutomationRuleId == automationRuleId && a.AllegroProductId.HasValue)
+                    .Select(a => a.AllegroProductId.Value)
+                    .ToListAsync();
+                parentSet = new HashSet<int>(parentIds);
+            }
+            else
+            {
+                var parentIds = await _context.AutomationProductAssignments
+                    .Where(a => a.AutomationRuleId == automationRuleId && a.ProductId.HasValue)
+                    .Select(a => a.ProductId.Value)
+                    .ToListAsync();
+                parentSet = new HashSet<int>(parentIds);
+            }
+
+            List<IntervalPriceProductAssignment> orphaned;
+            if (isMarketplace)
+            {
+                orphaned = await _context.IntervalPriceProductAssignments
+                    .Where(a => a.IntervalPriceRuleId == intervalRuleId
+                             && a.AllegroProductId.HasValue
+                             && !parentSet.Contains(a.AllegroProductId.Value))
+                    .ToListAsync();
+            }
+            else
+            {
+                orphaned = await _context.IntervalPriceProductAssignments
+                    .Where(a => a.IntervalPriceRuleId == intervalRuleId
+                             && a.ProductId.HasValue
+                             && !parentSet.Contains(a.ProductId.Value))
+                    .ToListAsync();
+            }
+
+            if (orphaned.Any())
+            {
+                _context.IntervalPriceProductAssignments.RemoveRange(orphaned);
+                await _context.SaveChangesAsync();
+            }
+
+            return orphaned.Count;
         }
     }
 }

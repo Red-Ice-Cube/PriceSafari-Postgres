@@ -2,14 +2,7 @@
 
 namespace PriceSafari.IntervalPriceChanger
 {
-    /// <summary>
-    /// Osobny BackgroundService dla interwałowych zmian cenowych.
-    /// 
-    /// Co 10 minut (na "okrągłych" minutach: 10:00, 10:10, 10:20, ...)
-    /// sprawdza, czy jakieś interwały mają aktywny slot i wykonuje zmiany.
-    /// 
-    /// Wymaga klucza ENV: INTERVAL_EXEC_KEY = "49204718"
-    /// </summary>
+
     public class IntervalPriceBackgroundService : BackgroundService
     {
         private readonly IServiceScopeFactory _scopeFactory;
@@ -71,10 +64,7 @@ namespace PriceSafari.IntervalPriceChanger
             _logger.LogInformation("⏱️ [IntervalBG] Serwis zatrzymany.");
         }
 
-        /// <summary>
-        /// Czeka do najbliższej granicy 10-minutowej.
-        /// Np. 14:23 → czeka do 14:30.
-        /// </summary>
+
         private async Task WaitForNextSlotBoundary(CancellationToken ct)
         {
             var now = DateTime.Now;

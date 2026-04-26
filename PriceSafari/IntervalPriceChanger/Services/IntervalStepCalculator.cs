@@ -1,12 +1,6 @@
 ﻿namespace PriceSafari.IntervalPriceChanger.Services
 {
-    /// <summary>
-    /// Czysta (bezstanowa) logika decyzyjna interwału.
-    /// Jeden punkt prawdy — używany i przez UI (preview), i przez executor (wykonanie).
-    /// 
-    /// ZASADA: Jakakolwiek zmiana w regułach kalkulacji kroku → TYLKO tutaj.
-    /// Dzięki temu preview w UI ZAWSZE pokazuje dokładnie to, co executor zrobi.
-    /// </summary>
+ 
     public static class IntervalStepCalculator
     {
         public enum Decision
@@ -29,14 +23,7 @@
             public string Reason { get; set; }
         }
 
-        /// <summary>
-        /// Policz co zrobić z ceną.
-        /// </summary>
-        /// <param name="currentPrice">Aktualna cena produktu (z API lub LastKnown w preview)</param>
-        /// <param name="stepValue">Wartość kroku (ujemna = obniżka, dodatnia = podwyżka)</param>
-        /// <param name="stepIsPercent">Czy krok jest w % (true) czy w PLN (false)</param>
-        /// <param name="minLimit">Dolny limit ceny (null = brak)</param>
-        /// <param name="maxLimit">Górny limit ceny (null = brak)</param>
+ 
         public static Result Calculate(
             decimal currentPrice,
             decimal stepValue,
@@ -46,9 +33,7 @@
         {
             var result = new Result();
 
-            // ── OCHRONA KIERUNKOWA ──
-            // Obniżka nie może podnieść, podwyżka nie może obniżyć.
-            // Jeśli cena już jest poza limitem w kierunku niewłaściwym → pomiń.
+     
             if (stepValue < 0 && minLimit.HasValue && currentPrice <= minLimit.Value)
             {
                 result.Decision = Decision.BlockedLimitReached;

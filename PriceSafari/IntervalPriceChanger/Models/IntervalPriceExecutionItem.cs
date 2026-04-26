@@ -82,19 +82,20 @@ namespace PriceSafari.IntervalPriceChanger.Models
 
     public enum IntervalExecutionItemStatus
     {
-        Pending,
-        Success,
-        SuccessLimitedMin,
-        SuccessLimitedMax,
-        BlockedNoPurchasePrice,
-        BlockedNoMinLimit,
-        BlockedLimitReached,
-        BlockedNoPriceData,
-        BlockedMinMaxConflict,
-        BlockedActivePromotion,   // ← NOWA: dopłaty/kampania — slot pominięty, ponowi się w następnym wykonaniu
-        SkippedCollision,
-        FailedApi,
-        FailedAuth,
-        NoChangeNeeded
+        Pending = 0,
+        Success = 1,
+        SuccessLimitedMin = 2,
+        SuccessLimitedMax = 3,
+        BlockedNoPurchasePrice = 4,
+        BlockedNoMinLimit = 5,
+        BlockedLimitReached = 6,
+        BlockedNoPriceData = 7,
+        BlockedMinMaxConflict = 8,
+        BlockedActivePromotion = 9,
+        SkippedCollision = 10,
+        FailedApi = 11,
+        FailedAuth = 12,
+        NoChangeNeeded = 13,
+        BlockedNoMarketOffer = 14   
     }
 }
