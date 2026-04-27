@@ -137,13 +137,21 @@ namespace PriceSafari.Services.AllegroServices
 
             string? accessToken = await _authTokenService.GetValidAccessTokenAsync(storeId);
 
+
             if (string.IsNullOrEmpty(accessToken))
             {
+                string tokenDiag = _authTokenService.LastTokenDiagnostics ?? "brak diagnostyki";
+
                 result.FailedCount = itemsToBridge.Count;
-                result.Errors.Add(new PriceBridgeError { OfferId = "Wszystkie", Message = "Nie udało się uzyskać tokena autoryzacyjnego." });
-                _logger.LogWarning($"Przerwano proces zmiany cen dla sklepu {storeId} - brak ważnego tokena.");
+                result.Errors.Add(new PriceBridgeError
+                {
+                    OfferId = "Wszystkie",
+                    Message = $"Nie udało się uzyskać tokena. Diagnostyka: {tokenDiag}"
+                });
+                _logger.LogWarning("Przerwano PriceBridge dla sklepu {StoreId}. Token: {TokenDiag}", storeId, tokenDiag);
                 return result;
             }
+
 
             if (itemsToBridge.Any())
             {

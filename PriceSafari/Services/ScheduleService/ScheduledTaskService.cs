@@ -791,6 +791,81 @@ public class ScheduledTaskService : BackgroundService
         }
     }
 
+    //private async Task RunAleApiBotAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
+    //{
+    //    var log = new TaskExecutionLog
+    //    {
+    //        DeviceName = deviceName,
+    //        OperationName = "ALE_API_BOT",
+    //        StartTime = DateTime.Now,
+    //        Comment = $"Rozpoczęcie pobierania danych z API Allegro | SessionName={task.SessionName}"
+    //    };
+    //    context.TaskExecutionLogs.Add(log);
+    //    await context.SaveChangesAsync(ct);
+    //    int logId = log.Id;
+
+    //    try
+    //    {
+    //        var allegroApiBotService = context.GetService<AllegroApiBotService>();
+
+    //        // Wywołujemy serwis, który teraz zwraca bogatsze statystyki
+    //        var result = await allegroApiBotService.ProcessOffersForActiveStoresAsync();
+
+    //        var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+    //        if (finishedLog != null)
+    //        {
+    //            finishedLog.EndTime = DateTime.Now;
+
+    //            var sb = new StringBuilder();
+
+    //            if (result.Success)
+    //            {
+    //                sb.Append(" | Sukces.");
+    //            }
+    //            else
+    //            {
+    //                sb.Append(" | Częściowe błędy.");
+    //            }
+
+    //            // TUTAJ FORMATUJEMY LOG WG TWOJEJ PROŚBY:
+    //            sb.Append($" Sprawdzono ID: {result.TotalOffersChecked}.");
+    //            sb.Append($" Pobrano prowizji/cen: {result.TotalOffersSuccess}.");
+
+    //            if (result.TotalOffersFailed > 0)
+    //            {
+    //                sb.Append($" Pominięto/Błędy: {result.TotalOffersFailed}.");
+    //            }
+
+    //            sb.Append($" Przetworzono sklepów: {result.StoresProcessedCount}.");
+
+    //            if (result.Messages.Any())
+    //            {
+    //                // Skracamy log jeśli jest bardzo długi, żeby nie przekroczyć limitu w bazie
+    //                string details = string.Join("; ", result.Messages);
+    //                if (details.Length > 500) details = details.Substring(0, 500) + "...";
+    //                sb.Append($" Szczegóły: {details}");
+    //            }
+
+    //            finishedLog.Comment += sb.ToString();
+
+    //            context.TaskExecutionLogs.Update(finishedLog);
+    //            await context.SaveChangesAsync(ct);
+    //        }
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
+    //        if (finishedLog != null)
+    //        {
+    //            finishedLog.EndTime = DateTime.Now;
+    //            finishedLog.Comment += $" | Wystąpił krytyczny błąd (ALE_API_BOT): {ex.Message}";
+    //            context.TaskExecutionLogs.Update(finishedLog);
+    //            await context.SaveChangesAsync(ct);
+    //        }
+    //    }
+    //}
+
+
     private async Task RunAleApiBotAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
         var log = new TaskExecutionLog
@@ -807,8 +882,6 @@ public class ScheduledTaskService : BackgroundService
         try
         {
             var allegroApiBotService = context.GetService<AllegroApiBotService>();
-
-            // Wywołujemy serwis, który teraz zwraca bogatsze statystyki
             var result = await allegroApiBotService.ProcessOffersForActiveStoresAsync();
 
             var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, ct);
@@ -818,7 +891,18 @@ public class ScheduledTaskService : BackgroundService
 
                 var sb = new StringBuilder();
 
-                if (result.Success)
+                // ═══ FIX: Czytelniejszy status ═══
+                if (result.TotalOffersChecked == 0 && result.StoresProcessedCount == 0)
+                {
+                    // Żaden sklep nie był aktywny — to może być problem z tokenem
+                    sb.Append(" | ⚠️ Brak aktywnych sklepów.");
+                }
+                else if (result.TotalOffersSuccess == 0 && result.TotalOffersChecked > 0)
+                {
+                    // Były oferty do sprawdzenia, ale 0 sukces — BŁĄD
+                    sb.Append(" | ❌ BŁĄD: 0 danych pobranych!");
+                }
+                else if (result.Success)
                 {
                     sb.Append(" | Sukces.");
                 }
@@ -827,27 +911,25 @@ public class ScheduledTaskService : BackgroundService
                     sb.Append(" | Częściowe błędy.");
                 }
 
-                // TUTAJ FORMATUJEMY LOG WG TWOJEJ PROŚBY:
-                sb.Append($" Sprawdzono ID: {result.TotalOffersChecked}.");
-                sb.Append($" Pobrano prowizji/cen: {result.TotalOffersSuccess}.");
+                sb.Append($" Sprawdzono: {result.TotalOffersChecked}.");
+                sb.Append($" Pobrano: {result.TotalOffersSuccess}.");
 
                 if (result.TotalOffersFailed > 0)
                 {
-                    sb.Append($" Pominięto/Błędy: {result.TotalOffersFailed}.");
+                    sb.Append($" Błędy: {result.TotalOffersFailed}.");
                 }
 
-                sb.Append($" Przetworzono sklepów: {result.StoresProcessedCount}.");
+                sb.Append($" Sklepy: {result.StoresProcessedCount}.");
 
+                // Szczegóły (komunikaty serwisu + diagnostyka tokena + api stats)
                 if (result.Messages.Any())
                 {
-                    // Skracamy log jeśli jest bardzo długi, żeby nie przekroczyć limitu w bazie
                     string details = string.Join("; ", result.Messages);
                     if (details.Length > 500) details = details.Substring(0, 500) + "...";
                     sb.Append($" Szczegóły: {details}");
                 }
 
                 finishedLog.Comment += sb.ToString();
-
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }
@@ -858,12 +940,127 @@ public class ScheduledTaskService : BackgroundService
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
-                finishedLog.Comment += $" | Wystąpił krytyczny błąd (ALE_API_BOT): {ex.Message}";
+                finishedLog.Comment += $" | Krytyczny błąd (ALE_API_BOT): {ex.Message}";
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }
         }
     }
+
+    //private async Task RunMarketPlaceAutomationAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
+    //{
+    //    var log = new TaskExecutionLog
+    //    {
+    //        DeviceName = deviceName,
+    //        OperationName = "AUTO_MARKETPLACE",
+    //        StartTime = DateTime.Now,
+    //        Comment = $"Start Automatyzacji Marketplace (Allegro) | SessionName={task.SessionName}"
+    //    };
+
+    //    context.TaskExecutionLogs.Add(log);
+    //    await context.SaveChangesAsync(ct);
+    //    int logId = log.Id;
+
+    //    try
+    //    {
+    //        // 1. Pobieramy serwis
+    //        var automationService = context.GetService<PriceAutomationService>();
+
+    //        // 2. Pobieramy ID sklepów z tego zadania
+    //        var storeIds = task.TaskStores.Select(x => x.StoreId).ToList();
+
+    //        var rules = await context.AutomationRules
+    //        .Include(r => r.Store)
+    //        .Where(r => storeIds.Contains(r.StoreId)
+    //                 && r.IsActive == true
+    //                 && r.Store.RemainingDays > 0
+    //                 && r.SourceType == AutomationSourceType.Marketplace)
+    //        .ToListAsync(ct);
+
+    //        var executableRules = rules.Where(r => r.CanExecute).ToList();
+
+    //        int processedRules = 0;
+    //        int totalChanges = 0;
+    //        var sb = new StringBuilder();
+    //        foreach (var rule in executableRules)
+    //        {
+    //            if (ct.IsCancellationRequested)
+    //            {
+    //                sb.Append($"[PREEMPCJA: przerwano przed {rule.Name}] ");
+    //                break;
+    //            }
+
+    //            using var storeLock = await StoreLockManager.AcquireAsync(rule.StoreId, TimeSpan.FromMinutes(5));
+
+    //            if (storeLock == null)
+    //            {
+    //                sb.Append($"[R:{rule.Name}, SKIP:StoreLock timeout] ");
+    //                continue;
+    //            }
+
+    //            try
+    //            {
+    //                dynamic result = await automationService.ExecuteAutomationAsync(rule.Id, null);
+
+    //                int count = 0;
+    //                string ruleApiStats = "";
+
+    //                if (result != null)
+    //                {
+    //                    var type = result.GetType();
+    //                    var prop = type.GetProperty("count");
+    //                    if (prop != null) count = (int)prop.GetValue(result, null);
+
+    //                    var apiStatsProp = type.GetProperty("apiStats");
+    //                    if (apiStatsProp != null) ruleApiStats = (string)(apiStatsProp.GetValue(result, null) ?? "");
+    //                }
+
+    //                totalChanges += count;
+    //                processedRules++;
+    //                sb.Append($"[R:{rule.Name}, Zmian:{count}] ");
+    //                if (!string.IsNullOrEmpty(ruleApiStats))
+    //                    sb.Append($"({ruleApiStats}) ");
+    //            }
+    //            catch (Exception ex)
+    //            {
+    //                sb.Append($"[R:{rule.Name}, Błąd:{ex.Message}] ");
+    //            }
+    //            // Lock zwalniany automatycznie przez using
+    //        }
+
+    //        // 4. Log
+    //        var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, CancellationToken.None);
+    //        if (finishedLog != null)
+    //        {
+    //            finishedLog.EndTime = DateTime.Now;
+    //            if (processedRules > 0)
+    //            {
+    //                finishedLog.Comment += $" | Sukces. Przetworzono {processedRules} reguł. Łącznie zmian cen: {totalChanges}. Szczegóły: {sb}";
+    //            }
+    //            else
+    //            {
+    //                finishedLog.Comment += " | Brak aktywnych reguł Porównywarek dla sklepów w tym zadaniu.";
+    //            }
+    //            context.TaskExecutionLogs.Update(finishedLog);
+    //            await context.SaveChangesAsync(CancellationToken.None);
+    //        }
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, CancellationToken.None);
+    //        if (finishedLog != null)
+    //        {
+    //            finishedLog.EndTime = DateTime.Now;
+    //            finishedLog.Comment += $" | Krytyczny błąd automatyzacji: {ex.Message}";
+    //            context.TaskExecutionLogs.Update(finishedLog);
+    //            await context.SaveChangesAsync(CancellationToken.None);
+    //        }
+    //    }
+    //}
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ZAMIEŃ RunMarketPlaceAutomationAsync w ScheduledTaskService.cs
+    // ═══════════════════════════════════════════════════════════════════════════
 
     private async Task RunMarketPlaceAutomationAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
@@ -881,30 +1078,37 @@ public class ScheduledTaskService : BackgroundService
 
         try
         {
-            // 1. Pobieramy serwis
             var automationService = context.GetService<PriceAutomationService>();
-
-            // 2. Pobieramy ID sklepów z tego zadania
             var storeIds = task.TaskStores.Select(x => x.StoreId).ToList();
 
             var rules = await context.AutomationRules
-            .Include(r => r.Store)
-            .Where(r => storeIds.Contains(r.StoreId)
-                     && r.IsActive == true
-                     && r.Store.RemainingDays > 0
-                     && r.SourceType == AutomationSourceType.Marketplace)
-            .ToListAsync(ct);
+                .Include(r => r.Store)
+                .Where(r => storeIds.Contains(r.StoreId)
+                         && r.IsActive == true
+                         && r.Store.RemainingDays > 0
+                         && r.SourceType == AutomationSourceType.Marketplace)
+                .ToListAsync(ct);
 
             var executableRules = rules.Where(r => r.CanExecute).ToList();
 
             int processedRules = 0;
             int totalChanges = 0;
-            var sb = new StringBuilder();
+            int totalApiRequests = 0;
+
+            // Per-store tracking
+            var storeStats = new Dictionary<string, (int requests, int changes)>();
+
+            // Per-minute tracking
+            var perMinuteRequests = new Dictionary<int, int>();
+
+            var errors = new List<string>();
+            var automationStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
             foreach (var rule in executableRules)
             {
                 if (ct.IsCancellationRequested)
                 {
-                    sb.Append($"[PREEMPCJA: przerwano przed {rule.Name}] ");
+                    errors.Add($"PREEMPCJA przed regułą (store: {rule.Store?.StoreName ?? "?"})");
                     break;
                 }
 
@@ -912,9 +1116,12 @@ public class ScheduledTaskService : BackgroundService
 
                 if (storeLock == null)
                 {
-                    sb.Append($"[R:{rule.Name}, SKIP:StoreLock timeout] ");
+                    errors.Add($"{rule.Store?.StoreName ?? "?"}: StoreLock timeout");
                     continue;
                 }
+
+                string storeName = rule.Store?.StoreName ?? $"ID:{rule.StoreId}";
+                int minuteKeyBefore = (int)automationStopwatch.Elapsed.TotalMinutes;
 
                 try
                 {
@@ -926,6 +1133,7 @@ public class ScheduledTaskService : BackgroundService
                     if (result != null)
                     {
                         var type = result.GetType();
+
                         var prop = type.GetProperty("count");
                         if (prop != null) count = (int)prop.GetValue(result, null);
 
@@ -933,32 +1141,128 @@ public class ScheduledTaskService : BackgroundService
                         if (apiStatsProp != null) ruleApiStats = (string)(apiStatsProp.GetValue(result, null) ?? "");
                     }
 
+                    // Wyciągnij liczbę requestów z apiStats inline (format: "API requests: 757 w ...")
+                    int ruleRequests = 0;
+                    if (!string.IsNullOrEmpty(ruleApiStats))
+                    {
+                        const string prefix = "API requests: ";
+                        int startIdx = ruleApiStats.IndexOf(prefix);
+                        if (startIdx >= 0)
+                        {
+                            startIdx += prefix.Length;
+                            int endIdx = ruleApiStats.IndexOf(' ', startIdx);
+                            if (endIdx < 0) endIdx = ruleApiStats.Length;
+                            int.TryParse(ruleApiStats.AsSpan(startIdx, endIdx - startIdx), out ruleRequests);
+                        }
+
+                        // Wyciągnij per-minute dane z apiStats (format: "per minuta: [min0:546, min1:211]")
+                        int perMinStart = ruleApiStats.IndexOf("per minuta: [");
+                        if (perMinStart >= 0)
+                        {
+                            perMinStart += "per minuta: [".Length;
+                            int perMinEnd = ruleApiStats.IndexOf(']', perMinStart);
+                            if (perMinEnd > perMinStart)
+                            {
+                                var perMinStr = ruleApiStats.Substring(perMinStart, perMinEnd - perMinStart);
+                                // "min0:546, min1:211"
+                                foreach (var entry in perMinStr.Split(',', StringSplitOptions.TrimEntries))
+                                {
+                                    var colonIdx = entry.IndexOf(':');
+                                    if (colonIdx > 0 && int.TryParse(entry.AsSpan(colonIdx + 1), out int entryCount))
+                                    {
+                                        // Przelicz na globalną minutę (offset + minuta lokalna reguły)
+                                        var minKeyStr = entry.AsSpan(0, colonIdx).ToString().Replace("min", "");
+                                        if (int.TryParse(minKeyStr, out int localMinute))
+                                        {
+                                            int globalMinute = minuteKeyBefore + localMinute;
+                                            perMinuteRequests.TryGetValue(globalMinute, out int existing);
+                                            perMinuteRequests[globalMinute] = existing + entryCount;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    totalApiRequests += ruleRequests;
                     totalChanges += count;
                     processedRules++;
-                    sb.Append($"[R:{rule.Name}, Zmian:{count}] ");
-                    if (!string.IsNullOrEmpty(ruleApiStats))
-                        sb.Append($"({ruleApiStats}) ");
+
+                    // Per-store akumulacja
+                    if (storeStats.ContainsKey(storeName))
+                    {
+                        var prev = storeStats[storeName];
+                        storeStats[storeName] = (prev.requests + ruleRequests, prev.changes + count);
+                    }
+                    else
+                    {
+                        storeStats[storeName] = (ruleRequests, count);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    sb.Append($"[R:{rule.Name}, Błąd:{ex.Message}] ");
+                    errors.Add($"{storeName}: {ex.Message}");
                 }
-                // Lock zwalniany automatycznie przez using
             }
 
-            // 4. Log
+            automationStopwatch.Stop();
+
+            // ═══ Log końcowy ═══
             var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { logId }, CancellationToken.None);
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
+
+                var sb = new StringBuilder();
+
                 if (processedRules > 0)
                 {
-                    finishedLog.Comment += $" | Sukces. Przetworzono {processedRules} reguł. Łącznie zmian cen: {totalChanges}. Szczegóły: {sb}";
+                    sb.Append($" | Sukces. Reguły: {processedRules}, zmian: {totalChanges}.");
+
+                    // Per-store summary
+                    if (storeStats.Any())
+                    {
+                        sb.Append(" Sklepy:");
+                        foreach (var kvp in storeStats)
+                        {
+                            sb.Append($" [{kvp.Key}: {kvp.Value.requests} req, {kvp.Value.changes} zmian]");
+                        }
+                        sb.Append('.');
+                    }
+
+                    // API summary
+                    if (totalApiRequests > 0)
+                    {
+                        var totalSeconds = automationStopwatch.Elapsed.TotalSeconds;
+                        var avgPerMin = totalSeconds > 0 ? (int)(totalApiRequests / (totalSeconds / 60.0)) : totalApiRequests;
+                        int peakPerMin = perMinuteRequests.Count > 0 ? perMinuteRequests.Values.Max() : 0;
+
+                        sb.Append($" API łącznie: {totalApiRequests} req w {automationStopwatch.Elapsed:mm\\:ss} (śr: {avgPerMin}/min, szczyt: {peakPerMin}/min).");
+
+                        // Per-minute breakdown
+                        if (perMinuteRequests.Count > 0)
+                        {
+                            sb.Append(" Per minuta: [");
+                            sb.Append(string.Join(", ",
+                                perMinuteRequests.OrderBy(x => x.Key).Select(x => $"{x.Key}:{x.Value}")));
+                            sb.Append("].");
+                        }
+                    }
                 }
                 else
                 {
-                    finishedLog.Comment += " | Brak aktywnych reguł Porównywarek dla sklepów w tym zadaniu.";
+                    sb.Append(" | Brak aktywnych reguł Marketplace.");
                 }
+
+                if (errors.Any())
+                {
+                    sb.Append($" Błędy: {string.Join("; ", errors)}");
+                }
+
+                string comment = sb.ToString();
+                if (comment.Length > 900) comment = comment.Substring(0, 900) + "...";
+
+                finishedLog.Comment += comment;
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(CancellationToken.None);
             }
@@ -1286,5 +1590,7 @@ public class ScheduledTaskService : BackgroundService
         _logger.LogInformation("Zaktualizowano status urządzenia '{DeviceName}'. ApiBot: {ApiBot}, Faktury: {Inv}, Płatności: {Pay}, Maile: {Mail}",
             deviceName, hasApiBot, hasInvoiceGen, hasPaymentProc, hasEmailSender);
     }
+
+ 
 
 }

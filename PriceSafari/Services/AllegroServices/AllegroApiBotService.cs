@@ -195,9 +195,23 @@ namespace PriceSafari.Services.AllegroServices
                 }
             }
 
+
             _sessionStopwatch.Stop();
 
             var apiStats = BuildApiStatsString();
+
+            // ═══ FIX: Gdy były oferty do sprawdzenia ale 0 sukces → to jest BŁĄD ═══
+            if (result.TotalOffersChecked > 0 && result.TotalOffersSuccess == 0)
+            {
+                result.Success = false;
+            }
+
+            // ═══ Dołącz diagnostykę tokena ═══
+            string tokenDiag = _authTokenService.LastTokenDiagnostics ?? "";
+            if (!string.IsNullOrEmpty(tokenDiag))
+            {
+                result.Messages.Add($"Token: {tokenDiag}");
+            }
 
             _logger.LogInformation(
                 "Zakończono proces. Sprawdzono: {Checked}, Sukces: {Success}, Błędy: {Failed}. {ApiStats}",
@@ -252,9 +266,10 @@ namespace PriceSafari.Services.AllegroServices
 
             if (string.IsNullOrEmpty(accessToken))
             {
-                return (false, totalToCheck, 0, 0, $"Nie udało się pobrać tokena dla sklepu '{store.StoreName}'.");
+                string tokenDiag = _authTokenService.LastTokenDiagnostics ?? "brak diagnostyki";
+                return (false, totalToCheck, 0, 0,
+                    $"Nie udało się pobrać tokena dla sklepu '{store.StoreName}'. Diagnostyka: {tokenDiag}");
             }
-
             // Test tokena
             try
             {
