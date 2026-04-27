@@ -6329,3 +6329,282 @@ label[for="extendedExportCheckbox"]:not(:checked):hover {
         font-size: 11px;
         color: #777;
     }
+/* =====================================================
+   SAFARI REPORT ANALYSIS — minimalne dodatki kosmetyczne
+   (większość styli dziedziczona z głównego stylesheet projektu)
+   ===================================================== */
+
+/* --- Taby wykresów --- */
+.safari-chart-tabs {
+    display: flex;
+    width: 100%;
+    margin-top: 8px;
+    margin-bottom: 4px;
+    gap: 2px;
+    padding: 4px;
+}
+
+    .safari-chart-tabs .chart-tab {
+        flex: 1;
+        height: 30px;
+        font-size: 13px;
+        padding: 4px 6px;
+    }
+
+        .safari-chart-tabs .chart-tab i {
+            font-size: 14px;
+        }
+
+
+/* --- Powiększony wykres: pełna szerokość paska bocznego, większa wysokość ---
+       potrzebne, by zmieścić wszystkie kraje + flagi + etykiety na słupkach --- */
+.safari-chart-box {
+    width: 100% !important;
+    height: 200px !important;
+    max-width: 240px;
+    margin: 4px auto 8px auto;
+    padding: 2px;
+}
+
+
+/* --- Pakiet "progi tolerancji" — wyraźnie oddzielony od listy klasyfikacji --- */
+.safari-thresholds-wrap {
+    
+    padding-top: 8px;
+ 
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+    .safari-thresholds-wrap .price-range-settings {
+        margin-top: 0;
+        align-items: center;
+    }
+
+.safari-unit-label {
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    margin-left: 3px;
+    font-size: 13px;
+    color: #4e4e4e;
+    min-width: 22px;
+}
+
+.safari-threshold-actions {
+    display: flex;
+    gap: 4px;
+
+    width: 100%;
+}
+
+    .safari-threshold-actions > * {
+        flex: 1;
+        margin: 0 !important;
+    }
+
+    .safari-threshold-actions .Button-Page-Small {
+        width: 100%;
+    }
+
+
+/* --- Wyświetlacze zakresów sliderów --- */
+.safari-range-display {
+    font-size: 14px;
+    font-weight: 400;
+    color: #4e4e4e;
+    margin-bottom: 4px;
+}
+
+
+/* --- Toolbar inputs/selecty --- */
+.safari-fullwidth-select {
+    width: 100%;
+}
+
+.safari-toolbar-input {
+    max-width: 160px;
+    height: 34px;
+}
+
+.safari-toolbar-select {
+    max-width: 160px;
+    height: 34px;
+}
+
+.safari-toolbar-select-narrow {
+    max-width: 100px;
+    height: 34px;
+}
+
+.safari-info-btn {
+    margin-left: auto;
+}
+
+
+/* --- Modal --- */
+.safari-modal-content {
+    width: auto;
+}
+
+
+/* --- Notyfikacje globalne --- */
+.safari-notification {
+    display: none;
+    position: fixed;
+    width: 500px;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    padding: 24px;
+    border-radius: 10px;
+    z-index: 1000;
+}
+
+.safari-notification-error {
+    background: #F65063;
+}
+
+.safari-notification-success {
+    background: #006400;
+}
+
+
+/* --- Mała flaga kraju w karcie produktu --- */
+.safari-country-flag {
+    width: 18px;
+    height: 12px;
+    margin-right: 4px;
+    vertical-align: middle;
+    border-radius: 2px;
+    object-fit: cover;
+    box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.15);
+}
+
+.safari-store-country {
+    display: flex;
+    align-items: center;
+    color: #444;
+    font-size: 13px;
+    line-height: 1.3;
+}
+
+.safari-region-line {
+    display: flex;
+    align-items: center;
+    margin-top: 2px;
+    font-size: 13px;
+    color: #555;
+}
+
+.safari-original-currency {
+    font-size: 11px;
+    color: #888;
+    margin-top: 1px;
+}
+
+
+/* --- Brakujące kółko koloru "wyższy próg" (czerwone) --- */
+.price-range-settings .prHigher-circle {
+    background-color: rgba(171, 37, 32, 0.7);
+}
+
+
+/* --- Separator między rzędami w boxie różnicy (vs konkurent | vs zakup) --- */
+.safari-diff-separator {
+    margin: 6px 0;
+    height: 1px;
+    background: #ededed;
+}
+
+/* =====================================================
+   SAFARI REPORT — NOWE STYLE (dopisz na końcu safari-report.css)
+   ===================================================== */
+
+/* --- Statystyki ofert w boksie konkurenta/mojej ceny --- */
+.safari-offer-stats-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid #ededed;
+}
+
+.safari-offer-stats-line {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.3;
+    padding: 2px 0;
+}
+
+    .safari-offer-stats-line.safari-stat-bad {
+        color: rgba(171, 37, 32, 0.85);
+    }
+
+    .safari-offer-stats-line.safari-stat-good {
+        color: rgba(0, 145, 123, 0.85);
+    }
+
+    .safari-offer-stats-line.safari-stat-alarm {
+        color: #c50000;
+        font-weight: 600;
+    }
+
+    .safari-offer-stats-line.safari-stat-neutral {
+        color: #555;
+    }
+
+
+/* --- Wiersz wartości różnicy (strzałka + kwota) --- */
+.safari-diff-value-row {
+    display: flex;
+    align-items: center;
+}
+
+    .safari-diff-value-row.safari-diff-row-bad {
+        color: rgba(171, 37, 32, 0.9);
+    }
+
+    .safari-diff-value-row.safari-diff-row-good {
+        color: rgba(0, 145, 123, 0.9);
+    }
+
+    .safari-diff-value-row.safari-diff-row-neutral {
+        color: rgba(40, 40, 40, 0.8);
+    }
+
+    .safari-diff-value-row.safari-diff-row-alarm {
+        color: #c50000;
+    }
+
+
+/* --- Wykres krajów — kontener dynamicznej wysokości --- */
+.safari-chart-box {
+    display: block !important; /* ROZWIĄZANIE: Zapobiega ucinaniu góry we flexboxie */
+    width: 100% !important;
+    min-height: 180px !important;
+    max-height: 480px !important;
+    max-width: 240px;
+    margin: 4px auto 8px auto;
+    padding: 2px;
+    overflow-y: auto;
+}
+
+    .safari-chart-box::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .safari-chart-box::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .safari-chart-box::-webkit-scrollbar-thumb {
+        background: #ddd;
+        border-radius: 4px;
+    }

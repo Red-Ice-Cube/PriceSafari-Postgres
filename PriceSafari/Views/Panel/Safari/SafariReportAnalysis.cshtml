@@ -1,987 +1,252 @@
-﻿@model PriceSafari.Models.ViewModels.SafariReportAnalysisViewModel
-
-<style>
-
-    #sortingButtons {
-        display: inline-flex;
-        height: 34px;
-    }
-
-        #sortingButtons button {
-            display: inline-flex;
-            box-sizing: border-box;
-            align-items: center;
-            justify-content: center;
-            padding: 2px 12px;
-            border: none;
-            background-color: #e3e3e3;
-            color: #4e4e4e;
-            font-size: 13px;
-            cursor: pointer;
-            transition: background-color 0.3s, color 0.3s;
-            border-radius: 4px;
-        }
-
-            #sortingButtons button.active {
-                background-color: #323232;
-                color: #e3e3e3;
-            }
-
-            #sortingButtons button:hover {
-                background-color: #ccc;
-                color: #4e4e4e;
-            }
-
-            #sortingButtons button.active:hover, {
-                background-color: #323232;
-                color: #e3e3e3;
-                cursor: pointer;
-            }
-
-</style>
-
+﻿@using PriceSafari.Models.ViewModels
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-    var flagsList = (List<PriceSafari.Models.FlagsClass>)ViewBag.Flags;
-    var myStoreName = Model.StoreName;
-    var storeId = Model.StoreId;
+    ViewBag.Title = "Analiza Safari - " + ViewBag.ReportName;
+    var flags = ViewBag.Flags as List<FlagViewModel> ?? new List<FlagViewModel>();
+    var regions = ViewBag.Regions as Dictionary<int, string> ?? new Dictionary<int, string>();
 }
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="~/css/safari-report.css" asp-append-version="true" />
+
 <div class="Vert">
     <div class="Page-Box">
         <div class="Page-Box-Container">
+
+            <!-- ===================== LEWY PANEL ===================== -->
             <div class="Page-Box-Category">
-                <div><img src="@Model.StoreLogo" class="img-container" /></div>
-                <div class="side-chart-box">
-                    <canvas id="classificationChart"></canvas>
+
+                <div><img src="@ViewBag.StoreLogo" class="img-container" /></div>
+
+                <!-- 2 zakładki wykresów -->
+                <div class="period-selector-group safari-chart-tabs">
+                    <button type="button" class="period-btn-custom chart-tab active" data-chart="classification" title="Klasyfikacja Twojej pozycji cenowej">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </button>
+                    <button type="button" class="period-btn-custom chart-tab" data-chart="countries" title="Rozkład ofert wg krajów">
+                        <i class="fa-solid fa-globe"></i>
+                    </button>
                 </div>
+
+                <div class="side-chart-box safari-chart-box">
+                    <canvas id="mainChart"></canvas>
+                </div>
+
+                <!-- Klasyfikacja -->
                 <div class="store-section" id="filters-competitiveness">
+                    <div class="form-check">
+                        <span class="color-rect rect-no-offer"></span>
+                        <input class="form-check-input colorFilter" type="checkbox" id="prNoOfferCheckbox" value="prNoOffer">
+                        <label class="form-check-label" for="prNoOfferCheckbox">Brak Twojej oferty</label>
+                    </div>
+
                     <div class="form-check">
                         <span class="color-rect rect-ideal"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal">
-                        <label class="form-check-label" for="prIdealCheckbox" id="prIdealLabel">Twój prd. tańszy min. o (<span id="prIdealCount">0</span>)</label>
+                        <label class="form-check-label" for="prIdealCheckbox">Twoja oferta tańsza</label>
                     </div>
 
                     <div class="form-check">
                         <span class="color-rect rect-gray"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prGrayCheckbox" value="prGray">
-                        <label class="form-check-label" for="prGrayCheckbox" id="prGrayLabel">Twój prd. w podobnej cenie (<span id="prGrayCount">0</span>)</label>
+                        <label class="form-check-label" for="prGrayCheckbox">Cena podobna</label>
                     </div>
 
                     <div class="form-check">
                         <span class="color-rect rect-to-high"></span>
                         <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
-                        <label class="form-check-label" for="prToHighCheckbox" id="prToHighLabel">Twój prd. droższy min. o (<span id="prToHighCount">0</span>)</label>
+                        <label class="form-check-label" for="prToHighCheckbox">Twoja oferta droższa</label>
                     </div>
 
-                    <div class="price-range-settings">
-                        <div class="color-circle prLower-circle"></div>
-                        <div class="legendBox">Próg c. niższej</div>
-                        <label for="unitLabel1"></label>
-                        <input type="number" id="threshold1" value="@Model.SetSafariPrice1.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01">
-                        <span id="unitLabel1"></span>
+                    <div class="safari-thresholds-wrap">
+                        <div class="price-range-settings">
+                            <div class="color-circle prIdeal-circle"></div>
+                            <div class="legendBox"><span>Tańsza o min.</span></div>
+                            <label for="price2"></label>
+                            <input type="number" id="threshold1"
+                                   value="@(((decimal)ViewBag.SetSafariPrice1).ToString(System.Globalization.CultureInfo.InvariantCulture))"
+                                   step="0.01" min="0">
+                            <span id="unitLabel1" class="safari-unit-label"></span>
+                        </div>
+
+                        <div class="price-range-settings">
+                            <div class="color-circle prHigher-circle"></div>
+                            <div class="legendBox"><span>Droższa o min.</span></div>
+                            <label for="price2"></label>
+                            <input type="number" id="threshold2"
+                                   value="@(((decimal)ViewBag.SetSafariPrice2).ToString(System.Globalization.CultureInfo.InvariantCulture))"
+                                   step="0.01" min="0">
+                            <span id="unitLabel2" class="safari-unit-label"></span>
+                        </div>
+
+                        <div class="safari-threshold-actions">
+    
+                            <div style="flex: 1; display: flex;">
+                                <input class="diffCheckBox" style="margin: 0; width: 100%;" type="checkbox" id="usePriceDifference"
+                                @(((bool)ViewBag.UsePriceDiffSafari) ? "checked" : "") />
+                            </div>
+
+                            <button class="Button-Page-Small" style="margin: 0; flex: 1; width: 100%; padding-left: 0; padding-right: 0;" id="savePriceValues"
+                                    data-store-id="@ViewBag.StoreId">
+                                Przelicz i zapisz
+                            </button>
+
+                        </div>
                     </div>
-                    <div class="price-range-settings">
-                        <div class="color-circle prHigher-circle"></div>
-                        <div class="legendBox">Próg c. wyższej</div>
-                        <label for="unitLabel2"></label>
-                        <input type="number" id="threshold2" value="@Model.SetSafariPrice2.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.01">
-                        <span id="unitLabel2"></span>
-                    </div>
-                    <div>
-                        <input class="diffCheckBox" type="checkbox" id="usePriceDifference" style="margin-top:10px;" @(Model.UsePriceDiffSafari ? "checked" : "") />
-                    </div>
-                    <button id="savePriceValues" class="Button-Page-Small" style="margin-top: 4px;" data-store-id="@Model.StoreId">Przelicz i zapisz</button>
                 </div>
 
                 <div class="filterBox">
-                    <div class="Category-Container-Select" style="margin-top:-2px;">Flagi</div>
-                    <div class="store-section" id="flagContainer">
-                        @{
-                            var flagUsage = new Dictionary<int, int>();
-                            foreach (var item in Model.ProductPrices)
-                            {
-                                foreach (var flagId in item.FlagIds)
-                                {
-                                    if (flagUsage.ContainsKey(flagId)) flagUsage[flagId]++;
-                                    else flagUsage[flagId] = 1;
-                                }
-                            }
-                            var usedFlags = flagsList.Where(f => flagUsage.ContainsKey(f.FlagId)).ToList();
-                        }
-                        @foreach (var flag in usedFlags)
-                        {
-                            <div class="form-check">
-                                <input class="form-check-input flagFilter" type="checkbox" id="flagCheckbox_@flag.FlagId" value="@flag.FlagId">
-                                <label class="form-check-label" for="flagCheckbox_@flag.FlagId">@flag.FlagName (@flagUsage[flag.FlagId])</label>
-                            </div>
-                        }
+
+                    <!-- FLAGI — teraz PIERWSZE -->
+                    <div class="Category-Container-Select">
+                        Flagi
+                        <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj flagę</a>
                     </div>
+                    <div class="store-section" id="flagContainer"></div>
+
+                    <!-- REGION RYNKU — teraz POD flagami -->
+                    <div class="Category-Container-Select">Region rynku</div>
+                    <div class="store-section">
+                        <select id="regionFilter" class="DropDown safari-fullwidth-select">
+                            <option value="">Wszystkie regiony</option>
+                            @foreach (var r in regions)
+                            {
+                                <option value="@r.Key" selected="@(r.Key == (int?)ViewBag.RegionId)">@r.Value</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="Category-Container-Select">Liczba ofert konkurencji</div>
+                    <div class="store-section">
+                        <div id="offerRange" class="safari-range-display"></div>
+                        <div id="offerRangeSlider"></div>
+                    </div>
+
+                    <div class="Category-Container-Select">Cena Twojej oferty</div>
+                    <div class="store-section">
+                        <div id="myPriceRange" class="safari-range-display"></div>
+                        <div id="myPriceRangeSlider"></div>
+                    </div>
+
+                    <div class="Category-Container-Select">Cena konkurencji</div>
+                    <div class="store-section">
+                        <div id="compPriceRange" class="safari-range-display"></div>
+                        <div id="compPriceRangeSlider"></div>
+                    </div>
+
+                    <div class="Category-Container-Select">Pozycja na rynku</div>
+                    <div class="store-section">
+                        <div id="positionRange" class="safari-range-display"></div>
+                        <div id="positionRangeSlider"></div>
+                    </div>
+
                 </div>
             </div>
 
+            <!-- ===================== PRAWY PANEL ===================== -->
             <div class="Horizontal">
+
                 <div class="order-upper-box">
-                    <input type="text" id="productSearch" placeholder="Wyszukaj produkt..." />
-                    <select id="regionFilter" class="DropDown">
-                        <option value="">Wszystkie regiony</option>
-                        @foreach (var region in (Dictionary<int, string>)ViewBag.Regions)
-                        {
-                            <option value="@region.Key" selected="@(region.Key == (int?)ViewBag.RegionId)">@region.Value</option>
-                        }
+                    <input type="text" id="productSearch" placeholder="Wyszukaj produkt"
+                           class="safari-toolbar-input">
+
+                    <input type="text" id="storeSearch" placeholder="Wyszukaj sklep"
+                           class="safari-toolbar-input">
+
+                    <select id="producerFilterDropdown" class="DropDown safari-toolbar-select">
+                        <option value="">Wszystkie marki</option>
                     </select>
-    
-                    <button type="button" id="exportSafariExcelBtn" class="Button-Page-Small" title="Pobierz raport do pliku Excel">
-                        <i class="fa-solid fa-file-excel" style="margin-right: 5px;"></i> Eksport
+
+                    <select id="identifierSelect" class="DropDown safari-toolbar-select-narrow"
+                            title="Wyświetlany identyfikator">
+                        <option value="EAN">EAN</option>
+                        <option value="ID">ID</option>
+                        <option value="ProducerCode">SKU</option>
+                    </select>
+
+                    <button class="Button-Page-Small" id="exportSafariExcelBtn">
+                        <i class="fa-solid fa-file-excel"></i>Eksport
                     </button>
 
-                    <button type="button" class="Button-Page-Small" data-toggle="modal" data-target="#infoModal">
+                    <button type="button" class="Button-Page-Small safari-info-btn" data-toggle="modal" data-target="#infoModal">
                         <i class="fa fa-info-circle"></i>
                     </button>
                 </div>
 
                 <div id="sortingButtons">
-                    <div class="ProductCount" id="displayedProductCount"></div>
+                    <div class="ProductCount" id="displayedProductCount">0</div>
+                    <div id="paginationContainer"></div>
+
                     <button id="sortName">A-Z</button>
                     <button id="sortPrice">Cena</button>
-                    <button id="sortRaiseAmount">Różnica PLN</button>
-                    <button id="sortRaisePercentage">Różnica %</button>
+                    <button id="sortDifferenceAmount">Różnica PLN</button>
+                    <button id="sortDifferencePercent">Różnica %</button>
+                    <button id="sortMarginAmount">Narzut PLN</button>
+                    <button id="sortMarginPercent">Narzut %</button>
+                    <button id="sortOfferCount">Ilość ofert</button>
                 </div>
 
                 <div class="Vert-table">
-                    <div id="priceContainer" class="price-container">
-                        @foreach (var item in Model.ProductPrices)
-                        {
-
-                            var priceDifference = Math.Round(item.OurCalculatedPrice - item.CalculatedPrice, 2);
-                            decimal? percentageDifference = item.CalculatedPrice != 0
-                            ? Math.Round(((item.OurCalculatedPrice - item.CalculatedPrice) / item.CalculatedPrice) * 100, 2)
-                            : (decimal?)null;
-
-                            decimal profitAmount = 0;
-                            decimal profitPercent = 0;
-                            string profitClass = "";
-                            string marginBadgeClass = "";
-
-                            if (item.MarginPrice.HasValue)
-                            {
-                                profitAmount = item.OurCalculatedPrice - item.MarginPrice.Value;
-                                profitPercent = item.MarginPrice.Value != 0 ? (profitAmount / item.MarginPrice.Value) * 100 : 0;
-                                profitClass = profitAmount >= 0 ? "price-box-diff-margin-ib-positive" : "price-box-diff-margin-ib-negative";
-                                marginBadgeClass = profitAmount >= 0 ? "price-badge-positive" : "price-badge-negative";
-                            }
-
-                            <div class="price-box prGray"
-                                 data-pricedifference="@priceDifference.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
-                                 data-percdifference="@(percentageDifference?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) ?? "null")"
-                                 data-colorclass="prGray"
-                                 data-flags="@string.Join(",", item.FlagIds)"
-                                 data-ourcalculatedprice="@item.OurCalculatedPrice.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
-                                 data-marginprice="@(item.MarginPrice?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) ?? "null")"
-                                 onclick="window.open('@Url.Action("ProductPriceDetails", "Safari", new { reportId = ViewBag.ReportId, productId = item.ProductId, regionId = ViewBag.RegionId })', '_blank')">
-
-                                <div class="price-box-space">
-                                    <div class="price-box-column-name" style="margin-bottom:30px;">@item.ProductName</div>
-
-                                    <div class="flags-container">
-                                        @foreach (var flagId in item.FlagIds)
-                                        {
-                                            var flag = flagsList.FirstOrDefault(f => f.FlagId == flagId);
-                                            if (flag != null)
-                                            {
-                                                <span class="flag" style="color:@flag.FlagColor; border:2px solid @flag.FlagColor; background-color:@HexToRgba(flag.FlagColor, 0.2);">@flag.FlagName</span>
-                                            }
-                                        }
-                                    </div>
-                                </div>
-
-                                <div class="price-box-data">
-                                    <div class="color-bar prGray"></div>
-
-                                    <img data-src="@(string.IsNullOrEmpty(item.MainUrl) ? "/images/no-image.png" : item.MainUrl)"
-                                         class="product-image lazy-load"
-                                         style="width:142px; height:162px; object-fit:contain; background:#fff; border:1px solid #eee; padding:8px; border-radius:4px; margin-right:3px; margin-left:3px;" />
-
-                                    <div class="price-box-column competitor-column">
-                                        <div class="column-top-content">
-                                            <div class="price-box-column-text">
-                                                <span style="font-weight: 500; font-size: 17px;">@item.CalculatedPrice.ToString("0.00") PLN</span><br />
-                                                <div style="color:#444;">@item.StoreName</div>
-
-                                                <div style="display:flex; align-items:center;">
-                                                    <img src="~/images/@(item.RegionName).png" style="width: 22px; height: 15px; margin-right:5px;" />
-                                                    <div>@item.RegionName</div>
-                                                </div>
-
-                                            </div>
-
-                                        </div>
-                                        <div class="column-bottom-content">
-
-                                            <span class="BD">
-                                                Liczba ofert:&nbsp;<strong>@item.OfferCount</strong>
-                                            </span>
-
-                                        </div>
-                                    </div>
-
-                                    <div class="price-box-column my-price-column">
-                                        <div class="column-top-content">
-                                            <div class="price-box-column-text">
-                                                <span style="font-weight: 500; font-size: 17px;">@(item.OurCalculatedPrice > 0 ? item.OurCalculatedPrice.ToString("0.00") + " PLN" : "Brak Ceny")</span><br />
-                                                <div style="color:#444;">@myStoreName</div>
-
-                                                @{
-
-                                                    var displayRegion = (string.IsNullOrWhiteSpace(item.OurRegionName) || item.OurRegionName == "Unknown") ? "Polska" : item.OurRegionName;
-                                                }
-                                                <div style="display:flex; align-items:center;">
-                                                    <img src="~/images/@(displayRegion).png" style="width: 22px; height: 15px; margin-right:5px;" onerror="this.src='/images/Polska.png';" />
-                                                    <div>@displayRegion</div>
-                                                </div>
-
-                                                <div class="margin-container">
-                                                    @if (item.MarginPrice.HasValue)
-                                                    {
-                                                        <div class="price-box-diff-margin-ib price-box-diff-margin-ib-neutral" style="margin-top: 4px;">
-                                                            <span class="price-badge price-badge-neutral">Cena zakupu</span>
-                                                            <p style="margin:0">@item.MarginPrice.Value.ToString("0.00") PLN</p>
-                                                        </div>
-
-                                                        <div class="price-box-diff-margin-ib @profitClass" style="margin-top: 3px;">
-                                                            <span class="price-badge @marginBadgeClass">Zysk (narzut)</span>
-                                                            <p style="margin:0">@(profitAmount >= 0 ? "+" : "")@profitAmount.ToString("0.00") PLN (@profitPercent.ToString("0.00")%)</p>
-                                                        </div>
-                                                    }
-                                                </div>
-                                            </div>
-
-                                        </div>
-                                        <div class="column-bottom-content">
-                                            <div class="market-index-container">
-                                                @if (item.OurCalculatedPrice > 0)
-                                                {
-                                                    var diffIdx = percentageDifference ?? 0;
-
-                                                    var thresholdLower = Model.SetSafariPrice1;
-
-                                                    var thresholdHigher = Model.SetSafariPrice2;
-
-                                                    string idxCol = "index-gray";
-
-                                                    if (diffIdx > thresholdHigher)
-                                                    {
-
-                                                        idxCol = "index-red";
-                                                    }
-                                                    else if (diffIdx < -thresholdLower)
-                                                    {
-
-                                                        idxCol = "index-blue";
-                                                    }
-
-                                                    <span class="market-index-badge @idxCol" style="font-size:11px;">
-                                                        Twoja cena: @(diffIdx > 0 ? "+" : "")@diffIdx.ToString("0.00")%
-                                                    </span>
-                                                }
-                                            </div>
-
-                                        </div>
-                                    </div>
-
-                                    <div class="price-box-column-action" style="display:none;"></div>
-                                </div>
-                            </div>
-                        }
-                    </div>
+                    <div id="priceContainer" class="price-container"></div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="infoModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
+<!-- Info Modal -->
+<div class="modal fade" id="infoModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content safari-modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Informacje o raporcie</h5>
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             <div class="modal-body">
-                <p><strong>Nazwa:</strong> @Model.ReportName</p>
-                <p><strong>Data:</strong> @Model.CreatedDate.ToString("dd.MM.yyyy HH:mm")</p>
-                <p><strong>Produkty:</strong> @Model.ProductPrices.Count()</p>
+                <div class="form-check-orders">
+                    <p><strong>Nazwa raportu:</strong> @ViewBag.ReportName</p>
+                    <p><strong>Data utworzenia:</strong> @(((DateTime)ViewBag.CreatedDate).ToString("dd.MM.yyyy HH:mm"))</p>
+                    <p><strong>Sklep:</strong> @ViewBag.StoreName</p>
+                    <p><strong>Liczba produktów:</strong> <span id="modalProductCount">0</span></p>
+                    <p><strong>Liczba zebranych ofert:</strong> <span id="modalOfferCount">0</span></p>
+                </div>
             </div>
         </div>
     </div>
 </div>
-@section Scripts {
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-}
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const lazyLoadImages = document.querySelectorAll('.lazy-load');
 
-        const observer = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    img.src = img.dataset.src;
-                    img.addEventListener('load', () => {
-                        img.classList.add('loaded');
-                    });
-                    observer.unobserve(img);
-                }
-            });
-        });
+<div id="globalNotification" class="safari-notification safari-notification-error"></div>
+<div id="globalUpdate" class="safari-notification safari-notification-success"></div>
 
-        lazyLoadImages.forEach(img => {
-            observer.observe(img);
-        });
-
-        let allProducts = Array.from(document.querySelectorAll('.price-box'));
-        const searchInput = document.getElementById('productSearch');
-
-        function sanitizeString(str) {
-            return str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        }
-
-        function highlightMatches(productName, searchTerm) {
-            if (!searchTerm) return productName;
-
-            const sanitizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9\s/.-]/g, '').trim().toLowerCase();
-            const regex = new RegExp(`(${sanitizedSearchTerm.split('').join('\\s*')})`, 'gi');
-            return productName.replace(regex, '<span style="color: #9400D3; font-weight: bold;">$1</span>');
-        }
-
-       function updateProducts() {
-    const searchTerm = sanitizeString(searchInput.value.trim());
-    const selectedFlags = Array.from(document.querySelectorAll('.flagFilter:checked')).map(cb => cb.value);
-    const selectedClasses = Array.from(document.querySelectorAll('.colorFilter:checked')).map(cb => cb.value);
-    const noClassificationFilter = selectedClasses.length === 0;
-
-    const thresholdCheaper = parseFloat(threshold1Input.value) || 0;
-    const thresholdMoreExpensive = parseFloat(threshold2Input.value) || 0;
-    const usePriceDifference = usePriceDifferenceCheckbox.checked;
-
-    let totalIdealCount = 0;
-    let totalGrayCount = 0;
-    let totalToHighCount = 0;
-    let chartIdealCount = 0;
-    let chartGrayCount = 0;
-    let chartToHighCount = 0;
-
-    let filteredProducts = [];
-
-    allProducts.forEach(productBox => {
-        const productNameElement = productBox.querySelector('.price-box-column-name');
-        const productName = productNameElement.textContent.trim();
-        const productFlags = productBox.getAttribute('data-flags').split(',');
-        const sanitizedProductName = sanitizeString(productName);
-
-        const matchesSearch = sanitizedProductName.includes(searchTerm);
-        const matchesFlags = selectedFlags.length === 0 || selectedFlags.some(flagId => productFlags.includes(flagId));
-
-        const priceDifference = parseFloat(productBox.getAttribute('data-pricedifference')) || 0;
-        const percentageDifferenceAttr = productBox.getAttribute('data-percdifference');
-        let percentageDifference = percentageDifferenceAttr !== 'null' ? parseFloat(percentageDifferenceAttr) : null;
-
-        let differenceValue = usePriceDifference ? priceDifference : (percentageDifference !== null ? percentageDifference : 0);
-        differenceValue = parseFloat(differenceValue.toFixed(2));
-
-        let colorClass = 'prGray';
-        if (differenceValue <= -thresholdCheaper) {
-
-            colorClass = 'prIdeal';
-            totalIdealCount++;
-        } else if (differenceValue >= thresholdMoreExpensive) {
-
-            colorClass = 'prToHigh';
-            totalToHighCount++;
-        } else {
-            colorClass = 'prGray';
-            totalGrayCount++;
-        }
-
-        productBox.classList.remove('prToHigh', 'prIdeal', 'prGray');
-        productBox.classList.add(colorClass);
-        productBox.setAttribute('data-colorclass', colorClass);
-
-      const myPriceAttr = productBox.getAttribute('data-ourcalculatedprice');
-        const myPrice = (myPriceAttr !== null && myPriceAttr !== 'null') ? parseFloat(myPriceAttr) : null;
-        const marginPriceAttr = productBox.getAttribute('data-marginprice');
-        const marginPrice = (marginPriceAttr !== null && marginPriceAttr !== 'null') ? parseFloat(marginPriceAttr) : null;
-
-       const marketIndexContainer = productBox.querySelector('.market-index-container');
-
-        if (marketIndexContainer && myPrice > 0) {
-
-            marketIndexContainer.innerHTML = '';
-
-            const percDiff = percentageDifference !== null ? percentageDifference : 0;
-
-            // DOMYŚLNIE SZARY (W ŚRODKU ZAKRESU)
-            let indexColorClass = 'index-gray';
-
-            // Używamy zmiennych thresholdMoreExpensive i thresholdCheaper pobranych na początku funkcji updateProducts
-            if (percDiff > thresholdMoreExpensive) {
-                // Jeśli różnica (np. +18%) jest większa niż próg (np. 10%) -> CZERWONY
-                indexColorClass = 'index-red';
-            }
-            else if (percDiff < -thresholdCheaper) {
-                // Jeśli różnica (np. -11%) jest mniejsza niż próg dolny (np. -10%) -> NIEBIESKI (zgodnie z życzeniem)
-                indexColorClass = 'index-blue';
-            }
-
-            const badgeHtml = `
-                <span class="market-index-badge ${indexColorClass}" style="font-size:11px;">
-                    Twoja cena: ${percDiff > 0 ? '+' : ''}${percDiff.toFixed(2)}%
-                </span>`;
-
-            marketIndexContainer.insertAdjacentHTML('beforeend', badgeHtml);
-        }
-
-        const marginContainer = productBox.querySelector('.margin-container');
-
-        if (marginContainer && marginPrice !== null && myPrice > 0) {
-            marginContainer.innerHTML = '';
-
-            let marginAmount = myPrice - marginPrice;
-            let marginPercentage = (marginPrice !== 0) ? (marginAmount / marginPrice) * 100 : 0;
-            const formattedMarginPrice = marginPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-
-            let purchaseBoxHtml = `
-                <div class="price-box-diff-margin-ib price-box-diff-margin-ib-neutral" style="margin-top:4px;">
-                    <span class="price-badge price-badge-neutral">Cena zakupu</span>
-                    <p style="margin:0;">${formattedMarginPrice}</p>
-                </div>`;
-
-            const mSign = marginAmount >= 0 ? '+' : '';
-            const mClass = marginAmount >= 0 ? 'price-box-diff-margin-ib-positive' : 'price-box-diff-margin-ib-negative';
-            const bClass = marginAmount >= 0 ? 'price-badge-positive' : 'price-badge-negative';
-
-            const formattedAmount = mSign + Math.abs(marginAmount).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
-            const formattedPercent = '(' + mSign + Math.abs(marginPercentage).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%)';
-
-            let profitBoxHtml = `
-                <div class="price-box-diff-margin-ib ${mClass}" style="margin-top:3px;">
-                    <span class="price-badge ${bClass}">Zysk (narzut)</span>
-                    <p style="margin:0;">${formattedAmount} ${formattedPercent}</p>
-                </div>`;
-
-            marginContainer.insertAdjacentHTML('beforeend', purchaseBoxHtml + profitBoxHtml);
-        }
-        const matchesClassification = noClassificationFilter || selectedClasses.includes(colorClass);
-
-        if (matchesSearch && matchesFlags && matchesClassification) {
-            productBox.style.display = 'block';
-            filteredProducts.push({
-                productBox: productBox,
-                productNameElement: productNameElement,
-                exactMatch: sanitizedProductName === searchTerm,
-                matchIndex: sanitizedProductName.indexOf(searchTerm)
-            });
-
-            if (colorClass === 'prIdeal') chartIdealCount++;
-            else if (colorClass === 'prToHigh') chartToHighCount++;
-            else chartGrayCount++;
-
-        } else {
-            productBox.style.display = 'none';
-        }
-    });
-
-        filteredProducts.sort((a, b) => {
-            if (a.exactMatch && !b.exactMatch) return -1;
-            if (!a.exactMatch && b.exactMatch) return 1;
-            return a.matchIndex - b.matchIndex;
-        });
-
-        filteredProducts.forEach(item => {
-            item.productNameElement.innerHTML = highlightMatches(item.productNameElement.textContent, searchInput.value);
-        });
-
-        prIdealCountSpan.textContent = totalIdealCount;
-        prGrayCountSpan.textContent = totalGrayCount;
-        prToHighCountSpan.textContent = totalToHighCount;
-
-        initializeChart(chartIdealCount, chartGrayCount, chartToHighCount);
-
-        updateClassificationLabels();
-        updateFlagCounts();
-        document.getElementById('displayedProductCount').textContent = filteredProducts.length;
-    }
-
-    let sortingState = {
-        sortName: null,
-        sortPrice: null,
-        sortRaiseAmount: null,
-        sortRaisePercentage: null,
-
-    };
-
-    function resetSortingStates(except) {
-        for (let key in sortingState) {
-            if (key !== except) {
-                sortingState[key] = null;
-                const btn = document.getElementById(key);
-                if (btn) {
-                    btn.textContent = getDefaultButtonLabel(key);
-                    btn.classList.remove('active');
-                }
-            }
-        }
-    }
-
-    function getDefaultButtonLabel(key) {
-        switch (key) {
-            case 'sortName': return 'A-Z';
-            case 'sortPrice': return 'Cena';
-            case 'sortRaiseAmount': return 'Różnica w cenie PLN';
-            case 'sortRaisePercentage': return 'Różnica w cenie %';
-
-        }
-        return '';
-    }
-
-    function sortVisibleProducts() {
-        const container = document.getElementById('priceContainer');
-        let visibleProducts = Array.from(container.querySelectorAll('.price-box'))
-            .filter(p => p.style.display !== 'none');
-
-        function getPercDifference(el) {
-            const p = el.getAttribute('data-percdifference');
-            return p !== 'null' ? parseFloat(p) : 0;
-        }
-
-        if (sortingState.sortName !== null) {
-            visibleProducts.sort((a, b) => {
-                const nameA = a.querySelector('.price-box-column-name').textContent.trim().toLowerCase();
-                const nameB = b.querySelector('.price-box-column-name').textContent.trim().toLowerCase();
-                if (nameA < nameB) return sortingState.sortName === 'asc' ? -1 : 1;
-                if (nameA > nameB) return sortingState.sortName === 'asc' ? 1 : -1;
-                return 0;
-            });
-        } else if (sortingState.sortPrice !== null) {
-            visibleProducts.sort((a, b) => {
-                const priceA = parseFloat(a.getAttribute('data-ourcalculatedprice')) || 0;
-                const priceB = parseFloat(b.getAttribute('data-ourcalculatedprice')) || 0;
-                return sortingState.sortPrice === 'asc' ? (priceA - priceB) : (priceB - priceA);
-            });
-        } else if (sortingState.sortRaiseAmount !== null) {
-
-            visibleProducts.sort((a, b) => {
-                const diffA = parseFloat(a.getAttribute('data-pricedifference')) || 0;
-                const diffB = parseFloat(b.getAttribute('data-pricedifference')) || 0;
-                return sortingState.sortRaiseAmount === 'asc' ? (diffA - diffB) : (diffB - diffA);
-            });
-        } else if (sortingState.sortRaisePercentage !== null) {
-            visibleProducts.sort((a, b) => {
-                const percA = getPercDifference(a);
-                const percB = getPercDifference(b);
-                return sortingState.sortRaisePercentage === 'asc' ? (percA - percB) : (percB - percA);
-            });
-        }
-
-        visibleProducts.forEach(p => container.appendChild(p));
-    }
-
-    const originalUpdateProducts = updateProducts;
-    updateProducts = function() {
-        originalUpdateProducts();
-        sortVisibleProducts();
-    };
-
-    document.getElementById('sortName').addEventListener('click', function() {
-        if (sortingState.sortName === null) {
-            sortingState.sortName = 'asc';
-            this.textContent = 'A-Z ↑';
-            this.classList.add('active');
-        } else if (sortingState.sortName === 'asc') {
-            sortingState.sortName = 'desc';
-            this.textContent = 'A-Z ↓';
-            this.classList.add('active');
-        } else {
-            sortingState.sortName = null;
-            this.textContent = 'A-Z';
-            this.classList.remove('active');
-        }
-        resetSortingStates('sortName');
-        updateProducts();
-    });
-
-    document.getElementById('sortPrice').addEventListener('click', function() {
-        if (sortingState.sortPrice === null) {
-            sortingState.sortPrice = 'asc';
-            this.textContent = 'Cena rosnąco ↑';
-            this.classList.add('active');
-        } else if (sortingState.sortPrice === 'asc') {
-            sortingState.sortPrice = 'desc';
-            this.textContent = 'Cena malejąco ↓';
-            this.classList.add('active');
-        } else {
-            sortingState.sortPrice = null;
-            this.textContent = 'Cena';
-            this.classList.remove('active');
-        }
-        resetSortingStates('sortPrice');
-        updateProducts();
-    });
-
-    document.getElementById('sortRaiseAmount').addEventListener('click', function() {
-        if (sortingState.sortRaiseAmount === null) {
-            sortingState.sortRaiseAmount = 'asc';
-            this.textContent = 'Największa różnica PLN ↑';
-            this.classList.add('active');
-        } else if (sortingState.sortRaiseAmount === 'asc') {
-            sortingState.sortRaiseAmount = 'desc';
-            this.textContent = 'Najmniejsza różnica PLN ↓';
-            this.classList.add('active');
-        } else {
-            sortingState.sortRaiseAmount = null;
-            this.textContent = 'Różnica w cenie PLN';
-            this.classList.remove('active');
-        }
-        resetSortingStates('sortRaiseAmount');
-        updateProducts();
-    });
-
-    document.getElementById('sortRaisePercentage').addEventListener('click', function() {
-        if (sortingState.sortRaisePercentage === null) {
-            sortingState.sortRaisePercentage = 'asc';
-            this.textContent = 'Największa różnica % ↑';
-            this.classList.add('active');
-        } else if (sortingState.sortRaisePercentage === 'asc') {
-            sortingState.sortRaisePercentage = 'desc';
-            this.textContent = 'Najmniejsza różnica % ↓';
-            this.classList.add('active');
-        } else {
-            sortingState.sortRaisePercentage = null;
-            this.textContent = 'Różnica w cenie %';
-            this.classList.remove('active');
-        }
-        resetSortingStates('sortRaisePercentage');
-        updateProducts();
-    });
-
-        const ctx = document.getElementById('classificationChart').getContext('2d');
-        let classificationChart;
-
-        function initializeChart(prIdealCount, prGrayCount, prToHighCount) {
-            if (classificationChart) {
-                classificationChart.destroy();
-            }
-            classificationChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Droższe', 'Podobna cena', 'Tańsze'],
-                    datasets: [{
-                        data: [prToHighCount, prGrayCount, prIdealCount],
-                        backgroundColor: [
-                            'rgba(171, 37, 32, 0.8)',
-                            'rgba(40, 40, 40, 0.8)',
-                            'rgba(13, 110, 253, 0.8)'
-                        ],
-                        borderColor: [
-                            'rgba(171, 37, 32, 1)',
-                            'rgba(40, 40, 40, 1)',
-                            'rgba(13, 110, 253, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    plugins: {
-                        legend: {
-                            display: false,
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function (context) {
-                                    var value = context.parsed;
-                                    return 'Produkty: ' + value;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function updateClassificationLabels() {
-            const thresholdCheaper = parseFloat(threshold1Input.value) || 0;
-            const thresholdMoreExpensive = parseFloat(threshold2Input.value) || 0;
-            const usePriceDifference = usePriceDifferenceCheckbox.checked;
-            const unit = usePriceDifference ? 'PLN' : '%';
-
-            prIdealLabel.innerHTML = `Twój prd. tańszy o min. ${thresholdCheaper} ${unit} (<span id="prIdealCount">${prIdealCountSpan.textContent}</span>)`;
-            prGrayLabel.innerHTML = `Twój prd. w podobnej cenie (<span id="prGrayCount">${prGrayCountSpan.textContent}</span>)`;
-            prToHighLabel.innerHTML = `Twój prd. droższy o min. ${thresholdMoreExpensive} ${unit} (<span id="prToHighCount">${prToHighCountSpan.textContent}</span>)`;
-
-            unitLabel1.textContent = unit;
-            unitLabel2.textContent = unit;
-        }
-
-        function updateFlagCounts() {
-            const flagCheckboxes = document.querySelectorAll('.flagFilter');
-            const flagCounts = {};
-
-            flagCheckboxes.forEach(checkbox => {
-                flagCounts[checkbox.value] = 0;
-            });
-
-            allProducts.forEach(productBox => {
-                if (productBox.style.display === 'none') return;
-
-                const productFlags = productBox.getAttribute('data-flags').split(',');
-                productFlags.forEach(flagId => {
-                    if (flagCounts.hasOwnProperty(flagId)) {
-                        flagCounts[flagId]++;
-                    }
-                });
-            });
-
-            flagCheckboxes.forEach(checkbox => {
-                const label = document.querySelector(`label[for='${checkbox.id}']`);
-                if (label) {
-                    const flagName = label.textContent.split('(')[0].trim();
-                    label.textContent = `${flagName} (${flagCounts[checkbox.value]})`;
-                }
-            });
-        }
-
-        const threshold1Input = document.getElementById('threshold1');
-        const threshold2Input = document.getElementById('threshold2');
-        const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
-        const colorFilters = document.querySelectorAll('.colorFilter');
-
-        const prIdealCountSpan = document.getElementById('prIdealCount');
-        const prGrayCountSpan = document.getElementById('prGrayCount');
-        const prToHighCountSpan = document.getElementById('prToHighCount');
-
-        const prIdealLabel = document.getElementById('prIdealLabel');
-        const prGrayLabel = document.getElementById('prGrayLabel');
-        const prToHighLabel = document.getElementById('prToHighLabel');
-
-        const unitLabel1 = document.getElementById('unitLabel1');
-        const unitLabel2 = document.getElementById('unitLabel2');
-
-        threshold1Input.addEventListener('input', updateProducts);
-        threshold2Input.addEventListener('input', updateProducts);
-        usePriceDifferenceCheckbox.addEventListener('change', updateProducts);
-        colorFilters.forEach(checkbox => checkbox.addEventListener('change', updateProducts));
-        searchInput.addEventListener('input', updateProducts);
-
-        document.querySelectorAll('.flagFilter').forEach(checkbox => checkbox.addEventListener('change', updateProducts));
-
-        updateProducts();
-
-    });
-
-</script>
-
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const usePriceDifferenceCheckbox = document.getElementById('usePriceDifference');
-        const unitLabel1 = document.getElementById('unitLabel1');
-        const unitLabel2 = document.getElementById('unitLabel2');
-
-        function updateUnits() {
-            const unit = usePriceDifferenceCheckbox.checked ? 'PLN' : '%';
-            unitLabel1.textContent = unit;
-            unitLabel2.textContent = unit;
-        }
-
-        usePriceDifferenceCheckbox.addEventListener('change', function () {
-            updateUnits();
-        });
-
-        updateUnits();
-    });
-
-</script>
-<script>
-    document.getElementById('regionFilter').addEventListener('change', function () {
-        var selectedRegionId = this.value;
-        var url = new URL(window.location.href);
-
-        if (selectedRegionId) {
-            url.searchParams.set('regionId', selectedRegionId);
-        } else {
-            url.searchParams.delete('regionId');
-        }
-
-        window.location.href = url.toString();
-    });
-</script>
-<script>
-    document.getElementById('savePriceValues').addEventListener('click', function () {
-        const threshold1 = parseFloat(document.getElementById('threshold1').value);
-        const threshold2 = parseFloat(document.getElementById('threshold2').value);
-        const storeId = parseInt(this.getAttribute('data-store-id'));
-
-        const usePriceDifference = document.getElementById('usePriceDifference').checked;
-
-        const data = {
-            StoreId: storeId,
-            SetSafariPrice1: threshold1,
-            SetSafariPrice2: threshold2,
-            UsePriceDiffSafari: usePriceDifference
-        };
-
-        fetch('/Safari/SaveSafariPriceValues', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        })
-            .then(response => response.json())
-            .then(response => {
-                if (response.success) {
-                    alert('Wartości progów zostały zapisane pomyślnie.');
-
-                } else {
-                    alert('Błąd podczas zapisywania wartości progów: ' + response.message);
-                }
-            })
-            .catch(error => console.error('Błąd w aktualizowaniu wartości:', error));
-    });
-</script>
-
-<div id="loadingOverlay" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 999;">
-    <div id="loadingMessage" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 24px; border-radius: 8px; width:400px; color: black; font-size: 16px; z-index: 1000;">
-        <p>Zmiana <span id="reportName"></span></p>
-        <div id="progressBarContainer" style="width: 100%; margin-top:12px; margin-bottom:12px; border-radius:4px; background-color: #ddd;">
-            <div id="progressBar" style="width: 0%; height: 16px; background-color: #202430;  border-radius:4px;"></div>
-        </div>
-        <p id="progressText">0%</p>
-    </div>
+<div id="loadingOverlay" class="loading-overlay" style="display:none;">
+    <div class="loader"></div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
-<script>
-    var connection = new signalR.HubConnectionBuilder().withUrl("/reportProgressHub").build();
-    var isProcessing = false;
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wnumb/1.2.0/wNumb.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-    connection.start().then(function () {
-        console.log("SignalR connected.");
-    }).catch(function (err) {
-        return console.error(err.toString());
-    });
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 
-    connection.on("ReceiveProgress", function (message, percentage) {
+    <script>
+        window.safariConfig = {
+        reportId: @ViewBag.ReportId,
+        storeId: @ViewBag.StoreId,
+        regionId: @(ViewBag.RegionId != null ? ViewBag.RegionId.ToString() : "null"),
+        myStoreName: @Html.Raw(Json.Serialize((string)ViewBag.StoreName ?? "")),
+        flags: @Html.Raw(Json.Serialize(flags)),
+        setSafariPrice1: @(((decimal)ViewBag.SetSafariPrice1).ToString(System.Globalization.CultureInfo.InvariantCulture)),
+        setSafariPrice2: @(((decimal)ViewBag.SetSafariPrice2).ToString(System.Globalization.CultureInfo.InvariantCulture)),
+        usePriceDiffSafari: @(((bool)ViewBag.UsePriceDiffSafari) ? "true" : "false"),
+        identifierForSimulation: @Html.Raw(Json.Serialize((string)ViewBag.IdentifierForSimulation ?? "EAN"))
+        };
+    </script>
 
-        document.getElementById("progressText").innerText = message + " " + percentage + "%";
-        document.getElementById("progressBar").style.width = percentage + "%";
-
-        if (percentage === 100) {
-            document.getElementById("progressText").innerText = "Wczytywanie zakończone.";
-            isProcessing = false;
-            setTimeout(hideLoadingOverlay, 1500);
-        }
-    });
-
-    document.querySelectorAll("tr[data-url]").forEach(function (row) {
-        row.addEventListener("click", function () {
-            if (!isProcessing) {
-                isProcessing = true;
-                var url = row.getAttribute("data-url");
-                var reportName = row.querySelector('td').innerText;
-
-                if (url) {
-                    showLoadingOverlay(reportName);
-                    startProgress();
-
-                    window.location.href = url;
-                }
-            }
-        });
-    });
-
-    function startProgress() {
-        var progressBarContainer = document.getElementById("progressBarContainer");
-        var progressText = document.getElementById("progressText");
-
-        if (progressBarContainer && progressText) {
-            progressBarContainer.style.display = "block";
-            progressText.style.display = "block";
-            document.getElementById("progressBar").style.width = "0%";
-        }
-    }
-
-    function showLoadingOverlay(reportName) {
-        document.getElementById("reportName").innerText = reportName;
-        document.getElementById("loadingOverlay").style.display = "block";
-    }
-
-    function hideLoadingOverlay() {
-        document.getElementById("loadingOverlay").style.display = "none";
-    }
-
-    document.getElementById('regionFilter').addEventListener('change', function () {
-        var selectedRegionId = this.value;
-        var url = new URL(window.location.href);
-
-        if (selectedRegionId) {
-            url.searchParams.set('regionId', selectedRegionId);
-        } else {
-            url.searchParams.delete('regionId');
-        }
-
-        showLoadingOverlay("regionu");
-        startProgress();
-
-        window.location.href = url.toString();
-    });
-</script>
-
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const exportBtn = document.getElementById('exportSafariExcelBtn');
-
-        if (exportBtn) {
-            exportBtn.addEventListener('click', function () {
-
-                const reportId = '@ViewBag.ReportId';
-
-                const regionSelect = document.getElementById('regionFilter');
-                const selectedRegionId = regionSelect ? regionSelect.value : '';
-
-                let exportUrl = `/Safari/ExportToExcel?reportId=${reportId}`;
-
-                if (selectedRegionId) {
-                    exportUrl += `&regionId=${selectedRegionId}`;
-                }
-
-                showLoadingOverlay("generowania pliku Excel...");
-
-                window.location.href = exportUrl;
-
-                setTimeout(function() {
-                    hideLoadingOverlay();
-                }, 3000);
-            });
-        }
-    });
-</script>
-
-@functions {
-    string HexToRgba(string hex, double alpha)
-    {
-        int r = 0, g = 0, b = 0;
-        if (hex.Length == 7)
-        {
-            r = int.Parse(hex.Substring(1, 2), System.Globalization.NumberStyles.HexNumber);
-            g = int.Parse(hex.Substring(3, 2), System.Globalization.NumberStyles.HexNumber);
-            b = int.Parse(hex.Substring(5, 2), System.Globalization.NumberStyles.HexNumber);
-        }
-        return $"rgba({r}, {g}, {b}, {alpha.ToString(System.Globalization.CultureInfo.InvariantCulture)})";
-    }
+    <script src="~/js/member/SafariReportAnalysis.js" asp-append-version="true"></script>
 }
