@@ -154,7 +154,7 @@ namespace PriceSafari.Services.AllegroServices
                 .Where(s =>
                     s.OnAllegro
                     && s.FetchExtendedAllegroData
-                    && s.IsAllegroTokenActive
+                    && (s.IsAllegroTokenActive || !string.IsNullOrEmpty(s.AllegroRefreshToken))
                     && (!string.IsNullOrEmpty(s.AllegroApiToken) || !string.IsNullOrEmpty(s.AllegroRefreshToken))
                     && _context.AllegroOffersToScrape.Any(o =>
                         o.StoreId == s.StoreId

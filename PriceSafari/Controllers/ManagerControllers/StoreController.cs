@@ -9,6 +9,7 @@ using PriceSafari.Data;
 using PriceSafari.Hubs;
 using PriceSafari.Models;
 using PriceSafari.Scrapers;
+using PriceSafari.Services.AllegroServices;
 using PriceSafari.Services.ScheduleService;
 
 namespace PriceSafari.Controllers.ManagerControllers
@@ -18,17 +19,20 @@ namespace PriceSafari.Controllers.ManagerControllers
     {
         private readonly PriceSafariContext _context;
         private readonly IHubContext<ScrapingHub> _hubContext;
-
         private readonly UrlGroupingService _urlGroupingService;
+        private readonly AllegroAuthTokenService _allegroAuthTokenService;
 
-        public StoreController(PriceSafariContext context, IHubContext<ScrapingHub> hubContext, UrlGroupingService urlGroupingService)
+        public StoreController(
+            PriceSafariContext context,
+            IHubContext<ScrapingHub> hubContext,
+            UrlGroupingService urlGroupingService,
+            AllegroAuthTokenService allegroAuthTokenService)
         {
             _context = context;
             _hubContext = hubContext;
             _urlGroupingService = urlGroupingService;
-
+            _allegroAuthTokenService = allegroAuthTokenService;
         }
-
         [HttpGet]
         public IActionResult CreateStore()
         {
@@ -258,6 +262,87 @@ namespace PriceSafari.Controllers.ManagerControllers
             await _context.SaveChangesAsync();
             return RedirectToAction("Index");
         }
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> TestAllegroToken(int storeId)
+        {
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
+                return Json(new { success = false, message = "Sklep nie istnieje." });
+
+            if (string.IsNullOrEmpty(store.AllegroRefreshToken))
+                return Json(new { success = false, message = "Brak Refresh Tokena w bazie. Wklej token przez Device Flow." });
+
+            // Krok 1: Próba uzyskania tokena (odświeży jeśli trzeba)
+            string? accessToken = await _allegroAuthTokenService.GetValidAccessTokenAsync(storeId);
+            string tokenDiag = _allegroAuthTokenService.LastTokenDiagnostics ?? "";
+
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                // Reload store — mogło się zmienić IsAllegroTokenActive
+                await _context.Entry(store).ReloadAsync();
+
+                return Json(new
+                {
+                    success = false,
+                    message = $"Nie udało się uzyskać tokena.",
+                    diagnostics = tokenDiag,
+                    isActive = store.IsAllegroTokenActive,
+                    expiresAt = store.AllegroTokenExpiresAt?.ToString("yyyy-MM-dd HH:mm:ss"),
+                    hasRefreshToken = !string.IsNullOrEmpty(store.AllegroRefreshToken),
+                    hasAccessToken = !string.IsNullOrEmpty(store.AllegroApiToken)
+                });
+            }
+
+            // Krok 2: Test prawdziwego połączenia z API Allegro
+            string apiTestResult = "Nie testowano";
+            bool apiTestSuccess = false;
+
+            try
+            {
+                using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+                var request = new HttpRequestMessage(HttpMethod.Get, "https://api.allegro.pl/sale/offers?limit=1&offset=0&publication.status=ACTIVE");
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
+
+                var response = await httpClient.SendAsync(request);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                    var totalCount = json.RootElement.TryGetProperty("totalCount", out var tc) ? tc.GetInt32() : -1;
+
+                    apiTestResult = $"Połączenie OK. Oferty na koncie: {totalCount}.";
+                    apiTestSuccess = true;
+                }
+                else
+                {
+                    apiTestResult = $"API zwróciło {(int)response.StatusCode} {response.StatusCode}.";
+                }
+            }
+            catch (Exception ex)
+            {
+                apiTestResult = $"Błąd połączenia: {ex.Message}";
+            }
+
+            // Reload store po operacjach
+            await _context.Entry(store).ReloadAsync();
+
+            return Json(new
+            {
+                success = apiTestSuccess,
+                message = apiTestSuccess ? "Token działa poprawnie." : "Token uzyskany, ale test API nieudany.",
+                diagnostics = tokenDiag,
+                apiTest = apiTestResult,
+                isActive = store.IsAllegroTokenActive,
+                expiresAt = store.AllegroTokenExpiresAt?.ToString("yyyy-MM-dd HH:mm:ss"),
+                hasRefreshToken = !string.IsNullOrEmpty(store.AllegroRefreshToken),
+                hasAccessToken = !string.IsNullOrEmpty(store.AllegroApiToken)
+            });
+        }
+
 
         [HttpGet]
         public async Task<IActionResult> Index()

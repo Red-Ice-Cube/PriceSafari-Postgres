@@ -72,35 +72,35 @@
             <h4 class="mb-0">Konfiguracja API i Plików XML</h4>
             <div class="custom-control custom-switch">
                 <input asp-for="FetchExtendedData" type="checkbox" class="custom-control-input" id="fetchApiSwitch">
-                    <label class="custom-control-label font-weight-bold" for="fetchApiSwitch">
-                        Pobieraj dane cenowe z API Sklepu
-                    </label>
-                </div>
+                <label class="custom-control-label font-weight-bold" for="fetchApiSwitch">
+                    Pobieraj dane cenowe z API Sklepu
+                </label>
             </div>
-            <div class="card-body">
-                <div id="apiConfigurationSection" style="display: none; background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; border: 1px solid #dee2e6;">
-                    <h6 class="text-primary mb-3"><i class="fas fa-robot"></i> Ustawienia połączenia API</h6>
+        </div>
+        <div class="card-body">
+            <div id="apiConfigurationSection" style="display: none; background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; border: 1px solid #dee2e6;">
+                <h6 class="text-primary mb-3"><i class="fas fa-robot"></i> Ustawienia połączenia API</h6>
 
-                    <div class="form-group">
-                        <label asp-for="StoreSystemType">System Sklepowy (Silnik)</label>
-                        <select asp-for="StoreSystemType" class="form-control" asp-items="Html.GetEnumSelectList<PriceSafari.Models.StoreSystemType>()">
-                        </select>
-                        <span asp-validation-for="StoreSystemType" class="text-danger"></span>
-                        <small class="text-muted">Wybór odpowiedniego systemu pozwoli botowi na poprawną komunikację.</small>
+                <div class="form-group">
+                    <label asp-for="StoreSystemType">System Sklepowy (Silnik)</label>
+                    <select asp-for="StoreSystemType" class="form-control" asp-items="Html.GetEnumSelectList<PriceSafari.Models.StoreSystemType>()">
+                    </select>
+                    <span asp-validation-for="StoreSystemType" class="text-danger"></span>
+                    <small class="text-muted">Wybór odpowiedniego systemu pozwoli botowi na poprawną komunikację.</small>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label asp-for="StoreApiUrl">URL API</label>
+                        <input asp-for="StoreApiUrl" class="form-control" placeholder="https://sklep.pl/api" autocomplete="off" />
+                        <span asp-validation-for="StoreApiUrl" class="text-danger"></span>
                     </div>
-
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label asp-for="StoreApiUrl">URL API</label>
-                            <input asp-for="StoreApiUrl" class="form-control" placeholder="https://sklep.pl/api" autocomplete="off" />
-                            <span asp-validation-for="StoreApiUrl" class="text-danger"></span>
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label asp-for="StoreApiKey">Klucz API</label>
+                    <div class="form-group col-md-6">
+                        <label asp-for="StoreApiKey">Klucz API</label>
                            
-                            <input asp-for="StoreApiKey" class="form-control" type="text" autocomplete="off" />
-                            <span asp-validation-for="StoreApiKey" class="text-danger"></span>
-                        </div>
+                        <input asp-for="StoreApiKey" class="form-control" type="text" autocomplete="off" />
+                        <span asp-validation-for="StoreApiKey" class="text-danger"></span>
+                    </div>
                     <div class="form-group mt-3 pt-3 border-top border-light">
                         <div class="custom-control custom-switch">
                             <input asp-for="GetPurchasePriceFromApi" type="checkbox" class="custom-control-input" id="getPurchasePriceSwitch">
@@ -112,8 +112,8 @@
                             </small>
                         </div>
                     </div>
-                    </div>
                 </div>
+            </div>
             <div class="form-group mt-3 pt-3 border-top border-light">
                 <div class="custom-control custom-switch">
                     <input asp-for="IsStorePriceBridgeActive" type="checkbox" class="custom-control-input" id="storePriceBridgeSwitch">
@@ -125,509 +125,627 @@
                     </small>
                 </div>
             </div>
-                <h6 class="text-secondary mb-3"><i class="fas fa-file-code"></i> Pliki XML (Feed Produktowy)</h6>
-                <div class="form-row">
-                    <div class="form-group col-md-6">
-                        <label asp-for="ProductMapXmlUrl">URL pliku XML (Ceneo)</label>
-                        <input asp-for="ProductMapXmlUrl" class="form-control" placeholder="Adres do pliku XML z produktami" autocomplete="off" />
-                        <span asp-validation-for="ProductMapXmlUrl" class="text-danger"></span>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label asp-for="ProductMapXmlUrlGoogle">URL pliku XML (Google)</label>
-                        <input asp-for="ProductMapXmlUrlGoogle" class="form-control" placeholder="Adres do pliku XML dla Google" autocomplete="off" />
-                        <span asp-validation-for="ProductMapXmlUrlGoogle" class="text-danger"></span>
-                    </div>
+            <h6 class="text-secondary mb-3"><i class="fas fa-file-code"></i> Pliki XML (Feed Produktowy)</h6>
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label asp-for="ProductMapXmlUrl">URL pliku XML (Ceneo)</label>
+                    <input asp-for="ProductMapXmlUrl" class="form-control" placeholder="Adres do pliku XML z produktami" autocomplete="off" />
+                    <span asp-validation-for="ProductMapXmlUrl" class="text-danger"></span>
+                </div>
+                <div class="form-group col-md-6">
+                    <label asp-for="ProductMapXmlUrlGoogle">URL pliku XML (Google)</label>
+                    <input asp-for="ProductMapXmlUrlGoogle" class="form-control" placeholder="Adres do pliku XML dla Google" autocomplete="off" />
+                    <span asp-validation-for="ProductMapXmlUrlGoogle" class="text-danger"></span>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="card">
-            <div class="card-header">
-                <h4>Integracje (Google, Ceneo, Allegro)</h4>
-            </div>
-            <div class="card-body">
-                <div class="form-row">
-                    <div class="form-group col-md-4">
-                        <label asp-for="StoreNameCeneo">Nazwa sklepu w Ceneo</label>
-                        <input asp-for="StoreNameCeneo" class="form-control" autocomplete="off" />
-                        <span asp-validation-for="StoreNameCeneo" class="text-danger"></span>
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label asp-for="StoreNameGoogle">Nazwa sklepu w Google</label>
-                        <input asp-for="StoreNameGoogle" class="form-control" autocomplete="off" />
-                        <span asp-validation-for="StoreNameGoogle" class="text-danger"></span>
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label asp-for="StoreNameAllegro">Nazwa sklepu w Allegro</label>
-                        <input asp-for="StoreNameAllegro" class="form-control" autocomplete="off" />
-                        <span asp-validation-for="StoreNameAllegro" class="text-danger"></span>
-                    </div>
+    <div class="card">
+        <div class="card-header">
+            <h4>Integracje (Google, Ceneo, Allegro)</h4>
+        </div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="form-group col-md-4">
+                    <label asp-for="StoreNameCeneo">Nazwa sklepu w Ceneo</label>
+                    <input asp-for="StoreNameCeneo" class="form-control" autocomplete="off" />
+                    <span asp-validation-for="StoreNameCeneo" class="text-danger"></span>
+                </div>
+                <div class="form-group col-md-4">
+                    <label asp-for="StoreNameGoogle">Nazwa sklepu w Google</label>
+                    <input asp-for="StoreNameGoogle" class="form-control" autocomplete="off" />
+                    <span asp-validation-for="StoreNameGoogle" class="text-danger"></span>
+                </div>
+                <div class="form-group col-md-4">
+                    <label asp-for="StoreNameAllegro">Nazwa sklepu w Allegro</label>
+                    <input asp-for="StoreNameAllegro" class="form-control" autocomplete="off" />
+                    <span asp-validation-for="StoreNameAllegro" class="text-danger"></span>
                 </div>
             </div>
         </div>
-        <div class="card" style="border: 1px solid #fd7e14;">
-            <div class="card-header" style="background-color: #fd7e14; color: white;">
-                <h4 class="mb-0"><i class="fas fa-stopwatch"></i> Limity produktów w interwałach</h4>
+    </div>
+    <div class="card" style="border: 1px solid #fd7e14;">
+        <div class="card-header" style="background-color: #fd7e14; color: white;">
+            <h4 class="mb-0"><i class="fas fa-stopwatch"></i> Limity produktów w interwałach</h4>
+        </div>
+        <div class="card-body">
+            <div class="alert" style="background-color: #fff3cd; border-left: 4px solid #fd7e14; color: #856404;">
+                <i class="fas fa-info-circle"></i> Ustaw, ile maksymalnie produktów ma być pobieranych w pojedynczym cyklu (interwale) dla tego sklepu. Wpisz <strong>0</strong>, aby wyłączyć limit.
             </div>
-            <div class="card-body">
-                <div class="alert" style="background-color: #fff3cd; border-left: 4px solid #fd7e14; color: #856404;">
-                    <i class="fas fa-info-circle"></i> Ustaw, ile maksymalnie produktów ma być pobieranych w pojedynczym cyklu (interwale) dla tego sklepu. Wpisz <strong>0</strong>, aby wyłączyć limit.
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label asp-for="IntervalLimitOfProducts" class="font-weight-bold" style="color: #d96400;">
+                        Limit produktów w interwałach dla sklepu (porównywarki)
+                    </label>
+                    <input asp-for="IntervalLimitOfProducts" class="form-control" type="number" min="0" />
+                    <span asp-validation-for="IntervalLimitOfProducts" class="text-danger"></span>
                 </div>
-                <div class="form-row">
-                    <div class="form-group col-md-6">
-                        <label asp-for="IntervalLimitOfProducts" class="font-weight-bold" style="color: #d96400;">
-                            Limit produktów w interwałach dla sklepu (porównywarki)
+                <div class="form-group col-md-6">
+                    <label asp-for="AllegroIntervalLimitOfProducts" class="font-weight-bold" style="color: #d96400;">
+                        Limit produktów w interwałach dla sklepu (Allegro)
+                    </label>
+                    <input asp-for="AllegroIntervalLimitOfProducts" class="form-control" type="number" min="0" />
+                    <span asp-validation-for="AllegroIntervalLimitOfProducts" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h4>Plan i Pozostałe Ustawienia</h4>
+        </div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label asp-for="PlanId">Przypisany Plan</label>
+                    <select asp-for="PlanId" class="form-control" asp-items="ViewBag.Plans">
+                        <option value="">-- Wybierz Plan --</option>
+                    </select>
+                    <span asp-validation-for="PlanId" class="text-danger"></span>
+                </div>
+                <div class="form-group col-md-6">
+                    <label asp-for="DiscountPercentage">Procent rabatu (%)</label>
+                    <input asp-for="DiscountPercentage" class="form-control" type="number" step="0.01" />
+                    <span asp-validation-for="DiscountPercentage" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group col-md-4">
+                    <label asp-for="ProductsToScrap">Limit produktów (Porównywarki)</label>
+                    <input asp-for="ProductsToScrap" class="form-control" type="number" />
+                    <span asp-validation-for="ProductsToScrap" class="text-danger"></span>
+                </div>
+                <div class="form-group col-md-4">
+                    <label asp-for="ProductsToScrapAllegro">Limit produktów (Allegro)</label>
+                    <input asp-for="ProductsToScrapAllegro" class="form-control" type="number" />
+                    <span asp-validation-for="ProductsToScrapAllegro" class="text-danger"></span>
+                </div>
+                <div class="form-group col-md-4">
+                    <label asp-for="RemainingDays">Pozostało zeskrobań</label>
+                    <input asp-for="RemainingDays" class="form-control" type="number" />
+                    <span asp-validation-for="RemainingDays" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card border-warning">
+        <div class="card-header bg-warning text-dark">
+            <h4 class="mb-0">👑 Zarządzanie Abonamentem (Finanse)</h4>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Te ustawienia kontrolują automatyczne fakturowanie i przyznawanie dni.
+            </div>
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <div class="custom-control custom-switch mt-4">
+                        <input asp-for="IsPayingCustomer" type="checkbox" class="custom-control-input" id="payingCustomerSwitch">
+                        <label class="custom-control-label font-weight-bold" for="payingCustomerSwitch">
+                            Czy jest płacącym klientem?
                         </label>
-                        <input asp-for="IntervalLimitOfProducts" class="form-control" type="number" min="0" />
-                        <span asp-validation-for="IntervalLimitOfProducts" class="text-danger"></span>
+                        <small class="form-text text-muted">
+                            Zaznacz, jeśli klient ma być objęty automatycznym systemem rozliczeń i fakturowania.
+                        </small>
                     </div>
-                    <div class="form-group col-md-6">
-                        <label asp-for="AllegroIntervalLimitOfProducts" class="font-weight-bold" style="color: #d96400;">
-                            Limit produktów w interwałach dla sklepu (Allegro)
-                        </label>
-                        <input asp-for="AllegroIntervalLimitOfProducts" class="form-control" type="number" min="0" />
-                        <span asp-validation-for="AllegroIntervalLimitOfProducts" class="text-danger"></span>
-                    </div>
+                </div>
+                <div class="form-group col-md-6">
+                    <label asp-for="SubscriptionStartDate" class="font-weight-bold">Data rozpoczęcia subskrypcji</label>
+                    <input asp-for="SubscriptionStartDate" class="form-control" type="date" />
+                    <span asp-validation-for="SubscriptionStartDate" class="text-danger"></span>
+                    <small class="form-text text-muted">
+                        Data, od której system zacznie naliczać opłaty/odejmować dni (jeśli klient jest płacący).
+                    </small>
                 </div>
             </div>
         </div>
-
-        <div class="card">
-            <div class="card-header">
-                <h4>Plan i Pozostałe Ustawienia</h4>
-            </div>
-            <div class="card-body">
-                <div class="form-row">
-                    <div class="form-group col-md-6">
-                        <label asp-for="PlanId">Przypisany Plan</label>
-                        <select asp-for="PlanId" class="form-control" asp-items="ViewBag.Plans">
-                            <option value="">-- Wybierz Plan --</option>
-                        </select>
-                        <span asp-validation-for="PlanId" class="text-danger"></span>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label asp-for="DiscountPercentage">Procent rabatu (%)</label>
-                        <input asp-for="DiscountPercentage" class="form-control" type="number" step="0.01" />
-                        <span asp-validation-for="DiscountPercentage" class="text-danger"></span>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group col-md-4">
-                        <label asp-for="ProductsToScrap">Limit produktów (Porównywarki)</label>
-                        <input asp-for="ProductsToScrap" class="form-control" type="number" />
-                        <span asp-validation-for="ProductsToScrap" class="text-danger"></span>
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label asp-for="ProductsToScrapAllegro">Limit produktów (Allegro)</label>
-                        <input asp-for="ProductsToScrapAllegro" class="form-control" type="number" />
-                        <span asp-validation-for="ProductsToScrapAllegro" class="text-danger"></span>
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label asp-for="RemainingDays">Pozostało zeskrobań</label>
-                        <input asp-for="RemainingDays" class="form-control" type="number" />
-                        <span asp-validation-for="RemainingDays" class="text-danger"></span>
-                    </div>
-                </div>
-            </div>
+    </div>
+    <div class="card border-info">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0"><i class="fas fa-file-invoice"></i> Dane do Faktury (Płatnik)</h4>
         </div>
-        <div class="card border-warning">
-            <div class="card-header bg-warning text-dark">
-                <h4 class="mb-0">👑 Zarządzanie Abonamentem (Finanse)</h4>
+        <div class="card-body">
+            <div class="alert alert-light border-info">
+                <small class="text-muted"><i class="fas fa-info-circle"></i> Pola te są opcjonalne. Wypełnij je tylko, jeśli chcesz wygenerować fakturę.</small>
             </div>
-            <div class="card-body">
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i> Te ustawienia kontrolują automatyczne fakturowanie i przyznawanie dni.
+
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label asp-for="PaymentData.CompanyName">Pełna nazwa firmy</label>
+                    <input asp-for="PaymentData.CompanyName" class="form-control" placeholder="Pełna nazwa firmy" autocomplete="off" />
+                    <span asp-validation-for="PaymentData.CompanyName" class="text-danger"></span>
                 </div>
-                <div class="form-row">
-                    <div class="form-group col-md-6">
-                        <div class="custom-control custom-switch mt-4">
-                            <input asp-for="IsPayingCustomer" type="checkbox" class="custom-control-input" id="payingCustomerSwitch">
-                                <label class="custom-control-label font-weight-bold" for="payingCustomerSwitch">
-                                    Czy jest płacącym klientem?
-                                </label>
-                                <small class="form-text text-muted">
-                                    Zaznacz, jeśli klient ma być objęty automatycznym systemem rozliczeń i fakturowania.
-                                </small>
-                            </div>
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label asp-for="SubscriptionStartDate" class="font-weight-bold">Data rozpoczęcia subskrypcji</label>
-                            <input asp-for="SubscriptionStartDate" class="form-control" type="date" />
-                            <span asp-validation-for="SubscriptionStartDate" class="text-danger"></span>
-                            <small class="form-text text-muted">
-                                Data, od której system zacznie naliczać opłaty/odejmować dni (jeśli klient jest płacący).
-                            </small>
-                        </div>
-                    </div>
+                <div class="form-group col-md-6">
+                    <label asp-for="PaymentData.NIP">NIP</label>
+                    <input asp-for="PaymentData.NIP"
+                           class="form-control"
+                           placeholder="Tylko cyfry (10 znaków)"
+                           maxlength="10"
+                           pattern="\d{10}"
+                           autocomplete="off"
+                           oninput="this.value = this.value.replace(/[^0-9]/g, '')" />
+                    <span asp-validation-for="PaymentData.NIP" class="text-danger"></span>
                 </div>
             </div>
-            <div class="card border-info">
-                <div class="card-header bg-info text-white">
-                    <h4 class="mb-0"><i class="fas fa-file-invoice"></i> Dane do Faktury (Płatnik)</h4>
+
+            <div class="form-group">
+                <label asp-for="PaymentData.Address">Ulica i numer</label>
+                <input asp-for="PaymentData.Address" class="form-control" placeholder="Ulica 1/2" autocomplete="off" />
+                <span asp-validation-for="PaymentData.Address" class="text-danger"></span>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group col-md-4">
+                    <label asp-for="PaymentData.PostalCode">Kod pocztowy</label>
+                    <input asp-for="PaymentData.PostalCode" class="form-control" placeholder="00-000" autocomplete="off" />
+                    <span asp-validation-for="PaymentData.PostalCode" class="text-danger"></span>
                 </div>
-                <div class="card-body">
-                    <div class="alert alert-light border-info">
-                        <small class="text-muted"><i class="fas fa-info-circle"></i> Pola te są opcjonalne. Wypełnij je tylko, jeśli chcesz wygenerować fakturę.</small>
-                    </div>
+                <div class="form-group col-md-8">
+                    <label asp-for="PaymentData.City">Miasto</label>
+                    <input asp-for="PaymentData.City" class="form-control" placeholder="Miasto" autocomplete="off" />
+                    <span asp-validation-for="PaymentData.City" class="text-danger"></span>
+                </div>
+            </div>
 
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label asp-for="PaymentData.CompanyName">Pełna nazwa firmy</label>
-                            <input asp-for="PaymentData.CompanyName" class="form-control" placeholder="Pełna nazwa firmy" autocomplete="off" />
-                            <span asp-validation-for="PaymentData.CompanyName" class="text-danger"></span>
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label asp-for="PaymentData.NIP">NIP</label>
-                            <input asp-for="PaymentData.NIP"
-                                   class="form-control"
-                                   placeholder="Tylko cyfry (10 znaków)"
-                                   maxlength="10"
-                                   pattern="\d{10}"
-                                   autocomplete="off"
-                                   oninput="this.value = this.value.replace(/[^0-9]/g, '')" />
-                            <span asp-validation-for="PaymentData.NIP" class="text-danger"></span>
-                        </div>
-                    </div>
+            <hr />
 
-                    <div class="form-group">
-                        <label asp-for="PaymentData.Address">Ulica i numer</label>
-                        <input asp-for="PaymentData.Address" class="form-control" placeholder="Ulica 1/2" autocomplete="off" />
-                        <span asp-validation-for="PaymentData.Address" class="text-danger"></span>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group col-md-4">
-                            <label asp-for="PaymentData.PostalCode">Kod pocztowy</label>
-                            <input asp-for="PaymentData.PostalCode" class="form-control" placeholder="00-000" autocomplete="off" />
-                            <span asp-validation-for="PaymentData.PostalCode" class="text-danger"></span>
-                        </div>
-                        <div class="form-group col-md-8">
-                            <label asp-for="PaymentData.City">Miasto</label>
-                            <input asp-for="PaymentData.City" class="form-control" placeholder="Miasto" autocomplete="off" />
-                            <span asp-validation-for="PaymentData.City" class="text-danger"></span>
-                        </div>
-                    </div>
-
-                    <hr />
-
-                    <div class="form-row align-items-center">
-                        <div class="form-group col-md-8">
-                            <label asp-for="PaymentData.InvoiceAutoMail">E-mail do wysyłki faktur</label>
+            <div class="form-row align-items-center">
+                <div class="form-group col-md-8">
+                    <label asp-for="PaymentData.InvoiceAutoMail">E-mail do wysyłki faktur</label>
                     <input asp-for="PaymentData.InvoiceAutoMail" id="invoiceEmailInput" class="form-control" placeholder="faktury@firma.pl" type="email" autocomplete="new-email" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" />
-                            <span asp-validation-for="PaymentData.InvoiceAutoMail" class="text-danger"></span>
-                        </div>
-                        <div class="form-group col-md-4">
-                            <div class="custom-control custom-switch mt-4">
-                                <input asp-for="PaymentData.InvoiceAutoMailSend" type="checkbox" class="custom-control-input" id="autoInvoiceSwitch">
-                                    <label class="custom-control-label" for="autoInvoiceSwitch">Wysyłać automatycznie?</label>
-                                </div>
-                            </div>
-                        </div>
+                    <span asp-validation-for="PaymentData.InvoiceAutoMail" class="text-danger"></span>
+                </div>
+                <div class="form-group col-md-4">
+                    <div class="custom-control custom-switch mt-4">
+                        <input asp-for="PaymentData.InvoiceAutoMailSend" type="checkbox" class="custom-control-input" id="autoInvoiceSwitch">
+                        <label class="custom-control-label" for="autoInvoiceSwitch">Wysyłać automatycznie?</label>
                     </div>
+                </div>
+            </div>
+        </div>
+        <hr />
+        <div class="form-group mb-0">
+            <div class="custom-control custom-switch">
+                <input asp-for="UseKSeF" type="checkbox" class="custom-control-input" id="useKsefSwitch">
+                <label class="custom-control-label font-weight-bold text-primary" for="useKsefSwitch">
+                    <i class="fas fa-university"></i> Wystawiaj faktury w systemie KSeF
+                </label>
+                <small class="form-text text-muted">
+                    Gdy ta opcja jest aktywna, faktury wygenerowane dla tego sklepu będą przesyłane do Krajowego Systemu e-Faktur (KSeF).
+                </small>
+            </div>
+        </div>
+        <hr class="border-warning my-4" />
+
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="text-dark"> Ręczne generowanie odnowienia</h4>
+                <p class="text-muted small mb-0">
+                    Ta akcja natychmiast wystawi nową fakturę zgodnie z przypisanym planem,
+                    <strong>doda dni subskrypcji</strong> do konta sklepu i odświeży limity produktów.
+                    Faktura <strong>nie zostanie</strong> automatycznie wysłana mailem do klienta.
+                </p>
+            </div>
+            <div class="col-md-4 text-right">
+                <button type="submit"
+                        asp-action="GenerateInvoiceManually"
+                        asp-route-storeId="@Model.StoreId"
+                        formnovalidate
+                        class="btn btn-warning font-weight-bold shadow-sm"
+                        onclick="return confirm('Czy na pewno chcesz wystawić nową fakturę i dodać dni? Ta operacja jest nieodwracalna.');">
+                    <i class="fas fa-plus-circle"></i> Wystaw FV i Dodaj Dni
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <h4>Aktywacja Modułów</h4>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h4>Aktywacja Modułów</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Zaznacz, które moduły i źródła danych mają być aktywne dla tego sklepu.</p>
+                <div class="form-group">
+                    <div class="form-check">
+                        <input asp-for="OnCeneo" class="form-check-input" type="checkbox" />
+                        <label asp-for="OnCeneo" class="form-check-label">Ceneo aktywne</label>
+                    </div>
+                    <div class="form-check">
+                        <input asp-for="OnGoogle" class="form-check-input" type="checkbox" />
+                        <label asp-for="OnGoogle" class="form-check-label">Google aktywne</label>
+                    </div>
+                    <div class="form-check">
+                        <input asp-for="OnAllegro" class="form-check-input" type="checkbox" />
+                        <label asp-for="OnAllegro" class="form-check-label">Allegro aktywne</label>
+                    </div>
+
                     <hr />
-                    <div class="form-group mb-0">
+                    <h6 class="text-primary"><i class="fas fa-file-import"></i> Feed XML (Ceny)</h6>
+
+                    <div class="form-check">
+                        <input asp-for="UseGoogleXMLFeedPrice" class="form-check-input" type="checkbox" />
+                        <label asp-for="UseGoogleXMLFeedPrice" class="form-check-label font-weight-bold">Importuj ceny z pliku Google XML (ostrzykiwanie)</label>
+                    </div>
+
+                    <div class="form-check">
+                        <input asp-for="UseCeneoXMLFeedPrice" class="form-check-input" type="checkbox" />
+                        <label asp-for="UseCeneoXMLFeedPrice" class="form-check-label font-weight-bold">Importuj ceny z pliku Ceneo XML (ostrzykiwanie)</label>
+                    </div>
+
+                    <hr />
+                    <h6 class="text-primary"><i class="fab fa-google"></i> Zaawansowane Opcje Scrapera Google</h6>
+                    <div class="alert alert-light border p-2 mb-2">
+                        <small class="text-muted">Te opcje wpływają na sposób budowania linków i metodę pobierania ofert z Google Shopping.</small>
+                    </div>
+
+                    <div class="form-check mb-2">
+                        <input asp-for="UseGPID" class="form-check-input" type="checkbox" />
+                        <label asp-for="UseGPID" class="form-check-label font-weight-bold">Używaj parametru GPID (Google Product ID)</label>
+                        <small class="d-block text-muted">Wymusza użycie parametru <code>gpcid</code> w linku zapytania, jeśli produkt posiada zdefiniowany GID.</small>
+                    </div>
+
+                    <div class="form-check">
+                        <input asp-for="UseWRGA" class="form-check-input" type="checkbox" />
+                        <label asp-for="UseWRGA" class="form-check-label font-weight-bold">Włącz tryb Smart Q (WRGA)</label>
+                        <small class="d-block text-muted">Aktywuje inteligentne dopytywanie po tytule produktu w przypadku braku wyników w głównym zapytaniu.</small>
+                    </div>
+                    <div class="form-check mt-3 pt-3 border-top">
+                        <input asp-for="CollectGoogleStoreLinks" class="form-check-input" type="checkbox" />
+                        <label asp-for="CollectGoogleStoreLinks" class="form-check-label font-weight-bold text-danger">
+                            <i class="fas fa-link"></i> Zbieraj bezpośrednie linki do sklepów (Extract Store URLs)
+                        </label>
+                                  
+                    </div>
+                    <div class="form-check mt-3 pt-3 border-top">
+                        <input asp-for="UseColorVariantSearch" class="form-check-input" type="checkbox" />
+                        <label asp-for="UseColorVariantSearch" class="form-check-label font-weight-bold text-success">
+                            <i class="fas fa-palette"></i> Używaj danych o kolorach (Warianty kolorystyczne)
+                        </label>
+                        <small class="d-block text-muted">Aktywuje pobieranie i uwzględnianie danych o kolorach podczas wyszukiwania w Google Shopping.</small>
+                    </div>
+                    <div class="form-check mt-3">
+                        <input asp-for="GoogleGetTitle" class="form-check-input" type="checkbox" />
+                        <label asp-for="GoogleGetTitle" class="form-check-label font-weight-bold">
+                            Pobieraj tytuł z Google
+                        </label>
+                        <small class="d-block text-muted">Bot będzie próbował zaciągnąć oryginalną nazwę produktu ze strony Google.</small>
+                    </div>
+
+                    <div class="form-group mt-3 mb-2" style="max-width: 250px;">
+                        <label asp-for="GoogleCountryCode" class="font-weight-bold mb-1">Kod kraju Google</label>
+                        <input asp-for="GoogleCountryCode" class="form-control form-control-sm" placeholder="np. pl, de, uk" maxlength="2" />
+                        <span asp-validation-for="GoogleCountryCode" class="text-danger"></span>
+                        <small class="form-text text-muted">Dwuliterowy kod (domyślnie <strong>pl</strong>).</small>
+                    </div>
+
+                    <div class="form-check mt-3 pt-3 border-top">
+                        <input asp-for="UseCalculationEnginePerKG" class="form-check-input" type="checkbox" />
+                        <label asp-for="UseCalculationEnginePerKG" class="form-check-label font-weight-bold text-info">
+                            <i class="fas fa-balance-scale"></i> Włącz kalkulację Per KG (Calculation Engine)
+                        </label>
+                        <small class="d-block text-muted">Aktywuje silnik przeliczania cen dla produktów sprzedawanych na kilogramy.</small>
+                    </div>
+                   
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ═══════════════════════════════════════════════════════════════ *@
+    @* ZAAWANSOWANA INTEGRACJA ALLEGRO — z diagnostyką i testem      *@
+    @* ═══════════════════════════════════════════════════════════════ *@
+    <div class="card">
+        <div class="card-header">
+            <h4>Zaawansowana Integracja Allegro</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Ustawienia Funkcjonalne</h5>
+                    <hr />
+                    <div class="form-group">
                         <div class="custom-control custom-switch">
-                            <input asp-for="UseKSeF" type="checkbox" class="custom-control-input" id="useKsefSwitch">
-                            <label class="custom-control-label font-weight-bold text-primary" for="useKsefSwitch">
-                                <i class="fas fa-university"></i> Wystawiaj faktury w systemie KSeF
+                            <input asp-for="IsAllegroPriceBridgeActive" type="checkbox" class="custom-control-input" id="allegroBridgeSwitch">
+                            <label class="custom-control-label font-weight-bold" for="allegroBridgeSwitch">
+                                Aktywny Allegro Price Bridge (Most Cenowy)
                             </label>
                             <small class="form-text text-muted">
-                                Gdy ta opcja jest aktywna, faktury wygenerowane dla tego sklepu będą przesyłane do Krajowego Systemu e-Faktur (KSeF).
+                                Włącza możliwość automatycznej zmiany cen ofert poprzez API Allegro.
                             </small>
                         </div>
                     </div>
-                    <hr class="border-warning my-4" />
-
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h4 class="text-dark"> Ręczne generowanie odnowienia</h4>
-                            <p class="text-muted small mb-0">
-                                Ta akcja natychmiast wystawi nową fakturę zgodnie z przypisanym planem,
-                                <strong>doda dni subskrypcji</strong> do konta sklepu i odświeży limity produktów.
-                                Faktura <strong>nie zostanie</strong> automatycznie wysłana mailem do klienta.
-                            </p>
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input asp-for="FetchExtendedAllegroData" type="checkbox" class="custom-control-input" id="allegroDataSwitch">
+                            <label class="custom-control-label" for="allegroDataSwitch">
+                                @Html.DisplayNameFor(m => m.FetchExtendedAllegroData)
+                            </label>
+                            <small class="form-text text-muted">
+                                Pobieraj dodatkowe dane o ofertach bezpośrednio z API Allegro.
+                            </small>
                         </div>
-                        <div class="col-md-4 text-right">
-                            <button type="submit"
-                                    asp-action="GenerateInvoiceManually"
-                                    asp-route-storeId="@Model.StoreId"
-                                    formnovalidate
-                                    class="btn btn-warning font-weight-bold shadow-sm"
-                                    onclick="return confirm('Czy na pewno chcesz wystawić nową fakturę i dodać dni? Ta operacja jest nieodwracalna.');">
-                                <i class="fas fa-plus-circle"></i> Wystaw FV i Dodaj Dni
-                            </button>
+                    </div>
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input asp-for="GetAllegroSkuByApi" type="checkbox" class="custom-control-input" id="allegroSkuSwitch">
+                            <label class="custom-control-label font-weight-bold" for="allegroSkuSwitch">
+                                Pobieraj i aktualizuj Sygnaturę (SKU) z Allegro
+                            </label>
+                            <small class="form-text text-muted">
+                                Jeśli ta opcja jest włączona, system nadpisze wewnętrzne SKU w bazie danych na podstawie Sygnatury pobranej bezpośrednio z oferty Allegro.
+                            </small>
                         </div>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="card-header">
-                        <h4>Aktywacja Modułów</h4>
+
+                <div class="col-md-6">
+                    <h5>
+                        Status Integracji Allegro
+                        @if (Model.IsAllegroTokenActive)
+                        {
+                            <span class="badge badge-success ml-2">AKTYWNY</span>
+                        }
+                        else if (!string.IsNullOrEmpty(Model.AllegroRefreshToken))
+                        {
+                            <span class="badge badge-warning ml-2">NIEAKTYWNY (token dostępny)</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-danger ml-2">BRAK TOKENA</span>
+                        }
+                    </h5>
+                    <hr />
+
+                    @* ═══ Diagnostyka tokena ═══ *@
+                    <div class="mb-3 p-2 rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; font-size: 0.85rem;">
+                        <table class="table table-sm table-borderless mb-0" style="font-size: 0.85rem;">
+                            <tr>
+                                <td class="text-muted" style="width:160px;">Refresh Token:</td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(Model.AllegroRefreshToken))
+                                    {
+                                        <span class="text-success"><i class="fas fa-check-circle"></i> Obecny (@Model.AllegroRefreshToken.Length znaków)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-danger"><i class="fas fa-times-circle"></i> Brak</span>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Access Token:</td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(Model.AllegroApiToken))
+                                    {
+                                        <span class="text-success"><i class="fas fa-check-circle"></i> Obecny</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary"><i class="fas fa-minus-circle"></i> Brak (wygeneruje się automatycznie)</span>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Wygasa:</td>
+                                <td>
+                                    @if (Model.AllegroTokenExpiresAt.HasValue)
+                                    {
+                                        bool isExpired = Model.AllegroTokenExpiresAt < DateTime.Now;
+                                        <span class="@(isExpired ? "text-danger" : "text-success")">
+                                            <i class="fas fa-clock"></i>
+                                            @Model.AllegroTokenExpiresAt.Value.ToString("yyyy-MM-dd HH:mm")
+                                            @if (isExpired)
+                                            {
+                                                <span>(Wygasł — odświeży się automatycznie)</span>
+                                            }
+                                            else
+                                            {
+                                                var minutesLeft = (Model.AllegroTokenExpiresAt.Value - DateTime.Now).TotalMinutes;
+                                                <span>(za @((int)minutesLeft) min)</span>
+                                            }
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">—</span>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">IsAllegroTokenActive:</td>
+                                <td>
+                                    @if (Model.IsAllegroTokenActive)
+                                    {
+                                        <span class="text-success font-weight-bold">true</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-danger font-weight-bold">false</span>
+                                        @if (!string.IsNullOrEmpty(Model.AllegroRefreshToken))
+                                        {
+                                            <span class="text-muted ml-2">(system spróbuje odświeżyć przy następnym użyciu)</span>
+                                        }
+                                    }
+                                </td>
+                            </tr>
+                        </table>
                     </div>
-                    <div class="card">
-                        <div class="card-header">
-                            <h4>Aktywacja Modułów</h4>
+
+                    @* ═══ Przycisk testowania tokena ═══ *@
+                    <div class="mb-3">
+                        <button type="button" id="btnTestAllegroToken" class="btn btn-outline-primary btn-sm" onclick="testAllegroToken(@Model.StoreId)">
+                            <i class="fas fa-plug"></i> Testuj połączenie z Allegro
+                        </button>
+                        <span id="tokenTestSpinner" style="display:none;" class="ml-2">
+                            <i class="fas fa-spinner fa-spin"></i> Testuję...
+                        </span>
+                    </div>
+
+                    @* ═══ Wynik testu ═══ *@
+                    <div id="tokenTestResult" style="display:none;" class="mb-3"></div>
+
+                    @* ═══ Refresh Token input ═══ *@
+                    <div class="form-group">
+                        <label asp-for="AllegroRefreshToken" class="font-weight-bold text-primary">
+                            Refresh Token (Klucz Główny)
+                        </label>
+                        <div class="alert alert-light border p-2 mb-2">
+                            <small class="text-muted">
+                                <i class="fas fa-key"></i> Wklej tutaj długi token wygenerowany przez Device Flow.
+                                System automatycznie wyczyści go ze spacji i enterów.
+                            </small>
                         </div>
-                        <div class="card-body">
-                            <p class="text-muted">Zaznacz, które moduły i źródła danych mają być aktywne dla tego sklepu.</p>
-                            <div class="form-group">
-                                <div class="form-check">
-                                    <input asp-for="OnCeneo" class="form-check-input" type="checkbox" />
-                                    <label asp-for="OnCeneo" class="form-check-label">Ceneo aktywne</label>
-                                </div>
-                                <div class="form-check">
-                                    <input asp-for="OnGoogle" class="form-check-input" type="checkbox" />
-                                    <label asp-for="OnGoogle" class="form-check-label">Google aktywne</label>
-                                </div>
-                                <div class="form-check">
-                                    <input asp-for="OnAllegro" class="form-check-input" type="checkbox" />
-                                    <label asp-for="OnAllegro" class="form-check-label">Allegro aktywne</label>
-                                </div>
-
-                                <hr />
-                                <h6 class="text-primary"><i class="fas fa-file-import"></i> Feed XML (Ceny)</h6>
-
-                                <div class="form-check">
-                                    <input asp-for="UseGoogleXMLFeedPrice" class="form-check-input" type="checkbox" />
-                                    <label asp-for="UseGoogleXMLFeedPrice" class="form-check-label font-weight-bold">Importuj ceny z pliku Google XML (ostrzykiwanie)</label>
-                                </div>
-
-                                <div class="form-check">
-                                    <input asp-for="UseCeneoXMLFeedPrice" class="form-check-input" type="checkbox" />
-                                    <label asp-for="UseCeneoXMLFeedPrice" class="form-check-label font-weight-bold">Importuj ceny z pliku Ceneo XML (ostrzykiwanie)</label>
-                                </div>
-
-                                <hr />
-                                <h6 class="text-primary"><i class="fab fa-google"></i> Zaawansowane Opcje Scrapera Google</h6>
-                                <div class="alert alert-light border p-2 mb-2">
-                                    <small class="text-muted">Te opcje wpływają na sposób budowania linków i metodę pobierania ofert z Google Shopping.</small>
-                                </div>
-
-                                <div class="form-check mb-2">
-                                    <input asp-for="UseGPID" class="form-check-input" type="checkbox" />
-                                    <label asp-for="UseGPID" class="form-check-label font-weight-bold">Używaj parametru GPID (Google Product ID)</label>
-                                    <small class="d-block text-muted">Wymusza użycie parametru <code>gpcid</code> w linku zapytania, jeśli produkt posiada zdefiniowany GID.</small>
-                                </div>
-
-                                <div class="form-check">
-                                    <input asp-for="UseWRGA" class="form-check-input" type="checkbox" />
-                                    <label asp-for="UseWRGA" class="form-check-label font-weight-bold">Włącz tryb Smart Q (WRGA)</label>
-                                    <small class="d-block text-muted">Aktywuje inteligentne dopytywanie po tytule produktu w przypadku braku wyników w głównym zapytaniu.</small>
-                                </div>
-                                <div class="form-check mt-3 pt-3 border-top">
-                                    <input asp-for="CollectGoogleStoreLinks" class="form-check-input" type="checkbox" />
-                                    <label asp-for="CollectGoogleStoreLinks" class="form-check-label font-weight-bold text-danger">
-                                        <i class="fas fa-link"></i> Zbieraj bezpośrednie linki do sklepów (Extract Store URLs)
-                                    </label>
-                                  
-                                </div>
-                                <div class="form-check mt-3 pt-3 border-top">
-                                    <input asp-for="UseColorVariantSearch" class="form-check-input" type="checkbox" />
-                                    <label asp-for="UseColorVariantSearch" class="form-check-label font-weight-bold text-success">
-                                        <i class="fas fa-palette"></i> Używaj danych o kolorach (Warianty kolorystyczne)
-                                    </label>
-                                    <small class="d-block text-muted">Aktywuje pobieranie i uwzględnianie danych o kolorach podczas wyszukiwania w Google Shopping.</small>
-                                </div>
-                                <div class="form-check mt-3">
-                                    <input asp-for="GoogleGetTitle" class="form-check-input" type="checkbox" />
-                                    <label asp-for="GoogleGetTitle" class="form-check-label font-weight-bold">
-                                        Pobieraj tytuł z Google
-                                    </label>
-                                    <small class="d-block text-muted">Bot będzie próbował zaciągnąć oryginalną nazwę produktu ze strony Google.</small>
-                                </div>
-
-                                <div class="form-group mt-3 mb-2" style="max-width: 250px;">
-                                    <label asp-for="GoogleCountryCode" class="font-weight-bold mb-1">Kod kraju Google</label>
-                                    <input asp-for="GoogleCountryCode" class="form-control form-control-sm" placeholder="np. pl, de, uk" maxlength="2" />
-                                    <span asp-validation-for="GoogleCountryCode" class="text-danger"></span>
-                                    <small class="form-text text-muted">Dwuliterowy kod (domyślnie <strong>pl</strong>).</small>
-                                </div>
-
-                                <div class="form-check mt-3 pt-3 border-top">
-                                    <input asp-for="UseCalculationEnginePerKG" class="form-check-input" type="checkbox" />
-                                    <label asp-for="UseCalculationEnginePerKG" class="form-check-label font-weight-bold text-info">
-                                        <i class="fas fa-balance-scale"></i> Włącz kalkulację Per KG (Calculation Engine)
-                                    </label>
-                                    <small class="d-block text-muted">Aktywuje silnik przeliczania cen dla produktów sprzedawanych na kilogramy.</small>
-                                </div>
-                   
-                            </div>
-                        </div>
+                        <textarea asp-for="AllegroRefreshToken"
+                                  class="form-control"
+                                  rows="4"
+                                  placeholder="eyJhbGciOiJSUzI1NiIs..."
+                                  style="font-family: monospace; font-size: 0.85rem;" autocomplete="off"></textarea>
+                        <span asp-validation-for="AllegroRefreshToken" class="text-danger"></span>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="card-header">
-                        <h4>Zaawansowana Integracja Allegro</h4>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h5>Ustawienia Funkcjonalne</h5>
-                                <hr />
-                                <div class="form-group">
-                                    <div class="custom-control custom-switch">
-                                        <input asp-for="IsAllegroPriceBridgeActive" type="checkbox" class="custom-control-input" id="allegroBridgeSwitch">
-                                            <label class="custom-control-label font-weight-bold" for="allegroBridgeSwitch">
-                                                Aktywny Allegro Price Bridge (Most Cenowy)
-                                            </label>
-                                            <small class="form-text text-muted">
-                                                Włącza możliwość automatycznej zmiany cen ofert poprzez API Allegro.
-                                            </small>
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <div class="custom-control custom-switch">
-                                            <input asp-for="FetchExtendedAllegroData" type="checkbox" class="custom-control-input" id="allegroDataSwitch">
-                                                <label class="custom-control-label" for="allegroDataSwitch">
-                                                    @Html.DisplayNameFor(m => m.FetchExtendedAllegroData)
-                                                </label>
-                                                <small class="form-text text-muted">
-                                                    Pobieraj dodatkowe dane o ofertach bezpośrednio z API Allegro.
-                                                </small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <div class="custom-control custom-switch">
-                                            <input asp-for="GetAllegroSkuByApi" type="checkbox" class="custom-control-input" id="allegroSkuSwitch">
-                                            <label class="custom-control-label font-weight-bold" for="allegroSkuSwitch">
-                                                Pobieraj i aktualizuj Sygnaturę (SKU) z Allegro
-                                            </label>
-                                            <small class="form-text text-muted">
-                                                Jeśli ta opcja jest włączona, system nadpisze wewnętrzne SKU w bazie danych na podstawie Sygnatury pobranej bezpośrednio z oferty Allegro.
-                                            </small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <h5>
-                                            Status Integracji Allegro
-                                            @if (Model.IsAllegroTokenActive)
-                                            {
-                                                <span class="badge badge-success ml-2">AKTYWNY</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge badge-danger ml-2">NIEAKTYWNY</span>
-                                            }
-                                        </h5>
-                                        <hr />
+            </div>
+        </div>
+    </div>
 
-                                        <div class="form-group">
-                                            <label asp-for="AllegroRefreshToken" class="font-weight-bold text-primary">
-                                                Refresh Token (Klucz Główny)
-                                            </label>
+    <div class="form-group mt-4">
+        <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
+        <a asp-action="Index" class="btn btn-secondary">Anuluj</a>
+    </div>
 
-                                            <div class="alert alert-light border p-2 mb-2">
-                                                <small class="text-muted">
-                                                    <i class="fas fa-key"></i> Wklej tutaj długi token wygenerowany przez Device Flow.
-                                                    System automatycznie wyczyści go ze spacji i enterów.
-                                                </small>
-                                            </div>
+</form>
 
-                                            <textarea asp-for="AllegroRefreshToken"
-                                                      class="form-control"
-                                                      rows="4"
-                                                      placeholder="eyJhbGciOiJSUzI1NiIs..."
-                                                      style="font-family: monospace; font-size: 0.85rem;" autocomplete="off"></textarea>
-                                            <span asp-validation-for="AllegroRefreshToken" class="text-danger"></span>
-                                        </div>
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
 
-                                        <div class="form-group">
-                                            <label class="text-secondary">Obecna Sesja (Access Token)</label>
+    <script>
+        $(document).ready(function () {
 
-                                            @if (!string.IsNullOrEmpty(Model.AllegroApiToken))
-                                            {
-                                                <div class="input-group">
-                                                    <input type="text"
-                                                           class="form-control bg-light text-muted"
-                                                           value="@(Model.AllegroApiToken.Substring(0, Math.Min(20, Model.AllegroApiToken.Length)) + "...")"
-                                                           readonly
-                                                           title="Token jest zarządzany automatycznie przez system" />
+            const apiSwitch = $('#fetchApiSwitch');
+            const apiSection = $('#apiConfigurationSection');
 
-                                                    <div class="input-group-append">
-                                                        <span class="input-group-text">
-                                                            <i class="fas fa-robot"></i> Auto
-                                                        </span>
-                                                    </div>
-                                                </div>
+            function toggleApiSection() {
+                if (apiSwitch.is(':checked')) {
+                    apiSection.slideDown();
+                } else {
+                    apiSection.slideUp();
+                }
+            }
 
-                                                @if (Model.AllegroTokenExpiresAt.HasValue)
-                                                {
-                                                    <div class="mt-2">
-                                                        <small class="font-weight-bold @(Model.AllegroTokenExpiresAt < DateTime.Now ? "text-danger" : "text-success")">
-                                                            <i class="fas fa-clock"></i>
-                                                            Wygasa: @Model.AllegroTokenExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss")
-                                                            (@(Model.AllegroTokenExpiresAt < DateTime.Now ? "Wygasł" : "Aktywny"))
-                                                        </small>
-                                                    </div>
-                                                }
-                                            }
-                                            else
-                                            {
-                                                <div class="alert alert-warning py-1 px-2">
-                                                    <small>Brak aktywnej sesji. System wygeneruje ją przy pierwszym użyciu Refresh Tokena.</small>
-                                                </div>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            toggleApiSection();
 
-                        <div class="form-group mt-4">
-                            <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
-                            <a asp-action="Index" class="btn btn-secondary">Anuluj</a>
-                        </div>
+            apiSwitch.on('change', function () {
+                toggleApiSection();
+            });
 
-                    </form>
+            $('#clearTokenBtn').on('click', function () {
+                if (confirm('Czy na pewno chcesz wyczyścić pole tokenu? Musisz zapisać zmiany, aby zatwierdzić usunięcie.')) {
+                    $('#allegroTokenInput').val('').trigger('change');
+                }
+            });
 
-                    @section Scripts {
-                        @await Html.PartialAsync("_ValidationScriptsPartial")
+            const emailInput = $('#invoiceEmailInput');
+            const autoSendSwitch = $('#autoInvoiceSwitch');
 
-                        <script>
+            function toggleAutoMailState() {
+                const emailVal = emailInput.val();
+                if (!emailVal || emailVal.trim() === "") {
+                    autoSendSwitch.prop('checked', false);
+                    autoSendSwitch.prop('disabled', true);
+                } else {
+                    autoSendSwitch.prop('disabled', false);
+                }
+            }
 
-                            $(document).ready(function () {
+            toggleAutoMailState();
 
-                                const apiSwitch = $('#fetchApiSwitch');
-                                const apiSection = $('#apiConfigurationSection');
+            emailInput.on('input', function () {
+                toggleAutoMailState();
+            });
+        });
 
-                                function toggleApiSection() {
-                                    if (apiSwitch.is(':checked')) {
-                                        apiSection.slideDown();
-                                    } else {
-                                        apiSection.slideUp();
-                                    }
-                                }
+        function testAllegroToken(storeId) {
+            const btn = document.getElementById('btnTestAllegroToken');
+            const spinner = document.getElementById('tokenTestSpinner');
+            const resultDiv = document.getElementById('tokenTestResult');
 
-                                toggleApiSection();
+            btn.disabled = true;
+            spinner.style.display = 'inline';
+            resultDiv.style.display = 'none';
 
-                                apiSwitch.on('change', function () {
-                                    toggleApiSection();
-                                });
+            fetch('@Url.Action("TestAllegroToken", "Store")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                },
+                body: 'storeId=' + storeId
+            })
+            .then(r => r.json())
+            .then(data => {
+                let html = '';
+                const alertClass = data.success ? 'alert-success' : 'alert-danger';
+                const icon = data.success ? 'fa-check-circle' : 'fa-exclamation-triangle';
 
-                                $('#clearTokenBtn').on('click', function () {
-                                    if (confirm('Czy na pewno chcesz wyczyścić pole tokenu? Musisz zapisać zmiany, aby zatwierdzić usunięcie.')) {
-                                        $('#allegroTokenInput').val('').trigger('change');
-                                    }
-                                });
+                html += `<div class="alert ${alertClass} py-2 px-3 mb-0" style="font-size: 0.85rem;">`;
+                html += `<div class="font-weight-bold mb-1"><i class="fas ${icon}"></i> ${data.message}</div>`;
 
-                                const emailInput = $('#invoiceEmailInput');
-                                const autoSendSwitch = $('#autoInvoiceSwitch');
+                if (data.apiTest) {
+                    html += `<div><strong>Test API:</strong> ${data.apiTest}</div>`;
+                }
+                if (data.diagnostics) {
+                    html += `<div><strong>Token:</strong> ${data.diagnostics}</div>`;
+                }
 
-                                function toggleAutoMailState() {
-                                    const emailVal = emailInput.val();
-                                    if (!emailVal || emailVal.trim() === "") {
-                                        autoSendSwitch.prop('checked', false);
-                                        autoSendSwitch.prop('disabled', true);
-                                    } else {
-                                        autoSendSwitch.prop('disabled', false);
-                                    }
-                                }
+                html += `<div class="mt-1 pt-1 border-top" style="border-color: rgba(0,0,0,0.1) !important;">`;
+                html += `<small>`;
+                html += `IsActive: <strong class="${data.isActive ? 'text-success' : 'text-danger'}">${data.isActive}</strong>`;
+                if (data.expiresAt) {
+                    html += ` | Wygasa: ${data.expiresAt}`;
+                }
+                html += ` | Refresh: ${data.hasRefreshToken ? '✅' : '❌'}`;
+                html += ` | Access: ${data.hasAccessToken ? '✅' : '❌'}`;
+                html += `</small>`;
+                html += `</div>`;
 
-                                toggleAutoMailState();
+                html += `</div>`;
 
-                                emailInput.on('input', function () {
-                                    toggleAutoMailState();
-                                });
-                            });
-                        </script>
-                    }
+                resultDiv.innerHTML = html;
+                resultDiv.style.display = 'block';
+            })
+            .catch(err => {
+                resultDiv.innerHTML = `<div class="alert alert-danger py-2 px-3 mb-0" style="font-size: 0.85rem;">
+                    <i class="fas fa-times-circle"></i> Błąd połączenia: ${err.message}
+                </div>`;
+                resultDiv.style.display = 'block';
+            })
+            .finally(() => {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+            });
+        }
+    </script>
+}
