@@ -264,7 +264,6 @@ namespace PriceSafari.Controllers.ManagerControllers
         }
 
 
-
         [HttpPost]
         public async Task<IActionResult> TestAllegroToken(int storeId)
         {
@@ -329,6 +328,13 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             // Reload store po operacjach
             await _context.Entry(store).ReloadAsync();
+
+            // ═══ FIX: Jeśli test API przeszedł, upewnij się że IsAllegroTokenActive=true ═══
+            if (apiTestSuccess && !store.IsAllegroTokenActive)
+            {
+                store.IsAllegroTokenActive = true;
+                await _context.SaveChangesAsync();
+            }
 
             return Json(new
             {

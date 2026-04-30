@@ -27,9 +27,14 @@ namespace PriceSafari.Services.AllegroServices
         /// <summary>
         /// Lock per storeId — zapobiega race condition gdy dwa procesy
         /// jednocześnie próbują odświeżyć token tego samego sklepu.
-        /// Pierwszy wygrywa i zapisuje nowy token, drugi odczytuje go z bazy.
         /// </summary>
         private static readonly ConcurrentDictionary<int, SemaphoreSlim> _refreshLocks = new();
+
+        /// <summary>
+        /// Cache tokenów w pamięci — eliminuje powtarzane SELECT z bazy
+        /// gdy wiele reguł automatyzacji odpytuje ten sam sklep w krótkim czasie.
+        /// </summary>
+        private static readonly ConcurrentDictionary<int, (string Token, DateTime ExpiresAt)> _tokenCache = new();
 
         /// <summary>
         /// Diagnostyka ostatniego odświeżenia — dołączana do logów operacji.
@@ -48,6 +53,14 @@ namespace PriceSafari.Services.AllegroServices
 
         public async Task<string?> GetValidAccessTokenAsync(int storeId)
         {
+            // ═══ Cache hit — zwróć od razu bez bazy ═══
+            if (_tokenCache.TryGetValue(storeId, out var cached) &&
+                cached.ExpiresAt > DateTime.Now.AddMinutes(5))
+            {
+                LastTokenDiagnostics = $"Użyto tokena z cache (wygasa za {(cached.ExpiresAt - DateTime.Now).TotalMinutes:F0} min).";
+                return cached.Token;
+            }
+
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null)
             {
@@ -72,11 +85,12 @@ namespace PriceSafari.Services.AllegroServices
                 return null;
             }
 
-            // Token ważny — zwróć od razu
+            // Token ważny — zwróć od razu i zapisz do cache
             if (!string.IsNullOrEmpty(store.AllegroApiToken) &&
                 store.AllegroTokenExpiresAt.HasValue &&
                 store.AllegroTokenExpiresAt.Value > DateTime.Now.AddMinutes(5))
             {
+                _tokenCache[storeId] = (store.AllegroApiToken, store.AllegroTokenExpiresAt.Value);
                 var minutesLeft = (store.AllegroTokenExpiresAt.Value - DateTime.Now).TotalMinutes;
                 LastTokenDiagnostics = $"Użyto istniejącego tokena (wygasa za {minutesLeft:F0} min).";
                 return store.AllegroApiToken;
@@ -90,6 +104,8 @@ namespace PriceSafari.Services.AllegroServices
 
         public async Task<string?> ForceRefreshTokenAsync(int storeId)
         {
+            _tokenCache.TryRemove(storeId, out _); // Wyczyść cache — token jest podejrzany
+
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null)
             {
@@ -124,6 +140,12 @@ namespace PriceSafari.Services.AllegroServices
                     store.AllegroTokenExpiresAt.HasValue &&
                     store.AllegroTokenExpiresAt.Value > DateTime.Now.AddMinutes(2))
                 {
+                    if (!store.IsAllegroTokenActive)
+                    {
+                        store.IsAllegroTokenActive = true;
+                        await _context.SaveChangesAsync();
+                    }
+                    _tokenCache[store.StoreId] = (store.AllegroApiToken, store.AllegroTokenExpiresAt.Value);
                     LastTokenDiagnostics = $"Token odświeżony przez inny wątek (lock timeout, ale token OK).";
                     return store.AllegroApiToken;
                 }
@@ -142,6 +164,12 @@ namespace PriceSafari.Services.AllegroServices
                     store.AllegroTokenExpiresAt.HasValue &&
                     store.AllegroTokenExpiresAt.Value > DateTime.Now.AddMinutes(5))
                 {
+                    if (!store.IsAllegroTokenActive)
+                    {
+                        store.IsAllegroTokenActive = true;
+                        await _context.SaveChangesAsync();
+                    }
+                    _tokenCache[store.StoreId] = (store.AllegroApiToken, store.AllegroTokenExpiresAt.Value);
                     var minutesLeft = (store.AllegroTokenExpiresAt.Value - DateTime.Now).TotalMinutes;
                     LastTokenDiagnostics = $"Token odświeżony przez inny wątek (wygasa za {minutesLeft:F0} min). Pomijam refresh.";
                     _logger.LogInformation("🔑 {Diag}", LastTokenDiagnostics);
@@ -164,6 +192,7 @@ namespace PriceSafari.Services.AllegroServices
                 LastTokenDiagnostics = $"Brak refresh tokena w bazie dla '{store.StoreName}'. Dezaktywuję.";
                 _logger.LogError("🔑 {Diag}", LastTokenDiagnostics);
                 store.IsAllegroTokenActive = false;
+                _tokenCache.TryRemove(store.StoreId, out _);
                 await _context.SaveChangesAsync();
                 return null;
             }
@@ -263,6 +292,7 @@ namespace PriceSafari.Services.AllegroServices
                             LastTokenDiagnostics = $"Refresh token MARTWY ({statusCode}). Body: {Truncate(errorContent, 200)}. Dezaktywuję.";
                             _logger.LogError("🔑 {Diag}", LastTokenDiagnostics);
                             store.IsAllegroTokenActive = false;
+                            _tokenCache.TryRemove(store.StoreId, out _);
                             await _context.SaveChangesAsync();
                             return null;
                         }
@@ -293,6 +323,8 @@ namespace PriceSafari.Services.AllegroServices
                     store.AllegroTokenExpiresAt = DateTime.Now.AddSeconds(tokenData.expires_in);
                     store.IsAllegroTokenActive = true;
                     await _context.SaveChangesAsync();
+
+                    _tokenCache[store.StoreId] = (tokenData.access_token, store.AllegroTokenExpiresAt.Value);
 
                     LastTokenDiagnostics = $"✅ Odświeżono (próba {attempt + 1}). Nowy refresh: {(gotNewRefreshToken ? "TAK" : "NIE")}. Wygasa: {store.AllegroTokenExpiresAt?.ToString("dd.MM HH:mm")}.";
                     _logger.LogInformation("🔑 {Diag}", LastTokenDiagnostics);
