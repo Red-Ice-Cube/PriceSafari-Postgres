@@ -11,18 +11,17 @@
     const itemsPerPage = 1000;
     let myStoreName = "";
 
-    // Ustawienia producenta - domyślne
+    // Wartości progów - przechowujemy oba zestawy (% i PLN), żeby przełączanie nie gubiło wpisanych wartości.
+    let thresholdsState = {
+        pct: { greenDark: 20, green: 10, greenLight: 1, redLight: 1, red: 10, redDark: 20 },
+        amt: { greenDark: 50, green: 20, greenLight: 5, redLight: 5, red: 20, redDark: 50 }
+    };
+    let currentMode = 'pct'; // 'pct' albo 'amt'
+
+    // Ustawienia z modala
     let producerSettings = {
         comparisonSource: 1, // 1 = MapPrice, 0 = StorePrice
-        useAmount: false,
-        identifierForSimulation: 'EAN',
-        usePriceWithDelivery: false,
-        thresholds: {
-            redDarkPct: 20.00, redPct: 10.00, redLightPct: 1.00,
-            greenLightPct: 1.00, greenPct: 10.00, greenDarkPct: 20.00,
-            redDarkAmt: 50.00, redAmt: 20.00, redLightAmt: 5.00,
-            greenLightAmt: 5.00, greenAmt: 20.00, greenDarkAmt: 50.00
-        }
+        identifierForSimulation: 'EAN'
     };
 
     let selectedFlagsInclude = new Set();
@@ -31,21 +30,43 @@
     let selectedAdvancedExcludes = new Set();
 
     let sortingState = {
-        sortName: null,
-        sortPrice: null,
-        sortDeltaPercent: null,
-        sortDeltaAmount: null,
-        sortDaysViolation: null,
-        sortStoresViolating: null,
-        sortCeneoSales: null,
-        sortSalesTrendAmount: null,
-        sortSalesTrendPercent: null
+        sortName: null, sortPrice: null, sortDeltaPercent: null,
+        sortDeltaAmount: null, sortDaysViolation: null, sortStoresViolating: null,
+        sortCeneoSales: null, sortSalesTrendAmount: null, sortSalesTrendPercent: null
     };
 
     let positionSlider, offerSlider, myPriceSlider;
 
     // ===========================================================
-    // MASS ACTIONS INTEGRATION
+    // BUCKET METADATA - kolejność matching sidebar (od góry do dołu)
+    // ===========================================================
+    const BUCKETS_ORDERED = [
+        { key: 'producer-no-competition', label: 'Brak konkurencji', color: 'rgba(136, 136, 136, 0.85)' },
+        { key: 'producer-no-reference', label: 'Brak ceny ref.', color: 'rgba(187, 187, 187, 0.85)' },
+        { key: 'producer-deep-above', label: 'Mocno powyżej', color: 'rgba(0, 100, 0, 0.85)' },
+        { key: 'producer-above', label: 'Powyżej', color: 'rgba(34, 139, 34, 0.85)' },
+        { key: 'producer-minor-above', label: 'Lekko powyżej', color: 'rgba(144, 238, 144, 0.85)' },
+        { key: 'producer-equal', label: 'Cena zgodna', color: 'rgba(65, 105, 225, 0.85)' },
+        { key: 'producer-minor-below', label: 'Lekko poniżej', color: 'rgba(255, 99, 71, 0.85)' },
+        { key: 'producer-violation', label: 'Naruszenie', color: 'rgba(220, 20, 60, 0.85)' },
+        { key: 'producer-deep-violation', label: 'Drastyczne naruszenie', color: 'rgba(139, 0, 0, 0.85)' }
+    ];
+    const BUCKET_LABELS = Object.fromEntries(BUCKETS_ORDERED.map(b => [b.key, b.label]));
+
+    const BUCKET_TO_CHECKBOX = {
+        'producer-no-competition': 'bucketNoCompetition',
+        'producer-no-reference': 'bucketNoReference',
+        'producer-deep-above': 'bucketDeepAbove',
+        'producer-above': 'bucketAbove',
+        'producer-minor-above': 'bucketMinorAbove',
+        'producer-equal': 'bucketEqual',
+        'producer-minor-below': 'bucketMinorBelow',
+        'producer-violation': 'bucketViolation',
+        'producer-deep-violation': 'bucketDeepViolation'
+    };
+
+    // ===========================================================
+    // MASS ACTIONS
     // ===========================================================
     const massActions = new window.MassActions({
         storeId: storeId,
@@ -61,10 +82,8 @@
                 default: return { label: 'EAN', value: product.ean || null };
             }
         },
-        showLoading: showLoading,
-        hideLoading: hideLoading,
-        showGlobalUpdate: showGlobalUpdate,
-        showGlobalNotification: showGlobalNotification,
+        showLoading: showLoading, hideLoading: hideLoading,
+        showGlobalUpdate: showGlobalUpdate, showGlobalNotification: showGlobalNotification,
         onFlagsUpdated: () => loadPrices(),
         onAutomationsUpdated: () => loadPrices()
     });
@@ -129,10 +148,10 @@
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
-    function getStockStatusBadge(inStock) {
+    function getStockBadge(inStock) {
         if (inStock === true) return '<span class="stock-available">Dostępny</span>';
-        else if (inStock === false) return '<span class="stock-unavailable">Niedostępny</span>';
-        else return '<span class="BD">Brak danych</span>';
+        if (inStock === false) return '<span class="stock-unavailable">Niedostępny</span>';
+        return '<span class="BD">Brak danych</span>';
     }
 
     function getOfferText(count) {
@@ -184,33 +203,6 @@
     myPriceSlider.noUiSlider.on('change', () => filterPricesAndUpdateUI());
 
     // ===========================================================
-    // BUCKET LABELS
-    // ===========================================================
-    const BUCKET_LABELS = {
-        'producer-deep-violation': 'Drastyczne naruszenie',
-        'producer-violation': 'Naruszenie',
-        'producer-minor-below': 'Lekko poniżej',
-        'producer-equal': 'Cena zgodna',
-        'producer-minor-above': 'Lekko powyżej',
-        'producer-above': 'Powyżej',
-        'producer-deep-above': 'Mocno powyżej',
-        'producer-no-reference': 'Brak ceny ref.',
-        'producer-no-competition': 'Brak konkurencji'
-    };
-
-    const BUCKET_COLORS = {
-        'producer-deep-violation': '#8B0000',
-        'producer-violation': '#DC143C',
-        'producer-minor-below': '#FF6347',
-        'producer-equal': '#4169E1',
-        'producer-minor-above': '#90EE90',
-        'producer-above': '#228B22',
-        'producer-deep-above': '#006400',
-        'producer-no-reference': '#BBBBBB',
-        'producer-no-competition': '#888888'
-    };
-
-    // ===========================================================
     // LOAD DATA
     // ===========================================================
     function loadPrices() {
@@ -226,9 +218,36 @@
 
                 myStoreName = response.myStoreName;
                 currentScrapId = response.latestScrapId;
-                producerSettings = response.producerSettings;
 
+                // Wczytaj ustawienia producenta
+                const ps = response.producerSettings;
+                producerSettings.comparisonSource = ps.comparisonSource;
+                producerSettings.identifierForSimulation = ps.identifierForSimulation || 'EAN';
+
+                thresholdsState.pct = {
+                    greenDark: parseFloat(ps.greenDarkPct) || 20,
+                    green: parseFloat(ps.greenPct) || 10,
+                    greenLight: parseFloat(ps.greenLightPct) || 1,
+                    redLight: parseFloat(ps.redLightPct) || 1,
+                    red: parseFloat(ps.redPct) || 10,
+                    redDark: parseFloat(ps.redDarkPct) || 20
+                };
+                thresholdsState.amt = {
+                    greenDark: parseFloat(ps.greenDarkAmt) || 50,
+                    green: parseFloat(ps.greenAmt) || 20,
+                    greenLight: parseFloat(ps.greenLightAmt) || 5,
+                    redLight: parseFloat(ps.redLightAmt) || 5,
+                    red: parseFloat(ps.redAmt) || 20,
+                    redDark: parseFloat(ps.redDarkAmt) || 50
+                };
+                currentMode = ps.useAmount ? 'amt' : 'pct';
+
+                // UI: switch + inputs
+                document.getElementById('useAmountToggle').checked = (currentMode === 'amt');
+                populateInlineThresholdInputs();
+                updateUnitLabels();
                 updateModeBadge();
+                validateInlineThresholds();
 
                 if (response.presetName) {
                     const presetSpan = document.querySelector('#presetButton span');
@@ -237,10 +256,7 @@
                     else document.getElementById('presetButton').textContent = presetText;
                 }
 
-                allPrices = response.prices.map(p => ({
-                    ...p,
-                    bucket: p.producerBucket
-                }));
+                allPrices = response.prices.map(p => ({ ...p, bucket: p.producerBucket }));
 
                 // Slidery range update
                 const validPrices = allPrices.map(i => parseFloat(i.referencePrice)).filter(p => !isNaN(p) && p > 0.01);
@@ -283,9 +299,214 @@
         if (!badge) return;
         const span = badge.querySelector('span');
         const sourceLabel = producerSettings.comparisonSource === 1 ? 'MAP' : 'Cena sklepu';
-        const unitLabel = producerSettings.useAmount ? 'PLN' : '%';
+        const unitLabel = currentMode === 'amt' ? 'PLN' : '%';
         span.textContent = `Tryb: ${sourceLabel} (${unitLabel})`;
-        badge.classList.toggle('amount-mode', producerSettings.useAmount);
+        badge.classList.toggle('amount-mode', currentMode === 'amt');
+    }
+
+    // ===========================================================
+    // INLINE THRESHOLDS - input/output, walidacja, blokada zapisu
+    // ===========================================================
+    function populateInlineThresholdInputs() {
+        const v = thresholdsState[currentMode];
+        document.getElementById('thrInline_greenDark').value = v.greenDark;
+        document.getElementById('thrInline_green').value = v.green;
+        document.getElementById('thrInline_greenLight').value = v.greenLight;
+        document.getElementById('thrInline_redLight').value = v.redLight;
+        document.getElementById('thrInline_red').value = v.red;
+        document.getElementById('thrInline_redDark').value = v.redDark;
+    }
+
+    function readInlineInputsToState() {
+        const get = id => parseFloat((document.getElementById(id).value || '').replace(',', '.'));
+        thresholdsState[currentMode] = {
+            greenDark: get('thrInline_greenDark'),
+            green: get('thrInline_green'),
+            greenLight: get('thrInline_greenLight'),
+            redLight: get('thrInline_redLight'),
+            red: get('thrInline_red'),
+            redDark: get('thrInline_redDark')
+        };
+    }
+
+    function updateUnitLabels() {
+        const unit = currentMode === 'amt' ? 'PLN' : '%';
+        document.querySelectorAll('.producer-unit-label').forEach(el => el.textContent = unit);
+    }
+
+    /**
+     * Walidacja progów inline:
+     *  - wszystkie wartości muszą być liczbą >= 0
+     *  - kolejność: light <= normal <= dark dla obu kierunków
+     *
+     * Oznacza inputy z błędem czerwoną ramką, pokazuje komunikaty pod sekcją,
+     * blokuje przycisk "Przelicz i zapisz" gdy są błędy.
+     */
+    function validateInlineThresholds() {
+        const ids = {
+            greenDark: 'thrInline_greenDark', green: 'thrInline_green', greenLight: 'thrInline_greenLight',
+            redLight: 'thrInline_redLight', red: 'thrInline_red', redDark: 'thrInline_redDark'
+        };
+        const v = {
+            greenDark: parseFloat((document.getElementById(ids.greenDark).value || '').replace(',', '.')),
+            green: parseFloat((document.getElementById(ids.green).value || '').replace(',', '.')),
+            greenLight: parseFloat((document.getElementById(ids.greenLight).value || '').replace(',', '.')),
+            redLight: parseFloat((document.getElementById(ids.redLight).value || '').replace(',', '.')),
+            red: parseFloat((document.getElementById(ids.red).value || '').replace(',', '.')),
+            redDark: parseFloat((document.getElementById(ids.redDark).value || '').replace(',', '.'))
+        };
+
+        // Reset
+        document.querySelectorAll('.producer-threshold-input').forEach(el => el.classList.remove('input-error'));
+
+        const errors = [];
+        let isValid = true;
+
+        // 1. NaN / ujemne
+        for (const [k, val] of Object.entries(v)) {
+            if (isNaN(val) || val < 0) {
+                document.getElementById(ids[k]).classList.add('input-error');
+                isValid = false;
+            }
+        }
+        if (!isValid) errors.push('Wszystkie wartości muszą być liczbami nieujemnymi');
+
+        // 2. Kolejność „powyżej": greenLight ≤ green ≤ greenDark
+        if (!isNaN(v.greenLight) && !isNaN(v.green) && v.greenLight > v.green) {
+            document.getElementById(ids.greenLight).classList.add('input-error');
+            document.getElementById(ids.green).classList.add('input-error');
+            errors.push(`Powyżej: „lekko" (${v.greenLight}) > „normalny" (${v.green})`);
+            isValid = false;
+        }
+        if (!isNaN(v.green) && !isNaN(v.greenDark) && v.green > v.greenDark) {
+            document.getElementById(ids.green).classList.add('input-error');
+            document.getElementById(ids.greenDark).classList.add('input-error');
+            errors.push(`Powyżej: „normalny" (${v.green}) > „mocno" (${v.greenDark})`);
+            isValid = false;
+        }
+
+        // 3. Kolejność „poniżej": redLight ≤ red ≤ redDark
+        if (!isNaN(v.redLight) && !isNaN(v.red) && v.redLight > v.red) {
+            document.getElementById(ids.redLight).classList.add('input-error');
+            document.getElementById(ids.red).classList.add('input-error');
+            errors.push(`Poniżej: „lekko" (${v.redLight}) > „naruszenie" (${v.red})`);
+            isValid = false;
+        }
+        if (!isNaN(v.red) && !isNaN(v.redDark) && v.red > v.redDark) {
+            document.getElementById(ids.red).classList.add('input-error');
+            document.getElementById(ids.redDark).classList.add('input-error');
+            errors.push(`Poniżej: „naruszenie" (${v.red}) > „drastyczne" (${v.redDark})`);
+            isValid = false;
+        }
+
+        // Wyświetl błędy
+        const errEl = document.getElementById('errInline');
+        if (errors.length > 0) {
+            errEl.classList.add('visible');
+            errEl.innerHTML = errors.map(e => `<i class="fa-solid fa-triangle-exclamation"></i> ${e}`).join('<br>');
+        } else {
+            errEl.classList.remove('visible');
+            errEl.innerHTML = '';
+        }
+
+        // Blokada przycisku
+        const saveBtn = document.getElementById('saveProducerInlineBtn');
+        if (saveBtn) {
+            saveBtn.disabled = !isValid;
+            saveBtn.style.opacity = isValid ? '1' : '0.5';
+            saveBtn.style.cursor = isValid ? 'pointer' : 'not-allowed';
+            saveBtn.title = isValid ? '' : 'Popraw błędy walidacji aby zapisać';
+        }
+
+        return isValid;
+    }
+
+    // Live walidacja przy każdej zmianie inputu
+    document.querySelectorAll('.producer-threshold-input').forEach(el => {
+        el.addEventListener('input', validateInlineThresholds);
+    });
+
+    // Przełącznik %/PLN: zapisz aktualne wartości, przełącz tryb, wczytaj wartości z zapamiętanego stanu
+    document.getElementById('useAmountToggle').addEventListener('change', function () {
+        readInlineInputsToState();
+        currentMode = this.checked ? 'amt' : 'pct';
+        populateInlineThresholdInputs();
+        updateUnitLabels();
+        updateModeBadge();
+        validateInlineThresholds();
+    });
+
+    // Zapis inline
+    document.getElementById('saveProducerInlineBtn').addEventListener('click', function () {
+        if (!validateInlineThresholds()) {
+            showGlobalNotification('<p style="font-weight:bold;">Walidacja</p><p>Popraw błędy w formularzu progów.</p>');
+            return;
+        }
+        readInlineInputsToState();
+        saveAllProducerSettings();
+    });
+
+    // ===========================================================
+    // PRODUCER SETTINGS MODAL (tylko 2 ustawienia: identifier + comparisonSource)
+    // ===========================================================
+    document.getElementById('openProducerSettingsBtn').addEventListener('click', function () {
+        document.getElementById('identifierForSimulationInput').value = producerSettings.identifierForSimulation || 'EAN';
+        document.getElementById('comparisonSourceInput').value = producerSettings.comparisonSource;
+        $('#producerSettingsModal').modal('show');
+    });
+
+    document.getElementById('saveProducerModalBtn').addEventListener('click', function () {
+        producerSettings.identifierForSimulation = document.getElementById('identifierForSimulationInput').value;
+        producerSettings.comparisonSource = parseInt(document.getElementById('comparisonSourceInput').value);
+        readInlineInputsToState();
+        saveAllProducerSettings();
+        $('#producerSettingsModal').modal('hide');
+    });
+
+    /**
+     * Wspólny zapis - łączy aktualny stan progów (oba tryby) z ustawieniami modala.
+     */
+    function saveAllProducerSettings() {
+        const payload = {
+            StoreId: storeId,
+            IdentifierForSimulation: producerSettings.identifierForSimulation,
+            ProducerComparisonSource: producerSettings.comparisonSource,
+            ProducerUseAmount: currentMode === 'amt',
+            ProducerThresholdRedDarkPercent: thresholdsState.pct.redDark,
+            ProducerThresholdRedPercent: thresholdsState.pct.red,
+            ProducerThresholdRedLightPercent: thresholdsState.pct.redLight,
+            ProducerThresholdGreenLightPercent: thresholdsState.pct.greenLight,
+            ProducerThresholdGreenPercent: thresholdsState.pct.green,
+            ProducerThresholdGreenDarkPercent: thresholdsState.pct.greenDark,
+            ProducerThresholdRedDarkAmount: thresholdsState.amt.redDark,
+            ProducerThresholdRedAmount: thresholdsState.amt.red,
+            ProducerThresholdRedLightAmount: thresholdsState.amt.redLight,
+            ProducerThresholdGreenLightAmount: thresholdsState.amt.greenLight,
+            ProducerThresholdGreenAmount: thresholdsState.amt.green,
+            ProducerThresholdGreenDarkAmount: thresholdsState.amt.greenDark
+        };
+
+        showLoading();
+        fetch('/PriceHistory/SaveProducerSettings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p><p>Przeliczam dane z nowymi progami...</p>');
+                    loadPrices();
+                } else {
+                    hideLoading();
+                    showGlobalNotification('<p>' + (data.message || 'Błąd zapisu') + '</p>');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                hideLoading();
+                showGlobalNotification('<p>Błąd zapisu ustawień. Sprawdź konsolę.</p>');
+            });
     }
 
     // ===========================================================
@@ -383,13 +604,9 @@
     function filterPricesByCategoryAndColorAndFlag(data) {
         let filtered = data;
 
-        // Buckety
         const selBuckets = Array.from(document.querySelectorAll('.bucketFilter:checked')).map(c => c.value);
-        if (selBuckets.length) {
-            filtered = filtered.filter(item => selBuckets.includes(item.bucket));
-        }
+        if (selBuckets.length) filtered = filtered.filter(item => selBuckets.includes(item.bucket));
 
-        // Slidery
         const posVals = positionSlider.noUiSlider.get();
         const posMin = parseInt(posVals[0]), posMax = parseInt(posVals[1]);
         const offVals = offerSlider.noUiSlider.get();
@@ -403,16 +620,13 @@
             if (pos === null || pos === undefined) return true;
             return parseInt(pos) >= posMin && parseInt(pos) <= posMax;
         });
-
         filtered = filtered.filter(item => (item.storeCount || 0) >= offMin && (item.storeCount || 0) <= offMax);
-
         filtered = filtered.filter(item => {
             const refP = item.referencePrice != null ? parseFloat(item.referencePrice) : 0;
-            if (refP <= 0.01) return true; // brak ceny ref - nie filtrujemy po cenie
+            if (refP <= 0.01) return true;
             return refP >= priceMin && refP <= priceMax;
         });
 
-        // Flagi
         if (selectedFlagsExclude.size > 0) {
             filtered = filtered.filter(item => {
                 if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || item.flagIds.length === 0)) return false;
@@ -427,15 +641,13 @@
             });
         }
 
-        // Filtry zaawansowane
         function check(item, name) {
             switch (name) {
-                case 'isBidding': return item.bestCompetitorIsGoogle === false; // konkurent Ceneo - bid niedostępny per produkt, używamy bestCompetitor
                 case 'isNew': return item.isNew === true;
                 case 'freshViolation': return item.isFreshViolation === true && item.isCurrentlyViolating === true;
                 case 'currentlyViolating': return item.isCurrentlyViolating === true;
-                case 'compStockAvailable': return item.bestCompetitorIsGoogle === true ? (item.googleInStock === true) : (item.ceneoInStock === true);
-                case 'compStockUnavailable': return item.bestCompetitorIsGoogle === true ? (item.googleInStock === false) : (item.ceneoInStock === false);
+                case 'compStockAvailable': return item.bestCompetitorInStock === true;
+                case 'compStockUnavailable': return item.bestCompetitorInStock === false;
                 default: return false;
             }
         }
@@ -519,7 +731,7 @@
     }
 
     // ===========================================================
-    // RENDER
+    // PAGINATION
     // ===========================================================
     function renderPagination(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -566,6 +778,9 @@
         c.appendChild(next);
     }
 
+    // ===========================================================
+    // RENDER - HELPERY ELEMENTÓW
+    // ===========================================================
     function createFlagsContainer(item) {
         const c = document.createElement('div');
         c.className = 'flags-container';
@@ -586,67 +801,294 @@
         return c;
     }
 
-    function createSalesTrendHtml(item) {
-        const s = item.salesTrendStatus;
-        if (s === 'NoData' || s === null) {
-            return `<div class="price-box-column-offers-a">
-                <span class="data-channel"><i class="fas fa-chart-line" style="font-size: 15px; color: grey; margin-top:1px;" title="Trend sprzedaży"></i></span>
-                <div class="offer-count-box"><p>Brak danych</p></div>
-            </div>`;
-        }
-        let trendText = '';
-        if (item.salesDifference !== 0 && item.salesDifference !== null) {
-            const sign = item.salesDifference > 0 ? '+' : '';
-            const pct = item.salesPercentageChange !== null ? ` (${sign}${item.salesPercentageChange.toFixed(2)}%)` : '';
-            trendText = `<p>${sign}${item.salesDifference}${pct}</p>`;
-        } else trendText = `<p>Bez zmian</p>`;
-        return `<div class="price-box-column-offers-a">
-            <span class="data-channel" title="Trend sprzedaży"><img src="/images/Flag-${s}.svg" alt="${s}" style="width:18px; height:18px;" /></span>
-            <div class="offer-count-box">${trendText}</div>
-        </div>`;
-    }
+    /**
+     * Stats container - lista pigułek z ikonami i tekstem (matching ecommerce style)
+     */
+    function buildStatsBlocks(item) {
+        const blocks = [];
 
-    function createCeneoSalesHtml(item) {
-        const tip = 'Ilość zakupionych produktów przez ostatnie 90 dni na Ceneo';
-        if (item.ceneoSalesCount > 0) {
-            return `<div class="price-box-column-offers-a">
-                <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="${tip}"></i></span>
-                <div class="offer-count-box"><p>${item.ceneoSalesCount} osb. kupiło</p></div>
-            </div>`;
-        }
-        return `<div class="price-box-column-offers-a">
-            <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;" title="${tip}"></i></span>
-            <div class="offer-count-box"><p>Brak danych</p></div>
-        </div>`;
-    }
+        // 1. Ile ofert łącznie
+        blocks.push(`
+            <div class="price-box-column-offers-a">
+                <span class="data-channel">
+                    ${item.sourceGoogle ? `<img src="/images/GoogleShopping.png" alt="" style="width:15px;height:15px;" />` : ''}
+                    ${item.sourceCeneo ? `<img src="/images/Ceneo.png" alt="" style="width:15px;height:15px;" />` : ''}
+                </span>
+                <div class="offer-count-box">${getOfferText(item.storeCount || 0)}</div>
+            </div>`);
 
-    function createViolationHistoryHtml(item) {
+        // 2. Status naruszenia (proste pigułki w stylu reszty)
         if (!item.isCurrentlyViolating) {
-            return `<div class="price-box-column-offers-a">
-                <span class="data-channel"><i class="fa-solid fa-shield-halved" style="font-size:15px; color:#228B22; margin-top:1px;" title="Brak naruszenia"></i></span>
-                <div class="offer-count-box"><span class="violation-no-badge">Bez naruszeń</span></div>
+            blocks.push(`
+                <div class="price-box-column-offers-a">
+                    <span class="data-channel"><i class="fa-solid fa-shield-halved" style="font-size:14px; color:#198754;"></i></span>
+                    <div class="offer-count-box"><p>Bez naruszeń</p></div>
+                </div>`);
+        } else if (item.isFreshViolation) {
+            blocks.push(`
+                <div class="price-box-column-offers-a" style="background:#fff3cd; border-color:#ffd966;">
+                    <span class="data-channel"><i class="fa-solid fa-bell" style="font-size:14px; color:#FF6347;"></i></span>
+                    <div class="offer-count-box"><p>Świeże naruszenie</p></div>
+                </div>`);
+        } else {
+            const days = item.daysOfViolation;
+            let label = 'Naruszenie';
+            if (days !== null && days !== undefined) {
+                if (days >= 7) label = `≥ 7 dni naruszenia`;
+                else if (days >= 1) label = `${Math.floor(days)} dni naruszenia`;
+                else label = '< 1 dnia naruszenia';
+            }
+            blocks.push(`
+                <div class="price-box-column-offers-a" style="background:rgba(220, 20, 60, 0.08); border-color:rgba(220, 20, 60, 0.3);">
+                    <span class="data-channel"><i class="fa-solid fa-clock-rotate-left" style="font-size:14px; color:#DC143C;"></i></span>
+                    <div class="offer-count-box"><p>${label}</p></div>
+                </div>`);
+        }
+
+        // 3. Ceneo sales
+        if (item.ceneoSalesCount > 0) {
+            blocks.push(`
+                <div class="price-box-column-offers-a" title="Ilość zakupionych przez ostatnie 90 dni na Ceneo">
+                    <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size:14px; color:grey;"></i></span>
+                    <div class="offer-count-box"><p>${item.ceneoSalesCount} sztuk</p></div>
+                </div>`);
+        } else {
+            blocks.push(`
+                <div class="price-box-column-offers-a">
+                    <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size:14px; color:grey;"></i></span>
+                    <div class="offer-count-box"><p>Brak sprzedaży</p></div>
+                </div>`);
+        }
+
+        // 4. Sales trend
+        if (item.salesTrendStatus && item.salesTrendStatus !== 'NoData') {
+            let trendText = 'Bez zmian';
+            if (item.salesDifference !== 0 && item.salesDifference !== null) {
+                const sign = item.salesDifference > 0 ? '+' : '';
+                const pct = item.salesPercentageChange !== null ? ` (${sign}${item.salesPercentageChange.toFixed(1)}%)` : '';
+                trendText = `${sign}${item.salesDifference}${pct}`;
+            }
+            blocks.push(`
+                <div class="price-box-column-offers-a" title="Trend sprzedaży">
+                    <span class="data-channel"><img src="/images/Flag-${item.salesTrendStatus}.svg" alt="" style="width:18px;height:18px;" /></span>
+                    <div class="offer-count-box"><p>${trendText}</p></div>
+                </div>`);
+        } else {
+            blocks.push(`
+                <div class="price-box-column-offers-a">
+                    <span class="data-channel"><i class="fas fa-chart-line" style="font-size:14px; color:grey;"></i></span>
+                    <div class="offer-count-box"><p>Brak danych</p></div>
+                </div>`);
+        }
+
+        return blocks.join('');
+    }
+
+    /**
+     * Boks Najtańszej konkurencji - cena, sklep, rozkład sklepów + position + stock
+     */
+    function buildCompetitorBox(item, storeSearchTerm) {
+        const bestComp = item.bestCompetitorPrice != null ? parseFloat(item.bestCompetitorPrice) : null;
+        const highlightedStoreName = highlightMatches(item.bestCompetitorStoreName || '', storeSearchTerm);
+
+        if (bestComp == null) {
+            return `
+                <div class="price-box-column">
+                    <div class="price-box-column-text">
+                        <span style="font-weight:500; font-size:17px;">Brak konkurencji</span>
+                        <div style="color:#444; font-size:13px;">Produkt nie ma ofert na rynku</div>
+                    </div>
+                    <div class="price-box-column-text">
+                        <span class="Position-Producer">Brak ofert</span>
+                    </div>
+                </div>`;
+        }
+
+        const channelIcon = item.bestCompetitorIsGoogle != null
+            ? `<img src="${item.bestCompetitorIsGoogle ? '/images/GoogleShopping.png' : '/images/Ceneo.png'}" alt="" style="width:14px; height:14px; margin-right:4px;" />`
+            : '';
+
+        // Pozycja
+        let positionBadge = '';
+        if (item.bestCompetitorPosition != null) {
+            const positionClass = item.bestCompetitorIsGoogle ? 'Position-Google' : 'Position';
+            const positionLabel = item.bestCompetitorIsGoogle ? 'Poz. Google' : 'Poz. Ceneo';
+            positionBadge = `<span class="${positionClass}">${positionLabel} ${item.bestCompetitorPosition}</span>`;
+        }
+
+        // Bid
+        let biddingBadge = '';
+        if (item.bestCompetitorIsBidding === true) {
+            biddingBadge = '<span class="Bidding">Bid</span>';
+        }
+
+        // Stock
+        const stockBadge = getStockBadge(item.bestCompetitorInStock);
+
+        // Rozkład sklepów (tylko jeśli mamy cenę referencyjną)
+        let storesDistHtml = '';
+        const hasRef = item.referencePrice != null && parseFloat(item.referencePrice) > 0.01;
+        if (hasRef) {
+            const lines = [];
+            if (item.storesBelowReference > 0) {
+                lines.push(`<div class="producer-stores-line bad"><i class="fa-solid fa-arrow-down"></i> ${item.storesBelowReference} łamie cenę ref.</div>`);
+            }
+            if (item.storesAtReference > 0) {
+                lines.push(`<div class="producer-stores-line equal"><i class="fa-solid fa-equals"></i> ${item.storesAtReference} zgodnych z ref.</div>`);
+            }
+            if (item.storesAboveReference > 0) {
+                lines.push(`<div class="producer-stores-line good"><i class="fa-solid fa-arrow-up"></i> ${item.storesAboveReference} powyżej ref.</div>`);
+            }
+            if (lines.length > 0) {
+                storesDistHtml = `<div class="producer-stores-dist">${lines.join('')}</div>`;
+            }
+        }
+
+        return `
+            <div class="price-box-column">
+                <div class="price-box-column-text">
+                    <div style="display:flex; align-items:center;">
+                        <span style="font-weight:500; font-size:17px;">${formatPricePL(bestComp)}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:4px; color:#444; font-size:13px;">
+                        ${channelIcon}<span>${highlightedStoreName}</span>
+                    </div>
+                    ${storesDistHtml}
+                </div>
+                <div class="price-box-column-text" style="display:flex; gap:4px; flex-wrap:wrap;">
+                    ${positionBadge}${stockBadge}${biddingBadge}
+                </div>
             </div>`;
+    }
+
+    /**
+     * Boks ceny referencyjnej - źródło (MAP/Sklep) + cena + alternatywne info
+     */
+    function buildReferenceBox(item) {
+        const refPrice = item.referencePrice != null ? parseFloat(item.referencePrice) : null;
+        const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
+        const mapPrice = item.mapPrice != null ? parseFloat(item.mapPrice) : null;
+
+        if (refPrice != null && refPrice > 0) {
+            const sourceLabel = item.referenceSource === 'map' ? 'Cena MAP' : 'Cena Twojego sklepu';
+            const altLines = [];
+            if (item.referenceSource === 'map' && myPrice != null && myPrice > 0) {
+                altLines.push(`<div class="ref-alt-line">Twoja oferta: <strong>${formatPricePL(myPrice)}</strong></div>`);
+            }
+            if (item.referenceSource === 'store' && mapPrice != null && mapPrice > 0) {
+                altLines.push(`<div class="ref-alt-line">MAP w katalogu: <strong>${formatPricePL(mapPrice)}</strong></div>`);
+            }
+
+            // Stock mojej oferty (jeśli mam ofertę)
+            let myStockBadge = '';
+            if (myPrice != null && myPrice > 0) {
+                myStockBadge = `<div style="margin-top:4px;">${getStockBadge(item.myEntryInStock)}</div>`;
+            }
+
+            return `
+                <div class="price-box-column">
+                    <div class="price-box-column-text">
+                        <span class="ref-label-small">${sourceLabel}</span>
+                        <span style="font-weight:500; font-size:17px;">${formatPricePL(refPrice)}</span>
+                        ${altLines.join('')}
+                    </div>
+                    <div class="price-box-column-text">
+                        ${myStockBadge}
+                    </div>
+                </div>`;
         }
 
-        if (item.isFreshViolation) {
-            return `<div class="price-box-column-offers-a">
-                <span class="data-channel"><i class="fa-solid fa-bell" style="font-size:15px; color:#FF6347; margin-top:1px;" title="Świeże naruszenie"></i></span>
-                <div class="offer-count-box"><span class="violation-fresh-badge"><i class="fa-solid fa-circle-exclamation"></i> Świeże naruszenie</span></div>
+        // Brak ceny referencyjnej
+        let missingMsg = '';
+        if (producerSettings.comparisonSource === 1) missingMsg = 'Brak ceny MAP w katalogu';
+        else missingMsg = 'Brak Twojej oferty';
+
+        const altLines = [];
+        if (mapPrice != null && mapPrice > 0) altLines.push(`<div class="ref-alt-line">MAP w katalogu: <strong>${formatPricePL(mapPrice)}</strong></div>`);
+        if (myPrice != null && myPrice > 0) altLines.push(`<div class="ref-alt-line">Twoja oferta: <strong>${formatPricePL(myPrice)}</strong></div>`);
+
+        return `
+            <div class="price-box-column">
+                <div class="price-box-column-text">
+                    <span class="ref-label-small">Cena referencyjna</span>
+                    <span class="ref-missing"><i class="fa-solid fa-circle-exclamation"></i> ${missingMsg}</span>
+                    ${altLines.join('')}
+                </div>
+                <div class="price-box-column-text"></div>
             </div>`;
+    }
+
+    /**
+     * Boks delta - duża wartość z ikoną + procent + label bucketu
+     */
+    function buildDeltaBox(item) {
+        if (item.bucket === 'producer-no-reference') {
+            return `
+                <div class="price-box-column">
+                    <div class="price-box-column-text">
+                        <span style="color:#888; font-style:italic; font-size:13px;">Nie można obliczyć</span>
+                        <div style="font-size:12px; color:#aaa;">Brak ceny referencyjnej</div>
+                    </div>
+                    <div class="price-box-column-text"></div>
+                </div>`;
+        }
+        if (item.bucket === 'producer-no-competition') {
+            return `
+                <div class="price-box-column">
+                    <div class="price-box-column-text">
+                        <span style="color:#888; font-style:italic; font-size:13px;">Brak danych</span>
+                        <div style="font-size:12px; color:#aaa;">Brak ofert konkurencji</div>
+                    </div>
+                    <div class="price-box-column-text"></div>
+                </div>`;
         }
 
-        const days = item.daysOfViolation;
-        let label = 'Naruszenie aktywne';
-        if (days !== null && days !== undefined) {
-            if (days >= 7) label = `Naruszenie ≥ 7 dni`;
-            else if (days >= 1) label = `Naruszenie od ${Math.floor(days)} dni`;
-            else if (days > 0) label = `Naruszenie < 1 dnia`;
+        const deltaA = item.deltaAbsolute != null ? parseFloat(item.deltaAbsolute) : 0;
+        const deltaP = item.deltaPercent != null ? parseFloat(item.deltaPercent) : null;
+
+        let arrow = '<i class="fa-solid fa-equals"></i>';
+        let rowClass = 'neutral';
+
+        if (deltaA < 0) {
+            arrow = '<i class="fa-solid fa-arrow-down"></i>';
+            // Konkurent poniżej ref - to źle dla producenta
+            rowClass = (item.bucket === 'producer-deep-violation') ? 'deep-bad' : 'bad';
+        } else if (deltaA > 0) {
+            arrow = '<i class="fa-solid fa-arrow-up"></i>';
+            rowClass = (item.bucket === 'producer-deep-above') ? 'deep-good' : 'good';
+        } else {
+            rowClass = 'neutral';
         }
 
-        return `<div class="price-box-column-offers-a">
-            <span class="data-channel"><i class="fa-solid fa-clock-rotate-left" style="font-size:15px; color:#DC143C; margin-top:1px;" title="Trwające naruszenie"></i></span>
-            <div class="offer-count-box"><span class="violation-days-badge"><i class="fa-solid fa-triangle-exclamation"></i> ${label}</span></div>
-        </div>`;
+        const sign = deltaA > 0 ? '+' : (deltaA < 0 ? '' : '');
+        const pctSign = deltaP > 0 ? '+' : '';
+
+        // Mapowanie bucket -> klasa tła badge
+        const bgClassMap = {
+            'producer-deep-violation': 'producer-bg-deep-violation',
+            'producer-violation': 'producer-bg-violation',
+            'producer-minor-below': 'producer-bg-minor-below',
+            'producer-equal': 'producer-bg-equal',
+            'producer-minor-above': 'producer-bg-minor-above',
+            'producer-above': 'producer-bg-above',
+            'producer-deep-above': 'producer-bg-deep-above'
+        };
+        const bgClass = bgClassMap[item.bucket] || 'producer-bg-equal';
+        const bucketLabel = BUCKET_LABELS[item.bucket] || '';
+
+        return `
+            <div class="price-box-column">
+                <div class="price-box-column-text">
+                    <div class="producer-delta-value-row ${rowClass}">
+                        ${arrow}
+                        <span style="font-weight:500; font-size:17px;">${sign}${formatPricePL(Math.abs(deltaA), false)} PLN</span>
+                    </div>
+                    ${deltaP != null ? `<div style="font-size:13px; color:#555; margin-top:2px;">${pctSign}${deltaP.toFixed(2)}% wzgl. ceny ref.</div>` : ''}
+                </div>
+                <div class="price-box-column-text">
+                    <span class="producer-delta-badge ${bgClass}">${bucketLabel}</span>
+                </div>
+            </div>`;
     }
 
     function renderPrices(data) {
@@ -659,17 +1101,13 @@
         const end = currentPage * itemsPerPage;
         const paginated = data.slice(start, end);
 
+        const fragment = document.createDocumentFragment();
+
         paginated.forEach(item => {
             const highlightedName = highlightMatches(item.productName, productSearchTerm);
-            const highlightedStoreName = highlightMatches(item.bestCompetitorStoreName || '', storeSearchTerm);
-
-            const refPrice = item.referencePrice != null ? parseFloat(item.referencePrice) : null;
-            const bestComp = item.bestCompetitorPrice != null ? parseFloat(item.bestCompetitorPrice) : null;
-            const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
-            const mapPrice = item.mapPrice != null ? parseFloat(item.mapPrice) : null;
 
             const box = document.createElement('div');
-            box.className = 'price-box ' + (item.bucket || 'producer-no-reference');
+            box.className = 'price-box';
             box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + currentScrapId + '&productId=' + item.productId;
             box.dataset.productId = item.productId;
             box.dataset.productName = item.productName;
@@ -744,10 +1182,12 @@
             const priceBoxData = document.createElement('div');
             priceBoxData.className = 'price-box-data';
 
+            // Color bar
             const colorBar = document.createElement('div');
             colorBar.className = 'color-bar ' + (item.bucket || 'producer-no-reference');
             priceBoxData.appendChild(colorBar);
 
+            // Image
             if (item.imgUrl) {
                 const img = document.createElement('img');
                 img.dataset.src = item.imgUrl;
@@ -757,183 +1197,56 @@
                 priceBoxData.appendChild(img);
             }
 
-            // Statystyki
+            // Stats container
             const stats = document.createElement('div');
             stats.className = 'price-box-stats-container';
-            const offerCountHtml = `<div class="price-box-column-offers-a">
-                <span class="data-channel">
-                    ${item.sourceGoogle ? `<img src="/images/GoogleShopping.png" alt="" style="width:15px;height:15px;" />` : ''}
-                    ${item.sourceCeneo ? `<img src="/images/Ceneo.png" alt="" style="width:15px;height:15px;" />` : ''}
-                </span>
-                <div class="offer-count-box">${getOfferText(item.storeCount || 0)}</div>
-            </div>`;
-            stats.innerHTML = offerCountHtml + createViolationHistoryHtml(item) + createCeneoSalesHtml(item) + createSalesTrendHtml(item);
+            stats.innerHTML = buildStatsBlocks(item);
             priceBoxData.appendChild(stats);
 
-            // === KOLUMNA: Najtańszy konkurent + rozkład ===
-            const competitorCol = document.createElement('div');
-            competitorCol.className = 'price-box-column';
-
-            if (bestComp != null) {
-                const txt = document.createElement('div');
-                txt.className = 'price-box-column-text';
-
-                const priceLine = document.createElement('div');
-                priceLine.style.cssText = 'display:flex; align-items:center;';
-                priceLine.innerHTML = `<span style="font-weight:500; font-size:17px;">${formatPricePL(bestComp)}</span>`;
-
-                const channelIcon = item.bestCompetitorIsGoogle != null
-                    ? `<span class="data-channel" style="display:inline-block; vertical-align:middle;"><img src="${item.bestCompetitorIsGoogle ? '/images/GoogleShopping.png' : '/images/Ceneo.png'}" alt="" style="width:14px; height:14px; margin-right:4px;" /></span>`
-                    : '';
-
-                const storeNameDiv = document.createElement('div');
-                storeNameDiv.style.cssText = 'display:flex; align-items:center;';
-                storeNameDiv.innerHTML = channelIcon + `<span>${highlightedStoreName || ''}</span>`;
-
-                txt.appendChild(priceLine);
-                txt.appendChild(storeNameDiv);
-
-                // Rozkład sklepów
-                const distrib = document.createElement('div');
-                distrib.className = 'stores-distribution';
-                if (item.storesBelowReference > 0) {
-                    distrib.innerHTML += `<span class="stores-pill below" title="Sklepów poniżej ceny ref."><i class="fa-solid fa-arrow-down"></i> ${item.storesBelowReference} łamie</span>`;
-                }
-                if (item.storesAtReference > 0) {
-                    distrib.innerHTML += `<span class="stores-pill equal" title="Sklepów na poziomie ceny ref."><i class="fa-solid fa-equals"></i> ${item.storesAtReference} zgodnych</span>`;
-                }
-                if (item.storesAboveReference > 0) {
-                    distrib.innerHTML += `<span class="stores-pill above" title="Sklepów powyżej ceny ref."><i class="fa-solid fa-arrow-up"></i> ${item.storesAboveReference} powyżej</span>`;
-                }
-
-                txt.appendChild(distrib);
-                competitorCol.appendChild(txt);
-            } else {
-                const txt = document.createElement('div');
-                txt.className = 'price-box-column-text';
-                txt.innerHTML = '<span style="font-weight:500; font-size:17px;">Brak konkurencji</span><div style="font-size:13px; color:#888;">Produkt nie ma ofert na rynku</div>';
-                competitorCol.appendChild(txt);
-            }
-
-            priceBoxData.appendChild(competitorCol);
-
-            // === KOLUMNA: Cena referencyjna (MAP) ===
-            const refCol = document.createElement('div');
-            refCol.className = 'price-box-column';
-            const refTxt = document.createElement('div');
-            refTxt.className = 'price-box-column-text';
-            const refDisplay = document.createElement('div');
-            refDisplay.className = 'ref-price-display';
-
-            if (refPrice != null && refPrice > 0) {
-                const sourceLabel = item.referenceSource === 'map' ? 'Cena MAP' : 'Cena Twojego sklepu';
-                refDisplay.innerHTML = `
-                    <span class="ref-label">${sourceLabel}</span>
-                    <span class="ref-value">${formatPricePL(refPrice)}</span>
-                `;
-                if (item.referenceSource === 'map' && myPrice != null && myPrice > 0) {
-                    refDisplay.innerHTML += `<span class="ref-source">Twoja oferta: ${formatPricePL(myPrice)}</span>`;
-                }
-                if (item.referenceSource === 'store' && mapPrice != null && mapPrice > 0) {
-                    refDisplay.innerHTML += `<span class="ref-source">MAP w katalogu: ${formatPricePL(mapPrice)}</span>`;
-                }
-            } else {
-                let missingMsg = '';
-                if (producerSettings.comparisonSource === 1) missingMsg = 'Brak ceny MAP w katalogu';
-                else missingMsg = 'Brak Twojej oferty';
-                refDisplay.innerHTML = `
-                    <span class="ref-label">Cena referencyjna</span>
-                    <span class="ref-missing"><i class="fa-solid fa-circle-exclamation"></i> ${missingMsg}</span>
-                `;
-                if (mapPrice != null && mapPrice > 0) refDisplay.innerHTML += `<span class="ref-source">MAP w katalogu: ${formatPricePL(mapPrice)}</span>`;
-                if (myPrice != null && myPrice > 0) refDisplay.innerHTML += `<span class="ref-source">Twoja oferta: ${formatPricePL(myPrice)}</span>`;
-            }
-            refTxt.appendChild(refDisplay);
-            refCol.appendChild(refTxt);
-            priceBoxData.appendChild(refCol);
-
-            // === KOLUMNA: Delta ===
-            const deltaCol = document.createElement('div');
-            deltaCol.className = 'price-box-column-action';
-            const deltaTxt = document.createElement('div');
-            deltaTxt.className = 'price-box-column-text';
-
-            if (item.bucket === 'producer-no-reference') {
-                deltaTxt.innerHTML = `<span style="color:#888; font-style:italic;">Nie można obliczyć - brak ceny referencyjnej</span>`;
-            } else if (item.bucket === 'producer-no-competition') {
-                deltaTxt.innerHTML = `<span style="color:#888; font-style:italic;">Brak ofert konkurencji</span>`;
-            } else if (item.deltaAbsolute != null) {
-                const deltaA = parseFloat(item.deltaAbsolute);
-                const deltaP = item.deltaPercent != null ? parseFloat(item.deltaPercent) : null;
-                const sign = deltaA > 0 ? '+' : '';
-                const arrow = deltaA > 0 ? '<i class="fa-solid fa-arrow-up"></i>' : (deltaA < 0 ? '<i class="fa-solid fa-arrow-down"></i>' : '<i class="fa-solid fa-equals"></i>');
-
-                deltaTxt.innerHTML = `
-                    <div class="delta-badge ${item.bucket}">${arrow} ${sign}${formatPricePL(deltaA, false)} PLN</div>
-                    ${deltaP != null ? `<div style="margin-top:4px; font-size:13px; color:#555;">${sign}${deltaP.toFixed(2)}% wzgl. ceny referencyjnej</div>` : ''}
-                    <div style="margin-top:6px; font-size:13px; color:#222; font-weight:500;">${BUCKET_LABELS[item.bucket] || ''}</div>
-                `;
-            }
-
-            deltaCol.appendChild(deltaTxt);
-            priceBoxData.appendChild(deltaCol);
+            // 3 boksy info: konkurent, ref, delta
+            priceBoxData.insertAdjacentHTML('beforeend', buildCompetitorBox(item, storeSearchTerm));
+            priceBoxData.insertAdjacentHTML('beforeend', buildReferenceBox(item));
+            priceBoxData.insertAdjacentHTML('beforeend', buildDeltaBox(item));
 
             box.appendChild(priceBoxSpace);
             box.appendChild(priceBoxData);
-            c.appendChild(box);
+            fragment.appendChild(box);
         });
 
+        c.appendChild(fragment);
         renderPagination(data.length);
 
         // Lazy load
-        const lazyImgs = document.querySelectorAll('.lazy-load');
-        const timers = new Map();
+        const lazyImgs = c.querySelectorAll('.lazy-load');
         const obs = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
-                const img = entry.target;
-                const idx = [...lazyImgs].indexOf(img);
                 if (entry.isIntersecting) {
-                    const t = setTimeout(() => { loadWithNeighbors(idx); observer.unobserve(img); timers.delete(img); }, 100);
-                    timers.set(img, t);
-                } else if (timers.has(img)) { clearTimeout(timers.get(img)); timers.delete(img); }
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.onload = () => img.classList.add('loaded');
+                    img.onerror = () => { img.src = '/images/no-image.png'; };
+                    observer.unobserve(img);
+                }
             });
-        }, { root: null, rootMargin: '50px', threshold: 0.01 });
-
-        function loadWithNeighbors(idx) {
-            const range = 6;
-            const s = Math.max(0, idx - range);
-            const e = Math.min(lazyImgs.length - 1, idx + range);
-            for (let i = s; i <= e; i++) {
-                const im = lazyImgs[i];
-                if (!im.src) { im.src = im.dataset.src; im.onload = () => im.classList.add('loaded'); }
-            }
-        }
+        }, { rootMargin: '100px' });
         lazyImgs.forEach(im => obs.observe(im));
 
         document.getElementById('displayedProductCount').textContent = data.length;
     }
 
     // ===========================================================
-    // CHART
+    // CHART (kolejność matching sidebar - od góry do dołu)
     // ===========================================================
     function renderChart(data) {
         const ctx = document.getElementById('colorChart').getContext('2d');
-        const counts = {
-            'producer-deep-violation': 0,
-            'producer-violation': 0,
-            'producer-minor-below': 0,
-            'producer-equal': 0,
-            'producer-minor-above': 0,
-            'producer-above': 0,
-            'producer-deep-above': 0,
-            'producer-no-reference': 0,
-            'producer-no-competition': 0
-        };
+
+        const counts = {};
+        BUCKETS_ORDERED.forEach(b => counts[b.key] = 0);
         data.forEach(i => { if (counts.hasOwnProperty(i.bucket)) counts[i.bucket]++; });
 
-        const labels = Object.keys(counts).map(k => BUCKET_LABELS[k]);
-        const values = Object.values(counts);
-        const colors = Object.keys(counts).map(k => BUCKET_COLORS[k]);
+        const labels = BUCKETS_ORDERED.map(b => b.label);
+        const values = BUCKETS_ORDERED.map(b => counts[b.key]);
+        const colors = BUCKETS_ORDERED.map(b => b.color);
 
         if (chartInstance) {
             chartInstance.data.labels = labels;
@@ -947,235 +1260,28 @@
                 data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderColor: colors, borderWidth: 1 }] },
                 options: {
                     aspectRatio: 1, cutout: '65%', layout: { padding: 4 },
-                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.label + ': ' + c.parsed } } }
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: c => c.label + ': ' + c.parsed } }
+                    }
                 }
             });
         }
     }
 
     function updateBucketCountsUI(data) {
-        const counts = {
-            'producer-deep-violation': 0, 'producer-violation': 0, 'producer-minor-below': 0,
-            'producer-equal': 0, 'producer-minor-above': 0, 'producer-above': 0, 'producer-deep-above': 0,
-            'producer-no-reference': 0, 'producer-no-competition': 0
-        };
+        const counts = {};
+        BUCKETS_ORDERED.forEach(b => counts[b.key] = 0);
         data.forEach(i => { if (counts.hasOwnProperty(i.bucket)) counts[i.bucket]++; });
 
-        const map = {
-            'producer-deep-violation': 'bucketDeepViolation',
-            'producer-violation': 'bucketViolation',
-            'producer-minor-below': 'bucketMinorBelow',
-            'producer-equal': 'bucketEqual',
-            'producer-minor-above': 'bucketMinorAbove',
-            'producer-above': 'bucketAbove',
-            'producer-deep-above': 'bucketDeepAbove',
-            'producer-no-reference': 'bucketNoReference',
-            'producer-no-competition': 'bucketNoCompetition'
-        };
-
-        for (const [b, eid] of Object.entries(map)) {
+        for (const [bucketKey, eid] of Object.entries(BUCKET_TO_CHECKBOX)) {
             const lbl = document.querySelector(`label[for="${eid}"]`);
             if (lbl) {
                 const txt = lbl.textContent.split('(')[0].trim();
-                lbl.textContent = `${txt} (${counts[b] || 0})`;
+                lbl.textContent = `${txt} (${counts[bucketKey] || 0})`;
             }
         }
     }
-
-    // ===========================================================
-    // PRODUCER SETTINGS MODAL + WALIDACJA
-    // ===========================================================
-    document.getElementById('openProducerSettingsBtn').addEventListener('click', function () {
-        loadProducerSettingsToModal();
-        $('#producerSettingsModal').modal('show');
-    });
-
-    function loadProducerSettingsToModal() {
-        $.get(`/PriceHistory/GetProducerSettings?storeId=${storeId}`, function (data) {
-            $('#identifierForSimulationInput').val(data.identifierForSimulation || 'EAN');
-            $('#comparisonSourceInput').val(data.comparisonSource);
-            $('#useAmountInput').val(data.useAmount.toString());
-
-            $('#thrRedDarkPct').val(data.redDarkPct);
-            $('#thrRedPct').val(data.redPct);
-            $('#thrRedLightPct').val(data.redLightPct);
-            $('#thrGreenLightPct').val(data.greenLightPct);
-            $('#thrGreenPct').val(data.greenPct);
-            $('#thrGreenDarkPct').val(data.greenDarkPct);
-
-            $('#thrRedDarkAmt').val(data.redDarkAmt);
-            $('#thrRedAmt').val(data.redAmt);
-            $('#thrRedLightAmt').val(data.redLightAmt);
-            $('#thrGreenLightAmt').val(data.greenLightAmt);
-            $('#thrGreenAmt').val(data.greenAmt);
-            $('#thrGreenDarkAmt').val(data.greenDarkAmt);
-
-            toggleThresholdBlocks();
-            validateThresholds();
-        });
-    }
-
-    function toggleThresholdBlocks() {
-        const useAmt = $('#useAmountInput').val() === 'true';
-        $('#thresholdsBlock_pct').toggle(!useAmt);
-        $('#thresholdsBlock_amt').toggle(useAmt);
-    }
-
-    $('#useAmountInput').on('change', function () {
-        toggleThresholdBlocks();
-        validateThresholds();
-    });
-
-    // Live walidacja
-    $(document).on('input', '.threshold-input', function () {
-        validateThresholds();
-    });
-
-    /**
-     * Walidacja progów - sprawdza:
-     *  - wszystkie wartości >= 0
-     *  - kolejność: light <= normal <= dark (oddzielnie below i above)
-     *  - waliduje obie strony (% i PLN), bo nieaktywna i tak musi być spójna
-     * Ustawia czerwone obramowania, komunikaty i blokuje przycisk Save.
-     */
-    function validateThresholds() {
-        const get = id => parseFloat(($('#' + id).val() || '').replace(',', '.'));
-
-        const groups = {
-            'below-pct': {
-                fields: [
-                    { id: 'thrRedLightPct', level: 1 },
-                    { id: 'thrRedPct', level: 2 },
-                    { id: 'thrRedDarkPct', level: 3 }
-                ], errEl: 'errBelowPct', label: 'Progi „poniżej" (%)'
-            },
-            'above-pct': {
-                fields: [
-                    { id: 'thrGreenLightPct', level: 1 },
-                    { id: 'thrGreenPct', level: 2 },
-                    { id: 'thrGreenDarkPct', level: 3 }
-                ], errEl: 'errAbovePct', label: 'Progi „powyżej" (%)'
-            },
-            'below-amt': {
-                fields: [
-                    { id: 'thrRedLightAmt', level: 1 },
-                    { id: 'thrRedAmt', level: 2 },
-                    { id: 'thrRedDarkAmt', level: 3 }
-                ], errEl: 'errBelowAmt', label: 'Progi „poniżej" (PLN)'
-            },
-            'above-amt': {
-                fields: [
-                    { id: 'thrGreenLightAmt', level: 1 },
-                    { id: 'thrGreenAmt', level: 2 },
-                    { id: 'thrGreenDarkAmt', level: 3 }
-                ], errEl: 'errAboveAmt', label: 'Progi „powyżej" (PLN)'
-            }
-        };
-
-        let allValid = true;
-        const allErrors = [];
-
-        // Zerujemy stan
-        $('.threshold-input').removeClass('input-error');
-        $('.error-message-row').removeClass('visible').text('');
-
-        Object.entries(groups).forEach(([key, group]) => {
-            const errs = [];
-            const values = group.fields.map(f => ({ ...f, val: get(f.id) }));
-
-            // 1. NaN / ujemne
-            values.forEach(v => {
-                if (isNaN(v.val) || v.val < 0) {
-                    $('#' + v.id).addClass('input-error');
-                    errs.push(`Wartość musi być liczbą >= 0`);
-                    allValid = false;
-                }
-            });
-
-            // 2. Kolejność: light <= normal <= dark
-            const light = values.find(v => v.level === 1);
-            const normal = values.find(v => v.level === 2);
-            const dark = values.find(v => v.level === 3);
-
-            if (!isNaN(light.val) && !isNaN(normal.val) && light.val > normal.val) {
-                $('#' + light.id).addClass('input-error');
-                $('#' + normal.id).addClass('input-error');
-                errs.push(`Próg „lekki" (${light.val}) nie może być większy niż „normalny" (${normal.val})`);
-                allValid = false;
-            }
-            if (!isNaN(normal.val) && !isNaN(dark.val) && normal.val > dark.val) {
-                $('#' + normal.id).addClass('input-error');
-                $('#' + dark.id).addClass('input-error');
-                errs.push(`Próg „normalny" (${normal.val}) nie może być większy niż „mocny" (${dark.val})`);
-                allValid = false;
-            }
-
-            if (errs.length > 0) {
-                const uniqErrs = [...new Set(errs)];
-                $('#' + group.errEl).addClass('visible').html(uniqErrs.map(e => `<i class="fa-solid fa-circle-exclamation"></i> ${e}`).join('<br>'));
-                allErrors.push(group.label + ': ' + uniqErrs.join('; '));
-            }
-        });
-
-        // Zaktualizuj stan przycisku Save
-        const saveBtn = document.getElementById('saveProducerSettingsBtn');
-        if (saveBtn) {
-            saveBtn.disabled = !allValid;
-            saveBtn.style.opacity = allValid ? '1' : '0.5';
-            saveBtn.style.cursor = allValid ? 'pointer' : 'not-allowed';
-            saveBtn.title = allValid ? '' : 'Popraw błędy walidacji aby zapisać';
-        }
-
-        return allValid;
-    }
-
-    document.getElementById('saveProducerSettingsBtn').addEventListener('click', function () {
-        if (!validateThresholds()) {
-            showGlobalNotification('<p style="font-weight:bold;">Walidacja</p><p>Popraw błędy w formularzu przed zapisem.</p>');
-            return;
-        }
-
-        const get = id => parseFloat(($('#' + id).val() || '').replace(',', '.'));
-
-        const payload = {
-            StoreId: storeId,
-            IdentifierForSimulation: $('#identifierForSimulationInput').val(),
-            ProducerComparisonSource: parseInt($('#comparisonSourceInput').val()),
-            ProducerUseAmount: $('#useAmountInput').val() === 'true',
-            ProducerThresholdRedDarkPercent: get('thrRedDarkPct'),
-            ProducerThresholdRedPercent: get('thrRedPct'),
-            ProducerThresholdRedLightPercent: get('thrRedLightPct'),
-            ProducerThresholdGreenLightPercent: get('thrGreenLightPct'),
-            ProducerThresholdGreenPercent: get('thrGreenPct'),
-            ProducerThresholdGreenDarkPercent: get('thrGreenDarkPct'),
-            ProducerThresholdRedDarkAmount: get('thrRedDarkAmt'),
-            ProducerThresholdRedAmount: get('thrRedAmt'),
-            ProducerThresholdRedLightAmount: get('thrRedLightAmt'),
-            ProducerThresholdGreenLightAmount: get('thrGreenLightAmt'),
-            ProducerThresholdGreenAmount: get('thrGreenAmt'),
-            ProducerThresholdGreenDarkAmount: get('thrGreenDarkAmt')
-        };
-
-        fetch('/PriceHistory/SaveProducerSettings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    showGlobalUpdate('<p style="margin-bottom:8px; font-size:16px; font-weight:bold;">Ustawienia zapisane</p><p>Przeliczam dane z nowymi progami...</p>');
-                    $('#producerSettingsModal').modal('hide');
-                    loadPrices();
-                } else {
-                    showGlobalNotification('<p>' + (data.message || 'Błąd zapisu') + '</p>');
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                showGlobalNotification('<p>Błąd zapisu ustawień. Sprawdź konsolę.</p>');
-            });
-    });
 
     // ===========================================================
     // SORTOWANIE
@@ -1188,7 +1294,7 @@
     function getDefaultButtonLabel(key) {
         switch (key) {
             case 'sortName': return 'A-Z';
-            case 'sortPrice': return 'Cena MAP';
+            case 'sortPrice': return 'Cena ref.';
             case 'sortDeltaPercent': return 'Delta %';
             case 'sortDeltaAmount': return 'Delta PLN';
             case 'sortDaysViolation': return 'Dni naruszenia';
@@ -1232,7 +1338,6 @@
     ['sortName', 'sortPrice', 'sortDeltaPercent', 'sortDeltaAmount', 'sortDaysViolation', 'sortStoresViolating',
         'sortCeneoSales', 'sortSalesTrendAmount', 'sortSalesTrendPercent'].forEach(bindSortButton);
 
-    // Restore sorting
     const storedSort = localStorage.getItem('priceHistoryProducerSorting_' + storeId);
     if (storedSort) {
         try { sortingState = { ...sortingState, ...JSON.parse(storedSort) }; updateSortButtonVisuals(); }
@@ -1240,7 +1345,7 @@
     }
 
     // ===========================================================
-    // EVENT BINDING
+    // EVENTY
     // ===========================================================
     const debouncedFilter = debounce(() => filterPricesAndUpdateUI(), 300);
     document.getElementById('productSearch').addEventListener('input', debouncedFilter);
@@ -1297,6 +1402,8 @@
                 { header: 'Źródło ref.', key: 'refSource', width: 16 },
                 { header: 'Najtańsza konkurencja', key: 'best', width: 14, style: { numFmt: '0.00' } },
                 { header: 'Sklep konkurenta', key: 'bestStore', width: 20 },
+                { header: 'Pozycja konkurenta', key: 'bestPos', width: 14 },
+                { header: 'Konkurent dostępny', key: 'bestStock', width: 14 },
                 { header: 'Delta (PLN)', key: 'deltaA', width: 12, style: { numFmt: '0.00' } },
                 { header: 'Delta (%)', key: 'deltaP', width: 10, style: { numFmt: '0.00' } },
                 { header: 'Status', key: 'bucket', width: 22 },
@@ -1314,6 +1421,7 @@
             ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
 
             currentlyFilteredPrices.forEach(item => {
+                const stockStr = item.bestCompetitorInStock === true ? 'TAK' : (item.bestCompetitorInStock === false ? 'NIE' : 'Brak danych');
                 ws.addRow({
                     ean: item.ean || '',
                     sku: item.producerCode || '',
@@ -1323,6 +1431,8 @@
                     refSource: item.referenceSource === 'map' ? 'MAP' : (item.referenceSource === 'store' ? 'Sklep' : 'Brak'),
                     best: item.bestCompetitorPrice,
                     bestStore: item.bestCompetitorStoreName || '',
+                    bestPos: item.bestCompetitorPosition,
+                    bestStock: stockStr,
                     deltaA: item.deltaAbsolute,
                     deltaP: item.deltaPercent,
                     bucket: BUCKET_LABELS[item.bucket] || '',

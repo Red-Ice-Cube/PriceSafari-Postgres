@@ -16,219 +16,244 @@
 <input type="hidden" id="initialScrapId" value="@scrapId" />
 
 <style>
-    /* === BUCKETY PRODUCENTA - lewy border na price-box === */
-    .price-box.producer-deep-violation { border-left: 5px solid #8B0000; }
-    .price-box.producer-violation { border-left: 5px solid #DC143C; }
-    .price-box.producer-minor-below { border-left: 5px solid #FF6347; }
-    .price-box.producer-equal { border-left: 5px solid #4169E1; }
-    .price-box.producer-minor-above { border-left: 5px solid #90EE90; }
-    .price-box.producer-above { border-left: 5px solid #228B22; }
-    .price-box.producer-deep-above { border-left: 5px solid #006400; }
-    .price-box.producer-no-reference { border-left: 5px solid #BBBBBB; }
-    .price-box.producer-no-competition { border-left: 5px solid #888888; }
-
     /* === COLOR BAR (pionowy w boksie danych) === */
-    .color-bar.producer-deep-violation { background-color: #8B0000; }
-    .color-bar.producer-violation { background-color: #DC143C; }
-    .color-bar.producer-minor-below { background-color: #FF6347; }
-    .color-bar.producer-equal { background-color: #4169E1; }
-    .color-bar.producer-minor-above { background-color: #90EE90; }
-    .color-bar.producer-above { background-color: #228B22; }
-    .color-bar.producer-deep-above { background-color: #006400; }
-    .color-bar.producer-no-reference { background-color: #BBBBBB; }
-    .color-bar.producer-no-competition { background-color: #888888; }
+    .color-bar.producer-deep-violation { background-color: rgba(139, 0, 0, 0.85); }
+    .color-bar.producer-violation { background-color: rgba(220, 20, 60, 0.85); }
+    .color-bar.producer-minor-below { background-color: rgba(255, 99, 71, 0.85); }
+    .color-bar.producer-equal { background-color: rgba(65, 105, 225, 0.85); }
+    .color-bar.producer-minor-above { background-color: rgba(144, 238, 144, 0.85); }
+    .color-bar.producer-above { background-color: rgba(34, 139, 34, 0.85); }
+    .color-bar.producer-deep-above { background-color: rgba(0, 100, 0, 0.85); }
+    .color-bar.producer-no-reference { background-color: rgba(187, 187, 187, 0.85); }
+    .color-bar.producer-no-competition { background-color: rgba(136, 136, 136, 0.85); }
 
-    /* === KOLOROWE PROSTOKĄTY w sidebarze === */
-    .rect-deep-violation { background-color: #8B0000; }
-    .rect-violation { background-color: #DC143C; }
-    .rect-minor-below { background-color: #FF6347; }
-    .rect-equal { background-color: #4169E1; }
-    .rect-minor-above { background-color: #90EE90; }
-    .rect-above { background-color: #228B22; }
-    .rect-deep-above { background-color: #006400; }
-    .rect-no-reference { background-color: #BBBBBB; }
-    .rect-no-competition { background-color: #888888; }
+    /* === KOLOROWE PROSTOKĄTY w sidebarze (legenda buckets) === */
+    .producer-rect-deep-violation { background-color: rgba(139, 0, 0, 0.85); }
+    .producer-rect-violation { background-color: rgba(220, 20, 60, 0.85); }
+    .producer-rect-minor-below { background-color: rgba(255, 99, 71, 0.85); }
+    .producer-rect-equal { background-color: rgba(65, 105, 225, 0.85); }
+    .producer-rect-minor-above { background-color: rgba(144, 238, 144, 0.85); }
+    .producer-rect-above { background-color: rgba(34, 139, 34, 0.85); }
+    .producer-rect-deep-above { background-color: rgba(0, 100, 0, 0.85); }
+    .producer-rect-no-reference { background-color: rgba(187, 187, 187, 0.85); }
+    .producer-rect-no-competition { background-color: rgba(136, 136, 136, 0.85); }
 
-    .color-rect {
-        display: inline-block;
-        width: 14px;
-        height: 14px;
-        margin-right: 6px;
-        border-radius: 3px;
-        vertical-align: middle;
-    }
+    /* Czeckboxy bucketów - zaznaczone */
+    .bucketFilter:checked#bucketDeepViolation { background-color: rgba(139, 0, 0, 0.7); border-color: rgba(139, 0, 0, 1); }
+    .bucketFilter:checked#bucketViolation { background-color: rgba(220, 20, 60, 0.7); border-color: rgba(220, 20, 60, 1); }
+    .bucketFilter:checked#bucketMinorBelow { background-color: rgba(255, 99, 71, 0.7); border-color: rgba(255, 99, 71, 1); }
+    .bucketFilter:checked#bucketEqual { background-color: rgba(65, 105, 225, 0.7); border-color: rgba(65, 105, 225, 1); }
+    .bucketFilter:checked#bucketMinorAbove { background-color: rgba(144, 238, 144, 0.7); border-color: rgba(144, 238, 144, 1); }
+    .bucketFilter:checked#bucketAbove { background-color: rgba(34, 139, 34, 0.7); border-color: rgba(34, 139, 34, 1); }
+    .bucketFilter:checked#bucketDeepAbove { background-color: rgba(0, 100, 0, 0.7); border-color: rgba(0, 100, 0, 1); }
+    .bucketFilter:checked#bucketNoReference { background-color: rgba(187, 187, 187, 0.7); border-color: rgba(187, 187, 187, 1); }
+    .bucketFilter:checked#bucketNoCompetition { background-color: rgba(136, 136, 136, 0.7); border-color: rgba(136, 136, 136, 1); }
 
-    /* === BADGES naruszeń === */
-    .violation-fresh-badge {
-        background: #FF6347;
-        color: white;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-    }
-    .violation-days-badge {
-        background: #DC143C;
-        color: white;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-    }
-    .violation-no-badge {
-        background: #555;
-        color: white;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 500;
-    }
-
-    /* === DELTA BADGES === */
-    .delta-badge {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 14px;
-        color: white;
-    }
-    .delta-badge.producer-deep-violation { background-color: #8B0000; }
-    .delta-badge.producer-violation { background-color: #DC143C; }
-    .delta-badge.producer-minor-below { background-color: #FF6347; }
-    .delta-badge.producer-equal { background-color: #4169E1; }
-    .delta-badge.producer-minor-above { background-color: #5cb85c; }
-    .delta-badge.producer-above { background-color: #228B22; }
-    .delta-badge.producer-deep-above { background-color: #006400; }
-
-    /* === ROZKŁAD SKLEPÓW (mini-bars) === */
-    .stores-distribution {
+    /* Pozycjonowanie kolorowych prostokątów obok checkboxów */
+    #filters-producer .form-check {
+        position: relative;
         display: flex;
-        gap: 6px;
-        margin-top: 6px;
-        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 2px;
+        padding-left: 0;
+        margin-left: 3px;
     }
-    .stores-pill {
+    #filters-producer .color-rect {
+        position: absolute;
+        left: -10px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: block;
+        width: 6px;
+        height: 16px;
+        min-width: 6px;
+        border-radius: 2px;
+    }
+    #filters-producer .form-check-input {
+        margin-top: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 8px !important;
+        position: static !important;
+    }
+
+    /* === INLINE PANEL PROGÓW === */
+    .producer-thresholds-section {
+        padding-top: 8px;
+        margin-top: 8px;
+        border-top: 1px solid #ededed;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        width: 100%;
+    }
+    .producer-thresholds-section .price-range-settings {
+        margin-top: 2px;
+        align-items: center;
+    }
+    .price-range-settings .producer-circle-deep-above { background-color: rgba(0, 100, 0, 0.85); }
+    .price-range-settings .producer-circle-above { background-color: rgba(34, 139, 34, 0.85); }
+    .price-range-settings .producer-circle-minor-above { background-color: rgba(144, 238, 144, 0.85); }
+    .price-range-settings .producer-circle-minor-below { background-color: rgba(255, 99, 71, 0.85); }
+    .price-range-settings .producer-circle-violation { background-color: rgba(220, 20, 60, 0.85); }
+    .price-range-settings .producer-circle-deep-violation { background-color: rgba(139, 0, 0, 0.85); }
+
+    .producer-unit-label {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 2px 8px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 600;
-        color: white;
+        height: 26px;
+        margin-left: 3px;
+        font-size: 13px;
+        color: #4e4e4e;
+        min-width: 22px;
     }
-    .stores-pill.below { background: #DC143C; }
-    .stores-pill.equal { background: #4169E1; }
-    .stores-pill.above { background: #228B22; }
 
-    /* === MODAL VALIDATION === */
-    .threshold-input.input-error {
-        border-color: #DC143C !important;
+    .producer-threshold-actions {
+        display: flex;
+        gap: 4px;
+        margin-top: 8px;
+        width: 100%;
+    }
+    .producer-threshold-actions > * { flex: 1; margin: 0 !important; }
+
+    /* Switch %/PLN */
+    .useAmountSwitch {
+        appearance: none;
+        display: flex;
+        width: 100%;
+        height: 33px;
+        background-color: #e3e3e3;
+        border-radius: 4px;
+        position: relative;
+        cursor: pointer;
+        font-size: 14px;
+        color: #4e4e4e;
+        text-align: center;
+        user-select: none;
+        margin: 0;
+    }
+    .useAmountSwitch::before {
+        content: "Tryb: %";
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 4px;
+        top: 0;
+        left: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.3s, color 0.3s;
+    }
+    .useAmountSwitch:checked::before { content: "Tryb: PLN"; }
+    .useAmountSwitch:hover::before { background-color: #323232; color: #e3e3e3; }
+
+    /* Walidacja */
+    .producer-threshold-input.input-error {
+        border-color: rgba(220, 20, 60, 0.9) !important;
         box-shadow: 0 0 0 2px rgba(220, 20, 60, 0.15) !important;
     }
     .error-message-row {
-        color: #DC143C;
+        color: rgba(220, 20, 60, 0.9);
         font-size: 12px;
         margin-top: 4px;
+        line-height: 1.4;
         display: none;
     }
     .error-message-row.visible { display: block; }
 
-    .threshold-row {
-        display: grid;
-        grid-template-columns: 16px 1fr 110px 110px;
-        gap: 10px;
-        align-items: center;
-        padding: 8px 0;
-    }
-    .threshold-row .color-rect {
-        width: 16px;
-        height: 16px;
-        margin: 0;
-    }
-    .threshold-row label {
-        margin: 0;
-        font-size: 13px;
-    }
-    .threshold-row input {
-        width: 100%;
-        padding: 6px 10px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-    .threshold-section-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: #333;
-        margin-top: 16px;
-        margin-bottom: 8px;
-        padding-bottom: 6px;
-        border-bottom: 1px solid #eee;
-    }
-
-    /* === BADGE „Tryb pracy" na górze === */
+    /* Tryb badge */
     .producer-mode-badge {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 6px 12px;
-        background: #4169E1;
-        color: white;
-        border-radius: 6px;
+        padding: 0 12px;
+        height: 34px;
+        background: rgb(245, 245, 245);
+        border: 1px solid #e3e3e3;
+        color: #4e4e4e;
+        border-radius: 4px;
         font-size: 13px;
         font-weight: 500;
     }
-    .producer-mode-badge.amount-mode { background: #6f42c1; }
+    .producer-mode-badge i { color: #4169E1; }
+    .producer-mode-badge.amount-mode i { color: #6f42c1; }
 
-    /* === REFERENCE PRICE BOX === */
-    .ref-price-display {
+    /* Rozkład sklepów - linijki */
+    .producer-stores-dist {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 3px;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid #ededed;
     }
-    .ref-price-display .ref-label {
+    .producer-stores-line {
+        display: flex;
+        align-items: center;
+        gap: 5px;
         font-size: 12px;
+        font-weight: 500;
+        line-height: 1.3;
+        padding: 1px 0;
+    }
+    .producer-stores-line.bad { color: rgba(220, 20, 60, 0.9); }
+    .producer-stores-line.good { color: rgba(34, 139, 34, 0.9); }
+    .producer-stores-line.equal { color: rgba(65, 105, 225, 0.9); }
+
+    /* Delta badge */
+    .producer-delta-badge {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 12px;
+        color: white;
+    }
+    .producer-bg-deep-violation { background-color: rgba(139, 0, 0, 0.9); }
+    .producer-bg-violation { background-color: rgba(220, 20, 60, 0.9); }
+    .producer-bg-minor-below { background-color: rgba(255, 99, 71, 0.9); }
+    .producer-bg-equal { background-color: rgba(65, 105, 225, 0.9); }
+    .producer-bg-minor-above { background-color: rgba(144, 238, 144, 1); color: #222; }
+    .producer-bg-above { background-color: rgba(34, 139, 34, 0.9); }
+    .producer-bg-deep-above { background-color: rgba(0, 100, 0, 0.9); }
+
+    /* Reference price box */
+    .ref-label-small {
+        font-size: 11px;
         color: #666;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        font-weight: 500;
     }
-    .ref-price-display .ref-value {
-        font-weight: 600;
-        font-size: 18px;
-        color: #222;
-    }
-    .ref-price-display .ref-source {
-        font-size: 11px;
+    .ref-alt-line {
+        font-size: 12px;
         color: #888;
-        font-style: italic;
+        line-height: 1.3;
     }
-    .ref-price-display .ref-missing {
-        color: #DC143C;
+    .ref-missing {
+        color: rgba(220, 20, 60, 0.9);
         font-style: italic;
         font-size: 13px;
     }
 
-    /* === MIN MAX BOX === */
-    .minmax-row {
+    /* Wartość delta - duża z ikoną */
+    .producer-delta-value-row {
         display: flex;
-        gap: 4px;
-        font-size: 12px;
-        color: #555;
-        margin-top: 4px;
+        align-items: center;
+        gap: 6px;
     }
-    .minmax-row strong { color: #222; }
+    .producer-delta-value-row.bad { color: rgba(220, 20, 60, 0.9); }
+    .producer-delta-value-row.good { color: rgba(34, 139, 34, 0.9); }
+    .producer-delta-value-row.neutral { color: rgba(65, 105, 225, 0.9); }
+    .producer-delta-value-row.deep-bad { color: rgba(139, 0, 0, 0.9); }
+    .producer-delta-value-row.deep-good { color: rgba(0, 100, 0, 0.9); }
 </style>
 
 <div class="Vert">
     <div class="Page-Box">
         <div class="Page-Box-Container">
+
+            <!-- ===================== LEWY PANEL ===================== -->
             <div class="Page-Box-Category">
                 <div><img src="@storeLogo" class="img-container" /></div>
 
@@ -236,56 +261,111 @@
                     <canvas id="colorChart"></canvas>
                 </div>
 
+                <!-- 9 bucketów (kolejność od góry: brak konkur > brak ref > mocno powyżej > ... > drastyczne) -->
                 <div class="store-section" id="filters-producer">
                     <div class="form-check">
-                        <span class="color-rect rect-deep-violation"></span>
-                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketDeepViolation" value="producer-deep-violation">
-                        <label class="form-check-label" for="bucketDeepViolation">Drastyczne naruszenie</label>
+                        <span class="color-rect producer-rect-no-competition"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketNoCompetition" value="producer-no-competition">
+                        <label class="form-check-label" for="bucketNoCompetition">Brak konkurencji</label>
                     </div>
                     <div class="form-check">
-                        <span class="color-rect rect-violation"></span>
-                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketViolation" value="producer-violation">
-                        <label class="form-check-label" for="bucketViolation">Naruszenie</label>
-                    </div>
-                    <div class="form-check">
-                        <span class="color-rect rect-minor-below"></span>
-                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketMinorBelow" value="producer-minor-below">
-                        <label class="form-check-label" for="bucketMinorBelow">Lekko poniżej</label>
-                    </div>
-                    <div class="form-check">
-                        <span class="color-rect rect-equal"></span>
-                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketEqual" value="producer-equal">
-                        <label class="form-check-label" for="bucketEqual">Cena zgodna</label>
-                    </div>
-                    <div class="form-check">
-                        <span class="color-rect rect-minor-above"></span>
-                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketMinorAbove" value="producer-minor-above">
-                        <label class="form-check-label" for="bucketMinorAbove">Lekko powyżej</label>
-                    </div>
-                    <div class="form-check">
-                        <span class="color-rect rect-above"></span>
-                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketAbove" value="producer-above">
-                        <label class="form-check-label" for="bucketAbove">Powyżej</label>
-                    </div>
-                    <div class="form-check">
-                        <span class="color-rect rect-deep-above"></span>
-                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketDeepAbove" value="producer-deep-above">
-                        <label class="form-check-label" for="bucketDeepAbove">Mocno powyżej</label>
-                    </div>
-                    <div class="form-check">
-                        <span class="color-rect rect-no-reference"></span>
+                        <span class="color-rect producer-rect-no-reference"></span>
                         <input class="form-check-input bucketFilter" type="checkbox" id="bucketNoReference" value="producer-no-reference">
                         <label class="form-check-label" for="bucketNoReference">Brak ceny ref.</label>
                     </div>
                     <div class="form-check">
-                        <span class="color-rect rect-no-competition"></span>
-                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketNoCompetition" value="producer-no-competition">
-                        <label class="form-check-label" for="bucketNoCompetition">Brak konkurencji</label>
+                        <span class="color-rect producer-rect-deep-above"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketDeepAbove" value="producer-deep-above">
+                        <label class="form-check-label" for="bucketDeepAbove">Mocno powyżej</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect producer-rect-above"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketAbove" value="producer-above">
+                        <label class="form-check-label" for="bucketAbove">Powyżej</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect producer-rect-minor-above"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketMinorAbove" value="producer-minor-above">
+                        <label class="form-check-label" for="bucketMinorAbove">Lekko powyżej</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect producer-rect-equal"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketEqual" value="producer-equal">
+                        <label class="form-check-label" for="bucketEqual">Cena zgodna</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect producer-rect-minor-below"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketMinorBelow" value="producer-minor-below">
+                        <label class="form-check-label" for="bucketMinorBelow">Lekko poniżej</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect producer-rect-violation"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketViolation" value="producer-violation">
+                        <label class="form-check-label" for="bucketViolation">Naruszenie</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect producer-rect-deep-violation"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketDeepViolation" value="producer-deep-violation">
+                        <label class="form-check-label" for="bucketDeepViolation">Drastyczne naruszenie</label>
                     </div>
                 </div>
 
+                <!-- INLINE: 6 progów + tryb + zapis -->
+                <div class="store-section producer-thresholds-section">
+                    <div class="price-range-settings">
+                        <div class="color-circle producer-circle-deep-above"></div>
+                        <div class="legendBox"><span>Mocno powyżej</span></div>
+                        <input type="number" id="thrInline_greenDark" class="producer-threshold-input" data-level="dark" data-direction="above" step="0.5" min="0">
+                        <span class="producer-unit-label">%</span>
+                    </div>
+                    <div class="price-range-settings">
+                        <div class="color-circle producer-circle-above"></div>
+                        <div class="legendBox"><span>Powyżej</span></div>
+                        <input type="number" id="thrInline_green" class="producer-threshold-input" data-level="normal" data-direction="above" step="0.5" min="0">
+                        <span class="producer-unit-label">%</span>
+                    </div>
+                    <div class="price-range-settings">
+                        <div class="color-circle producer-circle-minor-above"></div>
+                        <div class="legendBox"><span>Lekko powyżej</span></div>
+                        <input type="number" id="thrInline_greenLight" class="producer-threshold-input" data-level="light" data-direction="above" step="0.5" min="0">
+                        <span class="producer-unit-label">%</span>
+                    </div>
+                    <div class="price-range-settings">
+                        <div class="color-circle producer-circle-minor-below"></div>
+                        <div class="legendBox"><span>Lekko poniżej</span></div>
+                        <input type="number" id="thrInline_redLight" class="producer-threshold-input" data-level="light" data-direction="below" step="0.5" min="0">
+                        <span class="producer-unit-label">%</span>
+                    </div>
+                    <div class="price-range-settings">
+                        <div class="color-circle producer-circle-violation"></div>
+                        <div class="legendBox"><span>Naruszenie</span></div>
+                        <input type="number" id="thrInline_red" class="producer-threshold-input" data-level="normal" data-direction="below" step="0.5" min="0">
+                        <span class="producer-unit-label">%</span>
+                    </div>
+                    <div class="price-range-settings">
+                        <div class="color-circle producer-circle-deep-violation"></div>
+                        <div class="legendBox"><span>Drastyczne</span></div>
+                        <input type="number" id="thrInline_redDark" class="producer-threshold-input" data-level="dark" data-direction="below" step="0.5" min="0">
+                        <span class="producer-unit-label">%</span>
+                    </div>
+
+                    <div class="producer-threshold-actions">
+                        <div style="flex: 1; display: flex;">
+                            <input class="useAmountSwitch" type="checkbox" id="useAmountToggle" />
+                        </div>
+                        <button class="Button-Page-Small" id="saveProducerInlineBtn">
+                            Przelicz i zapisz
+                        </button>
+                    </div>
+
+                    <div class="error-message-row" id="errInline"></div>
+                </div>
+
                 <div class="filterBox">
-                    <div class="Category-Container-Select" style="margin-top:-2px;">Flagi <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a></div>
+                    <div class="Category-Container-Select" style="margin-top:-2px;">
+                        Flagi
+                        <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a>
+                    </div>
                     <div class="store-section" id="flagContainer"></div>
 
                     <div class="Category-Container-Select">Pozycja</div>
@@ -305,7 +385,7 @@
                         <div id="offerRangeSlider"></div>
                     </div>
 
-                    <div class="Category-Container-Select">Cena referencyjna (MAP)</div>
+                    <div class="Category-Container-Select">Cena referencyjna</div>
                     <div class="store-section">
                         <div class="position-slider-container">
                             <div id="myPriceRange" class="position-range-display" style="font-size:14px; font-weight:400;"></div>
@@ -335,20 +415,7 @@
                         </div>
                     </div>
 
-                    <div class="Category-Container-Select">Ceneo - Promowanie</div>
-                    <div class="store-section">
-                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
-                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
-                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_isBidding" value="isBidding" title="Pokaż tylko w Bid">
-                            </div>
-                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
-                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_isBidding" value="isBidding" title="Ukryj te w Bid">
-                            </div>
-                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Bid</span>
-                        </div>
-                    </div>
-
-                    <div class="Category-Container-Select">Dostępność konkurencji (Top 1)</div>
+                    <div class="Category-Container-Select">Dostępność konkurencji</div>
                     <div class="store-section">
                         <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
                             <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
@@ -394,7 +461,9 @@
                 </div>
             </div>
 
+            <!-- ===================== PRAWY PANEL ===================== -->
             <div class="Horizontal">
+
                 <div class="order-upper-box">
                     <input type="text" id="productSearch" style="max-width:140px; height:34px;" placeholder="Wyszukaj produkt">
                     <input type="text" id="storeSearch" style="max-width:140px; height:34px;" placeholder="Wyszukaj sklep">
@@ -440,7 +509,7 @@
                     <div id="paginationContainer"></div>
 
                     <button id="sortName">A-Z</button>
-                    <button id="sortPrice">Cena MAP</button>
+                    <button id="sortPrice">Cena ref.</button>
                     <button id="sortDeltaPercent">Delta %</button>
                     <button id="sortDeltaAmount">Delta PLN</button>
                     <button id="sortDaysViolation">Dni naruszenia</button>
@@ -450,7 +519,7 @@
                 <div class="buttonsContainer">
                     <div id="priceChangeSummary" class="priceChangeSummary">
                         <div id="summaryText"></div>
-                        <button id="openProducerSettingsBtn" class="Button-Page-Small" style="width:48px;" title="Konfiguracja producenta"><i class="fa fa-cog" aria-hidden="true"></i></button>
+                        <button id="openProducerSettingsBtn" class="Button-Page-Small" style="width:48px;" title="Konfiguracja monitoringu"><i class="fa fa-cog"></i></button>
                     </div>
                 </div>
 
@@ -462,143 +531,45 @@
     </div>
 </div>
 
-<!-- ==== MODAL: Konfiguracja producenta ==== -->
+<!-- ==== MODAL: Konfiguracja producenta (tylko 2 ustawienia) ==== -->
 <div class="modal fade" id="producerSettingsModal" tabindex="-1" role="dialog" aria-labelledby="producerSettingsModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width:900px" role="document">
-        <div class="modal-content" style="margin:5% auto;">
+    <div class="modal-dialog" style="max-width:600px" role="document">
+        <div class="modal-content" style="margin: 10% auto;">
             <div class="modal-header">
-                <div class="price-box-column-name" id="producerSettingsModalLabel">Konfiguracja monitoringu producenta</div>
+                <div class="price-box-column-name" id="producerSettingsModalLabel">Konfiguracja monitoringu</div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom:24px; line-height:1.6;">
-                    Skonfiguruj jak system ma kategoryzować odchylenia cen rynkowych względem Twojej ceny referencyjnej.
-                    Cena referencyjna to <strong>cena MAP</strong> (z pola "cena zakupu" produktu) lub <strong>cena Twojego sklepu</strong> – w zależności od ustawienia poniżej.
+                <p style="margin-bottom: 24px; line-height: 1.6;">
+                    Skonfiguruj sposób identyfikacji produktów oraz źródło ceny referencyjnej, względem której będą porównywane oferty rynkowe.
                 </p>
 
-                <div style="display:flex; gap:6px; justify-content: space-between;">
-                    <div class="form-group" style="margin-bottom:24px; width:33%;">
-                        <label for="identifierForSimulationInput">Element nawigacyjny dla produktów</label>
-                        <select class="form-control" id="identifierForSimulationInput">
-                            <option value="EAN">EAN</option>
-                            <option value="ID">ID</option>
-                            <option value="ProducerCode">Kod producenta</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-bottom:24px; width:33%;">
-                        <label for="comparisonSourceInput">Źródło ceny referencyjnej</label>
-                        <select class="form-control" id="comparisonSourceInput">
-                            <option value="1">Cena MAP (z ceny zakupu)</option>
-                            <option value="0">Cena Twojego sklepu</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-bottom:24px; width:33%;">
-                        <label for="useAmountInput">Tryb progów</label>
-                        <select class="form-control" id="useAmountInput">
-                            <option value="false">Procentowo (%)</option>
-                            <option value="true">Kwotowo (PLN)</option>
-                        </select>
-                    </div>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="identifierForSimulationInput">Element nawigacyjny dla produktów</label>
+                    <select class="form-control" id="identifierForSimulationInput">
+                        <option value="EAN">EAN</option>
+                        <option value="ID">ID</option>
+                        <option value="ProducerCode">Kod producenta</option>
+                    </select>
                 </div>
 
-                <div id="thresholdsBlock_pct">
-                    <div class="threshold-section-title" style="color:#DC143C;">Progi „poniżej" (% różnicy)</div>
-                    <div class="threshold-row">
-                        <div class="color-rect rect-deep-violation"></div>
-                        <label for="thrRedDarkPct">Drastyczne naruszenie (poniżej)</label>
-                        <input type="number" id="thrRedDarkPct" class="threshold-input pct" data-group="below-pct" data-level="3" step="0.5" min="0" placeholder="20.00">
-                        <span style="color:#888; font-size:12px;">%</span>
-                    </div>
-                    <div class="threshold-row">
-                        <div class="color-rect rect-violation"></div>
-                        <label for="thrRedPct">Naruszenie</label>
-                        <input type="number" id="thrRedPct" class="threshold-input pct" data-group="below-pct" data-level="2" step="0.5" min="0" placeholder="10.00">
-                        <span style="color:#888; font-size:12px;">%</span>
-                    </div>
-                    <div class="threshold-row">
-                        <div class="color-rect rect-minor-below"></div>
-                        <label for="thrRedLightPct">Lekko poniżej (próg tolerancji)</label>
-                        <input type="number" id="thrRedLightPct" class="threshold-input pct" data-group="below-pct" data-level="1" step="0.5" min="0" placeholder="1.00">
-                        <span style="color:#888; font-size:12px;">%</span>
-                    </div>
-                    <div class="error-message-row" id="errBelowPct"></div>
-
-                    <div class="threshold-section-title" style="color:#228B22;">Progi „powyżej" (% różnicy)</div>
-                    <div class="threshold-row">
-                        <div class="color-rect rect-minor-above"></div>
-                        <label for="thrGreenLightPct">Lekko powyżej (próg tolerancji)</label>
-                        <input type="number" id="thrGreenLightPct" class="threshold-input pct" data-group="above-pct" data-level="1" step="0.5" min="0" placeholder="1.00">
-                        <span style="color:#888; font-size:12px;">%</span>
-                    </div>
-                    <div class="threshold-row">
-                        <div class="color-rect rect-above"></div>
-                        <label for="thrGreenPct">Powyżej</label>
-                        <input type="number" id="thrGreenPct" class="threshold-input pct" data-group="above-pct" data-level="2" step="0.5" min="0" placeholder="10.00">
-                        <span style="color:#888; font-size:12px;">%</span>
-                    </div>
-                    <div class="threshold-row">
-                        <div class="color-rect rect-deep-above"></div>
-                        <label for="thrGreenDarkPct">Mocno powyżej</label>
-                        <input type="number" id="thrGreenDarkPct" class="threshold-input pct" data-group="above-pct" data-level="3" step="0.5" min="0" placeholder="20.00">
-                        <span style="color:#888; font-size:12px;">%</span>
-                    </div>
-                    <div class="error-message-row" id="errAbovePct"></div>
-                </div>
-
-                <div id="thresholdsBlock_amt" style="display:none;">
-                    <div class="threshold-section-title" style="color:#DC143C;">Progi „poniżej" (PLN różnicy)</div>
-                    <div class="threshold-row">
-                        <div class="color-rect rect-deep-violation"></div>
-                        <label for="thrRedDarkAmt">Drastyczne naruszenie (poniżej)</label>
-                        <input type="number" id="thrRedDarkAmt" class="threshold-input amt" data-group="below-amt" data-level="3" step="1" min="0" placeholder="50.00">
-                        <span style="color:#888; font-size:12px;">PLN</span>
-                    </div>
-                    <div class="threshold-row">
-                        <div class="color-rect rect-violation"></div>
-                        <label for="thrRedAmt">Naruszenie</label>
-                        <input type="number" id="thrRedAmt" class="threshold-input amt" data-group="below-amt" data-level="2" step="1" min="0" placeholder="20.00">
-                        <span style="color:#888; font-size:12px;">PLN</span>
-                    </div>
-                    <div class="threshold-row">
-                        <div class="color-rect rect-minor-below"></div>
-                        <label for="thrRedLightAmt">Lekko poniżej (próg tolerancji)</label>
-                        <input type="number" id="thrRedLightAmt" class="threshold-input amt" data-group="below-amt" data-level="1" step="1" min="0" placeholder="5.00">
-                        <span style="color:#888; font-size:12px;">PLN</span>
-                    </div>
-                    <div class="error-message-row" id="errBelowAmt"></div>
-
-                    <div class="threshold-section-title" style="color:#228B22;">Progi „powyżej" (PLN różnicy)</div>
-                    <div class="threshold-row">
-                        <div class="color-rect rect-minor-above"></div>
-                        <label for="thrGreenLightAmt">Lekko powyżej (próg tolerancji)</label>
-                        <input type="number" id="thrGreenLightAmt" class="threshold-input amt" data-group="above-amt" data-level="1" step="1" min="0" placeholder="5.00">
-                        <span style="color:#888; font-size:12px;">PLN</span>
-                    </div>
-                    <div class="threshold-row">
-                        <div class="color-rect rect-above"></div>
-                        <label for="thrGreenAmt">Powyżej</label>
-                        <input type="number" id="thrGreenAmt" class="threshold-input amt" data-group="above-amt" data-level="2" step="1" min="0" placeholder="20.00">
-                        <span style="color:#888; font-size:12px;">PLN</span>
-                    </div>
-                    <div class="threshold-row">
-                        <div class="color-rect rect-deep-above"></div>
-                        <label for="thrGreenDarkAmt">Mocno powyżej</label>
-                        <input type="number" id="thrGreenDarkAmt" class="threshold-input amt" data-group="above-amt" data-level="3" step="1" min="0" placeholder="50.00">
-                        <span style="color:#888; font-size:12px;">PLN</span>
-                    </div>
-                    <div class="error-message-row" id="errAboveAmt"></div>
-                </div>
-
-                <div style="margin-top:20px; padding:12px; background:#f0f4f8; border-left:4px solid #4169E1; border-radius:4px; font-size:13px; color:#333;">
-                    <i class="fa-solid fa-circle-info" style="color:#4169E1; margin-right:5px;"></i>
-                    <strong>Zasada progów:</strong> próg „lekki" musi być mniejszy lub równy progowi „normalnemu", a normalny mniejszy lub równy „mocnemu". System wykorzystuje aktywny tryb (PLN albo %) – nieaktywny tryb i tak musi mieć poprawne wartości na wypadek przełączenia.
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="comparisonSourceInput">Źródło ceny referencyjnej</label>
+                    <select class="form-control" id="comparisonSourceInput">
+                        <option value="1">Cena MAP (z pola „cena zakupu")</option>
+                        <option value="0">Cena Twojego sklepu</option>
+                    </select>
+                    <small style="color: #888; display: block; margin-top: 6px; font-size: 12px; line-height: 1.4;">
+                        <strong>Cena MAP</strong> - używana, gdy producent ma zdefiniowaną politykę MAP w katalogu produktów.<br>
+                        <strong>Cena Twojego sklepu</strong> - używana, gdy producent ma własny sklep online jako benchmark.
+                    </small>
                 </div>
             </div>
             <div class="modal-footer" style="justify-content:space-between;">
                 <button type="button" class="Button-Page-Small" data-dismiss="modal">Anuluj</button>
-                <button type="button" class="Button-Page-Small-bl" id="saveProducerSettingsBtn">Zapisz ustawienia</button>
+                <button type="button" class="Button-Page-Small-bl" id="saveProducerModalBtn">Zapisz</button>
             </div>
         </div>
     </div>
@@ -643,7 +614,7 @@
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 15px; font-size: 14px; color: #666; line-height: 1.5;">
-                    Udostępnij najświeższe dane ze scrapowania bezpośrednio do swojego systemu ERP. Po włączeniu tej opcji, system utworzy statyczny plik z danymi, dostępny pod zabezpieczonym linkiem.
+                    Udostępnij najświeższe dane ze scrapowania bezpośrednio do swojego systemu ERP.
                 </p>
                 <div style="background-color: #e8f4fd; border-left: 4px solid #41C7C7; padding: 12px 15px; margin-bottom: 25px; border-radius: 4px; font-size: 13px; color: #333;">
                     <i class="fa-solid fa-circle-info" style="color: #41C7C7; margin-right: 5px;"></i>
@@ -697,7 +668,6 @@
 @await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
 
 <div id="globalNotification" style="display:none; position:fixed; width:500px; top:30px; left:50%; transform:translateX(-50%); background:#F65063; color:white; padding:24px; text-align:left; border-radius:10px; z-index:1000;"></div>
-
 <div id="globalUpdate" style="display:none; position:fixed; width:500px; top:30px; left:50%; transform:translateX(-50%); background:#006400; color:white; padding:24px; text-align:left; border-radius:10px; z-index:1000;"></div>
 
 @section Scripts {
@@ -707,6 +677,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wnumb/1.2.0/wNumb.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
 
     <script>

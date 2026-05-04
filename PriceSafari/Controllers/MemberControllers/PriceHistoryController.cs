@@ -1357,6 +1357,17 @@ namespace PriceSafari.Controllers.MemberControllers
                         BestCompetitorIsGoogle = bestCompetitorEntry?.IsGoogle,
                         BestCompetitorPosition = bestCompetitorEntry?.Position,
 
+                        BestCompetitorIsBidding = bestCompetitorEntry?.IsBidding,
+                        BestCompetitorInStock = bestCompetitorEntry != null
+                        ? (bestCompetitorEntry.IsGoogle == true ? bestCompetitorEntry.GoogleInStock : bestCompetitorEntry.CeneoInStock)
+                        : null,
+                                            MyEntryInStock = myPriceEntry != null
+                        ? (myPriceEntry.IsGoogle == true ? myPriceEntry.GoogleInStock : myPriceEntry.CeneoInStock)
+                        : null,
+                        MyPosition = myPriceEntry?.Position,
+                        MyIsGoogle = myPriceEntry?.IsGoogle,
+                        MyIsBidding = myPriceEntry?.IsBidding,
+
                         // Bucket + delta
                         ProducerBucket = bucket,
                         DeltaAbsolute = deltaAbsolute,
