@@ -1325,7 +1325,7 @@ function _executeIntervalUnassign(ctx) {
             return { init };
         })();
 
-        (function() {
+        document.addEventListener("DOMContentLoaded", function() {
             const searchInput = document.getElementById('productSearch');
             const tableBody = document.querySelector('#intervalTable tbody');
             if (!tableBody) return;
@@ -1369,7 +1369,7 @@ function _executeIntervalUnassign(ctx) {
                 const el = document.getElementById('visibleCount');
                 if (el) el.textContent = Array.from(tableBody.querySelectorAll('tr')).filter(r => r.style.display !== 'none' && !r.classList.contains('filter-hidden')).length;
             }
-        })();
+       });
 
         const FilterSystem = (function() {
             const isMarketplaceCtx = @(isMarketplace ? "true" : "false");
