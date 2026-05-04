@@ -464,7 +464,15 @@
     <div class="modal-dialog modal-xl" role="document">
         <div class="modal-content" style="margin: 3% auto !important; width: 1100px !important; max-width: 95% !important;">
             <div class="modal-header">
-                <div class="price-box-column-name" id="flagModalLabel">Zarządzaj flagami</div>
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <div class="price-box-column-name" id="flagModalLabel">Zarządzaj flagami</div>
+                    <a id="createFlagFromModalBtn" href="#" target="_blank"
+                           style="font-size:12px; font-weight:600; color:#858796; text-decoration:none; border:1px dashed #d1d3e2; border-radius:5px; padding:4px 10px; transition:all 0.2s; display:inline-flex; align-items:center; gap:5px;"
+                           onmouseover="this.style.color='#333'; this.style.borderColor='#333';"
+                           onmouseout="this.style.color='#858796'; this.style.borderColor='#d1d3e2';">
+                        <i class="fas fa-plus" style="font-size:9px;"></i> Utwórz flagę
+                    </a>
+                </div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                     <span aria-hidden="true">&times;</span>
                 </button>

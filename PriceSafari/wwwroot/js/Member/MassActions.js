@@ -721,6 +721,11 @@
 
             _initExtraActions();
 
+            var createFlagLink = document.getElementById('createFlagFromModalBtn');
+            if (createFlagLink) {
+                createFlagLink.href = '/Flags/List?storeId=' + storeId;
+            }
+
             updateSelectionUI();
             updateVisibleButtons();
         }
