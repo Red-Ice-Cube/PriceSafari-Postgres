@@ -1,0 +1,730 @@
+﻿@using Newtonsoft.Json
+@using PriceSafari.Models.ViewModels
+
+@{
+    ViewBag.Title = "Panel Producenta - " + ViewBag.StoreName;
+    var latestScrap = ViewBag.LatestScrap as PriceSafari.Models.ScrapHistoryClass;
+    var storeId = ViewBag.StoreId;
+    var storeLogo = ViewBag.StoreLogo;
+    var scrapId = ViewBag.ScrapId;
+    var flags = ViewBag.Flags as List<FlagViewModel>;
+    var scrapDate = latestScrap?.Date.ToString("dd.MM.yyyy");
+    var store = ViewBag.StoreName as string;
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<input type="hidden" id="initialScrapId" value="@scrapId" />
+
+<style>
+    /* === BUCKETY PRODUCENTA - lewy border na price-box === */
+    .price-box.producer-deep-violation { border-left: 5px solid #8B0000; }
+    .price-box.producer-violation { border-left: 5px solid #DC143C; }
+    .price-box.producer-minor-below { border-left: 5px solid #FF6347; }
+    .price-box.producer-equal { border-left: 5px solid #4169E1; }
+    .price-box.producer-minor-above { border-left: 5px solid #90EE90; }
+    .price-box.producer-above { border-left: 5px solid #228B22; }
+    .price-box.producer-deep-above { border-left: 5px solid #006400; }
+    .price-box.producer-no-reference { border-left: 5px solid #BBBBBB; }
+    .price-box.producer-no-competition { border-left: 5px solid #888888; }
+
+    /* === COLOR BAR (pionowy w boksie danych) === */
+    .color-bar.producer-deep-violation { background-color: #8B0000; }
+    .color-bar.producer-violation { background-color: #DC143C; }
+    .color-bar.producer-minor-below { background-color: #FF6347; }
+    .color-bar.producer-equal { background-color: #4169E1; }
+    .color-bar.producer-minor-above { background-color: #90EE90; }
+    .color-bar.producer-above { background-color: #228B22; }
+    .color-bar.producer-deep-above { background-color: #006400; }
+    .color-bar.producer-no-reference { background-color: #BBBBBB; }
+    .color-bar.producer-no-competition { background-color: #888888; }
+
+    /* === KOLOROWE PROSTOKĄTY w sidebarze === */
+    .rect-deep-violation { background-color: #8B0000; }
+    .rect-violation { background-color: #DC143C; }
+    .rect-minor-below { background-color: #FF6347; }
+    .rect-equal { background-color: #4169E1; }
+    .rect-minor-above { background-color: #90EE90; }
+    .rect-above { background-color: #228B22; }
+    .rect-deep-above { background-color: #006400; }
+    .rect-no-reference { background-color: #BBBBBB; }
+    .rect-no-competition { background-color: #888888; }
+
+    .color-rect {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        margin-right: 6px;
+        border-radius: 3px;
+        vertical-align: middle;
+    }
+
+    /* === BADGES naruszeń === */
+    .violation-fresh-badge {
+        background: #FF6347;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .violation-days-badge {
+        background: #DC143C;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .violation-no-badge {
+        background: #555;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+
+    /* === DELTA BADGES === */
+    .delta-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 14px;
+        color: white;
+    }
+    .delta-badge.producer-deep-violation { background-color: #8B0000; }
+    .delta-badge.producer-violation { background-color: #DC143C; }
+    .delta-badge.producer-minor-below { background-color: #FF6347; }
+    .delta-badge.producer-equal { background-color: #4169E1; }
+    .delta-badge.producer-minor-above { background-color: #5cb85c; }
+    .delta-badge.producer-above { background-color: #228B22; }
+    .delta-badge.producer-deep-above { background-color: #006400; }
+
+    /* === ROZKŁAD SKLEPÓW (mini-bars) === */
+    .stores-distribution {
+        display: flex;
+        gap: 6px;
+        margin-top: 6px;
+        flex-wrap: wrap;
+    }
+    .stores-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: white;
+    }
+    .stores-pill.below { background: #DC143C; }
+    .stores-pill.equal { background: #4169E1; }
+    .stores-pill.above { background: #228B22; }
+
+    /* === MODAL VALIDATION === */
+    .threshold-input.input-error {
+        border-color: #DC143C !important;
+        box-shadow: 0 0 0 2px rgba(220, 20, 60, 0.15) !important;
+    }
+    .error-message-row {
+        color: #DC143C;
+        font-size: 12px;
+        margin-top: 4px;
+        display: none;
+    }
+    .error-message-row.visible { display: block; }
+
+    .threshold-row {
+        display: grid;
+        grid-template-columns: 16px 1fr 110px 110px;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 0;
+    }
+    .threshold-row .color-rect {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+    }
+    .threshold-row label {
+        margin: 0;
+        font-size: 13px;
+    }
+    .threshold-row input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    .threshold-section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #333;
+        margin-top: 16px;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #eee;
+    }
+
+    /* === BADGE „Tryb pracy" na górze === */
+    .producer-mode-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #4169E1;
+        color: white;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+    .producer-mode-badge.amount-mode { background: #6f42c1; }
+
+    /* === REFERENCE PRICE BOX === */
+    .ref-price-display {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .ref-price-display .ref-label {
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .ref-price-display .ref-value {
+        font-weight: 600;
+        font-size: 18px;
+        color: #222;
+    }
+    .ref-price-display .ref-source {
+        font-size: 11px;
+        color: #888;
+        font-style: italic;
+    }
+    .ref-price-display .ref-missing {
+        color: #DC143C;
+        font-style: italic;
+        font-size: 13px;
+    }
+
+    /* === MIN MAX BOX === */
+    .minmax-row {
+        display: flex;
+        gap: 4px;
+        font-size: 12px;
+        color: #555;
+        margin-top: 4px;
+    }
+    .minmax-row strong { color: #222; }
+</style>
+
+<div class="Vert">
+    <div class="Page-Box">
+        <div class="Page-Box-Container">
+            <div class="Page-Box-Category">
+                <div><img src="@storeLogo" class="img-container" /></div>
+
+                <div class="side-chart-box">
+                    <canvas id="colorChart"></canvas>
+                </div>
+
+                <div class="store-section" id="filters-producer">
+                    <div class="form-check">
+                        <span class="color-rect rect-deep-violation"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketDeepViolation" value="producer-deep-violation">
+                        <label class="form-check-label" for="bucketDeepViolation">Drastyczne naruszenie</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect rect-violation"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketViolation" value="producer-violation">
+                        <label class="form-check-label" for="bucketViolation">Naruszenie</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect rect-minor-below"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketMinorBelow" value="producer-minor-below">
+                        <label class="form-check-label" for="bucketMinorBelow">Lekko poniżej</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect rect-equal"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketEqual" value="producer-equal">
+                        <label class="form-check-label" for="bucketEqual">Cena zgodna</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect rect-minor-above"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketMinorAbove" value="producer-minor-above">
+                        <label class="form-check-label" for="bucketMinorAbove">Lekko powyżej</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect rect-above"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketAbove" value="producer-above">
+                        <label class="form-check-label" for="bucketAbove">Powyżej</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect rect-deep-above"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketDeepAbove" value="producer-deep-above">
+                        <label class="form-check-label" for="bucketDeepAbove">Mocno powyżej</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect rect-no-reference"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketNoReference" value="producer-no-reference">
+                        <label class="form-check-label" for="bucketNoReference">Brak ceny ref.</label>
+                    </div>
+                    <div class="form-check">
+                        <span class="color-rect rect-no-competition"></span>
+                        <input class="form-check-input bucketFilter" type="checkbox" id="bucketNoCompetition" value="producer-no-competition">
+                        <label class="form-check-label" for="bucketNoCompetition">Brak konkurencji</label>
+                    </div>
+                </div>
+
+                <div class="filterBox">
+                    <div class="Category-Container-Select" style="margin-top:-2px;">Flagi <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a></div>
+                    <div class="store-section" id="flagContainer"></div>
+
+                    <div class="Category-Container-Select">Pozycja</div>
+                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css">
+                    <div class="store-section">
+                        <div class="position-slider-container">
+                            <div id="positionRange" class="position-range-display" style="font-size:14px; font-weight:400;"></div>
+                        </div>
+                        <div id="positionRangeSlider"></div>
+                    </div>
+
+                    <div class="Category-Container-Select">Liczba ofert</div>
+                    <div class="store-section">
+                        <div class="offer-slider-container">
+                            <div id="offerRange" class="offer-range-display" style="font-size:14px; font-weight:400;"></div>
+                        </div>
+                        <div id="offerRangeSlider"></div>
+                    </div>
+
+                    <div class="Category-Container-Select">Cena referencyjna (MAP)</div>
+                    <div class="store-section">
+                        <div class="position-slider-container">
+                            <div id="myPriceRange" class="position-range-display" style="font-size:14px; font-weight:400;"></div>
+                        </div>
+                        <div id="myPriceRangeSlider"></div>
+                    </div>
+
+                    <div class="Category-Container-Select">Naruszenia MAP</div>
+                    <div class="store-section">
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_freshViolation" value="freshViolation" title="Pokaż tylko świeże naruszenia">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_freshViolation" value="freshViolation" title="Ukryj świeże naruszenia">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Świeże naruszenie</span>
+                        </div>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_currentlyViolating" value="currentlyViolating" title="Pokaż tylko obecne naruszenia">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_currentlyViolating" value="currentlyViolating" title="Ukryj obecne naruszenia">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Obecne naruszenie</span>
+                        </div>
+                    </div>
+
+                    <div class="Category-Container-Select">Ceneo - Promowanie</div>
+                    <div class="store-section">
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_isBidding" value="isBidding" title="Pokaż tylko w Bid">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_isBidding" value="isBidding" title="Ukryj te w Bid">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Bid</span>
+                        </div>
+                    </div>
+
+                    <div class="Category-Container-Select">Dostępność konkurencji (Top 1)</div>
+                    <div class="store-section">
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_compStockAvailable" value="compStockAvailable" title="Pokaż tylko dostępne">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_compStockAvailable" value="compStockAvailable" title="Ukryj dostępne">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Dostępny</span>
+                        </div>
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_compStockUnavailable" value="compStockUnavailable" title="Pokaż tylko niedostępne">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_compStockUnavailable" value="compStockUnavailable" title="Ukryj niedostępne">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Niedostępny</span>
+                        </div>
+                    </div>
+
+                    <div class="Category-Container-Select">Nowe produkty</div>
+                    <div class="store-section">
+                        <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                            <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-include" type="checkbox" id="include_isNew" value="isNew" title="Pokaż tylko nowe">
+                            </div>
+                            <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_isNew" value="isNew" title="Ukryj nowe">
+                            </div>
+                            <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Nowy - 7 dni <span id="count-new" style="color: #888; font-size: 0.9em; margin-left: 4px;"></span></span>
+                        </div>
+                    </div>
+
+                    <div class="Category-Container-Select">Sprzedaż Ceneo - 90 dni</div>
+                    <div class="store-section">
+                        <div id="salesSortingButtons">
+                            <button id="sortCeneoSales">Sprzedaż - ilość</button>
+                            <button id="sortSalesTrendAmount">Trend - ilość</button>
+                            <button id="sortSalesTrendPercent">Trend - %</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="Horizontal">
+                <div class="order-upper-box">
+                    <input type="text" id="productSearch" style="max-width:140px; height:34px;" placeholder="Wyszukaj produkt">
+                    <input type="text" id="storeSearch" style="max-width:140px; height:34px;" placeholder="Wyszukaj sklep">
+
+                    <select id="producerFilterDropdown" class="DropDown" style="max-width:140px; height:34px;">
+                        <option value="">Wszystkie marki</option>
+                    </select>
+
+                    <span id="producerModeBadge" class="producer-mode-badge">
+                        <i class="fa-solid fa-anchor"></i>
+                        <span>Tryb: MAP (%)</span>
+                    </span>
+
+                    <button type="button" class="Button-Page-Small" style="height: 34px; max-width: 250px; padding: 0 12px; text-align: left; display: inline-flex; align-items: center;" id="presetButton" onclick="openCompetitorsModal()">
+                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;">Presety</span>
+                    </button>
+                    <button class="Button-Page-Small" style="white-space: nowrap;" id="exportToExcelButton"><i class="fa-solid fa-floppy-disk" style="margin-top:2px;"></i>Eksport</button>
+
+                    <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="apiExportSettingsBtn" data-toggle="modal" data-target="#apiExportModal">
+                        <i class="fa-solid fa-code" style="margin-top:2px;"></i>Feed
+                    </button>
+
+                    <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px;" data-toggle="modal" data-target="#infoModal">
+                        <i class="fa fa-info-circle"></i>
+                    </button>
+
+                    <div class="SimpleSpace" style="justify-content:flex-end; margin-right: 12px;">
+                        <div id="selectionContainer" class="selection-container">
+                            <span id="selectedProductsCounter" class="ProductCount" style="width:126px; height:34px;">Wybrano: 0</span>
+                            <button id="selectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Zaznacz wszystkie widoczne produkty">
+                                <i class="fa-solid fa-square-check"></i>
+                            </button>
+                            <button id="deselectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Odznacz wszystkie widoczne produkty">
+                                <i class="fa-solid fa-square-xmark"></i>
+                            </button>
+                            <button id="showSelectedProductsBtn" class="Button-Page-Small" style="width:100px;">Akcje</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sortingButtons">
+                    <div class="ProductCount" id="displayedProductCount"></div>
+                    <div id="paginationContainer"></div>
+
+                    <button id="sortName">A-Z</button>
+                    <button id="sortPrice">Cena MAP</button>
+                    <button id="sortDeltaPercent">Delta %</button>
+                    <button id="sortDeltaAmount">Delta PLN</button>
+                    <button id="sortDaysViolation">Dni naruszenia</button>
+                    <button id="sortStoresViolating">Liczba naruszycieli</button>
+                </div>
+
+                <div class="buttonsContainer">
+                    <div id="priceChangeSummary" class="priceChangeSummary">
+                        <div id="summaryText"></div>
+                        <button id="openProducerSettingsBtn" class="Button-Page-Small" style="width:48px;" title="Konfiguracja producenta"><i class="fa fa-cog" aria-hidden="true"></i></button>
+                    </div>
+                </div>
+
+                <div class="Vert-table">
+                    <div id="priceContainer" class="price-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==== MODAL: Konfiguracja producenta ==== -->
+<div class="modal fade" id="producerSettingsModal" tabindex="-1" role="dialog" aria-labelledby="producerSettingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width:900px" role="document">
+        <div class="modal-content" style="margin:5% auto;">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="producerSettingsModalLabel">Konfiguracja monitoringu producenta</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:24px; line-height:1.6;">
+                    Skonfiguruj jak system ma kategoryzować odchylenia cen rynkowych względem Twojej ceny referencyjnej.
+                    Cena referencyjna to <strong>cena MAP</strong> (z pola "cena zakupu" produktu) lub <strong>cena Twojego sklepu</strong> – w zależności od ustawienia poniżej.
+                </p>
+
+                <div style="display:flex; gap:6px; justify-content: space-between;">
+                    <div class="form-group" style="margin-bottom:24px; width:33%;">
+                        <label for="identifierForSimulationInput">Element nawigacyjny dla produktów</label>
+                        <select class="form-control" id="identifierForSimulationInput">
+                            <option value="EAN">EAN</option>
+                            <option value="ID">ID</option>
+                            <option value="ProducerCode">Kod producenta</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:24px; width:33%;">
+                        <label for="comparisonSourceInput">Źródło ceny referencyjnej</label>
+                        <select class="form-control" id="comparisonSourceInput">
+                            <option value="1">Cena MAP (z ceny zakupu)</option>
+                            <option value="0">Cena Twojego sklepu</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:24px; width:33%;">
+                        <label for="useAmountInput">Tryb progów</label>
+                        <select class="form-control" id="useAmountInput">
+                            <option value="false">Procentowo (%)</option>
+                            <option value="true">Kwotowo (PLN)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="thresholdsBlock_pct">
+                    <div class="threshold-section-title" style="color:#DC143C;">Progi „poniżej" (% różnicy)</div>
+                    <div class="threshold-row">
+                        <div class="color-rect rect-deep-violation"></div>
+                        <label for="thrRedDarkPct">Drastyczne naruszenie (poniżej)</label>
+                        <input type="number" id="thrRedDarkPct" class="threshold-input pct" data-group="below-pct" data-level="3" step="0.5" min="0" placeholder="20.00">
+                        <span style="color:#888; font-size:12px;">%</span>
+                    </div>
+                    <div class="threshold-row">
+                        <div class="color-rect rect-violation"></div>
+                        <label for="thrRedPct">Naruszenie</label>
+                        <input type="number" id="thrRedPct" class="threshold-input pct" data-group="below-pct" data-level="2" step="0.5" min="0" placeholder="10.00">
+                        <span style="color:#888; font-size:12px;">%</span>
+                    </div>
+                    <div class="threshold-row">
+                        <div class="color-rect rect-minor-below"></div>
+                        <label for="thrRedLightPct">Lekko poniżej (próg tolerancji)</label>
+                        <input type="number" id="thrRedLightPct" class="threshold-input pct" data-group="below-pct" data-level="1" step="0.5" min="0" placeholder="1.00">
+                        <span style="color:#888; font-size:12px;">%</span>
+                    </div>
+                    <div class="error-message-row" id="errBelowPct"></div>
+
+                    <div class="threshold-section-title" style="color:#228B22;">Progi „powyżej" (% różnicy)</div>
+                    <div class="threshold-row">
+                        <div class="color-rect rect-minor-above"></div>
+                        <label for="thrGreenLightPct">Lekko powyżej (próg tolerancji)</label>
+                        <input type="number" id="thrGreenLightPct" class="threshold-input pct" data-group="above-pct" data-level="1" step="0.5" min="0" placeholder="1.00">
+                        <span style="color:#888; font-size:12px;">%</span>
+                    </div>
+                    <div class="threshold-row">
+                        <div class="color-rect rect-above"></div>
+                        <label for="thrGreenPct">Powyżej</label>
+                        <input type="number" id="thrGreenPct" class="threshold-input pct" data-group="above-pct" data-level="2" step="0.5" min="0" placeholder="10.00">
+                        <span style="color:#888; font-size:12px;">%</span>
+                    </div>
+                    <div class="threshold-row">
+                        <div class="color-rect rect-deep-above"></div>
+                        <label for="thrGreenDarkPct">Mocno powyżej</label>
+                        <input type="number" id="thrGreenDarkPct" class="threshold-input pct" data-group="above-pct" data-level="3" step="0.5" min="0" placeholder="20.00">
+                        <span style="color:#888; font-size:12px;">%</span>
+                    </div>
+                    <div class="error-message-row" id="errAbovePct"></div>
+                </div>
+
+                <div id="thresholdsBlock_amt" style="display:none;">
+                    <div class="threshold-section-title" style="color:#DC143C;">Progi „poniżej" (PLN różnicy)</div>
+                    <div class="threshold-row">
+                        <div class="color-rect rect-deep-violation"></div>
+                        <label for="thrRedDarkAmt">Drastyczne naruszenie (poniżej)</label>
+                        <input type="number" id="thrRedDarkAmt" class="threshold-input amt" data-group="below-amt" data-level="3" step="1" min="0" placeholder="50.00">
+                        <span style="color:#888; font-size:12px;">PLN</span>
+                    </div>
+                    <div class="threshold-row">
+                        <div class="color-rect rect-violation"></div>
+                        <label for="thrRedAmt">Naruszenie</label>
+                        <input type="number" id="thrRedAmt" class="threshold-input amt" data-group="below-amt" data-level="2" step="1" min="0" placeholder="20.00">
+                        <span style="color:#888; font-size:12px;">PLN</span>
+                    </div>
+                    <div class="threshold-row">
+                        <div class="color-rect rect-minor-below"></div>
+                        <label for="thrRedLightAmt">Lekko poniżej (próg tolerancji)</label>
+                        <input type="number" id="thrRedLightAmt" class="threshold-input amt" data-group="below-amt" data-level="1" step="1" min="0" placeholder="5.00">
+                        <span style="color:#888; font-size:12px;">PLN</span>
+                    </div>
+                    <div class="error-message-row" id="errBelowAmt"></div>
+
+                    <div class="threshold-section-title" style="color:#228B22;">Progi „powyżej" (PLN różnicy)</div>
+                    <div class="threshold-row">
+                        <div class="color-rect rect-minor-above"></div>
+                        <label for="thrGreenLightAmt">Lekko powyżej (próg tolerancji)</label>
+                        <input type="number" id="thrGreenLightAmt" class="threshold-input amt" data-group="above-amt" data-level="1" step="1" min="0" placeholder="5.00">
+                        <span style="color:#888; font-size:12px;">PLN</span>
+                    </div>
+                    <div class="threshold-row">
+                        <div class="color-rect rect-above"></div>
+                        <label for="thrGreenAmt">Powyżej</label>
+                        <input type="number" id="thrGreenAmt" class="threshold-input amt" data-group="above-amt" data-level="2" step="1" min="0" placeholder="20.00">
+                        <span style="color:#888; font-size:12px;">PLN</span>
+                    </div>
+                    <div class="threshold-row">
+                        <div class="color-rect rect-deep-above"></div>
+                        <label for="thrGreenDarkAmt">Mocno powyżej</label>
+                        <input type="number" id="thrGreenDarkAmt" class="threshold-input amt" data-group="above-amt" data-level="3" step="1" min="0" placeholder="50.00">
+                        <span style="color:#888; font-size:12px;">PLN</span>
+                    </div>
+                    <div class="error-message-row" id="errAboveAmt"></div>
+                </div>
+
+                <div style="margin-top:20px; padding:12px; background:#f0f4f8; border-left:4px solid #4169E1; border-radius:4px; font-size:13px; color:#333;">
+                    <i class="fa-solid fa-circle-info" style="color:#4169E1; margin-right:5px;"></i>
+                    <strong>Zasada progów:</strong> próg „lekki" musi być mniejszy lub równy progowi „normalnemu", a normalny mniejszy lub równy „mocnemu". System wykorzystuje aktywny tryb (PLN albo %) – nieaktywny tryb i tak musi mieć poprawne wartości na wypadek przełączenia.
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content:space-between;">
+                <button type="button" class="Button-Page-Small" data-dismiss="modal">Anuluj</button>
+                <button type="button" class="Button-Page-Small-bl" id="saveProducerSettingsBtn">Zapisz ustawienia</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_PresetyPriceComparison.cshtml")
+
+<!-- ==== MODAL: Info ==== -->
+<div class="modal fade" id="infoModal" tabindex="-1" role="dialog" aria-labelledby="infoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content" style="width:auto;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="infoModalLabel">Informacje</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" style="gap:10px;">
+                <div class="form-check-orders">
+                    <div>
+                        <p><strong>Wykonanie analizy:</strong> @latestScrap?.Date.ToString("dd.MM.yyyy")</p>
+                        <p><strong>Ilość produktów:</strong> @ViewBag.ScrapedProducts</p>
+                        <p><strong>Ilość zebranych cen:</strong> <span id="totalPriceCount">0</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==== MODAL: API Export ==== -->
+<div class="modal fade" id="apiExportModal" tabindex="-1" role="dialog" aria-labelledby="apiExportModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content" style="width:620px;">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="apiExportModalLabel">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> Zewnętrzny Feed Danych (JSON / XML)
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; font-size: 14px; color: #666; line-height: 1.5;">
+                    Udostępnij najświeższe dane ze scrapowania bezpośrednio do swojego systemu ERP. Po włączeniu tej opcji, system utworzy statyczny plik z danymi, dostępny pod zabezpieczonym linkiem.
+                </p>
+                <div style="background-color: #e8f4fd; border-left: 4px solid #41C7C7; padding: 12px 15px; margin-bottom: 25px; border-radius: 4px; font-size: 13px; color: #333;">
+                    <i class="fa-solid fa-circle-info" style="color: #41C7C7; margin-right: 5px;"></i>
+                    <strong>Ważne:</strong> Plik z danymi zostanie wygenerowany dopiero po zakończeniu najbliższego procesu pobierania i analizy cen.
+                </div>
+
+                <div class="custom-switch-wrapper">
+                    <label class="switch-ui" style="margin-bottom: 0;">
+                        <input type="checkbox" id="enableApiExportCheckbox">
+                        <span class="slider"></span>
+                    </label>
+                    <label for="enableApiExportCheckbox" class="custom-switch-label">
+                        Włącz generowanie pliku feed (JSON / XML)
+                    </label>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">Twój unikalny token dostępu</label>
+                    <div class="export-input-group">
+                        <input type="text" id="apiTokenInput" class="export-input" readonly>
+                        <button type="button" id="generateTokenBtn" class="export-btn export-btn-primary"><i class="fa-solid fa-arrows-rotate"></i> Generuj nowy</button>
+                        <button type="button" class="export-btn export-btn-secondary copy-btn" data-target="apiTokenInput" title="Kopiuj token"><i class="fa-regular fa-copy"></i></button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">Link dostępowy (Format JSON)</label>
+                    <div class="export-input-group">
+                        <input type="text" id="apiUrlJsonInput" class="export-input" readonly>
+                        <button type="button" class="export-btn export-btn-secondary copy-btn" data-target="apiUrlJsonInput"><i class="fa-regular fa-copy"></i> Kopiuj</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">Link dostępowy (Format XML)</label>
+                    <div class="export-input-group">
+                        <input type="text" id="apiUrlXmlInput" class="export-input" readonly>
+                        <button type="button" class="export-btn export-btn-secondary copy-btn" data-target="apiUrlXmlInput"><i class="fa-regular fa-copy"></i> Kopiuj</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content:space-between;">
+                <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Zamknij</button>
+                <button type="button" class="Button-Page-Small-bl" id="saveApiExportBtn">Zapisz ustawienia</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassExport.cshtml")
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
+
+<div id="globalNotification" style="display:none; position:fixed; width:500px; top:30px; left:50%; transform:translateX(-50%); background:#F65063; color:white; padding:24px; text-align:left; border-radius:10px; z-index:1000;"></div>
+
+<div id="globalUpdate" style="display:none; position:fixed; width:500px; top:30px; left:50%; transform:translateX(-50%); background:#006400; color:white; padding:24px; text-align:left; border-radius:10px; z-index:1000;"></div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wnumb/1.2.0/wNumb.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+
+    <script>
+        const storeId = @ViewBag.StoreId;
+        const isStoreBridgeActive = false;
+        const presetTypeContext = 0;
+        const priceHistoryPageContext = 'producer';
+        const flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<FlagViewModel>()));
+        const scrapDateJS = "@scrapDate";
+        const myStoreNameJS = "@store";
+        const globalLatestScrapId = "@scrapId";
+    </script>
+    <script src="~/js/member/MassActions.js"></script>
+    <script src="~/js/member/Presets.js" asp-append-version="true"></script>
+    <script src="~/js/member/PriceHistoryProducer.js" asp-append-version="true"></script>
+    <script src="~/js/member/MassExport.js" asp-append-version="true"></script>
+
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loader"></div>
+    </div>
+}

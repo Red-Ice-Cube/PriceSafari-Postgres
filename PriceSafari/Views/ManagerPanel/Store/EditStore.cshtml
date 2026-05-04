@@ -64,6 +64,16 @@
                 <input asp-for="StoreLogoUrl" class="form-control" placeholder="https://.../logo.png" autocomplete="off" />
                 <span asp-validation-for="StoreLogoUrl" class="text-danger"></span>
             </div>
+
+            <div class="form-group border-top pt-3">
+                <div class="custom-control custom-switch custom-switch-lg">
+                    <input asp-for="IsProducer" type="checkbox" class="custom-control-input" id="isProducerSwitch">
+                    <label class="custom-control-label font-weight-bold @(Model.IsProducer ? "text-primary" : "text-secondary")" for="isProducerSwitch" style="font-size: 1.1rem;">
+                        <i class="fas fa-industry"></i> Czy to jest PRODUCENT ( Inny Panel)
+                    </label>
+                    <p class="text-muted small mb-0">Panel producenta, zakladka ceny.</p>
+                </div>
+            </div>
         </div>
     </div>
 

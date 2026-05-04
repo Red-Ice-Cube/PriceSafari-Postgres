@@ -134,6 +134,7 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             existingStore.StoreName = store.StoreName;
             existingStore.StoreProfile = store.StoreProfile;
+            existingStore.IsProducer = store.IsProducer;
             existingStore.StoreApiUrl = store.StoreApiUrl;
             existingStore.StoreApiKey = store.StoreApiKey;
             existingStore.StoreLogoUrl = store.StoreLogoUrl;
