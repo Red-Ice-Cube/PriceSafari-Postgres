@@ -831,8 +831,6 @@ namespace PriceSafari.Controllers.MemberControllers
             SalesDownBig
         }
 
-
-
         [HttpGet]
         public async Task<IActionResult> GetPricesForProducer(int? storeId)
         {
@@ -981,7 +979,7 @@ namespace PriceSafari.Controllers.MemberControllers
             _logger.LogWarning("[PERF-PROD] Store {StoreId} | rawPrices: {ms}ms (rows={Rows})", storeId, sw.ElapsedMilliseconds, rawPrices.Count);
             sw.Restart();
 
-            // 7. Info o produktach (MAP = MarginPrice)
+            // 7. Info o produktach (MarginPrice — używane w innych miejscach, tu jako fallback)
             var productsWithExternalInfo = await _context.Products
                 .AsNoTracking()
                 .Where(p => p.StoreId == storeId && productIds.Contains(p.ProductId))
@@ -1006,7 +1004,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .GroupBy(pf => pf.ProductId.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
-            // 9. Extended info - sales (Ceneo)
+            // 9. Extended info — ŹRÓDŁO MapPriceSnapshot
             var extendedInfoData = await _context.PriceHistoryExtendedInfos
                 .AsNoTracking()
                 .Where(e => e.ScrapHistoryId == latestScrap.Id && productIds.Contains(e.ProductId))
@@ -1061,6 +1059,25 @@ namespace PriceSafari.Controllers.MemberControllers
                     })
                     .ToListAsync()
                 : new List<dynamic>().Select(x => new { ProductId = 0, ScrapHistoryId = 0, Price = 0m, StoreName = "", IsGoogle = false, ShippingCostNum = (decimal?)null }).ToList();
+
+            // ─── ZMIANA: Snapshoty MAP historyczne per scrap ───
+            // Pobieramy MapPriceSnapshot z historycznych extended infos,
+            // żeby przy ComparisonSource == MapPrice używać ceny MAP z tamtego momentu
+            var historyExtendedInfos = historyScrapIds.Any()
+                ? await _context.PriceHistoryExtendedInfos
+                    .AsNoTracking()
+                    .Where(e => historyScrapIds.Contains(e.ScrapHistoryId)
+                              && productIds.Contains(e.ProductId)
+                              && e.MapPriceSnapshot.HasValue)
+                    .Select(e => new { e.ProductId, e.ScrapHistoryId, e.MapPriceSnapshot })
+                    .ToListAsync()
+                : new List<dynamic>().Select(x => new { ProductId = 0, ScrapHistoryId = 0, MapPriceSnapshot = (decimal?)null }).ToList();
+
+            var historyMapSnapshotLookup = historyExtendedInfos
+                .ToDictionary(
+                    e => (e.ProductId, e.ScrapHistoryId),
+                    e => e.MapPriceSnapshot
+                );
 
             // Dla "źródła = StorePrice" potrzebujemy też mojej ceny historycznej per scrap
             var historyMyStorePricesByProductScrap = historyPricesRaw
@@ -1119,9 +1136,11 @@ namespace PriceSafari.Controllers.MemberControllers
                         .FirstOrDefault();
                     var myPrice = myPriceEntry?.Price;
 
-                    // MAP = MarginPrice
                     productExternalInfoDictionary.TryGetValue(g.Key, out var extInfo);
-                    decimal? mapPrice = extInfo?.MarginPrice;
+                    extendedInfoData.TryGetValue(g.Key, out var extendedInfo);
+
+                    // ─── ZMIANA: MAP price = snapshot z extended info, fallback na MarginPrice ───
+                    decimal? mapPrice = extendedInfo?.MapPriceSnapshot ?? extInfo?.MarginPrice;
 
                     // CENA REFERENCYJNA - decyduje backend
                     decimal? referencePrice = null;
@@ -1203,11 +1222,10 @@ namespace PriceSafari.Controllers.MemberControllers
                     int storesBelowReference = 0;
                     int storesAtReference = 0;
                     int storesAboveReference = 0;
-                    decimal? worstViolation = null; // najgorsze (najgłębsze) naruszenie wśród konkurencji
+                    decimal? worstViolation = null;
 
                     if (referencePrice.HasValue && referencePrice.Value > 0)
                     {
-                        // Tolerancja "ex aequo" - bierzemy granicę "RedLight/GreenLight" (najmniejszy próg)
                         decimal tolerance = settings.UseAmount
                             ? Math.Min(settings.RedLightAmt, settings.GreenLightAmt)
                             : Math.Min(settings.RedLightPct, settings.GreenLightPct);
@@ -1239,7 +1257,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     if (isCurrentlyViolating)
                     {
-                        // Sekwencja "od kiedy nieprzerwane naruszenie"
                         DateTime oldestViolationDate = latestScrap.Date;
                         bool sequenceBroken = false;
                         bool prevScrapWasViolation = false;
@@ -1247,6 +1264,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
                         foreach (var hs in historyScraps) // już posortowane DESC
                         {
+                            // ─── ZMIANA: historyczna cena referencyjna z MapPriceSnapshot ───
                             decimal? historicalReference = referencePrice;
                             if (settings.ComparisonSource == ProducerComparisonSource.StorePrice)
                             {
@@ -1263,7 +1281,15 @@ namespace PriceSafari.Controllers.MemberControllers
                                     historicalReference = null;
                                 }
                             }
-                            // dla MAP - referencja stała (bieżąca MAP)
+                            else // MapPrice — użyj historycznego snapshotu MAP zamiast bieżącej wartości
+                            {
+                                if (historyMapSnapshotLookup.TryGetValue((g.Key, hs.Id), out var histMapSnapshot)
+                                    && histMapSnapshot.HasValue && histMapSnapshot.Value > 0)
+                                {
+                                    historicalReference = histMapSnapshot;
+                                }
+                                // else: zostaje bieżąca referencePrice jako fallback (stare scrapy bez snapshotu)
+                            }
 
                             bool wasViolating = false;
                             if (historicalReference.HasValue && historicalReference.Value > 0)
@@ -1296,14 +1322,13 @@ namespace PriceSafari.Controllers.MemberControllers
                             }
                         }
 
-                        isFreshViolation = !prevScrapWasViolation; // pierwszy historyczny (najbliższy w czasie) NIE był naruszeniem
+                        isFreshViolation = !prevScrapWasViolation;
                         var span = latestScrap.Date - oldestViolationDate;
                         daysOfViolation = (decimal)Math.Round(span.TotalDays, 2);
                         if (daysOfViolation > 7m) daysOfViolation = 7m;
                     }
 
-                    // Sales trend (zostawiamy jak w GetPrices)
-                    extendedInfoData.TryGetValue(g.Key, out var extendedInfo);
+                    // Sales trend
                     previousExtendedInfoData.TryGetValue(g.Key, out var previousExtendedInfo);
                     string salesTrendStatus = "NoData";
                     int? salesDifference = null;
@@ -1345,13 +1370,11 @@ namespace PriceSafari.Controllers.MemberControllers
                         Producer = product.Producer,
                         GoogleColor = product.GoogleColor,
 
-                        // Cena referencyjna - nazywamy w UI po prostu "MAP" wg sugestii usera
                         ReferencePrice = referencePrice,
-                        ReferenceSource = referenceSource, // "map" / "store" / "none"
-                        MapPrice = mapPrice,               // surowy MarginPrice (info dla UI)
-                        MyPrice = myPrice,                 // surowa cena mojego sklepu (info dla UI)
+                        ReferenceSource = referenceSource,
+                        MapPrice = mapPrice,
+                        MyPrice = myPrice,
 
-                        // Konkurencja
                         BestCompetitorPrice = bestCompetitorPrice,
                         BestCompetitorStoreName = bestCompetitorEntry?.StoreName,
                         BestCompetitorIsGoogle = bestCompetitorEntry?.IsGoogle,
@@ -1361,30 +1384,26 @@ namespace PriceSafari.Controllers.MemberControllers
                         BestCompetitorInStock = bestCompetitorEntry != null
                         ? (bestCompetitorEntry.IsGoogle == true ? bestCompetitorEntry.GoogleInStock : bestCompetitorEntry.CeneoInStock)
                         : null,
-                                            MyEntryInStock = myPriceEntry != null
+                        MyEntryInStock = myPriceEntry != null
                         ? (myPriceEntry.IsGoogle == true ? myPriceEntry.GoogleInStock : myPriceEntry.CeneoInStock)
                         : null,
                         MyPosition = myPriceEntry?.Position,
                         MyIsGoogle = myPriceEntry?.IsGoogle,
                         MyIsBidding = myPriceEntry?.IsBidding,
 
-                        // Bucket + delta
                         ProducerBucket = bucket,
                         DeltaAbsolute = deltaAbsolute,
                         DeltaPercent = deltaPercent,
 
-                        // Rozkład sklepów
                         StoresBelowReference = storesBelowReference,
                         StoresAtReference = storesAtReference,
                         StoresAboveReference = storesAboveReference,
                         WorstViolation = worstViolation,
 
-                        // Historia naruszeń
                         DaysOfViolation = daysOfViolation,
                         IsFreshViolation = isFreshViolation,
                         IsCurrentlyViolating = isCurrentlyViolating,
 
-                        // Pozostałe (wspólne z GetPrices, użyteczne w UI)
                         StoreCount = storeCount,
                         SourceGoogle = sourceGoogle,
                         SourceCeneo = sourceCeneo,
@@ -1416,7 +1435,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 presetName = activePresetName ?? "PriceSafari",
                 latestScrapId = latestScrap.Id,
 
-                // Ustawienia (wszystkie progi + tryb)
                 producerSettings = new
                 {
                     comparisonSource = (int)settings.ComparisonSource,
@@ -1445,8 +1463,6 @@ namespace PriceSafari.Controllers.MemberControllers
             _logger.LogWarning("[PERF-PROD] Store {StoreId} | === TOTAL: {totalMs}ms ===", storeId, swTotal.ElapsedMilliseconds);
             return result;
         }
-
-        // === HELPERY ===
 
         private string ResolveProducerBucket(decimal deltaAbsolute, decimal deltaPercent, ProducerSettings s)
         {
@@ -1665,27 +1681,26 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             var scrapHistory = await _context.ScrapHistories.FindAsync(scrapId);
             if (scrapHistory == null)
-            {
                 return NotFound("Nie znaleziono historii scrapowania.");
-            }
 
             var storeId = scrapHistory.StoreId;
 
             if (!await UserHasAccessToStore(storeId))
-            {
                 return Content("Brak dostępu do sklepu lub sklep nie istnieje.");
-            }
 
-            var storeName = await _context.Stores
+            // ── Store info (z IsProducer) ──
+            var storeInfo = await _context.Stores
                 .Where(s => s.StoreId == storeId)
-                .Select(s => s.StoreName)
+                .Select(s => new { s.StoreName, s.IsProducer })
                 .FirstOrDefaultAsync();
 
+            var storeName = storeInfo?.StoreName;
             if (string.IsNullOrEmpty(storeName))
-            {
                 return Content("Nie można zidentyfikować nazwy sklepu.");
-            }
 
+            bool isProducer = storeInfo?.IsProducer ?? false;
+
+            // ── Preset ──
             var activePreset = await _context.CompetitorPresets
                .Include(x => x.CompetitorItems)
                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
@@ -1698,21 +1713,14 @@ namespace PriceSafari.Controllers.MemberControllers
             if (activePreset != null)
             {
                 activePresetName = activePreset.PresetName;
-
-                if (!activePreset.SourceGoogle)
-                {
-                    query = query.Where(ph => ph.IsGoogle != true);
-                }
-                if (!activePreset.SourceCeneo)
-                {
-                    query = query.Where(ph => ph.IsGoogle == true);
-                }
+                if (!activePreset.SourceGoogle) query = query.Where(ph => ph.IsGoogle != true);
+                if (!activePreset.SourceCeneo) query = query.Where(ph => ph.IsGoogle == true);
             }
 
             var rawPrices = await query.Include(ph => ph.Product).ToListAsync();
 
+            // ── Filtrowanie po presecie ──
             List<PriceHistoryClass> filteredPrices;
-
             if (activePreset != null && activePreset.Type == PresetType.PriceComparison)
             {
                 var competitorItemsDict = activePreset.CompetitorItems
@@ -1733,22 +1741,15 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
 
                     DataSourceType currentSource = priceEntry.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
-
                     var key = (Store: (priceEntry.StoreName ?? "").ToLower().Trim(), Source: currentSource);
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
                     {
-                        if (useCompetitor)
-                        {
-                            filteredPrices.Add(priceEntry);
-                        }
+                        if (useCompetitor) filteredPrices.Add(priceEntry);
                     }
-                    else
+                    else if (activePreset.UseUnmarkedStores)
                     {
-                        if (activePreset.UseUnmarkedStores)
-                        {
-                            filteredPrices.Add(priceEntry);
-                        }
+                        filteredPrices.Add(priceEntry);
                     }
                 }
             }
@@ -1764,31 +1765,21 @@ namespace PriceSafari.Controllers.MemberControllers
                             .ToList();
 
             var product = prices.FirstOrDefault()?.Product;
-
-            if (product == null && prices.Any())
+            if (product == null)
             {
                 product = await _context.Products.FindAsync(productId);
-            }
-            else if (!prices.Any())
-            {
-                product = await _context.Products.FindAsync(productId);
-                if (product == null)
-                {
+                if (product == null && !prices.Any())
                     return NotFound("Nie znaleziono produktu.");
-                }
             }
 
+            // Google URL
             string? newGoogleUrl = null;
             if (!string.IsNullOrEmpty(product.GoogleUrl) && !string.IsNullOrEmpty(product.ProductName))
             {
-
                 string? productIdCid = ExtractProductIdFromUrl(product.GoogleUrl);
-
                 if (!string.IsNullOrEmpty(productIdCid))
                 {
-
                     string productNameForUrl = System.Net.WebUtility.UrlEncode(product.ProductName);
-
                     newGoogleUrl = $"https://www.google.com/search?q={productNameForUrl}&udm=28#oshopproduct=cid:{productIdCid},pvt:hg,pvo:3&oshop=apv";
                 }
             }
@@ -1812,7 +1803,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 })
             );
 
-            // ── Flagi dla tego produktu ──
+            // ── Flagi ──
             var allFlags = await _context.Flags
                 .Where(f => f.StoreId == storeId && f.IsMarketplace == false)
                 .Select(f => new FlagViewModel
@@ -1829,7 +1820,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(pf => pf.FlagId)
                 .ToListAsync();
 
-            // ── Automatyzacja dla tego produktu ──
+            // ── Automatyzacja ──
             var automationAssignment = await _context.AutomationProductAssignments
                 .Include(a => a.AutomationRule)
                 .Where(a => a.ProductId == productId
@@ -1857,6 +1848,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     isAutomationPaused = true;
             }
 
+            // ── Wspólne ViewBag ──
             ViewBag.ScrapHistory = scrapHistory;
             ViewBag.ProductName = product.ProductName;
             ViewBag.Url = product.OfferUrl;
@@ -1883,6 +1875,177 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.AutomationRuleId = automationAssignment?.RuleId;
             ViewBag.IsAutomationPaused = isAutomationPaused;
 
+            // ══════════════════════════════════════════════════════════
+            //  PRODUCENT – dodatkowe dane + routing do DetailsProducer
+            // ══════════════════════════════════════════════════════════
+            if (isProducer)
+            {
+                // Załaduj ustawienia producenta
+                var pvFull = await _context.PriceValues
+                    .AsNoTracking()
+                    .Where(pv => pv.StoreId == storeId)
+                    .FirstOrDefaultAsync();
+
+                var producerSettings = new ProducerSettings();
+                if (pvFull != null)
+                {
+                    producerSettings.ComparisonSource = pvFull.ProducerComparisonSource;
+                    producerSettings.UseAmount = pvFull.ProducerUseAmount;
+                    producerSettings.IdentifierForSimulation = pvFull.IdentifierForSimulation ?? "EAN";
+                    producerSettings.UsePriceWithDelivery = pvFull.UsePriceWithDelivery;
+                    producerSettings.RedDarkPct = pvFull.ProducerThresholdRedDarkPercent;
+                    producerSettings.RedPct = pvFull.ProducerThresholdRedPercent;
+                    producerSettings.RedLightPct = pvFull.ProducerThresholdRedLightPercent;
+                    producerSettings.GreenLightPct = pvFull.ProducerThresholdGreenLightPercent;
+                    producerSettings.GreenPct = pvFull.ProducerThresholdGreenPercent;
+                    producerSettings.GreenDarkPct = pvFull.ProducerThresholdGreenDarkPercent;
+                    producerSettings.RedDarkAmt = pvFull.ProducerThresholdRedDarkAmount;
+                    producerSettings.RedAmt = pvFull.ProducerThresholdRedAmount;
+                    producerSettings.RedLightAmt = pvFull.ProducerThresholdRedLightAmount;
+                    producerSettings.GreenLightAmt = pvFull.ProducerThresholdGreenLightAmount;
+                    producerSettings.GreenAmt = pvFull.ProducerThresholdGreenAmount;
+                    producerSettings.GreenDarkAmt = pvFull.ProducerThresholdGreenDarkAmount;
+                }
+
+                // ─── ZMIANA: Pobierz MapPriceSnapshot z extended info dla tego scrapu ───
+                var extendedInfoForProduct = await _context.PriceHistoryExtendedInfos
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.ScrapHistoryId == scrapId && e.ProductId == productId);
+
+                // Cena referencyjna — snapshot z momentu scrapowania, fallback na bieżący MarginPrice
+                var storeNameLowerProd = storeName.ToLower().Trim();
+                var myPriceEntry = prices.FirstOrDefault(p =>
+                    p.StoreName != null && p.StoreName.ToLower().Trim() == storeNameLowerProd);
+                decimal? myPrice = myPriceEntry?.Price;
+
+                // ─── ZMIANA: mapPrice z snapshotu, fallback na product.MarginPrice ───
+                decimal? mapPrice = extendedInfoForProduct?.MapPriceSnapshot ?? product.MarginPrice;
+
+                decimal? referencePrice = null;
+                string referenceSource = "none";
+                if (producerSettings.ComparisonSource == ProducerComparisonSource.MapPrice)
+                {
+                    if (mapPrice.HasValue && mapPrice.Value > 0)
+                    {
+                        referencePrice = mapPrice;
+                        referenceSource = "map";
+                    }
+                }
+                else
+                {
+                    if (myPrice.HasValue && myPrice.Value > 0)
+                    {
+                        referencePrice = myPrice;
+                        referenceSource = "store";
+                    }
+                }
+
+                // Oblicz bucket per wiersz (dla tabeli)
+                var producerRowBuckets = new Dictionary<int, string>();
+                var producerRowDeltas = new Dictionary<int, (decimal? deltaAbs, decimal? deltaPct)>();
+                var producerRowIsOwnStore = new Dictionary<int, bool>();
+                var producerRowIsHidden = new Dictionary<int, bool>();
+
+                for (int i = 0; i < prices.Count; i++)
+                {
+                    var row = prices[i];
+                    bool isOwnStore = row.StoreName != null && row.StoreName.ToLower().Trim() == storeNameLowerProd;
+                    producerRowIsOwnStore[i] = isOwnStore;
+
+                    if (isOwnStore)
+                    {
+                        if (producerSettings.ComparisonSource == ProducerComparisonSource.MapPrice
+                            && (!mapPrice.HasValue || mapPrice.Value <= 0))
+                        {
+                            producerRowIsHidden[i] = true;
+                            producerRowBuckets[i] = "producer-no-reference";
+                            producerRowDeltas[i] = (null, null);
+                        }
+                        else
+                        {
+                            producerRowIsHidden[i] = false;
+                            producerRowBuckets[i] = "producer-equal";
+                            producerRowDeltas[i] = (null, null);
+                        }
+                        continue;
+                    }
+
+                    // Konkurencja
+                    producerRowIsHidden[i] = false;
+
+                    if (referencePrice == null || referencePrice.Value <= 0)
+                    {
+                        producerRowBuckets[i] = "producer-no-reference";
+                        producerRowDeltas[i] = (null, null);
+                        continue;
+                    }
+
+                    decimal deltaAbs = row.Price - referencePrice.Value;
+                    decimal deltaPct = (referencePrice.Value > 0)
+                        ? Math.Round((deltaAbs / referencePrice.Value) * 100m, 2)
+                        : 0m;
+
+                    string bucket = ResolveProducerBucket(deltaAbs, deltaPct, producerSettings);
+                    producerRowBuckets[i] = bucket;
+                    producerRowDeltas[i] = (Math.Round(deltaAbs, 2), deltaPct);
+                }
+
+                // Progi jako JSON dla JS (do pasów na wykresie)
+                var thresholdsForChart = new
+                {
+                    useAmount = producerSettings.UseAmount,
+                    referencePrice = referencePrice,
+                    greenDarkPct = producerSettings.GreenDarkPct,
+                    greenPct = producerSettings.GreenPct,
+                    greenLightPct = producerSettings.GreenLightPct,
+                    redLightPct = producerSettings.RedLightPct,
+                    redPct = producerSettings.RedPct,
+                    redDarkPct = producerSettings.RedDarkPct,
+                    greenDarkAmt = producerSettings.GreenDarkAmt,
+                    greenAmt = producerSettings.GreenAmt,
+                    greenLightAmt = producerSettings.GreenLightAmt,
+                    redLightAmt = producerSettings.RedLightAmt,
+                    redAmt = producerSettings.RedAmt,
+                    redDarkAmt = producerSettings.RedDarkAmt
+                };
+
+                var producerPricesData = new List<object>();
+                for (int idx = 0; idx < prices.Count; idx++)
+                {
+                    if (producerRowIsHidden.GetValueOrDefault(idx, false)) continue;
+
+                    var p = prices[idx];
+                    bool isOwn = producerRowIsOwnStore.GetValueOrDefault(idx, false);
+                    decimal displayPrice = (isOwn && referencePrice.HasValue) ? referencePrice.Value : p.Price;
+
+                    producerPricesData.Add(new
+                    {
+                        store = p.StoreName,
+                        price = displayPrice,
+                        isBidding = p.IsBidding,
+                        isGoogle = p.IsGoogle,
+                        ceneoInStock = p.CeneoInStock,
+                        googleInStock = p.GoogleInStock,
+                        offerCount = p.GoogleOfferPerStoreCount,
+                        googleOfferUrl = p.GoogleOfferUrl
+                    });
+                }
+                pricesDataJson = JsonConvert.SerializeObject(producerPricesData);
+
+                ViewBag.ReferencePrice = referencePrice;
+                ViewBag.ReferenceSource = referenceSource;
+                ViewBag.MapPrice = mapPrice;
+                ViewBag.ProducerRowBuckets = producerRowBuckets;
+                ViewBag.ProducerRowDeltas = producerRowDeltas;
+                ViewBag.ProducerRowIsOwnStore = producerRowIsOwnStore;
+                ViewBag.ProducerRowIsHidden = producerRowIsHidden;
+                ViewBag.ProducerThresholdsJson = JsonConvert.SerializeObject(thresholdsForChart);
+                ViewBag.ProducerSettings = producerSettings;
+
+                return View("~/Views/Panel/PriceHistory/DetailsProducer.cshtml", prices);
+            }
+
+            // ── Normalny sklep ──
             return View("~/Views/Panel/PriceHistory/Details.cshtml", prices);
         }
 
@@ -1907,7 +2070,7 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetPriceTrendData(int productId, int limit = 30) // 1. Dodany parametr
+        public async Task<IActionResult> GetPriceTrendData(int productId, int limit = 30)
         {
             var product = await _context.Products.FindAsync(productId);
             if (product == null)
@@ -1924,21 +2087,18 @@ namespace PriceSafari.Controllers.MemberControllers
                 .FirstOrDefaultAsync();
 
             if (string.IsNullOrEmpty(storeName))
-            {
                 return BadRequest(new { Error = "Nie można zidentyfikować nazwy sklepu." });
-            }
 
             var activePreset = await _context.CompetitorPresets
                .Include(x => x.CompetitorItems)
                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
 
-            // 2. Walidacja limitu
             if (limit <= 0) limit = 30;
 
             var lastScraps = await _context.ScrapHistories
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
-                .Take(limit) // 3. Użycie zmiennej limit
+                .Take(limit)
                 .OrderBy(sh => sh.Date)
                 .ToListAsync();
 
@@ -1959,14 +2119,8 @@ namespace PriceSafari.Controllers.MemberControllers
 
             if (activePreset != null)
             {
-                if (!activePreset.SourceGoogle)
-                {
-                    baseQuery = baseQuery.Where(ph => ph.IsGoogle != true);
-                }
-                if (!activePreset.SourceCeneo)
-                {
-                    baseQuery = baseQuery.Where(ph => ph.IsGoogle == true);
-                }
+                if (!activePreset.SourceGoogle) baseQuery = baseQuery.Where(ph => ph.IsGoogle != true);
+                if (!activePreset.SourceCeneo) baseQuery = baseQuery.Where(ph => ph.IsGoogle == true);
             }
 
             var allPotentialHistories = await baseQuery.ToListAsync();
@@ -2001,17 +2155,11 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
                     {
-                        if (useCompetitor)
-                        {
-                            finalFilteredHistories.Add(priceEntry);
-                        }
+                        if (useCompetitor) finalFilteredHistories.Add(priceEntry);
                     }
-                    else
+                    else if (activePreset.UseUnmarkedStores)
                     {
-                        if (activePreset.UseUnmarkedStores)
-                        {
-                            finalFilteredHistories.Add(priceEntry);
-                        }
+                        finalFilteredHistories.Add(priceEntry);
                     }
                 }
             }
@@ -2020,18 +2168,31 @@ namespace PriceSafari.Controllers.MemberControllers
                 finalFilteredHistories = rawFilteredHistories;
             }
 
-            var timelineData = lastScraps.Select(scrap => new
+            // ════════════════════════════════════════════════════════════════
+            // ZMIANA: Agregacja per godzina (zaokrąglona w dół)
+            //         Zamiast: scrap.Date.ToString("yyyy-MM-dd")
+            //         Teraz:   scrap.Date truncated to hour → "yyyy-MM-dd HH:00"
+            // ════════════════════════════════════════════════════════════════
+            var timelineData = lastScraps.Select(scrap =>
             {
-                ScrapDate = scrap.Date.ToString("yyyy-MM-dd"),
-                PricesByStore = finalFilteredHistories
-                    .Where(ph => ph.ScrapHistoryId == scrap.Id)
-                    .Select(ph => new
-                    {
-                        ph.StoreName,
-                        ph.Price,
-                        Source = (ph.IsGoogle == true) ? "google" : "ceneo"
-                    })
-                    .ToList()
+                // Zaokrąglenie daty w dół do pełnej godziny
+                var truncatedDate = new DateTime(
+                    scrap.Date.Year, scrap.Date.Month, scrap.Date.Day,
+                    scrap.Date.Hour, 0, 0, scrap.Date.Kind);
+
+                return new
+                {
+                    ScrapDate = truncatedDate.ToString("yyyy-MM-dd HH:00"),
+                    PricesByStore = finalFilteredHistories
+                        .Where(ph => ph.ScrapHistoryId == scrap.Id)
+                        .Select(ph => new
+                        {
+                            ph.StoreName,
+                            ph.Price,
+                            Source = (ph.IsGoogle == true) ? "google" : "ceneo"
+                        })
+                        .ToList()
+                };
             })
             .ToList();
 

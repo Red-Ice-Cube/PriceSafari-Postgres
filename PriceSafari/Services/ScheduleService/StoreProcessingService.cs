@@ -78,14 +78,19 @@ public class StoreProcessingService
             var matchingApiData = apiStoreData.FirstOrDefault(sd => relatedCoOfrs.Any(co => co.Id == sd.CoOfrClassId));
             var coOfrWithSales = relatedCoOfrs.FirstOrDefault(co => co.CeneoSalesCount.HasValue);
 
-            if ((coOfrWithSales != null || matchingApiData != null) && processedProductsForExtendedInfo.TryAdd(product.ProductId, true))
+            bool hasExtendedData = coOfrWithSales != null || matchingApiData != null;
+            bool hasMarginPrice = product.MarginPrice.HasValue;
+
+            if ((hasExtendedData || hasMarginPrice)
+                && processedProductsForExtendedInfo.TryAdd(product.ProductId, true))
             {
                 extendedInfoBag.Add(new PriceHistoryExtendedInfoClass
                 {
                     ProductId = product.ProductId,
                     ScrapHistory = scrapHistory,
                     CeneoSalesCount = coOfrWithSales?.CeneoSalesCount,
-                    ExtendedDataApiPrice = matchingApiData?.ExtendedDataApiPrice
+                    ExtendedDataApiPrice = matchingApiData?.ExtendedDataApiPrice,
+                    MapPriceSnapshot = product.MarginPrice
                 });
             }
 
@@ -282,6 +287,23 @@ public class StoreProcessingService
                 }
             }
         }));
+
+        // ─── SNAPSHOTY MapPrice DLA PRODUKTÓW BEZ relatedCoOfrs ───
+        // Produkty bez powiązań z CoOfr wypadły na return w Parallel.ForEach,
+        // ale jeśli mają MarginPrice — i tak robimy snapshot.
+        foreach (var product in products)
+        {
+            if (product.MarginPrice.HasValue
+                && processedProductsForExtendedInfo.TryAdd(product.ProductId, true))
+            {
+                extendedInfoBag.Add(new PriceHistoryExtendedInfoClass
+                {
+                    ProductId = product.ProductId,
+                    ScrapHistory = scrapHistory,
+                    MapPriceSnapshot = product.MarginPrice
+                });
+            }
+        }
 
         // ─── AKTUALIZACJA CEN ZAKUPU Z API ───
         if (store.GetPurchasePriceFromApi && apiStoreData.Any(sd => sd.PurchasePriceFromApi.HasValue))
@@ -484,9 +506,6 @@ public class StoreProcessingService
         }
     }
 }
-
-
-
 
 
 

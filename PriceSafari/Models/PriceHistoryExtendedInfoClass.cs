@@ -21,4 +21,8 @@ public class PriceHistoryExtendedInfoClass
 
     [Column(TypeName = "decimal(18, 2)")]
     public decimal? ExtendedDataApiPrice { get; set; }
+
+
+    [Column(TypeName = "decimal(18, 2)")]
+    public decimal? MapPriceSnapshot { get; set; }
 }

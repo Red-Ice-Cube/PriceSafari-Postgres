@@ -1,0 +1,1307 @@
+﻿@model IEnumerable<PriceSafari.Models.PriceHistoryClass>
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    ViewData["Title"] = "Szczegóły Produktu – Panel Producenta";
+    var storeId = ViewBag.StoreId;
+    var scrapHistory = ViewBag.ScrapHistory as PriceSafari.Models.ScrapHistoryClass;
+    var productName = ViewBag.ProductName as string;
+    var storeName = ViewBag.StoreName as string;
+    var url = ViewBag.Url;
+    var googleUrl = ViewBag.GoogleUrl;
+    var externalUrl = ViewBag.ExternalUrl as string;
+    var img = ViewBag.Img as string;
+    var ean = ViewBag.Ean as string;
+    var sku = ViewBag.Sku as string;
+    var externalId = ViewBag.ExternalId as int?;
+    var totalOffers = Model.Count();
+    var googleOffers = Model.Count(x => x.IsGoogle == true);
+    var ceneoOffers = totalOffers - googleOffers;
+    var hasAnyStoreLinks = Model.Any(x => !string.IsNullOrEmpty(x.GoogleOfferUrl));
+
+    // ── Producer-specific ──
+    decimal? referencePrice = ViewBag.ReferencePrice as decimal?;
+    string referenceSource = ViewBag.ReferenceSource as string ?? "none";
+    decimal? mapPrice = ViewBag.MapPrice as decimal?;
+    var producerRowBuckets = ViewBag.ProducerRowBuckets as Dictionary<int, string>
+                             ?? new Dictionary<int, string>();
+    var producerRowDeltas = ViewBag.ProducerRowDeltas as Dictionary<int, (decimal? deltaAbs, decimal? deltaPct)>
+                            ?? new Dictionary<int, (decimal?, decimal?)>();
+    var producerRowIsOwnStore = ViewBag.ProducerRowIsOwnStore as Dictionary<int, bool>
+                                ?? new Dictionary<int, bool>();
+    var producerRowIsHidden = ViewBag.ProducerRowIsHidden as Dictionary<int, bool>
+                              ?? new Dictionary<int, bool>();
+    var producerThresholdsJson = ViewBag.ProducerThresholdsJson as string ?? "{}";
+
+    var flags = ViewBag.Flags as List<PriceSafari.Models.ViewModels.FlagViewModel>
+                ?? new List<PriceSafari.Models.ViewModels.FlagViewModel>();
+    var productFlagIds = ViewBag.ProductFlagIds as List<int> ?? new List<int>();
+    var automationRuleName = ViewBag.AutomationRuleName as string;
+    var automationRuleColor = ViewBag.AutomationRuleColor as string;
+    var automationRuleIsActive = (bool)(ViewBag.AutomationRuleIsActive ?? false);
+    var automationRuleId = ViewBag.AutomationRuleId as int?;
+
+    // Moja cena (jeśli obecna w wynikach)
+    var myStorePrice = Model.FirstOrDefault(p => string.Equals(p.StoreName, storeName, StringComparison.OrdinalIgnoreCase));
+    decimal basePrice = myStorePrice?.Price ?? 0;
+}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+<style>
+    /* ── Producer bucket colors for color-bar ── */
+    .color-bar.producer-deep-violation { background-color: rgba(139, 0, 0, 0.85); }
+    .color-bar.producer-violation { background-color: rgba(220, 20, 60, 0.85); }
+    .color-bar.producer-minor-below { background-color: rgba(255, 99, 71, 0.85); }
+    .color-bar.producer-equal { background-color: rgba(65, 105, 225, 0.85); }
+    .color-bar.producer-minor-above { background-color: rgba(144, 238, 144, 0.85); }
+    .color-bar.producer-above { background-color: rgba(34, 139, 34, 0.85); }
+    .color-bar.producer-deep-above { background-color: rgba(0, 100, 0, 0.85); }
+    .color-bar.producer-no-reference { background-color: rgba(187, 187, 187, 0.85); }
+    .color-bar.producer-no-competition { background-color: rgba(136, 136, 136, 0.85); }
+
+    /* ── Producer delta badges (inline) ── */
+    .producer-delta-badge {
+        border-radius: 4px;
+        padding: 2px 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 500;
+        color: #fff;
+        white-space: nowrap;
+    }
+    .producer-bg-deep-violation { background-color: rgba(139, 0, 0, 0.9); }
+    .producer-bg-violation { background-color: rgba(220, 20, 60, 0.9); }
+    .producer-bg-minor-below { background-color: rgba(255, 99, 71, 0.9); }
+    .producer-bg-equal { background-color: rgba(65, 105, 225, 0.9); }
+    .producer-bg-minor-above { background-color: rgba(108, 198, 108, 1); }
+    .producer-bg-above { background-color: rgba(34, 139, 34, 0.9); }
+    .producer-bg-deep-above { background-color: rgba(0, 100, 0, 0.9); }
+    .producer-bg-no-reference { background-color: rgba(187, 187, 187, 0.9); }
+
+
+
+    /* ── Chart + tooltip panel ── */
+    .price-trend__main-panel {
+        flex: 1;
+        min-width: 480px;
+        display: flex;
+        flex-direction: column;
+        height: 65vh;
+    }
+    .price-trend__chart-area {
+        width: 100%;
+        flex-grow: 1;
+        min-height: 300px;
+        position: relative;
+        margin-bottom: 10px;
+    }
+    .price-trend__controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 5px;
+        align-self: center;
+        justify-self: center;
+        width: 93%;
+        box-sizing: border-box;
+        flex-shrink: 0;
+    }
+    .price-trend__alpha-slider-wrapper {
+        flex-grow: 1;
+        margin-right: 20px;
+        display: flex;
+        align-items: center;
+        max-width: 300px;
+    }
+    .price-trend__alpha-slider-wrapper input[type=range] {
+        width: 100%; cursor: pointer; height: 8px;
+        background: #e0e0e0; border-radius: 5px; outline: none;
+        opacity: 0.8; transition: opacity .2s;
+    }
+    .price-trend__alpha-slider-wrapper input[type=range]:hover { opacity: 1; }
+    .price-trend__alpha-slider-wrapper input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none; appearance: none;
+        width: 18px; height: 18px; background: #444;
+        border-radius: 50%; cursor: pointer;
+    }
+    .price-trend__alpha-slider-wrapper input[type=range]::-moz-range-thumb {
+        width: 18px; height: 18px; background: #444;
+        border-radius: 50%; cursor: pointer; border: none;
+    }
+    #exportExcelBtn { white-space: nowrap; flex-shrink: 0; }
+    .price-trend__tooltip-panel {
+        flex-basis: 340px;
+        flex-shrink: 0;
+        border-left: 1px solid #e0e0e0;
+        padding-left: 20px;
+        overflow-y: auto;
+    }
+</style>
+
+<div class="Vert" data-store-name="@storeName">
+    <div class="Page-Box">
+        <div style="display:flex; width:100%; justify-content:space-between; align-items: flex-start;">
+
+            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div style="font-weight: 300; font-size: 22px; line-height: 1.2;">
+                    @productName
+                </div>
+
+                <div class="detail-flags-row" id="detailFlagsContainer" style="display: flex; gap: 6px; align-items: center;">
+                    @if (productFlagIds.Any())
+                    {
+                        @foreach (var flag in flags.Where(f => productFlagIds.Contains(f.FlagId)))
+                        {
+                            <span class="detail-flag-pill"
+                                  style="border-color: @flag.FlagColor; color: @flag.FlagColor; background-color: @(flag.FlagColor)4D; white-space: nowrap; font-size: 12px; padding: 2px 8px; border-radius: 4px; border: 1px solid;">
+                                @flag.FlagName
+                            </span>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div style="margin-top:4px; display: flex; gap: 8px;">
+                <button type="button" id="showTableBtn" class="button-active">Ranking</button>
+                <button type="button" id="showChartBtn" class="button-inactive">Wykres</button>
+            </div>
+        </div>
+
+        <!-- Info row -->
+        <div class="form-check-orders">
+            <div class="info-row">
+                <p><strong>Wykonano</strong>&nbsp;@scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
+                @if (externalId.HasValue)
+                {
+                    <span class="separator">|</span>
+                    <span><strong>ID</strong>&nbsp;@externalId</span>
+                }
+                @if (!string.IsNullOrEmpty(sku))
+                {
+                    <span class="separator">|</span>
+                    <span><strong>SKU</strong>&nbsp;@sku</span>
+                }
+                @if (!string.IsNullOrEmpty(ean))
+                {
+                    <span class="separator">|</span>
+                    <span><strong>EAN</strong>&nbsp;@ean</span>
+                }
+            </div>
+        </div>
+
+        <!-- Top section: image + controls + chart + reference price -->
+        <div class="price-box-space" style="gap:32px;">
+            <div style="display:flex; width:100%; gap:24px; margin-bottom:8px;">
+                @if (!string.IsNullOrEmpty(img))
+                {
+                    <div style="display:flex;">
+                        <img src="@img" style="height: 110px; width: 110px;" />
+                    </div>
+                }
+
+                <div class="price-box-column-name" style="align-content:flex-end;">
+                    <div class="store-section">
+                        <div class="form-check">
+                            <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPrice" value="price" checked>
+                            <label class="form-check-label" for="sortPrice">Sortuj po cenie</label>
+                        </div>
+                        @if (googleOffers > 0 && ceneoOffers > 0)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPosition" value="position">
+                                <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortGooglePosition" value="googlePosition">
+                                <label class="form-check-label" for="sortGooglePosition">Sortuj po pozycji Google</label>
+                            </div>
+                        }
+                        else if (googleOffers == totalOffers)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortGooglePosition" value="googlePosition">
+                                <label class="form-check-label" for="sortGooglePosition">Sortuj po pozycji Google</label>
+                            </div>
+                        }
+                        else if (ceneoOffers == totalOffers)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPosition" value="position">
+                                <label class="form-check-label" for="sortPosition">Sortuj po pozycji Ceneo</label>
+                            </div>
+                        }
+                    </div>
+
+                    <div style="margin-top: 10px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <button type="button" class="Button-Page-Small" id="detailManageBtn">
+                            <i class="fa-solid fa-sliders"></i> Zarządzaj
+                        </button>
+                        <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="presetButton" onclick="openCompetitorsModal()">
+                            @if (!string.IsNullOrEmpty(ViewBag.ActivePresetName as string))
+                            {
+                                <span id="activePresetDisplay">Presety - @ViewBag.ActivePresetName</span>
+                            }
+                            else
+                            {
+                                <span id="activePresetDisplay">Presety - Widok PriceSafari</span>
+                            }
+                        </button>
+                        @if (!string.IsNullOrEmpty(googleUrl?.ToString()))
+                        {
+                            <a href="@googleUrl" class="Button-Page-Small" target="_blank">
+                                <img src="~/images/GoogleShopping.png" alt="Channel Icon" style="width:18px; height:18px;" /> Google
+                            </a>
+                        }
+                        @if (!string.IsNullOrEmpty(url?.ToString()))
+                        {
+                            <a href="@url" class="Button-Page-Small" target="_blank">
+                                <img src="~/images/Ceneo.png" alt="Channel Icon" style="width:18px; height:18px;" /> Ceneo
+                            </a>
+                        }
+                        @if (!string.IsNullOrEmpty(externalUrl))
+                        {
+                            <a href="@externalUrl" class="Button-Page-Small" target="_blank">
+                                <img src="~/images/Click-b.svg" alt="Channel Icon" style="width:20px; height:20px;" /> Strona
+                            </a>
+                        }
+                        @if (!string.IsNullOrEmpty(automationRuleName))
+                        {
+                            var isPaused = ViewBag.IsAutomationPaused as bool? ?? false;
+                            var statusColor = isPaused ? "#f6c23e" : (automationRuleIsActive ? "#1cc88a" : "#e74a3b");
+                            var statusLabel = isPaused ? "Zatrzymana" : (automationRuleIsActive ? "Aktywna" : "Nieaktywna");
+                            var automationDetailsUrl = Url.Action("Details", "PriceAutomation", new { id = automationRuleId });
+
+                            <span class="detail-automation-badge-v2 automation-link-btn"
+                                  data-url="@automationDetailsUrl"
+                                  data-product-id="@ViewBag.ProductId"
+                                  style="cursor: pointer;"
+                                  title="Przejdź do konfiguracji tego automatu">
+                                <span class="detail-automation-color-bar" style="background-color: @automationRuleColor;"></span>
+                                <span class="detail-automation-name">@automationRuleName</span>
+                                <span class="detail-automation-sep">|</span>
+                                <span class="detail-automation-status-dot" style="background-color: @statusColor;" title="@statusLabel"></span>
+                            </span>
+                        }
+                    </div>
+
+
+                </div>
+            </div>
+            <div style="display:flex; width:30%; height:110px; align-self:flex-end; margin-right:12px;">
+                <canvas id="priceChart" width="100" height="100"></canvas>
+            </div>
+        </div>
+
+        <!-- ══════════ TABELA CEN ══════════ -->
+        <div id="priceTableContainer" class="Vert-table" style="display: block; margin-top:6px;">
+            <table class="table-orders" id="priceTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th id="storeHeader">Sklep (@totalOffers)</th>
+                        <th>Cena</th>
+                        <th>Delta vs ref.</th>
+                        <th>Pozycja</th>
+                        <th>Odznaki</th>
+                        <th>Koszt wysyłki</th>
+                        <th>Dostępność</th>
+                        <th>Źródło</th>
+                        @if (hasAnyStoreLinks)
+                        {
+                            <th></th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ int rowIndex = 0; }
+                    @foreach (var item in Model)
+                    {
+                        bool isHidden = producerRowIsHidden.GetValueOrDefault(rowIndex, false);
+                        if (isHidden) { rowIndex++; continue; }
+
+                        var bucket = producerRowBuckets.GetValueOrDefault(rowIndex, "producer-no-reference");
+                        var deltas = producerRowDeltas.GetValueOrDefault(rowIndex, (null, null));
+                        decimal? deltaAbs = deltas.deltaAbs;
+                        decimal? deltaPct = deltas.deltaPct;
+                        bool isOwnStore = producerRowIsOwnStore.GetValueOrDefault(rowIndex, false);
+
+                        // Cena do sortowania: własny sklep → cena referencyjna, konkurencja → cena oferty
+                        string sortPrice = (isOwnStore && referencePrice.HasValue)
+                            ? referencePrice.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                            : item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                        // Badge CSS class
+                        string badgeBgClass = bucket switch
+                        {
+                            "producer-deep-violation" => "producer-bg-deep-violation",
+                            "producer-violation" => "producer-bg-violation",
+                            "producer-minor-below" => "producer-bg-minor-below",
+                            "producer-equal" => "producer-bg-equal",
+                            "producer-minor-above" => "producer-bg-minor-above",
+                            "producer-above" => "producer-bg-above",
+                            "producer-deep-above" => "producer-bg-deep-above",
+                            _ => "producer-bg-no-reference"
+                        };
+
+                        var shippingCost = "";
+                        if (item.ShippingCostNum == null) shippingCost = "Brak danych";
+                        else if (item.ShippingCostNum == 0) shippingCost = "Free";
+                        else shippingCost = $"{item.ShippingCostNum} PLN";
+
+                        <tr class="price-row @bucket" data-store-name="@item.StoreName" data-price="@sortPrice" data-position="@item.Position">
+                            <td>
+                                <div class="color-bar @bucket"></div>
+                            </td>
+                            <td class="store-name" style="@(isOwnStore ? "font-weight:bold;" : "")">@item.StoreName</td>
+                            <td class="store-price" style="@(isOwnStore ? "font-weight:bold;" : "")">
+                                @if (isOwnStore && referencePrice.HasValue)
+                                {
+                                    @referencePrice.Value.ToString("0.00")<text> PLN</text>
+                                    @if (referenceSource == "map")
+                                    {
+                                        <span style="font-size:10px; padding:1px 5px; border-radius:3px; background:#e0e7ff; color:#3b5bdb; font-weight:500; margin-left:4px; vertical-align:middle;">MAP</span>
+                                    }
+                                    else if (referenceSource == "store")
+                                    {
+                                        <span style="font-size:10px; padding:1px 5px; border-radius:3px; background:#e0f5e9; color:#2b8a3e; font-weight:500; margin-left:4px; vertical-align:middle;">Rynek</span>
+                                    }
+                                }
+                                else
+                                {
+                                    @item.Price.ToString("0.00")<text> PLN</text>
+                                }
+                            </td>
+                            <td>
+                                @if (deltaAbs.HasValue)
+                                {
+                                    var sign = deltaAbs.Value >= 0 ? "+" : "";
+                                    var signPct = deltaPct.HasValue ? (deltaPct.Value >= 0 ? "+" : "") : "";
+                                    <span class="producer-delta-badge @badgeBgClass">
+                                        @sign@deltaAbs.Value.ToString("0.00") PLN (@signPct@(deltaPct?.ToString("0.00") ?? "?")%)
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span style="color:#bbb; font-size:12px;">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.Position != null)
+                                {
+                                    @if (item.IsGoogle == true)
+                                    {
+                                        <div class="Position-Google">Poz. Google @item.Position</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="Position">Poz. Ceneo @item.Position</div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="Position" style="background-color: #414141;">Schowany</div>
+                                }
+                            </td>
+                            <td>
+                                @if (item.IsBidding == "1")
+                                {
+                                    <div class="Bidding">Bid</div>
+                                }
+                                else if (item.IsBidding == "bpg")
+                                {
+                                    <div class="Bidding" style="background-color: #0F9D58; border-color: #0F9D58;" title="Google: Najlepsza cena">Odz. ceny Google</div>
+                                }
+                                else if (item.IsBidding == "hpg")
+                                {
+                                    <div class="Bidding" style="background-color: #4285F4; border-color: #4285F4;" title="Google: Najpopularniejsze">Popularne</div>
+                                }
+                            </td>
+                            <td>
+                                @if (item.ShippingCostNum == null)
+                                {
+                                    <div class="BD">Brak danych</div>
+                                }
+                                else if (item.ShippingCostNum == 0)
+                                {
+                                    <div class="FreeShipping">Free</div>
+                                }
+                                else
+                                {
+                                    <div class="PaidShipping">@shippingCost</div>
+                                }
+                            </td>
+                            <td>
+                                @if (item.IsGoogle)
+                                {
+                                    @if (item.GoogleInStock == true)
+                                    { <span class="stock-available">Dostępny</span> }
+                                    else if (item.GoogleInStock == false)
+                                    { <span class="stock-unavailable">Niedostępny</span> }
+                                    else
+                                    { <span class="BD">Brak danych</span> }
+                                }
+                                else
+                                {
+                                    @if (item.CeneoInStock == true)
+                                    { <span class="stock-available">Dostępny</span> }
+                                    else if (item.CeneoInStock == false)
+                                    { <span class="stock-unavailable">Niedostępny</span> }
+                                    else
+                                    { <span class="BD">Brak danych</span> }
+                                }
+                            </td>
+                            <td class="data-chanel">
+                                <img src="@Url.Content(item.IsGoogle ? "~/images/GoogleShopping.png" : "~/images/Ceneo.png")" alt="Channel Icon" style="width:24px; height:24px;" />
+                            </td>
+                            @if (hasAnyStoreLinks)
+                            {
+                                <td style="text-align: right; white-space: nowrap;">
+                                    @if (!string.IsNullOrEmpty(item.GoogleOfferUrl))
+                                    {
+                                        <a href="@item.GoogleOfferUrl" target="_blank" class="Button-Page-Small" style="text-decoration:none; padding: 2px 8px; font-size: 11px;">
+                                            <i class="fas fa-external-link-alt" style="margin-right: 4px;"></i> Link
+                                        </a>
+                                    }
+                                    else if (!item.IsGoogle && !string.IsNullOrEmpty(url?.ToString()))
+                                    {
+                                        <a href="@url" target="_blank" class="Button-Page-Small" style="text-decoration:none; padding: 2px 8px; font-size: 11px;">
+                                            <i class="fas fa-external-link-alt" style="margin-right: 4px;"></i> Link
+                                        </a>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                        rowIndex++;
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ══════════ TREND CHART ══════════ -->
+        <div id="trendChartContainer" class="price-trend-section">
+            <div class="price-trend__main-panel">
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <div class="period-selector-group">
+                        <button type="button" class="period-btn-custom history-btn" data-days="7">7 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="14">14 Analiz</button>
+                        <button type="button" class="period-btn-custom active history-btn" data-days="30">30 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="60">60 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="90">90 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="120">120 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="240">240 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="360">360 Analiz</button>
+                    </div>
+                </div>
+                <div class="price-trend__chart-area">
+                    <div id="trendChart" style="width: 100%; height: 100%;"></div>
+                </div>
+                <div class="price-trend__controls">
+                    <div class="price-trend__alpha-slider-wrapper">
+                        <input type="range" id="grayAlphaRange" min="0" max="0.6" step="0.01" value="0.3">
+                    </div>
+                    <button type="button" id="exportExcelBtn" class="Button-Page-Small" title="Eksportuj dane historii cen do pliku Excel">
+                        <i class="fas fa-file-excel" style="margin-right: 5px;"></i> Excel
+                    </button>
+                </div>
+            </div>
+            <div id="customTrendTooltip" class="price-trend__tooltip-panel"></div>
+        </div>
+    </div>
+</div>
+
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_PresetyPriceComparison.cshtml")
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
+
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loader"></div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script>
+    Chart.register(window['chartjs-plugin-annotation']);
+</script>
+
+<script>
+    var priceHistoryPageContext = 'details';
+    var storeId = '@storeId';
+    const presetTypeContext = 0;
+</script>
+<script src="~/js/member/Presets.js"></script>
+<script src="~/js/member/MassActions.js"></script>
+
+<!-- ═══════ MassActions init (identycznie jak w Details) ═══════ -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var detailProductId = @ViewBag.ProductId;
+
+        var detailMassActions = MassActions({
+            storeId: @ViewBag.StoreId,
+            isAllegro: false,
+            storageKey: 'massaction_detail_store_@(ViewBag.StoreId)',
+            flags: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                                flags.Select(f => new { flagId = f.FlagId, flagName = f.FlagName, flagColor = f.FlagColor })
+                        )),
+            getAllPrices: function () {
+                return [{ productId: detailProductId, productName: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.ProductName as string)) }];
+            },
+            getFilteredPrices: function () {
+                return [{ productId: detailProductId, productName: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.ProductName as string)) }];
+            },
+            getProductIdentifier: function (product) {
+                var eanVal = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.Ean as string ?? ""));
+                return { label: 'EAN', value: eanVal };
+            },
+            showLoading: function () { var el = document.getElementById('loadingOverlay'); if (el) el.style.display = 'flex'; },
+            hideLoading: function () { var el = document.getElementById('loadingOverlay'); if (el) el.style.display = 'none'; },
+            showGlobalUpdate: function (msg) { },
+            showGlobalNotification: function (msg) { alert('Błąd: ' + msg); },
+            onFlagsUpdated: function () { location.reload(); },
+            onAutomationsUpdated: function () { location.reload(); }
+        });
+
+        detailMassActions.init();
+
+        var manageBtn = document.getElementById('detailManageBtn');
+        if (manageBtn) {
+            manageBtn.addEventListener('click', function () {
+                detailMassActions.clearSelection();
+                detailMassActions.addProduct(detailProductId);
+                detailMassActions.updateSelectionUI();
+                $('#selectedProductsModal').modal('show');
+            });
+        }
+    });
+</script>
+
+<!-- ═══════ Bar chart (ten sam co w Details, z annotation linią ceny ref.) ═══════ -->
+<script>
+    var pricesData = @Html.Raw(ViewBag.PricesDataJson ?? "[]");
+    var chart;
+    var producerThresholds = @Html.Raw(producerThresholdsJson);
+
+    // Mapowanie bucket -> kolor baru
+    var bucketBarColors = {
+        'producer-deep-violation': 'rgba(139, 0, 0, 0.7)',
+        'producer-violation': 'rgba(220, 20, 60, 0.7)',
+        'producer-minor-below': 'rgba(255, 99, 71, 0.7)',
+        'producer-equal': 'rgba(65, 105, 225, 0.7)',
+        'producer-minor-above': 'rgba(144, 238, 144, 0.7)',
+        'producer-above': 'rgba(34, 139, 34, 0.7)',
+        'producer-deep-above': 'rgba(0, 100, 0, 0.7)',
+        'producer-no-reference': 'rgba(187, 187, 187, 0.7)'
+    };
+
+    // Backend wstrzykuje bucket per wiersz (w data-attribute na TR).
+    // Ale pricesData nie ma bucketów – liczymy z referencji client-side.
+    function getProducerBucketForPrice(price) {
+        var ref = producerThresholds.referencePrice;
+        if (!ref || ref <= 0) return 'producer-no-reference';
+
+        var deltaAbs = price - ref;
+        var deltaPct = (deltaAbs / ref) * 100;
+        var useAmt = producerThresholds.useAmount;
+        var val = useAmt ? deltaAbs : deltaPct;
+
+        var redDark = useAmt ? producerThresholds.redDarkAmt : producerThresholds.redDarkPct;
+        var red = useAmt ? producerThresholds.redAmt : producerThresholds.redPct;
+        var redLight = useAmt ? producerThresholds.redLightAmt : producerThresholds.redLightPct;
+        var greenLight = useAmt ? producerThresholds.greenLightAmt : producerThresholds.greenLightPct;
+        var green = useAmt ? producerThresholds.greenAmt : producerThresholds.greenPct;
+        var greenDark = useAmt ? producerThresholds.greenDarkAmt : producerThresholds.greenDarkPct;
+
+        if (val <= -redDark) return 'producer-deep-violation';
+        if (val <= -red) return 'producer-violation';
+        if (val <= -redLight) return 'producer-minor-below';
+        if (val < greenLight) return 'producer-equal';
+        if (val < green) return 'producer-minor-above';
+        if (val < greenDark) return 'producer-above';
+        return 'producer-deep-above';
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const rows = Array.from(document.querySelectorAll(".price-row"));
+        const observedStoreName = document.querySelector(".Vert").getAttribute("data-store-name").toLowerCase().trim();
+        const headerEl = document.getElementById("storeHeader");
+
+        function highlightObservedStore() {
+            rows.forEach(function (row) {
+                const sn = row.getAttribute("data-store-name").toLowerCase().trim();
+                const isMine = sn === observedStoreName;
+                row.querySelector(".store-name").style.fontWeight = isMine ? "bold" : "normal";
+                row.querySelector(".store-price").style.fontWeight = isMine ? "bold" : "normal";
+            });
+        }
+
+        function sortRowsByPrice() {
+            rows.forEach(row => row.style.display = '');
+            rows.sort((a, b) => {
+                let pA = parseFloat(a.getAttribute("data-price")); if (isNaN(pA)) pA = Infinity;
+                let pB = parseFloat(b.getAttribute("data-price")); if (isNaN(pB)) pB = Infinity;
+                return pA !== pB ? pA - pB : a.getAttribute("data-store-name").localeCompare(b.getAttribute("data-store-name"));
+            });
+            const tbody = document.querySelector("#priceTable tbody");
+            rows.forEach(row => tbody.appendChild(row));
+            headerEl.textContent = "Sklep (" + rows.length + ")";
+            highlightObservedStore();
+        }
+
+        function sortRowsByCeneoPosition() {
+            const f = rows.filter(r => r.querySelector(".Position-Google") === null);
+            f.sort((a, b) => (parseInt(a.getAttribute("data-position")) || Infinity) - (parseInt(b.getAttribute("data-position")) || Infinity));
+            rows.forEach(r => r.style.display = f.indexOf(r) === -1 ? 'none' : '');
+            const tbody = document.querySelector("#priceTable tbody");
+            f.forEach(r => tbody.appendChild(r));
+            headerEl.textContent = "Sklep (" + f.length + " - Ceneo)";
+            highlightObservedStore();
+        }
+
+        function sortRowsByGooglePosition() {
+            const f = rows.filter(r => r.querySelector(".Position-Google") !== null);
+            f.sort((a, b) => (parseInt(a.getAttribute("data-position")) || Infinity) - (parseInt(b.getAttribute("data-position")) || Infinity));
+            rows.forEach(r => r.style.display = f.indexOf(r) === -1 ? 'none' : '');
+            const tbody = document.querySelector("#priceTable tbody");
+            f.forEach(r => tbody.appendChild(r));
+            headerEl.textContent = "Sklep (" + f.length + " - Google)";
+            highlightObservedStore();
+        }
+
+        document.getElementById("sortPrice").addEventListener("click", sortRowsByPrice);
+        if (document.getElementById("sortPosition")) document.getElementById("sortPosition").addEventListener("click", sortRowsByCeneoPosition);
+        if (document.getElementById("sortGooglePosition")) document.getElementById("sortGooglePosition").addEventListener("click", sortRowsByGooglePosition);
+
+        sortRowsByPrice();
+        highlightObservedStore();
+
+        var myStoreName = "@storeName";
+        createProducerChart(pricesData, myStoreName);
+    });
+
+    function createProducerChart(pricesData, myStore) {
+        const sortedData = pricesData.sort((a, b) => b.price - a.price);
+        const sortedPrices = sortedData.map(item => item.price);
+        const sortedStores = sortedData.map(item => item.store);
+        const myStoreNormalized = myStore.toLowerCase().trim();
+
+        // Kolory barów wg bucketu producenta
+        // Własny sklep → zawsze niebieski (producer-equal)
+        const barColors = sortedData.map(item => {
+            const sn = item.store.toLowerCase().trim();
+            if (sn === myStoreNormalized) return bucketBarColors['producer-equal'];
+            var bucket = getProducerBucketForPrice(item.price);
+            return bucketBarColors[bucket] || 'rgba(34, 34, 34, 0.4)';
+        });
+
+        const borderColors = barColors.map(c => c.replace(/[\d.]+\)$/, '1)'));
+
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        if (chart) chart.destroy();
+
+        // Annotation: linia ceny referencyjnej
+        var annotations = {};
+        var refPrice = producerThresholds.referencePrice;
+        if (refPrice && refPrice > 0) {
+            annotations.refLine = {
+                type: 'line',
+                yMin: refPrice,
+                yMax: refPrice,
+                borderColor: 'rgba(65, 105, 225, 0.8)',
+                borderWidth: 2,
+                borderDash: [6, 3],
+                label: {
+                    display: true,
+                    content: 'REF ' + refPrice.toFixed(2),
+                    position: 'start',
+                    backgroundColor: 'rgba(65, 105, 225, 0.85)',
+                    color: '#fff',
+                    font: { size: 10 }
+                }
+            };
+        }
+
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedStores,
+                datasets: [{
+                    label: 'Cena PLN',
+                    data: sortedPrices,
+                    backgroundColor: barColors,
+                    borderColor: borderColors,
+                    borderWidth: 2,
+                    borderRadius: 2
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { callback: v => v + ' PLN' } },
+                    x: { display: false }
+                },
+                plugins: {
+                    legend: { display: false },
+                    annotation: { annotations: annotations }
+                }
+            }
+        });
+    }
+</script>
+
+<!-- ═══════ ECharts Trend Chart z pasami progów ═══════ -->
+<script>
+    let productId = @ViewBag.ProductId;
+    let myStoreLower = "@storeName".toLowerCase().trim();
+    let lastHoverParams = null;
+    let currentHistoryLimit = 30;
+    let highlightedStores = [];
+    let storeColorMap = {};
+    let lastHighlightedStore = null;
+    let hiddenStores = [];
+
+    const highlightColors = [
+        'rgba(255, 128, 0, 1)', 'rgba(76, 175, 80, 1)', 'rgba(153, 102, 255, 1)',
+        'rgba(244, 67, 54, 1)', 'rgba(0, 150, 136, 1)', 'rgba(255, 193, 7, 1)',
+        'rgba(0, 188, 212, 1)', 'rgba(139, 195, 74, 1)', 'rgba(121, 85, 72, 1)',
+        'rgba(233, 30, 99, 1)'
+    ];
+
+    const myStoreColor = 'rgba(54, 162, 235, 1)';
+    const defaultGrayColor = 'rgba(128, 128, 128, {alpha})';
+    const UNIFORM_LINE_WIDTH = 2.3;
+    const UNIFORM_EMPHASIS_LINE_WIDTH = 2.3;
+
+    let defaultGrayAlpha = 0.3;
+    let echartsTrendChart = null;
+    let currentTimelineData = null;
+    let currentChartOptions = null;
+    const defaultCustomTooltipContent = 'Najedź na punkt na wykresie...';
+
+    function updateCustomTooltipPanel(htmlContent) {
+        const panelDiv = document.getElementById('customTrendTooltip');
+        if (panelDiv) panelDiv.innerHTML = htmlContent || defaultCustomTooltipContent;
+    }
+
+    function recalculateYAxisRange() {
+        if (!currentChartOptions || !currentChartOptions.series) return null;
+        let minP = Infinity, maxP = -Infinity, hasData = false;
+        currentChartOptions.series.forEach(s => {
+            if (!hiddenStores.includes(s.name.toLowerCase().trim())) {
+                s.data.forEach(dp => {
+                    if (dp.value != null) { hasData = true; minP = Math.min(minP, dp.value); maxP = Math.max(maxP, dp.value); }
+                });
+            }
+        });
+        if (!hasData) return { min: 0, max: 100 };
+        if (maxP <= minP) maxP = minP + 100;
+        var pad = (maxP - minP) * 0.05;
+        return { min: Math.max(0, minP - pad), max: maxP + pad };
+    }
+
+    $('.history-btn').on('click', function () {
+        $('.history-btn').removeClass('active');
+        $(this).addClass('active');
+        var n = $(this).data('days');
+        if (currentHistoryLimit !== n) { currentHistoryLimit = n; if ($('#trendChartContainer').is(':visible')) loadTrendDataAndDrawEcharts(); }
+    });
+
+    function findNextFreeColorIndex() {
+        for (let i = 0; i < highlightColors.length; i++) {
+            if (!Object.values(storeColorMap).includes(i)) return i;
+        }
+        return null;
+    }
+
+    function hideStoreFromChart(storeName) {
+        if (!echartsTrendChart || !currentTimelineData) return;
+        var sl = storeName.toLowerCase().trim();
+        if (!hiddenStores.includes(sl)) hiddenStores.push(sl);
+        var idx = highlightedStores.indexOf(sl);
+        if (idx > -1) { highlightedStores.splice(idx, 1); delete storeColorMap[sl]; if (lastHighlightedStore === sl) lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null; }
+        updateEchartsStylesAndZ();
+        var r = recalculateYAxisRange();
+        if (r && currentChartOptions && currentChartOptions.yAxis) {
+            currentChartOptions.yAxis.min = r.min; currentChartOptions.yAxis.max = r.max;
+            echartsTrendChart.setOption({ yAxis: { min: r.min, max: r.max } });
+        }
+        if (lastHoverParams) { var h = generateTooltipPanelHtml(lastHoverParams); updateCustomTooltipPanel(h || defaultCustomTooltipContent); }
+    }
+
+    function getSeriesStyleAndZ(sLower) {
+        if (hiddenStores.includes(sLower)) return { lineStyle: { color: 'transparent', width: 0 }, itemStyle: { color: 'transparent' }, z: 0 };
+        var isMy = sLower === myStoreLower;
+        var isH = highlightedStores.includes(sLower);
+        var isLast = sLower === lastHighlightedStore;
+        var ci = storeColorMap[sLower];
+        var color = defaultGrayColor.replace('{alpha}', defaultGrayAlpha);
+        var z = 1;
+        if (isMy) { color = myStoreColor; z = 3; }
+        else if (isH && ci != null) { color = highlightColors[ci]; z = 2; }
+        if (isLast) z = 4;
+        return { lineStyle: { color: color, width: UNIFORM_LINE_WIDTH }, itemStyle: { color: color }, z: z };
+    }
+
+    function generateTooltipPanelHtml(params) {
+        if (!params || !params.length) return null;
+        var date = params[0].axisValueLabel;
+        var items = [];
+        params.forEach(p => {
+            var v = p.data.value, src = p.data.source, sn = p.seriesName, sl = sn.toLowerCase().trim();
+            if (hiddenStores.includes(sl) || v == null) return;
+            var st = getSeriesStyleAndZ(sl);
+            items.push({ storeName: sn, price: v, source: src, markerColor: st.itemStyle.color,
+                isMyStore: sl === myStoreLower, colorIndex: storeColorMap[sl] });
+        });
+        items.sort((a, b) => a.price !== b.price ? a.price - b.price : a.storeName.localeCompare(b.storeName));
+        var html = '<div style="font-weight:bold; margin-bottom:4px;">Data: ' + date + '</div>';
+        if (!items.length) { html += '<div style="color:#666; font-style:italic;">Brak danych.</div>'; return html; }
+        html += '<table style="width:100%; border-collapse:collapse; font-size:0.85rem;">';
+        items.forEach(item => {
+            var sl = item.storeName.toLowerCase().trim();
+            var ct = 'rgba(50,50,50,1)', fw = 'normal';
+            if (sl === myStoreLower) { ct = myStoreColor; fw = 'bold'; }
+            else if (highlightedStores.includes(sl) && item.colorIndex != null) { ct = highlightColors[item.colorIndex]; fw = 'bold'; }
+            var dn = item.storeName.length > 23 ? item.storeName.substring(0, 20) + '...' : item.storeName;
+            var icon = item.source === 'google'
+                ? '<img src="/images/GoogleShopping.png" alt="G" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;" />'
+                : '<img src="/images/Ceneo.png" alt="C" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;" />';
+            var esc = item.storeName.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            var rmBtn = '<span class="remove-store-btn" title="Ukryj" style="cursor:pointer;color:#aaa;margin-left:8px;font-weight:bold;padding:0 4px;display:inline-block;vertical-align:middle;" onmouseover="this.style.color=\'red\'" onmouseout="this.style.color=\'#aaa\'" onclick="event.stopPropagation(); hideStoreFromChart(\'' + esc + '\');">&times;</span>';
+            html += '<tr style="border-bottom:1px solid #eee;cursor:pointer;" onclick="event.stopPropagation(); toggleStoreHighlight(\'' + esc + '\');">'
+                + '<td style="padding:3px 2px;color:' + ct + ';font-weight:' + fw + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + item.storeName + '">'
+                + '<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:' + item.markerColor + ';vertical-align:middle;"></span>'
+                + icon + dn + '</td>'
+                + '<td style="padding:3px 2px;text-align:right;color:' + ct + ';font-weight:' + fw + ';white-space:nowrap;">'
+                + item.price.toFixed(2) + ' PLN' + rmBtn + '</td></tr>';
+        });
+        html += '</table>';
+        return html;
+    }
+
+    function prepareEchartsSeries(dataByInstance, allDates, allInstances) {
+        return allInstances.map(instanceId => {
+            var [storeName, source] = instanceId.split('|');
+            var sl = storeName.toLowerCase().trim();
+            var initStyle = getSeriesStyleAndZ(sl);
+            var validCount = 0;
+            var data = allDates.map(date => {
+                var price = dataByInstance[instanceId]?.[date] ?? null;
+                if (price != null) validCount++;
+                return { value: price, source: source, storeName: storeName };
+            });
+            return {
+                name: storeName, _instanceId: instanceId, _source: source, type: 'line',
+                data: data, connectNulls: false, smooth: 0.30,
+                showSymbol: validCount === 1, symbol: 'circle', symbolSize: validCount === 1 ? 10 : 6,
+                emphasis: { focus: 'series', symbolSize: validCount === 1 ? 14 : 12,
+                    lineStyle: { width: UNIFORM_EMPHASIS_LINE_WIDTH },
+                    itemStyle: { color: initStyle.itemStyle.color, borderColor: 'rgba(255,255,255,0.7)', borderWidth: 1, opacity: 1 } },
+                lineStyle: initStyle.lineStyle, itemStyle: initStyle.itemStyle, z: initStyle.z
+            };
+        });
+    }
+
+    /** Buduje markAreas z pasami progów producenta */
+    function buildProducerThresholdBands(refPrice, yMin, yMax) {
+        if (!refPrice || refPrice <= 0) return [];
+        var t = producerThresholds;
+        var useAmt = t.useAmount;
+
+        function priceAtThreshold(thresholdValue, direction) {
+            if (useAmt) return refPrice + (direction === 'above' ? thresholdValue : -thresholdValue);
+            return refPrice * (1 + (direction === 'above' ? thresholdValue : -thresholdValue) / 100);
+        }
+
+        var greenDarkPrice = priceAtThreshold(useAmt ? t.greenDarkAmt : t.greenDarkPct, 'above');
+        var greenPrice = priceAtThreshold(useAmt ? t.greenAmt : t.greenPct, 'above');
+        var greenLightPrice = priceAtThreshold(useAmt ? t.greenLightAmt : t.greenLightPct, 'above');
+        var redLightPrice = priceAtThreshold(useAmt ? t.redLightAmt : t.redLightPct, 'below');
+        var redPrice = priceAtThreshold(useAmt ? t.redAmt : t.redPct, 'below');
+        var redDarkPrice = priceAtThreshold(useAmt ? t.redDarkAmt : t.redDarkPct, 'below');
+
+        // Clamp do zakresu wykresu
+        function clamp(v) { return Math.max(yMin, Math.min(yMax, v)); }
+
+        var bands = [
+            // Mocno powyżej: greenDarkPrice → yMax
+            { from: clamp(greenDarkPrice), to: yMax, color: 'rgba(0, 100, 0, 0.18)', label: '' },
+            // Powyżej: greenPrice → greenDarkPrice
+            { from: clamp(greenPrice), to: clamp(greenDarkPrice), color: 'rgba(34, 139, 34, 0.20)', label: '' },
+            // Lekko powyżej: greenLightPrice → greenPrice
+            { from: clamp(greenLightPrice), to: clamp(greenPrice), color: 'rgba(144, 238, 144, 0.22)', label: '' },
+            // Cena zgodna: redLightPrice → greenLightPrice
+            { from: clamp(redLightPrice), to: clamp(greenLightPrice), color: 'rgba(65, 105, 225, 0.15)', label: '' },
+            // Lekko poniżej: redPrice → redLightPrice
+            { from: clamp(redPrice), to: clamp(redLightPrice), color: 'rgba(255, 99, 71, 0.18)', label: '' },
+            // Naruszenie: redDarkPrice → redPrice
+            { from: clamp(redDarkPrice), to: clamp(redPrice), color: 'rgba(220, 20, 60, 0.18)', label: '' },
+            // Drastyczne: yMin → redDarkPrice
+            { from: yMin, to: clamp(redDarkPrice), color: 'rgba(139, 0, 0, 0.18)', label: '' }
+        ];
+
+        return bands.filter(b => b.to > b.from).map(b => [{
+            yAxis: b.from
+        }, {
+            yAxis: b.to
+        }]);
+    }
+
+    function buildProducerMarkAreaData(refPrice, yMin, yMax) {
+        if (!refPrice || refPrice <= 0) return [];
+        var t = producerThresholds;
+        var useAmt = t.useAmount;
+
+        function priceAt(tv, dir) {
+            return useAmt ? refPrice + (dir === 'above' ? tv : -tv) : refPrice * (1 + (dir === 'above' ? tv : -tv) / 100);
+        }
+
+        var greenDarkP = priceAt(useAmt ? t.greenDarkAmt : t.greenDarkPct, 'above');
+        var greenP = priceAt(useAmt ? t.greenAmt : t.greenPct, 'above');
+        var greenLightP = priceAt(useAmt ? t.greenLightAmt : t.greenLightPct, 'above');
+        var redLightP = priceAt(useAmt ? t.redLightAmt : t.redLightPct, 'below');
+        var redP = priceAt(useAmt ? t.redAmt : t.redPct, 'below');
+        var redDarkP = priceAt(useAmt ? t.redDarkAmt : t.redDarkPct, 'below');
+
+        function cl(v) { return Math.max(yMin, Math.min(yMax, v)); }
+
+        var defs = [
+            { from: cl(greenDarkP), to: yMax, color: 'rgba(0, 100, 0, 0.18)' },
+            { from: cl(greenP), to: cl(greenDarkP), color: 'rgba(34, 139, 34, 0.20)' },
+            { from: cl(greenLightP), to: cl(greenP), color: 'rgba(144, 238, 144, 0.22)' },
+            { from: cl(redLightP), to: cl(greenLightP), color: 'rgba(65, 105, 225, 0.15)' },
+            { from: cl(redP), to: cl(redLightP), color: 'rgba(255, 99, 71, 0.18)' },
+            { from: cl(redDarkP), to: cl(redP), color: 'rgba(220, 20, 60, 0.18)' },
+            { from: yMin, to: cl(redDarkP), color: 'rgba(139, 0, 0, 0.18)' }
+        ];
+
+        return defs.filter(d => d.to > d.from).map(d => [
+            { yAxis: d.from, itemStyle: { color: d.color } },
+            { yAxis: d.to }
+        ]);
+    }
+
+    function drawEchartsTrendChart(timelineData) {
+        currentTimelineData = timelineData;
+        var chartDom = document.getElementById('trendChart');
+        if (!chartDom) return;
+        if (echartsTrendChart) { echartsTrendChart.dispose(); echartsTrendChart = null; }
+        echartsTrendChart = echarts.init(chartDom);
+
+        var allDatesSet = new Set(), allInstancesSet = new Set(), dataByInstance = {};
+        timelineData.forEach(entry => {
+            allDatesSet.add(entry.scrapDate);
+            entry.pricesByStore.forEach(ps => {
+                if (!ps.storeName || !ps.source || ps.price == null) return;
+                var iid = ps.storeName + '|' + ps.source;
+                allInstancesSet.add(iid);
+                if (!dataByInstance[iid]) dataByInstance[iid] = {};
+                dataByInstance[iid][entry.scrapDate] = ps.price;
+            });
+        });
+
+        var allDates = Array.from(allDatesSet).sort();
+        var allInstances = Array.from(allInstancesSet);
+        allInstances.sort((a, b) => {
+            var [nA] = a.split('|'), [nB] = b.split('|');
+            var aL = nA.toLowerCase().trim(), bL = nB.toLowerCase().trim();
+            if (aL === myStoreLower && bL !== myStoreLower) return -1;
+            if (bL === myStoreLower && aL !== myStoreLower) return 1;
+            return nA.localeCompare(nB);
+        });
+
+        var gMin = Infinity, gMax = -Infinity;
+        Object.values(dataByInstance).forEach(dm => Object.values(dm).forEach(p => { gMin = Math.min(gMin, p); gMax = Math.max(gMax, p); }));
+        if (!isFinite(gMin)) gMin = 0;
+        if (!isFinite(gMax) || gMax <= gMin) gMax = gMin + 100;
+        else { var pad = (gMax - gMin) * 0.05; gMin = Math.max(0, gMin - pad); gMax += pad; }
+
+        var seriesData = prepareEchartsSeries(dataByInstance, allDates, allInstances);
+
+        // Dodaj markArea z pasami progów do pierwszej serii
+        var refPrice = producerThresholds.referencePrice;
+        if (seriesData.length > 0 && refPrice && refPrice > 0) {
+            var markAreaData = buildProducerMarkAreaData(refPrice, gMin, gMax);
+            seriesData[0].markArea = {
+                silent: true,
+                data: markAreaData
+            };
+            // Linia ceny referencyjnej
+            seriesData[0].markLine = {
+                silent: true,
+                symbol: 'none',
+                lineStyle: { color: 'rgba(65, 105, 225, 0.6)', width: 1.5, type: 'dashed' },
+                label: {
+                    show: true,
+                    position: 'insideStartTop',
+                    formatter: 'REF ' + refPrice.toFixed(2),
+                    fontSize: 10,
+                    color: 'rgba(65, 105, 225, 0.9)',
+                    backgroundColor: 'rgba(255,255,255,0.8)',
+                    padding: [2, 4],
+                    borderRadius: 2
+                },
+                data: [{ yAxis: refPrice }]
+            };
+        }
+
+        var polishMonths = ['sty','lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru'];
+        function fmtDate(ds) {
+            try {
+                // Format: "yyyy-MM-dd HH:00" lub stary "yyyy-MM-dd"
+                var parts = ds.split(' ');
+                var datePart = parts[0].split('-');
+                var day = parseInt(datePart[2]);
+                var month = polishMonths[parseInt(datePart[1]) - 1];
+                if (parts.length > 1 && parts[1]) {
+                    return day + ' ' + month + ' ' + parts[1];
+                }
+                return day + ' ' + month;
+            } catch(e) { return ds; }
+        }
+
+        // Resize observer
+        var container = document.getElementById('trendChartContainer');
+        if (container && typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(() => { if (echartsTrendChart && $('#trendChartContainer').is(':visible')) echartsTrendChart.resize({ animation: { duration: 200 } }); }).observe(container);
+        }
+
+        currentChartOptions = {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'cross', snap: true, label: { backgroundColor: '#6a7985' } },
+                formatter: function (params) { lastHoverParams = params; updateCustomTooltipPanel(generateTooltipPanelHtml(params) || defaultCustomTooltipContent); return ''; }
+            },
+            xAxis: {
+                type: 'category', data: allDates, boundaryGap: false,
+                splitLine: { show: true, lineStyle: { color: '#E8E8E8', type: 'dashed', width: 1 } },
+                axisLabel: { formatter: fmtDate, fontSize: 11, color: '#666' }
+            },
+            yAxis: {
+                type: 'value', min: gMin, max: gMax, scale: true,
+                axisLabel: { show: false },
+                axisPointer: { show: true, snap: true },
+                splitLine: { show: true, lineStyle: { color: '#E8E8E8', type: 'dashed', width: 1 } }
+            },
+            grid: { left: '3%', right: '4%', bottom: '80px', containLabel: true },
+            series: seriesData,
+            animationEasing: 'quadraticInOut', animationDuration: 600,
+            dataZoom: [
+                {
+                    type: 'slider', xAxisIndex: 0, start: 0, end: 100, bottom: '10px', height: 25,
+                    showDetail: true, realtime: true, filterMode: 'filter',
+                    backgroundColor: 'rgba(240,240,240,0.6)', borderColor: '#ccc',
+                    fillerColor: 'rgba(180,180,180,0.4)',
+                    handleStyle: { color: '#a7a7a7', borderColor: '#747474', borderWidth: 1 },
+                    dataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#ebebeb' } },
+                    selectedDataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#dcdcdc' } },
+                    showMoveHandle: false, moveHandleIcon: 'none',
+                    moveHandleStyle: { color: 'transparent', opacity: 0 },
+                    emphasis: {
+                        fillerColor: 'rgba(180,180,180,0.6)',
+                        handleStyle: { color: '#747474', borderColor: '#505050' },
+                        moveHandleStyle: { color: 'transparent', opacity: 0 }
+                    },
+                    labelFormatter: function (v) {
+                        var ds = (typeof v === 'number' && v >= 0 && v < allDates.length) ? allDates[v] : (typeof v === 'string' ? v : '');
+                        return fmtDate(ds);
+                    }
+                },
+                { type: 'inside', xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: true, moveOnMouseMove: true, preventDefaultMouseMove: true }
+            ]
+        };
+
+        echartsTrendChart.setOption(currentChartOptions);
+        echartsTrendChart.on('click', function (p) { if (p && p.seriesName) toggleStoreHighlight(p.seriesName); });
+        window.addEventListener('resize', () => { if (echartsTrendChart) echartsTrendChart.resize(); });
+        updateCustomTooltipPanel(null);
+    }
+
+    function toggleStoreHighlight(storeName) {
+        if (!echartsTrendChart || !currentTimelineData) return;
+        var sl = storeName.toLowerCase().trim();
+        var idx = highlightedStores.indexOf(sl);
+        if (idx >= 0) {
+            highlightedStores.splice(idx, 1); delete storeColorMap[sl];
+            if (lastHighlightedStore === sl) lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null;
+        } else {
+            if (sl === myStoreLower) { lastHighlightedStore = sl; }
+            else if (highlightedStores.length >= highlightColors.length) { alert('Maks. ' + highlightColors.length + ' sklepów.'); return; }
+            else {
+                var ci = findNextFreeColorIndex(); if (ci === null) { alert('Brak wolnych kolorów!'); return; }
+                if (!highlightedStores.includes(sl)) highlightedStores.push(sl);
+                storeColorMap[sl] = ci; lastHighlightedStore = sl;
+            }
+        }
+        updateEchartsStylesAndZ();
+        if (lastHoverParams) { var h = generateTooltipPanelHtml(lastHoverParams); if (h) updateCustomTooltipPanel(h); }
+    }
+
+    function updateEchartsStylesAndZ() {
+        if (!echartsTrendChart || !currentChartOptions || !currentChartOptions.series) return;
+        var updated = currentChartOptions.series.map(s => {
+            var sl = s.name.toLowerCase().trim();
+            var st = getSeriesStyleAndZ(sl);
+            var em = s.emphasis || {};
+            return { ...s, lineStyle: st.lineStyle, itemStyle: st.itemStyle, z: st.z,
+                emphasis: { ...em, lineStyle: { ...(em.lineStyle || {}), width: UNIFORM_EMPHASIS_LINE_WIDTH },
+                    itemStyle: { ...(em.itemStyle || {}), color: st.itemStyle.color, opacity: 1 } } };
+        });
+        currentChartOptions.series = updated;
+        echartsTrendChart.setOption({ series: updated });
+    }
+
+    // ── Tab switching ──
+    document.addEventListener("DOMContentLoaded", function () {
+        var $showTableBtn = $('#showTableBtn'), $showChartBtn = $('#showChartBtn');
+        var $tableContainer = $('#priceTableContainer'), $chartContainer = $('#trendChartContainer'), $tooltip = $('#customTrendTooltip');
+
+        $showTableBtn.on('click', function () {
+            $chartContainer.hide(); $tooltip.hide(); $tableContainer.show();
+            $showTableBtn.removeClass('button-inactive').addClass('button-active');
+            $showChartBtn.removeClass('button-active').addClass('button-inactive');
+        });
+
+        $showChartBtn.on('click', function () {
+            $tableContainer.hide(); $chartContainer.show(); $tooltip.show();
+            $showChartBtn.removeClass('button-inactive').addClass('button-active');
+            $showTableBtn.removeClass('button-active').addClass('button-inactive');
+            if (!echartsTrendChart && currentTimelineData) drawEchartsTrendChart(currentTimelineData);
+            else if (!echartsTrendChart) loadTrendDataAndDrawEcharts();
+            else echartsTrendChart.resize();
+        });
+
+        var $exportExcelBtn = $('#exportExcelBtn');
+        if ($exportExcelBtn.length) {
+            $exportExcelBtn.on('click', function () {
+                if (!currentTimelineData) alert("Załaduj najpierw widok wykresu.");
+                else exportChartDataToExcel();
+            });
+        }
+
+        var grayRange = document.getElementById("grayAlphaRange");
+        if (grayRange) {
+            grayRange.addEventListener("input", function (e) {
+                defaultGrayAlpha = parseFloat(e.target.value);
+                updateEchartsStylesAndZ();
+                if (lastHoverParams) { var h = generateTooltipPanelHtml(lastHoverParams); if (h) updateCustomTooltipPanel(h); }
+            });
+        }
+
+        $showTableBtn.click();
+    });
+
+    function loadTrendDataAndDrawEcharts() {
+        if ($('#trendChartContainer').is(':visible')) $('#loadingOverlay').show();
+        $.ajax({
+            url: '@Url.Action("GetPriceTrendData", "PriceHistory")',
+            type: 'GET',
+            data: { productId: productId, limit: currentHistoryLimit },
+            success: function (resp) {
+                if (resp && resp.timelineData && Array.isArray(resp.timelineData)) {
+                    currentTimelineData = resp.timelineData;
+                    if ($('#trendChartContainer').is(':visible') && document.getElementById('trendChart'))
+                        drawEchartsTrendChart(currentTimelineData);
+                } else {
+                    alert("Nieprawidłowy format danych trendu.");
+                    updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania danych.</div>');
+                }
+            },
+            error: function (jq, ts, err) {
+                alert("Błąd: " + err);
+                updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania danych.</div>');
+            },
+            complete: function () { $('#loadingOverlay').hide(); }
+        });
+    }
+
+    // ── Excel export (identyczny jak Details) ──
+    function rgbaToHex(rgba) {
+        if (typeof rgba !== 'string' || !rgba.toLowerCase().startsWith('rgba')) return null;
+        var parts = rgba.substring(rgba.indexOf('(') + 1, rgba.lastIndexOf(')')).split(/,\s*/);
+        if (parts.length < 3) return null;
+        try {
+            var r = parseInt(parts[0]), g = parseInt(parts[1]), b = parseInt(parts[2]);
+            if ([r, g, b].some(c => isNaN(c) || c < 0 || c > 255)) return null;
+            return '#' + [r, g, b].map(c => ('0' + c.toString(16)).slice(-2)).join('').toUpperCase();
+        } catch (e) { return null; }
+    }
+
+    function getExcelColorForStore(storeKey, info) {
+        if (!info || !storeKey || !info[storeKey]) return null;
+        var sl = info[storeKey].name.toLowerCase().trim();
+        var color = null;
+        if (sl === myStoreLower) color = myStoreColor;
+        else if (highlightedStores.includes(sl) && storeColorMap[sl] != null) color = highlightColors[storeColorMap[sl]];
+        return color ? rgbaToHex(color) : null;
+    }
+
+    async function exportChartDataToExcel() {
+        if (!currentTimelineData || !currentTimelineData.length || !echartsTrendChart) { alert("Brak danych."); return; }
+        var allDates = new Set(), storeData = {}, localInfo = {};
+        currentTimelineData.forEach(e => {
+            allDates.add(e.scrapDate);
+            e.pricesByStore.forEach(ps => {
+                if (ps.price == null || !ps.storeName || !ps.source) return;
+                var sk = ps.storeName + '|' + ps.source;
+                var sl = ps.storeName.toLowerCase().trim();
+                if (hiddenStores.includes(sl)) return;
+                if (!storeData[sk]) { storeData[sk] = {}; localInfo[sk] = { name: ps.storeName, source: ps.source }; }
+                storeData[sk][e.scrapDate] = ps.price;
+            });
+        });
+        var sorted = Array.from(allDates).sort();
+        var opt = echartsTrendChart.getOption();
+        var si = 0, ei = sorted.length - 1;
+        if (opt && opt.dataZoom && opt.dataZoom.length) {
+            var dz = opt.dataZoom.find(d => d.xAxisIndex === 0 || typeof d.xAxisIndex === 'undefined');
+            if (dz && dz.start != null) {
+                si = Math.max(0, Math.floor(sorted.length * dz.start / 100));
+                ei = Math.min(sorted.length - 1, Math.ceil(sorted.length * dz.end / 100) - 1);
+            }
+        }
+        var fd = sorted.slice(si, ei + 1);
+        if (!fd.length) { alert("Brak danych w zakresie."); return; }
+        var keys = Object.keys(storeData).sort();
+        if (!keys.length) { alert("Brak widocznych danych."); return; }
+        try {
+            var wb = new ExcelJS.Workbook(), ws = wb.addWorksheet("Historia Cen");
+            var cols = [{ header: 'Sklep', key: 'store', width: 35 }, { header: 'Źródło', key: 'source', width: 10 }];
+            fd.forEach(d => cols.push({ header: d, key: d, width: 12, style: { numFmt: '#,##0.00', alignment: { horizontal: 'right' } } }));
+            ws.columns = cols;
+            keys.forEach(sk => {
+                var inf = localInfo[sk], prices = storeData[sk], rd = { store: inf.name, source: inf.source };
+                fd.forEach(d => rd[d] = prices[d] !== undefined ? prices[d] : null);
+                var row = ws.addRow(rd);
+                var hex = getExcelColorForStore(sk, localInfo);
+                if (hex) { var fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + hex.substring(1) } }; row.eachCell({ includeEmpty: true }, c => c.fill = fill); }
+            });
+            var buf = await wb.xlsx.writeBuffer();
+            var blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            var pn = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.ProductName ?? "Produkt"));
+            var safe = pn.replace(/[^a-z0-9_]/gi, '_').substring(0, 50);
+            var fn = 'PriceSafari_' + safe + '_historia_' + fd[0] + '_do_' + fd[fd.length - 1] + '.xlsx';
+            var link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = fn;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(link.href), 100);
+        } catch (err) { console.error(err); alert("Błąd tworzenia pliku Excel."); }
+    }
+</script>
+
+<!-- ═══════ Automation link click ═══════ -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll('.automation-link-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var url = this.getAttribute('data-url');
+                var pid = this.getAttribute('data-product-id');
+                if (url && pid) { sessionStorage.setItem('automation_scrollToProduct', pid); window.location.href = url; }
+            });
+        });
+    });
+</script>

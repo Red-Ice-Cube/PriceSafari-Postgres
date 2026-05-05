@@ -1227,14 +1227,23 @@
             'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'
         ];
 
-        function formatDateToPolishDM(dateString) {
+     function formatDateToPolishDM(dateString) {
             try {
-                const parts = dateString.split('-');
+                // Obsługa formatu "yyyy-MM-dd HH:00" lub starego "yyyy-MM-dd"
+                const spaceParts = dateString.split(' ');
+                const datePart = spaceParts[0];
+                const timePart = spaceParts.length > 1 ? spaceParts[1] : null;
+            
+                const parts = datePart.split('-');
                 if (parts.length === 3) {
                     const day = parseInt(parts[2], 10);
                     const monthIndex = parseInt(parts[1], 10) - 1;
                     if (!isNaN(day) && monthIndex >= 0 && monthIndex < 12) {
-                        return `${day} ${polishMonths[monthIndex]}`;
+                        let label = `${day} ${polishMonths[monthIndex]}`;
+                        if (timePart) {
+                            label += ` ${timePart}`;
+                        }
+                        return label;
                     }
                 }
                 return dateString;
@@ -1243,7 +1252,7 @@
                 return dateString;
             }
         }
-
+ 
         currentChartOptions = {
             tooltip: {
                 trigger: 'axis',

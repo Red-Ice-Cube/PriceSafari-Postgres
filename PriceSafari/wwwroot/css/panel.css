@@ -215,7 +215,7 @@ p {
     display: flex;
     width: 100%;
     align-items: flex-start;
-    gap: 20px;
+    gap: 10px;
     flex: 1 0 0;
     box-sizing: border-box;
 
@@ -234,11 +234,11 @@ p {
 
 .Page-Box-Category {
     display: flex;
-    min-width: 248px;
-    max-width: 248px;
+    min-width: 256px;
+    max-width: 256px;
     flex-direction: column;
     border-right: 1px solid #EDEDED;
-    padding: 0px 20px 0px 0px;
+    padding: 0px 10px 0px 0px;
     align-items: center;
     gap: 4px;
     align-self: stretch;
@@ -259,7 +259,7 @@ p {
     overflow-y: auto;
     overflow-x: hidden;
     width: 100%;
-    padding-left: 12px; /* Miejsce na wystające kolorowe prostokąty filtrów */
+    padding-left: 8px; /* Miejsce na wystające kolorowe prostokąty filtrów */
     padding-right: 4px;
     display: flex;
     flex-direction: column;
