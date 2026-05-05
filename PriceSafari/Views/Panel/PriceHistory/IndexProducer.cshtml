@@ -231,6 +231,46 @@
     .producer-delta-value-row.neutral { color: rgba(65, 105, 225, 0.9); }
     .producer-delta-value-row.deep-bad { color: rgba(139, 0, 0, 0.9); }
     .producer-delta-value-row.deep-good { color: rgba(0, 100, 0, 0.9); }
+
+    /* === SCROLLOWALNY WRAPPER SIDEBARA === */
+    /* Zostawia logo + wykres kołowy nieprzewijalne na górze,
+       a wszystko pozostałe (buckety, progi, flagi, slidery) wrzuca do jednego scrolla.
+       padding-left:12px - daje miejsce wystającym kolorowym prostokątom (left:-10px) przy bucketach.
+       Bez tego paddingu overflow-x:hidden je obcina. */
+    .producer-sidebar-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-left: 12px;
+        padding-right: 4px;
+    }
+    .producer-sidebar-scroll::-webkit-scrollbar {
+        width: 12px;
+    }
+    .producer-sidebar-scroll::-webkit-scrollbar-track {
+        background: transparent;
+        margin: 4px 0;
+    }
+    .producer-sidebar-scroll::-webkit-scrollbar-thumb {
+        background: #eee;
+        border-radius: 5px;
+        border: 4px solid transparent;
+        background-clip: content-box;
+    }
+    .producer-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+        background: #ddd;
+        border: 4px solid transparent;
+        background-clip: content-box;
+    }
+
+    /* Override: wewnętrzny .filterBox nie ma już własnego scrolla, bo jest w scrollowalnym wrapperze */
+    .producer-sidebar-scroll .filterBox {
+        overflow-y: visible;
+        max-height: none;
+        padding-top: 0;
+    }
 </style>
 
 <div class="Vert">
@@ -244,6 +284,9 @@
                 <div class="side-chart-box">
                     <canvas id="colorChart"></canvas>
                 </div>
+
+                <!-- Scrollowalna część sidebara: buckety + progi + filtry/slidery -->
+                <div class="producer-sidebar-scroll">
 
                 <!-- 9 bucketów (kolejność od góry: brak konkur > brak ref > mocno powyżej > ... > drastyczne) -->
                 <div class="store-section" id="filters-producer">
@@ -449,6 +492,7 @@
                         </div>
                     </div>
                 </div>
+                </div><!-- /producer-sidebar-scroll -->
             </div>
 
             <!-- ===================== PRAWY PANEL ===================== -->
@@ -543,12 +587,12 @@
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label for="comparisonSourceInput">Źródło ceny referencyjnej</label>
                     <select class="form-control" id="comparisonSourceInput">
-                        <option value="1">Cena MAP (z pola „cena zakupu")</option>
+                        <option value="1">Cena MAP</option>
                         <option value="0">Cena Twojego sklepu</option>
                     </select>
                     <small style="color: #888; display: block; margin-top: 6px; font-size: 12px; line-height: 1.4;">
-                        <strong>Cena MAP</strong> - używana, gdy producent ma zdefiniowaną politykę MAP w katalogu produktów.<br>
-                        <strong>Cena Twojego sklepu</strong> - używana, gdy producent ma własny sklep online jako benchmark.
+                        <strong>Cena MAP</strong> - Dograna cena z zakładki "produkty".<br>
+                        <strong>Cena Twojego sklepu</strong> - Znaleziona podczas analizy w Internecie.
                     </small>
                 </div>
             </div>

@@ -245,6 +245,52 @@ p {
     height: 88vh;
 }
 
+/* Kontener, który będzie trzymał stałe elementy i część przewijalną */
+.Page-Box-Category {
+    display: flex;
+    flex-direction: column;
+    height: 88vh; /* Tak jak masz obecnie */
+    overflow: hidden; /* Ważne: sam rodzic nie może się przewijać */
+}
+
+/* Nowa klasa na przewijalną treść filtrów */
+.sidebar-scroll-area {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    width: 100%;
+    padding-left: 12px; /* Miejsce na wystające kolorowe prostokąty filtrów */
+    padding-right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+    /* Stylizacja scrollbara, aby był dyskretny i pasował do designu */
+    .sidebar-scroll-area::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .sidebar-scroll-area::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .sidebar-scroll-area::-webkit-scrollbar-thumb {
+        background: #eee;
+        border-radius: 10px;
+    }
+
+        .sidebar-scroll-area::-webkit-scrollbar-thumb:hover {
+            background: #ddd;
+        }
+
+    /* Wyłączamy scrollowanie wewnątrz filterBox, bo teraz area wyżej nim zarządza */
+    .sidebar-scroll-area .filterBox {
+        overflow-y: visible !important;
+        max-height: none !important;
+    }
+
+
 .Page-Box-Category-Account {
     display: flex;
     min-width: 204px;
