@@ -53,6 +53,17 @@
     ];
     const BUCKET_LABELS = Object.fromEntries(BUCKETS_ORDERED.map(b => [b.key, b.label]));
 
+    // Etykiety dla badge'a w kolumnie delta - dłuższe, bardziej opisowe
+    const BUCKET_BADGE_LABELS = {
+        'producer-deep-violation': 'Drastyczne naruszenie',
+        'producer-violation': 'Naruszenie',
+        'producer-minor-below': 'Cena lekko poniżej',
+        'producer-equal': 'Cena zgodna',
+        'producer-minor-above': 'Cena lekko powyżej',
+        'producer-above': 'Cena powyżej',
+        'producer-deep-above': 'Cena mocno powyżej'
+    };
+
     const BUCKET_TO_CHECKBOX = {
         'producer-no-competition': 'bucketNoCompetition',
         'producer-no-reference': 'bucketNoReference',
@@ -220,25 +231,33 @@
                 currentScrapId = response.latestScrapId;
 
                 // Wczytaj ustawienia producenta
+                // UWAGA: backend zwraca thresholds w zagnieżdżonym obiekcie ps.thresholds
                 const ps = response.producerSettings;
+                const t = ps.thresholds || {};
                 producerSettings.comparisonSource = ps.comparisonSource;
                 producerSettings.identifierForSimulation = ps.identifierForSimulation || 'EAN';
 
+                // Helper: parseFloat z fallbackiem - 0 jest poprawną wartością, więc używamy ?? a nie ||
+                const parseOr = (val, fallback) => {
+                    const n = parseFloat(val);
+                    return isNaN(n) ? fallback : n;
+                };
+
                 thresholdsState.pct = {
-                    greenDark: parseFloat(ps.greenDarkPct) || 20,
-                    green: parseFloat(ps.greenPct) || 10,
-                    greenLight: parseFloat(ps.greenLightPct) || 1,
-                    redLight: parseFloat(ps.redLightPct) || 1,
-                    red: parseFloat(ps.redPct) || 10,
-                    redDark: parseFloat(ps.redDarkPct) || 20
+                    greenDark: parseOr(t.greenDarkPct, 20),
+                    green: parseOr(t.greenPct, 10),
+                    greenLight: parseOr(t.greenLightPct, 1),
+                    redLight: parseOr(t.redLightPct, 1),
+                    red: parseOr(t.redPct, 10),
+                    redDark: parseOr(t.redDarkPct, 20)
                 };
                 thresholdsState.amt = {
-                    greenDark: parseFloat(ps.greenDarkAmt) || 50,
-                    green: parseFloat(ps.greenAmt) || 20,
-                    greenLight: parseFloat(ps.greenLightAmt) || 5,
-                    redLight: parseFloat(ps.redLightAmt) || 5,
-                    red: parseFloat(ps.redAmt) || 20,
-                    redDark: parseFloat(ps.redDarkAmt) || 50
+                    greenDark: parseOr(t.greenDarkAmt, 50),
+                    green: parseOr(t.greenAmt, 20),
+                    greenLight: parseOr(t.greenLightAmt, 5),
+                    redLight: parseOr(t.redLightAmt, 5),
+                    red: parseOr(t.redAmt, 20),
+                    redDark: parseOr(t.redDarkAmt, 50)
                 };
                 currentMode = ps.useAmount ? 'amt' : 'pct';
 
@@ -246,7 +265,6 @@
                 document.getElementById('useAmountToggle').checked = (currentMode === 'amt');
                 populateInlineThresholdInputs();
                 updateUnitLabels();
-                updateModeBadge();
                 validateInlineThresholds();
 
                 if (response.presetName) {
@@ -293,16 +311,6 @@
             .finally(() => hideLoading());
     }
     window.loadPrices = loadPrices;
-
-    function updateModeBadge() {
-        const badge = document.getElementById('producerModeBadge');
-        if (!badge) return;
-        const span = badge.querySelector('span');
-        const sourceLabel = producerSettings.comparisonSource === 1 ? 'MAP' : 'Cena sklepu';
-        const unitLabel = currentMode === 'amt' ? 'PLN' : '%';
-        span.textContent = `Tryb: ${sourceLabel} (${unitLabel})`;
-        badge.classList.toggle('amount-mode', currentMode === 'amt');
-    }
 
     // ===========================================================
     // INLINE THRESHOLDS - input/output, walidacja, blokada zapisu
@@ -432,7 +440,6 @@
         currentMode = this.checked ? 'amt' : 'pct';
         populateInlineThresholdInputs();
         updateUnitLabels();
-        updateModeBadge();
         validateInlineThresholds();
     });
 
@@ -839,7 +846,7 @@
                 else label = '< 1 dnia naruszenia';
             }
             blocks.push(`
-                <div class="price-box-column-offers-a" style="background:rgba(220, 20, 60, 0.08); border-color:rgba(220, 20, 60, 0.3);">
+                <div class="price-box-column-offers-a">
                     <span class="data-channel"><i class="fa-solid fa-clock-rotate-left" style="font-size:14px; color:#DC143C;"></i></span>
                     <div class="offer-count-box"><p>${label}</p></div>
                 </div>`);
@@ -988,8 +995,8 @@
             return `
                 <div class="price-box-column">
                     <div class="price-box-column-text">
-                        <span class="ref-label-small">${sourceLabel}</span>
-                        <span style="font-weight:500; font-size:17px;">${formatPricePL(refPrice)}</span>
+                        <div><span class="ref-label-small">${sourceLabel}</span></div>
+                        <div><span style="font-weight:500; font-size:17px;">${formatPricePL(refPrice)}</span></div>
                         ${altLines.join('')}
                     </div>
                     <div class="price-box-column-text">
@@ -1010,8 +1017,8 @@
         return `
             <div class="price-box-column">
                 <div class="price-box-column-text">
-                    <span class="ref-label-small">Cena referencyjna</span>
-                    <span class="ref-missing"><i class="fa-solid fa-circle-exclamation"></i> ${missingMsg}</span>
+                    <div><span class="ref-label-small">Cena referencyjna</span></div>
+                    <div class="ref-missing"><i class="fa-solid fa-circle-exclamation"></i> ${missingMsg}</div>
                     ${altLines.join('')}
                 </div>
                 <div class="price-box-column-text"></div>
@@ -1074,7 +1081,7 @@
             'producer-deep-above': 'producer-bg-deep-above'
         };
         const bgClass = bgClassMap[item.bucket] || 'producer-bg-equal';
-        const bucketLabel = BUCKET_LABELS[item.bucket] || '';
+        const bucketLabel = BUCKET_BADGE_LABELS[item.bucket] || BUCKET_LABELS[item.bucket] || '';
 
         return `
             <div class="price-box-column">

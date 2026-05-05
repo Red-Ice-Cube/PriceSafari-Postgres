@@ -1123,20 +1123,50 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             return View("~/Views/ManagerPanel/ProductMapping/MappedProductsAllegro.cshtml", vmList);
         }
+
+
+
+
+
         [HttpPost]
         public async Task<IActionResult> RemoveSelectedAllegroProducts(int storeId, [FromBody] List<int> productIds)
         {
-            // Jedno atomowe zapytanie dla każdej tabeli, w pełni zoptymalizowane pod Postgresa
-            await _context.AllegroPriceBridgeItems.Where(i => productIds.Contains(i.AllegroProductId)).ExecuteDeleteAsync();
-            await _context.ProductFlags.Where(pf => productIds.Contains(pf.AllegroProductId.Value)).ExecuteDeleteAsync();
-            await _context.AllegroPriceHistoryExtendedInfos.Where(e => productIds.Contains(e.AllegroProductId)).ExecuteDeleteAsync();
-            await _context.AllegroPriceHistories.Where(ph => productIds.Contains(ph.AllegroProductId)).ExecuteDeleteAsync();
+            try
+            {
+                // Podnosimy timeout dla tej operacji (domyślnie 30s to za mało)
+                _context.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
 
-            var deletedCount = await _context.AllegroProducts
-                .Where(p => p.StoreId == storeId && productIds.Contains(p.AllegroProductId))
-                .ExecuteDeleteAsync();
+                await _context.AllegroPriceBridgeItems
+                    .Where(i => productIds.Contains(i.AllegroProductId))
+                    .ExecuteDeleteAsync();
 
-            return Json(new { success = true, count = deletedCount });
+                await _context.ProductFlags
+                    .Where(pf => pf.AllegroProductId.HasValue && productIds.Contains(pf.AllegroProductId.Value))
+                    .ExecuteDeleteAsync();
+
+                await _context.AllegroPriceHistoryExtendedInfos
+                    .Where(e => productIds.Contains(e.AllegroProductId))
+                    .ExecuteDeleteAsync();
+
+                // Największa tabela — usuwamy w batchach po 500 produktów
+                foreach (var batch in productIds.Chunk(500))
+                {
+                    var batchList = batch.ToList();
+                    await _context.AllegroPriceHistories
+                        .Where(ph => batchList.Contains(ph.AllegroProductId))
+                        .ExecuteDeleteAsync();
+                }
+
+                var deletedCount = await _context.AllegroProducts
+                    .Where(p => p.StoreId == storeId && productIds.Contains(p.AllegroProductId))
+                    .ExecuteDeleteAsync();
+
+                return Json(new { success = true, count = deletedCount });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.InnerException?.Message ?? ex.Message });
+            }
         }
 
         [HttpPost]

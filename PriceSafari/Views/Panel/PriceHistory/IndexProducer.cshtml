@@ -78,9 +78,7 @@
 
     /* === INLINE PANEL PROGÓW === */
     .producer-thresholds-section {
-        padding-top: 8px;
-        margin-top: 8px;
-        border-top: 1px solid #ededed;
+   
         display: flex;
         flex-direction: column;
         gap: 4px;
@@ -132,7 +130,7 @@
         margin: 0;
     }
     .useAmountSwitch::before {
-        content: "Tryb: %";
+        content: "Różnica %";
         position: absolute;
         width: 100%;
         height: 100%;
@@ -144,7 +142,7 @@
         justify-content: center;
         transition: background-color 0.3s, color 0.3s;
     }
-    .useAmountSwitch:checked::before { content: "Tryb: PLN"; }
+    .useAmountSwitch:checked::before { content: "Różnica PLN"; }
     .useAmountSwitch:hover::before { background-color: #323232; color: #e3e3e3; }
 
     /* Walidacja */
@@ -160,23 +158,6 @@
         display: none;
     }
     .error-message-row.visible { display: block; }
-
-    /* Tryb badge */
-    .producer-mode-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 0 12px;
-        height: 34px;
-        background: rgb(245, 245, 245);
-        border: 1px solid #e3e3e3;
-        color: #4e4e4e;
-        border-radius: 4px;
-        font-size: 13px;
-        font-weight: 500;
-    }
-    .producer-mode-badge i { color: #4169E1; }
-    .producer-mode-badge.amount-mode i { color: #6f42c1; }
 
     /* Rozkład sklepów - linijki */
     .producer-stores-dist {
@@ -200,20 +181,23 @@
     .producer-stores-line.good { color: rgba(34, 139, 34, 0.9); }
     .producer-stores-line.equal { color: rgba(65, 105, 225, 0.9); }
 
-    /* Delta badge */
+    /* Delta badge - styl jak .stock-available (mniejszy, w kolorze tła) */
     .producer-delta-badge {
-        display: inline-block;
-        padding: 3px 9px;
         border-radius: 4px;
+        padding: 2px 5px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
         font-weight: 500;
-        font-size: 12px;
-        color: white;
+        color: #fff;
     }
     .producer-bg-deep-violation { background-color: rgba(139, 0, 0, 0.9); }
     .producer-bg-violation { background-color: rgba(220, 20, 60, 0.9); }
     .producer-bg-minor-below { background-color: rgba(255, 99, 71, 0.9); }
     .producer-bg-equal { background-color: rgba(65, 105, 225, 0.9); }
-    .producer-bg-minor-above { background-color: rgba(144, 238, 144, 1); color: #222; }
+    /* Lekko powyżej - lekko ciemniejszy zielony, biała czcionka */
+    .producer-bg-minor-above { background-color: rgba(108, 198, 108, 1); }
     .producer-bg-above { background-color: rgba(34, 139, 34, 0.9); }
     .producer-bg-deep-above { background-color: rgba(0, 100, 0, 0.9); }
 
@@ -315,36 +299,42 @@
                     <div class="price-range-settings">
                         <div class="color-circle producer-circle-deep-above"></div>
                         <div class="legendBox"><span>Mocno powyżej</span></div>
+                            <label for="price2"></label>
                         <input type="number" id="thrInline_greenDark" class="producer-threshold-input" data-level="dark" data-direction="above" step="0.5" min="0">
                         <span class="producer-unit-label">%</span>
                     </div>
                     <div class="price-range-settings">
                         <div class="color-circle producer-circle-above"></div>
                         <div class="legendBox"><span>Powyżej</span></div>
+                            <label for="price2"></label>
                         <input type="number" id="thrInline_green" class="producer-threshold-input" data-level="normal" data-direction="above" step="0.5" min="0">
                         <span class="producer-unit-label">%</span>
                     </div>
                     <div class="price-range-settings">
                         <div class="color-circle producer-circle-minor-above"></div>
                         <div class="legendBox"><span>Lekko powyżej</span></div>
+                            <label for="price2"></label>
                         <input type="number" id="thrInline_greenLight" class="producer-threshold-input" data-level="light" data-direction="above" step="0.5" min="0">
                         <span class="producer-unit-label">%</span>
                     </div>
                     <div class="price-range-settings">
                         <div class="color-circle producer-circle-minor-below"></div>
                         <div class="legendBox"><span>Lekko poniżej</span></div>
+                            <label for="price2"></label>
                         <input type="number" id="thrInline_redLight" class="producer-threshold-input" data-level="light" data-direction="below" step="0.5" min="0">
                         <span class="producer-unit-label">%</span>
                     </div>
                     <div class="price-range-settings">
                         <div class="color-circle producer-circle-violation"></div>
                         <div class="legendBox"><span>Naruszenie</span></div>
+                            <label for="price2"></label>
                         <input type="number" id="thrInline_red" class="producer-threshold-input" data-level="normal" data-direction="below" step="0.5" min="0">
                         <span class="producer-unit-label">%</span>
                     </div>
                     <div class="price-range-settings">
                         <div class="color-circle producer-circle-deep-violation"></div>
                         <div class="legendBox"><span>Drastyczne</span></div>
+                            <label for="price2"></label>
                         <input type="number" id="thrInline_redDark" class="producer-threshold-input" data-level="dark" data-direction="below" step="0.5" min="0">
                         <span class="producer-unit-label">%</span>
                     </div>
@@ -471,11 +461,6 @@
                     <select id="producerFilterDropdown" class="DropDown" style="max-width:140px; height:34px;">
                         <option value="">Wszystkie marki</option>
                     </select>
-
-                    <span id="producerModeBadge" class="producer-mode-badge">
-                        <i class="fa-solid fa-anchor"></i>
-                        <span>Tryb: MAP (%)</span>
-                    </span>
 
                     <button type="button" class="Button-Page-Small" style="height: 34px; max-width: 250px; padding: 0 12px; text-align: left; display: inline-flex; align-items: center;" id="presetButton" onclick="openCompetitorsModal()">
                         <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;">Presety</span>
