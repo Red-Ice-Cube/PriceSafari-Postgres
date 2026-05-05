@@ -2203,6 +2203,218 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
+
+
+
+        // ═══════════════════════════════════════════════════════════════
+        // TREND DLA PRODUCENTA – osobny endpoint z dynamiczną ceną ref.
+        // ═══════════════════════════════════════════════════════════════
+        [HttpGet]
+        public async Task<IActionResult> GetPriceTrendDataForProducer(int productId, int limit = 30)
+        {
+            var product = await _context.Products.FindAsync(productId);
+            if (product == null)
+                return NotFound(new { Error = "Nie znaleziono produktu." });
+
+            var storeId = product.StoreId;
+            if (!await UserHasAccessToStore(storeId))
+                return Unauthorized(new { Error = "Brak dostępu do sklepu." });
+
+            var storeInfo = await _context.Stores
+                .AsNoTracking()
+                .Where(s => s.StoreId == storeId)
+                .Select(s => new { s.StoreName, s.IsProducer })
+                .FirstOrDefaultAsync();
+
+            if (storeInfo == null)
+                return BadRequest(new { Error = "Sklep nie istnieje." });
+
+            var storeName = storeInfo.StoreName ?? "";
+            var storeNameLower = storeName.ToLower().Trim();
+
+            // ── Ustawienia producenta ──
+            var pvFull = await _context.PriceValues
+                .AsNoTracking()
+                .Where(pv => pv.StoreId == storeId)
+                .FirstOrDefaultAsync();
+
+            bool isMapMode = (pvFull?.ProducerComparisonSource ?? ProducerComparisonSource.MapPrice)
+                             == ProducerComparisonSource.MapPrice;
+
+            // ── Preset ──
+            var activePreset = await _context.CompetitorPresets
+                .AsNoTracking()
+                .Include(x => x.CompetitorItems)
+                .FirstOrDefaultAsync(cp => cp.StoreId == storeId && cp.NowInUse && cp.Type == PresetType.PriceComparison);
+
+            // ── Ostatnie N scrapów ──
+            if (limit <= 0) limit = 30;
+
+            var lastScraps = await _context.ScrapHistories
+                .Where(sh => sh.StoreId == storeId)
+                .OrderByDescending(sh => sh.Date)
+                .Take(limit)
+                .OrderBy(sh => sh.Date)
+                .ToListAsync();
+
+            var scrapIds = lastScraps.Select(sh => sh.Id).ToList();
+
+            if (!scrapIds.Any())
+            {
+                return Json(new
+                {
+                    ProductName = product.ProductName,
+                    IsMapMode = isMapMode,
+                    TimelineData = new List<object>()
+                });
+            }
+
+            // ── Ceny ──
+            IQueryable<PriceHistoryClass> baseQuery = _context.PriceHistories
+                .Where(ph => ph.ProductId == productId && ph.Price > 0);
+
+            if (activePreset != null)
+            {
+                if (!activePreset.SourceGoogle) baseQuery = baseQuery.Where(ph => ph.IsGoogle != true);
+                if (!activePreset.SourceCeneo) baseQuery = baseQuery.Where(ph => ph.IsGoogle == true);
+            }
+
+            var allPotentialHistories = await baseQuery.ToListAsync();
+            var rawFilteredHistories = allPotentialHistories
+                .Where(ph => scrapIds.Contains(ph.ScrapHistoryId))
+                .ToList();
+
+            // Filtrowanie po presecie
+            List<PriceHistoryClass> finalFilteredHistories;
+            if (activePreset != null && activePreset.Type == PresetType.PriceComparison)
+            {
+                var competitorItemsDict = activePreset.CompetitorItems
+                    .ToDictionary(
+                        ci => (Store: ci.StoreName.ToLower().Trim(), Source: ci.DataSource),
+                        ci => ci.UseCompetitor
+                    );
+
+                finalFilteredHistories = new List<PriceHistoryClass>();
+                foreach (var priceEntry in rawFilteredHistories)
+                {
+                    // Nasz sklep — zachowaj (potrzebny do ref w trybie store)
+                    if (priceEntry.StoreName != null && priceEntry.StoreName.ToLower().Trim() == storeNameLower)
+                    {
+                        finalFilteredHistories.Add(priceEntry);
+                        continue;
+                    }
+
+                    DataSourceType currentSource = priceEntry.IsGoogle == true ? DataSourceType.Google : DataSourceType.Ceneo;
+                    var key = (Store: (priceEntry.StoreName ?? "").ToLower().Trim(), Source: currentSource);
+
+                    if (competitorItemsDict.TryGetValue(key, out bool useCompetitor))
+                    {
+                        if (useCompetitor) finalFilteredHistories.Add(priceEntry);
+                    }
+                    else if (activePreset.UseUnmarkedStores)
+                    {
+                        finalFilteredHistories.Add(priceEntry);
+                    }
+                }
+            }
+            else
+            {
+                finalFilteredHistories = rawFilteredHistories;
+            }
+
+            // ── MapPriceSnapshot per scrap ──
+            var extendedInfos = await _context.PriceHistoryExtendedInfos
+                .AsNoTracking()
+                .Where(e => scrapIds.Contains(e.ScrapHistoryId) && e.ProductId == productId)
+                .Select(e => new { e.ScrapHistoryId, e.MapPriceSnapshot })
+                .ToListAsync();
+
+            var mapSnapshotByScrap = extendedInfos.ToDictionary(e => e.ScrapHistoryId, e => e.MapPriceSnapshot);
+
+            // ── Budowanie timeline ──
+            var timelineData = lastScraps.Select(scrap =>
+            {
+                var scrapPrices = finalFilteredHistories
+                    .Where(ph => ph.ScrapHistoryId == scrap.Id)
+                    .ToList();
+
+                // Cena referencyjna dla tego scrapu
+                decimal? referencePrice = null;
+
+                if (isMapMode)
+                {
+                    // MAP: snapshot, null jeśli brak (bez fallbacku)
+                    mapSnapshotByScrap.TryGetValue(scrap.Id, out var snapshot);
+                    referencePrice = snapshot;
+                }
+                else
+                {
+                    // Store: nasza cena w tym scrapie
+                    var myEntry = scrapPrices
+                        .Where(ph => ph.StoreName != null && ph.StoreName.ToLower().Trim() == storeNameLower)
+                        .OrderByDescending(ph => ph.IsGoogle == false)
+                        .FirstOrDefault();
+                    referencePrice = myEntry?.Price;
+                }
+
+                // Lista cen — w trybie MAP wykluczamy nasz sklep
+                var priceEntries = scrapPrices
+                    .Where(ph =>
+                    {
+                        if (isMapMode && ph.StoreName != null && ph.StoreName.ToLower().Trim() == storeNameLower)
+                            return false;
+                        return true;
+                    })
+                    .Select(ph => new
+                    {
+                        ph.StoreName,
+                        ph.Price,
+                        Source = ph.IsGoogle ? "google" : "ceneo"
+                    })
+                    .ToList();
+
+                var truncatedDate = new DateTime(
+                    scrap.Date.Year, scrap.Date.Month, scrap.Date.Day,
+                    scrap.Date.Hour, 0, 0, scrap.Date.Kind);
+
+                return new
+                {
+                    ScrapDate = truncatedDate.ToString("yyyy-MM-dd HH:00"),
+                    ReferencePrice = referencePrice,
+                    PricesByStore = priceEntries
+                };
+            }).ToList();
+
+            // ── Progi ──
+            var thresholds = new
+            {
+                useAmount = pvFull?.ProducerUseAmount ?? false,
+                greenDarkPct = pvFull?.ProducerThresholdGreenDarkPercent ?? 20m,
+                greenPct = pvFull?.ProducerThresholdGreenPercent ?? 10m,
+                greenLightPct = pvFull?.ProducerThresholdGreenLightPercent ?? 1m,
+                redLightPct = pvFull?.ProducerThresholdRedLightPercent ?? 1m,
+                redPct = pvFull?.ProducerThresholdRedPercent ?? 10m,
+                redDarkPct = pvFull?.ProducerThresholdRedDarkPercent ?? 20m,
+                greenDarkAmt = pvFull?.ProducerThresholdGreenDarkAmount ?? 50m,
+                greenAmt = pvFull?.ProducerThresholdGreenAmount ?? 20m,
+                greenLightAmt = pvFull?.ProducerThresholdGreenLightAmount ?? 5m,
+                redLightAmt = pvFull?.ProducerThresholdRedLightAmount ?? 5m,
+                redAmt = pvFull?.ProducerThresholdRedAmount ?? 20m,
+                redDarkAmt = pvFull?.ProducerThresholdRedDarkAmount ?? 50m
+            };
+
+            return Json(new
+            {
+                ProductName = product.ProductName,
+                IsMapMode = isMapMode,
+                ProducerThresholds = thresholds,
+                TimelineData = timelineData
+            });
+        }
+
+
+
+
         [HttpPost]
         public IActionResult GetPriceChangeDetails([FromBody] List<int> productIds)
         {
