@@ -5386,7 +5386,7 @@ th small {
     background: #fff;
     border: 1px solid #e5e5e5;
     border-radius: 8px;
-    padding: 4px;
+    padding: 16px;
     box-sizing: border-box;
 }
 
@@ -5400,12 +5400,12 @@ th small {
 .chart-side-panel {
     display: block;
     flex: none;
-    width: 320px;
+    width: 380px;
     height: auto;
     max-height: none;
     border: 1px solid #e5e5e5;
     border-radius: 8px;
-    padding: 14px 16px;
+    padding:16px;
     background: #fff;
     font-size: 0.9rem;
     overflow-y: auto;

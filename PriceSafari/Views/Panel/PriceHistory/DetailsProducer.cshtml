@@ -45,7 +45,6 @@
 <div class="Vert" data-store-name="@storeName">
     <div class="Page-Box">
 
-        <!-- ═══════════════════ NAGŁÓWEK ═══════════════════ -->
         <div class="detail-header-row">
             <div class="detail-title-block">
                 <div class="detail-title-text">@productName</div>
@@ -65,7 +64,6 @@
             </div>
         </div>
 
-        <!-- ═══════════════════ INFO ROW (zawsze widoczny) ═══════════════════ -->
         <div class="form-check-orders">
             <div class="info-row">
                 <p><strong>Wykonano</strong>&nbsp;@scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
@@ -87,7 +85,6 @@
             </div>
         </div>
 
-        <!-- ═══════════════════ TYLKO W RANKINGU ═══════════════════ -->
         <div id="rankingOnlyArea" class="ranking-only-section">
             <div class="ranking-info-block">
                 @if (!string.IsNullOrEmpty(img))
@@ -176,7 +173,6 @@
             </div>
         </div>
 
-        <!-- ═══════════════════ TABELA CEN ═══════════════════ -->
         <div id="priceTableContainer" class="Vert-table" style="display: block; margin-top:6px;">
             <table class="table-orders" id="priceTable">
                 <thead>
@@ -309,10 +305,8 @@
             </table>
         </div>
 
-        <!-- ═══════════════════ WYKRES (FULL HEIGHT) ═══════════════════ -->
         <div id="trendChartContainer" class="chart-view-wrap">
 
-            <!-- TOOLBAR: okresy po lewej / suwaki + Excel po prawej -->
             <div class="chart-toolbar">
                 <div class="chart-toolbar-left">
                     <div class="period-selector-group">
@@ -339,7 +333,6 @@
                 </div>
             </div>
 
-            <!-- WYKRES + TOOLTIP -->
             <div class="chart-main">
                 <div class="chart-area">
                     <div id="trendChart"></div>
@@ -373,9 +366,6 @@
 <script src="~/js/member/Presets.js"></script>
 <script src="~/js/member/MassActions.js"></script>
 
-<!-- ════════════════════════════════════════════════
-     MASS ACTIONS init
-     ════════════════════════════════════════════════ -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var detailProductId = @ViewBag.ProductId;
@@ -430,9 +420,6 @@
     });
 </script>
 
-<!-- ════════════════════════════════════════════════
-     BAR CHART (mini) + sortowanie tabeli
-     ════════════════════════════════════════════════ -->
 <script>
     var pricesData = @Html.Raw(ViewBag.PricesDataJson ?? "[]");
     var chart;
@@ -568,21 +555,25 @@
             options: {
                 maintainAspectRatio: false,
                 scales: {
-                    y: { beginAtZero: true, ticks: { callback: function (v) { return v + ' PLN'; } } },
+                    y: { beginAtZero: true, ticks: { display: false } },
                     x: { display: false }
                 },
                 plugins: {
                     legend: { display: false },
-                    annotation: { annotations: ann }
+                    annotation: { annotations: ann },
+                    title: {
+                        display: true,
+                        text: 'Cena (PLN)',
+                        position: 'top',
+                        align: 'start',
+                        font: { size: 12, weight: 'bold' }
+                    }
                 }
             }
         });
     });
 </script>
 
-<!-- ════════════════════════════════════════════════
-     ECharts Trend — pasy progowe + linie graniczne
-     ════════════════════════════════════════════════ -->
 <script>
     var productId           = @ViewBag.ProductId;
     var myStoreLower        = "@storeName".toLowerCase().trim();
@@ -765,8 +756,8 @@
 
     /**
      * Zwraca komplet stylów dla serii sklepu:
-     *  - lineStyle / itemStyle: kolor linii i kropki na wykresie (mogą być wyciszone)
-     *  - markerColor: kolor kropki w tooltipie (zawsze solidny)
+     * - lineStyle / itemStyle: kolor linii i kropki na wykresie (mogą być wyciszone)
+     * - markerColor: kolor kropki w tooltipie (zawsze solidny)
      */
     function getSeriesStyleAndZ(sl) {
         if (hiddenStores.includes(sl)) {
@@ -1105,7 +1096,7 @@
                 var dp = p[0].split('-');
                 var d  = parseInt(dp[2]);
                 var m  = pm[parseInt(dp[1]) - 1];
-                return p.length > 1 && p[1] ? d + ' ' + m + ' ' + p[1] : d + ' ' + m;
+                return p.length > 1 && p[1] ? d + ' ' + m + '\n' + p[1] : d + ' ' + m;
             } catch (e) { return ds; }
         }
 
@@ -1121,7 +1112,7 @@
         currentChartOptions = {
             title: {
                 text: 'Cena w czasie',
-                left: 'center',
+                left: 20, // Wyjustowanie do lewej strony z drobnym marginesem
                 top: 4,
                 textStyle: { fontSize: 13, fontWeight: 600, color: '#333' }
             },
@@ -1143,40 +1134,27 @@
             },
             yAxis: {
                 type: 'value',
-                name: 'Cena (PLN)',
-                nameLocation: 'middle',
-                nameGap: 45,
-                nameTextStyle: { color: '#888', fontSize: 11, fontWeight: 500 },
                 min: gMin, max: gMax,
                 scale: true,
-                axisLabel:   { show: true, color: '#999', fontSize: 10, formatter: function (v) { return v.toFixed(0); } },
+                axisLabel:   { show: false }, // Wyłączone wartości liczbowe
                 axisPointer: { show: true, snap: true },
                 splitLine:   { show: true, lineStyle: { color: '#E8E8E8', type: 'dashed', width: 1 } }
+                // Usunięto name, nameLocation, nameGap itd.
             },
-            grid: { left: 65, right: 50, bottom: 90, top: 40, containLabel: false },
+            grid: { left: 20, right: 20, bottom: 65, top: 40, containLabel: false }, // Zmieniony grid
             series: allSeries,
             animationEasing: 'quadraticInOut',
             animationDuration: 600,
             dataZoom: [
                 {
-                    type: 'slider', xAxisIndex: 0,
-                    start: 0, end: 100,
-                    bottom: 14, height: 18,
+                    type: 'slider', xAxisIndex: 0, start: 0, end: 100, bottom: 10, height: 25,
                     showDetail: true, realtime: true, filterMode: 'filter',
-                    backgroundColor: 'rgba(245,245,245,0.6)',
-                    borderColor:    '#ddd',
-                    fillerColor:    'rgba(34,34,34,0.18)',
-                    handleStyle:    { color: '#222', borderColor: '#222', borderWidth: 1 },
+                    backgroundColor: 'rgba(240,240,240,0.6)', borderColor: '#ccc', fillerColor: 'rgba(180,180,180,0.4)',
+                    handleStyle: { color: '#a7a7a7', borderColor: '#747474', borderWidth: 1 },
                     dataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#ebebeb' } },
                     selectedDataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#dcdcdc' } },
-                    showMoveHandle: false,
-                    moveHandleIcon: 'none',
-                    moveHandleStyle: { color: 'transparent', opacity: 0 },
-                    emphasis: {
-                        fillerColor: 'rgba(34,34,34,0.30)',
-                        handleStyle: { color: '#000', borderColor: '#000' },
-                        moveHandleStyle: { color: 'transparent', opacity: 0 }
-                    },
+                    showMoveHandle: false, moveHandleIcon: 'none', moveHandleStyle: { color: 'transparent', opacity: 0 },
+                    emphasis: { fillerColor: 'rgba(180,180,180,0.6)', handleStyle: { color: '#747474', borderColor: '#505050' }, moveHandleStyle: { color: 'transparent', opacity: 0 } },
                     labelFormatter: function (v) {
                         var ds = (typeof v === 'number' && v >= 0 && v < allDates.length)
                             ? allDates[v]
@@ -1185,8 +1163,7 @@
                     }
                 },
                 {
-                    type: 'inside', xAxisIndex: 0,
-                    start: 0, end: 100,
+                    type: 'inside', xAxisIndex: 0, start: 0, end: 100,
                     zoomOnMouseWheel: true, moveOnMouseMove: true, preventDefaultMouseMove: true
                 }
             ]

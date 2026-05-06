@@ -3,6 +3,7 @@
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
     ViewData["Title"] = "Szczegóły Produktu";
+
     var storeId = ViewBag.StoreId;
     var scrapHistory = ViewBag.ScrapHistory as PriceSafari.Models.ScrapHistoryClass;
     var productName = ViewBag.ProductName as string;
@@ -21,15 +22,14 @@
     var googleOffers = Model.Count(x => x.IsGoogle == true);
     var ceneoOffers = totalOffers - googleOffers;
     var hasAnyStoreLinks = Model.Any(x => !string.IsNullOrEmpty(x.GoogleOfferUrl));
+    
     var myStorePrice = Model.FirstOrDefault(p => string.Equals(p.StoreName, storeName, StringComparison.OrdinalIgnoreCase));
     if (myStorePrice != null)
     {
         basePrice = myStorePrice.Price;
     }
 
-    // ── Nowe zmienne ──
-    var flags = ViewBag.Flags as List<PriceSafari.Models.ViewModels.FlagViewModel>
-                ?? new List<PriceSafari.Models.ViewModels.FlagViewModel>();
+    var flags = ViewBag.Flags as List<PriceSafari.Models.ViewModels.FlagViewModel> ?? new List<PriceSafari.Models.ViewModels.FlagViewModel>();
     var productFlagIds = ViewBag.ProductFlagIds as List<int> ?? new List<int>();
     var automationRuleName = ViewBag.AutomationRuleName as string;
     var automationRuleColor = ViewBag.AutomationRuleColor as string;
@@ -39,106 +39,13 @@
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
-<style>
-
-  
-
-    .price-trend__main-panel {
-        flex: 1;
-        min-width: 480px;
-        display: flex;
-        flex-direction: column;
-        height: 65vh;
-    }
-
-    .price-trend__chart-area {
-        width: 100%;
-        flex-grow: 1;
-        min-height: 300px;
-        position: relative;
-        margin-bottom: 10px;
-    }
-
-    .price-trend__controls {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 5px;
-        align-self: center;
-        justify-self: center;
-        width: 93%;
-        box-sizing: border-box;
-        flex-shrink: 0;
-    }
-
-    .price-trend__alpha-slider-wrapper {
-        flex-grow: 1;
-        margin-right: 20px;
-        display: flex;
-        align-items: center;
-        max-width: 300px;
-    }
-
-        .price-trend__alpha-slider-wrapper input[type=range] {
-            width: 100%;
-            cursor: pointer;
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 5px;
-            outline: none;
-            opacity: 0.8;
-            transition: opacity .2s;
-        }
-
-            .price-trend__alpha-slider-wrapper input[type=range]:hover {
-                opacity: 1;
-            }
-
-            .price-trend__alpha-slider-wrapper input[type=range]::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 18px;
-                height: 18px;
-                background: #444;
-                border-radius: 50%;
-                cursor: pointer;
-            }
-
-            .price-trend__alpha-slider-wrapper input[type=range]::-moz-range-thumb {
-                width: 18px;
-                height: 18px;
-                background: #444;
-                border-radius: 50%;
-                cursor: pointer;
-                border: none;
-            }
-
-    #exportExcelBtn {
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-
-    .price-trend__tooltip-panel {
-        flex-basis: 340px;
-        flex-shrink: 0;
-        border-left: 1px solid #e0e0e0;
-        padding-left: 20px;
-        overflow-y: auto;
-    }
-
-</style>
-
 <div class="Vert" data-store-name="@storeName">
     <div class="Page-Box">
-        <div style="display:flex; width:100%; justify-content:space-between; align-items: flex-start;">
-         
-            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 12px;">
 
-                <div style="font-weight: 300; font-size: 22px; line-height: 1.2;">
-                    @productName
-                </div>
-
-                <div class="detail-flags-row" id="detailFlagsContainer" style="display: flex; gap: 6px; align-items: center;">
+        <div class="detail-header-row">
+            <div class="detail-title-block">
+                <div class="detail-title-text">@productName</div>
+                <div class="detail-flags-row" id="detailFlagsContainer">
                     @if (productFlagIds.Any())
                     {
                         @foreach (var flag in flags.Where(f => productFlagIds.Contains(f.FlagId)))
@@ -151,33 +58,25 @@
                     }
                 </div>
             </div>
-
-            <div style="margin-top:4px; display: flex; gap: 8px;">
-                <button type="button" id="showTableBtn" class="button-active">
-                    Ranking
-                </button>
-                <button type="button" id="showChartBtn" class="button-inactive">
-                    Wykres
-                </button>
+            <div class="detail-mode-switch">
+                <button type="button" id="showTableBtn" class="button-active">Ranking</button>
+                <button type="button" id="showChartBtn" class="button-inactive">Wykres</button>
             </div>
         </div>
+
         <div class="form-check-orders">
             <div class="info-row">
-           
                 <p><strong>Wykonano</strong>&nbsp;@scrapHistory?.Date.ToString("dd.MM.yyyy")</p>
-
                 @if (externalId.HasValue)
                 {
                     <span class="separator">|</span>
                     <span><strong>ID</strong>&nbsp;@externalId</span>
                 }
-
                 @if (!string.IsNullOrEmpty(sku))
                 {
                     <span class="separator">|</span>
                     <span><strong>SKU</strong>&nbsp;@sku</span>
                 }
-
                 @if (!string.IsNullOrEmpty(ean))
                 {
                     <span class="separator">|</span>
@@ -186,16 +85,15 @@
             </div>
         </div>
 
-        <div class="price-box-space" style="gap:32px;">
-            <div style="display:flex; width:100%; gap:24px; margin-bottom:8px;">
+        <div id="rankingOnlyArea" class="ranking-only-section">
+            <div class="ranking-info-block">
                 @if (!string.IsNullOrEmpty(img))
                 {
                     <div style="display:flex;">
                         <img src="@img" style="height: 110px; width: 110px;" />
                     </div>
                 }
-
-                <div class="price-box-column-name" style="align-content:flex-end;">
+                <div class="price-box-column-name ranking-actions-column">
                     <div class="store-section">
                         <div class="form-check">
                             <input class="form-check-input sortFilter" type="radio" name="sortOption" id="sortPrice" value="price" checked>
@@ -227,23 +125,14 @@
                             </div>
                         }
                     </div>
-                    <div style="margin-top: 10px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-             
+
+                    <div class="ranking-actions-row">
                         <button type="button" class="Button-Page-Small" id="detailManageBtn">
                             <i class="fa-solid fa-sliders"></i> Zarządzaj
                         </button>
-
-                        <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="presetButton" onclick="openCompetitorsModal()">
-                            @if (!string.IsNullOrEmpty(ViewBag.ActivePresetName as string))
-                            {
-                                <span id="activePresetDisplay">Presety - @ViewBag.ActivePresetName</span>
-                            }
-                            else
-                            {
-                                <span id="activePresetDisplay">Presety - Widok PriceSafari</span>
-                            }
+                        <button type="button" class="Button-Page-Small" id="presetButton" style="white-space: nowrap;" onclick="openCompetitorsModal()">
+                            <span id="activePresetDisplay">Presety - @(string.IsNullOrEmpty(ViewBag.ActivePresetName as string) ? "Widok PriceSafari" : ViewBag.ActivePresetName)</span>
                         </button>
-
                         @if (!string.IsNullOrEmpty(googleUrl?.ToString()))
                         {
                             <a href="@googleUrl" class="Button-Page-Small" target="_blank">
@@ -268,8 +157,6 @@
                             var isPaused = ViewBag.IsAutomationPaused as bool? ?? false;
                             var statusColor = isPaused ? "#f6c23e" : (automationRuleIsActive ? "#1cc88a" : "#e74a3b");
                             var statusLabel = isPaused ? "Zatrzymana" : (automationRuleIsActive ? "Aktywna" : "Nieaktywna");
-    
-                         
                             var automationDetailsUrl = Url.Action("Details", "PriceAutomation", new { id = automationRuleId });
 
                             <span class="detail-automation-badge-v2 automation-link-btn"
@@ -286,7 +173,7 @@
                     </div>
                 </div>
             </div>
-            <div style="display:flex; width:30%; height:110px; align-self:flex-end; margin-right:12px;">
+            <div class="ranking-bar-chart-wrap">
                 <canvas id="priceChart" width="100" height="100"></canvas>
             </div>
         </div>
@@ -321,48 +208,22 @@
                         decimal priceDifferencePLN = item.Price - basePrice;
                         decimal percentageDifference = (basePrice > 0) ? ((item.Price - basePrice) / basePrice) * 100 : 0;
 
-                        string getColorClass(decimal priceDifference, bool isUniqueBestPrice, bool isSharedBestPrice, decimal? savings)
+                        string getColorClass(decimal pd, bool iubp, bool isbp, decimal? sav)
                         {
-                            if (isUniqueBestPrice && savings >= 0.01m && savings <= setPrice1)
-                            {
-                                return "prIdeal";
-                            }
-                            if (isUniqueBestPrice)
-                            {
-                                return "prToLow";
-                            }
-                            if (isSharedBestPrice)
-                            {
-                                return "prGood";
-                            }
-                            if (priceDifference <= 0)
-                            {
-                                return "prGood";
-                            }
-                            else if (priceDifference < setPrice2)
-                            {
-                                return "prMid";
-                            }
-                            else
-                            {
-                                return "prToHigh";
-                            }
+                            if (iubp && sav >= 0.01m && sav <= setPrice1) return "prIdeal";
+                            if (iubp) return "prToLow";
+                            if (isbp) return "prGood";
+                            if (pd <= 0) return "prGood";
+                            else if (pd < setPrice2) return "prMid";
+                            else return "prToHigh";
                         }
 
                         var colorClass = getColorClass(priceDifference, isUniqueBestPrice, isSharedBestPrice, savings);
+                        
                         var shippingCost = "";
-                        if (item.ShippingCostNum == null)
-                        {
-                            shippingCost = "Brak danych";
-                        }
-                        else if (item.ShippingCostNum == 0)
-                        {
-                            shippingCost = "Free";
-                        }
-                        else
-                        {
-                            shippingCost = $"{item.ShippingCostNum} PLN";
-                        }
+                        if (item.ShippingCostNum == null) shippingCost = "Brak danych";
+                        else if (item.ShippingCostNum == 0) shippingCost = "Free";
+                        else shippingCost = $"{item.ShippingCostNum} PLN";
 
                         <tr class="price-row @colorClass" data-store-name="@item.StoreName" data-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-position="@item.Position">
                             <td>
@@ -499,9 +360,9 @@
             </table>
         </div>
 
-        <div id="trendChartContainer" class="price-trend-section">
-            <div class="price-trend__main-panel">
-                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+        <div id="trendChartContainer" class="chart-view-wrap" style="display: none;">
+            <div class="chart-toolbar">
+                <div class="chart-toolbar-left">
                     <div class="period-selector-group">
                         <button type="button" class="period-btn-custom history-btn" data-days="7">7 Analiz</button>
                         <button type="button" class="period-btn-custom history-btn" data-days="14">14 Analiz</button>
@@ -513,13 +374,9 @@
                         <button type="button" class="period-btn-custom history-btn" data-days="360">360 Analiz</button>
                     </div>
                 </div>
-
-                <div class="price-trend__chart-area">
-                    <div id="trendChart" style="width: 100%; height: 100%;"></div>
-                </div>
-
-                <div class="price-trend__controls">
-                    <div class="price-trend__alpha-slider-wrapper">
+                <div class="chart-toolbar-right">
+                    <div class="chart-slider-group">
+                        <label>Linie</label>
                         <input type="range" id="grayAlphaRange" min="0" max="0.6" step="0.01" value="0.3">
                     </div>
                     <button type="button" id="exportExcelBtn" class="Button-Page-Small" title="Eksportuj dane historii cen do pliku Excel">
@@ -527,9 +384,15 @@
                     </button>
                 </div>
             </div>
-            <div id="customTrendTooltip" class="price-trend__tooltip-panel">
+
+            <div class="chart-main">
+                <div class="chart-area">
+                    <div id="trendChart"></div>
+                </div>
+                <div id="customTrendTooltip" class="chart-side-panel"></div>
             </div>
         </div>
+
     </div>
 </div>
 
@@ -558,7 +421,6 @@
 <script src="~/js/member/Presets.js"></script>
 <script src="~/js/member/MassActions.js"></script>
 
-
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var detailProductId = @ViewBag.ProductId;
@@ -568,8 +430,8 @@
             isAllegro: false,
             storageKey: 'massaction_detail_store_@(ViewBag.StoreId)',
             flags: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                                flags.Select(f => new { flagId = f.FlagId, flagName = f.FlagName, flagColor = f.FlagColor })
-                        )),
+                        flags.Select(f => new { flagId = f.FlagId, flagName = f.FlagName, flagColor = f.FlagColor })
+                    )),
 
             getAllPrices: function () {
                 return [{
@@ -605,7 +467,6 @@
 
         detailMassActions.init();
 
-
         var manageBtn = document.getElementById('detailManageBtn');
         if (manageBtn) {
             manageBtn.addEventListener('click', function () {
@@ -619,12 +480,10 @@
 </script>
 
 <script>
-
     var pricesData = @Html.Raw(ViewBag.PricesDataJson ?? "[]");
     var chart;
 
     document.addEventListener("DOMContentLoaded", function () {
-
         const rows = Array.from(document.querySelectorAll(".price-row"));
         const observedStoreName = document.querySelector(".Vert").getAttribute("data-store-name").toLowerCase().trim();
         const headerEl = document.getElementById("storeHeader");
@@ -818,7 +677,7 @@
     ];
 
     const myStoreColor = 'rgba(54, 162, 235, 1)';
-    const defaultGrayColor = 'rgba(128, 128, 128, {alpha})';
+    const DEFAULT_MARKER_SOLID = 'rgba(34, 34, 34, 0.9)'; 
 
     const UNIFORM_LINE_WIDTH = 2.3;
     const UNIFORM_EMPHASIS_LINE_WIDTH = 2.3;
@@ -940,8 +799,9 @@
     function getSeriesStyleAndZ(storeNameLower) {
         if (hiddenStores.includes(storeNameLower)) {
             return {
-                lineStyle: { color: 'transparent', width: 0 },
-                itemStyle: { color: 'transparent' },
+                lineStyle:   { color: 'transparent', width: 0 },
+                itemStyle:   { color: 'transparent' },
+                markerColor: 'transparent',
                 z: 0
             };
         }
@@ -950,14 +810,17 @@
         const isLastHighlighted = storeNameLower === lastHighlightedStore;
         const colorIndex = storeColorMap[storeNameLower];
 
-        let color = defaultGrayColor.replace('{alpha}', defaultGrayAlpha);
+        let lineColor = 'rgba(0, 0, 0, ' + defaultGrayAlpha + ')';
+        let markerColor = DEFAULT_MARKER_SOLID; 
         let z = 1;
 
         if (isMyStore) {
-            color = myStoreColor;
+            lineColor = myStoreColor;
+            markerColor = myStoreColor;
             z = 3;
         } else if (isHighlighted && colorIndex !== undefined && colorIndex !== null) {
-            color = highlightColors[colorIndex];
+            lineColor = highlightColors[colorIndex];
+            markerColor = highlightColors[colorIndex];
             z = 2;
         }
 
@@ -966,8 +829,9 @@
         }
 
         return {
-            lineStyle: { color: color, width: UNIFORM_LINE_WIDTH },
-            itemStyle: { color: color },
+            lineStyle:   { color: lineColor, width: UNIFORM_LINE_WIDTH },
+            itemStyle:   { color: lineColor },
+            markerColor: markerColor, 
             z: z
         };
     }
@@ -1000,7 +864,7 @@
                     isMyStore: (storeLower === myStoreLower),
                     isLastHighlighted: (storeLower === lastHighlightedStore),
                     colorIndex: storeColorMap[storeLower],
-                    markerColor: currentSeriesStyle.itemStyle.color
+                    markerColor: currentSeriesStyle.markerColor
                 });
             }
         });
@@ -1227,9 +1091,8 @@
             'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'
         ];
 
-     function formatDateToPolishDM(dateString) {
+        function formatDateToPolishDM(dateString) {
             try {
-                // Obsługa formatu "yyyy-MM-dd HH:00" lub starego "yyyy-MM-dd"
                 const spaceParts = dateString.split(' ');
                 const datePart = spaceParts[0];
                 const timePart = spaceParts.length > 1 ? spaceParts[1] : null;
@@ -1241,7 +1104,7 @@
                     if (!isNaN(day) && monthIndex >= 0 && monthIndex < 12) {
                         let label = `${day} ${polishMonths[monthIndex]}`;
                         if (timePart) {
-                            label += ` ${timePart}`;
+                            label += `\n${timePart}`;
                         }
                         return label;
                     }
@@ -1252,8 +1115,14 @@
                 return dateString;
             }
         }
- 
+
         currentChartOptions = {
+            title: {
+                text: 'Cena w czasie',
+                left: 20,
+                top: 4,
+                textStyle: { fontSize: 13, fontWeight: 600, color: '#333' }
+            },
             tooltip: {
                 trigger: 'axis',
                 axisPointer: {
@@ -1289,8 +1158,7 @@
                 min: globalMinPrice,
                 max: globalMaxPrice,
                 axisLabel: {
-                    show: false,
-                    formatter: function (value) { }
+                    show: false
                 },
                 scale: true,
                 axisPointer: { show: true, snap: true },
@@ -1299,46 +1167,20 @@
                     lineStyle: { color: '#E8E8E8', type: 'dashed', width: 1, opacity: 1.0 }
                 }
             },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '80px',
-                containLabel: true
-            },
+            grid: { left: 20, right: 20, bottom: 65, top: 40, containLabel: false },
             series: seriesData,
             animationEasing: 'quadraticInOut',
             animationDuration: 600,
             dataZoom: [
                 {
-                    type: 'slider',
-                    xAxisIndex: 0,
-                    start: 0,
-                    end: 100,
-                    bottom: '10px',
-                    height: 25,
-                    showDetail: true,
-                    realtime: true,
-                    filterMode: 'filter',
-                    backgroundColor: 'rgba(240, 240, 240, 0.6)',
-                    borderColor: '#cccccc',
-                    fillerColor: 'rgba(180, 180, 180, 0.4)',
+                    type: 'slider', xAxisIndex: 0, start: 0, end: 100, bottom: 10, height: 25,
+                    showDetail: true, realtime: true, filterMode: 'filter',
+                    backgroundColor: 'rgba(240,240,240,0.6)', borderColor: '#ccc', fillerColor: 'rgba(180,180,180,0.4)',
                     handleStyle: { color: '#a7a7a7', borderColor: '#747474', borderWidth: 1 },
-                    dataBackground: {
-                        lineStyle: { color: 'transparent' },
-                        areaStyle: { color: '#ebebeb' }
-                    },
-                    selectedDataBackground: {
-                        lineStyle: { color: 'transparent' },
-                        areaStyle: { color: '#dcdcdc' }
-                    },
-                    showMoveHandle: false,
-                    moveHandleIcon: 'none',
-                    moveHandleStyle: { color: 'transparent', opacity: 0 },
-                    emphasis: {
-                        fillerColor: 'rgba(180, 180, 180, 0.6)',
-                        handleStyle: { color: '#747474', borderColor: '#505050' },
-                        moveHandleStyle: { color: 'transparent', opacity: 0 }
-                    },
+                    dataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#ebebeb' } },
+                    selectedDataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#dcdcdc' } },
+                    showMoveHandle: false, moveHandleIcon: 'none', moveHandleStyle: { color: 'transparent', opacity: 0 },
+                    emphasis: { fillerColor: 'rgba(180,180,180,0.6)', handleStyle: { color: '#747474', borderColor: '#505050' }, moveHandleStyle: { color: 'transparent', opacity: 0 } },
                     labelFormatter: function (value) {
                         let dateStr = '';
                         if (typeof value === 'number' && value >= 0 && value < allDates.length) {
@@ -1352,13 +1194,8 @@
                     }
                 },
                 {
-                    type: 'inside',
-                    xAxisIndex: 0,
-                    start: 0,
-                    end: 100,
-                    zoomOnMouseWheel: true,
-                    moveOnMouseMove: true,
-                    preventDefaultMouseMove: true
+                    type: 'inside', xAxisIndex: 0, start: 0, end: 100,
+                    zoomOnMouseWheel: true, moveOnMouseMove: true, preventDefaultMouseMove: true
                 }
             ]
         };
@@ -1370,8 +1207,6 @@
                 toggleStoreHighlight(params.seriesName);
             }
         });
-
-        echartsTrendChart.on('mouseout', function () { });
 
         window.addEventListener('resize', () => {
             if (echartsTrendChart) {
@@ -1475,20 +1310,20 @@
         const $showChartBtn = $('#showChartBtn');
         const $tableContainer = $('#priceTableContainer');
         const $chartContainer = $('#trendChartContainer');
-        const $customTooltipPanel = $('#customTrendTooltip');
+        const $rankingArea = $('#rankingOnlyArea');
 
         $showTableBtn.on('click', function () {
             $chartContainer.hide();
-            $customTooltipPanel.hide();
             $tableContainer.show();
+            $rankingArea.css('display', 'flex');
             $showTableBtn.removeClass('button-inactive').addClass('button-active');
             $showChartBtn.removeClass('button-active').addClass('button-inactive');
         });
 
         $showChartBtn.on('click', function () {
             $tableContainer.hide();
-            $chartContainer.show();
-            $customTooltipPanel.show();
+            $rankingArea.hide();
+            $chartContainer.css('display', 'flex');
             $showChartBtn.removeClass('button-inactive').addClass('button-active');
             $showTableBtn.removeClass('button-active').addClass('button-inactive');
 
@@ -1506,7 +1341,7 @@
                         console.error("Target div 'trendChart' not found on initial load.");
                     }
                 } else {
-                    echartsTrendChart.resize();
+                    setTimeout(function () { echartsTrendChart.resize(); }, 50);
                 }
             }
         });
@@ -1803,19 +1638,16 @@
     }
 
 </script>
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-   
         document.querySelectorAll('.automation-link-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var url = this.getAttribute('data-url');
                 var productId = this.getAttribute('data-product-id');
 
                 if (url && productId) {
-                 
                     sessionStorage.setItem('automation_scrollToProduct', productId);
-                    
-            
                     window.location.href = url;
                 }
             });
