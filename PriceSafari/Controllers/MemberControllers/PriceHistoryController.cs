@@ -2031,7 +2031,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     });
                 }
                 pricesDataJson = JsonConvert.SerializeObject(producerPricesData);
-
+                ViewBag.PricesDataJson = pricesDataJson;
                 ViewBag.ReferencePrice = referencePrice;
                 ViewBag.ReferenceSource = referenceSource;
                 ViewBag.MapPrice = mapPrice;

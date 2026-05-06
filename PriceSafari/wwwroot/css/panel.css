@@ -5118,94 +5118,6 @@ th small {
     gap: 0.5rem;
 }
 
-#trendChartContainer {
-    display: flex;
-    width: 100%;
-    height: 68vh;
-
-}
-
-.chart-column {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-}
-
-.chart-container {
-    flex: 1 1 auto;
-    min-height: 0;
-}
-
-#trendChart {
-    max-width: 100%;
-    height: 100%;
-}
-
-.range-container {
-    margin-top: 8px;
-}
-
-#grayAlphaRange {
-    width: 200px;
-}
-
-#customTrendTooltip {
-    width: 400px;
-    flex-shrink: 0;
-    border-radius: 4px;
-    height: 65vh;
-    overflow-y: auto;
-    padding: 12px;
-    background: #fefefe;
-    border: 1px solid #ccc;
-    font-size: 0.9rem;
-    display: none;
-}
-
-    #customTrendTooltip::-webkit-scrollbar {
-        width: 4px;
-    }
-
-    #customTrendTooltip::-webkit-scrollbar-track {
-        background: #fff;
-    }
-
-    #customTrendTooltip::-webkit-scrollbar-thumb {
-        background: #999;
-        border-radius: 5px;
-    }
-
-        #customTrendTooltip::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-
-#showTableBtn {
-    display: inline-flex;
-    box-sizing: border-box;
-    align-items: center;
-    justify-content: center;
-    padding: 4px 12px;
-    border: none;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background-color 0.3s, color 0.3s;
-    border-radius: 4px;
-}
-
-#showChartBtn {
-    display: inline-flex;
-    box-sizing: border-box;
-    align-items: center;
-    justify-content: center;
-    padding: 4px 12px;
-    border: none;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background-color 0.3s, color 0.3s;
-    border-radius: 4px;
-}
 
 #showPriceChangeCart {
     display: inline-flex;
@@ -5244,78 +5156,346 @@ th small {
     color: #222222;
 }
 
-#grayAlphaRange {
-    width: 300px;
-    appearance: none;
-    background: transparent;
-    outline: none;
+/* ═══════════════════════════════════════════════════════════════
+   DETAILS VIEW + REUSABLE CHART LAYOUT
+   (przeniesione z Details.cshtml — używane też przez inne widoki)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── BUCKET COLOR BARS (porównanie ceny vs referencja) ─── */
+.color-bar.producer-deep-violation {
+    background-color: rgba(139, 0, 0, 0.85);
 }
 
-    #grayAlphaRange::-webkit-slider-thumb {
-        appearance: none;
-        width: 15px;
-        height: 15px;
-        background-color: #666;
-        border-radius: 50%;
-        cursor: pointer;
-        border: 2px solid #fff;
-        margin-top: -5px;
-    }
+.color-bar.producer-violation {
+    background-color: rgba(220, 20, 60, 0.85);
+}
 
-    #grayAlphaRange::-webkit-slider-runnable-track {
-        background: #ccc;
-        height: 5px;
-        border-radius: 5px;
-    }
+.color-bar.producer-minor-below {
+    background-color: rgba(255, 99, 71, 0.85);
+}
 
-    #grayAlphaRange::-moz-range-thumb {
-        width: 15px;
-        height: 15px;
-        background-color: #666;
-        border: 2px solid #fff;
-        border-radius: 50%;
-        cursor: pointer;
-    }
+.color-bar.producer-equal {
+    background-color: rgba(65, 105, 225, 0.85);
+}
 
-    #grayAlphaRange::-moz-range-track {
-        background: #ccc;
-        height: 5px;
-        border-radius: 5px;
-    }
+.color-bar.producer-minor-above {
+    background-color: rgba(144, 238, 144, 0.85);
+}
 
-    #grayAlphaRange::-ms-thumb {
-        width: 15px;
-        height: 15px;
-        background-color: #666;
-        border: 2px solid #fff;
-        border-radius: 50%;
-        cursor: pointer;
-        margin-top: 0px;
-    }
+.color-bar.producer-above {
+    background-color: rgba(34, 139, 34, 0.85);
+}
 
-    #grayAlphaRange::-ms-track {
-        background: transparent;
-        border-color: transparent;
-        color: transparent;
-        height: 5px;
-        border-radius: 5px;
-    }
+.color-bar.producer-deep-above {
+    background-color: rgba(0, 100, 0, 0.85);
+}
 
-    #grayAlphaRange::-ms-fill-lower {
-        background: #ccc;
-        border-radius: 5px;
-    }
+.color-bar.producer-no-reference {
+    background-color: rgba(187, 187, 187, 0.85);
+}
 
-    #grayAlphaRange::-ms-fill-upper {
-        background: #ccc;
-        border-radius: 5px;
-    }
+.color-bar.producer-no-competition {
+    background-color: rgba(136, 136, 136, 0.85);
+}
 
-.price-trend-section {
+/* ─── DELTA BADGES ─── */
+.producer-delta-badge {
+    border-radius: 4px;
+    padding: 2px 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.producer-bg-deep-violation {
+    background-color: rgba(139, 0, 0, 0.9);
+}
+
+.producer-bg-violation {
+    background-color: rgba(220, 20, 60, 0.9);
+}
+
+.producer-bg-minor-below {
+    background-color: rgba(255, 99, 71, 0.9);
+}
+
+.producer-bg-equal {
+    background-color: rgba(65, 105, 225, 0.9);
+}
+
+.producer-bg-minor-above {
+    background-color: rgba(108, 198, 108, 1);
+}
+
+.producer-bg-above {
+    background-color: rgba(34, 139, 34, 0.9);
+}
+
+.producer-bg-deep-above {
+    background-color: rgba(0, 100, 0, 0.9);
+}
+
+.producer-bg-no-reference {
+    background-color: rgba(187, 187, 187, 0.9);
+}
+
+/* ─── HEADER ROW + MODE SWITCH (ranking / wykres pill toggle) ─── */
+.detail-header-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+    width: 100%;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-shrink: 0;
 }
+
+.detail-title-block {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    min-width: 0;
+}
+
+.detail-title-text {
+    font-weight: 300;
+    font-size: 22px;
+    line-height: 1.2;
+}
+
+.detail-mode-switch {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    background: #f0f0f0;
+    padding: 4px;
+    border-radius: 8px;
+}
+
+    .detail-mode-switch button {
+        border: none;
+        background: transparent;
+        color: #666;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 6px 18px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .detail-mode-switch button.button-active {
+            background: #222222;
+            color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+
+        .detail-mode-switch button:not(.button-active):hover {
+            color: #222;
+            background: rgba(255,255,255,0.6);
+        }
+
+/* ─── RANKING-ONLY SECTION (zdjęcie + akcje + bar chart) ─── */
+.ranking-only-section {
+    display: flex;
+    gap: 32px;
+    width: 100%;
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+.ranking-info-block {
+    display: flex;
+    width: 100%;
+    gap: 24px;
+    margin-bottom: 8px;
+}
+
+.ranking-actions-column {
+    align-content: flex-end;
+    flex: 1;
+}
+
+.ranking-actions-row {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.ranking-bar-chart-wrap {
+    display: flex;
+    width: 30%;
+    height: 110px;
+    align-self: flex-end;
+    margin-right: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   REUSABLE CHART LAYOUT
+   Klasy poniżej można stosować na każdym widoku z wykresem
+   ═══════════════════════════════════════════════════════════════ */
+
+.chart-view-wrap {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    gap: 10px;
+    padding: 0;
+}
+
+.chart-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-shrink: 0;
+    padding: 4px 0;
+    flex-wrap: wrap;
+}
+
+.chart-toolbar-left,
+.chart-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.chart-main {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    gap: 12px;
+    align-items: stretch;
+}
+
+.chart-area {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    position: relative;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 4px;
+    box-sizing: border-box;
+}
+
+    .chart-area > div,
+    .chart-area > canvas {
+        width: 100%;
+        height: 100%;
+    }
+
+/* ─── SIDE PANEL (tooltip / details panel obok wykresu) ─── */
+.chart-side-panel {
+    display: block;
+    flex: none;
+    width: 320px;
+    height: auto;
+    max-height: none;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 14px 16px;
+    background: #fff;
+    font-size: 0.9rem;
+    overflow-y: auto;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+    .chart-side-panel::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .chart-side-panel::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .chart-side-panel::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 4px;
+    }
+
+/* ─── COMPACT SLIDER GROUP (Linie / Progi / dowolne suwaki w toolbarze) ─── */
+.chart-slider-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    padding: 0 14px;
+    height: 34px;
+    box-sizing: border-box;
+}
+
+    .chart-slider-group label {
+        font-size: 11px;
+        color: #666;
+        font-weight: 600;
+        white-space: nowrap;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0;
+    }
+
+    .chart-slider-group input[type=range] {
+        width: 100px;
+        height: 4px;
+        cursor: pointer;
+        background: #d4d4d4;
+        border-radius: 4px;
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+        margin: 0;
+        padding: 0;
+    }
+
+        .chart-slider-group input[type=range]::-webkit-slider-runnable-track {
+            height: 4px;
+            background: #d4d4d4;
+            border-radius: 4px;
+            border: none;
+        }
+
+        .chart-slider-group input[type=range]::-moz-range-track {
+            height: 4px;
+            background: #d4d4d4;
+            border-radius: 4px;
+            border: none;
+        }
+
+        .chart-slider-group input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #222;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+            margin-top: -5px;
+        }
+
+        .chart-slider-group input[type=range]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: #222;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
 
 .info-row {
     display: flex;
