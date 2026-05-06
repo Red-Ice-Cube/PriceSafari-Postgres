@@ -2127,20 +2127,106 @@ int udmValue = 3)
         return RedirectToAction("ProductList", new { storeId = storeId });
     }
 
+    //[HttpGet]
+    //public async Task<IActionResult> GoogleProducts(int storeId)
+    //{
+    //    var store = await _context.Stores.FindAsync(storeId);
+    //    if (store == null) return NotFound();
+
+    //    var products = await _context.Products
+    //        .Include(p => p.GoogleCatalogs)
+    //        .Where(p => p.StoreId == storeId && p.OnGoogle)
+    //        .ToListAsync();
+
+    //    if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+    //    {
+    //        var jsonProducts = products.Select(p => {
+    //            string generatedUrl = null;
+    //            string productIdCid = ExtractProductIdFromUrl(p.GoogleUrl);
+
+    //            if (!string.IsNullOrEmpty(productIdCid))
+    //            {
+    //                string productNameForUrl = System.Net.WebUtility.UrlEncode(p.ProductNameInStoreForGoogle);
+    //                generatedUrl = $"https://www.google.com/search?q={productNameForUrl}&udm=28#oshopproduct=cid:{productIdCid},pvt:hg,pvo:3&oshop=apv";
+    //            }
+
+    //            return new
+    //            {
+    //                p.ProductId,
+    //                p.ProductNameInStoreForGoogle,
+    //                p.Url,
+    //                p.FoundOnGoogle,
+    //                p.GoogleUrl,
+    //                p.Ean,
+    //                p.ProducerCode,
+    //                p.GoogleGid,
+    //                p.GoogleColor,
+    //                p.GoogleColorCode,
+    //                p.OtherVariantEans,
+    //                GeneratedGoogleUrl = generatedUrl,
+
+    //                GoogleCatalogs = p.GoogleCatalogs?.Select(gc => new {
+    //                    gc.GoogleCid,
+    //                    gc.GoogleGid,
+    //                    gc.GoogleHid,
+    //                    gc.IsExtendedOfferByHid
+
+    //                }).ToList()
+    //            };
+    //        }).ToList();
+
+    //        return Json(jsonProducts);
+    //    }
+
+    //    ViewBag.StoreName = store.StoreName;
+    //    ViewBag.StoreId = storeId;
+    //    return View("~/Views/ManagerPanel/GoogleScraper/GoogleProducts.cshtml", products);
+    //}
+
+
+
     [HttpGet]
     public async Task<IActionResult> GoogleProducts(int storeId)
     {
         var store = await _context.Stores.FindAsync(storeId);
         if (store == null) return NotFound();
 
-        var products = await _context.Products
-            .Include(p => p.GoogleCatalogs)
-            .Where(p => p.StoreId == storeId && p.OnGoogle)
-            .ToListAsync();
+        bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
 
-        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+        if (isAjax)
         {
-            var jsonProducts = products.Select(p => {
+            // 1. ZAPYTANIE DO BAZY (Tylko to co niezbędne + brak śledzenia zmian)
+            var rawData = await _context.Products
+                .AsNoTracking() // 🔥 KLUCZOWE: Wyłącza śledzenie zmian, ogromny skok wydajności
+                .Where(p => p.StoreId == storeId && p.OnGoogle)
+                .Select(p => new
+                {
+                    // Wyciągamy z bazy tylko te kolumny, które są potrzebne
+                    p.ProductId,
+                    p.ProductNameInStoreForGoogle,
+                    p.Url,
+                    p.FoundOnGoogle,
+                    p.GoogleUrl,
+                    p.Ean,
+                    p.ProducerCode,
+                    p.GoogleGid,
+                    p.GoogleColor,
+                    p.GoogleColorCode,
+                    p.OtherVariantEans,
+                    // EF Core sam zrobi odpowiedniego JOIN'a - nie potrzeba Include()
+                    Catalogs = p.GoogleCatalogs.Select(gc => new {
+                        gc.GoogleCid,
+                        gc.GoogleGid,
+                        gc.GoogleHid,
+                        gc.IsExtendedOfferByHid
+                    })
+                })
+                .ToListAsync();
+
+            // 2. PRZETWARZANIE W PAMIĘCI RAM
+            // Metody C# (ExtractProductIdFromUrl, UrlEncode) nie mogą iść do bazy,
+            // więc wykonujemy je na już przefiltrowanej i lekkiej liscie.
+            var jsonProducts = rawData.Select(p => {
                 string generatedUrl = null;
                 string productIdCid = ExtractProductIdFromUrl(p.GoogleUrl);
 
@@ -2164,24 +2250,26 @@ int udmValue = 3)
                     p.GoogleColorCode,
                     p.OtherVariantEans,
                     GeneratedGoogleUrl = generatedUrl,
-
-                    GoogleCatalogs = p.GoogleCatalogs?.Select(gc => new {
-                        gc.GoogleCid,
-                        gc.GoogleGid,
-                        gc.GoogleHid,
-                        gc.IsExtendedOfferByHid
-
-                    }).ToList()
+                    GoogleCatalogs = p.Catalogs
                 };
-            }).ToList();
+            });
 
+            // Wysyłamy, bez .ToList() na końcu (Json() sam ziteruje IEnumerable)
             return Json(jsonProducts);
         }
+
+        // --- Zwykłe załadowanie widoku (bez AJAX) ---
+        var products = await _context.Products
+            .AsNoTracking() // W widoku też nie edytujesz tych danych, wyłączamy śledzenie
+            .Include(p => p.GoogleCatalogs)
+            .Where(p => p.StoreId == storeId && p.OnGoogle)
+            .ToListAsync();
 
         ViewBag.StoreName = store.StoreName;
         ViewBag.StoreId = storeId;
         return View("~/Views/ManagerPanel/GoogleScraper/GoogleProducts.cshtml", products);
     }
+
     private string ExtractProductIdFromUrl(string googleUrl)
     {
         if (string.IsNullOrEmpty(googleUrl) || !googleUrl.Contains("/product/"))
