@@ -121,11 +121,15 @@
         padding-right: 2px;
     }
 
-    /* Virtual scroll */
+  
     .virtual-scroll-container {
         overflow-y: auto;
-        height: 84vh;
         position: relative;
+        width: 100%;
+     
+        flex: 1;
+        height: 100%;
+        min-height: 0;
     }
 
         .virtual-scroll-container .table-orders {
@@ -137,7 +141,7 @@
         box-sizing: border-box;
     }
 
-    /* Batch operation overlay */
+
     .batch-overlay {
         display: none;
         position: fixed;

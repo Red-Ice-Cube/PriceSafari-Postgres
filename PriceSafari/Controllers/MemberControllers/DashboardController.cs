@@ -26,36 +26,33 @@ namespace PriceSafari.Controllers.MemberControllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var userStores = await _context.UserStores
+            // Używamy projekcji (Select), aby pobrać tylko to, co niezbędne
+            var storeDetails = await _context.UserStores
                 .Where(us => us.UserId == userId)
+                .Select(us => new ChanelViewModel
+                {
+                    StoreId = us.StoreClass.StoreId,
+                    StoreName = us.StoreClass.StoreName,
+                    LogoUrl = us.StoreClass.StoreLogoUrl,
+                    OnCeneo = us.StoreClass.OnCeneo,
+                    OnGoogle = us.StoreClass.OnGoogle,
+                    OnAllegro = us.StoreClass.OnAllegro,
 
-                .Include(us => us.StoreClass)
-                    .ThenInclude(s => s.ScrapHistories)
+                    // Pobieramy TYLKO jedną datę bezpośrednio w SQL
+                    LastScrapeDate = us.StoreClass.ScrapHistories
+                        .OrderByDescending(sh => sh.Date)
+                        .Select(sh => (DateTime?)sh.Date)
+                        .FirstOrDefault(),
 
-                .Include(us => us.StoreClass)
-                    .ThenInclude(s => s.AllegroScrapeHistories)
+                    AllegroLastScrapeDate = us.StoreClass.AllegroScrapeHistories
+                        .OrderByDescending(ash => ash.Date)
+                        .Select(ash => (DateTime?)ash.Date)
+                        .FirstOrDefault()
+                })
                 .ToListAsync();
-
-            var stores = userStores.Select(us => us.StoreClass).ToList();
-
-            var storeDetails = stores.Select(store => new ChanelViewModel
-            {
-                StoreId = store.StoreId,
-                StoreName = store.StoreName,
-                LogoUrl = store.StoreLogoUrl,
-
-                LastScrapeDate = store.ScrapHistories.OrderByDescending(sh => sh.Date).FirstOrDefault()?.Date,
-
-                AllegroLastScrapeDate = store.AllegroScrapeHistories.OrderByDescending(ash => ash.Date).FirstOrDefault()?.Date,
-
-                OnCeneo = store.OnCeneo,
-                OnGoogle = store.OnGoogle,
-                OnAllegro = store.OnAllegro
-            }).ToList();
 
             return View("~/Views/Panel/Dashboard/Index.cshtml", storeDetails);
         }
-
         public async Task<IActionResult> Dashboard(int storeId)
         {
             var store = await _context.Stores.FindAsync(storeId);

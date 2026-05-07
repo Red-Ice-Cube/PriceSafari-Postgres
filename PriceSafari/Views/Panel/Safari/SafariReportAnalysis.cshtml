@@ -12,133 +12,135 @@
     <div class="Page-Box">
         <div class="Page-Box-Container">
 
-            <!-- ===================== LEWY PANEL ===================== -->
+           
             <div class="Page-Box-Category">
-
-                <div><img src="@ViewBag.StoreLogo" class="img-container" /></div>
-
-                <!-- 2 zakładki wykresów -->
-                <div class="period-selector-group safari-chart-tabs">
-                    <button type="button" class="period-btn-custom chart-tab active" data-chart="classification" title="Klasyfikacja Twojej pozycji cenowej">
-                        <i class="fa-solid fa-chart-pie"></i>
+                <div class="mode-switch-container">
+                    <button type="button" class="mode-switch-btn chart-tab active" data-chart="classification" title="Klasyfikacja Twojej pozycji cenowej">
+                        <i class="fa-solid fa-chart-pie"></i> Cena
                     </button>
-                    <button type="button" class="period-btn-custom chart-tab" data-chart="countries" title="Rozkład ofert wg krajów">
-                        <i class="fa-solid fa-globe"></i>
+
+                    <button type="button" class="mode-switch-btn chart-tab" data-chart="countries" title="Rozkład ofert wg krajów">
+                        <i class="fa-solid fa-globe"></i> Kraje
                     </button>
                 </div>
+                <div><img src="@ViewBag.StoreLogo" class="img-container" /></div>
+
+           
+             
 
                 <div class="side-chart-box safari-chart-box">
                     <canvas id="mainChart"></canvas>
                 </div>
 
-                <!-- Klasyfikacja -->
-                <div class="store-section" id="filters-competitiveness">
-                    <div class="form-check">
-                        <span class="color-rect rect-no-offer"></span>
-                        <input class="form-check-input colorFilter" type="checkbox" id="prNoOfferCheckbox" value="prNoOffer">
-                        <label class="form-check-label" for="prNoOfferCheckbox">Brak Twojej oferty</label>
-                    </div>
-
-                    <div class="form-check">
-                        <span class="color-rect rect-ideal"></span>
-                        <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal">
-                        <label class="form-check-label" for="prIdealCheckbox">Twoja oferta tańsza</label>
-                    </div>
-
-                    <div class="form-check">
-                        <span class="color-rect rect-gray"></span>
-                        <input class="form-check-input colorFilter" type="checkbox" id="prGrayCheckbox" value="prGray">
-                        <label class="form-check-label" for="prGrayCheckbox">Cena podobna</label>
-                    </div>
-
-                    <div class="form-check">
-                        <span class="color-rect rect-to-high"></span>
-                        <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
-                        <label class="form-check-label" for="prToHighCheckbox">Twoja oferta droższa</label>
-                    </div>
-
-                    <div class="safari-thresholds-wrap">
-                        <div class="price-range-settings">
-                            <div class="color-circle prIdeal-circle"></div>
-                            <div class="legendBox"><span>Tańsza o min.</span></div>
-                            <label for="price2"></label>
-                            <input type="number" id="threshold1"
-                                   value="@(((decimal)ViewBag.SetSafariPrice1).ToString(System.Globalization.CultureInfo.InvariantCulture))"
-                                   step="0.01" min="0">
-                            <span id="unitLabel1" class="safari-unit-label"></span>
+                <div class="sidebar-scroll-area">
+                    <div class="store-section" id="filters-competitiveness">
+                        <div class="form-check">
+                            <span class="color-rect rect-no-offer"></span>
+                            <input class="form-check-input colorFilter" type="checkbox" id="prNoOfferCheckbox" value="prNoOffer">
+                            <label class="form-check-label" for="prNoOfferCheckbox">Brak Twojej oferty</label>
                         </div>
 
-                        <div class="price-range-settings">
-                            <div class="color-circle prHigher-circle"></div>
-                            <div class="legendBox"><span>Droższa o min.</span></div>
-                            <label for="price2"></label>
-                            <input type="number" id="threshold2"
-                                   value="@(((decimal)ViewBag.SetSafariPrice2).ToString(System.Globalization.CultureInfo.InvariantCulture))"
-                                   step="0.01" min="0">
-                            <span id="unitLabel2" class="safari-unit-label"></span>
+                        <div class="form-check">
+                            <span class="color-rect rect-ideal"></span>
+                            <input class="form-check-input colorFilter" type="checkbox" id="prIdealCheckbox" value="prIdeal">
+                            <label class="form-check-label" for="prIdealCheckbox">Twoja oferta tańsza</label>
                         </div>
 
-                        <div class="safari-threshold-actions">
-    
-                            <div style="flex: 1; display: flex;">
-                                <input class="diffCheckBox" style="margin: 0; width: 100%;" type="checkbox" id="usePriceDifference"
-                                @(((bool)ViewBag.UsePriceDiffSafari) ? "checked" : "") />
+                        <div class="form-check">
+                            <span class="color-rect rect-gray"></span>
+                            <input class="form-check-input colorFilter" type="checkbox" id="prGrayCheckbox" value="prGray">
+                            <label class="form-check-label" for="prGrayCheckbox">Cena podobna</label>
+                        </div>
+
+                        <div class="form-check">
+                            <span class="color-rect rect-to-high"></span>
+                            <input class="form-check-input colorFilter" type="checkbox" id="prToHighCheckbox" value="prToHigh">
+                            <label class="form-check-label" for="prToHighCheckbox">Twoja oferta droższa</label>
+                        </div>
+
+                        <div class="safari-thresholds-wrap">
+                            <div class="price-range-settings">
+                                <div class="color-circle prIdeal-circle"></div>
+                                <div class="legendBox"><span>Tańsza o min.</span></div>
+                                <label for="price2"></label>
+                                <input type="number" id="threshold1"
+                                       value="@(((decimal)ViewBag.SetSafariPrice1).ToString(System.Globalization.CultureInfo.InvariantCulture))"
+                                       step="0.01" min="0">
+                                <span id="unitLabel1" class="safari-unit-label"></span>
                             </div>
 
-                            <button class="Button-Page-Small" style="margin: 0; flex: 1; width: 100%; padding-left: 0; padding-right: 0;" id="savePriceValues"
-                                    data-store-id="@ViewBag.StoreId">
-                                Przelicz i zapisz
-                            </button>
+                            <div class="price-range-settings">
+                                <div class="color-circle prHigher-circle"></div>
+                                <div class="legendBox"><span>Droższa o min.</span></div>
+                                <label for="price2"></label>
+                                <input type="number" id="threshold2"
+                                       value="@(((decimal)ViewBag.SetSafariPrice2).ToString(System.Globalization.CultureInfo.InvariantCulture))"
+                                       step="0.01" min="0">
+                                <span id="unitLabel2" class="safari-unit-label"></span>
+                            </div>
 
+                            <div class="safari-threshold-actions">
+    
+                                <div style="flex: 1; display: flex;">
+                                    <input class="diffCheckBox" style="margin: 0; width: 100%;" type="checkbox" id="usePriceDifference"
+                                    @(((bool)ViewBag.UsePriceDiffSafari) ? "checked" : "") />
+                                </div>
+
+                                <button class="Button-Page-Small" style="margin: 0; flex: 1; width: 100%; padding-left: 0; padding-right: 0;" id="savePriceValues"
+                                        data-store-id="@ViewBag.StoreId">
+                                    Przelicz i zapisz
+                                </button>
+
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="filterBox">
+                    <div class="filterBox">
 
-                    <!-- FLAGI — teraz PIERWSZE -->
-                    <div class="Category-Container-Select">
-                        Flagi
-                        <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj flagę</a>
+                 
+                        <div class="Category-Container-Select" style="margin-top:-2px;">
+                            Flagi
+                            <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj flagę</a>
+                        </div>
+                        <div class="store-section" id="flagContainer"></div>
+
+                       
+                        <div class="Category-Container-Select">Region rynku</div>
+                        <div class="store-section">
+                            <select id="regionFilter" class="DropDown safari-fullwidth-select">
+                                <option value="">Wszystkie regiony</option>
+                                @foreach (var r in regions)
+                                {
+                                    <option value="@r.Key" selected="@(r.Key == (int?)ViewBag.RegionId)">@r.Value</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="Category-Container-Select">Liczba ofert konkurencji</div>
+                        <div class="store-section">
+                            <div id="offerRange" class="safari-range-display"></div>
+                            <div id="offerRangeSlider"></div>
+                        </div>
+
+                        <div class="Category-Container-Select">Cena Twojej oferty</div>
+                        <div class="store-section">
+                            <div id="myPriceRange" class="safari-range-display"></div>
+                            <div id="myPriceRangeSlider"></div>
+                        </div>
+
+                        <div class="Category-Container-Select">Cena konkurencji</div>
+                        <div class="store-section">
+                            <div id="compPriceRange" class="safari-range-display"></div>
+                            <div id="compPriceRangeSlider"></div>
+                        </div>
+
+                        <div class="Category-Container-Select">Pozycja na rynku</div>
+                        <div class="store-section">
+                            <div id="positionRange" class="safari-range-display"></div>
+                            <div id="positionRangeSlider"></div>
+                        </div>
+
                     </div>
-                    <div class="store-section" id="flagContainer"></div>
-
-                    <!-- REGION RYNKU — teraz POD flagami -->
-                    <div class="Category-Container-Select">Region rynku</div>
-                    <div class="store-section">
-                        <select id="regionFilter" class="DropDown safari-fullwidth-select">
-                            <option value="">Wszystkie regiony</option>
-                            @foreach (var r in regions)
-                            {
-                                <option value="@r.Key" selected="@(r.Key == (int?)ViewBag.RegionId)">@r.Value</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div class="Category-Container-Select">Liczba ofert konkurencji</div>
-                    <div class="store-section">
-                        <div id="offerRange" class="safari-range-display"></div>
-                        <div id="offerRangeSlider"></div>
-                    </div>
-
-                    <div class="Category-Container-Select">Cena Twojej oferty</div>
-                    <div class="store-section">
-                        <div id="myPriceRange" class="safari-range-display"></div>
-                        <div id="myPriceRangeSlider"></div>
-                    </div>
-
-                    <div class="Category-Container-Select">Cena konkurencji</div>
-                    <div class="store-section">
-                        <div id="compPriceRange" class="safari-range-display"></div>
-                        <div id="compPriceRangeSlider"></div>
-                    </div>
-
-                    <div class="Category-Container-Select">Pozycja na rynku</div>
-                    <div class="store-section">
-                        <div id="positionRange" class="safari-range-display"></div>
-                        <div id="positionRangeSlider"></div>
-                    </div>
-
                 </div>
             </div>
 

@@ -130,9 +130,11 @@
 
     .virtual-scroll-container {
         overflow-y: auto;
-        height: 84vh;
         position: relative;
         width: 100%;
+        flex: 1;
+        height: 100%;
+        min-height: 0;
     }
 
         .virtual-scroll-container .table-orders {
@@ -148,7 +150,7 @@
         box-sizing: border-box;
     }
 
-    /* Batch overlay */
+
     .batch-overlay {
         display: none;
         position: fixed;
@@ -226,7 +228,7 @@
         }
     }
 
-    /* Bulk monitoring modal */
+
     .bm-dropzone {
         border: 2px dashed #ccc;
         border-radius: 8px;
