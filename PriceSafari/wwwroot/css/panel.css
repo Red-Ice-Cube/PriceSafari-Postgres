@@ -115,7 +115,7 @@ p {
 }
 
 .View {
-    zoom: 0.95;
+    zoom: 0.9;
     display: flex;
     padding: 12px;
     flex-direction: column;
@@ -129,6 +129,37 @@ p {
     overflow-y: auto;
     border-top-left-radius: 8px;
 }
+
+#trendChart {
+    zoom: 1.111111;
+    transform: scale(0.9);
+    transform-origin: top left;
+    width: 111.11% !important;
+    height: 111.11% !important;
+}
+
+
+#salesChartContainer,
+#badgeChartContainer,
+#positionChartContainer {
+    zoom: 1.111111;
+    transform: scale(0.9);
+    transform-origin: top left;
+    width: 111.11% !important;
+    height: 488.88px !important;
+    margin-right: -11.11% !important;
+    margin-bottom: -48.88px !important;
+}
+
+#executionChartsContainer {
+    zoom: 1.111111;
+    transform: scale(0.9);
+    transform-origin: top left;
+    width: 111.11% !important;
+    margin-right: -11.11% !important;
+    margin-bottom: -48.88px !important;
+}
+
 
 .link-line {
     display: flex;
