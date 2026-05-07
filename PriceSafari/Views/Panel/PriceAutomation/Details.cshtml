@@ -1144,16 +1144,19 @@
         gap: 4px;
     }
 
+    /* Rynek - zamiast bardzo ciemnego, mamy elegancki, stalowy szary */
     .badge-sales-market {
-        background-color: #282828;
+        background-color: #545b62;
     }
 
+    /* Twoje - zamiast jaskrawego pomarańczu, mamy ciepły, piaskowy bursztyn */
     .badge-sales-mine {
-        background-color: #ff9800;
+        background-color: #d38a36;
     }
 
+    /* Udział - zamiast neonowej zieleni, mamy spokojną morską zieleń (sage/teal) */
     .badge-sales-share {
-        background-color: #1cc88a;
+        background-color: #5da189;
     }
 
     .sales-value-text {
@@ -1925,7 +1928,7 @@
                                                 <span class="sales-badge badge-sales-market">
                                                     <i class="fas fa-shopping-cart" style="font-size: 9px;"></i> Rynek
                                                 </span>
-                                                <span class="sales-value-text" style="color: #282828;">
+                                                <span class="sales-value-text" style="color: #545b62;">
                                                     @item.TotalPopularity szt.
                                                 </span>
                                             </div>
@@ -1935,7 +1938,7 @@
                                                 <span class="sales-badge badge-sales-mine">
                                                     <i class="fas fa-store" style="font-size: 9px;"></i> Moje
                                                 </span>
-                                                <span class="sales-value-text" style="color: #ff9800;">
+                                                <span class="sales-value-text" style="color: #d38a36;">
                                                     @(item.MyTotalPopularity ?? 0) szt.
                                                 </span>
                                             </div>
@@ -1945,7 +1948,7 @@
                                                 <span class="sales-badge badge-sales-share">
                                                     <i class="fas fa-chart-pie" style="font-size: 9px;"></i> Udział
                                                 </span>
-                                                <span class="sales-value-text" style="color: #1cc88a; font-weight: 700;">
+                                                <span class="sales-value-text" style="color: #5da189; font-weight: 700;">
                                                     @((item.MarketSharePercentage ?? 0).ToString("F2"))%
                                                 </span>
                                             </div>
