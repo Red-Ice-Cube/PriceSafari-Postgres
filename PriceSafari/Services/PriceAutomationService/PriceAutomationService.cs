@@ -682,6 +682,18 @@ namespace PriceSafari.Services.PriceAutomationService
                 if (myHistory != null && myHistory.Price > 0)
                     currentRankAllegro = CalculateRanking(new List<decimal>(competitorPrices), myHistory.Price);
 
+                // === Dane sprzedażowe (popularity / market share) ===
+                int totalPopularity = histories.Sum(h => h.Popularity ?? 0);
+
+                int myPopularity = histories
+                    .Where(h => h.SellerName != null
+                                && h.SellerName.Equals(myStoreNameAllegro, StringComparison.OrdinalIgnoreCase))
+                    .Sum(h => h.Popularity ?? 0);
+
+                decimal marketSharePercentage = (totalPopularity > 0)
+                    ? Math.Round(((decimal)myPopularity / totalPopularity) * 100, 2)
+                    : 0m;
+
                 var row = new AutomationProductRowViewModel
                 {
                     ProductId = p.AllegroProductId,
@@ -715,6 +727,9 @@ namespace PriceSafari.Services.PriceAutomationService
                       : new List<int>(),
                     AllegroSku = p.AllegroSku,
                     AllegroEan = p.AllegroEan,
+                    TotalPopularity = totalPopularity,
+                    MyTotalPopularity = myPopularity,
+                    MarketSharePercentage = marketSharePercentage,
                 };
 
                 row.HasInterval = productsInInterval.Contains(p.AllegroProductId);

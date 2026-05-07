@@ -163,6 +163,11 @@ namespace PriceSafari.Models.ViewModels
         public List<int> FlagIds { get; set; } = new List<int>();
 
         public bool HasInterval { get; set; }
+
+        // Dane sprzedażowe Allegro (tylko Marketplace)
+        public int? TotalPopularity { get; set; }
+        public int? MyTotalPopularity { get; set; }
+        public decimal? MarketSharePercentage { get; set; }
     }
 
     public class AutomationExecutionRequest

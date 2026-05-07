@@ -1100,6 +1100,41 @@
         background: rgba(231,74,59,0.15);
         color: #e74a3b;
     }
+
+    .popularity-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 4px;
+    }
+
+    .popularity-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        background: #f8f9fc;
+        border: 1px solid #e3e6f0;
+        color: #5a5c69;
+    }
+
+        .popularity-pill i {
+            font-size: 10px;
+            color: #858796;
+        }
+
+    .popularity-pill-mine {
+        background: #f0f7ff;
+        border-color: #cfe2ff;
+        color: #0d6efd;
+    }
+
+        .popularity-pill-mine i {
+            color: #0d6efd;
+        }
 </style>
 
 
@@ -1629,6 +1664,9 @@
                                 data-gradual-decrease="@(item.IsGradualDecreaseApplied.ToString().ToLower())"
                                 data-gradual-increase="@(item.IsGradualIncreaseApplied.ToString().ToLower())"
                                 data-flag-ids="@(item.FlagIds != null ? string.Join(",", item.FlagIds) : "")"
+                                data-pop-total="@(item.TotalPopularity ?? 0)"
+                                data-pop-mine="@(item.MyTotalPopularity ?? 0)"
+                                data-pop-share="@((item.MarketSharePercentage ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))"
                                 data-has-interval="@item.HasInterval.ToString().ToLower()">
                           
                                 <td class="align-middle">
@@ -1672,7 +1710,20 @@
                                                     @item.Name
                                                 }
                                             </div>
-    
+                                            @if (isMarketplace && item.TotalPopularity.HasValue && item.TotalPopularity.Value > 0)
+                                            {
+                                                <div class="popularity-row" 
+                                                     data-total-popularity="@item.TotalPopularity"
+                                                     data-my-popularity="@(item.MyTotalPopularity ?? 0)"
+                                                     data-market-share="@((item.MarketSharePercentage ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">
+                                                    <span class="popularity-pill" title="Łączna sprzedaż w katalogu (30 dni)">
+                                                    <i class="fas fa-shopping-cart"></i> @item.TotalPopularity osb. kupiło
+                                                    </span>
+                                                    <span class="popularity-pill popularity-pill-mine" title="Twoja sprzedaż / udział w rynku">
+                                                    <i class="fas fa-chart-pie"></i> @(item.MyTotalPopularity ?? 0) osb. (@((item.MarketSharePercentage ?? 0).ToString("F2"))%)
+                                                    </span>
+                                                </div>
+                                            }
                                             @if (item.FlagIds != null && item.FlagIds.Any())
                                             {
                                                 <div class="flags-container d-flex flex-wrap mt-1" style="gap: 4px; justify-content:flex-start;">
@@ -1714,6 +1765,7 @@
                                                     }
                                                 </div>
                                             </div>
+                                          
                                         </div>
                                     </div>
                                 </td>
@@ -3617,95 +3669,6 @@ else
         });
     </script>
 
-    <script>
-
-        document.addEventListener("DOMContentLoaded", function () {
-
-            const searchInput = document.getElementById('productSearch');
-            const tableBody = document.querySelector('#automationTable tbody');
-
-            let tableRows = [];
-
-            function initTableData() {
-                const rows = tableBody.querySelectorAll('tr');
-                tableRows = Array.from(rows).map(row => {
-                    const nameContainer = row.querySelector('.product-name-wrap');
-                    const codeContainer = row.querySelector('.small.text-muted');
-
-                    return {
-                        element: row,
-                        nameEl: nameContainer,
-                        codeEl: codeContainer,
-                        originalNameHtml: nameContainer ? nameContainer.innerHTML : '',
-                        originalCodeHtml: codeContainer ? codeContainer.innerHTML : '',
-                        searchText: ((nameContainer ? nameContainer.textContent : '') + ' ' +
-                                     (codeContainer ? codeContainer.textContent : '')).toLowerCase().replace(/\s+/g, ' ')
-                    };
-                });
-            }
-
-            function debounce(func, wait) {
-                let timeout;
-                return function (...args) {
-                    clearTimeout(timeout);
-                    timeout = setTimeout(() => func.apply(this, args), wait);
-                };
-            }
-
-            function escapeRegExp(string) {
-                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            }
-
-            function highlightMatches(html, searchTerm) {
-                if (!searchTerm) return html;
-                const regex = new RegExp(`(${escapeRegExp(searchTerm)})(?![^<]+>)`, 'gi');
-                return html.replace(regex, '<span class="highlighted-text">$1</span>');
-            }
-
-            function filterRows() {
-                const rawTerm = searchInput.value.trim();
-                const searchTerm = rawTerm.toLowerCase();
-                const highlightTerm = rawTerm;
-
-                let visibleCount = 0;
-
-                tableRows.forEach(rowObj => {
-                    const isFilterHidden = rowObj.element.classList.contains('filter-hidden');
-                    const matchesSearch = rowObj.searchText.includes(searchTerm) || searchTerm === '';
-
-                    if (matchesSearch && !isFilterHidden) {
-                        rowObj.element.style.display = '';
-                        visibleCount++;
-
-                        if (searchTerm !== '') {
-                            if (rowObj.nameEl) rowObj.nameEl.innerHTML = highlightMatches(rowObj.originalNameHtml, highlightTerm);
-                            if (rowObj.codeEl) rowObj.codeEl.innerHTML = highlightMatches(rowObj.originalCodeHtml, highlightTerm);
-                        } else {
-                            if (rowObj.nameEl) rowObj.nameEl.innerHTML = rowObj.originalNameHtml;
-                            if (rowObj.codeEl) rowObj.codeEl.innerHTML = rowObj.originalCodeHtml;
-                        }
-                    } else if (!isFilterHidden) {
-                        rowObj.element.style.display = 'none';
-                    }
-                });
-
-                const visibleEl = document.getElementById('visibleCount');
-                if (visibleEl) {
-                    const visible = Array.from(document.querySelectorAll('#automationTable tbody tr'))
-                        .filter(row => row.style.display !== 'none' && !row.classList.contains('filter-hidden')).length;
-                    visibleEl.textContent = visible;
-                }
-        if (typeof massActions !== 'undefined') {
-        massActions.updateVisibleButtons();
-        }
-            }
-
-            if (tableBody) {
-                initTableData();
-                searchInput.addEventListener('input', debounce(filterRows, 300));
-            }
-        });
-    </script>
 
     <script>
 
@@ -3723,6 +3686,16 @@ else
                         { key: 'gradual-decrease', label: 'Stopniowa obniżka', icon: 'fa-arrow-down-wide-short', attr: 'data-gradual-decrease', value: 'true' },
                         { key: 'maintained', label: 'Bez zmian', icon: 'fa-equals', attr: 'data-price-change', value: 'maintained' },
                         { key: 'blocked', label: 'Zablokowane', icon: 'fa-ban', attr: 'data-price-change', value: 'blocked' }
+                    ]
+                },
+                {
+                    id: 'marketplace-sales',
+                    label: 'Sprzedaż',
+                    showIf: isMarketplace,
+                    filters: [
+                        { key: 'sort-total', label: 'Sprzedaż Katalog', icon: 'fa-shopping-cart', attr: 'data-pop-total', isSort: true },
+                        { key: 'sort-mine', label: 'Moja Sprzedaż', icon: 'fa-chart-pie', attr: 'data-pop-mine', isSort: true },
+                        { key: 'sort-share', label: 'Udział w rynku', icon: 'fa-percent', attr: 'data-pop-share', isSort: true }
                     ]
                 },
                
@@ -3870,18 +3843,22 @@ else
                         btn.dataset.filterAttr = filter.attr;
                         btn.dataset.filterValue = filter.value;
                         btn.dataset.groupId = group.id;
-
+                  
                         btn.innerHTML = `
                             <i class="fas ${filter.icon}" style="font-size: 10px;"></i>
                             ${filter.label}
-                            <span class="filter-count">${count}</span>
+                            ${!filter.isSort 
+                                ? `<span class="filter-count">${count}</span>` 
+                                : `<span class="filter-count sort-indicator" style="display:none;"><i class="fas fa-arrow-down"></i></span>`
+                            }
                         `;
 
                         if (filter.color) {
                             btn.dataset.filterColor = filter.color;
                         }
 
-                        if (count === 0) {
+                 
+                        if (count === 0 && !filter.isSort) {
                             btn.disabled = true;
                             btn.style.opacity = '0.5';
                             btn.style.cursor = 'not-allowed';
@@ -3908,6 +3885,13 @@ else
 
             function updateCounts() {
                 document.querySelectorAll('.filter-btn').forEach(btn => {
+
+                    if (btn.dataset.groupId === 'marketplace-sales') {
+                        const countEl = btn.querySelector('.filter-count');
+                        if (countEl) countEl.style.display = 'none';
+                        return;
+                    }
+
                     const attr = btn.dataset.filterAttr;
                     const value = btn.dataset.filterValue;
                     const count = countMatching(attr, value);
@@ -3915,7 +3899,6 @@ else
                     if (countEl) countEl.textContent = count;
                 });
             }
-
             function updateTotalCount() {
                 const totalEl = document.getElementById('totalCount');
                 const visibleEl = document.getElementById('visibleCount');
@@ -3933,13 +3916,82 @@ else
                     if (!btn || btn.disabled) return;
 
                     const key = btn.dataset.filterKey;
-                    const attr = btn.dataset.filterAttr;
-                    const value = btn.dataset.filterValue;
+                    const group = filterGroups.find(g => g.id === btn.dataset.groupId);
+                    const filterDef = group.filters.find(f => f.key === key);
 
-                    toggleFilter(key, attr, value, btn);
+                    if (filterDef.isSort) {
+                        handleSortClick(btn, filterDef);
+                    } else {
+
+                        const attr = btn.dataset.filterAttr;
+                        const value = btn.dataset.filterValue;
+                        toggleFilter(key, attr, value, btn);
+                    }
                 });
 
                 document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
+            }
+
+            function handleSortClick(btn, filterDef) {
+                const attr = filterDef.attr;
+                const tbody = document.querySelector('#automationTable tbody');
+                const indicator = btn.querySelector('.sort-indicator'); 
+
+                let currentDir = btn.getAttribute('data-sort-dir') || 'none';
+
+                document.querySelectorAll('[data-group-id="' + btn.dataset.groupId + '"]').forEach(b => {
+                    if (b !== btn) {
+                        b.classList.remove('active');
+                        b.setAttribute('data-sort-dir', 'none');
+                        const ind = b.querySelector('.sort-indicator');
+                        if (ind) ind.style.display = 'none';
+                    }
+                });
+
+                if (currentDir === 'none') {
+
+                    btn.setAttribute('data-sort-dir', 'desc');
+                    btn.classList.add('active');
+                    if (indicator) {
+                        indicator.innerHTML = '<i class="fas fa-arrow-down"></i>';
+                        indicator.style.display = 'inline-flex'; 
+
+                    }
+
+                    const sortedRows = [...allRows].sort((a, b) => {
+                        const valA = parseFloat(a.getAttribute(attr)) || 0;
+                        const valB = parseFloat(b.getAttribute(attr)) || 0;
+                        return valB - valA; 
+                    });
+                    sortedRows.forEach(row => tbody.appendChild(row));
+
+                } else if (currentDir === 'desc') {
+
+                    btn.setAttribute('data-sort-dir', 'asc');
+                    btn.classList.add('active');
+                    if (indicator) {
+                        indicator.innerHTML = '<i class="fas fa-arrow-up"></i>';
+                        indicator.style.display = 'inline-flex';
+                    }
+
+                    const sortedRows = [...allRows].sort((a, b) => {
+                        const valA = parseFloat(a.getAttribute(attr)) || 0;
+                        const valB = parseFloat(b.getAttribute(attr)) || 0;
+                        return valA - valB; 
+                    });
+                    sortedRows.forEach(row => tbody.appendChild(row));
+
+                } else if (currentDir === 'asc') {
+
+                    btn.setAttribute('data-sort-dir', 'none');
+                    btn.classList.remove('active');
+                    if (indicator) {
+                        indicator.style.display = 'none'; 
+
+                    }
+
+                    allRows.forEach(row => tbody.appendChild(row));
+                }
             }
 
             function toggleFilter(key, attr, value, btn) {
@@ -4032,9 +4084,18 @@ else
 
                 document.querySelectorAll('.filter-btn.active').forEach(btn => {
                     btn.classList.remove('active');
+
+                    btn.setAttribute('data-sort-dir', 'none');
+                    const ind = btn.querySelector('.sort-indicator');
+                    if (ind) ind.style.display = 'none'; 
+
                 });
 
-                allRows.forEach(row => row.classList.remove('filter-hidden'));
+                const tbody = document.querySelector('#automationTable tbody');
+                allRows.forEach(row => {
+                    row.classList.remove('filter-hidden');
+                    tbody.appendChild(row);
+                });
 
                 updateGroupIndicators();
                 updateResetButton();
@@ -4053,108 +4114,6 @@ else
         });
     </script>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-
-            const searchInput = document.getElementById('productSearch');
-            const tableBody = document.querySelector('#automationTable tbody');
-
-            let tableRows = [];
-
-            function initTableData() {
-                const rows = tableBody.querySelectorAll('tr');
-                tableRows = Array.from(rows).map(row => {
-
-                    const nameContainer = row.querySelector('.product-name-wrap');
-
-                    const codeContainer = row.querySelector('.small.text-muted');
-
-                    return {
-                        element: row,
-                        nameEl: nameContainer,
-                        codeEl: codeContainer,
-
-                        originalNameHtml: nameContainer ? nameContainer.innerHTML : '',
-                        originalCodeHtml: codeContainer ? codeContainer.innerHTML : '',
-
-                        searchText: ((nameContainer ? nameContainer.textContent : '') + ' ' +
-                                     (codeContainer ? codeContainer.textContent : '')).toLowerCase().replace(/\s+/g, ' ')
-                    };
-                });
-            }
-
-            function debounce(func, wait) {
-                let timeout;
-                return function (...args) {
-                    clearTimeout(timeout);
-                    timeout = setTimeout(() => func.apply(this, args), wait);
-                };
-            }
-
-            function escapeRegExp(string) {
-                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            }
-
-            function highlightMatches(html, searchTerm) {
-                if (!searchTerm) return html;
-
-                const regex = new RegExp(`(${escapeRegExp(searchTerm)})(?![^<]+>)`, 'gi');
-
-                return html.replace(regex, '<span class="highlighted-text">$1</span>');
-            }
-
-            function filterRows() {
-                const rawTerm = searchInput.value.trim();
-                const searchTerm = rawTerm.toLowerCase();
-                const highlightTerm = rawTerm;
-
-                let visibleCount = 0;
-
-                tableRows.forEach(rowObj => {
-
-                    const isFilterHidden = rowObj.element.classList.contains('filter-hidden');
-
-                    const matchesSearch = rowObj.searchText.includes(searchTerm) || searchTerm === '';
-
-                    if (matchesSearch && !isFilterHidden) {
-                        rowObj.element.style.display = '';
-                        visibleCount++;
-
-                        if (searchTerm !== '') {
-                            if (rowObj.nameEl) {
-                                rowObj.nameEl.innerHTML = highlightMatches(rowObj.originalNameHtml, highlightTerm);
-                            }
-                            if (rowObj.codeEl) {
-                                rowObj.codeEl.innerHTML = highlightMatches(rowObj.originalCodeHtml, highlightTerm);
-                            }
-                        } else {
-                            if (rowObj.nameEl) rowObj.nameEl.innerHTML = rowObj.originalNameHtml;
-                            if (rowObj.codeEl) rowObj.codeEl.innerHTML = rowObj.originalCodeHtml;
-                        }
-                    } else if (!isFilterHidden) {
-                        rowObj.element.style.display = 'none';
-                    }
-                });
-
-                const visibleEl = document.getElementById('visibleCount');
-                if (visibleEl) {
-                    const visible = Array.from(document.querySelectorAll('#automationTable tbody tr'))
-                        .filter(row => row.style.display !== 'none' && !row.classList.contains('filter-hidden')).length;
-                    visibleEl.textContent = visible;
-                }
-        if(typeof syncButtonsWithMassActions === 'function') {
-        syncButtonsWithMassActions();
-        }
-            }
-
-            if (tableBody) {
-                initTableData();
-
-                searchInput.addEventListener('input', debounce(filterRows, 300));
-            }
-        });
-
-      
-    </script>
+    
 
 }
