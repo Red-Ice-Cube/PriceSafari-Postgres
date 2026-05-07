@@ -20,8 +20,7 @@
             </div>
 
             <div class="modal-body">
-
-                <div style="display:flex; justify-content:space-between; gap:24px;">
+                <div style="display:flex; justify-content:space-between; gap:24px; flex: 1; min-height: 0;">
 
                     <div style="display:flex; flex-direction:column;">
                         <select id="presetSelect" style="width:460px;" class="DropDown"></select>
@@ -114,17 +113,15 @@
 
                     </div>
                     <div style="display: flex;
-           flex-wrap: nowrap;
-           gap: 24px;
-           width: 100%;
-           align-items: stretch;
-           justify-content: space-between;">
+                        flex-wrap: nowrap;
+                        gap: 24px;
+                        width: 100%;
+                        align-items: stretch;
+                        justify-content: space-between;
+                        min-height: 0;">
 
-                        <div style="flex: 1;">
-                            <div class="table-scroll"
-                                 style="max-height: 80vh;
-                   min-height: 80vh;
-                   overflow: auto;">
+                        <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                            <div class="table-scroll">
                                 <table class="table-orders"
                                        style="width: 100%;
                       min-width: 500px;
@@ -147,11 +144,8 @@
                             </div>
                         </div>
 
-                        <div style="flex: 1;">
-                            <div class="table-scroll"
-                                 style="max-height: 80vh;
-                   min-height: 80vh;
-                   overflow: auto;">
+                        <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                            <div class="table-scroll">
                                 <table class="table-orders"
                                        style="width: 100%;
                       min-width: 500px;

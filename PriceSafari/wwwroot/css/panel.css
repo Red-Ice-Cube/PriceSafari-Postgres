@@ -225,7 +225,7 @@ p {
     display: flex;
     width: 100%;
     align-items: flex-start;
-    gap: 10px;
+    gap: 12px;
     flex: 1 0 0;
     box-sizing: border-box;
     /* DODAJEMY: */
@@ -247,16 +247,28 @@ p {
 }
 .Page-Box-Category {
     display: flex;
-    min-width: 256px;
-    max-width: 256px;
+    min-width: 250px;
+    max-width: 250px;
     flex-direction: column;
     border-right: 1px solid #EDEDED;
-    padding: 0px 10px 0px 0px;
+    padding: 0px 12px 0px 0px;
     align-items: center;
     gap: 4px;
     align-self: stretch;
     height: 100%; /* ZMIANA Z 88vh */
     overflow: hidden;
+}
+
+.Automation-Table-Box {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    border-radius: 8px;
+    padding: 24px;
+    background: #FFF;
+    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.05);
+    min-width: 956px;
+    height: 95vh; /* Zajmie 85% wysokości ekranu */
 }
 
 /* Nowa klasa na przewijalną treść filtrów */
@@ -5550,6 +5562,7 @@ th small {
         cursor: pointer;
         transition: background-color 0.3s, color 0.3s;
         border-radius: 4px;
+        white-space: nowrap;
     }
 
         #sortingButtons button.active {
@@ -5840,7 +5853,6 @@ th small {
     display: flex;
     gap: 4px;
 }
-
 .modal-sim {
     display: none;
     position: fixed;
@@ -5850,21 +5862,26 @@ th small {
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.7);
+    /* DODAJEMY: Centrowanie flexboxem */
+    align-items: center;
+    justify-content: center;
 }
 
     .modal-sim.show {
-        display: block;
+        display: flex !important; /* To powstrzyma JS przed zmianą na 'block' */
     }
 
 .modal-dialog-sim {
     position: relative;
     width: 90%;
+    /* PRZYWRACAMY CENTROWANIE: */
     margin: 20px auto;
-    max-height: 80vh;
+    height: 100%;
+    max-height: calc(100% - 40px);
     display: flex;
     flex-direction: column;
+    min-height: 0;
 }
-
 .step-indicator {
     display: inline-flex;
     align-items: center;
@@ -5890,9 +5907,17 @@ th small {
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    flex: 1;
+    flex: 1; /* Dzięki temu, że rodzic ma teraz height: 100%, to flex: 1 w końcu zadziała! */
     padding: 24px;
     border-radius: 10px;
+    min-height: 0; /* DODAJEMY: Blokada przed rozsadzeniem przez tabelę */
+}
+
+.modal-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* DODANE: Blokada rośnięcia */
 }
 
 .modal-header,
@@ -5900,17 +5925,15 @@ th small {
     flex-shrink: 0;
 }
 
-.modal-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
 
 .table-scroll {
-    flex: 1;
     overflow-y: auto;
-    max-height: 70vh;
-    min-height: 70vh;
+    /* max-height: 70vh; <--- USUWAMY */
+    /* min-height: 70vh; <--- USUWAMY */
+    /* DODANE: */
+    flex: 1;
+    height: 100%;
+    min-height: 0;
 }
 
     .table-scroll::-webkit-scrollbar {

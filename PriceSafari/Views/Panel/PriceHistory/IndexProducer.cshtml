@@ -76,7 +76,7 @@
         position: static !important;
     }
 
-    /* === INLINE PANEL PROGÓW === */
+    
     .producer-thresholds-section {
    
         display: flex;
@@ -105,15 +105,7 @@
         min-width: 22px;
     }
 
-    .producer-threshold-actions {
-        display: flex;
-        gap: 4px;
-        margin-top: 8px;
-        width: 100%;
-    }
-    .producer-threshold-actions > * { flex: 1; margin: 0 !important; }
 
-    /* Switch %/PLN */
     .useAmountSwitch {
         appearance: none;
         display: flex;
@@ -232,41 +224,7 @@
     .producer-delta-value-row.deep-bad { color: rgba(139, 0, 0, 0.9); }
     .producer-delta-value-row.deep-good { color: rgba(0, 100, 0, 0.9); }
 
-  
-    .producer-sidebar-scroll {
-        flex: 1 1 auto;
-        min-height: 0;
-        width: 100%;
-        overflow-y: auto;
-        overflow-x: hidden;
-        padding-left: 8px;
-        padding-right: 4px;
-    }
-    .producer-sidebar-scroll::-webkit-scrollbar {
-        width: 12px;
-    }
-    .producer-sidebar-scroll::-webkit-scrollbar-track {
-        background: transparent;
-        margin: 4px 0;
-    }
-    .producer-sidebar-scroll::-webkit-scrollbar-thumb {
-        background: #eee;
-        border-radius: 5px;
-        border: 4px solid transparent;
-        background-clip: content-box;
-    }
-    .producer-sidebar-scroll::-webkit-scrollbar-thumb:hover {
-        background: #ddd;
-        border: 4px solid transparent;
-        background-clip: content-box;
-    }
 
-
-    .producer-sidebar-scroll .filterBox {
-        overflow-y: visible;
-        max-height: none;
-      
-    }
 </style>
 
 <div class="Vert">
@@ -282,7 +240,7 @@
                 </div>
 
                 <!-- Scrollowalna część sidebara: buckety + progi + filtry/slidery -->
-                <div class="producer-sidebar-scroll">
+                <div class="sidebar-scroll-area">
 
                 <!-- 9 bucketów (kolejność od góry: brak konkur > brak ref > mocno powyżej > ... > drastyczne) -->
                 <div class="store-section" id="filters-producer">
@@ -378,14 +336,17 @@
                         <span class="producer-unit-label">%</span>
                     </div>
 
-                    <div class="producer-threshold-actions">
-                        <div style="flex: 1; display: flex;">
-                            <input class="useAmountSwitch" type="checkbox" id="useAmountToggle" />
+                        <div style="display: flex; gap: 4px; margin-top: 8px; width: 100%;">
+
+                            <div style="flex: 1; display: flex;">
+                                <input class="useAmountSwitch" style="margin: 0; width: 100%;" type="checkbox" id="useAmountToggle" />
+                            </div>
+
+                            <button class="Button-Page-Small" style="margin: 0; flex: 1; width: 100%; padding-left: 0; padding-right: 0;" id="saveProducerInlineBtn">
+                                Przelicz i zapisz
+                            </button>
+
                         </div>
-                        <button class="Button-Page-Small" id="saveProducerInlineBtn">
-                            Przelicz i zapisz
-                        </button>
-                    </div>
 
                     <div class="error-message-row" id="errInline"></div>
                 </div>
@@ -528,25 +489,32 @@
                         </div>
                     </div>
                 </div>
+                <div class="order-upper-box">
+                    <div id="sortingButtons">
+                        <div class="ProductCount" id="displayedProductCount"></div>
+                        <div id="paginationContainer"></div>
+                   
 
-                <div id="sortingButtons">
-                    <div class="ProductCount" id="displayedProductCount"></div>
-                    <div id="paginationContainer"></div>
-
-                    <button id="sortName">A-Z</button>
-                    <button id="sortPrice">Cena ref.</button>
-                    <button id="sortDeltaPercent">Delta %</button>
-                    <button id="sortDeltaAmount">Delta PLN</button>
-                    <button id="sortDaysViolation">Dni naruszenia</button>
-                    <button id="sortStoresViolating">Liczba naruszycieli</button>
-                </div>
-
-                <div class="buttonsContainer">
-                    <div id="priceChangeSummary" class="priceChangeSummary">
-                        <div id="summaryText"></div>
-                        <button id="openProducerSettingsBtn" class="Button-Page-Small" style="width:48px;" title="Konfiguracja monitoringu"><i class="fa fa-cog"></i></button>
+                        <button id="sortName">A-Z</button>
+                        <button id="sortPrice">Cena ref.</button>
+                        <button id="sortDeltaPercent">Delta %</button>
+                        <button id="sortDeltaAmount">Delta PLN</button>
+                        <button id="sortDaysViolation">Dni naruszenia</button>
+                        <button id="sortStoresViolating">Liczba naruszycieli</button>
+                    </div>
+                    <div class="SimpleSpace" style="justify-content:flex-end;">
+                        <div class="buttonsContainer">
+                            <div id="priceChangeSummary" class="priceChangeSummary">
+                                <div id="summaryText"></div>
+                                <button id="openProducerSettingsBtn" class="Button-Page-Small" style="width:48px;" title="Konfiguracja monitoringu"><i class="fa fa-cog"></i></button>
+                            </div>
+                        </div>
                     </div>
                 </div>
+          
+           
+
+          
 
                 <div class="Vert-table">
                     <div id="priceContainer" class="price-container"></div>
