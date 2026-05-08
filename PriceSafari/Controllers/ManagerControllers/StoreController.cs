@@ -143,8 +143,8 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.DiscountPercentage = store.DiscountPercentage ?? 0;
             existingStore.RemainingDays = store.RemainingDays;
             existingStore.ProductsToScrap = store.ProductsToScrap;
-
             existingStore.StoreNameAllegro = store.StoreNameAllegro;
+            existingStore.ExtraStoreNameOnAllegro = store.ExtraStoreNameOnAllegro;
             existingStore.StoreNameGoogle = store.StoreNameGoogle;
             existingStore.StoreNameCeneo = store.StoreNameCeneo;
             existingStore.FetchExtendedData = store.FetchExtendedData;
@@ -159,10 +159,8 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.OnGoogle = store.OnGoogle;
             existingStore.OnAllegro = store.OnAllegro;
             existingStore.ProductsToScrapAllegro = store.ProductsToScrapAllegro;
-
             existingStore.IntervalLimitOfProducts = store.IntervalLimitOfProducts;
             existingStore.AllegroIntervalLimitOfProducts = store.AllegroIntervalLimitOfProducts;
-
             existingStore.IsAllegroPriceBridgeActive = store.IsAllegroPriceBridgeActive;
             existingStore.IsStorePriceBridgeActive = store.IsStorePriceBridgeActive;
             existingStore.FetchExtendedAllegroData = store.FetchExtendedAllegroData;
@@ -174,7 +172,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             existingStore.GoogleCountryCode = store.GoogleCountryCode;
             existingStore.UseCalculationEnginePerKG = store.UseCalculationEnginePerKG;
             existingStore.UseColorVariantSearch = store.UseColorVariantSearch;
-
             if (!isPaymentDataEmpty && store.PaymentData != null)
             {
 

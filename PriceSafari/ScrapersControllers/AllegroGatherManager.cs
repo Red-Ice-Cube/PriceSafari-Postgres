@@ -1,10 +1,9 @@
-﻿// Plik: ScrapersControllers/AllegroGatherManager.cs
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Threading;
 
 namespace PriceSafari.ScrapersControllers
 {
-    // Status zadania zbierania produktów
+
     public enum ScrapingStatus
     {
         Pending,
@@ -12,7 +11,6 @@ namespace PriceSafari.ScrapersControllers
         Cancelled
     }
 
-    // Stan zadania zbierania
     public class ScrapingTaskState
     {
         public ScrapingStatus Status { get; set; } = ScrapingStatus.Pending;
@@ -29,16 +27,15 @@ namespace PriceSafari.ScrapersControllers
         }
     }
 
-    // Klient scrapera dla Gather (używa ScraperLiveStatus z AllegroScrapeManager)
     public class ScraperClient
     {
         public string Name { get; set; } = string.Empty;
-        public ScraperLiveStatus Status { get; set; }  // Enum z AllegroScrapeManager
+        public ScraperLiveStatus Status { get; set; }
+
         public string? CurrentTaskUsername { get; set; }
         public DateTime LastCheckIn { get; set; }
     }
 
-    // Manager dla Gather (oddzielny od AllegroScrapeManager)
     public static class AllegroGatherManager
     {
         public static readonly ConcurrentDictionary<string, ScrapingTaskState> ActiveTasks = new();

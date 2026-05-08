@@ -16,7 +16,7 @@
         max-height: 400px;
         overflow-y: auto;
         display: flex;
-        flex-direction: column-reverse; /* Nowe logi pojawiają się na górze */
+        flex-direction: column-reverse; 
     }
 
     .log-entry {
@@ -50,7 +50,7 @@
         color: #bf616a;
         margin-left: 10px;
         font-weight: bold;
-        user-select: none; /* Zapobiega zaznaczaniu tekstu przycisku */
+        user-select: none; 
     }
 
         .remove-scraper-btn:hover {
@@ -232,7 +232,7 @@
             const taskStatusColors = { 0: "bg-warning text-dark", 1: "bg-success", 2: "bg-danger" };
 
 
-            // --- Funkcje Pomocnicze ---
+       
             function addLog(time, message, level) {
                 if (!logContainer) return;
                 const logEntry = document.createElement('p');
@@ -257,7 +257,7 @@
                     <small class="text-muted fst-italic">${taskState.lastProgressMessage.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</small>`;
             }
 
-            // --- Handlery Zdarzeń SignalR ---
+      
             connection.on("ReceiveLog", addLog);
 
             connection.on("UpdateScraperStatus", (scraper) => {
@@ -271,11 +271,10 @@
                     container.appendChild(scraperDiv);
                 }
 
-                // Dodajemy ikonę w zależności od statusu
                 let iconHtml = '';
-                if (scraper.status === 1) { // Zajęty
+                if (scraper.status === 1) {
                     iconHtml = '<span class="spinner-border spinner-border-sm text-primary me-1" role="status" aria-hidden="true"></span>';
-                } else if (scraper.status === 3) { // Resetowanie sieci
+                } else if (scraper.status === 3) { 
                     iconHtml = '<i class="fas fa-sync-alt fa-spin me-1"></i>';
                 }
 
@@ -305,11 +304,11 @@
             connection.on("TaskFinished", (username) => {
                 const statusContainer = document.getElementById(`task-status-container-${username}`);
                 const actionContainer = document.getElementById(`task-action-container-${username}`);
-                if (statusContainer) statusContainer.innerHTML = `<span class="badge bg-secondary">${taskStatusNames[0]}</span>`; // Powrót do "Bezczynny"
+                if (statusContainer) statusContainer.innerHTML = `<span class="badge bg-secondary">${taskStatusNames[0]}</span>`; 
                 if (actionContainer) actionContainer.innerHTML = document.getElementById(`start-form-template-${username}`).innerHTML;
             });
 
-            // --- Obsługa Zdarzeń na Stronie ---
+         
             document.getElementById('scrapers-list-container').addEventListener('click', function(e) {
                 if (e.target && e.target.matches('.remove-scraper-btn')) {
                     const scraperName = e.target.dataset.scraperName;
@@ -322,7 +321,6 @@
                 }
             });
 
-            // --- Uruchomienie Połączenia ---
             async function start() {
                 try {
                     await connection.start();

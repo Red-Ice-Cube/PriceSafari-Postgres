@@ -69,6 +69,9 @@ namespace PriceSafari.Models
 
         public string? StoreNameAllegro { get; set; }
 
+        [Display(Name = "Dodatkowa nazwa konta Allegro - Dla findera")]
+        public string? ExtraStoreNameOnAllegro { get; set; }
+
         public bool OnCeneo { get; set; } = false;
         public bool OnGoogle { get; set; } = false;
         public bool OnAllegro { get; set; } = false;

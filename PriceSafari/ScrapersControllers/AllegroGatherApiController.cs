@@ -62,6 +62,12 @@ namespace PriceSafari.ScrapersControllers
             var pendingTask = AllegroGatherManager.ActiveTasks.FirstOrDefault(t => t.Value.Status == ScrapingStatus.Pending);
             if (pendingTask.Key != null)
             {
+                // 1. Zmiana: Szukamy sklepu, by sprawdzić czy ma "ExtraStoreNameOnAllegro"
+                var store = await _context.Stores.FirstOrDefaultAsync(s => s.StoreNameAllegro == pendingTask.Key);
+                string targetUsername = (!string.IsNullOrEmpty(store?.ExtraStoreNameOnAllegro))
+                    ? store.ExtraStoreNameOnAllegro
+                    : pendingTask.Key;
+
                 var taskState = pendingTask.Value;
                 taskState.Status = ScrapingStatus.Running;
                 taskState.AssignedScraperName = scraperName;
@@ -75,32 +81,41 @@ namespace PriceSafari.ScrapersControllers
                 await _hubContext.Clients.All.SendAsync("UpdateScraperStatus", scraper);
                 await _hubContext.Clients.All.SendAsync("UpdateTaskProgress", pendingTask.Key, taskState);
 
-                return Ok(new { allegroUsername = pendingTask.Key });
+                return Ok(new { allegroUsername = targetUsername });
             }
 
             return Ok(new { message = "Brak oczekujących zadań." });
         }
 
+        private async Task<string> ResolveMainUsername(string incomingUsername)
+        {
+            var store = await _context.Stores.FirstOrDefaultAsync(s =>
+                s.StoreNameAllegro == incomingUsername ||
+                s.ExtraStoreNameOnAllegro == incomingUsername);
+
+            return store?.StoreNameAllegro ?? incomingUsername;
+        }
+
+
         [HttpPost("acknowledge-cancel/{username}")]
-
         public async Task<IActionResult> AcknowledgeCancel(string username, [FromHeader(Name = "X-Api-Key")] string receivedApiKey)
-
         {
             if (receivedApiKey != ApiKey) return Unauthorized();
-            if (AllegroGatherManager.ActiveTasks.TryGetValue(username, out var taskState) && taskState.Status == ScrapingStatus.Cancelled)
 
+            // Tłumaczymy incoming alias na główną nazwę
+            string mainUsername = await ResolveMainUsername(username);
+
+            if (AllegroGatherManager.ActiveTasks.TryGetValue(mainUsername, out var taskState) && taskState.Status == ScrapingStatus.Cancelled)
             {
-                if (AllegroGatherManager.ActiveTasks.TryRemove(username, out _))
-
+                if (AllegroGatherManager.ActiveTasks.TryRemove(mainUsername, out _))
                 {
-
-                    await _hubContext.Clients.All.SendAsync("TaskFinished", username);
-                    return Ok(new { message = $"Anulowanie zadania dla '{username}' zostało potwierdzone i usunięte." });
-
+                    await _hubContext.Clients.All.SendAsync("TaskFinished", mainUsername);
+                    return Ok(new { message = $"Anulowanie zadania dla '{mainUsername}' zostało potwierdzone i usunięte." });
                 }
             }
             return NotFound("Nie znaleziono anulowanego zadania o podanej nazwie.");
         }
+
 
         [HttpPost("remove-scraper/{scraperName}")]
         public async Task<IActionResult> RemoveScraper(string scraperName, [FromHeader(Name = "X-Api-Key")] string receivedApiKey)
@@ -121,7 +136,10 @@ namespace PriceSafari.ScrapersControllers
         {
             if (receivedApiKey != ApiKey) return Unauthorized();
 
-            if (AllegroGatherManager.ActiveTasks.TryGetValue(username, out var taskState) &&
+            // Tłumaczymy incoming alias na główną nazwę
+            string mainUsername = await ResolveMainUsername(username);
+
+            if (AllegroGatherManager.ActiveTasks.TryGetValue(mainUsername, out var taskState) &&
                 !string.IsNullOrEmpty(taskState.AssignedScraperName) &&
                 AllegroGatherManager.ActiveScrapers.TryGetValue(taskState.AssignedScraperName, out var scraper))
             {
@@ -161,18 +179,22 @@ namespace PriceSafari.ScrapersControllers
                     await _hubContext.Clients.All.SendAsync("UpdateScraperStatus", scraper);
                 }
 
-                await _hubContext.Clients.All.SendAsync("UpdateTaskProgress", username, taskState);
+                await _hubContext.Clients.All.SendAsync("UpdateTaskProgress", mainUsername, taskState);
                 return Ok();
             }
             return NotFound();
         }
+
+
 
         [HttpPost("finish-task/{username}")]
         public async Task<IActionResult> FinishTask(string username, [FromHeader(Name = "X-Api-Key")] string receivedApiKey)
         {
             if (receivedApiKey != ApiKey) return Unauthorized();
 
-            if (AllegroGatherManager.ActiveTasks.TryRemove(username, out var finishedTask))
+            string mainUsername = await ResolveMainUsername(username);
+
+            if (AllegroGatherManager.ActiveTasks.TryRemove(mainUsername, out var finishedTask))
             {
 
                 if (!string.IsNullOrEmpty(finishedTask.AssignedScraperName) &&
@@ -183,31 +205,39 @@ namespace PriceSafari.ScrapersControllers
                     await _hubContext.Clients.All.SendAsync("UpdateScraperStatus", scraper);
                 }
 
-                await _hubContext.Clients.All.SendAsync("TaskFinished", username);
+                await _hubContext.Clients.All.SendAsync("TaskFinished", mainUsername);
             }
             return Ok(new { message = "Zadanie oznaczone jako zakończone." });
         }
+
+
+
         [HttpPost("submit-products")]
         public async Task<IActionResult> SubmitProducts(
-            [FromHeader(Name = "X-Api-Key")] string receivedApiKey,
-            [FromBody] List<AllegroProductDto> productDtos)
+        [FromHeader(Name = "X-Api-Key")] string receivedApiKey,
+        [FromBody] List<AllegroProductDto> productDtos)
         {
             if (receivedApiKey != ApiKey) return Unauthorized("Błędny klucz API.");
             if (productDtos == null || !productDtos.Any()) return BadRequest("Otrzymano pustą listę produktów.");
 
-            var storeName = productDtos.First().StoreNameAllegro;
-            var store = await _context.Stores.FirstOrDefaultAsync(s => s.StoreNameAllegro == storeName);
-            if (store == null) return NotFound($"Nie znaleziono sklepu dla {storeName}");
+            // Scraper przysyła nam to, co dostał - czyli potencjalnie alias
+            var incomingName = productDtos.First().StoreNameAllegro;
 
-            // 1. Zamiast URL, pobieramy HashSet istniejących IdOnAllegro dla tego sklepu
-            // Pobieramy tylko te, które nie są nullem
+            // Szukamy po aliasie LUB nazwie głównej
+            var store = await _context.Stores.FirstOrDefaultAsync(s =>
+                s.StoreNameAllegro == incomingName ||
+                s.ExtraStoreNameOnAllegro == incomingName);
+
+            if (store == null) return NotFound($"Nie znaleziono sklepu dla {incomingName}");
+
+            // Do reszty operacji bazodanowych i SignalR używamy GŁÓWNEJ nazwy z bazy!
+            var mainStoreName = store.StoreNameAllegro;
+
             var existingIdsForStore = await _context.AllegroProducts
                 .Where(p => p.StoreId == store.StoreId && p.IdOnAllegro != null)
                 .Select(p => p.IdOnAllegro)
                 .ToHashSetAsync();
 
-            // 2. Tworzymy listę kandydatów - zamieniamy DTO na obiekty domenowe
-            // Musimy to zrobić TERAZ, aby wywołać CalculateIdFromUrl() przed sprawdzeniem duplikatu
             var candidates = new List<AllegroProductClass>();
 
             foreach (var dto in productDtos)
@@ -216,20 +246,16 @@ namespace PriceSafari.ScrapersControllers
                 {
                     StoreId = store.StoreId,
                     AllegroProductName = dto.Name,
-                    AllegroOfferUrl = dto.Url, // Zapisujemy oryginalny URL od scrapera
+                    AllegroOfferUrl = dto.Url,
+
                     AddedDate = DateTime.UtcNow
                 };
 
-                // Tu dzieje się magia - wyciągamy ID z URL (np. z parametru offerId lub z końca stringa)
                 product.CalculateIdFromUrl();
 
                 candidates.Add(product);
             }
 
-            // 3. Filtrujemy kandydatów
-            // a) IdOnAllegro nie może być nullem (błąd parsowania URL)
-            // b) IdOnAllegro nie może istnieć w bazie (existingIdsForStore)
-            // c) DistinctBy - zabezpieczenie, gdyby scraper przysłał duplikaty w jednej paczce
             var newProducts = candidates
                 .Where(p => !string.IsNullOrEmpty(p.IdOnAllegro) && !existingIdsForStore.Contains(p.IdOnAllegro))
                 .DistinctBy(p => p.IdOnAllegro)
@@ -243,16 +269,16 @@ namespace PriceSafari.ScrapersControllers
             await _context.AllegroProducts.AddRangeAsync(newProducts);
             await _context.SaveChangesAsync();
 
-            if (AllegroGatherManager.ActiveTasks.TryGetValue(storeName, out var taskState))
+            if (AllegroGatherManager.ActiveTasks.TryGetValue(mainStoreName, out var taskState))
             {
                 taskState.IncrementOffers(newProducts.Count);
-                await _hubContext.Clients.All.SendAsync("UpdateTaskProgress", storeName, taskState);
+                await _hubContext.Clients.All.SendAsync("UpdateTaskProgress", mainStoreName, taskState);
             }
 
             return Ok(new { message = $"Zapisano {newProducts.Count} nowych produktów (pominięto {productDtos.Count - newProducts.Count} duplikatów)." });
         }
     }
-        public class AllegroProductDto
+    public class AllegroProductDto
     {
         public string Name { get; set; }
         public string Url { get; set; }

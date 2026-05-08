@@ -22,10 +22,6 @@ namespace PriceSafari.Services.AllegroServices
             _logger = logger;
         }
 
-        // =====================================================================
-        // REZULTATY
-        // =====================================================================
-
         public class StoreGatherStats
         {
             public string StoreName { get; set; } = "";
@@ -51,10 +47,6 @@ namespace PriceSafari.Services.AllegroServices
             public List<StoreGatherStats> StoreStats { get; set; } = new();
         }
 
-        // =====================================================================
-        // ZLECANIE SCRAPOWANIA DLA JEDNEGO SKLEPU (kontroler)
-        // =====================================================================
-
         public async Task<(bool Success, string Message)> StartScrapingForStoreAsync(int storeId)
         {
             var store = await _context.Stores.FindAsync(storeId);
@@ -75,19 +67,12 @@ namespace PriceSafari.Services.AllegroServices
             return (false, "Zadanie dla tego sklepu jest już w trakcie lub oczekuje na wykonanie.");
         }
 
-        // =====================================================================
-        // ZLECANIE + OCZEKIWANIE + AUTO-AKTYWACJA (scheduler)
-        // =====================================================================
 
-        /// <summary>
-        /// Zleca zbieranie ofert, czeka na zakończenie, a następnie automatycznie
-        /// aktywuje nowe produkty (IsScrapable = true) do limitu sklepu.
-        /// </summary>
+
         public async Task<GatherResult> StartAndWaitForStoresAsync(List<int> storeIds, CancellationToken ct)
         {
             var result = new GatherResult();
 
-            // 1. Pobierz sklepy z bazy
             var stores = await _context.Stores
                 .Where(s => storeIds.Contains(s.StoreId) && !string.IsNullOrEmpty(s.StoreNameAllegro))
                 .ToListAsync(ct);
@@ -98,7 +83,6 @@ namespace PriceSafari.Services.AllegroServices
                 return result;
             }
 
-            // 2. SNAPSHOT PRZED — zliczamy produkty i aktywne produkty przed rozpoczęciem
             var snapshotBefore = new Dictionary<int, (int TotalProducts, int ActiveProducts, int Limit, string StoreName, string AllegroName)>();
 
             foreach (var store in stores)
@@ -110,7 +94,6 @@ namespace PriceSafari.Services.AllegroServices
                 snapshotBefore[store.StoreId] = (totalProducts, activeProducts, limit, store.StoreName, store.StoreNameAllegro);
             }
 
-            // 3. Zlecaj zadania
             var queuedAllegroNames = new List<string>();
             var storeIdByAllegroName = new Dictionary<string, int>();
 
@@ -138,7 +121,6 @@ namespace PriceSafari.Services.AllegroServices
                 return result;
             }
 
-            // 4. Czekaj na zakończenie
             _logger.LogInformation("[GATHER] Oczekiwanie na zakończenie {Count} zadań...", queuedAllegroNames.Count);
 
             while (!ct.IsCancellationRequested)
@@ -159,7 +141,6 @@ namespace PriceSafari.Services.AllegroServices
                 await Task.Delay(TimeSpan.FromSeconds(15), ct);
             }
 
-            // 5. SNAPSHOT PO + AUTO-AKTYWACJA + STATYSTYKI
             foreach (var allegroName in queuedAllegroNames)
             {
                 var storeId = storeIdByAllegroName[allegroName];
@@ -174,7 +155,6 @@ namespace PriceSafari.Services.AllegroServices
                     Limit = before.Limit
                 };
 
-                // Sprawdź czy zadanie się zakończyło (klucz usunięty) czy anulowano
                 bool wasCancelled = AllegroGatherManager.ActiveTasks.ContainsKey(allegroName);
                 stats.WasCancelled = wasCancelled;
                 stats.Completed = !wasCancelled;
@@ -188,10 +168,8 @@ namespace PriceSafari.Services.AllegroServices
                     result.StoresCompleted++;
                 }
 
-                // Policz produkty po zakończeniu
                 stats.ProductsAfter = await _context.AllegroProducts.CountAsync(p => p.StoreId == storeId, ct);
 
-                // AUTO-AKTYWACJA: aktywuj nowe produkty do limitu
                 if (stats.NewProductsFound > 0 && stats.Completed)
                 {
                     var currentActive = await _context.AllegroProducts.CountAsync(p => p.StoreId == storeId && p.IsScrapable, ct);
@@ -199,7 +177,7 @@ namespace PriceSafari.Services.AllegroServices
 
                     if (remainingSlots > 0)
                     {
-                        // Pobieramy nowe, nieaktywne, nieodrzucone produkty (najnowsze pierwsze)
+
                         var productsToActivate = await _context.AllegroProducts
                             .Where(p => p.StoreId == storeId && !p.IsScrapable && !p.IsRejected)
                             .OrderByDescending(p => p.AddedDate)
@@ -220,7 +198,6 @@ namespace PriceSafari.Services.AllegroServices
                     }
                 }
 
-                // Finalne zliczenie aktywnych
                 stats.ActiveAfter = await _context.AllegroProducts.CountAsync(p => p.StoreId == storeId && p.IsScrapable, ct);
 
                 result.StoreStats.Add(stats);
@@ -231,10 +208,6 @@ namespace PriceSafari.Services.AllegroServices
 
             return result;
         }
-
-        // =====================================================================
-        // ANULOWANIE
-        // =====================================================================
 
         public async Task<(bool Success, string Message)> CancelScrapingForStoreAsync(int storeId)
         {
@@ -256,10 +229,6 @@ namespace PriceSafari.Services.AllegroServices
 
             return (false, "Nie znaleziono aktywnego zadania dla tego sklepu.");
         }
-
-        // =====================================================================
-        // USUWANIE WSZYSTKICH PRODUKTÓW
-        // =====================================================================
 
         public async Task<(bool Success, string Message)> DeleteAllProductsAsync()
         {
