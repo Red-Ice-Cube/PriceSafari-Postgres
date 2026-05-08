@@ -171,7 +171,7 @@
             align-self: stretch;
             flex-shrink: 0;
             gap: 8px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 2px solid rgba(255,255,255,0.06);
         }
         .Sidebar-header-top {
             display: flex;
@@ -425,7 +425,7 @@
             }
             else if (isMember)
             {
-                <div class="@(controllerName == "Chanel" || controllerName == "PriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
+                <div class="@(controllerName == "Chanel" || controllerName == "PriceHistory" || controllerName == "AllegroPriceHistory" ? "active-link" : "inactive-link") menu-link" onclick="location.href='@Url.Action("Index", "Chanel")'">
                     <img src="~/images/MoneyIn-bone.svg" alt="Panel Icon" class="menu-icon" />
                 </div>
                 @if (user?.AccesToViewPriceAutomation == true)

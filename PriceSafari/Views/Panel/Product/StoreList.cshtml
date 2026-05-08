@@ -14,6 +14,13 @@
     .icon-disabled {
         filter: grayscale(100%);
     }
+
+    .text-inactive {
+        margin: 0;
+        font-weight: 500;
+        color: #999; 
+      
+    }
 </style>
 
 <div class="Vert">
@@ -21,6 +28,7 @@
         <div class="Order-Container-Title">
             Produkty
         </div>
+
         @if (Model != null && Model.Any())
         {
             <div class="Vert-table">
@@ -41,6 +49,7 @@
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
                                 </td>
                                 <td>@store.StoreName</td>
+
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 15px;">
                                         <a href="@Url.Action("ProductList", "Product", new { storeId = store.StoreId })"
@@ -51,11 +60,19 @@
                                             <img src="/images/GoogleShopping.png" alt="Google Shopping" class="@(store.OnGoogle ? "" : "icon-disabled")" />
                                         </a>
                                         <div>
-                                            <p style="margin: 0; font-weight: 500;">@store.ProductCount / @store.AllowedProducts</p>
-                                            <p style="margin: 0; font-size: 0.8em; color: #777;">Monitorowane produkty</p>
+                                            @if (store.OnCeneo || store.OnGoogle)
+                                            {
+                                                <p style="margin: 0; font-weight: 500;">@store.ProductCount / @store.AllowedProducts</p>
+                                                <p style="margin: 0; font-size: 0.8em; color: #777;">Monitorowane produkty</p>
+                                            }
+                                            else
+                                            {
+                                                <p class="text-inactive">Nieaktywne</p>
+                                            }
                                         </div>
                                     </div>
                                 </td>
+
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 15px;">
                                         <a href="@Url.Action("AllegroProductList", "AllegroProduct", new { storeId = store.StoreId })"
@@ -65,8 +82,15 @@
                                             <img src="/images/AllegroIcon.png" alt="Allegro" class="@(store.OnAllegro ? "" : "icon-disabled")" />
                                         </a>
                                         <div>
-                                            <p style="margin: 0; font-weight: 500;">@store.AllegroProductCount / @store.AllegroAllowedProducts</p>
-                                            <p style="margin: 0; font-size: 0.8em; color: #777;">Monitorowane produkty</p>
+                                            @if (store.OnAllegro)
+                                            {
+                                                <p style="margin: 0; font-weight: 500;">@store.AllegroProductCount / @store.AllegroAllowedProducts</p>
+                                                <p style="margin: 0; font-size: 0.8em; color: #777;">Monitorowane produkty</p>
+                                            }
+                                            else
+                                            {
+                                                <p class="text-inactive">Nieaktywne</p>
+                                            }
                                         </div>
                                     </div>
                                 </td>

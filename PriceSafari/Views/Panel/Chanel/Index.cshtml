@@ -14,6 +14,13 @@
     .icon-disabled {
         filter: grayscale(100%);
     }
+
+    .text-inactive {
+        margin: 0;
+        font-weight: 500;
+        color: #999;
+ 
+    }
 </style>
 
 <div class="Vert">
@@ -21,6 +28,7 @@
         <div class="Order-Container-Title">
             Monitoring Cen
         </div>
+
         @if (Model != null && Model.Any())
         {
             <div class="Vert-table">
@@ -41,6 +49,7 @@
                                     <img src="@store.LogoUrl" class="img-container" alt="@store.StoreName" />
                                 </td>
                                 <td>@store.StoreName</td>
+
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 15px;">
                                         <a href="@Url.Action("Index", "PriceHistory", new { storeId = store.StoreId })"
@@ -51,25 +60,30 @@
                                             <img src="/images/GoogleShopping.png" alt="Google Shopping" class="@(store.OnGoogle ? "" : "icon-disabled")" />
                                         </a>
                                         <div>
-                                            @if (store.LastScrapeDate.HasValue)
+                                            @if (store.OnCeneo || store.OnGoogle)
                                             {
-                                             
-                                                <p style="margin: 0; font-weight: 500;"
-                                                   class="time-since-scrape"
-                                                   data-scrape-date="@store.LastScrapeDate?.ToString("o")">
-                                                    Obliczanie...
-                                                </p>
-                                     
-                                                <p style="margin: 0; font-size: 0.8em; color: #777;">@store.LastScrapeDate?.ToString("g")</p>
+                                                if (store.LastScrapeDate.HasValue)
+                                                {
+                                                    <p style="margin: 0; font-weight: 500;"
+                                                       class="time-since-scrape"
+                                                       data-scrape-date="@store.LastScrapeDate?.ToString("o")">
+                                                        Obliczanie...
+                                                    </p>
+                                                    <p style="margin: 0; font-size: 0.8em; color: #777;">@store.LastScrapeDate?.ToString("g")</p>
+                                                }
+                                                else
+                                                {
+                                                    <p style="margin: 0; font-weight: 500;">Brak danych</p>
+                                                }
                                             }
                                             else
                                             {
-                                                <p style="margin: 0; font-weight: 500;">Nieaktywne</p>
-                                                <p style="margin: 0; font-size: 0.8em; color: #777;">Brak danych</p>
+                                                <p class="text-inactive">Nieaktywne</p>
                                             }
                                         </div>
                                     </div>
                                 </td>
+
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 15px;">
                                         <a href="@Url.Action("Index", "AllegroPriceHistory", new { storeId = store.StoreId })"
@@ -79,21 +93,25 @@
                                             <img src="/images/AllegroIcon.png" alt="Allegro" class="@(store.OnAllegro ? "" : "icon-disabled")" />
                                         </a>
                                         <div>
-                                            @if (store.AllegroLastScrapeDate.HasValue)
+                                            @if (store.OnAllegro)
                                             {
-                                             
-                                                <p style="margin: 0; font-weight: 500;"
-                                                   class="time-since-scrape"
-                                                   data-scrape-date="@store.AllegroLastScrapeDate?.ToString("o")">
-                                                    Obliczanie...
-                                                </p>
-                                            
-                                                <p style="margin: 0; font-size: 0.8em; color: #777;">@store.AllegroLastScrapeDate?.ToString("g")</p>
+                                                if (store.AllegroLastScrapeDate.HasValue)
+                                                {
+                                                    <p style="margin: 0; font-weight: 500;"
+                                                       class="time-since-scrape"
+                                                       data-scrape-date="@store.AllegroLastScrapeDate?.ToString("o")">
+                                                        Obliczanie...
+                                                    </p>
+                                                    <p style="margin: 0; font-size: 0.8em; color: #777;">@store.AllegroLastScrapeDate?.ToString("g")</p>
+                                                }
+                                                else
+                                                {
+                                                    <p style="margin: 0; font-weight: 500;">Brak danych</p>
+                                                }
                                             }
                                             else
                                             {
-                                                <p style="margin: 0; font-weight: 500;">Nieaktywne</p>
-                                                <p style="margin: 0; font-size: 0.8em; color: #777;">Brak danych</p>
+                                                <p class="text-inactive">Nieaktywne</p>
                                             }
                                         </div>
                                     </div>
@@ -141,7 +159,6 @@
                         }
                         timeString += `${minutes} min temu`;
 
-                        // ZMIANA: Dodano tekst "Wykonano analizę" przed czasem
                         element.textContent = `Zebrano dane ${timeString}`;
                     } else {
                         element.textContent = 'Błąd w dacie';
