@@ -185,6 +185,11 @@
         /// Null jeśli źródło inne lub nie wiadomo.
         /// </summary>
         public int? LastKnownStepIdx { get; set; }
+
+        // ═══ DANE SPRZEDAŻOWE (tylko Allegro) ═══
+        public int? TotalPopularity { get; set; }
+        public int? MyTotalPopularity { get; set; }
+        public decimal? MarketSharePercentage { get; set; }
     }
 
 

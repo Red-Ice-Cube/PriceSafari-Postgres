@@ -224,6 +224,18 @@ namespace PriceSafari.IntervalPriceChanger.Services
                             && h.Price > 0 && h.Price < myHistory.Price);
                 }
 
+                // === Dane sprzedażowe (popularity / market share) ===
+                int totalPopularity = histories.Sum(h => h.Popularity ?? 0);
+
+                int myPopularity = histories
+                    .Where(h => h.SellerName != null
+                                && h.SellerName.Equals(myStoreName, StringComparison.OrdinalIgnoreCase))
+                    .Sum(h => h.Popularity ?? 0);
+
+                decimal marketSharePercentage = (totalPopularity > 0)
+                    ? Math.Round(((decimal)myPopularity / totalPopularity) * 100, 2)
+                    : 0m;
+
                 var competitorPrices = competitors.Select(c => c.Price).ToList();
                 string currentRank = "-";
                 if (myHistory != null && myHistory.Price > 0)
@@ -271,7 +283,9 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     IsCommissionIncluded = parent.MarketplaceIncludeCommission,
 
                     HasCheaperOwnOffer = hasCheaperOwn,
-
+                    TotalPopularity = totalPopularity,
+                    MyTotalPopularity = myPopularity,
+                    MarketSharePercentage = marketSharePercentage,
                     FlagIds = productFlagsLookup.ContainsKey(p.AllegroProductId)
                         ? productFlagsLookup[p.AllegroProductId]
                         : new List<int>(),

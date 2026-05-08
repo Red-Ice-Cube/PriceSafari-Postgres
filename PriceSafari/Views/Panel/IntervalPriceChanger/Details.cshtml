@@ -231,6 +231,55 @@
     background: rgba(0,145,123,1);
     border-color: rgba(0,145,123,1);
 }
+
+    .sales-info-wrapper {
+        display: inline-block;
+        min-width: 138px;
+    }
+
+    .sales-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2px 5px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #ffffff !important;
+        margin-right: 6px;
+        min-width: 58px;
+        height: 20.5px;
+        gap: 4px;
+    }
+
+    .badge-sales-market {
+        background-color: #545b62;
+    }
+
+    .badge-sales-mine {
+        background-color: #d38a36;
+    }
+
+    .badge-sales-share {
+        background-color: #5da189;
+    }
+
+    .sales-value-text {
+        font-weight: 500;
+        font-size: 12px;
+    }
+
+    .sales-empty-box {
+        display: inline-block;
+        min-width: 138px;
+        padding: 8px 10px;
+        text-align: center;
+        border: 1px solid #e3e6f0;
+        border-radius: 4px;
+        background: #f8f9fc;
+        color: #b7b9cc;
+        font-size: 12px;
+    }
 </style>
 
 
@@ -527,6 +576,10 @@
                         <tr>
                             <th style="min-width:240px;">Produkt</th>
                             <th style="max-width:170px; min-width:165px;">Limity Cenowe</th>
+                            @if (isMarketplace)
+                            {
+                                <th style="min-width: 145px; width: 150px;">Sprzedaż</th>
+                            }
                             <th style="min-width:235px;">Dane z rynku - Twoja oferta</th>
                             <th style="min-width:200px;">Najlepszy Rywal</th>
                             <th style="min-width:190px;">Ostatnia Znana Cena</th>
@@ -566,16 +619,19 @@
 
                             string rowNextExecIso = item.NextExecutionTime?.ToString("yyyy-MM-ddTHH:mm:ss") ?? "";
 
-                            <tr data-status="@item.Status.ToString()"
-                                data-has-purchase-price="@item.PurchasePrice.HasValue.ToString().ToLower()"
-                                data-has-min-limit="@item.MinPriceLimit.HasValue.ToString().ToLower()"
-                                data-has-max-limit="@item.MaxPriceLimit.HasValue.ToString().ToLower()"
-                                data-limited-by-min="@item.IsLimitedByMin.ToString().ToLower()"
-                                data-limited-by-max="@item.IsLimitedByMax.ToString().ToLower()"
-                                data-has-margin-warning="@item.IsMarginWarning.ToString().ToLower()"
-                                data-is-subsidy="@item.IsSubsidyActive.ToString().ToLower()"
-                                data-is-campaign="@item.IsInAnyCampaign.ToString().ToLower()"
-                                data-flag-ids="@(item.FlagIds != null ? string.Join(",", item.FlagIds) : "")">
+                         <tr data-status="@item.Status.ToString()"
+                            data-has-purchase-price="@item.PurchasePrice.HasValue.ToString().ToLower()"
+                            data-has-min-limit="@item.MinPriceLimit.HasValue.ToString().ToLower()"
+                            data-has-max-limit="@item.MaxPriceLimit.HasValue.ToString().ToLower()"
+                            data-limited-by-min="@item.IsLimitedByMin.ToString().ToLower()"
+                            data-limited-by-max="@item.IsLimitedByMax.ToString().ToLower()"
+                            data-has-margin-warning="@item.IsMarginWarning.ToString().ToLower()"
+                            data-is-subsidy="@item.IsSubsidyActive.ToString().ToLower()"
+                            data-is-campaign="@item.IsInAnyCampaign.ToString().ToLower()"
+                            data-flag-ids="@(item.FlagIds != null ? string.Join(",", item.FlagIds) : "")"
+                            data-pop-total="@(item.TotalPopularity ?? 0)"
+                            data-pop-mine="@(item.MyTotalPopularity ?? 0)"
+                            data-pop-share="@((item.MarketSharePercentage ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">
 
                               
                                 <td class="align-middle">
@@ -695,6 +751,50 @@
                                         </div>
                                     </div>
                                 </td>
+
+                                @if (isMarketplace)
+                                {
+                                    <td class="align-middle">
+                                        @if (item.TotalPopularity.HasValue && item.TotalPopularity.Value > 0)
+                                        {
+                                            <div class="bg-light p-2 rounded border sales-info-wrapper">
+                                                <div class="d-flex justify-content-between align-items-center mb-1"
+                                                     title="Łączna sprzedaż w katalogu (30 dni)">
+                                                    <span class="sales-badge badge-sales-market">
+                                                        <i class="fas fa-shopping-cart" style="font-size: 9px;"></i> Rynek
+                                                    </span>
+                                                    <span class="sales-value-text" style="color: #545b62;">
+                                                        @item.TotalPopularity szt.
+                                                    </span>
+                                                </div>
+
+                                                <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1"
+                                                     title="Twoja sprzedaż w katalogu (30 dni)">
+                                                    <span class="sales-badge badge-sales-mine">
+                                                        <i class="fas fa-store" style="font-size: 9px;"></i> Moje
+                                                    </span>
+                                                    <span class="sales-value-text" style="color: #d38a36;">
+                                                        @(item.MyTotalPopularity ?? 0) szt.
+                                                    </span>
+                                                </div>
+
+                                                <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1"
+                                                     title="Twój udział w rynku">
+                                                    <span class="sales-badge badge-sales-share">
+                                                        <i class="fas fa-chart-pie" style="font-size: 9px;"></i> Udział
+                                                    </span>
+                                                    <span class="sales-value-text" style="color: #5da189; font-weight: 700;">
+                                                        @((item.MarketSharePercentage ?? 0).ToString("F2"))%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="sales-empty-box">Brak danych</span>
+                                        }
+                                    </td>
+                                }
                            
                                 <td class="align-middle text-right">
                                     <div class="price-row-block">
@@ -1385,6 +1485,16 @@ function _executeIntervalUnassign(ctx) {
                     ]
                 },
                 {
+                    id: 'marketplace-sales',
+                    label: 'Sprzedaż',
+                    showIf: isMarketplaceCtx,
+                    filters: [
+                        { key: 'sort-total', label: 'Sprzedaż Katalog', icon: 'fa-shopping-cart', attr: 'data-pop-total', isSort: true },
+                        { key: 'sort-mine', label: 'Moja Sprzedaż', icon: 'fa-chart-pie', attr: 'data-pop-mine', isSort: true },
+                        { key: 'sort-share', label: 'Udział w rynku', icon: 'fa-percent', attr: 'data-pop-share', isSort: true }
+                    ]
+                },
+                {
                     id: 'prices', label: 'Ceny',
                     filters: [
                         { key: 'has-purchase', label: 'Ma cenę zakupu', icon: 'fa-tag', attr: 'data-has-purchase-price', value: 'true' },
@@ -1441,6 +1551,8 @@ function _executeIntervalUnassign(ctx) {
                 toolbar.innerHTML = '';
 
                 filterGroups.forEach(group => {
+                    if (group.showIf === false) return;
+
                     const ge = document.createElement('div');
                     ge.className = 'filter-group';
                     ge.dataset.groupId = group.id;
@@ -1450,15 +1562,26 @@ function _executeIntervalUnassign(ctx) {
                     ge.appendChild(lbl);
 
                     group.filters.forEach(filter => {
-                        const count = countMatching(filter.attr, filter.value);
+                        const count = filter.isSort ? 0 : countMatching(filter.attr, filter.value);
                         const btn = document.createElement('button');
                         btn.className = 'filter-btn';
                         btn.dataset.filterKey = filter.key;
                         btn.dataset.filterAttr = filter.attr;
-                        btn.dataset.filterValue = filter.value;
+                        btn.dataset.filterValue = filter.value || '';
+                        btn.dataset.groupId = group.id;
                         if (filter.color) btn.dataset.filterColor = filter.color;
-                        btn.innerHTML = `<i class="fas ${filter.icon}" style="font-size:10px;"></i> ${filter.label} <span class="filter-count">${count}</span>`;
-                        if (count === 0) { btn.disabled = true; btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; }
+
+                        btn.innerHTML = `<i class="fas ${filter.icon}" style="font-size:10px;"></i> ${filter.label} ${
+                            !filter.isSort
+                                ? `<span class="filter-count">${count}</span>`
+                                : `<span class="filter-count sort-indicator" style="display:none;"><i class="fas fa-arrow-down"></i></span>`
+                        }`;
+
+                        if (count === 0 && !filter.isSort) {
+                            btn.disabled = true;
+                            btn.style.opacity = '0.5';
+                            btn.style.cursor = 'not-allowed';
+                        }
                         ge.appendChild(btn);
                     });
                     toolbar.appendChild(ge);
@@ -1481,9 +1604,54 @@ function _executeIntervalUnassign(ctx) {
                 document.getElementById('filterToolbar').addEventListener('click', function(e) {
                     const btn = e.target.closest('.filter-btn');
                     if (!btn || btn.disabled) return;
-                    toggleFilter(btn.dataset.filterKey, btn.dataset.filterAttr, btn.dataset.filterValue, btn);
+
+                    const key = btn.dataset.filterKey;
+                    const group = filterGroups.find(g => g.id === btn.dataset.groupId);
+                    if (!group) return;
+                    const filterDef = group.filters.find(f => f.key === key);
+                    if (!filterDef) return;
+
+                    if (filterDef.isSort) {
+                        handleSortClick(btn, filterDef);
+                    } else {
+                        toggleFilter(btn.dataset.filterKey, btn.dataset.filterAttr, btn.dataset.filterValue, btn);
+                    }
                 });
                 document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
+            }
+
+            function handleSortClick(btn, filterDef) {
+                const attr = filterDef.attr;
+                const tbody = document.querySelector('#intervalTable tbody');
+                const indicator = btn.querySelector('.sort-indicator');
+                let currentDir = btn.getAttribute('data-sort-dir') || 'none';
+
+   
+                document.querySelectorAll('[data-group-id="' + btn.dataset.groupId + '"]').forEach(b => {
+                    if (b !== btn) {
+                        b.classList.remove('active');
+                        b.setAttribute('data-sort-dir', 'none');
+                        const ind = b.querySelector('.sort-indicator');
+                        if (ind) ind.style.display = 'none';
+                    }
+                });
+
+                if (currentDir === 'none') {
+                    btn.setAttribute('data-sort-dir', 'desc');
+                    btn.classList.add('active');
+                    if (indicator) { indicator.innerHTML = '<i class="fas fa-arrow-down"></i>'; indicator.style.display = 'inline-flex'; }
+                    [...allRows].sort((a, b) => (parseFloat(b.getAttribute(attr)) || 0) - (parseFloat(a.getAttribute(attr)) || 0)).forEach(row => tbody.appendChild(row));
+                } else if (currentDir === 'desc') {
+                    btn.setAttribute('data-sort-dir', 'asc');
+                    btn.classList.add('active');
+                    if (indicator) { indicator.innerHTML = '<i class="fas fa-arrow-up"></i>'; indicator.style.display = 'inline-flex'; }
+                    [...allRows].sort((a, b) => (parseFloat(a.getAttribute(attr)) || 0) - (parseFloat(b.getAttribute(attr)) || 0)).forEach(row => tbody.appendChild(row));
+                } else {
+                    btn.setAttribute('data-sort-dir', 'none');
+                    btn.classList.remove('active');
+                    if (indicator) indicator.style.display = 'none';
+                    allRows.forEach(row => tbody.appendChild(row));
+                }
             }
 
             function toggleFilter(key, attr, value, btn) {
@@ -1522,8 +1690,14 @@ function _executeIntervalUnassign(ctx) {
 
             function resetFilters() {
                 activeFilters.clear();
-                document.querySelectorAll('.filter-btn.active').forEach(b => b.classList.remove('active'));
-                allRows.forEach(r => r.classList.remove('filter-hidden'));
+                document.querySelectorAll('.filter-btn.active').forEach(b => {
+                    b.classList.remove('active');
+                    b.setAttribute('data-sort-dir', 'none');
+                    const ind = b.querySelector('.sort-indicator');
+                    if (ind) ind.style.display = 'none';
+                });
+                const tbody = document.querySelector('#intervalTable tbody');
+                allRows.forEach(r => { r.classList.remove('filter-hidden'); tbody.appendChild(r); });
                 document.getElementById('resetFiltersBtn').style.display = 'none';
                 updateTotalCount();
             }

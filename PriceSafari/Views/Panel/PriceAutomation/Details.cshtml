@@ -857,10 +857,10 @@
         border-color: #4d6b3a;
     }
 
-    tr.filter-hidden {
+    tr.filter-hidden,
+    tr.search-hidden {
         display: none !important;
     }
-
     .status-waiting-color {
         color: #f6c23e;
     }
@@ -2993,6 +2993,74 @@ else
             }
         });
     }
+    window.updateCombinedTotalCount = function() {
+            const totalEl = document.getElementById('totalCount');
+            const visibleEl = document.getElementById('visibleCount');
+
+            const rows = Array.from(document.querySelectorAll('#automationTable tbody tr.main-product-row'));
+
+            if (totalEl) totalEl.textContent = rows.length;
+            if (visibleEl) {
+                visibleEl.textContent = rows.filter(r => !r.classList.contains('filter-hidden') && !r.classList.contains('search-hidden')).length;
+            }
+        };
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const searchInput = document.getElementById('productSearch');
+
+            const tableBody = document.querySelector('#automationTable tbody');
+            if (!tableBody) return;
+
+            let tableRows = Array.from(tableBody.querySelectorAll('tr.main-product-row')).map(row => {
+                const nameWrap = row.querySelector('.product-name-wrap');
+                const nameEl = nameWrap ? (nameWrap.querySelector('a') || nameWrap) : null;
+
+                const btn = row.querySelector('.select-product-btn');
+                const codeEl = btn ? btn.nextElementSibling : null;
+
+                return {
+                    element: row, 
+                    nameEl: nameEl, 
+                    codeEl: codeEl,
+                    originalNameHtml: nameEl?.innerHTML || '',
+                    originalCodeHtml: codeEl?.innerHTML || '',
+                    searchText: ((nameEl?.textContent || '') + ' ' + (codeEl?.textContent || '')).toLowerCase()
+                };
+            });
+
+            function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+            function highlight(html, term) {
+                if (!term) return html;
+                const regex = new RegExp(`(${escapeRegExp(term)})(?![^<]*>)`, 'gi');
+                return html.replace(regex, '<span class="highlighted-text">$1</span>');
+            }
+
+            let debounceTimer;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function() {
+                    const raw = searchInput.value.trim();
+                    const term = raw.toLowerCase();
+
+                    tableRows.forEach(r => {
+                        const match = term === '' || r.searchText.includes(term);
+
+                        if (match) {
+                            r.element.classList.remove('search-hidden');
+                        } else {
+                            r.element.classList.add('search-hidden');
+                        }
+
+                        if (r.nameEl) r.nameEl.innerHTML = term ? highlight(r.originalNameHtml, raw) : r.originalNameHtml;
+                        if (r.codeEl) r.codeEl.innerHTML = term ? highlight(r.originalCodeHtml, raw) : r.originalCodeHtml;
+                    });
+
+                    updateCombinedTotalCount();
+                    if (typeof massActions !== 'undefined') massActions.updateVisibleButtons();
+                }, 300);
+            });
+        });
 </script>
 
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
@@ -3978,17 +4046,12 @@ else
                     if (countEl) countEl.textContent = count;
                 });
             }
+        
             function updateTotalCount() {
-                const totalEl = document.getElementById('totalCount');
-                const visibleEl = document.getElementById('visibleCount');
-
-                if (totalEl) totalEl.textContent = allRows.length;
-                if (visibleEl) {
-                    const visible = allRows.filter(row => !row.classList.contains('filter-hidden')).length;
-                    visibleEl.textContent = visible;
+                if (typeof window.updateCombinedTotalCount === 'function') {
+                    window.updateCombinedTotalCount();
                 }
             }
-
             function bindEvents() {
                 document.getElementById('filterToolbar').addEventListener('click', function(e) {
                     const btn = e.target.closest('.filter-btn');
