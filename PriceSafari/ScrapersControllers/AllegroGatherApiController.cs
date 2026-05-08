@@ -77,7 +77,14 @@ namespace PriceSafari.ScrapersControllers
                 scraper.Status = ScraperLiveStatus.Busy;
                 scraper.CurrentTaskUsername = pendingTask.Key;
 
-                await SendLog($"Przydzielono zadanie '{pendingTask.Key}' do scrapera '{scraperName}'.");
+                if (targetUsername != pendingTask.Key)
+                {
+                    await SendLog($"Przydzielono zadanie '{pendingTask.Key}' (używając aliasu: '{targetUsername}') do scrapera '{scraperName}'.");
+                }
+                else
+                {
+                    await SendLog($"Przydzielono zadanie '{pendingTask.Key}' do scrapera '{scraperName}'.");
+                }
                 await _hubContext.Clients.All.SendAsync("UpdateScraperStatus", scraper);
                 await _hubContext.Clients.All.SendAsync("UpdateTaskProgress", pendingTask.Key, taskState);
 

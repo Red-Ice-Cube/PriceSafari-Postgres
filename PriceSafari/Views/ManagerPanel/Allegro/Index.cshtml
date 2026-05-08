@@ -106,20 +106,33 @@
             </div>
             <div class="card-body">
                 <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Nazwa Sklepu</th>
-                            <th>Nazwa Allegro</th>
-                            <th>Status Zadania</th>
-                            <th style="width: 150px;">Akcja</th>
-                        </tr>
-                    </thead>
+                <thead>
+                    <tr>
+                        <th>Nazwa Sklepu</th>
+                        <th>Nazwa Allegro</th>
+                        <th>Dodatkowa Nazwa (Marki)</th>
+                        <th>Status Zadania</th>
+                        <th style="width: 150px;">Akcja</th>
+                    </tr>
+                </thead>
                     <tbody>
                         @foreach (var store in Model.ScrapableStores)
                         {
                             <tr>
                                 <td>@store.StoreName</td>
                                 <td>@store.StoreNameAllegro</td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(store.ExtraStoreNameOnAllegro))
+                                    {
+                                        <span class="badge bg-info text-dark" title="Scraper użyje tej nazwy do szukania">
+                                            <i class="fas fa-tag"></i> @store.ExtraStoreNameOnAllegro
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted fst-italic">-</span>
+                                    }
+                                </td>
                                 <td id="task-status-container-@store.StoreNameAllegro">
                                     @if (Model.ActiveTasks.TryGetValue(store.StoreNameAllegro, out var taskState))
                                     {
@@ -129,7 +142,7 @@
                                                 <span class="spinner-border spinner-border-sm text-primary me-1" role="status" aria-hidden="true"></span>
                                             }
                                             <span class="badge @(taskState.Status == ScrapingStatus.Running ? "bg-success" : (taskState.Status == ScrapingStatus.Cancelled ? "bg-danger" : "bg-warning text-dark"))">
-                                                @* Tłumaczenia zostaną wstawione przez JS *@
+                                               
                                                 @taskState.Status.ToString()
                                             </span>
                                             @if (!string.IsNullOrEmpty(taskState.AssignedScraperName))
