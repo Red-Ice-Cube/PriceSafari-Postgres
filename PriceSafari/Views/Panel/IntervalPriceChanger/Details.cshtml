@@ -649,9 +649,11 @@
                                                     ? $"/AllegroPriceHistory/Details?storeId={Model.StoreId}&productId={item.ProductId}"
                                                     : (Model.LatestScrapId.HasValue ? $"/PriceHistory/Details?scrapId={Model.LatestScrapId}&productId={item.ProductId}" : null);
                                                 }
-                                                @if (!string.IsNullOrEmpty(linkUrl))
-                                                {<a href="@linkUrl" class="simulationProductTitle">
-                                                        @item.Name</a>
+                                              @if (!string.IsNullOrEmpty(linkUrl))
+                                                {
+                                                    <a href="@linkUrl" target="_blank" rel="noopener noreferrer" class="simulationProductTitle">
+                                                        @item.Name
+                                                    </a>
                                                 }
                                                 else
                                                 {

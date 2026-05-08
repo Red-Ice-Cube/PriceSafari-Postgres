@@ -1745,11 +1745,11 @@
                                                     }
                                                 }
                                                 @if (!string.IsNullOrEmpty(linkUrl))
-                                                {
-                                                    <a href="@linkUrl" class="simulationProductTitle">
-                                                        @item.Name
-                                                    </a>
-                                                }
+                                            {
+                                                <a href="@linkUrl" target="_blank" rel="noopener noreferrer" class="simulationProductTitle">
+                                                    @item.Name
+                                                </a>
+                                            }
                                                 else
                                                 {
                                                     @item.Name
