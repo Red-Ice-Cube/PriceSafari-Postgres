@@ -668,7 +668,7 @@
                                 <td class="align-middle interval-cell">
                                     @if (item.HasInterval)
                                     {
-                                        <a href="@Url.Action("Details", "IntervalPrice", new { id = Model.IntervalRuleId.Value })" title="Przejdź do interwału: @Model.IntervalRuleName" class="interval-badge-simple">
+                                        <a href="@Url.Action("Details", "IntervalPrice", new { id = Model.IntervalRuleId.Value })" title="Przejdź do interwału: @Model.IntervalRuleName" class="interval-badge-simple go-to-interval-link" data-product-id="@item.ProductId">
                                             <i class="fas fa-clock interval-icon-simple"></i>
                                             <div class="interval-status-dot @(Model.IntervalIsActive ? "dot-active" : "dot-inactive")"></div>
                                             <span class="interval-text">Interwał</span>
@@ -2948,6 +2948,13 @@
 
         $(document).ready(function () {
             PauseSystem.init();
+        });
+
+        $(document).on('click', '.go-to-interval-link', function () {
+            const productId = $(this).data('product-id');
+            if (productId) {
+                sessionStorage.setItem('interval_scrollToProduct', productId);
+            }
         });
     </script>
 }

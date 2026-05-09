@@ -1614,11 +1614,7 @@ function _executeIntervalUnassign(ctx) {
             StateManager.scrollToProduct();
         });
 
-        /* ============================================================
-           PAUSE SYSTEM — wstrzymywanie automatu na poziomie produktu (interwał)
-           Endpointy biją w /IntervalPrice/PauseProduct i /IntervalPrice/UnpauseProduct.
-           Backend mapuje intervalRuleId → parentRuleId i deleguje do PriceAutomationService.
-           ============================================================ */
+    
         const PauseSystem = (function () {
             let currentProductId = null;
             let currentProductName = null;
