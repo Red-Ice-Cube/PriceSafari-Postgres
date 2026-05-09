@@ -186,7 +186,7 @@
     .status-limited-max { background-color: #4d6b3a; color: #fff !important; }
     .status-blocked { background-color: #6C757D; }
     .status-neutral { background-color: #858796; }
-    .status-paused-badge { background-color: #e74a3b; color: #fff !important; font-weight: 700; letter-spacing: 0.5px; }
+    .status-paused-badge { background-color: #e74a3b; color: #fff !important;}
     .status-text { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
     .price-row-block { display: flex; align-items: center; gap: 4px; }
     .price-row-space { display: flex; align-items: center; gap: 4px; justify-content: space-between; }
@@ -217,7 +217,7 @@
     .status-dashed-success { border-color: #1cc88a; color: #1cc88a !important; }
     .status-dashed-danger { border-color: #e74a3b; color: #e74a3b !important; }
     .status-dashed-secondary { border-color: #858796; color: #858796 !important; }
-    .status-dashed-paused { border-color: #e74a3b; background-color: rgba(231,74,59,0.08); color: #e74a3b !important; font-weight: 700; }
+    .status-dashed-paused { border-color: #e74a3b; background-color: rgba(231,74,59,0.08); color: #e74a3b !important; }
     .header-info-box { display: inline-flex; padding: 4px 16px; align-items: center; justify-content: center; border-radius: 4px; border: 2px dashed #f1f3f9; min-height: 34px; gap: 12px; margin-left: 15px; }
     .strategy-text { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; }
     .strategy-comp { color: rgba(113, 96, 232, 1); }
@@ -325,12 +325,11 @@
     .sales-value-text { font-weight: 500; font-size: 12px; }
     .sales-empty-box { display: inline-block; min-width: 138px; padding: 8px 10px; text-align: center; border: 1px solid #e3e6f0; border-radius: 4px; background: #f8f9fc; color: #b7b9cc; font-size: 12px; }
 
-    /* ============ PAUSE FEATURE ============ */
     .pause-product-btn { width: 25px; height: 25px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #d1d3e2; background: #fff; color: #5a5c69; border-radius: 4px; cursor: pointer; transition: all 0.15s ease; font-size: 10px; gap: 5px; white-space: nowrap; flex-shrink: 0; }
     .pause-product-btn:hover { background: #fff5f5; border-color: #e74a3b; color: #e74a3b; }
-    .pause-product-btn.is-paused { width: auto; min-width: 25px; padding: 0 8px; background: #e74a3b; border-color: #e74a3b; color: #fff; box-shadow: 0 0 0 2px rgba(231,74,59,0.15); }
+    .pause-product-btn.is-paused { width: auto; min-width: 25px; padding: 0 8px; background: #e74a3b; border-color: #e74a3b; color: #fff;}
     .pause-product-btn.is-paused:hover { background: #c93527; border-color: #c93527; color: #fff; }
-    .pause-product-btn .pause-countdown-text { font-size: 10px; font-weight: 700; letter-spacing: 0.2px; }
+    .pause-product-btn .pause-countdown-text { font-size: 10px; font-weight: 600; letter-spacing: 0.2px; }
     tr.main-product-row.row-paused { opacity: 0.65; background-color: rgba(231, 74, 59, 0.025); transition: opacity 0.2s ease; }
     tr.main-product-row.row-paused:hover { opacity: 0.85; }
     tr.main-product-row.row-paused .pause-product-btn { opacity: 1; }
@@ -341,17 +340,17 @@
     .pause-currently-info { background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%); border: 1px solid rgba(231,74,59,0.25); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; display: flex; align-items: center; gap: 16px; }
     .pause-currently-icon { font-size: 30px; color: #e74a3b; flex-shrink: 0; }
     .pause-currently-text { flex-grow: 1; }
-    .pause-currently-text .pname { font-weight: 700; color: #333; font-size: 14px; margin-bottom: 3px; word-break: break-word; }
+    .pause-currently-text .pname { font-weight: 600; color: #333; font-size: 14px; margin-bottom: 3px; word-break: break-word; }
     .pause-currently-text .ptime { font-size: 13px; color: #666; }
     .pause-currently-text .ptime strong { color: #e74a3b; font-weight: 700; }
-    .pause-resume-btn { width: 100%; background: linear-gradient(135deg, #1cc88a 0%, #17a673 100%); color: #fff; border: none; padding: 13px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .pause-resume-btn { width: 100%; background: linear-gradient(135deg, #1cc88a 0%, #17a673 100%); color: #fff; border: none; padding: 13px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
     .pause-resume-btn:hover { background: linear-gradient(135deg, #17a673 0%, #149e6b 100%); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(28,200,138,0.3); }
     .pause-section-divider { margin: 22px 0 14px 0; padding-top: 16px; border-top: 1px dashed #e3e6f0; font-size: 12px; color: #858796; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
     .pause-instructions { font-size: 13px; color: #666; margin-bottom: 14px; line-height: 1.5; }
     .pause-duration-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; }
     .pause-duration-card { border: 2px solid #e3e6f0; border-radius: 8px; padding: 14px 6px; text-align: center; cursor: pointer; transition: all 0.18s ease; background: #fff; user-select: none; }
     .pause-duration-card:hover { border-color: #e74a3b; background: #fff5f5; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(231,74,59,0.12); }
-    .pause-duration-card .duration-value { font-size: 22px; font-weight: 800; color: #5a5c69; line-height: 1; }
+    .pause-duration-card .duration-value { font-size: 22px; font-weight: 600; color: #5a5c69; line-height: 1; }
     .pause-duration-card:hover .duration-value { color: #e74a3b; }
     .pause-duration-card .duration-label { font-size: 10px; color: #858796; text-transform: uppercase; letter-spacing: 0.4px; margin-top: 5px; font-weight: 600; }
     .pause-duration-card-indefinite { background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%); border: 2px dashed #e74a3b; border-radius: 8px; padding: 14px; text-align: center; cursor: pointer; transition: all 0.18s ease; user-select: none; display: flex; align-items: center; justify-content: center; gap: 10px; }
@@ -359,7 +358,13 @@
     .pause-duration-card-indefinite .indef-icon { font-size: 22px; color: #e74a3b; }
     .pause-duration-card-indefinite .indef-text { text-align: left; }
     .pause-duration-card-indefinite .indef-title { font-size: 15px; font-weight: 700; color: #e74a3b; }
-    .pause-duration-card-indefinite .indef-sub { font-size: 11px; color: #888; margin-top: 2px; }
+    .pause-duration-card-indefinite .indef-sub { font-size: 13px; color: #888; margin-top: 2px; }
+
+    .pause-status-text {
+        font-size:11px;
+        font-weight: 700;
+        color:#e74a3b
+    }
 </style>
 
 
@@ -1210,7 +1215,7 @@
                                             case AutomationCalculationStatus.Blocked:
                                                 @if (item.IsPaused)
                                                 {
-                                                    <div class="status-badge status-paused-badge"><i class="fas fa-pause mr-2"></i> PAUZA</div>
+                                                    <div class="status-badge status-paused-badge"><i class="fas fa-pause mr-2" style="margin-top:2px;"></i> PAUZA</div>
                                                 }
                                                 else if (item.BlockReason != null && (item.BlockReason.Contains("(Min)") || item.BlockReason == "Ochrona Ceny" || (item.BlockReason.Contains("Narzutu") && item.BlockReason.Contains("Min"))))
                                                 {
@@ -1311,7 +1316,7 @@
                                         <div class="status-box-dashed status-dashed-paused" title="Automat wstrzymany dla tego produktu">
                                             <i class="fas fa-pause mr-1"></i> WSTRZYMANY
                                         </div>
-                                        <span class="text-xs" style="color:#e74a3b;">Bez aktualizacji</span>
+                                        <span class="pause-status-text">Bez aktualizacji</span>
                                     }
                                     else if (item.IsAlreadyUpdated)
                                     {
@@ -2988,7 +2993,7 @@
                         <div class="pause-product-name-box">${escapeHtml(productName)}</div>
                         <p class="pause-instructions">
                             Wybierz na jak długo chcesz wstrzymać automatyczne zmiany cen dla tego produktu.
-                            W tym czasie automat go pominie.
+                            W tym czasie automat go pominie. Pauza dotyczy automatu cenowego oraz systemu Interwału cenowego.
                         </p>
                         ${buildDurationCards()}
                     `;
