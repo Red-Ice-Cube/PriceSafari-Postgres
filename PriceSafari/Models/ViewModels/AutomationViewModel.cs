@@ -81,6 +81,9 @@ namespace PriceSafari.Models.ViewModels
         public string ImageUrl { get; set; }
         public string Identifier { get; set; }
 
+        public bool IsPaused { get; set; }
+        public DateTime? PausedUntil { get; set; }
+
         public decimal? CurrentPrice { get; set; }
         public decimal? PurchasePrice { get; set; }
 

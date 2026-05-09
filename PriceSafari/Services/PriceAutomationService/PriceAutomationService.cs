@@ -421,6 +421,19 @@ namespace PriceSafari.Services.PriceAutomationService
                 };
                 row.HasInterval = productsInInterval.Contains(p.ProductId);
 
+                if (item.PausedUntil.HasValue && item.PausedUntil.Value > DateTime.UtcNow)
+                {
+                    row.IsPaused = true;
+                    row.PausedUntil = item.PausedUntil;
+                    row.Status = AutomationCalculationStatus.Blocked;
+                    row.BlockReason = "Pauza";
+                    row.SuggestedPrice = row.CurrentPrice;
+                    row.PriceChange = 0;
+                    CalculateCurrentMarkup(row);
+                    resultProducts.Add(row);
+                    continue;
+                }
+
                 bool bestRivalIsCeneo = bestCompetitor != null && bestCompetitor.IsGoogle != true;
                 bool bestRivalIsGoogle = bestCompetitor != null && bestCompetitor.IsGoogle == true;
 
@@ -733,6 +746,20 @@ namespace PriceSafari.Services.PriceAutomationService
                 };
 
                 row.HasInterval = productsInInterval.Contains(p.AllegroProductId);
+
+                if (item.PausedUntil.HasValue && item.PausedUntil.Value > DateTime.UtcNow)
+                {
+                    row.IsPaused = true;
+                    row.PausedUntil = item.PausedUntil;
+                    row.Status = AutomationCalculationStatus.Blocked;
+                    row.BlockReason = "Pauza";
+                    row.SuggestedPrice = row.CurrentPrice;
+                    row.PriceChange = 0;
+                    row.NewRankingAllegro = row.CurrentRankingAllegro;
+                    CalculateCurrentMarkup(row);
+                    resultProducts.Add(row);
+                    continue;
+                }
 
                 CalculateSuggestedPrice(rule, row);
                 CalculateCurrentMarkup(row);
@@ -1860,6 +1887,62 @@ namespace PriceSafari.Services.PriceAutomationService
         }
 
 
+        public async Task<(bool Success, string Message)> PauseProductAsync(int ruleId, int productId, int durationHours)
+        {
+            var rule = await _context.AutomationRules.FindAsync(ruleId);
+            if (rule == null) return (false, "Reguła nie istnieje.");
+
+            // Whitelist czasów — zapobiega smuglowaniu dziwnych wartości
+            var allowed = new[] { 1, 4, 6, 12, 24, -1 };
+            if (!allowed.Contains(durationHours))
+                return (false, "Nieprawidłowy czas wstrzymania.");
+
+            var query = _context.AutomationProductAssignments
+                .Where(a => a.AutomationRuleId == ruleId);
+
+            if (rule.SourceType == AutomationSourceType.Marketplace)
+                query = query.Where(a => a.AllegroProductId == productId);
+            else
+                query = query.Where(a => a.ProductId == productId);
+
+            var assignment = await query.FirstOrDefaultAsync();
+            if (assignment == null)
+                return (false, "Produkt nie jest przypisany do tego automatu.");
+
+            DateTime pausedUntil = (durationHours == -1)
+                ? DateTime.UtcNow.AddYears(100)
+                : DateTime.UtcNow.AddHours(durationHours);
+
+            assignment.PausedUntil = pausedUntil;
+            await _context.SaveChangesAsync();
+
+            return (true, null);
+        }
+
+        public async Task<(bool Success, string Message)> UnpauseProductAsync(int ruleId, int productId)
+        {
+            var rule = await _context.AutomationRules.FindAsync(ruleId);
+            if (rule == null) return (false, "Reguła nie istnieje.");
+
+            var query = _context.AutomationProductAssignments
+                .Where(a => a.AutomationRuleId == ruleId);
+
+            if (rule.SourceType == AutomationSourceType.Marketplace)
+                query = query.Where(a => a.AllegroProductId == productId);
+            else
+                query = query.Where(a => a.ProductId == productId);
+
+            var assignment = await query.FirstOrDefaultAsync();
+            if (assignment == null)
+                return (false, "Produkt nie jest przypisany do tego automatu.");
+
+            assignment.PausedUntil = null;
+            await _context.SaveChangesAsync();
+
+            return (true, null);
+        }
+
+
         private async Task<List<FlagViewModel>> GetStoreFlagsAsync(int storeId, bool isMarketplace)
         {
             return await _context.Flags
@@ -1873,6 +1956,8 @@ namespace PriceSafari.Services.PriceAutomationService
                 })
                 .ToListAsync();
         }
+
+
     }
 
 

@@ -1,6 +1,4 @@
-﻿
-
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,11 +6,11 @@ using PriceSafari.Attributes;
 using PriceSafari.Data;
 using PriceSafari.Enums;
 using PriceSafari.Models;
+using PriceSafari.Models.DTOs;
 using PriceSafari.Models.ViewModels;
 using PriceSafari.Services.PriceAutomationService;
 
 using System;
-
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -22,7 +20,6 @@ namespace PriceSafari.Controllers.MemberControllers
     public class PriceAutomationController : Controller
     {
         private readonly PriceSafariContext _context;
-
         private readonly PriceAutomationService _automationService;
 
         public PriceAutomationController(
@@ -37,7 +34,6 @@ namespace PriceSafari.Controllers.MemberControllers
         [RequireUserAccess(UserAccessRequirement.ViewPriceAutomation)]
         public async Task<IActionResult> Details(int id)
         {
-
             var rule = await _context.AutomationRules
                 .Include(r => r.Store)
                 .Include(r => r.CompetitorPreset)
@@ -71,7 +67,7 @@ namespace PriceSafari.Controllers.MemberControllers
             }
 
             ViewBag.HasIntervalRules = await _context.IntervalPriceRules
-            .AnyAsync(r => r.AutomationRuleId == rule.Id);
+                .AnyAsync(r => r.AutomationRuleId == rule.Id);
 
             return View("~/Views/Panel/PriceAutomation/Details.cshtml", model);
         }
@@ -80,7 +76,6 @@ namespace PriceSafari.Controllers.MemberControllers
         [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
         public async Task<IActionResult> ExecuteAutomation([FromBody] AutomationTriggerRequest request)
         {
-
             if (request == null || request.RuleId <= 0) return BadRequest("Nieprawidłowe żądanie.");
 
             try
@@ -96,9 +91,56 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
+        public async Task<IActionResult> PauseProduct([FromBody] PauseProductRequest request)
+        {
+            if (request == null || request.RuleId <= 0 || request.ProductId <= 0)
+                return BadRequest(new { success = false, message = "Nieprawidłowe żądanie." });
+
+            try
+            {
+                var (success, message) = await _automationService.PauseProductAsync(
+                    request.RuleId, request.ProductId, request.DurationHours);
+
+                if (success)
+                    return Ok(new { success = true });
+                else
+                    return Ok(new { success = false, message });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
+        public async Task<IActionResult> UnpauseProduct([FromBody] UnpauseProductRequest request)
+        {
+            if (request == null || request.RuleId <= 0 || request.ProductId <= 0)
+                return BadRequest(new { success = false, message = "Nieprawidłowe żądanie." });
+
+            try
+            {
+                var (success, message) = await _automationService.UnpauseProductAsync(
+                    request.RuleId, request.ProductId);
+
+                if (success)
+                    return Ok(new { success = true });
+                else
+                    return Ok(new { success = false, message });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
         public async Task<IActionResult> GetAutomationHistory([FromBody] HistoryRequest request)
         {
-
             if (request == null || request.RuleId <= 0) return BadRequest();
 
             var result = await _automationService.GetAutomationHistoryAsync(request.RuleId, request.Limit);
@@ -122,7 +164,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 return BadRequest(ex.Message);
             }
         }
-   
+
         [HttpPost]
         public async Task<IActionResult> GetAutomationSalesHistory([FromBody] HistoryRequest request)
         {
@@ -138,8 +180,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return BadRequest(ex.Message);
             }
         }
-
-
 
         [HttpPost]
         public async Task<IActionResult> GetAutomationPricePositionHistory([FromBody] HistoryRequest request)

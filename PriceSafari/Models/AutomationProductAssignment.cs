@@ -34,13 +34,9 @@ namespace PriceSafari.Models
         [ForeignKey("AllegroProductId")]
         public virtual AllegroProductClass AllegroProduct { get; set; }
 
-        // ==============================================================================
-        // METADANE
-        // ==============================================================================
+        
         public DateTime AssignedDate { get; set; } = DateTime.UtcNow;
 
-        // Tutaj w przyszłości dodamy pola do symulacji, np.:
-        // public decimal? LastSimulatedPrice { get; set; }
-        // public DateTime? LastSimulationDate { get; set; }
+        public DateTime? PausedUntil { get; set; }
     }
 }
