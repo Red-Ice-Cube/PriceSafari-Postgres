@@ -381,8 +381,8 @@
                             string rowNextExecIso = item.NextExecutionTime?.ToString("yyyy-MM-ddTHH:mm:ss") ?? "";
 
                         
-                            string pausedUntilIso = item.PausedUntil.HasValue ? item.PausedUntil.Value.ToUniversalTime().ToString("o") : "";
-                            string rowPausedClass = item.IsPaused ? "row-paused" : "";
+                        string pausedUntilIso = item.PausedUntil.HasValue ? DateTime.SpecifyKind(item.PausedUntil.Value, DateTimeKind.Utc).ToString("o") : "";
+                        string rowPausedClass = item.IsPaused ? "row-paused" : "";
                          
                          <tr id="prod-row-@item.ProductId" class="main-product-row @rowPausedClass"
                             data-status="@item.Status.ToString()"
@@ -1800,24 +1800,23 @@ function _executeIntervalUnassign(ctx) {
 
                     const target = new Date(iso);
                     if (isNaN(target.getTime())) return;
-                    const now = new Date();
-
-                    if (target <= now) {
-                        btn.classList.remove('is-paused');
-                        btn.innerHTML = '<i class="fas fa-play"></i>';
-                        btn.title = 'Wstrzymaj automat dla tego produktu';
-                        btn.setAttribute('data-paused-until', '');
-                        const row = btn.closest('tr');
-                        if (row) {
-                            row.classList.remove('row-paused');
-                            row.setAttribute('data-is-paused', 'false');
-                        }
-                        return;
-                    }
 
                     const txt = btn.querySelector('.pause-countdown-text');
                     if (!txt) return;
-                    txt.textContent = isPauseIndefinite(iso) ? '∞' : formatRemaining(iso);
+
+                    if (isPauseIndefinite(iso)) {
+                        txt.textContent = '∞';
+                        return;
+                    }
+
+                    const now = new Date();
+                    if (target <= now) {
+        
+                        txt.textContent = '~0min';
+                        return;
+                    }
+
+                    txt.textContent = formatRemaining(iso);
                 });
             }
 

@@ -542,10 +542,9 @@
                                 }
                             }
                         }
-
-                        // PAUSE STATE
-                        string pausedUntilIso = item.PausedUntil.HasValue ? item.PausedUntil.Value.ToUniversalTime().ToString("o") : "";
+                        string pausedUntilIso = item.PausedUntil.HasValue ? DateTime.SpecifyKind(item.PausedUntil.Value, DateTimeKind.Utc).ToString("o") : "";
                         string rowPausedClass = item.IsPaused ? "row-paused" : "";
+
 
                         <tr id="prod-row-@item.ProductId" class="main-product-row @rowPausedClass"
                             data-price-change="@priceChangeType"
@@ -2870,7 +2869,6 @@
                     }
                 });
             }
-
             function updateCountdowns() {
                 document.querySelectorAll('.pause-product-btn.is-paused').forEach(btn => {
                     const iso = btn.getAttribute('data-paused-until');
@@ -2878,39 +2876,32 @@
 
                     const target = new Date(iso);
                     if (isNaN(target.getTime())) return;
-                    const now = new Date();
-
-                    if (target <= now) {
-                        // Pauza wygasła — reset wizualny
-                        btn.classList.remove('is-paused');
-                        btn.innerHTML = '<i class="fas fa-play"></i>';
-                        btn.title = 'Wstrzymaj automat dla tego produktu';
-                        btn.setAttribute('data-paused-until', '');
-                        const row = btn.closest('tr');
-                        if (row) {
-                            row.classList.remove('row-paused');
-                            row.setAttribute('data-is-paused', 'false');
-                        }
-                        return;
-                    }
 
                     const txt = btn.querySelector('.pause-countdown-text');
                     if (!txt) return;
 
                     if (isPauseIndefinite(iso)) {
                         txt.textContent = '∞';
-                    } else {
-                        txt.textContent = formatRemaining(iso);
+                        return;
                     }
+
+                    const now = new Date();
+                    if (target <= now) {
+    
+                        txt.textContent = '~0min';
+                        return;
+                    }
+
+                    txt.textContent = formatRemaining(iso);
                 });
             }
 
             function init() {
-                // Klik na przycisk pauzy (przy produkcie)
+            
                 document.addEventListener('click', function (e) {
                     const btn = e.target.closest('.pause-product-btn');
                     if (!btn) return;
-                    if (btn.style.cursor === 'not-allowed') return; // wariant bez uprawnień
+                    if (btn.style.cursor === 'not-allowed') return; 
                     e.preventDefault();
                     e.stopPropagation();
 
