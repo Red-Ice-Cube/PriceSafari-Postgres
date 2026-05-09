@@ -72,7 +72,7 @@
                 </div>
 
                 <div class="Horizontal" style="gap:0px; flex-grow:1; min-width:0; display:flex; flex-direction:column; width:100%;">
-                    <div class="order-upper-box">
+                    <div class="upper-box-div">
                         <input type="text" id="productSearch" style="max-width:150px; height:34px;" placeholder="Wyszukaj produkt">
                         <div class="SimpleSpace" style="justify-content:flex-end; margin-right:12px; gap:8px;">
                             <button type="button" class="Button-Page-Small-gr" id="uploadMarginsButton">
@@ -87,14 +87,16 @@
                     <div class="virtual-scroll-container" id="virtualScrollContainer">
                         <table class="table-orders">
                             <thead>
-                                <tr>
-                                    <th>Produkt (<span id="displayed-count"></span>)</th>
-                                    <th>Cena zakupu</th>
-                                    <th>Oferta</th>
-                                    <th>Monitoring</th>
-                                    <th>Flagi</th>
-                                </tr>
-                            </thead>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 450px;">Produkt (<span id="displayed-count"></span>)</th>
+                                        <th style="width: 200px;">Cena zakupu</th>
+                                        <th style="width: 180px;">Oferta</th>
+                                        <th style="width: 160px;">Monitoring</th>
+                                        <th style="width: auto;">Flagi</th>
+                                    </tr>
+                                </thead>
+                       
                             <tbody id="product-list"></tbody>
                         </table>
                     </div>

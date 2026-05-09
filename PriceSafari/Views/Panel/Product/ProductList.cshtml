@@ -4,9 +4,6 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
-<style>
-
-</style>
 
 <div class="Vert">
     <div class="Page-Box" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
@@ -91,7 +88,7 @@
                 </div>
 
                 <div class="Horizontal" style="gap:0px; flex-grow:1; min-width:0;">
-                    <div class="order-upper-box">
+                    <div class="upper-box-div">
                         <input type="text" id="productSearch" style="max-width:150px; height:33.99px;" placeholder="Wyszukaj produkt">
                         <select id="producerDropdown" class="DropDown" style="max-width:200px; height:33.99px;">
                             <option value="all">Producent - Wszyscy</option>
@@ -120,12 +117,12 @@
                         <table class="table-orders">
                             <thead>
                                 <tr>
-                                    <th>Produkt (<span id="displayed-count"></span>)</th>
-                                    <th></th>
-                                    <th>Cena zakupu</th>
-                                    <th>Oferta</th>
-                                    <th>Monitoring</th>
-                                    <th>Flagi</th>
+                                    <th style="width: 450px;">Produkt (<span id="displayed-count"></span>)</th>
+                                    <th style="width: 110px;"></th>
+                                    <th style="width: 200px;">Cena zakupu</th>
+                                    <th style="width: 180px;">Oferta</th>
+                                    <th style="width: 160px;">Monitoring</th>
+                                    <th style="width: auto;">Flagi</th>
                                 </tr>
                             </thead>
                             <tbody id="product-list"></tbody>
