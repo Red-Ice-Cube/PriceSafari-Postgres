@@ -320,685 +320,763 @@
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-
     <script>
-        (function () {
-            'use strict';
+    (function () {
+        'use strict';
 
-            var ROW_HEIGHT       = 100;
-            var BUFFER_ROWS      = 10;
-            var SEARCH_DEBOUNCE  = 250;
-            var BATCH_CHUNK_SIZE = 1000;
-            var STORE_PRODUCT_LIMIT = parseInt('@ViewBag.ProductCount') || 0;
+        var ROW_HEIGHT       = 100;
+        var BUFFER_ROWS      = 20;
+        var SEARCH_DEBOUNCE  = 250;
+        var BATCH_CHUNK_SIZE = 1000;
+        var MAX_CACHE_SIZE   = 600;
+        var STORE_PRODUCT_LIMIT = parseInt('@ViewBag.ProductCount') || 0;
         var SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
         function isNewProduct(product) {
-        if (!product.addedDate) return false;
-        var added = new Date(product.addedDate);
-        return (Date.now() - added.getTime()) <= SEVEN_DAYS_MS;
+            if (!product.addedDate) return false;
+            var added = new Date(product.addedDate);
+            return (Date.now() - added.getTime()) <= SEVEN_DAYS_MS;
         }
-            var allProducts      = [];
-            var filteredProducts = [];
-            var flags = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Flags ?? new List<FlagViewModel>()));
-            var storeId = @ViewBag.StoreId;
 
-            var selectedFlagsInclude = new Set();
-            var selectedFlagsExclude = new Set();
-            var selectedProducer     = 'all';
-            var platformStatuses     = ['google', 'ceneo', 'google-ceneo', 'not-found'];
-            var productMap           = {};
+        var allProducts      = [];
+        var filteredProducts = [];
+        var flags = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Flags ?? new List<FlagViewModel>()));
+        var storeId = @ViewBag.StoreId;
 
-            window.getAllProducts          = function () { return allProducts; };
-            window.triggerFilterRows       = function () { filterRows(); };
-            window.getProductPlatformStatus = getProductPlatformStatus;
-            window.STORE_PRODUCT_LIMIT     = STORE_PRODUCT_LIMIT;
+        var selectedFlagsInclude = new Set();
+        var selectedFlagsExclude = new Set();
+        var selectedProducer     = 'all';
+        var platformStatuses     = ['google', 'ceneo', 'google-ceneo', 'not-found'];
+        var productMap           = {};
 
-            var scrollContainer, tbody, searchInput, producerDropdown;
-            var selectAllButton, deselectAllButton, displayedCountEl;
-            var imgObserver;
+        var rowCache = {};
+        var spacerTop, spacerBottom;
+        var currentSearchTerm = '';
 
-            document.addEventListener('DOMContentLoaded', function () {
-                scrollContainer   = document.getElementById('virtualScrollContainer');
-                tbody             = document.getElementById('product-list');
-                searchInput       = document.getElementById('productSearch');
-                producerDropdown  = document.getElementById('producerDropdown');
-                selectAllButton   = document.getElementById('select-all');
-                deselectAllButton = document.getElementById('deselect-all');
-                displayedCountEl  = document.getElementById('displayed-count');
+        window.getAllProducts          = function () { return allProducts; };
+        window.triggerFilterRows       = function () { filterRows(); };
+        window.getProductPlatformStatus = getProductPlatformStatus;
+        window.STORE_PRODUCT_LIMIT     = STORE_PRODUCT_LIMIT;
 
-                if ('IntersectionObserver' in window) {
-                    imgObserver = new IntersectionObserver(function (entries) {
-                        entries.forEach(function (entry) {
-                            if (entry.isIntersecting) {
-                                var img = entry.target;
-                                if (img.dataset.src) { img.src = img.dataset.src; img.removeAttribute('data-src'); }
-                                imgObserver.unobserve(img);
-                            }
-                        });
-                    }, { root: scrollContainer, rootMargin: '300px' });
-                }
+        var scrollContainer, tbody, searchInput, producerDropdown;
+        var selectAllButton, deselectAllButton, displayedCountEl;
 
-                scrollContainer.addEventListener('scroll', onScroll);
+        document.addEventListener('DOMContentLoaded', function () {
+            scrollContainer   = document.getElementById('virtualScrollContainer');
+            tbody             = document.getElementById('product-list');
+            searchInput       = document.getElementById('productSearch');
+            producerDropdown  = document.getElementById('producerDropdown');
+            selectAllButton   = document.getElementById('select-all');
+            deselectAllButton = document.getElementById('deselect-all');
+            displayedCountEl  = document.getElementById('displayed-count');
 
-                var searchTimer;
-                searchInput.addEventListener('input', function () {
-                    clearTimeout(searchTimer);
-                    searchTimer = setTimeout(filterRows, SEARCH_DEBOUNCE);
-                });
+            spacerTop = document.createElement('tr');
+            spacerTop.className = 'virtual-spacer-top';
+            spacerTop.style.padding = '0';
+            spacerTop.style.border  = '0';
+            spacerTop.innerHTML = '<td colspan="6" style="padding:0;border:none;"></td>';
 
-                producerDropdown.addEventListener('change', function () {
-                    selectedProducer = producerDropdown.value;
-                    filterRows();
-                });
+            spacerBottom = document.createElement('tr');
+            spacerBottom.className = 'virtual-spacer-bottom';
+            spacerBottom.style.padding = '0';
+            spacerBottom.style.border  = '0';
+            spacerBottom.innerHTML = '<td colspan="6" style="padding:0;border:none;"></td>';
 
-                document.querySelectorAll('.status-filter').forEach(function (checkbox) {
-                    checkbox.addEventListener('change', function () {
-                        if ((this.id === 'not-found' || this.id === 'google-ceneo') && this.checked) {
-                            platformStatuses.forEach(function (statusId) {
-                                if (statusId !== this.id && document.getElementById(statusId))
-                                    document.getElementById(statusId).checked = false;
-                            }.bind(this));
-                        } else if (this.checked && (this.id === 'google' || this.id === 'ceneo')) {
-                            if (document.getElementById('not-found'))   document.getElementById('not-found').checked   = false;
-                            if (document.getElementById('google-ceneo')) document.getElementById('google-ceneo').checked = false;
-                        }
-                        filterRows();
-                    });
-                });
-        document.getElementById('filter-new').addEventListener('change', filterRows);
-                selectAllButton.addEventListener('click',   function () { batchToggle(true); });
-                deselectAllButton.addEventListener('click', function () { batchToggle(false); });
+            tbody.appendChild(spacerTop);
+            tbody.appendChild(spacerBottom);
 
-                tbody.addEventListener('change', onCheckboxChange);
-                tbody.addEventListener('click',  onTableClick);
+            scrollContainer.addEventListener('scroll', onScroll, { passive: true });
 
-                fetchProducts();
+            var searchTimer;
+            searchInput.addEventListener('input', function () {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(filterRows, SEARCH_DEBOUNCE);
             });
 
-            var lastRenderedStart = -1, lastRenderedEnd = -1, rafPending = false;
+            producerDropdown.addEventListener('change', function () {
+                selectedProducer = producerDropdown.value;
+                filterRows();
+            });
 
-            function onScroll() {
-                if (!rafPending) {
-                    rafPending = true;
-                    requestAnimationFrame(function () { rafPending = false; renderVirtual(); });
-                }
-            }
-
-            function renderVirtual(force) {
-                var total = filteredProducts.length;
-                if (total === 0) { tbody.innerHTML = ''; displayedCountEl.textContent = '0'; return; }
-
-                var scrollTop        = scrollContainer.scrollTop;
-                var viewportH        = scrollContainer.clientHeight;
-                var adjustedScrollTop = Math.max(0, scrollTop - 40);
-
-                var startIdx = Math.max(0, Math.floor(adjustedScrollTop / ROW_HEIGHT) - BUFFER_ROWS);
-                var endIdx   = Math.min(total, Math.ceil((adjustedScrollTop + viewportH) / ROW_HEIGHT) + BUFFER_ROWS);
-
-                if (!force && startIdx === lastRenderedStart && endIdx === lastRenderedEnd) return;
-                lastRenderedStart = startIdx;
-                lastRenderedEnd   = endIdx;
-
-                var searchTerm = searchInput ? searchInput.value : '';
-                var fragment   = document.createDocumentFragment();
-
-                var spacerTop = document.createElement('tr');
-                spacerTop.style.height = (startIdx * ROW_HEIGHT) + 'px';
-                spacerTop.style.padding = spacerTop.style.border = '0';
-                spacerTop.innerHTML = '<td colspan="6" style="padding:0;border:none;"></td>';
-                fragment.appendChild(spacerTop);
-
-                for (var i = startIdx; i < endIdx; i++)
-                    fragment.appendChild(createProductRow(filteredProducts[i], searchTerm));
-
-                var spacerBottom = document.createElement('tr');
-                spacerBottom.style.height = ((total - endIdx) * ROW_HEIGHT) + 'px';
-                spacerBottom.style.padding = spacerBottom.style.border = '0';
-                spacerBottom.innerHTML = '<td colspan="6" style="padding:0;border:none;"></td>';
-                fragment.appendChild(spacerBottom);
-
-                tbody.innerHTML = '';
-                tbody.appendChild(fragment);
-                displayedCountEl.textContent = total;
-
-                if (imgObserver) {
-                    tbody.querySelectorAll('img[data-src]').forEach(function (img) { imgObserver.observe(img); });
-                }
-            }
-
-            function createProductRow(product, searchTerm) {
-                var row = document.createElement('tr');
-                row.classList.add('product-row');
-                row.setAttribute('data-product-id', product.productId);
-
-                var platformStatus = getProductPlatformStatus(product);
-                var isNotFound     = platformStatus.notFound;
-
-                var highlightedProductName = highlightMatches(product.productName, searchTerm);
-                var producer = product.producer ? '<b>Producent:</b> ' + product.producer : '';
-                var ean      = '<b>EAN:</b> ' + (product.ean ? highlightMatches(product.ean, searchTerm) : '<span style="color:#bbb;">Brak</span>');
-
-                var externalIdDisplay = '<b>ID:</b> ' + (product.externalId != null && String(product.externalId).trim() !== ''
-                    ? highlightMatches(String(product.externalId), searchTerm)
-                    : '<span style="color:#bbb;">Brak</span>');
-
-                var skuDisplay = '<b>SKU:</b> ' + (product.catalogNumber != null && String(product.catalogNumber).trim() !== ''
-                    ? highlightMatches(product.catalogNumber, searchTerm)
-                    : '<span style="color:#bbb;">Brak</span>');
-
-                var newGoogleUrl          = createNewGoogleUrl(product);
-                var offerUrlButton        = product.offerUrl ? '<a href="' + product.offerUrl + '" class="Button-Page-Small" style="width:100px;" target="_blank">Ceneo</a>' : '';
-                var googleUrlButton       = newGoogleUrl    ? '<a href="' + newGoogleUrl    + '" class="Button-Page-Small" style="width:100px;" target="_blank">Google</a>' : '';
-                var storeSpecificOfferButton = product.url  ? '<a href="' + product.url     + '" class="Button-Page-Small" style="width:100px;" target="_blank">Strona</a>' : '';
-
-                var imageUrl  = product.mainUrl || '';
-                var imageCell = imageUrl
-                    ? '<img data-src="' + imageUrl + '" style="width:90px;height:90px;object-fit:contain;background-color:#fff;" alt="" />'
-                    : '<div style="width:90px;height:90px;"></div>';
-
-                var hasPrice   = product.marginPrice != null && product.marginPrice.toString().trim() !== '';
-                var priceValue = hasPrice ? parseFloat(product.marginPrice).toFixed(2) : '';
-                var statusInfo = getStatusInfo(product);
-        var newBadgeHtml = isNewProduct(product) ? '<span class="badge-new">NEW</span>' : '';
-                var purchasePriceHtml =
-                    '<div class="price-display-container">' +
-                        '<span class="price-text">' + (hasPrice ? priceValue + ' PLN' : 'Brak') + '</span>' +
-                        '<span class="price-actions">' +
-                            '<i class="fas fa-plus add-price-btn '       + (hasPrice  ? 'hidden' : '') + '" title="Dodaj cenę"></i>' +
-                            '<i class="fas fa-pencil-alt edit-price-btn ' + (!hasPrice ? 'hidden' : '') + '" title="Edytuj cenę"></i>' +
-                            '<i class="fas fa-trash-alt delete-price-btn '+ (!hasPrice ? 'hidden' : '') + '" title="Usuń cenę"></i>' +
-                        '</span>' +
-                    '</div>' +
-                    '<div class="price-edit-container hidden">' +
-                        '<input type="number" step="0.01" class="price-edit-input" value="' + priceValue + '">' +
-                        '<span class="price-actions">' +
-                            '<i class="fas fa-check save-price-btn" title="Zapisz"></i>' +
-                            '<i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>' +
-                        '</span>' +
-                    '</div>';
-
-                row.innerHTML =
-                    '<td><div style="width:420px;">' +
-                        '<p style="margin-bottom:4px;">' + highlightedProductName + '</p>' +
-                        '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + producer + '</p>' +
-                        '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + ean + '</p>' +
-                        '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + externalIdDisplay + '</p>' +
-                        '<p style="font-size:0.85em;color:#555;margin-bottom:0;">' + skuDisplay + '</p>' +
-        newBadgeHtml +
-                    '</div></td>' +
-                    '<td>' + imageCell + '</td>' +
-                    '<td>' + purchasePriceHtml + '</td>' +
-                    '<td><div style="display:flex;flex-direction:column;align-items:flex-start;gap:5px;">' +
-                        offerUrlButton + googleUrlButton + storeSpecificOfferButton +
-                    '</div></td>' +
-                    '<td><div style="position:relative;width:130px;height:40px;">' +
-                        '<input type="checkbox" class="scrapable-checkbox ' + statusInfo.checkboxClass + '" data-product-id="' + product.productId + '"' +
-                            ' style="position:absolute;top:0;left:0;z-index:2;"' +
-                            (product.isScrapable ? ' checked' : '') +
-                            (isNotFound && !product.isScrapable ? ' disabled' : '') + ' />' +
-                        '<div class="StatusBoxProduct ' + statusInfo.boxClass + '" style="position:absolute;top:0;left:20px;z-index:1;">' + statusInfo.text + '</div>' +
-                    '</div></td>' +
-                    '<td>' + createFlagsHTML(product) + '</td>';
-
-                return row;
-            }
-
-            function onCheckboxChange(e) {
-                var checkbox = e.target;
-                if (!checkbox.classList.contains('scrapable-checkbox') || checkbox.disabled) return;
-
-                var productId    = parseInt(checkbox.getAttribute('data-product-id'));
-                var product      = productMap[productId];
-                if (!product) return;
-
-                var wasScrapable = product.isScrapable;
-                product.isScrapable = checkbox.checked;
-                updateRowVisual(checkbox.closest('tr'), product);
-                updateCounters();
-
-                fetch('@Url.Action("UpdateScrapableProduct", "Product")?storeId=' + storeId, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(productId)
-                })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    if (!data.success) {
-                        product.isScrapable = wasScrapable;
-                        checkbox.checked = wasScrapable;
-                        updateRowVisual(checkbox.closest('tr'), product);
-                        updateCounters();
-                        alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu.');
+            document.querySelectorAll('.status-filter').forEach(function (checkbox) {
+                checkbox.addEventListener('change', function () {
+                    if ((this.id === 'not-found' || this.id === 'google-ceneo') && this.checked) {
+                        platformStatuses.forEach(function (statusId) {
+                            if (statusId !== this.id && document.getElementById(statusId))
+                                document.getElementById(statusId).checked = false;
+                        }.bind(this));
+                    } else if (this.checked && (this.id === 'google' || this.id === 'ceneo')) {
+                        if (document.getElementById('not-found'))   document.getElementById('not-found').checked   = false;
+                        if (document.getElementById('google-ceneo')) document.getElementById('google-ceneo').checked = false;
                     }
-                })
-                .catch(function (err) {
+                    filterRows();
+                });
+            });
+            document.getElementById('filter-new').addEventListener('change', filterRows);
+            selectAllButton.addEventListener('click',   function () { batchToggle(true); });
+            deselectAllButton.addEventListener('click', function () { batchToggle(false); });
+
+            tbody.addEventListener('change', onCheckboxChange);
+            tbody.addEventListener('click',  onTableClick);
+
+            fetchProducts();
+        });
+
+        function clearRowCache() {
+            for (var id in rowCache) {
+                var r = rowCache[id];
+                if (r && r.parentNode) r.parentNode.removeChild(r);
+            }
+            rowCache = {};
+        }
+
+        function invalidateProductRow(productId) {
+            var key = String(productId);
+            var r = rowCache[key];
+            if (r) {
+                if (r.parentNode) r.parentNode.removeChild(r);
+                delete rowCache[key];
+            }
+        }
+
+        function trimCacheIfNeeded(keepIds) {
+            var keys = Object.keys(rowCache);
+            if (keys.length <= MAX_CACHE_SIZE) return;
+            var toRemove = keys.length - MAX_CACHE_SIZE;
+            for (var i = 0; i < keys.length && toRemove > 0; i++) {
+                var k = keys[i];
+                if (keepIds[k]) continue;
+                var r = rowCache[k];
+                if (r && r.parentNode) r.parentNode.removeChild(r);
+                delete rowCache[k];
+                toRemove--;
+            }
+        }
+
+        var lastRenderedStart = -1, lastRenderedEnd = -1, rafPending = false;
+
+        function onScroll() {
+            if (!rafPending) {
+                rafPending = true;
+                requestAnimationFrame(function () {
+                    rafPending = false;
+                    renderVirtual();
+                });
+            }
+        }
+
+        function renderVirtual(force) {
+            var total = filteredProducts.length;
+
+            if (total === 0) {
+                clearRowCache();
+                spacerTop.style.height = '0px';
+                spacerBottom.style.height = '0px';
+                displayedCountEl.textContent = '0';
+                lastRenderedStart = lastRenderedEnd = -1;
+                return;
+            }
+
+            var scrollTop = scrollContainer.scrollTop;
+            var viewportH = scrollContainer.clientHeight;
+
+            var startIdx = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
+            var endIdx   = Math.min(total, Math.ceil((scrollTop + viewportH) / ROW_HEIGHT) + BUFFER_ROWS);
+
+            if (!force && startIdx === lastRenderedStart && endIdx === lastRenderedEnd) return;
+            lastRenderedStart = startIdx;
+            lastRenderedEnd   = endIdx;
+
+            var visibleIds = {};
+            for (var i = startIdx; i < endIdx; i++) {
+                visibleIds[filteredProducts[i].productId] = true;
+            }
+
+            for (var cachedId in rowCache) {
+                if (!visibleIds[cachedId]) {
+                    var staleRow = rowCache[cachedId];
+                    if (staleRow && staleRow.parentNode) {
+                        staleRow.parentNode.removeChild(staleRow);
+                    }
+                }
+            }
+
+            spacerTop.style.height    = (startIdx * ROW_HEIGHT) + 'px';
+            spacerBottom.style.height = ((total - endIdx) * ROW_HEIGHT) + 'px';
+
+            for (var j = startIdx; j < endIdx; j++) {
+                var product = filteredProducts[j];
+                var key = String(product.productId);
+                var row = rowCache[key];
+                if (!row) {
+                    row = createProductRow(product, currentSearchTerm);
+                    rowCache[key] = row;
+                }
+                if (row.nextSibling !== spacerBottom) {
+                    tbody.insertBefore(row, spacerBottom);
+                }
+            }
+
+            trimCacheIfNeeded(visibleIds);
+
+            displayedCountEl.textContent = total;
+        }
+
+        function createProductRow(product, searchTerm) {
+            var row = document.createElement('tr');
+            row.classList.add('product-row');
+            row.setAttribute('data-product-id', product.productId);
+
+            row.style.height = ROW_HEIGHT + 'px';
+            row.style.maxHeight = ROW_HEIGHT + 'px';
+            row.style.overflow = 'hidden';
+
+            var platformStatus = getProductPlatformStatus(product);
+            var isNotFound     = platformStatus.notFound;
+
+            var highlightedProductName = highlightMatches(product.productName, searchTerm);
+            var producer = product.producer ? '<b>Producent:</b> ' + product.producer : '';
+            var ean      = '<b>EAN:</b> ' + (product.ean ? highlightMatches(product.ean, searchTerm) : '<span style="color:#bbb;">Brak</span>');
+
+            var externalIdDisplay = '<b>ID:</b> ' + (product.externalId != null && String(product.externalId).trim() !== ''
+                ? highlightMatches(String(product.externalId), searchTerm)
+                : '<span style="color:#bbb;">Brak</span>');
+
+            var skuDisplay = '<b>SKU:</b> ' + (product.catalogNumber != null && String(product.catalogNumber).trim() !== ''
+                ? highlightMatches(product.catalogNumber, searchTerm)
+                : '<span style="color:#bbb;">Brak</span>');
+
+            var newGoogleUrl         = createNewGoogleUrl(product);
+            var offerUrlButton       = product.offerUrl ? '<a href="' + product.offerUrl + '" class="Button-Page-Small" style="width:100px;" target="_blank">Ceneo</a>' : '';
+            var googleUrlButton      = newGoogleUrl     ? '<a href="' + newGoogleUrl    + '" class="Button-Page-Small" style="width:100px;" target="_blank">Google</a>' : '';
+            var storeSpecificOfferButton = product.url  ? '<a href="' + product.url     + '" class="Button-Page-Small" style="width:100px;" target="_blank">Strona</a>' : '';
+
+            var imageUrl  = product.mainUrl || '';
+            var imageCell = imageUrl
+                ? '<div style="width:90px; height:90px; min-width:90px; display:flex; align-items:center; justify-content:center; overflow:hidden; background:transparent;"><img src="' + imageUrl + '" loading="lazy" decoding="async" style="max-width:100%; max-height:100%; object-fit:contain; border:none; outline:none; background:transparent;" alt="" /></div>'
+                : '<div style="width:90px; height:90px; min-width:90px; background:transparent;"></div>';
+
+            var hasPrice   = product.marginPrice != null && product.marginPrice.toString().trim() !== '';
+            var priceValue = hasPrice ? parseFloat(product.marginPrice).toFixed(2) : '';
+            var statusInfo = getStatusInfo(product);
+            var newBadgeHtml = isNewProduct(product) ? '<span class="badge-new">NEW</span>' : '';
+
+            var purchasePriceHtml =
+                '<div class="price-display-container">' +
+                    '<span class="price-text">' + (hasPrice ? priceValue + ' PLN' : 'Brak') + '</span>' +
+                    '<span class="price-actions">' +
+                        '<i class="fas fa-plus add-price-btn '       + (hasPrice  ? 'hidden' : '') + '" title="Dodaj cenę"></i>' +
+                        '<i class="fas fa-pencil-alt edit-price-btn ' + (!hasPrice ? 'hidden' : '') + '" title="Edytuj cenę"></i>' +
+                        '<i class="fas fa-trash-alt delete-price-btn '+ (!hasPrice ? 'hidden' : '') + '" title="Usuń cenę"></i>' +
+                    '</span>' +
+                '</div>' +
+                '<div class="price-edit-container hidden">' +
+                    '<input type="number" step="0.01" class="price-edit-input" value="' + priceValue + '">' +
+                    '<span class="price-actions">' +
+                        '<i class="fas fa-check save-price-btn" title="Zapisz"></i>' +
+                        '<i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>' +
+                    '</span>' +
+                '</div>';
+
+            var tdStyle = 'height:' + ROW_HEIGHT + 'px; max-height:' + ROW_HEIGHT + 'px; overflow:hidden; vertical-align:middle;';
+
+            row.innerHTML =
+                '<td style="' + tdStyle + '"><div style="width:420px; max-height: 90px; overflow: hidden;">' +
+                    '<p style="margin-bottom:4px; font-weight: 500;">' + highlightedProductName + '</p>' +
+                    '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + producer + '</p>' +
+                    '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + ean + '</p>' +
+                    '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + externalIdDisplay + '</p>' +
+                    '<p style="font-size:0.85em;color:#555;margin-bottom:0;">' + skuDisplay + '</p>' +
+                    newBadgeHtml +
+                '</div></td>' +
+                '<td style="' + tdStyle + '">' + imageCell + '</td>' +
+                '<td style="' + tdStyle + '">' + purchasePriceHtml + '</td>' +
+                '<td style="' + tdStyle + '"><div style="display:flex;flex-direction:column;align-items:flex-start;gap:5px;">' +
+                    offerUrlButton + googleUrlButton + storeSpecificOfferButton +
+                '</div></td>' +
+                '<td style="' + tdStyle + '"><div style="position:relative;width:130px;height:40px;">' +
+                    '<input type="checkbox" class="scrapable-checkbox ' + statusInfo.checkboxClass + '" data-product-id="' + product.productId + '"' +
+                        ' style="position:absolute;top:0;left:0;z-index:2;"' +
+                        (product.isScrapable ? ' checked' : '') +
+                        (isNotFound && !product.isScrapable ? ' disabled' : '') + ' />' +
+                    '<div class="StatusBoxProduct ' + statusInfo.boxClass + '" style="position:absolute;top:0;left:20px;z-index:1;">' + statusInfo.text + '</div>' +
+                '</div></td>' +
+                '<td style="' + tdStyle + '">' + createFlagsHTML(product) + '</td>';
+
+            return row;
+        }
+
+        function onCheckboxChange(e) {
+            var checkbox = e.target;
+            if (!checkbox.classList.contains('scrapable-checkbox') || checkbox.disabled) return;
+
+            var productId    = parseInt(checkbox.getAttribute('data-product-id'));
+            var product      = productMap[productId];
+            if (!product) return;
+
+            var wasScrapable = product.isScrapable;
+            product.isScrapable = checkbox.checked;
+            updateRowVisual(checkbox.closest('tr'), product);
+            updateCounters();
+
+            fetch('@Url.Action("UpdateScrapableProduct", "Product")?storeId=' + storeId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(productId)
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.success) {
                     product.isScrapable = wasScrapable;
                     checkbox.checked = wasScrapable;
                     updateRowVisual(checkbox.closest('tr'), product);
                     updateCounters();
-                    console.error('Fetch error:', err);
-                });
-            }
-
-            function updateRowVisual(row, product) {
-                if (!row) return;
-                var statusInfo = getStatusInfo(product);
-                var statusBox = row.querySelector('.StatusBoxProduct');
-                if (statusBox) { statusBox.className = 'StatusBoxProduct ' + statusInfo.boxClass; statusBox.textContent = statusInfo.text; }
-                var cb = row.querySelector('.scrapable-checkbox');
-                if (cb) cb.className = 'scrapable-checkbox ' + statusInfo.checkboxClass;
-            }
-
-            function batchToggle(turnOn) {
-                var idsToSend = [];
-                filteredProducts.forEach(function (p) {
-                   if (turnOn && getProductPlatformStatus(p).notFound) return;
-    
-                    if (turnOn && !p.isScrapable)   idsToSend.push(p.productId);
-                    else if (!turnOn && p.isScrapable) idsToSend.push(p.productId);
-                });
-                if (!idsToSend.length) return;
-
-                if (turnOn) {
-                    var currentScrapable = allProducts.filter(function (p) { return p.isScrapable; }).length;
-                    var available = STORE_PRODUCT_LIMIT - currentScrapable;
-                    if (available <= 0) {
-                        alert('Osiągnięto limit monitorowanych produktów (' + STORE_PRODUCT_LIMIT + ').');
-                        return;
-                    }
-                    if (idsToSend.length > available) {
-                        idsToSend = idsToSend.slice(0, available);
-                    }
+                    alert(data.message || 'Wystąpił błąd podczas aktualizacji statusu.');
                 }
-
-                var previousStates = {};
-                idsToSend.forEach(function (id) {
-                    var p = productMap[id];
-                    if (p) { previousStates[id] = p.isScrapable; p.isScrapable = turnOn; }
-                });
+            })
+            .catch(function (err) {
+                product.isScrapable = wasScrapable;
+                checkbox.checked = wasScrapable;
+                updateRowVisual(checkbox.closest('tr'), product);
                 updateCounters();
-                renderVirtual(true);
+                console.error('Fetch error:', err);
+            });
+        }
 
-                var url = turnOn
-                    ? '@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=' + storeId
-                    : '@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=' + storeId;
+        function updateRowVisual(row, product) {
+            if (!row) return;
+            var statusInfo = getStatusInfo(product);
+            var statusBox = row.querySelector('.StatusBoxProduct');
+            if (statusBox) { statusBox.className = 'StatusBoxProduct ' + statusInfo.boxClass; statusBox.textContent = statusInfo.text; }
+            var cb = row.querySelector('.scrapable-checkbox');
+            if (cb) cb.className = 'scrapable-checkbox ' + statusInfo.checkboxClass;
+        }
 
-                var chunks = [];
-                for (var i = 0; i < idsToSend.length; i += BATCH_CHUNK_SIZE)
-                    chunks.push(idsToSend.slice(i, i + BATCH_CHUNK_SIZE));
+        function batchToggle(turnOn) {
+            var idsToSend = [];
+            filteredProducts.forEach(function (p) {
+                if (turnOn && getProductPlatformStatus(p).notFound) return;
 
-                var overlay      = document.getElementById('batchOverlay');
-                var titleEl      = document.getElementById('batchOverlayTitle');
-                var doneCountEl  = document.getElementById('batchDoneCount');
-                var totalCountEl = document.getElementById('batchTotalCount');
-                var fillEl       = document.getElementById('batchProgressFill');
+                if (turnOn && !p.isScrapable)   idsToSend.push(p.productId);
+                else if (!turnOn && p.isScrapable) idsToSend.push(p.productId);
+            });
+            if (!idsToSend.length) return;
 
-                titleEl.textContent = turnOn ? 'Aktualizowanie produktów...' : 'Odznaczanie produktów...';
-                totalCountEl.textContent = idsToSend.length;
-                doneCountEl.textContent = '0';
-                fillEl.style.width = '0%';
-                overlay.classList.add('active');
+            if (turnOn) {
+                var currentScrapable = allProducts.filter(function (p) { return p.isScrapable; }).length;
+                var available = STORE_PRODUCT_LIMIT - currentScrapable;
+                if (available <= 0) {
+                    alert('Osiągnięto limit monitorowanych produktów (' + STORE_PRODUCT_LIMIT + ').');
+                    return;
+                }
+                if (idsToSend.length > available) {
+                    idsToSend = idsToSend.slice(0, available);
+                }
+            }
 
-                var processedCount = 0, failed = false;
-                var chain = Promise.resolve();
+            var previousStates = {};
+            idsToSend.forEach(function (id) {
+                var p = productMap[id];
+                if (p) {
+                    previousStates[id] = p.isScrapable;
+                    p.isScrapable = turnOn;
+                    var cr = rowCache[String(id)];
+                    if (cr) updateRowVisual(cr, p);
+                }
+            });
+            updateCounters();
 
-                chunks.forEach(function (chunk) {
-                    chain = chain.then(function () {
-                        if (failed) return;
-                        return fetch(url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(chunk)
-                        })
-                        .then(function (r) { return r.json(); })
-                        .then(function (data) {
-                            processedCount += chunk.length;
-                            doneCountEl.textContent = Math.min(processedCount, idsToSend.length);
-                            fillEl.style.width = ((processedCount / idsToSend.length) * 100) + '%';
-                            if (!data.success) { failed = true; alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować produktów.')); }
-                        });
-                    });
-                });
+            var url = turnOn
+                ? '@Url.Action("UpdateMultipleScrapableProducts", "Product")?storeId=' + storeId
+                : '@Url.Action("ResetMultipleScrapableProducts", "Product")?storeId=' + storeId;
 
-                chain
-                    .then(function () {
-                        if (failed) {
-                            Object.keys(previousStates).forEach(function (id) { var p = productMap[parseInt(id)]; if (p) p.isScrapable = previousStates[id]; });
-                            updateCounters(); renderVirtual(true);
-                        }
+            var chunks = [];
+            for (var i = 0; i < idsToSend.length; i += BATCH_CHUNK_SIZE)
+                chunks.push(idsToSend.slice(i, i + BATCH_CHUNK_SIZE));
+
+            var overlay      = document.getElementById('batchOverlay');
+            var titleEl      = document.getElementById('batchOverlayTitle');
+            var doneCountEl  = document.getElementById('batchDoneCount');
+            var totalCountEl = document.getElementById('batchTotalCount');
+            var fillEl       = document.getElementById('batchProgressFill');
+
+            titleEl.textContent = turnOn ? 'Aktualizowanie produktów...' : 'Odznaczanie produktów...';
+            totalCountEl.textContent = idsToSend.length;
+            doneCountEl.textContent = '0';
+            fillEl.style.width = '0%';
+            overlay.classList.add('active');
+
+            var processedCount = 0, failed = false;
+            var chain = Promise.resolve();
+
+            chunks.forEach(function (chunk) {
+                chain = chain.then(function () {
+                    if (failed) return;
+                    return fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(chunk)
                     })
-                    .catch(function (err) {
-                        console.error('Batch error:', err);
-                        Object.keys(previousStates).forEach(function (id) { var p = productMap[parseInt(id)]; if (p) p.isScrapable = previousStates[id]; });
-                        updateCounters(); renderVirtual(true);
-                    })
-                    .finally(function () {
-                        fillEl.style.width = '100%';
-                        doneCountEl.textContent = idsToSend.length;
-                        setTimeout(function () { overlay.classList.remove('active'); }, 600);
-                    });
-            }
-
-            function onTableClick(e) {
-                var target = e.target;
-                var row = target.closest('tr.product-row');
-                if (!row) return;
-                var productId = row.getAttribute('data-product-id');
-
-                if (target.classList.contains('edit-price-btn') || target.classList.contains('add-price-btn'))
-                    toggleEditMode(row, true);
-                if (target.classList.contains('cancel-edit-btn'))
-                    toggleEditMode(row, false);
-                if (target.classList.contains('save-price-btn')) {
-                    var input    = row.querySelector('.price-edit-input');
-                    var newPrice = input.value.trim().replace(',', '.');
-                    if (newPrice === '' || isNaN(newPrice) || parseFloat(newPrice) < 0) {
-                        alert('Proszę podać poprawną, nieujemną cenę.'); return;
-                    }
-                    updatePurchasePrice(productId, parseFloat(newPrice));
-                }
-                if (target.classList.contains('delete-price-btn')) {
-                    if (confirm('Czy na pewno chcesz usunąć cenę zakupu dla tego produktu?'))
-                        updatePurchasePrice(productId, null);
-                }
-            }
-
-            function toggleEditMode(row, isEditing) {
-                if (!row) return;
-                row.querySelector('.price-display-container').classList.toggle('hidden', isEditing);
-                row.querySelector('.price-edit-container').classList.toggle('hidden', !isEditing);
-                if (isEditing) { var inp = row.querySelector('.price-edit-input'); inp.focus(); inp.select(); }
-            }
-
-            function getToken() {
-                var f = document.getElementById('uploadMarginsForm');
-                if (!f) return null;
-                var inp = f.querySelector('input[name="__RequestVerificationToken"]');
-                return inp ? inp.value : null;
-            }
-
-            function updatePurchasePrice(productId, newPrice) {
-                var token = getToken();
-                if (!token) { alert('Błąd bezpieczeństwa: Nie znaleziono tokenu weryfikacyjnego.'); return; }
-
-                fetch('@Url.Action("UpdatePurchasePrice", "Product")?storeId=' + storeId, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'RequestVerificationToken': token },
-                    body: JSON.stringify({ ProductId: parseInt(productId), NewPrice: newPrice })
-                })
-                .then(function (r) { if (!r.ok) return r.json().then(function (e) { throw new Error(e.message || 'Błąd serwera'); }); return r.json(); })
-                .then(function (data) {
-                    if (data.success) {
-                        var product = productMap[parseInt(productId)];
-                        if (product) product.marginPrice = newPrice;
-                        renderVirtual(true);
-                    } else {
-                        alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować ceny.'));
-                    }
-                })
-                .catch(function (error) { console.error('Błąd aktualizacji ceny:', error); alert('Błąd komunikacji: ' + error.message); });
-            }
-
-            function filterRows() {
-                var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
-                    .map(function (cb) { return cb.getAttribute('data-status'); });
-                var searchTerm = searchInput.value;
-                var result = filterProductsByName(allProducts, searchTerm);
-                var filterNewOnly = document.getElementById('filter-new').checked;
-                if (filterNewOnly) {
-                    result = result.filter(function (p) { return isNewProduct(p); });
-                }
-                var existingStatuses = ['active', 'inactive', 'active-rejected', 'inactive-rejected'];
-                var selectedExistingStatuses = selectedStatuses.filter(function (s) { return existingStatuses.includes(s); });
-                var selectedPlatformStatuses = selectedStatuses.filter(function (s) { return platformStatuses.includes(s); });
-
-                if (selectedExistingStatuses.length > 0)
-                    result = result.filter(function (p) { return selectedExistingStatuses.includes(getProductStatus(p)); });
-
-                if (selectedPlatformStatuses.length > 0) {
-                    result = result.filter(function (product) {
-                        var ps = getProductPlatformStatus(product);
-                        if (selectedPlatformStatuses.includes('not-found'))   return ps.notFound;
-                        if (selectedPlatformStatuses.includes('google-ceneo')) return ps.hasBoth;
-                        if (selectedPlatformStatuses.includes('google') && selectedPlatformStatuses.includes('ceneo')) return ps.hasGoogle || ps.hasCeneo;
-                        if (selectedPlatformStatuses.includes('google')) return ps.hasGoogle;
-                        if (selectedPlatformStatuses.includes('ceneo'))  return ps.hasCeneo;
-                        return false;
-                    });
-                }
-
-                var productsBeforeFlagFilter = result.slice();
-
-                if (selectedFlagsExclude.size > 0) {
-                    result = result.filter(function (item) {
-                        if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || !item.flagIds.length)) return false;
-                        if (item.flagIds) {
-                            for (var it = selectedFlagsExclude.values(), val = null; (val = it.next().value) !== undefined;)
-                                if (val !== 'noFlag' && item.flagIds.includes(parseInt(val))) return false;
-                        }
-                        return true;
-                    });
-                }
-
-                if (selectedFlagsInclude.size > 0) {
-                    result = result.filter(function (item) {
-                        if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || !item.flagIds.length)) return true;
-                        return item.flagIds && item.flagIds.some(function (fid) { return selectedFlagsInclude.has(fid.toString()); });
-                    });
-                }
-
-                filteredProducts = filterProductsByProducer(result, selectedProducer);
-                lastRenderedStart = lastRenderedEnd = -1;
-                renderVirtual(true);
-                updateCounters();
-                updateAndRenderFlagFilters(productsBeforeFlagFilter);
-            }
-
-            function fetchProducts() {
-                fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
                     .then(function (r) { return r.json(); })
                     .then(function (data) {
-                        allProducts = data;
-                        productMap  = {};
-                        allProducts.forEach(function (p) { productMap[p.productId] = p; });
-
-                        var producersWithCount = allProducts.reduce(function (acc, p) {
-                            var producer = p.producer || 'Brak';
-                            var obj = acc.find(function (x) { return x.name === producer; });
-                            if (obj) obj.count++; else acc.push({ name: producer, count: 1 });
-                            return acc;
-                        }, []);
-
-                        populateProducerDropdown(producersWithCount);
-                        filterRows();
-                    })
-                    .catch(function (err) { console.error('Error fetching products:', err); });
-            }
-
-            function getProductPlatformStatus(product) {
-                var hasGoogle = !!(product.googleUrl && product.googleUrl.trim());
-                var hasCeneo  = !!(product.offerUrl  && product.offerUrl.trim());
-                return { hasGoogle: hasGoogle, hasCeneo: hasCeneo, hasBoth: hasGoogle && hasCeneo, notFound: !hasGoogle && !hasCeneo };
-            }
-
-            function getProductStatus(product) {
-                if (product.isScrapable && product.isRejected) return 'active-rejected';
-                if (product.isScrapable)  return 'active';
-                if (product.isRejected)   return 'inactive-rejected';
-                return 'inactive';
-            }
-
-            function getStatusInfo(product) {
-                if (product.isScrapable && product.isRejected) return { boxClass: 'StatusBoxProduct-1', text: 'Odrzucony',  checkboxClass: 'rejected' };
-                if (product.isScrapable)  return { boxClass: 'StatusBoxProduct-2', text: 'Aktywny',     checkboxClass: '' };
-                if (product.isRejected)   return { boxClass: 'StatusBoxProduct-3', text: 'Wyłączony',   checkboxClass: '' };
-                return                           { boxClass: 'StatusBoxProduct-4', text: 'Nieaktywny',  checkboxClass: '' };
-            }
-
-            function createNewGoogleUrl(product) {
-                if (!product.googleUrl || !product.productName) return product.googleUrl || '';
-                var match = product.googleUrl.match(/product\/(\d+)/);
-                return match && match[1]
-                    ? 'https://www.google.com/shopping/product/' + match[1] + '/offers?q=' + encodeURIComponent(product.productName)
-                    : product.googleUrl;
-            }
-
-            function decodeHTML(html) { var t = document.createElement('textarea'); t.innerHTML = html; return t.value; }
-
-            function highlightMatches(text, searchTerm) {
-                if (!searchTerm || !text) return text || '';
-                var s = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
-                if (!s) return text;
-                return text.replace(new RegExp('(' + s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'),
-                    '<span style="color:#9400D3;font-weight:600;">$1</span>');
-            }
-
-            function filterProductsByProducer(products, producer) {
-                if (producer === 'all') return products;
-                return products.filter(function (p) { return decodeHTML(p.producer || 'Brak') === producer; });
-            }
-
-            function filterProductsByName(products, name) {
-                var s = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim().toLowerCase();
-                if (!s) return products;
-                return products.filter(function (p) {
-                    return p.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').includes(s) ||
-                           (p.ean || '').toLowerCase().includes(s) ||
-                           (p.externalId != null && String(p.externalId).toLowerCase().includes(s)) ||
-                           (p.catalogNumber || '').toLowerCase().includes(s);
+                        processedCount += chunk.length;
+                        doneCountEl.textContent = Math.min(processedCount, idsToSend.length);
+                        fillEl.style.width = ((processedCount / idsToSend.length) * 100) + '%';
+                        if (!data.success) { failed = true; alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować produktów.')); }
+                    });
                 });
-            }
+            });
 
-            function hexToRgba(hex, alpha) {
-                var r = 0, g = 0, b = 0;
-                if (hex.length === 4) {
-                    r = parseInt(hex[1]+hex[1],16); g = parseInt(hex[2]+hex[2],16); b = parseInt(hex[3]+hex[3],16);
-                } else if (hex.length === 7) {
-                    r = parseInt(hex[1]+hex[2],16); g = parseInt(hex[3]+hex[4],16); b = parseInt(hex[5]+hex[6],16);
-                }
-                return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
-            }
-
-            function createFlagsHTML(product) {
-                if (!product.flagIds || !product.flagIds.length) return '';
-                var html = '<div class="flags-container">';
-                product.flagIds.forEach(function (flagId) {
-                    var flag = flags.find(function (f) { return f.FlagId === flagId; });
-                    if (flag) {
-                        html += '<span class="flag" style="color:' + flag.FlagColor +
-                            ';border:2px solid ' + flag.FlagColor +
-                            ';background-color:' + hexToRgba(flag.FlagColor, 0.3) + ';">' + flag.FlagName + '</span>';
+            function rollback() {
+                Object.keys(previousStates).forEach(function (id) {
+                    var p = productMap[parseInt(id)];
+                    if (p) {
+                        p.isScrapable = previousStates[id];
+                        var cr = rowCache[id];
+                        if (cr) updateRowVisual(cr, p);
                     }
                 });
-                return html + '</div>';
+                updateCounters();
             }
 
-            function updateCounters() {
-                var ar = 0, ac = 0, ir = 0, ic = 0, gc = 0, cc = 0, gcc = 0, nf = 0;
-                allProducts.forEach(function (p) {
-                    if (p.isScrapable && p.isRejected) ar++;
-                    else if (p.isScrapable)  ac++;
-                    else if (p.isRejected)   ir++;
-                    else                     ic++;
-                    var ps = getProductPlatformStatus(p);
-                    if (ps.hasBoth)    gcc++;
-                    if (ps.hasGoogle)  gc++;
-                    if (ps.hasCeneo)   cc++;
-                    if (ps.notFound)   nf++;
+            chain
+                .then(function () { if (failed) rollback(); })
+                .catch(function (err) { console.error('Batch error:', err); rollback(); })
+                .finally(function () {
+                    fillEl.style.width = '100%';
+                    doneCountEl.textContent = idsToSend.length;
+                    setTimeout(function () { overlay.classList.remove('active'); }, 600);
                 });
-                document.getElementById('count-active-rejected').textContent  = ar;
-                document.getElementById('count-active').textContent            = ac;
-                document.getElementById('count-inactive-rejected').textContent = ir;
-                document.getElementById('count-inactive').textContent          = ic;
-                document.getElementById('scrapable-count').textContent         = ar + ac;
-                document.getElementById('total-products').textContent          = allProducts.length;
-                document.getElementById('count-google').textContent            = gc;
-                document.getElementById('count-ceneo').textContent             = cc;
-                document.getElementById('count-google-ceneo').textContent      = gcc;
-                document.getElementById('count-not-found').textContent         = nf;
-                var newCount = allProducts.filter(function (p) { return isNewProduct(p); }).length;
-                document.getElementById('count-new').textContent = newCount;
-            }
+        }
 
-            function populateProducerDropdown(producersWithCount) {
-                producersWithCount.sort(function (a, b) { return b.count - a.count; });
-                producerDropdown.innerHTML = '<option value="all">Producent - Wszyscy (' + allProducts.length + ')</option>';
-                producersWithCount.forEach(function (prod) {
-                    var decoded = decodeHTML(prod.name);
-                    var option  = document.createElement('option');
-                    option.value = decoded;
-                    option.textContent = decoded + ' (' + prod.count + ')';
-                    producerDropdown.appendChild(option);
-                });
-                producerDropdown.value = selectedProducer;
-            }
+        function onTableClick(e) {
+            var target = e.target;
+            var row = target.closest('tr.product-row');
+            if (!row) return;
+            var productId = row.getAttribute('data-product-id');
 
-            function updateAndRenderFlagFilters(products) {
-                var flagCounts = {}, noFlagCount = 0;
-                products.forEach(function (p) {
-                    if (!p.flagIds || !p.flagIds.length) noFlagCount++;
-                    else p.flagIds.forEach(function (id) { flagCounts[id] = (flagCounts[id] || 0) + 1; });
-                });
-
-                var flagContainer = document.getElementById('flagFilterList');
-                if (!flagContainer) return;
-                flagContainer.innerHTML = '';
-
-                if (flags) {
-                    flags.forEach(function (flag) {
-                        var count          = flagCounts[flag.FlagId] || 0;
-                        var includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
-                        var excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
-                        flagContainer.insertAdjacentHTML('beforeend',
-                            '<div class="flag-filter-group">' +
-                                '<div class="form-check form-check-inline check-include" style="margin-right:0px;">' +
-                                    '<input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_' + flag.FlagId + '" value="' + flag.FlagId + '" ' + includeChecked + ' title="Pokaż produkty z tą flagą">' +
-                                '</div>' +
-                                '<div class="form-check form-check-inline check-exclude" style="margin-right:0px;padding-left:16px;">' +
-                                    '<input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_' + flag.FlagId + '" value="' + flag.FlagId + '" ' + excludeChecked + ' title="Ukryj produkty z tą flagą">' +
-                                '</div>' +
-                                '<span class="flag-name-count" style="font-size:14px;font-weight:400;">' + flag.FlagName + ' (' + count + ')</span>' +
-                            '</div>');
-                    });
+            if (target.classList.contains('edit-price-btn') || target.classList.contains('add-price-btn'))
+                toggleEditMode(row, true);
+            if (target.classList.contains('cancel-edit-btn'))
+                toggleEditMode(row, false);
+            if (target.classList.contains('save-price-btn')) {
+                var input    = row.querySelector('.price-edit-input');
+                var newPrice = input.value.trim().replace(',', '.');
+                if (newPrice === '' || isNaN(newPrice) || parseFloat(newPrice) < 0) {
+                    alert('Proszę podać poprawną, nieujemną cenę.'); return;
                 }
+                updatePurchasePrice(productId, parseFloat(newPrice));
+            }
+            if (target.classList.contains('delete-price-btn')) {
+                if (confirm('Czy na pewno chcesz usunąć cenę zakupu dla tego produktu?'))
+                    updatePurchasePrice(productId, null);
+            }
+        }
 
-                var nfInclude = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
-                var nfExclude = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
-                flagContainer.insertAdjacentHTML('beforeend',
-                    '<div class="flag-filter-group">' +
-                        '<div class="form-check form-check-inline check-include" style="margin-right:0px;">' +
-                            '<input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_noFlag" value="noFlag" ' + nfInclude + '>' +
-                        '</div>' +
-                        '<div class="form-check form-check-inline check-exclude" style="margin-right:0px;padding-left:16px;">' +
-                            '<input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_noFlag" value="noFlag" ' + nfExclude + '>' +
-                        '</div>' +
-                        '<span class="flag-name-count" style="font-size:14px;font-weight:400;">Brak flagi (' + noFlagCount + ')</span>' +
-                    '</div>');
+        function toggleEditMode(row, isEditing) {
+            if (!row) return;
+            row.querySelector('.price-display-container').classList.toggle('hidden', isEditing);
+            row.querySelector('.price-edit-container').classList.toggle('hidden', !isEditing);
+            if (isEditing) { var inp = row.querySelector('.price-edit-input'); inp.focus(); inp.select(); }
+        }
 
-                document.querySelectorAll('.flagFilterInclude, .flagFilterExclude').forEach(function (checkbox) {
-                    checkbox.addEventListener('change', function () {
-                        var flagValue = this.value;
-                        var isInclude = this.classList.contains('flagFilterInclude');
-                        if (isInclude) {
-                            if (this.checked) {
-                                document.getElementById('flagCheckboxExclude_' + flagValue).checked = false;
-                                selectedFlagsExclude.delete(flagValue);
-                                selectedFlagsInclude.add(flagValue);
-                            } else { selectedFlagsInclude.delete(flagValue); }
-                        } else {
-                            if (this.checked) {
-                                document.getElementById('flagCheckboxInclude_' + flagValue).checked = false;
-                                selectedFlagsInclude.delete(flagValue);
-                                selectedFlagsExclude.add(flagValue);
-                            } else { selectedFlagsExclude.delete(flagValue); }
-                        }
-                        filterRows();
-                    });
+        function getToken() {
+            var f = document.getElementById('uploadMarginsForm');
+            if (!f) return null;
+            var inp = f.querySelector('input[name="__RequestVerificationToken"]');
+            return inp ? inp.value : null;
+        }
+
+        function updatePurchasePrice(productId, newPrice) {
+            var token = getToken();
+            if (!token) { alert('Błąd bezpieczeństwa: Nie znaleziono tokenu weryfikacyjnego.'); return; }
+
+            fetch('@Url.Action("UpdatePurchasePrice", "Product")?storeId=' + storeId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'RequestVerificationToken': token },
+                body: JSON.stringify({ ProductId: parseInt(productId), NewPrice: newPrice })
+            })
+            .then(function (r) { if (!r.ok) return r.json().then(function (e) { throw new Error(e.message || 'Błąd serwera'); }); return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    var product = productMap[parseInt(productId)];
+                    if (product) product.marginPrice = newPrice;
+                    invalidateProductRow(productId);
+                    renderVirtual(true);
+                } else {
+                    alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować ceny.'));
+                }
+            })
+            .catch(function (error) { console.error('Błąd aktualizacji ceny:', error); alert('Błąd komunikacji: ' + error.message); });
+        }
+
+        function filterRows() {
+            var newSearchTerm = searchInput ? searchInput.value : '';
+            if (newSearchTerm !== currentSearchTerm) {
+                currentSearchTerm = newSearchTerm;
+                clearRowCache();
+            }
+
+            var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
+                .map(function (cb) { return cb.getAttribute('data-status'); });
+            var result = filterProductsByName(allProducts, currentSearchTerm);
+            var filterNewOnly = document.getElementById('filter-new').checked;
+            if (filterNewOnly) {
+                result = result.filter(function (p) { return isNewProduct(p); });
+            }
+            var existingStatuses = ['active', 'inactive', 'active-rejected', 'inactive-rejected'];
+            var selectedExistingStatuses = selectedStatuses.filter(function (s) { return existingStatuses.includes(s); });
+            var selectedPlatformStatuses = selectedStatuses.filter(function (s) { return platformStatuses.includes(s); });
+
+            if (selectedExistingStatuses.length > 0)
+                result = result.filter(function (p) { return selectedExistingStatuses.includes(getProductStatus(p)); });
+
+            if (selectedPlatformStatuses.length > 0) {
+                result = result.filter(function (product) {
+                    var ps = getProductPlatformStatus(product);
+                    if (selectedPlatformStatuses.includes('not-found'))   return ps.notFound;
+                    if (selectedPlatformStatuses.includes('google-ceneo')) return ps.hasBoth;
+                    if (selectedPlatformStatuses.includes('google') && selectedPlatformStatuses.includes('ceneo')) return ps.hasGoogle || ps.hasCeneo;
+                    if (selectedPlatformStatuses.includes('google')) return ps.hasGoogle;
+                    if (selectedPlatformStatuses.includes('ceneo'))  return ps.hasCeneo;
+                    return false;
                 });
             }
 
-        })();
-    </script>
+            var productsBeforeFlagFilter = result.slice();
+
+            if (selectedFlagsExclude.size > 0) {
+                result = result.filter(function (item) {
+                    if (selectedFlagsExclude.has('noFlag') && (!item.flagIds || !item.flagIds.length)) return false;
+                    if (item.flagIds) {
+                        for (var it = selectedFlagsExclude.values(), val = null; (val = it.next().value) !== undefined;)
+                            if (val !== 'noFlag' && item.flagIds.includes(parseInt(val))) return false;
+                    }
+                    return true;
+                });
+            }
+
+            if (selectedFlagsInclude.size > 0) {
+                result = result.filter(function (item) {
+                    if (selectedFlagsInclude.has('noFlag') && (!item.flagIds || !item.flagIds.length)) return true;
+                    return item.flagIds && item.flagIds.some(function (fid) { return selectedFlagsInclude.has(fid.toString()); });
+                });
+            }
+
+            filteredProducts = filterProductsByProducer(result, selectedProducer);
+            lastRenderedStart = lastRenderedEnd = -1;
+            scrollContainer.scrollTop = 0;
+            renderVirtual(true);
+            updateCounters();
+            updateAndRenderFlagFilters(productsBeforeFlagFilter);
+        }
+
+        function fetchProducts() {
+            fetch('@Url.Action("GetProducts", "Product")?storeId=' + storeId)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    allProducts = data;
+                    productMap  = {};
+                    allProducts.forEach(function (p) { productMap[p.productId] = p; });
+
+                    var producersWithCount = allProducts.reduce(function (acc, p) {
+                        var producer = p.producer || 'Brak';
+                        var obj = acc.find(function (x) { return x.name === producer; });
+                        if (obj) obj.count++; else acc.push({ name: producer, count: 1 });
+                        return acc;
+                    }, []);
+
+                    populateProducerDropdown(producersWithCount);
+                    clearRowCache();
+                    filterRows();
+                })
+                .catch(function (err) { console.error('Error fetching products:', err); });
+        }
+
+        function getProductPlatformStatus(product) {
+            var hasGoogle = !!(product.googleUrl && product.googleUrl.trim());
+            var hasCeneo  = !!(product.offerUrl  && product.offerUrl.trim());
+            return { hasGoogle: hasGoogle, hasCeneo: hasCeneo, hasBoth: hasGoogle && hasCeneo, notFound: !hasGoogle && !hasCeneo };
+        }
+
+        function getProductStatus(product) {
+            if (product.isScrapable && product.isRejected) return 'active-rejected';
+            if (product.isScrapable)  return 'active';
+            if (product.isRejected)   return 'inactive-rejected';
+            return 'inactive';
+        }
+
+        function getStatusInfo(product) {
+            if (product.isScrapable && product.isRejected) return { boxClass: 'StatusBoxProduct-1', text: 'Odrzucony',  checkboxClass: 'rejected' };
+            if (product.isScrapable)  return { boxClass: 'StatusBoxProduct-2', text: 'Aktywny',     checkboxClass: '' };
+            if (product.isRejected)   return { boxClass: 'StatusBoxProduct-3', text: 'Wyłączony',   checkboxClass: '' };
+            return                           { boxClass: 'StatusBoxProduct-4', text: 'Nieaktywny',  checkboxClass: '' };
+        }
+
+        function createNewGoogleUrl(product) {
+            if (!product.googleUrl || !product.productName) return product.googleUrl || '';
+            var match = product.googleUrl.match(/product\/(\d+)/);
+            return match && match[1]
+                ? 'https://www.google.com/shopping/product/' + match[1] + '/offers?q=' + encodeURIComponent(product.productName)
+                : product.googleUrl;
+        }
+
+        function decodeHTML(html) { var t = document.createElement('textarea'); t.innerHTML = html; return t.value; }
+
+        function highlightMatches(text, searchTerm) {
+            if (!searchTerm || !text) return text || '';
+            var s = searchTerm.replace(/[^a-zA-Z0-9\s.-]/g, '');
+            if (!s) return text;
+            return text.replace(new RegExp('(' + s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'),
+                '<span style="color:#9400D3;font-weight:600;">$1</span>');
+        }
+
+        function filterProductsByProducer(products, producer) {
+            if (producer === 'all') return products;
+            return products.filter(function (p) { return decodeHTML(p.producer || 'Brak') === producer; });
+        }
+
+        function filterProductsByName(products, name) {
+            var s = name.replace(/[^a-zA-Z0-9\s.-]/g, '').trim().toLowerCase();
+            if (!s) return products;
+            return products.filter(function (p) {
+                return p.productName.toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').includes(s) ||
+                       (p.ean || '').toLowerCase().includes(s) ||
+                       (p.externalId != null && String(p.externalId).toLowerCase().includes(s)) ||
+                       (p.catalogNumber || '').toLowerCase().includes(s);
+            });
+        }
+
+        function hexToRgba(hex, alpha) {
+            var r = 0, g = 0, b = 0;
+            if (hex.length === 4) {
+                r = parseInt(hex[1]+hex[1],16); g = parseInt(hex[2]+hex[2],16); b = parseInt(hex[3]+hex[3],16);
+            } else if (hex.length === 7) {
+                r = parseInt(hex[1]+hex[2],16); g = parseInt(hex[3]+hex[4],16); b = parseInt(hex[5]+hex[6],16);
+            }
+            return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+        }
+
+        function createFlagsHTML(product) {
+            if (!product.flagIds || !product.flagIds.length) return '';
+            var html = '<div class="flags-container">';
+            product.flagIds.forEach(function (flagId) {
+                var flag = flags.find(function (f) { return f.FlagId === flagId; });
+                if (flag) {
+                    html += '<span class="flag" style="color:' + flag.FlagColor +
+                        ';border:2px solid ' + flag.FlagColor +
+                        ';background-color:' + hexToRgba(flag.FlagColor, 0.3) + ';">' + flag.FlagName + '</span>';
+                }
+            });
+            return html + '</div>';
+        }
+
+        function updateCounters() {
+            var ar = 0, ac = 0, ir = 0, ic = 0, gc = 0, cc = 0, gcc = 0, nf = 0;
+            allProducts.forEach(function (p) {
+                if (p.isScrapable && p.isRejected) ar++;
+                else if (p.isScrapable)  ac++;
+                else if (p.isRejected)   ir++;
+                else                     ic++;
+                var ps = getProductPlatformStatus(p);
+                if (ps.hasBoth)    gcc++;
+                if (ps.hasGoogle)  gc++;
+                if (ps.hasCeneo)   cc++;
+                if (ps.notFound)   nf++;
+            });
+            document.getElementById('count-active-rejected').textContent  = ar;
+            document.getElementById('count-active').textContent            = ac;
+            document.getElementById('count-inactive-rejected').textContent = ir;
+            document.getElementById('count-inactive').textContent          = ic;
+            document.getElementById('scrapable-count').textContent         = ar + ac;
+            document.getElementById('total-products').textContent          = allProducts.length;
+            document.getElementById('count-google').textContent            = gc;
+            document.getElementById('count-ceneo').textContent             = cc;
+            document.getElementById('count-google-ceneo').textContent      = gcc;
+            document.getElementById('count-not-found').textContent         = nf;
+            var newCount = allProducts.filter(function (p) { return isNewProduct(p); }).length;
+            document.getElementById('count-new').textContent = newCount;
+        }
+
+        function populateProducerDropdown(producersWithCount) {
+            producersWithCount.sort(function (a, b) { return b.count - a.count; });
+            producerDropdown.innerHTML = '<option value="all">Producent - Wszyscy (' + allProducts.length + ')</option>';
+            producersWithCount.forEach(function (prod) {
+                var decoded = decodeHTML(prod.name);
+                var option  = document.createElement('option');
+                option.value = decoded;
+                option.textContent = decoded + ' (' + prod.count + ')';
+                producerDropdown.appendChild(option);
+            });
+            producerDropdown.value = selectedProducer;
+        }
+
+        function updateAndRenderFlagFilters(products) {
+            var flagCounts = {}, noFlagCount = 0;
+            products.forEach(function (p) {
+                if (!p.flagIds || !p.flagIds.length) noFlagCount++;
+                else p.flagIds.forEach(function (id) { flagCounts[id] = (flagCounts[id] || 0) + 1; });
+            });
+
+            var flagContainer = document.getElementById('flagFilterList');
+            if (!flagContainer) return;
+            flagContainer.innerHTML = '';
+
+            if (flags) {
+                flags.forEach(function (flag) {
+                    var count          = flagCounts[flag.FlagId] || 0;
+                    var includeChecked = selectedFlagsInclude.has(String(flag.FlagId)) ? 'checked' : '';
+                    var excludeChecked = selectedFlagsExclude.has(String(flag.FlagId)) ? 'checked' : '';
+                    flagContainer.insertAdjacentHTML('beforeend',
+                        '<div class="flag-filter-group">' +
+                            '<div class="form-check form-check-inline check-include" style="margin-right:0px;">' +
+                                '<input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_' + flag.FlagId + '" value="' + flag.FlagId + '" ' + includeChecked + ' title="Pokaż produkty z tą flagą">' +
+                            '</div>' +
+                            '<div class="form-check form-check-inline check-exclude" style="margin-right:0px;padding-left:16px;">' +
+                                '<input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_' + flag.FlagId + '" value="' + flag.FlagId + '" ' + excludeChecked + ' title="Ukryj produkty z tą flagą">' +
+                            '</div>' +
+                            '<span class="flag-name-count" style="font-size:14px;font-weight:400;">' + flag.FlagName + ' (' + count + ')</span>' +
+                        '</div>');
+                });
+            }
+
+            var nfInclude = selectedFlagsInclude.has('noFlag') ? 'checked' : '';
+            var nfExclude = selectedFlagsExclude.has('noFlag') ? 'checked' : '';
+            flagContainer.insertAdjacentHTML('beforeend',
+                '<div class="flag-filter-group">' +
+                    '<div class="form-check form-check-inline check-include" style="margin-right:0px;">' +
+                        '<input class="form-check-input flagFilterInclude" type="checkbox" id="flagCheckboxInclude_noFlag" value="noFlag" ' + nfInclude + '>' +
+                    '</div>' +
+                    '<div class="form-check form-check-inline check-exclude" style="margin-right:0px;padding-left:16px;">' +
+                        '<input class="form-check-input flagFilterExclude" type="checkbox" id="flagCheckboxExclude_noFlag" value="noFlag" ' + nfExclude + '>' +
+                    '</div>' +
+                    '<span class="flag-name-count" style="font-size:14px;font-weight:400;">Brak flagi (' + noFlagCount + ')</span>' +
+                '</div>');
+
+            document.querySelectorAll('.flagFilterInclude, .flagFilterExclude').forEach(function (checkbox) {
+                checkbox.addEventListener('change', function () {
+                    var flagValue = this.value;
+                    var isInclude = this.classList.contains('flagFilterInclude');
+                    if (isInclude) {
+                        if (this.checked) {
+                            document.getElementById('flagCheckboxExclude_' + flagValue).checked = false;
+                            selectedFlagsExclude.delete(flagValue);
+                            selectedFlagsInclude.add(flagValue);
+                        } else { selectedFlagsInclude.delete(flagValue); }
+                    } else {
+                        if (this.checked) {
+                            document.getElementById('flagCheckboxInclude_' + flagValue).checked = false;
+                            selectedFlagsInclude.delete(flagValue);
+                            selectedFlagsExclude.add(flagValue);
+                        } else { selectedFlagsExclude.delete(flagValue); }
+                    }
+                    filterRows();
+                });
+            });
+        }
+
+    })();
+</script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
