@@ -7,6 +7,8 @@ using PriceSafari.Enums;
 using PriceSafari.IntervalPriceChanger.Models;
 using PriceSafari.IntervalPriceChanger.Services;
 using PriceSafari.Models;
+using PriceSafari.Models.DTOs;
+using PriceSafari.Services.PriceAutomationService;
 using System.Text.Json;
 
 namespace PriceSafari.IntervalPriceChanger.Controllers
@@ -16,11 +18,16 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
     {
         private readonly PriceSafariContext _context;
         private readonly IntervalPriceCalculationService _calcService;
+        private readonly PriceAutomationService _automationService;
 
-        public IntervalPriceController(PriceSafariContext context, IntervalPriceCalculationService calcService)
+        public IntervalPriceController(
+            PriceSafariContext context,
+            IntervalPriceCalculationService calcService,
+            PriceAutomationService automationService)
         {
             _context = context;
             _calcService = calcService;
+            _automationService = automationService;
         }
 
         [HttpGet]
@@ -166,6 +173,70 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
             await _context.SaveChangesAsync();
 
             return RedirectToAction("Details", "PriceAutomation", new { id = parentId });
+        }
+
+   
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
+        public async Task<IActionResult> PauseProduct([FromBody] PauseProductRequest request)
+        {
+            if (request == null || request.RuleId <= 0 || request.ProductId <= 0)
+                return BadRequest(new { success = false, message = "Nieprawidłowe żądanie." });
+
+            var interval = await _context.IntervalPriceRules
+                .Where(r => r.Id == request.RuleId)
+                .Select(r => new { r.Id, r.AutomationRuleId })
+                .FirstOrDefaultAsync();
+
+            if (interval == null)
+                return Ok(new { success = false, message = "Interwał nie istnieje." });
+
+            try
+            {
+                var (success, message) = await _automationService.PauseProductAsync(
+                    interval.AutomationRuleId, request.ProductId, request.DurationHours);
+
+                return Ok(success
+                    ? (object)new { success = true }
+                    : new { success = false, message });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequireUserAccess(UserAccessRequirement.EditPriceAutomation)]
+        public async Task<IActionResult> UnpauseProduct([FromBody] UnpauseProductRequest request)
+        {
+            if (request == null || request.RuleId <= 0 || request.ProductId <= 0)
+                return BadRequest(new { success = false, message = "Nieprawidłowe żądanie." });
+
+            var interval = await _context.IntervalPriceRules
+                .Where(r => r.Id == request.RuleId)
+                .Select(r => new { r.Id, r.AutomationRuleId })
+                .FirstOrDefaultAsync();
+
+            if (interval == null)
+                return Ok(new { success = false, message = "Interwał nie istnieje." });
+
+            try
+            {
+                var (success, message) = await _automationService.UnpauseProductAsync(
+                    interval.AutomationRuleId, request.ProductId);
+
+                return Ok(success
+                    ? (object)new { success = true }
+                    : new { success = false, message });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { success = false, message = ex.Message });
+            }
         }
 
         [HttpGet]
@@ -470,20 +541,6 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
             public List<int> ProductIds { get; set; } = new();
         }
 
-        // <summary>
-
-        // Walidacja formatu siatki harmonogramu.
-
-        // Akceptuje:
-
-        //   - 0 (pusty slot)
-
-        //   - ±1..6   (legacy: krok A bez step-prefix)
-
-        //   - ±101..106 / ±201..206 / ±301..306 (nowy format A/B/C)
-
-        // </summary>
-
         private bool ValidateScheduleJson(string json)
         {
             if (string.IsNullOrEmpty(json)) return true;
@@ -511,12 +568,6 @@ namespace PriceSafari.IntervalPriceChanger.Controllers
             }
             catch { return false; }
         }
-
-        // <summary>
-
-        // Zwraca informacje o limicie produkt\u00f3w w interwa\u0142ach dla danego sklepu i \u017ar\u00f3d\u0142a.
-
-        // </summary>
 
         private async Task<(int limit, int used)> GetIntervalLimitInfoAsync(int storeId, bool isAllegro)
         {

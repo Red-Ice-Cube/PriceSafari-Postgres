@@ -96,6 +96,7 @@ namespace PriceSafari.IntervalPriceChanger.Models
         FailedApi = 11,
         FailedAuth = 12,
         NoChangeNeeded = 13,
-        BlockedNoMarketOffer = 14   
+        BlockedNoMarketOffer = 14,
+        BlockedPaused = 15
     }
 }

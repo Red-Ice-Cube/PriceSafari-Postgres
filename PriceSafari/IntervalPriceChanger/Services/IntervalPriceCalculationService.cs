@@ -154,6 +154,15 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 .GroupBy(pf => pf.AllegroProductId.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
+            var parentPauseRaw = await _context.AutomationProductAssignments
+              .Where(a => a.AutomationRuleId == parent.Id
+                       && a.AllegroProductId.HasValue
+                       && productIds.Contains(a.AllegroProductId.Value)
+                       && a.PausedUntil.HasValue)
+              .Select(a => new { Pid = a.AllegroProductId.Value, Until = a.PausedUntil.Value })
+              .ToListAsync();
+            var parentPauseLookup = parentPauseRaw.ToDictionary(x => x.Pid, x => x.Until);
+
             DateTime? nextExecution = model.NextGlobalExecution;
             int? nextExecStepIdx = model.NextGlobalExecutionStepIdx;
 
@@ -342,6 +351,18 @@ namespace PriceSafari.IntervalPriceChanger.Services
 
                 CalculatePriceLimits(parent, row);
 
+                if (parentPauseLookup.TryGetValue(p.AllegroProductId, out var pUntil) && pUntil > DateTime.UtcNow)
+                {
+                    row.IsPaused = true;
+                    row.PausedUntil = pUntil;
+                    row.Status = IntervalProductStatus.Paused;
+                    row.BlockReason = "Pauza";
+                    row.WillNextExecutionRun = false;
+                    CalculateCurrentMarkup(row);
+                    model.Products.Add(row);
+                    continue;
+                }
+
                 DetermineEffectivePriceAndStatus(rule, parent, row, myHistory != null && myHistory.Price > 0, committedPrice);
 
                 CalculateCurrentMarkup(row);
@@ -431,7 +452,17 @@ namespace PriceSafari.IntervalPriceChanger.Services
                             StepLetter = latest.StepLetter,
                             TotalSteps = g.Count()
                         };
-                    });
+                });
+
+            var parentPauseRaw = await _context.AutomationProductAssignments
+              .Where(a => a.AutomationRuleId == parent.Id
+                       && a.ProductId.HasValue
+                       && productIds.Contains(a.ProductId.Value)
+                       && a.PausedUntil.HasValue)
+              .Select(a => new { Pid = a.ProductId.Value, Until = a.PausedUntil.Value })
+              .ToListAsync();
+            var parentPauseLookup = parentPauseRaw.ToDictionary(x => x.Pid, x => x.Until);
+
 
             DateTime? nextExecution = model.NextGlobalExecution;
             int? nextExecStepIdx = model.NextGlobalExecutionStepIdx;
@@ -542,6 +573,17 @@ namespace PriceSafari.IntervalPriceChanger.Services
                 row.NextExecutionTime = nextExecution;
 
                 CalculatePriceLimits(parent, row);
+                if (parentPauseLookup.TryGetValue(p.ProductId, out var pUntil) && pUntil > DateTime.UtcNow)
+                {
+                    row.IsPaused = true;
+                    row.PausedUntil = pUntil;
+                    row.Status = IntervalProductStatus.Paused;
+                    row.BlockReason = "Pauza";
+                    row.WillNextExecutionRun = false;
+                    CalculateCurrentMarkup(row);
+                    model.Products.Add(row);
+                    continue;
+                }
                 DetermineEffectivePriceAndStatus(rule, parent, row, myHistory != null && myHistory.Price > 0, committedPrice);
                 CalculateCurrentMarkup(row);
                 CalculateProjectedStep(rule, row);

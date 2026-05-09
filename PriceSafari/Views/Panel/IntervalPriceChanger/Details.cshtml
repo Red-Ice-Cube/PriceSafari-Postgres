@@ -380,7 +380,12 @@
 
                             string rowNextExecIso = item.NextExecutionTime?.ToString("yyyy-MM-ddTHH:mm:ss") ?? "";
 
-                         <tr data-status="@item.Status.ToString()"
+                        
+                            string pausedUntilIso = item.PausedUntil.HasValue ? item.PausedUntil.Value.ToUniversalTime().ToString("o") : "";
+                            string rowPausedClass = item.IsPaused ? "row-paused" : "";
+                         
+                         <tr id="prod-row-@item.ProductId" class="main-product-row @rowPausedClass"
+                            data-status="@item.Status.ToString()"
                             data-has-purchase-price="@item.PurchasePrice.HasValue.ToString().ToLower()"
                             data-has-min-limit="@item.MinPriceLimit.HasValue.ToString().ToLower()"
                             data-has-max-limit="@item.MaxPriceLimit.HasValue.ToString().ToLower()"
@@ -392,7 +397,8 @@
                             data-flag-ids="@(item.FlagIds != null ? string.Join(",", item.FlagIds) : "")"
                             data-pop-total="@(item.TotalPopularity ?? 0)"
                             data-pop-mine="@(item.MyTotalPopularity ?? 0)"
-                            data-pop-share="@((item.MarketSharePercentage ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">
+                            data-pop-share="@((item.MarketSharePercentage ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))"
+                            data-is-paused="@item.IsPaused.ToString().ToLower()">
 
                               
                                 <td class="align-middle">
@@ -434,10 +440,35 @@
                                                     }
                                                 </div>
                                             }
-                                            <div class="d-flex align-items-center mt-2" style="gap:6px; flex-wrap:wrap;">
-                                                <button class="select-product-btn" data-product-id="@item.ProductId" data-product-name="@item.Name" data-identifier="@item.Identifier" style="font-size:11px; padding:2px 8px;">Zaznacz</button>
-                                                <div class="small text-muted" style="line-height:1;">ID: @item.Identifier</div>
-                                            </div>
+                                        <div class="d-flex align-items-center mt-2" style="gap:6px; flex-wrap:wrap;">
+                                            <button class="select-product-btn" data-product-id="@item.ProductId" data-product-name="@item.Name" data-identifier="@item.Identifier" style="font-size:11px; padding:2px 8px;">Zaznacz</button>
+                                            @if (canEdit)
+                                            {
+                                                <button type="button"
+                                                        class="pause-product-btn @(item.IsPaused ? "is-paused" : "")"
+                                                        data-product-id="@item.ProductId"
+                                                        data-product-name="@item.Name"
+                                                        data-paused-until="@pausedUntilIso"
+                                                        title="@(item.IsPaused ? "Zarządzaj wstrzymaniem automatu" : "Wstrzymaj automat dla tego produktu")">
+                                                    @if (item.IsPaused)
+                                                    {
+                                                        <i class="fas fa-pause"></i>
+                                                        <span class="pause-countdown-text">--</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="fas fa-play"></i>
+                                                    }
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button type="button" class="pause-product-btn" style="opacity:0.5; cursor:not-allowed;" onclick="showNoAccessAlert(); return false;" title="Brak uprawnień">
+                                                    <i class="fas fa-play"></i>
+                                                </button>
+                                            }
+                                            <div class="small text-muted" style="line-height:1;">ID: @item.Identifier</div>
+                                        </div>
                                         </div>
                                     </div>
                                 </td>
@@ -793,9 +824,16 @@
                                             }
                                             break;
                                         case IntervalProductStatus.Paused:
-                                            <div class="status-badge status-paused"><i class="fas fa-pause mr-1"></i> @item.BlockReason</div>
+                                            if (item.IsPaused)
+                                            {
+                                                <div class="status-badge status-paused-badge"><i class="fas fa-pause mr-1"></i> PAUZA</div>
+                                            }
+                                            else
+                                            {
+                                                <div class="status-badge status-paused"><i class="fas fa-pause mr-1"></i> @item.BlockReason</div>
+                                            }
                                             break;
-                                    }
+                                        }
                                 </td>
                             </tr>
                         }
@@ -821,6 +859,23 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Anuluj</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="pauseProductModal" class="modal fade" tabindex="-1" style="z-index:1060;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="price-box-column-name">
+                    <i class="fas fa-pause-circle" style="color:#e74a3b; margin-right:8px;"></i>
+                    Wstrzymaj automat dla produktu
+                </div>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="pauseModalContent"></div>
             </div>
         </div>
     </div>
@@ -1107,7 +1162,15 @@ function _executeIntervalUnassign(ctx) {
                 url: url, type: 'POST', contentType: 'application/json',
                 headers: { 'RequestVerificationToken': token },
                 data: JSON.stringify(payload),
-                success: function(r) { if(r.success) location.reload(); else { alert("Błąd: " + r.message); btn.html(orig).prop('disabled', false); } },
+                success: function(r) {
+                    if (r.success) {
+                        sessionStorage.setItem('interval_scrollToProduct', productId);
+                        location.reload();
+                    } else {
+                        alert("Błąd: " + r.message);
+                        btn.html(orig).prop('disabled', false);
+                    }
+                },
                 error: function() { alert("Błąd serwera."); btn.html(orig).prop('disabled', false); }
             });
         }
@@ -1238,6 +1301,14 @@ function _executeIntervalUnassign(ctx) {
             const isMarketplaceCtx = @(isMarketplace ? "true" : "false");
 
             const filterGroups = [
+                 {
+                    id: 'pause-status',
+                    label: 'Pauza',
+                    filters: [
+                        { key: 'is-paused', label: 'Zapauzowane', icon: 'fa-pause', attr: 'data-is-paused', value: 'true' },
+                        { key: 'is-active', label: 'Aktywne (bez pauzy)', icon: 'fa-play', attr: 'data-is-paused', value: 'false' }
+                    ]
+                },
                 {
                     id: 'status', label: 'Status',
                     filters: [
@@ -1469,6 +1540,326 @@ function _executeIntervalUnassign(ctx) {
         })();
 
         $(document).ready(function() { FilterSystem.init(); });
+
+        /* ============================================================
+           STATE MANAGER — scroll-to-product + restore filtrów (interwał)
+           ============================================================ */
+        if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
+        if (sessionStorage.getItem('interval_scrollToProduct')) {
+            document.documentElement.style.visibility = 'hidden';
+        }
+
+        const StateManager = {
+            saveState: function () {
+                const activeFilters = [];
+                document.querySelectorAll('.filter-btn.active').forEach(btn => {
+                    activeFilters.push(btn.dataset.filterKey);
+                });
+                sessionStorage.setItem('interval_activeFilters', JSON.stringify(activeFilters));
+
+                const searchInput = document.getElementById('productSearch');
+                if (searchInput) sessionStorage.setItem('interval_searchText', searchInput.value);
+            },
+            restoreFiltersAndSearch: function () {
+                const savedSearch = sessionStorage.getItem('interval_searchText');
+                if (savedSearch) {
+                    const searchInput = document.getElementById('productSearch');
+                    if (searchInput) {
+                        searchInput.value = savedSearch;
+                        searchInput.dispatchEvent(new Event('input'));
+                    }
+                }
+                const savedFilters = sessionStorage.getItem('interval_activeFilters');
+                if (savedFilters) {
+                    try {
+                        const filters = JSON.parse(savedFilters);
+                        if (Array.isArray(filters)) {
+                            filters.forEach(key => {
+                                const btn = document.querySelector(`.filter-btn[data-filter-key="${key}"]`);
+                                if (btn && !btn.classList.contains('active')) btn.click();
+                            });
+                        }
+                    } catch (e) { console.error("Błąd przywracania filtrów:", e); }
+                }
+            },
+            scrollToProduct: function () {
+                const scrollToId = sessionStorage.getItem('interval_scrollToProduct');
+                if (!scrollToId) return;
+
+                sessionStorage.removeItem('interval_scrollToProduct');
+                sessionStorage.removeItem('interval_activeFilters');
+                sessionStorage.removeItem('interval_searchText');
+
+                setTimeout(function () {
+                    const wrapper = document.querySelector('.purchase-wrapper[data-id="' + scrollToId + '"]');
+                    if (wrapper) {
+                        const row = wrapper.closest('tr');
+                        row.scrollIntoView({ behavior: 'instant', block: 'center' });
+                        window.scrollTo(0, 0);
+
+                        row.style.transition = 'background-color 0s';
+                        row.style.backgroundColor = '#fff3cd';
+                        setTimeout(function () {
+                            row.style.transition = 'background-color 3s ease';
+                            row.style.backgroundColor = '';
+                        }, 100);
+                    }
+                    document.documentElement.style.visibility = 'visible';
+                }, 300);
+            }
+        };
+
+        $(document).ready(function () {
+            StateManager.restoreFiltersAndSearch();
+            StateManager.scrollToProduct();
+        });
+
+        /* ============================================================
+           PAUSE SYSTEM — wstrzymywanie automatu na poziomie produktu (interwał)
+           Endpointy biją w /IntervalPrice/PauseProduct i /IntervalPrice/UnpauseProduct.
+           Backend mapuje intervalRuleId → parentRuleId i deleguje do PriceAutomationService.
+           ============================================================ */
+        const PauseSystem = (function () {
+            let currentProductId = null;
+            let currentProductName = null;
+            let countdownTimer = null;
+
+            function escapeHtml(s) {
+                return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+                })[c]);
+            }
+
+            function isPauseIndefinite(iso) {
+                if (!iso) return false;
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return false;
+                const now = new Date();
+                const diffYears = (d - now) / (1000 * 60 * 60 * 24 * 365);
+                return diffYears > 5;
+            }
+
+            function formatRemaining(iso) {
+                if (!iso) return '-';
+                const target = new Date(iso);
+                if (isNaN(target.getTime())) return '-';
+                const now = new Date();
+                let diffMs = target - now;
+                if (diffMs <= 0) return 'wygasło';
+
+                const diffMinutes = Math.floor(diffMs / 60000);
+                const days = Math.floor(diffMinutes / 1440);
+                const hours = Math.floor((diffMinutes % 1440) / 60);
+                const minutes = diffMinutes % 60;
+
+                if (days > 0) return days + 'd ' + hours + 'h';
+                if (hours > 0) return hours + 'h ' + minutes + 'min';
+                if (minutes > 0) return minutes + 'min';
+                return '< 1min';
+            }
+
+            function buildDurationCards() {
+                const durations = [
+                    { hours: 1, label: '1 godzina' },
+                    { hours: 4, label: '4 godziny' },
+                    { hours: 6, label: '6 godzin' },
+                    { hours: 12, label: '12 godzin' },
+                    { hours: 24, label: '24 godziny' }
+                ];
+                let html = '<div class="pause-duration-grid">';
+                durations.forEach(d => {
+                    html += `
+                        <div class="pause-duration-card" data-pause-hours="${d.hours}">
+                            <div class="duration-value">${d.hours}h</div>
+                            <div class="duration-label">${d.label}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                html += `
+                    <div class="pause-duration-card-indefinite" data-pause-hours="-1">
+                        <i class="fas fa-infinity indef-icon"></i>
+                        <div class="indef-text">
+                            <div class="indef-title">Do odwołania</div>
+                            <div class="indef-sub">Wstrzymane bez limitu czasu — wznów ręcznie</div>
+                        </div>
+                    </div>
+                `;
+                return html;
+            }
+
+            function openModal(productId, productName, isPausedNow, pausedUntilIso) {
+                currentProductId = productId;
+                currentProductName = productName;
+                const content = document.getElementById('pauseModalContent');
+
+                if (isPausedNow) {
+                    const indefinite = isPauseIndefinite(pausedUntilIso);
+                    const remaining = indefinite ? null : formatRemaining(pausedUntilIso);
+
+                    let infoHtml = indefinite
+                        ? '<strong>Wstrzymano do odwołania.</strong> Automat oraz interwał nie będą zmieniać ceny dopóki nie wznowisz ręcznie.'
+                        : 'Pozostały czas wstrzymania: <strong>' + escapeHtml(remaining) + '</strong>';
+
+                    content.innerHTML = `
+                        <div class="pause-currently-info">
+                            <i class="fas fa-pause-circle pause-currently-icon"></i>
+                            <div class="pause-currently-text">
+                                <div class="pname">${escapeHtml(productName)}</div>
+                                <div class="ptime">${infoHtml}</div>
+                            </div>
+                        </div>
+                        <button type="button" class="pause-resume-btn" data-pause-action="unpause">
+                            <i class="fas fa-play"></i> Wznów działanie automatu
+                        </button>
+                        <div class="pause-section-divider">Lub przedłuż wstrzymanie</div>
+                        <p class="pause-instructions">Wybierz nowy czas — zastąpi obecne ustawienie.</p>
+                        ${buildDurationCards()}
+                    `;
+                } else {
+                    content.innerHTML = `
+                        <div class="pause-product-name-box">${escapeHtml(productName)}</div>
+                        <p class="pause-instructions">
+                            Wybierz na jak długo chcesz wstrzymać automatyczne zmiany cen dla tego produktu.
+                            Pauza dotyczy automatu cenowego oraz systemu Interwału cenowego.
+                        </p>
+                        ${buildDurationCards()}
+                    `;
+                }
+
+                $('#pauseProductModal').modal('show');
+            }
+
+            function pause(durationHours) {
+                if (!currentProductId) return;
+                const token = $('input[name="__RequestVerificationToken"]').val();
+
+                $('#pauseProductModal').modal('hide');
+                if (typeof showLoading === 'function') showLoading();
+                else $('#loadingOverlay').css('display', 'flex');
+
+                $.ajax({
+                    url: '@Url.Action("PauseProduct", "IntervalPrice")',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    headers: { 'RequestVerificationToken': token },
+                    data: JSON.stringify({
+                        RuleId: intervalRuleId,
+                        ProductId: parseInt(currentProductId),
+                        DurationHours: parseInt(durationHours)
+                    }),
+                    success: function (r) {
+                        if (typeof hideLoading === 'function') hideLoading(); else $('#loadingOverlay').hide();
+                        if (r && r.success) {
+                            sessionStorage.setItem('interval_scrollToProduct', currentProductId);
+                            location.reload();
+                        } else {
+                            alert('Błąd: ' + ((r && r.message) || 'Nie udało się zapisać pauzy.'));
+                        }
+                    },
+                    error: function (xhr) {
+                        if (typeof hideLoading === 'function') hideLoading(); else $('#loadingOverlay').hide();
+                        alert('Błąd komunikacji: ' + (xhr.responseText || xhr.statusText));
+                    }
+                });
+            }
+
+            function unpause() {
+                if (!currentProductId) return;
+                const token = $('input[name="__RequestVerificationToken"]').val();
+
+                $('#pauseProductModal').modal('hide');
+                if (typeof showLoading === 'function') showLoading();
+                else $('#loadingOverlay').css('display', 'flex');
+
+                $.ajax({
+                    url: '@Url.Action("UnpauseProduct", "IntervalPrice")',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    headers: { 'RequestVerificationToken': token },
+                    data: JSON.stringify({
+                        RuleId: intervalRuleId,
+                        ProductId: parseInt(currentProductId)
+                    }),
+                    success: function (r) {
+                        if (typeof hideLoading === 'function') hideLoading(); else $('#loadingOverlay').hide();
+                        if (r && r.success) {
+                            sessionStorage.setItem('interval_scrollToProduct', currentProductId);
+                            location.reload();
+                        } else {
+                            alert('Błąd: ' + ((r && r.message) || 'Nie udało się wznowić.'));
+                        }
+                    },
+                    error: function (xhr) {
+                        if (typeof hideLoading === 'function') hideLoading(); else $('#loadingOverlay').hide();
+                        alert('Błąd komunikacji: ' + (xhr.responseText || xhr.statusText));
+                    }
+                });
+            }
+
+            function updateCountdowns() {
+                document.querySelectorAll('.pause-product-btn.is-paused').forEach(btn => {
+                    const iso = btn.getAttribute('data-paused-until');
+                    if (!iso) return;
+
+                    const target = new Date(iso);
+                    if (isNaN(target.getTime())) return;
+                    const now = new Date();
+
+                    if (target <= now) {
+                        btn.classList.remove('is-paused');
+                        btn.innerHTML = '<i class="fas fa-play"></i>';
+                        btn.title = 'Wstrzymaj automat dla tego produktu';
+                        btn.setAttribute('data-paused-until', '');
+                        const row = btn.closest('tr');
+                        if (row) {
+                            row.classList.remove('row-paused');
+                            row.setAttribute('data-is-paused', 'false');
+                        }
+                        return;
+                    }
+
+                    const txt = btn.querySelector('.pause-countdown-text');
+                    if (!txt) return;
+                    txt.textContent = isPauseIndefinite(iso) ? '∞' : formatRemaining(iso);
+                });
+            }
+
+            function init() {
+                document.addEventListener('click', function (e) {
+                    const btn = e.target.closest('.pause-product-btn');
+                    if (!btn) return;
+                    if (btn.style.cursor === 'not-allowed') return;
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const productId = btn.dataset.productId;
+                    const productName = btn.dataset.productName;
+                    const isPausedNow = btn.classList.contains('is-paused');
+                    const pausedUntil = btn.getAttribute('data-paused-until');
+
+                    openModal(productId, productName, isPausedNow, pausedUntil);
+                });
+
+                document.addEventListener('click', function (e) {
+                    const card = e.target.closest('.pause-duration-card, .pause-duration-card-indefinite');
+                    if (card && document.getElementById('pauseProductModal').classList.contains('show')) {
+                        const hours = card.getAttribute('data-pause-hours');
+                        pause(hours);
+                        return;
+                    }
+                    const resumeBtn = e.target.closest('[data-pause-action="unpause"]');
+                    if (resumeBtn) { unpause(); return; }
+                });
+
+                updateCountdowns();
+                countdownTimer = setInterval(updateCountdowns, 30000);
+            }
+
+            return { init };
+        })();
+
+        $(document).ready(function () { PauseSystem.init(); });
 
         let scheduleOpen = false, scheduleBuilt = false;
 

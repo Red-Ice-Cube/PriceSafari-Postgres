@@ -275,6 +275,16 @@ namespace PriceSafari.IntervalPriceChanger.Services
             var productsWithMarketOffer = await GetMarketplaceProductsWithMyOfferAsync(
                 store.StoreId, store.StoreNameAllegro ?? "", allProductIds, ct);
 
+            // ═══ PAUZA z parent automation assignment ═══
+            var parentPauseLookupRaw = await _context.AutomationProductAssignments
+                .Where(a => a.AutomationRuleId == parent.Id
+                         && a.AllegroProductId.HasValue
+                         && allProductIds.Contains(a.AllegroProductId.Value)
+                         && a.PausedUntil.HasValue)
+                .Select(a => new { Pid = a.AllegroProductId.Value, Until = a.PausedUntil.Value })
+                .ToListAsync(ct);
+            var parentPauseLookup = parentPauseLookupRaw.ToDictionary(x => x.Pid, x => x.Until);
+
             // Token
             string accessToken = await _authTokenService.GetValidAccessTokenAsync(store.StoreId);
             if (string.IsNullOrEmpty(accessToken))
@@ -321,6 +331,14 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     PurchasePrice = product.AllegroMarginPrice,
                     StepLetter = stepLetter,
                 };
+
+                if (parentPauseLookup.TryGetValue(product.AllegroProductId, out var pausedUntil) && pausedUntil > DateTime.UtcNow)
+                {
+                    SetBlocked(item, batch, IntervalExecutionItemStatus.BlockedPaused,
+                        $"Pauza w automacie do {pausedUntil.ToLocalTime():dd.MM.yyyy HH:mm}");
+                    continue;
+                }
+
 
                 if (!productsWithMarketOffer.Contains(product.AllegroProductId))
                 {
@@ -563,6 +581,17 @@ namespace PriceSafari.IntervalPriceChanger.Services
             var productsWithMarketOffer = await GetComparisonProductsWithMyOfferAsync(
                 store.StoreId, store.StoreName ?? "", allProductIds, ct);
 
+
+            // ═══ PAUZA z parent automation assignment ═══
+            var parentPauseLookupRaw = await _context.AutomationProductAssignments
+                .Where(a => a.AutomationRuleId == parent.Id
+                         && a.ProductId.HasValue
+                         && allProductIds.Contains(a.ProductId.Value)
+                         && a.PausedUntil.HasValue)
+                .Select(a => new { Pid = a.ProductId.Value, Until = a.PausedUntil.Value })
+                .ToListAsync(ct);
+            var parentPauseLookup = parentPauseLookupRaw.ToDictionary(x => x.Pid, x => x.Until);
+
             var client = _httpClientFactory.CreateClient();
             var authToken = Encoding.ASCII.GetBytes($"{store.StoreApiKey}:");
             client.DefaultRequestHeaders.Authorization =
@@ -582,6 +611,14 @@ namespace PriceSafari.IntervalPriceChanger.Services
                     PurchasePrice = product.MarginPrice,
                     StepLetter = stepLetter,
                 };
+
+                if (parentPauseLookup.TryGetValue(product.ProductId, out var pausedUntil) && pausedUntil > DateTime.UtcNow)
+                {
+                    SetBlocked(item, batch, IntervalExecutionItemStatus.BlockedPaused,
+                        $"Pauza w automacie do {pausedUntil.ToLocalTime():dd.MM.yyyy HH:mm}");
+                    continue;
+                }
+
 
                 if (!productsWithMarketOffer.Contains(product.ProductId))
                 {
