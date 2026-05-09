@@ -1,4 +1,4 @@
-﻿@using PriceSafari.Models.ViewModels
+﻿@* @using PriceSafari.Models.ViewModels
 @using Microsoft.AspNetCore.Identity
 @using PriceSafari.Models
 
@@ -4262,4 +4262,3153 @@ else
 
     
 
+} *@
+
+
+
+
+
+@using PriceSafari.Models.ViewModels
+@using Microsoft.AspNetCore.Identity
+@using PriceSafari.Models
+
+@model AutomationDetailsViewModel
+@inject UserManager<PriceSafariUser> UserManager
+
+@{
+    ViewData["Title"] = $"Automat Cenowy {Model.RuleName}";
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+    var user = await UserManager.GetUserAsync(User);
+    bool canEdit = user?.AccesToEditPriceAutomation ?? false;
+    string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen. Skontaktuj sie z nami biuro@pricesafari.pl";
+    bool isCompetitiveness = Model.StrategyMode == AutomationStrategyMode.Competitiveness;
+
+    string strategyClass = isCompetitiveness ? "strategy-comp" : "strategy-prof";
+    string strategyIconClass = isCompetitiveness ? "fa-bolt" : "fa-dollar-sign";
+    string strategyLabel = isCompetitiveness ? "Lider Rynku" : "Rentowność";
+
+    string statusClass = Model.IsActive ? "status-active-color" : "status-inactive-color";
+    string statusLabel = Model.IsActive ? "Aktywny" : "Wyłączony";
+
+    string borderClass = Model.SourceType == AutomationSourceType.PriceComparison ? "border-left-info" : "border-left-warning";
+
+    bool isMarketplace = Model.SourceType == AutomationSourceType.Marketplace;
+    int total = Model.TotalProducts > 0 ? Model.TotalProducts : 1;
+    int successCount = Model.CountMet + Model.CountMaintained + Model.CountLimited;
+    int blockedCount = Model.CountBlocked;
+    int percentSuccess = Model.SuccessRate;
+    bool isTimeLimited = Model.IsTimeLimited;
+    DateTime? schedStart = Model.ScheduledStartDate;
+    DateTime? schedEnd = Model.ScheduledEndDate;
+    DateTime now = DateTime.Now;
+    bool isDisabled = !Model.IsActive;
+
+    string timeStatusLabel;
+    string timeStatusClass;
+    string timeStatusIcon;
+    double timeProgressPercent = -1;
+    string timeExtraLabel = "";
+    string timeMarkerClass = "marker-hidden";
+    double timeMarkerPos = 0;
+
+    if (isDisabled && isTimeLimited)
+    {
+        timeStatusLabel = "Automat wyłączony";
+        timeStatusClass = "time-status-disabled";
+        timeStatusIcon = "fa-power-off";
+    }
+    else if (!isTimeLimited)
+    {
+        timeStatusLabel = "Bez ograniczenia";
+        timeStatusClass = "time-status-unlimited";
+        timeStatusIcon = "fa-infinity";
+    }
+    else if (schedStart.HasValue && schedEnd.HasValue)
+    {
+        bool beforeStart = now.Date < schedStart.Value.Date;
+        bool afterEnd = now.Date > schedEnd.Value.Date;
+
+        if (beforeStart)
+        {
+            timeStatusLabel = "Oczekuje";
+            timeStatusClass = "time-status-waiting";
+            timeStatusIcon = "fa-hourglass-start";
+            timeProgressPercent = 0;
+            timeMarkerClass = "marker-waiting";
+            timeMarkerPos = 0;
+            int daysToStart = (int)(schedStart.Value.Date - now.Date).TotalDays;
+            timeExtraLabel = $"Start za {daysToStart} {DniLabel(daysToStart)}";
+
+            statusClass = "status-waiting-color";
+            statusLabel = "Oczekuje";
+        }
+        else if (afterEnd)
+        {
+            timeStatusLabel = "Zakończony";
+            timeStatusClass = "time-status-expired";
+            timeStatusIcon = "fa-hourglass-end";
+            timeProgressPercent = 100;
+            timeMarkerClass = "marker-expired";
+            timeMarkerPos = 100;
+            int daysAgo = (int)(now.Date - schedEnd.Value.Date).TotalDays;
+            timeExtraLabel = $"Zakończono {daysAgo} {DniLabel(daysAgo)} temu";
+
+            statusClass = "status-waiting-color";
+            statusLabel = "Zatrzymany";
+        }
+        else
+        {
+            double totalSpan = (schedEnd.Value.Date - schedStart.Value.Date).TotalDays + 1;
+            double elapsedFull = (now.Date - schedStart.Value.Date).TotalDays;
+            timeProgressPercent = totalSpan > 0 ? Math.Round((elapsedFull / totalSpan) * 100, 1) : 0;
+            timeProgressPercent = Math.Max(0, Math.Min(timeProgressPercent, 99.9));
+            int daysLeft = (int)(schedEnd.Value.Date - now.Date).TotalDays + 1;
+
+            timeStatusLabel = "Aktywny";
+            timeStatusClass = "time-status-active";
+            timeStatusIcon = "fa-hourglass-half";
+            timeMarkerClass = "marker-active";
+            timeMarkerPos = timeProgressPercent;
+            timeExtraLabel = $"Pozostało {daysLeft} {DniLabel(daysLeft)}";
+        }
+    }
+    else if (schedStart.HasValue && !schedEnd.HasValue)
+    {
+        bool beforeStart = now.Date < schedStart.Value.Date;
+        if (beforeStart)
+        {
+            timeStatusLabel = "Oczekuje";
+            timeStatusClass = "time-status-waiting";
+            timeStatusIcon = "fa-hourglass-start";
+            int daysToStart = (int)(schedStart.Value.Date - now.Date).TotalDays;
+            timeExtraLabel = $"Start za {daysToStart} {DniLabel(daysToStart)}";
+            timeMarkerClass = "marker-waiting";
+            timeMarkerPos = 0;
+            timeProgressPercent = 0;
+
+            statusClass = "status-waiting-color";
+            statusLabel = "Oczekuje";
+        }
+        else
+        {
+            timeStatusLabel = "Aktywny";
+            timeStatusClass = "time-status-active";
+            timeStatusIcon = "fa-play";
+            timeExtraLabel = "Bez daty końcowej";
+        }
+    }
+    else if (!schedStart.HasValue && schedEnd.HasValue)
+    {
+        bool afterEnd = now.Date > schedEnd.Value.Date;
+        if (afterEnd)
+        {
+            timeStatusLabel = "Zakończony";
+            timeStatusClass = "time-status-expired";
+            timeStatusIcon = "fa-hourglass-end";
+            int daysAgo = (int)(now.Date - schedEnd.Value.Date).TotalDays;
+            timeExtraLabel = $"Zakończono {daysAgo} {DniLabel(daysAgo)} temu";
+            timeMarkerClass = "marker-expired";
+            timeMarkerPos = 100;
+            timeProgressPercent = 100;
+
+            statusClass = "status-waiting-color";
+            statusLabel = "Zatrzymany";
+        }
+        else
+        {
+            timeStatusLabel = "Aktywny";
+            timeStatusClass = "time-status-active";
+            timeStatusIcon = "fa-play";
+            int daysLeft = (int)(schedEnd.Value.Date - now.Date).TotalDays + 1;
+            timeExtraLabel = $"Do {schedEnd.Value.ToString("dd.MM.yyyy")} ({daysLeft} {DniLabel(daysLeft)})";
+        }
+    }
+    else
+    {
+        timeStatusLabel = "Brak dat";
+        timeStatusClass = "time-status-waiting";
+        timeStatusIcon = "fa-question-circle";
+    }
+
+    string DniLabel(int n)
+    {
+        if (n == 1) return "dzień";
+        return "dni";
+    }
+}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+@Html.AntiForgeryToken()
+
+<style>
+    .limit-badge { display: inline-flex; align-items: center; justify-content: center; padding: 2px 5px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #ffffff !important; margin-right: 6px; min-width: 51px; height: 20.5px; gap: 4px; }
+    .badge-purchase { background-color: #282828; }
+    .badge-min { background-color: rgba(171, 37, 32, 1); }
+    .badge-max { background-color: rgba(0, 145, 123, 1); }
+    .limit-price-text { font-weight: 500; font-size: 12px; }
+    .rank-icon { width: 12px; height: 12px; vertical-align: middle; margin-right: 5px; }
+    .rank-row { display: flex; align-items: center; }
+    .status-badge { display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; color: #ffffff !important; height: 20.5px; gap: 4px; }
+    .status-ok { background-color: rgba(0, 145, 123, 1); }
+    .status-maintained { background-color: rgba(13, 110, 253, 0.7); }
+    .status-limited { background-color: #f6c23e; color: #fff !important; }
+    .status-limited-max { background-color: #4d6b3a; color: #fff !important; }
+    .status-blocked { background-color: #6C757D; }
+    .status-neutral { background-color: #858796; }
+    .status-paused-badge { background-color: #e74a3b; color: #fff !important; font-weight: 700; letter-spacing: 0.5px; }
+    .status-text { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .price-row-block { display: flex; align-items: center; gap: 4px; }
+    .price-row-space { display: flex; align-items: center; gap: 4px; justify-content: space-between; }
+    .price-main-style { font-weight: 500; font-size: 16px; color: #000; }
+    .price-green { color: #169A23 !important; }
+    .commission-stack-badge { width: 52px; }
+    .price-badge { width: 52px; }
+    .text-muted { font-size: 12px; }
+    .column-flex-min-gap { display: flex; flex-direction: column; gap: 2px; }
+    .dynamics-stat { font-size: 11px; font-weight: 600; display: flex; align-items: center; margin-right: 10px; }
+    .purchase-wrapper { position: relative; min-width: 184px; }
+    .price-actions-display { display: inline-flex; margin-right: 3px; vertical-align: middle; opacity: 0.4; transition: opacity 0.2s; }
+    .purchase-row:hover .price-actions-display { opacity: 1; }
+    .edit-trigger { cursor: pointer; font-size: 10px; color: #343a40; }
+    .edit-trigger:hover { color: #1d2124; }
+    .edit-disabled { cursor: not-allowed; font-size: 10px; color: #ccc; }
+    .price-edit-input { width: 75px; padding: 2px 5px; border: 1px solid #d1d3e2; border-radius: 4px; font-size: 13px; color: #6e707e; height: 26px; }
+    .btn-action-icon { background: none; border: none; padding: 2px 4px; cursor: pointer; color: #858796; transition: color 0.2s; font-size: 13px; }
+    .btn-action-icon:hover { color: #5a5c69; }
+    .btn-action-icon.save-btn:hover { color: #1cc88a; }
+    .btn-action-icon.delete-btn-inner:hover { color: #e74a3b; }
+    .d-none { display: none !important; }
+    .product-name-wrap { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; word-break: break-word; min-width: 200px; line-height: 1.3; }
+    .simulationProductTitle { text-decoration: none; color: inherit; transition: color 0.2s ease-in-out; font-size:13px; }
+    .simulationProductTitle:hover { color: #41C7C7 !important; text-decoration: none; }
+    .btn-disabled-access { opacity: 0.6; cursor: not-allowed; pointer-events: auto !important; }
+    .status-box-dashed { display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; height: 20.5px; gap: 4px; background-color: transparent; border-style: dashed; border-width: 1px; text-transform: uppercase; }
+    .status-dashed-success { border-color: #1cc88a; color: #1cc88a !important; }
+    .status-dashed-danger { border-color: #e74a3b; color: #e74a3b !important; }
+    .status-dashed-secondary { border-color: #858796; color: #858796 !important; }
+    .status-dashed-paused { border-color: #e74a3b; background-color: rgba(231,74,59,0.08); color: #e74a3b !important; font-weight: 700; }
+    .header-info-box { display: inline-flex; padding: 4px 16px; align-items: center; justify-content: center; border-radius: 4px; border: 2px dashed #f1f3f9; min-height: 34px; gap: 12px; margin-left: 15px; }
+    .strategy-text { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+    .strategy-comp { color: rgba(113, 96, 232, 1); }
+    .strategy-prof { color: #0d2c56; }
+    .header-separator { color: #bbb; font-weight: 300; font-size: 16px; }
+    .status-indicator-text { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .status-active-color { color: #1cc88a; }
+    .status-inactive-color { color: #e74a3b; }
+    .Chart-Box-a { display: flex; flex-grow: 1; min-height: 500px; padding: 24px; flex-direction: column; align-items: center; justify-content: space-between; align-self: stretch; gap: 24px; border-radius: 8px; background: #FFF; box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.05); min-width: 200px; }
+    .kpi-container { display: flex; gap: 16px; width: 100%; flex-wrap: wrap; }
+    .kpi-card { flex: 1; min-width: 280px; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: flex-start; position: relative; overflow: hidden; }
+    .kpi-accent-bar { position: absolute; top: 0; left: 0; width: 100%; height: 4px; }
+    .kpi-title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #858796; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .kpi-value-big { font-size: 28px; font-weight: 700; color: #5a5c69; line-height: 1.2; }
+    .kpi-subtext { font-size: 12px; color: #858796; margin-top: 6px; font-weight: 500; }
+    .dynamics-row { display: flex; align-items: center; gap: 15px; margin-top: 5px; }
+    .dynamics-item { display: flex; flex-direction: column; }
+    .dynamics-val { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+    .dynamics-label { font-size: 10px; text-transform: uppercase; color: #a0a0a0; margin-top: 2px; }
+    .mini-progress-bg { width: 100%; height: 6px; background: #e3e3e3; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+    .mini-progress-fill { height: 100%; background: #33A795; border-radius: 3px; }
+    .btn-icon-settings { font-size: 24px; color: #858796; background: none; border: none; padding: 0; line-height: 1; cursor: pointer; transition: color 0.2s ease, transform 0.2s ease; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; text-decoration: none !important; outline: none !important; box-shadow: none !important; }
+    .btn-icon-settings:hover { color: #5a5c69; transform: rotate(30deg); text-decoration: none !important; }
+    .btn-icon-settings.disabled { color: #d1d3e2; cursor: not-allowed; }
+    .btn-icon-settings.disabled:hover { color: #d1d3e2; transform: none; }
+    .highlighted-text { background-color: rgba(255, 235, 59, 0.6); font-weight: bold; color: #000; border-radius: 2px; padding: 0 2px; }
+    .filter-toolbar-wrapper { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); margin-bottom: 0; }
+    .filter-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+    .filter-group { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #f8f9fc; border-radius: 6px; border: 1px solid #e3e6f0; }
+    .filter-group-label { font-size: 11px; font-weight: 700; color: #858796; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px; white-space: nowrap; }
+    .filter-group-divider { width: 1px; height: 28px; background: #e3e6f0; margin: 0 4px; }
+    .filter-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: #5a5c69; background: #fff; border: 1px solid #d1d3e2; border-radius: 20px; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; }
+    .filter-btn:hover { background: #f2f2f2; border-color: #e0e0e0; }
+    .filter-btn.active { background: #282828; color: #fff; border-color: #282828; }
+    .filter-btn.active:hover { background: #000; border-color: #000; }
+    .filter-btn .filter-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 5px; font-size: 10px; font-weight: 700; background: rgba(0, 0, 0, 0.1); border-radius: 10px; }
+    .filter-btn.active .filter-count { background: rgba(255, 255, 255, 0.25); }
+    .filter-btn[data-filter-key="increase"].active { background: #DC3545; border-color: #DC3545; }
+    .filter-btn[data-filter-key="decrease"].active { background: #198754; border-color: #198754; }
+    .filter-btn[data-filter-key="maintained"].active { background: rgba(13, 110, 253, 0.7); border-color: rgba(13, 110, 253, 0.7); }
+    .filter-btn[data-filter-key="blocked"].active { background: #6C757D; border-color: #6C757D; }
+    .filter-btn[data-filter-key="TargetMet"].active { background: rgba(0, 145, 123, 1); border-color: rgba(0, 145, 123, 1); }
+    .filter-btn[data-filter-key="TargetMaintained"].active { background: rgba(13, 110, 253, 0.7); border-color: rgba(13, 110, 253, 0.7); }
+    .filter-btn[data-filter-key="has-purchase"].active { background: #282828; border-color: #282828; }
+    .filter-btn[data-filter-key="PriceLimited"].active { background: #f6c23e; border-color: #f6c23e; color: #333; }
+    .filter-btn[data-filter-key="Blocked"].active { background: #6C757D; border-color: #6C757D; }
+    .filter-btn[data-filter-key="updated-yes"].active { background: #1cc88a; border-color: #1cc88a; }
+    .filter-btn[data-filter-key="updated-no"].active { background: #e74a3b; border-color: #e74a3b; }
+    .filter-btn[data-filter-key="missing-own"].active { background: #fd7e14; border-color: #fd7e14; }
+    .filter-btn[data-filter-key="no-competition"].active { background: #6f42c1; border-color: #6f42c1; }
+    .filter-btn[data-filter-key="is-paused"].active { background: #e74a3b; border-color: #e74a3b; }
+    .filter-btn[data-filter-key="is-active"].active { background: #1cc88a; border-color: #1cc88a; }
+    .filter-summary { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e3e6f0; }
+    .filter-summary-text { font-size: 13px; color: #858796; }
+    .filter-reset-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: #e74a3b; background: #fff; border: 1px solid #e74a3b; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; }
+    .filter-reset-btn:hover { background: #e74a3b; color: #fff; }
+    .filter-btn[data-filter-key="LimitFloor"].active { background: #f6c23e; border-color: #f6c23e; color: #333; }
+    .filter-btn[data-filter-key="LimitCeiling"].active { background: #4d6b3a; border-color: #4d6b3a; }
+    tr.filter-hidden, tr.search-hidden { display: none !important; }
+    .status-waiting-color { color: #f6c23e; }
+    .time-schedule-box { display: inline-flex; align-items: center; padding: 4px 14px; border-radius: 4px; border: 2px dashed #f1f3f9; min-height: 36px; gap: 10px; white-space: nowrap; }
+    .time-status-label { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; }
+    .time-status-unlimited { color: #1cc88a; }
+    .time-status-waiting { color: #f6c23e; }
+    .time-status-active { color: #1cc88a; }
+    .time-status-expired { color: #e74a3b; }
+    .time-status-disabled { color: #858796; }
+    .time-separator { color: #ddd; font-weight: 300; font-size: 14px; }
+    .time-date-badge { padding: 2px 6px; border-radius: 3px; background: #f8f9fc; border: 1px solid #e3e6f0; font-family: monospace; font-size: 11px; color: #5a5c69; }
+    .time-dates-inline { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #858796; }
+    .time-progress-wrapper { display: inline-flex; flex-direction: column; align-items: stretch; position: relative; width: 140px; }
+    .time-progress-track { position: relative; width: 100%; height: 5px; background: #e3e3e3; border-radius: 3px; overflow: visible; }
+    .time-progress-fill { height: 100%; border-radius: 3px; position: absolute; top: 0; left: 0; }
+    .select-product-btn { width:60px; height:25px; }
+    .time-progress-fill.fill-waiting { width: 0%; background: #f6c23e; }
+    .time-progress-fill.fill-active { background: linear-gradient(90deg, #1cc88a, #17a673); }
+    .time-progress-fill.fill-expired { width: 100%; background: #e74a3b; }
+    .time-marker { position: absolute; top: 8px; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid transparent; transition: left 0.3s ease; }
+    .marker-waiting { border-bottom-color: #f6c23e; left: 0%; }
+    .marker-active { border-bottom-color: #1cc88a; }
+    .marker-expired { border-bottom-color: #e74a3b; left: 100%; }
+    .marker-hidden { display: none; }
+    .time-extra-label { font-size: 10px; color: #a0a0a0; font-weight: 600; }
+    .flag-badge { display: inline-flex; align-items: center; padding: 2px 5px; border-radius: 4px; border-width: 1px; border-style: solid; font-size: 11px; font-weight: 500; }
+    .table-orders td, .table-orders th { padding: 10px 12px; text-align: left; color: #222222; font-size: 14px; font-weight: 400; }
+    .filter-btn[data-filter-key="gradual-decrease"].active { background: #198754; border-color: #198754; }
+    .filter-btn[data-filter-key="gradual-increase"].active { background: #DC3545; border-color: #DC3545; }
+    .filter-btn[data-filter-key="conflict-minmax"].active { background: #fd7e14; border-color: #fd7e14; }
+    .filter-btn[data-filter-key="in-interval"].active { background: #e67e22; border-color: #e67e22; }
+    .filter-btn[data-filter-key="no-interval"].active { background: #858796; border-color: #858796; }
+    .interval-info-box { display: flex; align-items: center; gap: 16px; padding: 14px 20px; background: #f8f9fc; border: 2px dashed #e3e6f0; border-radius: 10px; cursor: pointer; transition: all 0.2s; text-decoration: none !important; width: 100%; }
+    .interval-info-box:hover { border-color: #b7b9cc; background: #fff; }
+    .interval-color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .interval-top-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 8px; border-radius: 4px; }
+    .interval-badge-active { background: rgba(28,200,138,0.15); color: #1cc88a; }
+    .interval-badge-inactive { background: rgba(231,74,59,0.15); color: #e74a3b; }
+    .sales-cell-box { display: flex; flex-direction: column; gap: 6px; }
+    .sales-stat-mini { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: #f8f9fc; border: 1px solid #e3e6f0; border-radius: 4px; font-size: 11px; color: #5a5c69; font-weight: 500; white-space: nowrap; }
+    .sales-stat-mini i { color: #858796; }
+    .sales-info-wrapper { display: inline-block; min-width: 138px; }
+    .sales-badge { display: inline-flex; align-items: center; justify-content: center; padding: 2px 5px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #ffffff !important; margin-right: 6px; min-width: 58px; height: 20.5px; gap: 4px; }
+    .badge-sales-market { background-color: #545b62; }
+    .badge-sales-mine { background-color: #d38a36; }
+    .badge-sales-share { background-color: #5da189; }
+    .sales-value-text { font-weight: 500; font-size: 12px; }
+    .sales-empty-box { display: inline-block; min-width: 138px; padding: 8px 10px; text-align: center; border: 1px solid #e3e6f0; border-radius: 4px; background: #f8f9fc; color: #b7b9cc; font-size: 12px; }
+
+    /* ============ PAUSE FEATURE ============ */
+    .pause-product-btn { width: 25px; height: 25px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #d1d3e2; background: #fff; color: #5a5c69; border-radius: 4px; cursor: pointer; transition: all 0.15s ease; font-size: 10px; gap: 5px; white-space: nowrap; flex-shrink: 0; }
+    .pause-product-btn:hover { background: #fff5f5; border-color: #e74a3b; color: #e74a3b; }
+    .pause-product-btn.is-paused { width: auto; min-width: 25px; padding: 0 8px; background: #e74a3b; border-color: #e74a3b; color: #fff; box-shadow: 0 0 0 2px rgba(231,74,59,0.15); }
+    .pause-product-btn.is-paused:hover { background: #c93527; border-color: #c93527; color: #fff; }
+    .pause-product-btn .pause-countdown-text { font-size: 10px; font-weight: 700; letter-spacing: 0.2px; }
+    tr.main-product-row.row-paused { opacity: 0.65; background-color: rgba(231, 74, 59, 0.025); transition: opacity 0.2s ease; }
+    tr.main-product-row.row-paused:hover { opacity: 0.85; }
+    tr.main-product-row.row-paused .pause-product-btn { opacity: 1; }
+    #pauseProductModal .modal-content { border-radius: 10px; overflow: hidden; border: none; box-shadow: 0 12px 32px rgba(0,0,0,0.18); }
+    #pauseProductModal .modal-header { border-bottom: 1px solid #f1f3f9; padding: 18px 22px; }
+    #pauseProductModal .modal-body { padding: 22px; }
+    .pause-product-name-box { background: #f8f9fc; border: 1px solid #e3e6f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-weight: 600; color: #333; font-size: 14px; word-break: break-word; line-height: 1.4; }
+    .pause-currently-info { background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%); border: 1px solid rgba(231,74,59,0.25); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; display: flex; align-items: center; gap: 16px; }
+    .pause-currently-icon { font-size: 30px; color: #e74a3b; flex-shrink: 0; }
+    .pause-currently-text { flex-grow: 1; }
+    .pause-currently-text .pname { font-weight: 700; color: #333; font-size: 14px; margin-bottom: 3px; word-break: break-word; }
+    .pause-currently-text .ptime { font-size: 13px; color: #666; }
+    .pause-currently-text .ptime strong { color: #e74a3b; font-weight: 700; }
+    .pause-resume-btn { width: 100%; background: linear-gradient(135deg, #1cc88a 0%, #17a673 100%); color: #fff; border: none; padding: 13px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .pause-resume-btn:hover { background: linear-gradient(135deg, #17a673 0%, #149e6b 100%); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(28,200,138,0.3); }
+    .pause-section-divider { margin: 22px 0 14px 0; padding-top: 16px; border-top: 1px dashed #e3e6f0; font-size: 12px; color: #858796; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+    .pause-instructions { font-size: 13px; color: #666; margin-bottom: 14px; line-height: 1.5; }
+    .pause-duration-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; }
+    .pause-duration-card { border: 2px solid #e3e6f0; border-radius: 8px; padding: 14px 6px; text-align: center; cursor: pointer; transition: all 0.18s ease; background: #fff; user-select: none; }
+    .pause-duration-card:hover { border-color: #e74a3b; background: #fff5f5; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(231,74,59,0.12); }
+    .pause-duration-card .duration-value { font-size: 22px; font-weight: 800; color: #5a5c69; line-height: 1; }
+    .pause-duration-card:hover .duration-value { color: #e74a3b; }
+    .pause-duration-card .duration-label { font-size: 10px; color: #858796; text-transform: uppercase; letter-spacing: 0.4px; margin-top: 5px; font-weight: 600; }
+    .pause-duration-card-indefinite { background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%); border: 2px dashed #e74a3b; border-radius: 8px; padding: 14px; text-align: center; cursor: pointer; transition: all 0.18s ease; user-select: none; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .pause-duration-card-indefinite:hover { background: linear-gradient(135deg, #ffe8e8 0%, #ffd6d6 100%); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(231,74,59,0.18); }
+    .pause-duration-card-indefinite .indef-icon { font-size: 22px; color: #e74a3b; }
+    .pause-duration-card-indefinite .indef-text { text-align: left; }
+    .pause-duration-card-indefinite .indef-title { font-size: 15px; font-weight: 700; color: #e74a3b; }
+    .pause-duration-card-indefinite .indef-sub { font-size: 11px; color: #888; margin-top: 2px; }
+</style>
+
+
+<div class="Vert">
+    <div class="Date" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <div style="display: flex; align-items: center;">
+            <div class="Order-Container-Title" style="font-size: 23px;">
+                Automat Cenowy <strong>@Model.RuleName</strong>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="header-info-box">
+                <div class="strategy-text @strategyClass">
+                    <i class="fa-solid @strategyIconClass"></i> @strategyLabel
+                </div>
+                <span class="header-separator">|</span>
+                <div class="status-indicator-text @statusClass">
+                    <i class="fa-solid fa-circle" style="font-size: 6px;"></i> @statusLabel
+                </div>
+            </div>
+            <div class="time-schedule-box">
+                <div class="time-status-label @timeStatusClass">
+                    <i class="fa-solid @timeStatusIcon" style="font-size: 10px;"></i>
+                    @timeStatusLabel
+                </div>
+                @if (!isTimeLimited)
+                {
+                    <span class="time-extra-label" style="color: #1cc88a;">Automat działa bez limitu czasu</span>
+                }
+                else if (isDisabled)
+                {
+                    <span class="time-extra-label">Włącz automat, aby harmonogram zaczął działać</span>
+                }
+                else
+                {
+                    @if (schedStart.HasValue || schedEnd.HasValue)
+                    {
+                        <span class="time-separator">|</span>
+                        <div class="time-dates-inline">
+                            @if (schedStart.HasValue)
+                            {
+                                <span class="time-date-badge">@schedStart.Value.ToString("dd.MM.yyyy")</span>
+                            }
+                            else
+                            {
+                                <span class="time-date-badge" style="color:#ccc;">—</span>
+                            }
+                            <i class="fa-solid fa-arrow-right" style="font-size: 7px; color: #ccc;"></i>
+                            @if (schedEnd.HasValue)
+                            {
+                                <span class="time-date-badge">@schedEnd.Value.ToString("dd.MM.yyyy")</span>
+                            }
+                            else
+                            {
+                                <span class="time-date-badge" style="color:#ccc;">∞</span>
+                            }
+                        </div>
+                    }
+                    @if (schedStart.HasValue && schedEnd.HasValue)
+                    {
+                        <span class="time-separator">|</span>
+                        <div class="time-progress-wrapper">
+                            <div class="time-progress-track">
+                                @if (timeProgressPercent == 0)
+                                {
+                                    <div class="time-progress-fill fill-waiting"></div>
+                                }
+                                else if (timeProgressPercent >= 100)
+                                {
+                                    <div class="time-progress-fill fill-expired"></div>
+                                }
+                                else
+                                {
+                                    <div class="time-progress-fill fill-active" style="width: @(timeProgressPercent.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                                }
+                                <div class="time-marker @timeMarkerClass" style="left: @(timeMarkerPos.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                            </div>
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(timeExtraLabel))
+                    {
+                        <span class="time-separator">|</span>
+                        <span class="time-extra-label">@timeExtraLabel</span>
+                    }
+                }
+            </div>
+            @if (canEdit)
+            {
+                <a asp-controller="AutomationRules" asp-action="Edit" asp-route-id="@Model.RuleId" class="btn-icon-settings" title="Konfiguruj Regułę">
+                    <i class="fas fa-cog"></i>
+                </a>
+            }
+            else
+            {
+                <a href="#" onclick="showNoAccessAlert(); return false;" class="btn-icon-settings disabled" title="Brak uprawnień do edycji">
+                    <i class="fas fa-cog"></i>
+                </a>
+            }
+        </div>
+    </div>
+</div>
+
+@if (Model.IntervalRuleId.HasValue)
+{
+    <div class="Vert">
+        <a href="@Url.Action("Details", "IntervalPrice", new { id = Model.IntervalRuleId.Value })" class="interval-info-box">
+            <div class="interval-color-dot" style="background-color:@(Model.IntervalRuleColorHex ?? "#858796");"></div>
+            <div style="flex-grow:1;">
+                <div style="font-size:15px; font-weight:700; color:#333;">@Model.IntervalRuleName</div>
+                <div style="font-size:12px; color:#858796; margin-top:2px;">Powiązany interwał cenowy</div>
+            </div>
+            <span class="interval-top-badge @(Model.IntervalIsActive ? "interval-badge-active" : "interval-badge-inactive")">
+                @(Model.IntervalIsActive ? "Aktywny" : "Wyłączony")
+            </span>
+            <i class="fas fa-chevron-right" style="color:#d1d3e2;"></i>
+        </a>
+    </div>
+}
+
+<div class="Vert">
+    <div class="kpi-container">
+        <div class="kpi-card">
+            <div class="kpi-title">
+                Przypisane Produkty
+                <i class="fas fa-cube text-gray-400"></i>
+            </div>
+            <div class="kpi-value-big">@Model.TotalProducts</div>
+            <div class="kpi-subtext" style="display:flex; align-items:center; gap:6px;">
+                <i class="fas fa-clock" style="font-size: 12px; width: 12px; text-align: center;"></i>
+                <span>Aktualizacja: @(Model.LastScrapDate.HasValue? Model.LastScrapDate.Value.ToString("dd.MM HH:mm") : "-")</span>
+            </div>
+            <div class="kpi-subtext" style="display:flex; align-items:center; gap:6px; margin-top:3px;">
+                <i class="fas fa-store" style="font-size: 12px; width: 12px; text-align: center;"></i>
+                <span>Sklep: @Model.StoreName</span>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">
+                Skuteczność Reguły
+                <span style="color:#33A795;">@percentSuccess%</span>
+            </div>
+            <div class="d-flex align-items-end gap-2">
+                <div class="kpi-value-big text-gray-800">@successCount</div>
+                <div class="kpi-subtext mb-1">ofert przeliczonych</div>
+            </div>
+            <div class="mini-progress-bg">
+                <div class="mini-progress-fill" style="width: @percentSuccess%"></div>
+            </div>
+            <div class="kpi-subtext mt-2">
+                <span class="text-danger font-weight-bold" title="Liczba zablokowanych"><i class="fas fa-ban mr-1"></i> @blockedCount</span> zablokowanych
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">
+                Dynamika Zmian
+                <i class="fas fa-chart-bar text-gray-400"></i>
+            </div>
+            <div class="dynamics-row">
+                <div class="dynamics-item">
+                    <div class="dynamics-val text-danger"><i class="fas fa-arrow-up fa-xs"></i> @Model.CountIncreased</div>
+                    <div class="dynamics-label">Podwyżki</div>
+                </div>
+                <div class="dynamics-item" style="border-left: 1px solid #eee; padding-left: 15px;">
+                    <div class="dynamics-val text-success"><i class="fas fa-arrow-down fa-xs"></i> @Model.CountDecreased</div>
+                    <div class="dynamics-label">Obniżki</div>
+                </div>
+                <div class="dynamics-item" style="border-left: 1px solid #eee; padding-left: 15px;">
+                    <div class="dynamics-val text-primary"><i class="fas fa-circle fa-xs" style="font-size: 8px;"></i> @Model.CountMaintained</div>
+                    <div class="dynamics-label">Założenia utrzymane</div>
+                </div>
+            </div>
+            <div class="kpi-subtext mt-2">
+                Zoptymalizowano cenę w <strong>@(Model.CountIncreased + Model.CountDecreased)</strong> ofertach
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="Vert">
+    <div class="Chart-Box-a" style="width: 100%; min-height: 400px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 15px;">
+            <div style="display:flex; align-items:center; gap: 20px;">
+                <div class="kpi-title" style="margin-bottom:0;">Analiza Automatu</div>
+                <div class="period-selector-group">
+                    <button type="button" id="viewModeExec" class="period-btn-custom active" onclick="switchChartMode('execution')">
+                        <i class="fas fa-chart-bar" style="margin-right: 4px;"></i> Wykonania
+                    </button>
+                    @if (isMarketplace)
+                    {
+                        <button type="button" id="viewModeSales" class="period-btn-custom" onclick="switchChartMode('sales')">
+                            <i class="fas fa-chart-line" style="margin-right: 4px;"></i> Sprzedaż
+                        </button>
+                        <button type="button" id="viewModeBadges" class="period-btn-custom" onclick="switchChartMode('badges')">
+                            <i class="fas fa-medal" style="margin-right: 4px;"></i> Odznaki
+                        </button>
+                    }
+                    <button type="button" id="viewModePosition" class="period-btn-custom" onclick="switchChartMode('position')">
+                        <i class="fas fa-trophy" style="margin-right: 4px;"></i> Pozycja cenowa
+                    </button>
+                </div>
+            </div>
+            <div class="period-selector-group">
+                <button type="button" class="period-btn-custom active history-btn" data-days="7">7 Analiz</button>
+                <button type="button" class="period-btn-custom history-btn" data-days="14">14 Analiz</button>
+                <button type="button" class="period-btn-custom history-btn" data-days="30">30 Analiz</button>
+                <button type="button" class="period-btn-custom history-btn" data-days="60">60 Analiz</button>
+                <button type="button" class="period-btn-custom history-btn" data-days="90">90 Analiz</button>
+                <button type="button" class="period-btn-custom history-btn" data-days="120">120 Analiz</button>
+                <button type="button" class="period-btn-custom history-btn" data-days="240">240 Analiz</button>
+                <button type="button" class="period-btn-custom history-btn" data-days="360">360 Analiz</button>
+            </div>
+        </div>
+        <div id="executionChartsContainer" style="display: flex; width: 100%; gap: 20px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 300px; height: 440px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+                <div id="chartEffectiveness" style="width: 100%; height: 100%;"></div>
+            </div>
+            <div style="flex: 1; min-width: 300px; height: 440px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+                <div id="chartDynamics" style="width: 100%; height: 100%;"></div>
+            </div>
+        </div>
+        <div id="salesChartContainer" style="display: none; width: 100%; height: 440px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+            <div id="chartSales" style="width: 100%; height: 100%;"></div>
+        </div>
+        <div id="badgeChartContainer" style="display: none; width: 100%; height: 440px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+            <div id="chartBadges" style="width: 100%; height: 100%;"></div>
+        </div>
+        <div id="positionChartContainer" style="display: none; width: 100%; height: 440px; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px;">
+            <div id="chartPosition" style="width: 100%; height: 100%;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="Vert">
+    <div class="Date" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <div style="display: flex; align-items: center; gap:6px;">
+            <input type="text" id="productSearch" style="max-width:150px; height:33.99px;" placeholder="Wyszukaj produkt">
+            @if (canEdit)
+            {
+                @if (Model.IsActive)
+                {
+                    <button class="btn btn-success btn-sm shadow-sm" onclick="executeAutomation()" title="Wymuś natychmiastowe przeliczenie reguły" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-left: 12px; padding-right: 12px; height:34px;">
+                        <i class="fas fa-play"></i>
+                        <span>Aktualizuj ceny teraz</span>
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-secondary btn-sm shadow-sm" title="Reguła musi być aktywna, aby można było ją wykonać ręcznie." onclick="return false;" style="cursor: not-allowed; opacity: 0.6; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-left: 12px; padding-right: 12px; height:34px;">
+                        <i class="fas fa-play"></i>
+                        <span>Aktualizuj ceny teraz</span>
+                    </button>
+                }
+            }
+            else
+            {
+                <button class="btn btn-success btn-sm btn-disabled-access shadow-sm" onclick="showNoAccessAlert()" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-left: 12px; padding-right: 12px; height:34px;">
+                    <i class="fas fa-play"></i>
+                    <span>Aktualizuj ceny teraz</span>
+                </button>
+            }
+        </div>
+        <div>
+            <div id="selectionContainer" class="selection-container">
+                <span id="selectedProductsCounter" class="ProductCount" style="width:126px; height:33.99px;">Wybrano: 0</span>
+                <button id="selectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Zaznacz wszystkie widoczne produkty">
+                    <i class="fa-solid fa-square-check"></i>
+                </button>
+                <button id="deselectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Odznacz wszystkie widoczne produkty">
+                    <i class="fa-solid fa-square-xmark"></i>
+                </button>
+                <button id="showSelectedProductsBtn" class="Button-Page-Small" style="width:89.25px;">Akcje</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="Vert">
+    <div class="filter-toolbar-wrapper">
+        <div class="filter-toolbar" id="filterToolbar"></div>
+        <div class="filter-summary" id="filterSummary">
+            <span class="filter-summary-text">Wyświetlane: <strong id="visibleCount">0</strong> z <strong id="totalCount">0</strong></span>
+            <button class="filter-reset-btn" id="resetFiltersBtn" style="display: none;">
+                <i class="fas fa-times"></i> Resetuj filtry
+            </button>
+        </div>
+    </div>
+    <div class="Automation-Table-Box">
+        <div class="Vert-table" style="flex: 1; height: 100%; min-height: 0; margin-top:0px;">
+            <table class="table-orders" id="automationTable" width="100%">
+                <thead>
+                    <tr>
+                        <th style="min-width: 240px;">Produkt</th>
+                        @if (Model.IntervalRuleId.HasValue)
+                        {
+                            <th style="width:38px; min-width:38px; max-width:38px; padding:0;"></th>
+                        }
+                        <th style="max-width: 170px; min-width: 165px;">Limity Cenowe</th>
+                        @if (isMarketplace)
+                        {
+                            <th style="min-width: 145px; width: 150px;">Sprzedaż</th>
+                        }
+                        <th style="min-width: 235px;">Dane z rynku - Twoja oferta</th>
+                        @if (Model.StrategyMode == AutomationStrategyMode.Competitiveness)
+                        {
+                            <th style="min-width: 235px;">Najlepszy Rywal</th>
+                        }
+                        else
+                        {
+                            <th style="min-width: 235px;">Mediana Rynku</th>
+                        }
+                        <th style="min-width: 155px; width: 160px;">Zmiana</th>
+                        <th class="bg-gradient-light border-left-primary" style="min-width: 250px;">Wyznaczona Cena</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Products)
+                    {
+                        string priceChangeType = "none";
+                        if (item.Status == AutomationCalculationStatus.Blocked) { priceChangeType = "blocked"; }
+                        else if (item.PriceChange.HasValue && item.PriceChange.Value > 0) { priceChangeType = "increase"; }
+                        else if (item.PriceChange.HasValue && item.PriceChange.Value < 0) { priceChangeType = "decrease"; }
+                        else if (item.Status == AutomationCalculationStatus.TargetMaintained) { priceChangeType = "maintained"; }
+
+                        string limitType = "none";
+                        if (!string.IsNullOrEmpty(item.BlockReason))
+                        {
+                            if (item.BlockReason.Contains("(Min)") || item.BlockReason == "Ochrona Ceny") { limitType = "floor"; }
+                            else if (item.BlockReason.Contains("(Max)")) { limitType = "ceiling"; }
+                        }
+                        if (limitType == "none" && item.Status == AutomationCalculationStatus.PriceLimited && item.SuggestedPrice.HasValue)
+                        {
+                            if (item.MinPriceLimit.HasValue && Math.Abs(item.SuggestedPrice.Value - item.MinPriceLimit.Value) < 0.01m) { limitType = "floor"; }
+                            else if (item.MaxPriceLimit.HasValue && Math.Abs(item.SuggestedPrice.Value - item.MaxPriceLimit.Value) < 0.01m) { limitType = "ceiling"; }
+                        }
+
+                        bool isMissingOwnOffer = item.IsMissingPlatformWarning ||
+                            (item.BlockReason != null && (item.BlockReason.StartsWith("Brak oferty") || item.BlockReason == "Brak Twojej Oferty" || item.BlockReason == "Brak Ceny Obecnej"));
+                        bool isNoCompetition = !item.BestCompetitorPrice.HasValue || item.BlockReason == "Brak Danych";
+
+                        string marginBadgeClass = "price-badge-positive";
+                        string marginBoxClass = "price-box-diff-margin-ib-positive";
+                        bool isMarginIssue = false;
+
+                        if (item.CurrentMarkupAmount.HasValue && item.CurrentMarkupPercent.HasValue)
+                        {
+                            decimal currentMarginPercent = item.CurrentMarkupPercent.Value;
+                            decimal currentMarginAmount = item.CurrentMarkupAmount.Value;
+                            if (currentMarginAmount < 0)
+                            {
+                                marginBadgeClass = "price-badge-negative";
+                                marginBoxClass = "price-box-diff-margin-ib-negative";
+                                isMarginIssue = true;
+                            }
+                            else if (Model.EnforceMinimalMarkup)
+                            {
+                                bool isBelowLimit = false;
+                                if (Model.IsMinimalMarkupPercent)
+                                {
+                                    if (Math.Round(currentMarginPercent, 2) < Model.MinimalMarkupValue) { isBelowLimit = true; }
+                                }
+                                else
+                                {
+                                    if (Math.Round(currentMarginAmount, 2) < Model.MinimalMarkupValue) { isBelowLimit = true; }
+                                }
+                                if (isBelowLimit)
+                                {
+                                    marginBadgeClass = "price-badge-warning";
+                                    marginBoxClass = "price-box-diff-margin-ib-warning";
+                                    isMarginIssue = true;
+                                }
+                            }
+                        }
+
+                        // PAUSE STATE
+                        string pausedUntilIso = item.PausedUntil.HasValue ? item.PausedUntil.Value.ToUniversalTime().ToString("o") : "";
+                        string rowPausedClass = item.IsPaused ? "row-paused" : "";
+
+                        <tr id="prod-row-@item.ProductId" class="main-product-row @rowPausedClass"
+                            data-price-change="@priceChangeType"
+                            data-status="@item.Status.ToString()"
+                            data-limit-type="@limitType"
+                            data-block-reason="@(item.BlockReason ?? "")"
+                            data-has-guarantee="@item.IsBestPriceGuarantee.ToString().ToLower()"
+                            data-is-super-price="@item.IsSuperPrice.ToString().ToLower()"
+                            data-is-top-offer="@item.IsTopOffer.ToString().ToLower()"
+                            data-has-cheaper-own="@item.HasCheaperOwnOffer.ToString().ToLower()"
+                            data-is-subsidy="@(item.IsSubsidyActive.ToString().ToLower())"
+                            data-is-campaign="@(item.IsInAnyCampaign.ToString().ToLower())"
+                            data-is-updated="@item.IsAlreadyUpdated.ToString().ToLower()"
+                            data-has-purchase-price="@item.PurchasePrice.HasValue.ToString().ToLower()"
+                            data-is-commission-included="@(item.IsCommissionIncluded.ToString().ToLower())"
+                            data-has-margin-warning="@isMarginIssue.ToString().ToLower()"
+                            data-missing-own-offer="@isMissingOwnOffer.ToString().ToLower()"
+                            data-no-competition="@isNoCompetition.ToString().ToLower()"
+                            data-gradual-decrease="@(item.IsGradualDecreaseApplied.ToString().ToLower())"
+                            data-gradual-increase="@(item.IsGradualIncreaseApplied.ToString().ToLower())"
+                            data-flag-ids="@(item.FlagIds != null ? string.Join(",", item.FlagIds) : "")"
+                            data-pop-total="@(item.TotalPopularity ?? 0)"
+                            data-pop-mine="@(item.MyTotalPopularity ?? 0)"
+                            data-pop-share="@((item.MarketSharePercentage ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))"
+                            data-has-interval="@item.HasInterval.ToString().ToLower()"
+                            data-is-paused="@item.IsPaused.ToString().ToLower()">
+
+                            <td class="align-middle">
+                                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                                    @if (!isMarketplace)
+                                    {
+                                        <div style="flex-shrink: 0; width: 40px; text-align: center; margin-top: 2px;">
+                                            @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                            {
+                                                <img src="@item.ImageUrl" alt="img" style="max-height: 40px; max-width: 40px; object-fit: contain; border-radius: 4px;" />
+                                            }
+                                            else
+                                            {
+                                                <i class="fas fa-image text-gray-400" style="font-size: 24px;"></i>
+                                            }
+                                        </div>
+                                    }
+                                    <div style="flex-grow: 1; min-width: 0;">
+                                        <div class="font-weight-bold product-name-wrap" title="@item.Name">
+                                            @{
+                                                string linkUrl = null;
+                                                if (isMarketplace) { linkUrl = $"/AllegroPriceHistory/Details?storeId={Model.StoreId}&productId={item.ProductId}"; }
+                                                else if (Model.LatestScrapId.HasValue) { linkUrl = $"/PriceHistory/Details?scrapId={Model.LatestScrapId}&productId={item.ProductId}"; }
+                                            }
+                                            @if (!string.IsNullOrEmpty(linkUrl))
+                                            {
+                                                <a href="@linkUrl" target="_blank" rel="noopener noreferrer" class="simulationProductTitle">@item.Name</a>
+                                            }
+                                            else
+                                            {
+                                                @item.Name
+                                            }
+                                        </div>
+                                        @if (item.FlagIds != null && item.FlagIds.Any())
+                                        {
+                                            <div class="flags-container d-flex flex-wrap mt-1" style="gap: 4px; justify-content:flex-start;">
+                                                @foreach (var flagId in item.FlagIds)
+                                                {
+                                                    var flag = Model.AvailableStoreFlags?.FirstOrDefault(f => f.FlagId == flagId);
+                                                    if (flag != null)
+                                                    {
+                                                        <span class="flag-badge" style="color: @flag.FlagColor; border-color: @flag.FlagColor; background-color: @(flag.FlagColor)4D;">@flag.FlagName</span>
+                                                    }
+                                                }
+                                            </div>
+                                        }
+                                        <div class="d-flex align-items-center mt-2" style="gap: 6px; flex-wrap: wrap;">
+                                            <button class="select-product-btn"
+                                                    data-product-id="@item.ProductId"
+                                                    data-product-name="@item.Name"
+                                                    data-identifier="@((!isMarketplace && item.ExternalId.HasValue) ? item.ExternalId.ToString() : item.Identifier)"
+                                                    style="font-size: 11px; padding: 2px 8px; pointer-events: auto;">
+                                                Zaznacz
+                                            </button>
+                                            @if (canEdit)
+                                            {
+                                                <button type="button"
+                                                        class="pause-product-btn @(item.IsPaused ? "is-paused" : "")"
+                                                        data-product-id="@item.ProductId"
+                                                        data-product-name="@item.Name"
+                                                        data-paused-until="@pausedUntilIso"
+                                                        title="@(item.IsPaused ? "Zarządzaj wstrzymaniem automatu" : "Wstrzymaj automat dla tego produktu")">
+                                                    @if (item.IsPaused)
+                                                    {
+                                                        <i class="fas fa-pause"></i>
+                                                        <span class="pause-countdown-text">--</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="fas fa-play"></i>
+                                                    }
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button type="button" class="pause-product-btn" style="opacity:0.5; cursor:not-allowed;" onclick="showNoAccessAlert(); return false;" title="Brak uprawnień do wstrzymywania automatu">
+                                                    <i class="fas fa-play"></i>
+                                                </button>
+                                            }
+                                            <div class="small text-muted" style="line-height: 1;">
+                                                @if (!isMarketplace && item.ExternalId.HasValue) { <text>ID: @item.ExternalId</text> }
+                                                else { <text>ID: @item.Identifier</text> }
+                                                @if (item.ApiPriceFromUser.HasValue)
+                                                {
+                                                    <span class="text-xs ml-1 text-gray-500" title="Cena pobrana z API"> | API: @item.ApiPriceFromUser</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+
+                            @if (Model.IntervalRuleId.HasValue)
+                            {
+                                <td class="align-middle interval-cell">
+                                    @if (item.HasInterval)
+                                    {
+                                        <a href="@Url.Action("Details", "IntervalPrice", new { id = Model.IntervalRuleId.Value })" title="Przejdź do interwału: @Model.IntervalRuleName" class="interval-badge-simple">
+                                            <i class="fas fa-clock interval-icon-simple"></i>
+                                            <div class="interval-status-dot @(Model.IntervalIsActive ? "dot-active" : "dot-inactive")"></div>
+                                            <span class="interval-text">Interwał</span>
+                                        </a>
+                                    }
+                                </td>
+                            }
+
+                            <td class="align-middle">
+                                <div class="purchase-wrapper" data-id="@item.ProductId" data-store-id="@Model.StoreId" data-is-marketplace="@isMarketplace.ToString().ToLower()">
+                                    <div class="display-mode">
+                                        @if (item.PurchasePrice.HasValue)
+                                        {
+                                            <div class="bg-light p-2 rounded border purchase-row">
+                                                @if (item.MaxPriceLimit.HasValue)
+                                                {
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span class="limit-badge badge-max">MAX <i class="fa-solid fa-arrow-up"></i></span>
+                                                        <span class="limit-price-text" style="color: rgba(0, 145, 123, 1);">@item.MaxPriceLimit.Value.ToString("F2") PLN</span>
+                                                    </div>
+                                                }
+                                                @if (item.MinPriceLimit.HasValue)
+                                                {
+                                                    <div class="d-flex justify-content-between align-items-center @(item.MaxPriceLimit.HasValue ? "border-top pt-1 mt-1" : "mb-1")">
+                                                        <span class="limit-badge badge-min">MIN <i class="fa-solid fa-arrow-down"></i></span>
+                                                        <span class="limit-price-text" style="color: rgba(171, 37, 32, 1);">@item.MinPriceLimit.Value.ToString("F2") PLN</span>
+                                                    </div>
+                                                }
+                                                <div class="d-flex justify-content-between align-items-center @(item.MinPriceLimit.HasValue || item.MaxPriceLimit.HasValue ? "border-top pt-1 mt-1" : "")">
+                                                    <span class="limit-badge badge-purchase">Zakup</span>
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="price-actions-display">
+                                                            @if (item.PurchasePriceUpdatedDate.HasValue)
+                                                            {
+                                                                <i class="fas fa-clock mr-1" style="font-size: 10px; color: #858796; cursor: help; margin-right:4px;" data-toggle="tooltip" title="Cena zakupu została zaktualizowana: @item.PurchasePriceUpdatedDate.Value.ToString("dd.MM.yyyy HH:mm")"></i>
+                                                            }
+                                                            @if (canEdit)
+                                                            {
+                                                                <i class="fas fa-pencil-alt edit-btn edit-trigger" title="Edytuj cenę zakupu"></i>
+                                                            }
+                                                            else
+                                                            {
+                                                                <i class="fas fa-lock edit-disabled" title="Brak uprawnień do edycji" onclick="showNoAccessAlert()"></i>
+                                                            }
+                                                        </span>
+                                                        <span class="limit-price-text val-display" style="color: #282828;">@item.PurchasePrice.Value.ToString("F2") PLN</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="text-center text-gray-400 small purchase-row py-2 border rounded bg-light">
+                                                <span class="ml-2 cursor-pointer" title="Dodaj cenę zakupu">
+                                                    @if (canEdit)
+                                                    {
+                                                        <i class="fas fa-plus-circle text-gray-500 edit-btn edit-trigger" style="font-size: 12px;"></i>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="fas fa-plus-circle text-gray-300" style="font-size: 12px; cursor: not-allowed;" onclick="showNoAccessAlert()"></i>
+                                                    }
+                                                </span>
+                                                Brak ceny zakupu
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="edit-mode d-none bg-white p-2 rounded border shadow-sm" style="position:absolute; z-index:10; width:100%; top:50%; left:0; transform: translateY(-50%);">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <input type="number" step="0.01" class="price-edit-input" value="@(item.PurchasePrice?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) ?? "")" placeholder="0.00">
+                                            <div class="d-flex ml-1">
+                                                <button class="btn-action-icon save-btn" type="button" title="Zapisz"><i class="fas fa-check"></i></button>
+                                                <button class="btn-action-icon cancel-btn" type="button" title="Anuluj"><i class="fas fa-times"></i></button>
+                                                @if (item.PurchasePrice.HasValue)
+                                                {
+                                                    <button class="btn-action-icon delete-btn-inner ml-1 border-left pl-2" type="button" title="Usuń cenę zakupu"><i class="fas fa-trash-alt"></i></button>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+
+                            @if (isMarketplace)
+                            {
+                                <td class="align-middle">
+                                    @if (item.TotalPopularity.HasValue && item.TotalPopularity.Value > 0)
+                                    {
+                                        <div class="bg-light p-2 rounded border sales-info-wrapper">
+                                            <div class="d-flex justify-content-between align-items-center mb-1" title="Łączna sprzedaż w katalogu (30 dni)">
+                                                <span class="sales-badge badge-sales-market"><i class="fas fa-shopping-cart" style="font-size: 9px;"></i> Rynek</span>
+                                                <span class="sales-value-text" style="color: #545b62;">@item.TotalPopularity szt.</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1" title="Twoja sprzedaż w katalogu (30 dni)">
+                                                <span class="sales-badge badge-sales-mine"><i class="fas fa-store" style="font-size: 9px;"></i> Moje</span>
+                                                <span class="sales-value-text" style="color: #d38a36;">@(item.MyTotalPopularity ?? 0) szt.</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1" title="Twój udział w rynku">
+                                                <span class="sales-badge badge-sales-share"><i class="fas fa-chart-pie" style="font-size: 9px;"></i> Udział</span>
+                                                <span class="sales-value-text" style="color: #5da189; font-weight: 700;">@((item.MarketSharePercentage ?? 0).ToString("F2"))%</span>
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="sales-empty-box">Brak danych</span>
+                                    }
+                                </td>
+                            }
+
+                            <td class="align-middle text-right">
+                                <div class="price-row-block">
+                                    <span class="price-main-style @(item.IsBestPriceGuarantee ? "price-green" : "")">
+                                        @(item.CurrentPrice.HasValue? item.CurrentPrice.Value.ToString("F2")  : "-") PLN
+                                    </span>
+                                    @if (item.HasCheaperOwnOffer)
+                                    {
+                                        <span class="text-danger mr-1" data-toggle="tooltip" title="UWAGA: Posiadasz inną, tańszą ofertę podpiętą pod ten sam katalog!" style="cursor: help; font-size: 14px;"><i class="fas fa-exclamation-triangle"></i></span>
+                                    }
+                                    @if (item.IsBestPriceGuarantee)
+                                    {
+                                        <div title="Gwarancja Najniższej Ceny"><img src="/images/TopPrice.png" alt="Gwarancja" style="width: 18px; height: 18px; vertical-align: middle;"></div>
+                                    }
+                                    @if (item.IsSuperPrice) { <div class="SuperPrice">SUPERCENA</div> }
+                                    @if (item.IsTopOffer) { <div class="TopOffer">Top</div> }
+                                </div>
+                                <div class="small text-muted ">@Model.StoreName</div>
+                                @if (item.CommissionAmount.HasValue)
+                                {
+                                    <div class="Commission-stack">
+                                        <span class="commission-stack-badge">Prowizja</span>
+                                        <p>
+                                            @item.CommissionAmount.Value.ToString("F2") PLN
+                                            @if (item.IsCommissionIncluded) { <span style="font-weight: 400; color: #555;"> | uwzg.</span> }
+                                            else { <span style="font-weight: 400; color: #999;"> | nieuwzg.</span> }
+                                        </p>
+                                    </div>
+                                }
+                                @if (item.CurrentMarkupAmount.HasValue && item.CurrentMarkupPercent.HasValue)
+                                {
+                                    <div class="price-box-diff-margin-ib @marginBoxClass" style="margin-top: 4px; width: 100%;">
+                                        <span class="price-badge @marginBadgeClass">Narzut</span>
+                                        <p>@item.CurrentMarkupAmount.Value.ToString("F2") PLN (@item.CurrentMarkupPercent.Value.ToString("F2")%)</p>
+                                    </div>
+                                }
+                                @if (item.ApiPriceFromUser.HasValue)
+                                {
+                                    if (item.IsSubsidyActive)
+                                    {
+                                        <div class="subsidy-stack" style="margin-top: 4px;">
+                                            <span class="subsidy-stack-badge">Dopłaty | Twoja cena</span>
+                                            <p>@item.ApiPriceFromUser.Value.ToString("F2") PLN</p>
+                                        </div>
+                                    }
+                                    else if (item.IsInAnyCampaign)
+                                    {
+                                        <div class="Campaign-stack" style="margin-top: 4px;">
+                                            <span class="campaign-stack-badge">Kampania | Twoja cena</span>
+                                            <p>@item.ApiPriceFromUser.Value.ToString("F2") PLN</p>
+                                        </div>
+                                    }
+                                }
+                            </td>
+
+                            <td class="align-middle text-right">
+                                @if (Model.StrategyMode == AutomationStrategyMode.Competitiveness)
+                                {
+                                    @if (item.BestCompetitorPrice.HasValue)
+                                    {
+                                        <div class="price-row-block">
+                                            <span class="price-main-style @(item.CompetitorIsBestPriceGuarantee ? "price-green" : "")">@item.BestCompetitorPrice.Value.ToString("F2") PLN</span>
+                                            @if (item.CompetitorIsBestPriceGuarantee)
+                                            {
+                                                <div title="Gwarancja Najniższej Ceny Rywala"><img src="/images/TopPrice.png" alt="Gwarancja" style="width: 18px; height: 18px; vertical-align: middle;"></div>
+                                            }
+                                            @if (item.CompetitorIsSuperPrice) { <div class="SuperPrice">SUPERCENA</div> }
+                                            @if (item.CompetitorIsTopOffer) { <div class="TopOffer">Top</div> }
+                                        </div>
+                                        <div class="small text-muted">@item.CompetitorName</div>
+                                    }
+                                    else
+                                    {
+                                        <span class="small text-muted">Brak konkurencji</span>
+                                    }
+                                }
+                                else
+                                {
+                                    @if (item.MarketAveragePrice.HasValue)
+                                    {
+                                        <span class="price-main-style">@item.MarketAveragePrice.Value.ToString("F2") PLN</span>
+                                    }
+                                }
+                            </td>
+
+                            <td class="align-middle text-center">
+                                <div class="price-row-block">
+                                    @if (item.PriceChange.HasValue && item.PriceChange.Value != 0 && item.Status != AutomationCalculationStatus.Blocked)
+                                    {
+                                        @if (item.PriceChange.Value < 0)
+                                        {
+                                            <span class="price-main-style text-success" style="display: inline-flex; align-items: center;"
+                                                @if (item.IsGradualDecreaseApplied) { <text>data-toggle="tooltip" title="Stopniowa obniżka — cena została ograniczona maksymalnym krokiem obniżki. Docelowa cena jest niższa, ale automat dochodzi do niej stopniowo." style="display: inline-flex; align-items: center; cursor: help;"</text> }>
+                                                @if (item.IsGradualDecreaseApplied)
+                                                {
+                                                    <i class="fas fa-arrow-down-wide-short" style="margin-right: 5px; font-size: 0.9em;"></i>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-arrow-down" style="margin-right: 5px; font-weight: 900; font-size: 0.8em;"></i>
+                                                }
+                                                @Math.Abs(item.PriceChange.Value).ToString("F2") PLN
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="price-main-style text-danger" style="display: inline-flex; align-items: center;"
+                                                @if (item.IsGradualIncreaseApplied) { <text>data-toggle="tooltip" title="Stopniowa podwyżka — cena została ograniczona maksymalnym krokiem podwyżki. Docelowa cena jest wyższa, ale automat dochodzi do niej stopniowo." style="display: inline-flex; align-items: center; cursor: help;"</text> }>
+                                                @if (item.IsGradualIncreaseApplied)
+                                                {
+                                                    <i class="fas fa-arrow-up-wide-short" style="margin-right: 5px; font-size: 0.9em;"></i>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-arrow-up" style="margin-right: 5px; font-weight: 900; font-size: 0.8em;"></i>
+                                                }
+                                                @item.PriceChange.Value.ToString("F2") PLN
+                                            </span>
+                                        }
+                                    }
+                                    else if (item.Status == AutomationCalculationStatus.TargetMaintained)
+                                    {
+                                        <span class="price-main-style" style="display: inline-flex; align-items: center; color: rgba(13, 110, 253, 0.7);">
+                                            <i class="no-change-icon-turquoise" style="font-style:normal;"></i>
+                                            Brak zmian
+                                        </span>
+                                    }
+                                    else if (item.IsPaused)
+                                    {
+                                        <span class="price-main-style" style="color:#e74a3b; display:inline-flex; align-items:center; gap:4px;">
+                                            <i class="fas fa-pause" style="font-size:11px;"></i> Pauza
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="price-main-style" style="color:#6C757D;">Blokada</span>
+                                    }
+                                </div>
+                                <div class="column-flex-min-gap">
+                                    @if (Model.SourceType == AutomationSourceType.Marketplace)
+                                    {
+                                        <div class="rank-row">
+                                            <img src="/images/AllegroIcon.png" alt="Allegro" class="rank-icon">
+                                            <span class="text-muted">@item.CurrentRankingAllegro</span>
+                                            <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
+                                            <span class="text-muted">@item.NewRankingAllegro</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @if (!string.IsNullOrEmpty(item.CurrentRankingGoogle) && item.CurrentRankingGoogle != "-")
+                                        {
+                                            <div class="rank-row">
+                                                <img src="/images/GoogleShopping.png" alt="Google" class="rank-icon">
+                                                <span class="text-muted">@item.CurrentRankingGoogle</span>
+                                                @if (!string.IsNullOrEmpty(item.NewRankingGoogle))
+                                                {
+                                                    <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
+                                                    <span class="text-muted">@item.NewRankingGoogle</span>
+                                                }
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(item.CurrentRankingCeneo) && item.CurrentRankingCeneo != "-")
+                                        {
+                                            <div class="rank-row">
+                                                <img src="/images/Ceneo.png" alt="Ceneo" class="rank-icon">
+                                                <span class="text-muted">@item.CurrentRankingCeneo</span>
+                                                @if (!string.IsNullOrEmpty(item.NewRankingCeneo))
+                                                {
+                                                    <i class="fas fa-arrow-right fa-xs text-gray-400 mx-1"></i>
+                                                    <span class="text-muted">@item.NewRankingCeneo</span>
+                                                }
+                                            </div>
+                                        }
+                                        @if ((string.IsNullOrEmpty(item.CurrentRankingGoogle) || item.CurrentRankingGoogle == "-") && (string.IsNullOrEmpty(item.CurrentRankingCeneo) || item.CurrentRankingCeneo == "-"))
+                                        {
+                                            <span class="text-xs text-gray-400">-</span>
+                                        }
+                                    }
+                                </div>
+                            </td>
+
+                            <td class="align-middle text-right bg-light border-left-primary">
+                                <div class="d-flex flex-column" style="width:100%;">
+                                    <div class="price-row-space">
+                                        @if (item.Status == AutomationCalculationStatus.Blocked)
+                                        {
+                                            <div class="price-main-style" style="color:#6C757D;">@(item.SuggestedPrice?.ToString("F2") ?? "-") PLN</div>
+                                        }
+                                        else
+                                        {
+                                            <div style="display: flex; align-items: center; gap: 6px;">
+                                                <span class="price-main-style @(item.IsMarginWarning ? "text-warning" : "text-success")">
+                                                    @(item.SuggestedPrice.HasValue? item.SuggestedPrice.Value.ToString("F2") : "-") PLN
+                                                </span>
+                                                @if (item.IsSmartPriceAdjusted)
+                                                {
+                                                    <span style="color: #6f42c1; cursor: help; font-size: 14px;" data-toggle="tooltip" title="Ochrona Smart! Cena została podniesiona do 45,00 PLN, aby zachować darmową wysyłkę, mimo że automat wyliczył niższą kwotę."><i class="fas fa-exclamation-triangle"></i></span>
+                                                }
+                                                @if (item.IsMissingPlatformWarning)
+                                                {
+                                                    <span class="text-warning" style="cursor: help; font-size: 14px;" data-toggle="tooltip" data-html="true" title="Uwaga! Twoja oferta nie jest widoczna na platformie @item.MissingPlatformName, gdzie znajduje się Twój rywal. Cena została wyliczona na podstawie danych z innego źródła."><i class="fas fa-exclamation-triangle"></i></span>
+                                                }
+                                                @if (item.IsSuggestedDifferentFromUpdated)
+                                                {
+                                                    <span class="text-warning" style="cursor: help; font-size: 14px;" data-toggle="tooltip" data-html="true" title="Uwaga! Aktualnie wyliczona cena różni się od ceny już wgranej. Zmieniły się warunki (np. krok cenowy, preset danych) lub ustawienia reguły tego automatu cenowego."><i class="fas fa-exclamation-triangle"></i></span>
+                                                }
+                                            </div>
+                                        }
+                                        @switch (item.Status)
+                                        {
+                                            case AutomationCalculationStatus.TargetMet:
+                                                @if (item.IsGradualDecreaseApplied)
+                                                {
+                                                    <div class="status-badge" style="background-color: #198754;"><i class="fas fa-arrow-down-wide-short" style="font-size: 9px;"></i> Stopniowa Obn.</div>
+                                                }
+                                                else if (item.IsGradualIncreaseApplied)
+                                                {
+                                                    <div class="status-badge" style="background-color: #DC3545;"><i class="fas fa-arrow-up-wide-short" style="font-size: 9px;"></i> Stopniowa Pod.</div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="status-badge status-ok"><i class="fas fa-check mr-2"></i> Cel Osiągnięty</div>
+                                                }
+                                                break;
+                                            case AutomationCalculationStatus.TargetMaintained:
+                                                <div class="status-badge status-maintained"><i class="fas fa-check-circle mr-2"></i> Cel Utrzymany</div>
+                                                break;
+                                            case AutomationCalculationStatus.PriceLimited:
+                                                @if (item.BlockReason != null && item.BlockReason.Contains("Max"))
+                                                {
+                                                    <div class="status-badge status-limited-max"><i class="fas fa-filter mr-2"></i> @item.BlockReason</div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="status-badge status-limited"><i class="fas fa-filter mr-2"></i> @(item.BlockReason ?? "Limit Ceny")</div>
+                                                }
+                                                break;
+                                            case AutomationCalculationStatus.Blocked:
+                                                @if (item.IsPaused)
+                                                {
+                                                    <div class="status-badge status-paused-badge"><i class="fas fa-pause mr-2"></i> PAUZA</div>
+                                                }
+                                                else if (item.BlockReason != null && (item.BlockReason.Contains("(Min)") || item.BlockReason == "Ochrona Ceny" || (item.BlockReason.Contains("Narzutu") && item.BlockReason.Contains("Min"))))
+                                                {
+                                                    <div class="status-badge status-limited"><i class="fas fa-ban mr-2"></i> @item.BlockReason</div>
+                                                }
+                                                else if (item.BlockReason != null && (item.BlockReason.Contains("(Max)") || (item.BlockReason.Contains("Narzutu") && item.BlockReason.Contains("Max"))))
+                                                {
+                                                    <div class="status-badge status-limited-max"><i class="fas fa-ban mr-2"></i> @item.BlockReason</div>
+                                                }
+                                                else if (item.BlockReason == "Konflikt Min/Max")
+                                                {
+                                                    <div class="status-badge" style="background-color: #fd7e14;"><i class="fas fa-exclamation-triangle mr-2"></i> @item.BlockReason</div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="status-badge status-blocked"><i class="fas fa-times mr-2"></i> @item.BlockReason</div>
+                                                }
+                                                break;
+                                            default:
+                                                <span class="badge badge-light border px-3 py-2">Brak danych</span>
+                                                break;
+                                        }
+                                    </div>
+                                    <div class="small text-muted ">@Model.StoreName</div>
+                                    @{
+                                        bool showUpdatedCommission = item.IsAlreadyUpdated && item.UpdatedCommissionAmount.HasValue;
+                                        decimal? commissionToDisplay = showUpdatedCommission ? item.UpdatedCommissionAmount : item.CommissionAmount;
+                                        decimal? salesPriceForCalc = item.UpdatedPrice ?? item.SuggestedPrice;
+                                        decimal? finalMarkupAmount = item.MarkupAmount;
+                                        decimal? finalMarkupPercent = item.MarkupPercent;
+                                        if (salesPriceForCalc.HasValue && item.PurchasePrice.HasValue && item.PurchasePrice.Value > 0)
+                                        {
+                                            decimal commissionCost = (item.IsCommissionIncluded && commissionToDisplay.HasValue) ? commissionToDisplay.Value : 0;
+                                            finalMarkupAmount = salesPriceForCalc.Value - item.PurchasePrice.Value - commissionCost;
+                                            finalMarkupPercent = (finalMarkupAmount.Value / item.PurchasePrice.Value) * 100;
+                                        }
+                                        string finalMarginBadge = "price-badge-positive";
+                                        string finalMarginBox = "price-box-diff-margin-ib-positive";
+                                        if (finalMarkupAmount.HasValue && finalMarkupPercent.HasValue)
+                                        {
+                                            if (finalMarkupAmount.Value < 0)
+                                            {
+                                                finalMarginBadge = "price-badge-negative";
+                                                finalMarginBox = "price-box-diff-margin-ib-negative";
+                                            }
+                                            else if (Model.EnforceMinimalMarkup)
+                                            {
+                                                bool isBelowFinalLimit = false;
+                                                if (Model.IsMinimalMarkupPercent)
+                                                {
+                                                    if (Math.Round(finalMarkupPercent.Value, 2) < Model.MinimalMarkupValue) isBelowFinalLimit = true;
+                                                }
+                                                else
+                                                {
+                                                    if (Math.Round(finalMarkupAmount.Value, 2) < Model.MinimalMarkupValue) isBelowFinalLimit = true;
+                                                }
+                                                if (isBelowFinalLimit)
+                                                {
+                                                    finalMarginBadge = "price-badge-warning";
+                                                    finalMarginBox = "price-box-diff-margin-ib-warning";
+                                                }
+                                            }
+                                        }
+                                    }
+                                    @if (commissionToDisplay.HasValue)
+                                    {
+                                        <div class="Commission-stack" title="@(showUpdatedCommission ? "To jest potwierdzona prowizja po aktualizacji ceny" : "Szacowana prowizja dla obecnej ceny")">
+                                            <span class="commission-stack-badge" style="@(showUpdatedCommission ? "background-color:#1cc88a; color:white;" : "")">@(showUpdatedCommission ? "Prowizja" : "Prowizja")</span>
+                                            <p>
+                                                @commissionToDisplay.Value.ToString("F2") PLN
+                                                @if (item.IsCommissionIncluded)
+                                                {
+                                                    @if (showUpdatedCommission) { <span style="font-weight: 400; color: #1cc88a;"> | akt. uwzg.</span> }
+                                                    else { <span style="font-weight: 400; color: #555;"> | uwzg.</span> }
+                                                }
+                                                else
+                                                {
+                                                    @if (showUpdatedCommission) { <span style="font-weight: 400; color: #1cc88a;"> | akt. nieuwzg.</span> }
+                                                    else { <span style="font-weight: 400; color: #555"> | nieuwzg.</span> }
+                                                }
+                                            </p>
+                                        </div>
+                                    }
+                                    @if (finalMarkupAmount.HasValue && finalMarkupPercent.HasValue)
+                                    {
+                                        <div class="price-box-diff-margin-ib @finalMarginBox" style="margin-top: 4px; width: 100%;">
+                                            <span class="price-badge @finalMarginBadge">Narzut</span>
+                                            <p>@finalMarkupAmount.Value.ToString("F2") PLN (@finalMarkupPercent.Value.ToString("F2")%)</p>
+                                        </div>
+                                    }
+                                </div>
+                            </td>
+
+                            <td class="align-middle text-center">
+                                <div class="d-flex flex-column align-items-center" style="gap: 4px;">
+                                    @if (item.IsPaused)
+                                    {
+                                        <div class="status-box-dashed status-dashed-paused" title="Automat wstrzymany dla tego produktu">
+                                            <i class="fas fa-pause mr-1"></i> WSTRZYMANY
+                                        </div>
+                                        <span class="text-xs" style="color:#e74a3b; font-weight:600;">Bez aktualizacji</span>
+                                    }
+                                    else if (item.IsAlreadyUpdated)
+                                    {
+                                        <div class="status-box-dashed status-dashed-success" title="Cena wgrana: @(item.UpdateDate?.ToString("dd.MM HH:mm") ?? "-")">
+                                            <i class="fas fa-check mr-1"></i> WGRANO
+                                        </div>
+                                        @if (item.UpdateDate.HasValue)
+                                        {
+                                            <div style="font-size: 10px; color: #858796; line-height: 1.1;">
+                                                @item.UpdateDate.Value.ToString("dd.MM")<br>
+                                                @item.UpdateDate.Value.ToString("HH:mm")
+                                            </div>
+                                        }
+                                        @if (item.UpdatedPrice.HasValue)
+                                        {
+                                            <div style="font-size: 11px; color: #1cc88a; font-weight: 700; margin-top: 2px;">@item.UpdatedPrice.Value.ToString("F2") PLN</div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @if (item.Status != AutomationCalculationStatus.Blocked && item.SuggestedPrice.HasValue)
+                                        {
+                                            <div class="status-box-dashed status-dashed-danger"><i class="fas fa-times mr-1"></i> OCZEKUJE</div>
+                                            <span class="text-xs text-gray-400">Nie wgrano</span>
+                                        }
+                                        else
+                                        {
+                                            <div class="status-box-dashed status-dashed-secondary"><i class="fas fa-ban mr-1"></i> BLOKADA</div>
+                                        }
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
+
+<!-- ============ MODAL: WSTRZYMANIE AUTOMATU NA PRODUKCIE ============ -->
+<div id="pauseProductModal" class="modal fade" tabindex="-1" style="z-index:1060;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="price-box-column-name">
+                    <i class="fas fa-pause-circle" style="color:#e74a3b; margin-right:8px;"></i>
+                    Wstrzymaj automat dla produktu
+                </div>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="pauseModalContent">
+                    <!-- Wypełniane dynamicznie przez JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap4.min.css">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap4.min.js"></script>
+    <script src="~/js/member/MassActions.js"></script>
+    <script>
+        if (sessionStorage.getItem('automation_scrollToProduct')) {
+            document.documentElement.style.visibility = 'hidden';
+        }
+    </script>
+    <script>
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+
+        const StateManager = {
+            saveState: function () {
+                const activeFilters = [];
+                document.querySelectorAll('.filter-btn.active').forEach(btn => {
+                    activeFilters.push(btn.dataset.filterKey);
+                });
+                sessionStorage.setItem('automation_activeFilters', JSON.stringify(activeFilters));
+
+                const searchInput = document.getElementById('productSearch');
+                if (searchInput) {
+                    sessionStorage.setItem('automation_searchText', searchInput.value);
+                }
+            },
+
+            restoreFiltersAndSearch: function () {
+                const savedSearch = sessionStorage.getItem('automation_searchText');
+                if (savedSearch) {
+                    const searchInput = document.getElementById('productSearch');
+                    if (searchInput) {
+                        searchInput.value = savedSearch;
+                        searchInput.dispatchEvent(new Event('input'));
+                    }
+                }
+
+                const savedFilters = sessionStorage.getItem('automation_activeFilters');
+                if (savedFilters) {
+                    try {
+                        const filters = JSON.parse(savedFilters);
+                        if (Array.isArray(filters)) {
+                            filters.forEach(key => {
+                                const btn = document.querySelector(`.filter-btn[data-filter-key="${key}"]`);
+                                if (btn && !btn.classList.contains('active')) {
+                                    btn.click();
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error("Błąd przywracania filtrów:", e);
+                    }
+                }
+            },
+
+            scrollToProduct: function () {
+                const scrollToId = sessionStorage.getItem('automation_scrollToProduct');
+                if (!scrollToId) return;
+
+                sessionStorage.removeItem('automation_scrollToProduct');
+                sessionStorage.removeItem('automation_activeFilters');
+                sessionStorage.removeItem('automation_searchText');
+
+                setTimeout(function () {
+                    const wrapper = document.querySelector('.purchase-wrapper[data-id="' + scrollToId + '"]');
+                    if (wrapper) {
+                        const row = wrapper.closest('tr');
+                        row.scrollIntoView({ behavior: 'instant', block: 'center' });
+                        window.scrollTo(0, 0);
+
+                        row.style.transition = 'background-color 0s';
+                        row.style.backgroundColor = '#fff3cd';
+                        setTimeout(function () {
+                            row.style.transition = 'background-color 3s ease';
+                            row.style.backgroundColor = '';
+                        }, 100);
+                    }
+                    document.documentElement.style.visibility = 'visible';
+                }, 300);
+            }
+        };
+    </script>
+
+    <script>
+        const storeId = @Model.StoreId;
+        const currentRuleId = @Model.RuleId;
+
+        const isAllegroContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
+        const sourceTypeInt = isAllegroContext ? 1 : 0;
+        const flags = @Html.Raw(Json.Serialize(Model.AvailableStoreFlags ?? new List<FlagViewModel>()));
+
+        const extraActionsConfig = [];
+
+        const _intervalModalHtml = [
+            '<div id="intervalSelectionModal" class="modal fade" tabindex="-1" style="z-index:1060;">',
+            '<div class="modal-dialog modal-lg"><div class="modal-content" style="border-radius:10px; overflow:hidden;">',
+            '<div class="modal-header"><div class="price-box-column-name">Zarządzaj interwałami cenowymi</div>',
+            '<button type="button" class="close" data-dismiss="modal"><span>\u00D7</span></button></div>',
+            '<div class="modal-body" style="padding:20px;">',
+            '<p style="color:#666; margin-bottom:16px;">Przypisz lub odepnij zaznaczone produkty (<strong><span id="intervalProductCountDisplay">0</span></strong>) z interwału cenowego tego automatu.</p>',
+            '<div id="intervalRulesListContainer"></div>',
+            '</div><div class="modal-footer"><button type="button" class="Button-Page-Small-r" data-dismiss="modal">Anuluj</button></div>',
+            '</div></div></div>'
+        ].join('');
+
+        function _renderIntervalList(intervals, ctx, limitInfo) {
+            var container = document.getElementById('intervalRulesListContainer');
+            container.innerHTML = '';
+
+            if (!intervals || intervals.length === 0) {
+                container.innerHTML = '<div class="alert alert-warning text-center">Brak interwałów.'
+                    + ' <a href="/IntervalPrice/Create?automationRuleId=' + currentRuleId + '">Utwórz nowy</a>.</div>';
+                return;
+            }
+
+            var totalAssignedInSelection = 0;
+            intervals.forEach(function (iv) { totalAssignedInSelection += (iv.matchingCount || 0); });
+            var totalUnassigned = ctx.count - totalAssignedInSelection;
+
+            var statsHeader = document.createElement('div');
+            statsHeader.style.cssText = 'background-color:#f8f9fa; border:1px solid #e3e6f0; border-radius:8px; padding:15px; margin-bottom:16px; display:flex; justify-content:space-around; align-items:center; text-align:center;';
+            statsHeader.innerHTML =
+                '<div>'
+                + '<div style="font-size:11px; color:#858796; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Zaznaczonych</div>'
+                + '<div style="font-size:20px; font-weight:700; color:#5a5c69;">' + ctx.count + '</div>'
+                + '</div>'
+                + '<div style="border-left:1px solid #e3e6f0; height:30px;"></div>'
+                + '<div>'
+                + '<div style="font-size:11px; color:#e67e22; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">W interwałach</div>'
+                + '<div style="font-size:20px; font-weight:700; color:#e67e22;">' + totalAssignedInSelection + '</div>'
+                + '</div>'
+                + '<div style="border-left:1px solid #e3e6f0; height:30px;"></div>'
+                + '<div>'
+                + '<div style="font-size:11px; color:#858796; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Bez interwału</div>'
+                + '<div style="font-size:20px; font-weight:700; color:#858796;">' + Math.max(0, totalUnassigned) + '</div>'
+                + '</div>';
+            container.appendChild(statsHeader);
+
+            if (limitInfo && typeof limitInfo.storeLimit !== 'undefined') {
+                var storeLimit = limitInfo.storeLimit || 0;
+                var storeUsed = limitInfo.storeUsed || 0;
+                var storeRemaining = Math.max(0, limitInfo.storeRemaining || 0);
+                var pct = storeLimit > 0 ? Math.min(100, (storeUsed / storeLimit) * 100) : 0;
+                var barColor = pct >= 90 ? '#e74a3b' : pct >= 70 ? '#f6c23e' : '#27ae60';
+
+                var newToAdd = Math.max(0, ctx.count - totalAssignedInSelection);
+                var willBeAdded = Math.min(newToAdd, storeRemaining);
+                var willBeTruncated = newToAdd - willBeAdded;
+
+                var limitBox = document.createElement('div');
+                limitBox.style.cssText = 'background:#fff; border:1px solid #e3e6f0; border-radius:8px; padding:14px 18px; margin-bottom:20px;';
+
+                var limitHtml =
+                    '<div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:700; color:#858796; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">'
+                    + '  <span><i class="fas fa-database" style="margin-right:5px;"></i>Limit produktów w interwale (sklep)</span>'
+                    + '  <span style="color:' + barColor + ';">' + storeUsed + ' / ' + (storeLimit > 0 ? storeLimit : '—') + '</span>'
+                    + '</div>';
+
+                if (storeLimit > 0) {
+                    limitHtml +=
+                        '<div style="width:100%; height:8px; background:#e3e3e3; border-radius:4px; overflow:hidden;">'
+                        + '  <div style="width:' + pct + '%; height:100%; background:' + barColor + '; border-radius:4px; transition:width 0.3s;"></div>'
+                        + '</div>'
+                        + '<div style="font-size:11px; color:#858796; margin-top:6px;">Wolnych miejsc: <strong style="color:#27ae60;">' + storeRemaining + '</strong></div>';
+
+                    if (willBeTruncated > 0) {
+                        limitHtml +=
+                            '<div style="margin-top:10px; padding:10px 12px; background:rgba(231,74,59,0.08); border-left:3px solid #e74a3b; border-radius:4px; font-size:12px; color:#5a5c69; line-height:1.4;">'
+                            + '<i class="fas fa-exclamation-triangle" style="color:#e74a3b; margin-right:6px;"></i>'
+                            + 'Zaznaczono <strong>' + newToAdd + '</strong> nowych produktów, ale limit pozwala dodać tylko <strong style="color:#27ae60;">' + willBeAdded + '</strong>. '
+                            + '<strong style="color:#e74a3b;">' + willBeTruncated + '</strong> zostanie pominiętych.'
+                            + '</div>';
+                    } else if (storeRemaining === 0) {
+                        limitHtml +=
+                            '<div style="margin-top:10px; padding:10px 12px; background:rgba(231,74,59,0.08); border-left:3px solid #e74a3b; border-radius:4px; font-size:12px; color:#5a5c69;">'
+                            + '<i class="fas fa-ban" style="color:#e74a3b; margin-right:6px;"></i>'
+                            + 'Limit wyczerpany — nie można przypisać nowych produktów do interwałów.'
+                            + '</div>';
+                    }
+                } else {
+                    limitHtml +=
+                        '<div style="font-size:11px; color:#e74a3b; font-weight:600;">'
+                        + '<i class="fas fa-ban" style="margin-right:4px;"></i>Sklep ma limit 0 — skontaktuj się z biuro@pricesafari.pl'
+                        + '</div>';
+                }
+
+                limitBox.innerHTML = limitHtml;
+                container.appendChild(limitBox);
+            }
+
+            var hasAssignments = totalAssignedInSelection > 0;
+            var unassignDiv = document.createElement('div');
+            unassignDiv.style.cssText =
+                'border:1px dashed ' + (hasAssignments ? '#e74a3b' : '#ccc') + '; '
+                + 'border-radius:8px; padding:10px 15px; '
+                + 'cursor:' + (hasAssignments ? 'pointer' : 'default') + '; '
+                + 'background-color:#fff; display:flex; justify-content:space-between; align-items:center; '
+                + 'transition:background-color 0.2s; margin-bottom:20px; opacity:' + (hasAssignments ? '1' : '0.6') + ';';
+
+            if (hasAssignments) {
+                unassignDiv.onmouseover = function () { unassignDiv.style.backgroundColor = '#fff5f5'; };
+                unassignDiv.onmouseout = function () { unassignDiv.style.backgroundColor = '#fff'; };
+                unassignDiv.addEventListener('click', function () {
+                    _executeIntervalUnassign(intervals, ctx);
+                });
+            }
+
+            unassignDiv.innerHTML =
+                '<div style="display:flex; align-items:center; gap:15px;">'
+                + '<div style="width:6px; height:45px; background-color:' + (hasAssignments ? '#e74a3b' : '#ccc') + '; border-radius:3px;"></div>'
+                + '<div>'
+                + '<div style="font-weight:600; font-size:15px; color:' + (hasAssignments ? '#e74a3b' : '#888') + ';">Odepnij z interwałów</div>'
+                + '<div style="font-size:13px; color:#666; margin-top:2px;">'
+                + (hasAssignments
+                    ? 'Odepnij <strong>' + totalAssignedInSelection + '</strong> zaznaczonych produktów z ich interwałów.'
+                    : 'Żaden z zaznaczonych produktów nie jest przypisany do interwału.')
+                + '</div></div></div>'
+                + '<button class="Button-Page-Small-r" type="button" style="pointer-events:none;'
+                + (!hasAssignments ? ' background-color:#ccc; border-color:#ccc;' : '') + '">Odepnij</button>';
+            container.appendChild(unassignDiv);
+
+            intervals.forEach(function (interval) {
+                var statusColor = interval.isActive ? '#1cc88a' : '#e74a3b';
+                var alreadyIn = interval.matchingCount || 0;
+                var toBeAdded = ctx.count - alreadyIn;
+                var stepSign = interval.priceStep < 0 ? '' : '+';
+                var stepText = stepSign + interval.priceStep.toFixed(2) + (interval.isPriceStepPercent ? '%' : ' PLN');
+                var stepColor = interval.priceStep < 0 ? '#27ae60' : '#e74a3b';
+                var stepIcon = interval.priceStep < 0 ? 'fa-arrow-down' : 'fa-arrow-up';
+
+                var backgroundStyle = alreadyIn > 0 ? '#fcfcfc' : '#fff';
+
+                var div = document.createElement('div');
+                div.style.cssText = 'border:1px solid #e3e6f0; border-radius:8px; padding:14px 18px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; transition:all 0.2s; background:' + backgroundStyle + ';';
+                div.onmouseover = function () { div.style.borderColor = interval.colorHex; div.style.backgroundColor = '#fafbfc'; };
+                div.onmouseout = function () { div.style.borderColor = '#e3e6f0'; div.style.backgroundColor = backgroundStyle; };
+
+                div.innerHTML =
+                    '<div style="display:flex; align-items:center; gap:14px; flex-grow:1;">'
+                    + '<div style="width:5px; height:50px; background:' + interval.colorHex + '; border-radius:3px;"></div>'
+                    + '<div style="flex-grow:1;">'
+                    + '<div style="display:flex; gap:12px; align-items:center;">'
+                    + '<div style="font-weight:600; font-size:15px; color:#333;">' + interval.name + '</div>'
+                    + '<div style="font-size:12px; display:flex; align-items:center; gap:6px;">'
+                    + '<span style="color:' + stepColor + '; font-weight:600;"><i class="fas ' + stepIcon + '" style="margin-right:3px;"></i>' + stepText + '</span>'
+                    + '<span style="color:#e3e6f0;">|</span>'
+                    + '<span style="color:' + statusColor + '; font-weight:500;">' + (interval.isActive ? 'Aktywny' : 'Wyłączony') + '</span>'
+                    + '</div></div>'
+                    + '<div style="display:flex; gap:15px; margin-top:6px; font-size:12px; color:#666;">'
+                    + '<span><i class="fas fa-database" style="color:#999; margin-right:4px;"></i>W interwale: <strong>' + interval.totalAssigned + '</strong></span>'
+                    + '<span style="color:#e3e6f0;">|</span>'
+                    + '<span><i class="fas fa-check-double" style="color:#999; margin-right:4px;"></i>Z wybranych: <strong>' + alreadyIn + '</strong></span>'
+                    + '<span style="color:#e3e6f0;">|</span>'
+                    + '<span>Nowych: <strong style="color:#1cc88a;">+' + Math.max(0, toBeAdded) + '</strong></span>'
+                    + '</div></div></div>'
+                    + '<button class="Button-Page-Small-bl" style="pointer-events:none; white-space:nowrap; padding:5px 15px;">Przypisz</button>';
+
+                div.addEventListener('click', function () {
+                    _executeIntervalAssign(interval.id, ctx);
+                });
+
+                container.appendChild(div);
+            });
+        }
+
+        function _executeIntervalAssign(intervalId, ctx) {
+            $('#intervalSelectionModal').modal('hide');
+            ctx.showLoading();
+
+            fetch('/IntervalPrice/AssignProducts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ intervalRuleId: intervalId, productIds: ctx.selectedIds })
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    ctx.hideLoading();
+                    if (data.success) {
+                        ctx.askContinueOrFinish(function () { location.reload(); });
+                    } else {
+                        alert('Błąd: ' + (data.message || 'Nieznany'));
+                        $('#intervalSelectionModal').modal('show');
+                    }
+                })
+                .catch(function () {
+                    ctx.hideLoading();
+                    alert('Błąd komunikacji.');
+                    $('#intervalSelectionModal').modal('show');
+                });
+        }
+
+        function _executeIntervalUnassign(intervals, ctx) {
+            $('#intervalSelectionModal').modal('hide');
+            ctx.showLoading();
+
+            var promises = intervals.map(function (iv) {
+                if ((iv.matchingCount || 0) === 0) return Promise.resolve({ success: true, removed: 0 });
+                return fetch('/IntervalPrice/UnassignProducts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ intervalRuleId: iv.id, productIds: ctx.selectedIds })
+                }).then(function (r) { return r.json(); });
+            });
+
+            Promise.all(promises)
+                .then(function (results) {
+                    ctx.hideLoading();
+                    var allOk = results.every(function (r) { return r.success; });
+                    if (allOk) {
+                        ctx.askContinueOrFinish(function () { location.reload(); });
+                    } else {
+                        alert('Część operacji nie powiodła się.');
+                        location.reload();
+                    }
+                })
+                .catch(function () {
+                    ctx.hideLoading();
+                    alert('Błąd komunikacji.');
+                    $('#intervalSelectionModal').modal('show');
+                });
+        }
+
+        @if (Model.IntervalRuleId.HasValue && canEdit)
+        {
+            <text>
+            extraActionsConfig.push({
+                id: 'intervals',
+                label: 'Interwały Cenowe',
+                icon: 'fa-clock',
+                btnStyle: 'background-color:#e67e22; border:1px solid #e67e22; color:#fff;',
+                btnHoverStyle: 'background-color:#cf6d17; border:1px solid #cf6d17; color:#fff;',
+                modalHtml: _intervalModalHtml,
+                onClick: function (ctx) {
+                    document.getElementById('intervalProductCountDisplay').textContent = ctx.count;
+                    document.getElementById('intervalRulesListContainer').innerHTML =
+                        '<div class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Ładowanie...</div>';
+                    ctx.closeMainModal();
+
+                    fetch('/IntervalPrice/GetIntervalStatusForProducts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ automationRuleId: currentRuleId, productIds: ctx.selectedIds })
+                    })
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            _renderIntervalList(data.intervals || [], ctx, data);
+                            $('#intervalSelectionModal').modal('show');
+                        })
+                        .catch(function (err) { console.error(err); alert('Błąd ładowania interwałów.'); });
+                }
+            });
+            </text>
+        }
+
+        const massActions = new window.MassActions({
+            storeId: storeId,
+            isAllegro: isAllegroContext,
+            storageKey: `automationDetails_selected_${currentRuleId}_${storeId}`,
+            flags: typeof flags !== 'undefined' ? flags : [],
+
+            extraActions: extraActionsConfig,
+
+            getAllPrices: function () {
+                return Array.from(document.querySelectorAll('#automationTable tbody tr.main-product-row')).map(row => {
+                    const btn = row.querySelector('.select-product-btn');
+                    if (!btn) return null;
+                    return {
+                        productId: btn.dataset.productId,
+                        productName: btn.dataset.productName,
+                        identifierText: btn.dataset.identifier
+                    };
+                }).filter(Boolean);
+            },
+            getFilteredPrices: function () {
+                return Array.from(document.querySelectorAll('#automationTable tbody tr.main-product-row'))
+                    .filter(row => row.style.display !== 'none' && !row.classList.contains('filter-hidden'))
+                    .map(row => {
+                        const btn = row.querySelector('.select-product-btn');
+                        if (!btn) return null;
+                        return {
+                            productId: btn.dataset.productId,
+                            productName: btn.dataset.productName,
+                            identifierText: btn.dataset.identifier
+                        };
+                    }).filter(Boolean);
+            },
+            getProductIdentifier: function (product) {
+                return { label: 'ID/EAN', value: product.identifierText };
+            },
+            showLoading: showLoading,
+            hideLoading: hideLoading,
+            showGlobalUpdate: function (msg) { alert("Sukces: Zaktualizowano pomyślnie."); },
+            showGlobalNotification: function (msg) { alert("Powiadomienie: " + msg); },
+            onFlagsUpdated: () => location.reload(),
+            onAutomationsUpdated: () => location.reload()
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            massActions.init();
+        });
+
+        function showNoAccessAlert() {
+            alert('@Html.Raw(noAccessMessage)');
+        }
+
+        function showLoading() { $('#loadingOverlay').css('display', 'flex'); }
+        function hideLoading() { $('#loadingOverlay').hide(); }
+
+        $(document).ready(function () {
+
+            $(document).on('click', '.select-product-btn', function (e) {
+                e.stopPropagation();
+                const btn = $(this);
+                const pid = btn.data('product-id').toString();
+
+                massActions.toggleProduct(pid);
+
+                if (massActions.isSelected(pid)) {
+                    btn.text('Wybrano').addClass('selected');
+                } else {
+                    btn.text('Zaznacz').removeClass('selected');
+                }
+            });
+
+            $(document).on('click', '.edit-btn', function (e) {
+                e.preventDefault(); e.stopPropagation();
+                var wrapper = $(this).closest('.purchase-wrapper');
+                $('.edit-mode').addClass('d-none'); $('.display-mode').removeClass('d-none');
+                wrapper.find('.display-mode').addClass('d-none'); wrapper.find('.edit-mode').removeClass('d-none');
+                var inp = wrapper.find('input'); inp.val(inp.val()); inp.focus();
+            });
+            $(document).on('click', '.cancel-btn', function (e) {
+                e.preventDefault();
+                $(this).closest('.purchase-wrapper').find('.edit-mode').addClass('d-none').end().find('.display-mode').removeClass('d-none');
+            });
+            $(document).on('click', '.save-btn', function (e) {
+                e.preventDefault();
+                var wrap = $(this).closest('.purchase-wrapper');
+                var val = wrap.find('input').val().replace(',', '.');
+                if (val === '' || isNaN(val) || parseFloat(val) < 0) { alert("Błędna cena."); return; }
+                sendPriceUpdate(wrap, parseFloat(val), $(this));
+            });
+            $(document).on('click', '.delete-btn-inner', function (e) {
+                e.preventDefault();
+                if (confirm("Usunąć cenę zakupu?")) sendPriceUpdate($(this).closest('.purchase-wrapper'), null, $(this));
+            });
+            $(document).on('keypress', '.price-edit-input', function (e) {
+                if (e.which == 13) { e.preventDefault(); $(this).closest('.edit-mode').find('.save-btn').click(); }
+            });
+
+            StateManager.restoreFiltersAndSearch();
+            StateManager.scrollToProduct();
+        });
+
+        function sendPriceUpdate(wrapper, priceValue, btnElement) {
+            var productId = wrapper.data('id');
+            var storeId = wrapper.data('store-id');
+            var isMktStr = String(wrapper.data('is-marketplace')).toLowerCase();
+            var isMarketplaceBool = (isMktStr === 'true');
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            if (!token) { alert("Brak tokenu CSRF."); return; }
+
+            var url = isMarketplaceBool
+                ? '@Url.Action("UpdateAllegroPurchasePrice", "AllegroProduct")?storeId=' + storeId
+                : '@Url.Action("UpdatePurchasePrice", "Product")?storeId=' + storeId;
+
+            var payload = isMarketplaceBool
+                ? { AllegroProductId: parseInt(productId), NewPrice: priceValue }
+                : { ProductId: parseInt(productId), NewPrice: priceValue };
+
+            var originalContent = btnElement.html();
+            btnElement.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                contentType: 'application/json',
+                headers: { 'RequestVerificationToken': token },
+                data: JSON.stringify(payload),
+                success: function (response) {
+                    if (response.success) {
+                        sessionStorage.setItem('automation_scrollToProduct', productId);
+                        location.reload();
+                    }
+                    else {
+                        alert("Błąd: " + response.message);
+                        btnElement.html(originalContent).prop('disabled', false);
+                    }
+                },
+                error: function (xhr) {
+                    alert("Błąd serwera.");
+                    btnElement.html(originalContent).prop('disabled', false);
+                }
+            });
+        }
+
+        function executeAutomation() {
+            if (!confirm("Czy na pewno chcesz wykonać automatyzację?")) { return; }
+            var btn = $(event.target).closest('button');
+            var originalText = btn.html();
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Przetwarzanie...');
+
+            $.ajax({
+                url: '@Url.Action("ExecuteAutomation", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ RuleId: currentRuleId }),
+                success: function (r) {
+                    if (r.count === 0) alert("Wykonano, ale brak zmian do aktualizacji.");
+                    else alert("Sukces! Zaktualizowano " + r.count + " ofert.");
+                    location.reload();
+                },
+                error: function (xhr) {
+                    alert("Błąd: " + (xhr.responseText || xhr.statusText));
+                    btn.prop('disabled', false).html(originalText);
+                }
+            });
+        }
+
+        window.updateCombinedTotalCount = function () {
+            const totalEl = document.getElementById('totalCount');
+            const visibleEl = document.getElementById('visibleCount');
+
+            const rows = Array.from(document.querySelectorAll('#automationTable tbody tr.main-product-row'));
+
+            if (totalEl) totalEl.textContent = rows.length;
+            if (visibleEl) {
+                visibleEl.textContent = rows.filter(r => !r.classList.contains('filter-hidden') && !r.classList.contains('search-hidden')).length;
+            }
+        };
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const searchInput = document.getElementById('productSearch');
+            const tableBody = document.querySelector('#automationTable tbody');
+            if (!tableBody) return;
+
+            let tableRows = Array.from(tableBody.querySelectorAll('tr.main-product-row')).map(row => {
+                const nameWrap = row.querySelector('.product-name-wrap');
+                const nameEl = nameWrap ? (nameWrap.querySelector('a') || nameWrap) : null;
+
+                // Po dodaniu pause-product-btn musimy szukać ID-textu po klasie, nie nextElementSibling
+                const codeEl = row.querySelector('.d-flex.align-items-center.mt-2 > .small.text-muted');
+
+                return {
+                    element: row,
+                    nameEl: nameEl,
+                    codeEl: codeEl,
+                    originalNameHtml: nameEl?.innerHTML || '',
+                    originalCodeHtml: codeEl?.innerHTML || '',
+                    searchText: ((nameEl?.textContent || '') + ' ' + (codeEl?.textContent || '')).toLowerCase()
+                };
+            });
+
+            function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+            function highlight(html, term) {
+                if (!term) return html;
+                const regex = new RegExp(`(${escapeRegExp(term)})(?![^<]*>)`, 'gi');
+                return html.replace(regex, '<span class="highlighted-text">$1</span>');
+            }
+
+            let debounceTimer;
+            searchInput.addEventListener('input', function () {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function () {
+                    const raw = searchInput.value.trim();
+                    const term = raw.toLowerCase();
+
+                    tableRows.forEach(r => {
+                        const match = term === '' || r.searchText.includes(term);
+
+                        if (match) {
+                            r.element.classList.remove('search-hidden');
+                        } else {
+                            r.element.classList.add('search-hidden');
+                        }
+
+                        if (r.nameEl) r.nameEl.innerHTML = term ? highlight(r.originalNameHtml, raw) : r.originalNameHtml;
+                        if (r.codeEl) r.codeEl.innerHTML = term ? highlight(r.originalCodeHtml, raw) : r.originalCodeHtml;
+                    });
+
+                    updateCombinedTotalCount();
+                    if (typeof massActions !== 'undefined') massActions.updateVisibleButtons();
+                }, 300);
+            });
+        });
+    </script>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script>
+        var chartEff = null;
+        var chartDyn = null;
+        var chartSales = null;
+        var chartBadges = null;
+        var chartPosition = null;
+        var currentLimit = 7;
+        var currentMode = 'execution';
+
+        const isMarketplaceContext = '@(Model.SourceType == AutomationSourceType.Marketplace)' === 'True';
+        const totalProductsInRuleNow = parseInt('@Model.TotalProducts') || 0;
+        const loaderConfig = {
+            text: 'Ładowanie...',
+            color: '#000000',
+            textColor: '#000000',
+            maskColor: 'rgba(255, 255, 255, 0.8)',
+            zlevel: 0
+        };
+
+        function tooltipDateHeader(date) {
+            return '<div style="font-weight:700; font-size:13px; margin-bottom:8px; color:#333; border-bottom: 1px solid #f0f0f0; padding-bottom:6px;">'
+                + '<i class="fas fa-calendar-alt" style="margin-right:6px; color:#858796;"></i>' + date + '</div>';
+        }
+
+        function tooltipSectionHeader(title) {
+            return '<div style="font-size:10px; color:#858796; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; margin-top:6px;">' + title + '</div>';
+        }
+
+        function tooltipRow(marker, label, value, unit, bold, subValue) {
+            var style = bold ? 'font-weight:700; color:#333;' : 'font-weight:600; color:#555;';
+            var subHtml = subValue ? '<span style="color:#999; font-weight:400; font-size:10px; margin-left:4px;">' + subValue + '</span>' : '';
+            return '<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;">'
+                + '  <span style="font-size:12px;">' + (marker || '') + ' ' + label + '</span>'
+                + '  <span style="' + style + '">' + value + (unit || '') + subHtml + '</span>'
+                + '</div>';
+        }
+
+        function tooltipSeparator() {
+            return '<div style="border-top:1px solid #f0f0f0; margin:8px 0;"></div>';
+        }
+
+        function buildCoverageBar(covered, total, label) {
+            if (!total || total === 0) return '';
+            var pct = Math.round((covered / total) * 100);
+            var barColor = pct >= 90 ? '#1cc88a' : pct >= 60 ? '#f6c23e' : '#e74a3b';
+            return ''
+                + '<div style="margin-top:8px;">'
+                + '  <div style="font-size:10px; color:#999; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">' + label + '</div>'
+                + '  <div style="display:flex; align-items:center; gap:8px;">'
+                + '    <div style="flex:1; height:6px; background:#e3e3e3; border-radius:3px; overflow:hidden;">'
+                + '      <div style="width:' + pct + '%; height:100%; background:' + barColor + '; border-radius:3px;"></div>'
+                + '    </div>'
+                + '    <span style="font-size:11px; font-weight:700; color:' + barColor + ';">' + pct + '%</span>'
+                + '  </div>'
+                + '  <div style="text-align:right; font-size:10px; color:#bbb; margin-top:1px;">' + covered + ' z ' + total + ' produktów</div>'
+                + '</div>';
+        }
+
+        function calculateSharedMax(arrays) {
+            let maxVal = 0;
+            arrays.forEach(arr => {
+                if (arr && Array.isArray(arr)) {
+                    let localMax = Math.max(...arr);
+                    if (localMax > maxVal) maxVal = localMax;
+                }
+            });
+            return maxVal > 0 ? Math.ceil(maxVal * 1.1) : 10;
+        }
+
+        function switchChartMode(mode) {
+            currentMode = mode;
+            $('#viewModeExec, #viewModeSales, #viewModeBadges, #viewModePosition').removeClass('active');
+            $('#executionChartsContainer, #salesChartContainer, #badgeChartContainer, #positionChartContainer').hide();
+
+            if (mode === 'execution') {
+                $('#viewModeExec').addClass('active');
+                $('#executionChartsContainer').css('display', 'flex');
+                if (chartEff) chartEff.resize();
+                if (chartDyn) chartDyn.resize();
+                loadHistoryData(currentLimit);
+            }
+            else if (mode === 'sales') {
+                $('#viewModeSales').addClass('active');
+                $('#salesChartContainer').show();
+                if (!chartSales) chartSales = echarts.init(document.getElementById('chartSales'));
+                chartSales.resize();
+                loadSalesHistoryData(currentLimit);
+            }
+            else if (mode === 'badges') {
+                $('#viewModeBadges').addClass('active');
+                $('#badgeChartContainer').show();
+                if (!chartBadges) chartBadges = echarts.init(document.getElementById('chartBadges'));
+                chartBadges.resize();
+                loadBadgeHistoryData(currentLimit);
+            }
+            else if (mode === 'position') {
+                $('#viewModePosition').addClass('active');
+                $('#positionChartContainer').show();
+                if (!chartPosition) chartPosition = echarts.init(document.getElementById('chartPosition'));
+                chartPosition.resize();
+                loadPricePositionHistoryData(currentLimit);
+            }
+        }
+
+        function showChartLoading() {
+            if (currentMode === 'execution') {
+                if (chartEff) chartEff.showLoading('default', loaderConfig);
+                if (chartDyn) chartDyn.showLoading('default', loaderConfig);
+            } else if (currentMode === 'sales') {
+                if (chartSales) chartSales.showLoading('default', loaderConfig);
+            } else if (currentMode === 'badges') {
+                if (chartBadges) chartBadges.showLoading('default', loaderConfig);
+            } else if (currentMode === 'position') {
+                if (chartPosition) chartPosition.showLoading('default', loaderConfig);
+            }
+        }
+
+        function hideChartLoading() {
+            if (chartEff) chartEff.hideLoading();
+            if (chartDyn) chartDyn.hideLoading();
+            if (chartSales) chartSales.hideLoading();
+            if (chartBadges) chartBadges.hideLoading();
+            if (chartPosition) chartPosition.hideLoading();
+        }
+
+        function loadHistoryData(limit) {
+            if (currentMode === 'sales') { loadSalesHistoryData(limit); return; }
+            if (currentMode === 'badges') { loadBadgeHistoryData(limit); return; }
+            if (currentMode === 'position') { loadPricePositionHistoryData(limit); return; }
+
+            showChartLoading();
+            $.ajax({
+                url: '@Url.Action("GetAutomationHistory", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
+                success: function (data) {
+                    hideChartLoading();
+                    renderEffectivenessChart(data);
+                    renderDynamicsChart(data);
+                },
+                error: function (xhr) { hideChartLoading(); console.error(xhr); }
+            });
+        }
+
+        function loadSalesHistoryData(limit) {
+            if (!chartSales) chartSales = echarts.init(document.getElementById('chartSales'));
+            chartSales.showLoading('default', loaderConfig);
+            $.ajax({
+                url: '@Url.Action("GetAutomationSalesHistory", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
+                success: function (data) { chartSales.hideLoading(); renderSalesChart(data); },
+                error: function (xhr) { chartSales.hideLoading(); console.error("Błąd Sales:", xhr.responseText); }
+            });
+        }
+
+        function loadBadgeHistoryData(limit) {
+            if (!chartBadges) chartBadges = echarts.init(document.getElementById('chartBadges'));
+            chartBadges.showLoading('default', loaderConfig);
+            $.ajax({
+                url: '@Url.Action("GetAutomationBadgeHistory", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
+                success: function (data) { chartBadges.hideLoading(); renderBadgeChart(data); },
+                error: function (xhr) { chartBadges.hideLoading(); console.error(xhr); }
+            });
+        }
+
+        function loadPricePositionHistoryData(limit) {
+            if (!chartPosition) chartPosition = echarts.init(document.getElementById('chartPosition'));
+            chartPosition.showLoading('default', loaderConfig);
+            $.ajax({
+                url: '@Url.Action("GetAutomationPricePositionHistory", "PriceAutomation")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ RuleId: parseInt(@Model.RuleId), Limit: limit }),
+                success: function (data) { chartPosition.hideLoading(); renderPricePositionChart(data); },
+                error: function (xhr) { chartPosition.hideLoading(); console.error("Błąd Position:", xhr.responseText); }
+            });
+        }
+
+        function renderEffectivenessChart(data) {
+            if (!chartEff) return;
+            var option = {
+                title: { text: 'Skuteczność Reguły', left: 'center', textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' } },
+                tooltip: {
+                    trigger: 'axis', axisPointer: { type: 'shadow' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)', borderColor: '#e3e6f0', borderWidth: 1,
+                    textStyle: { color: '#333', fontSize: 12 }, padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; min-width: 200px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var met = 0, unmet = 0;
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Spełnione') met = item.value;
+                            if (item.seriesName === 'Niespełnione / Blokady') unmet = item.value;
+                        });
+                        var calculatedSum = met + unmet;
+                        var pctMet = calculatedSum > 0 ? ((met / calculatedSum) * 100).toFixed(0) : 0;
+                        var html = tooltipDateHeader(date);
+                        html += tooltipSectionHeader('Status Wykonania');
+                        html += tooltipRow(params[0]?.marker, 'Spełnione', met, '', true);
+                        html += tooltipRow(params[1]?.marker, 'Niespełnione', unmet, '', false);
+                        html += tooltipSeparator();
+                        var effColor = pctMet >= 80 ? '#1cc88a' : pctMet >= 50 ? '#f6c23e' : '#e74a3b';
+                        html += '<div style="display:flex; justify-content:space-between; align-items:center;">'
+                            + '  <span style="font-size:12px; color:#555;">Skuteczność:</span>'
+                            + '  <span style="font-size:14px; font-weight:700; color:' + effColor + ';">' + pctMet + '%</span>'
+                            + '</div>';
+                        return html;
+                    }
+                },
+                legend: { bottom: 0, data: ['Spełnione', 'Niespełnione / Blokady'] },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '40px', containLabel: true },
+                xAxis: { type: 'category', data: data.dates, axisLabel: { fontSize: 10 } },
+                yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f0f0' } } },
+                series: [
+                    { name: 'Spełnione', type: 'bar', stack: 'total', itemStyle: { color: '#00917B' }, data: data.targetMet },
+                    { name: 'Niespełnione / Blokady', type: 'bar', stack: 'total', itemStyle: { color: '#6C757D' }, data: data.targetUnmet }
+                ]
+            };
+            chartEff.setOption(option, true);
+        }
+
+        function renderDynamicsChart(data) {
+            if (!chartDyn) return;
+            var option = {
+                title: { text: 'Dynamika Zmian', left: 'center', textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' } },
+                tooltip: {
+                    trigger: 'axis', axisPointer: { type: 'shadow' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)', borderColor: '#e3e6f0', borderWidth: 1,
+                    textStyle: { color: '#333', fontSize: 12 }, padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; min-width: 200px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var decreased = 0, maintained = 0, increased = 0, total = 0;
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Obniżki') decreased = item.value;
+                            else if (item.seriesName === 'Utrzymane') maintained = item.value;
+                            else if (item.seriesName === 'Podwyżki') increased = item.value;
+                            else if (item.seriesName === 'Razem w regule') total = item.value;
+                        });
+                        var changed = decreased + increased;
+                        var html = tooltipDateHeader(date);
+                        html += tooltipSectionHeader('Zmiany Cenowe');
+                        params.forEach(function (item) {
+                            if (item.seriesName !== 'Razem w regule') {
+                                html += tooltipRow(item.marker, item.seriesName, item.value, '', false);
+                            }
+                        });
+                        html += tooltipSeparator();
+                        html += '<div style="display:flex; justify-content:space-between; font-size:11px; color:#666;">'
+                            + '  <span>Zoptymalizowano cen:</span>'
+                            + '  <span style="font-weight:700;">' + changed + '</span>'
+                            + '</div>';
+                        html += '<div style="margin-top:6px; padding-top:4px; border-top:1px dashed #eee; font-size:10px; color:#999; display:flex; justify-content:space-between;">'
+                            + 'Razem produktów w regule: <strong>' + total + '</strong>'
+                            + '</div>';
+                        return html;
+                    }
+                },
+                legend: { bottom: 0, data: ['Obniżki', 'Utrzymane', 'Podwyżki', 'Razem w regule'], textStyle: { fontSize: 11 } },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '40px', containLabel: true },
+                xAxis: { type: 'category', data: data.dates, axisLabel: { fontSize: 10 } },
+                yAxis: { type: 'value', axisLabel: { fontSize: 10 }, splitLine: { lineStyle: { color: '#f0f0f0' } } },
+                series: [
+                    { name: 'Obniżki', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(25, 135, 84, 0.85)' }, data: data.decreased },
+                    { name: 'Utrzymane', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(13, 110, 253, 0.7)' }, data: data.maintained },
+                    { name: 'Podwyżki', type: 'bar', stack: 'total', itemStyle: { color: 'rgba(231, 74, 59, 0.85)' }, barBorderRadius: [3, 3, 0, 0], data: data.increased },
+                    { name: 'Razem w regule', type: 'line', data: data.totalProducts, symbol: 'none', itemStyle: { color: '#333' }, lineStyle: { color: '#333', width: 2, type: 'dashed', opacity: 0.6 } }
+                ]
+            };
+            chartDyn.setOption(option, true);
+        }
+
+        function renderSalesChart(data) {
+            if (!data || !chartSales) return;
+            var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
+            var option = {
+                title: {
+                    text: 'Sprzedaż: Twoje oferty vs Cały rynek',
+                    subtext: 'Dane dla ' + totalInRule + ' produktów obecnie w automacie',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' },
+                    subtextStyle: { fontSize: 11, color: '#999' }
+                },
+                tooltip: {
+                    trigger: 'axis', axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)', borderColor: '#e3e6f0', borderWidth: 1,
+                    textStyle: { color: '#333', fontSize: 12 }, padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; min-width: 250px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var marketVal = 0, myVal = 0, productsWithData = 0;
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Cały Rynek (Katalog)') marketVal = item.value;
+                            else if (item.seriesName === 'Twoja Sprzedaż') myVal = item.value;
+                            else if (item.seriesName === 'Katalogi z danymi') productsWithData = item.value;
+                        });
+                        var html = tooltipDateHeader(date);
+                        html += tooltipSectionHeader('Wolumen Sprzedaży');
+                        var myMarker = params.find(p => p.seriesName === 'Twoja Sprzedaż')?.marker;
+                        var marketMarker = params.find(p => p.seriesName === 'Cały Rynek (Katalog)')?.marker;
+                        html += tooltipRow(myMarker, 'Twoja sprzedaż', myVal, ' szt.', true);
+                        html += tooltipRow(marketMarker, 'Cały rynek', marketVal, ' szt.', false);
+                        var sharePercent = (marketVal > 0) ? ((myVal / marketVal) * 100).toFixed(1) + '%' : '0.0%';
+                        html += '<div style="margin-top:4px; padding:4px 8px; background:rgba(255,152,0,0.1); border-radius:4px; display:flex; justify-content:space-between; align-items:center;">'
+                            + '  <span style="font-size:11px; color:#ff9800;"><i class="fas fa-chart-pie" style="margin-right:4px;"></i>Twój udział w rynku</span>'
+                            + '  <span style="font-size:13px; font-weight:700; color:#ff9800;">' + sharePercent + '</span>'
+                            + '</div>';
+                        html += tooltipSeparator();
+                        html += buildCoverageBar(productsWithData, totalInRule, 'Katalogi z danymi w analizie');
+                        return html;
+                    }
+                },
+                legend: { bottom: 0, data: ['Twoja Sprzedaż', 'Cały Rynek (Katalog)', 'Katalogi z danymi'], textStyle: { fontSize: 11 } },
+                grid: { left: '3%', right: '4%', bottom: '12%', top: '70px', containLabel: true },
+                xAxis: { type: 'category', boundaryGap: false, data: data.dates, axisLabel: { fontSize: 10 } },
+                yAxis: [
+                    { type: 'value', name: 'Sprzedaż (szt.)', position: 'left', nameTextStyle: { fontSize: 10, color: '#999' }, axisLabel: { formatter: '{value}', fontSize: 10 }, splitLine: { show: true, lineStyle: { color: '#f0f0f0' } } },
+                    { type: 'value', name: 'Liczba ofert', position: 'right', minInterval: 1, nameTextStyle: { fontSize: 10, color: '#999' }, axisLine: { show: false }, axisLabel: { formatter: '{value}', color: '#999', fontSize: 10 }, splitLine: { show: false } }
+                ],
+                series: [
+                    { name: 'Cały Rynek (Katalog)', type: 'line', yAxisIndex: 0, data: data.marketSales, smooth: true, symbol: 'none', itemStyle: { color: '#000000' }, lineStyle: { width: 2, color: '#000000' } },
+                    { name: 'Twoja Sprzedaż', type: 'line', yAxisIndex: 0, data: data.mySales, smooth: true, symbol: 'circle', symbolSize: 8, itemStyle: { color: '#ff9800', borderColor: '#fff', borderWidth: 2 }, lineStyle: { width: 3, color: '#ff9800' }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(255, 152, 0, 0.5)' }, { offset: 1, color: 'rgba(255, 152, 0, 0.03)' }]) } },
+                    { name: 'Katalogi z danymi', type: 'line', yAxisIndex: 1, data: data.productsWithDataCount, smooth: false, symbol: 'none', itemStyle: { color: '#777777' }, lineStyle: { width: 1.5, color: '#777777', type: 'dotted' } }
+                ]
+            };
+            chartSales.setOption(option, true);
+        }
+
+        function renderBadgeChart(data) {
+            if (!data || !chartBadges) return;
+            var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
+            var allDataArrays = [data.topOfferCounts, data.superPriceCounts, data.bestPriceGuaranteeCounts, data.campaignCounts, data.subsidyCounts, data.coveredProductsCounts];
+            var commonMax = calculateSharedMax(allDataArrays);
+            var option = {
+                title: {
+                    text: 'Trendy Odznak i Promocji',
+                    subtext: 'Dane dla ' + totalInRule + ' produktów obecnie w automacie',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' },
+                    subtextStyle: { fontSize: 11, color: '#999' }
+                },
+                tooltip: {
+                    trigger: 'axis', axisPointer: { type: 'cross' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)', borderColor: '#e3e6f0', borderWidth: 1, padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; min-width: 250px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var coveredProducts = 0;
+                        var badgeValues = {};
+                        params.forEach(function (item) {
+                            if (item.seriesName === 'Katalogi z danymi') { coveredProducts = item.value; }
+                            else { badgeValues[item.seriesName] = item; }
+                        });
+                        var html = tooltipDateHeader(date);
+                        html += tooltipSectionHeader('Aktywne Odznaki');
+                        var badgeOrder = ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty'];
+                        badgeOrder.forEach(function (name) {
+                            var item = badgeValues[name];
+                            if (item) {
+                                var pctOfCovered = coveredProducts > 0 ? ((item.value / coveredProducts) * 100).toFixed(0) + '%' : '-';
+                                html += tooltipRow(item.marker, name, item.value, '', false, '(' + pctOfCovered + ' ofert)');
+                            }
+                        });
+                        html += tooltipSeparator();
+                        html += buildCoverageBar(coveredProducts, totalInRule, 'Katalogi z danymi');
+                        return html;
+                    }
+                },
+                legend: { bottom: 0, data: ['Top Oferta', 'Super Cena', 'Gwarancja Ceny', 'Kampania', 'Dopłaty', 'Katalogi z danymi'], textStyle: { fontSize: 11 } },
+                grid: { left: '3%', right: '4%', bottom: '12%', top: '70px', containLabel: true },
+                xAxis: { type: 'category', boundaryGap: false, data: data.dates, axisLabel: { fontSize: 10 } },
+                yAxis: [
+                    { type: 'value', name: 'Liczba odznak', min: 0, max: commonMax, minInterval: 1, nameTextStyle: { fontSize: 10, color: '#999' }, axisLabel: { fontSize: 10 }, splitLine: { lineStyle: { color: '#f0f0f0' } } },
+                    { type: 'value', name: 'Liczba ofert', position: 'right', min: 0, max: commonMax, minInterval: 1, nameTextStyle: { fontSize: 10, color: '#999' }, axisLine: { show: false }, axisLabel: { formatter: '{value}', color: '#999', fontSize: 10 }, splitLine: { show: false } }
+                ],
+                series: [
+                    { name: 'Top Oferta', type: 'line', data: data.topOfferCounts, smooth: true, itemStyle: { color: '#ff9800' }, symbol: 'circle', symbolSize: 6 },
+                    { name: 'Super Cena', type: 'line', data: data.superPriceCounts, smooth: true, itemStyle: { color: '#155724' }, symbol: 'circle', symbolSize: 6 },
+                    { name: 'Gwarancja Ceny', type: 'line', data: data.bestPriceGuaranteeCounts, smooth: true, itemStyle: { color: '#4caf50' }, symbol: 'circle', symbolSize: 6 },
+                    { name: 'Kampania', type: 'line', data: data.campaignCounts, smooth: true, itemStyle: { color: '#ffc107' }, lineStyle: { type: 'dashed' }, symbol: 'circle', symbolSize: 6 },
+                    { name: 'Dopłaty', type: 'line', data: data.subsidyCounts, smooth: true, itemStyle: { color: '#1cc88a' }, lineStyle: { type: 'dotted' }, symbol: 'circle', symbolSize: 6 },
+                    { name: 'Katalogi z danymi', type: 'line', yAxisIndex: 1, data: data.coveredProductsCounts, smooth: false, symbol: 'none', itemStyle: { color: '#777777' }, lineStyle: { width: 1.5, color: '#777777', type: 'dotted' }, z: 0 }
+                ]
+            };
+            chartBadges.setOption(option, true);
+        }
+
+        function renderPricePositionChart(data) {
+            if (!data || !chartPosition) return;
+            var totalInRule = data.totalProductsInRule || totalProductsInRuleNow;
+            var colors = { top1Solo: '#2e59d9', top1ExAequo: '#1cc88a', pos2to3: '#f6c23e', pos4to5: '#fd7e14', pos6to10: '#e74a3b', pos11plus: '#852b24', notRanked: '#777777' };
+            var allDataArrays = [data.top1Solo, data.top1ExAequo, data.position2to3, data.position4to5, data.position6to10, data.position11Plus, data.productsWithDataCount];
+            var commonMax = calculateSharedMax(allDataArrays);
+            var option = {
+                title: {
+                    text: 'Pozycja Cenowa w Czasie',
+                    subtext: 'Dane dla ' + totalInRule + ' produktów obecnie w automacie',
+                    left: 'center',
+                    textStyle: { fontSize: 13, fontWeight: 'bold', color: '#5a5c69' },
+                    subtextStyle: { fontSize: 11, color: '#999' }
+                },
+                tooltip: {
+                    trigger: 'axis', axisPointer: { type: 'line', lineStyle: { color: '#999', type: 'dashed' } },
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)', borderColor: '#e3e6f0', borderWidth: 1, padding: [12, 16],
+                    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; max-width: 360px;',
+                    formatter: function (params) {
+                        var date = params[0].axisValueLabel;
+                        var values = {};
+                        var rankedCount = 0;
+                        params.forEach(function (item) {
+                            values[item.seriesName] = { val: item.value, marker: item.marker };
+                            if (item.seriesName !== 'Katalogi z danymi') rankedCount += item.value;
+                        });
+                        var realTotal = totalInRule;
+                        var html = tooltipDateHeader(date);
+                        html += tooltipSectionHeader('Rozkład Pozycji');
+                        var order = ['Top 1 (lider)', 'Top 1 (ex aequo)', 'Pozycja 2–3', 'Pozycja 4–5', 'Pozycja 6–10', 'Pozycja 11+'];
+                        order.forEach(function (name) {
+                            var item = values[name];
+                            if (!item) return;
+                            var pct = realTotal > 0 ? ((item.val / realTotal) * 100).toFixed(0) + '%' : '0%';
+                            html += tooltipRow(item.marker, name, item.val, '', false, '(' + pct + ')');
+                        });
+                        html += tooltipSeparator();
+                        html += buildCoverageBar(rankedCount, realTotal, 'Produkty z pozycją cenową');
+                        return html;
+                    }
+                },
+                legend: { bottom: 0, data: ['Top 1 (lider)', 'Top 1 (ex aequo)', 'Pozycja 2–3', 'Pozycja 4–5', 'Pozycja 6–10', 'Pozycja 11+', 'Katalogi z danymi'], textStyle: { fontSize: 11 } },
+                grid: { left: '3%', right: '4%', bottom: '14%', top: '70px', containLabel: true },
+                xAxis: { type: 'category', boundaryGap: false, data: data.dates, axisLabel: { fontSize: 10 } },
+                yAxis: [
+                    { type: 'value', name: 'Liczba produktów', min: 0, max: commonMax, nameTextStyle: { fontSize: 10, color: '#999' }, axisLabel: { fontSize: 10 }, splitLine: { lineStyle: { color: '#f0f0f0' } } },
+                    { type: 'value', name: 'Liczba ofert', position: 'right', min: 0, max: commonMax, nameTextStyle: { fontSize: 10, color: '#999' }, axisLine: { show: false }, axisLabel: { formatter: '{value}', color: '#999', fontSize: 10 }, splitLine: { show: false } }
+                ],
+                series: [
+                    { name: 'Top 1 (lider)', type: 'line', smooth: true, itemStyle: { color: colors.top1Solo }, symbol: 'circle', symbolSize: 6, width: 3, data: data.top1Solo },
+                    { name: 'Top 1 (ex aequo)', type: 'line', smooth: true, itemStyle: { color: colors.top1ExAequo }, symbol: 'circle', symbolSize: 6, width: 3, data: data.top1ExAequo },
+                    { name: 'Pozycja 2–3', type: 'line', smooth: true, itemStyle: { color: colors.pos2to3 }, symbol: 'circle', symbolSize: 6, width: 3, data: data.position2to3 },
+                    { name: 'Pozycja 4–5', type: 'line', smooth: true, itemStyle: { color: colors.pos4to5 }, symbol: 'circle', symbolSize: 6, width: 3, data: data.position4to5 },
+                    { name: 'Pozycja 6–10', type: 'line', smooth: true, itemStyle: { color: colors.pos6to10 }, symbol: 'circle', symbolSize: 6, width: 3, data: data.position6to10 },
+                    { name: 'Pozycja 11+', type: 'line', smooth: true, itemStyle: { color: colors.pos11plus }, symbol: 'circle', symbolSize: 6, width: 3, data: data.position11Plus },
+                    { name: 'Katalogi z danymi', type: 'line', yAxisIndex: 1, smooth: false, itemStyle: { color: colors.notRanked }, lineStyle: { width: 1.5, color: colors.notRanked, type: 'dotted' }, symbol: 'none', data: data.productsWithDataCount }
+                ]
+            };
+            chartPosition.setOption(option, true);
+        }
+
+        $(document).ready(function () {
+            var elemEff = document.getElementById('chartEffectiveness');
+            var elemDyn = document.getElementById('chartDynamics');
+
+            if (elemEff && elemDyn) {
+                chartEff = echarts.init(elemEff);
+                chartDyn = echarts.init(elemDyn);
+                loadHistoryData(currentLimit);
+            }
+
+            $('.history-btn').click(function () {
+                $('.history-btn').removeClass('active');
+                $(this).addClass('active');
+                currentLimit = $(this).data('days');
+
+                if (currentMode === 'badges') loadBadgeHistoryData(currentLimit);
+                else if (currentMode === 'sales') loadSalesHistoryData(currentLimit);
+                else if (currentMode === 'position') loadPricePositionHistoryData(currentLimit);
+                else loadHistoryData(currentLimit);
+            });
+
+            window.addEventListener('resize', function () {
+                if (chartEff) chartEff.resize();
+                if (chartDyn) chartDyn.resize();
+                if (chartSales) chartSales.resize();
+                if (chartBadges) chartBadges.resize();
+                if (chartPosition) chartPosition.resize();
+            });
+        });
+    </script>
+
+
+    <script>
+        /* ============================================================
+           FILTER SYSTEM (z dodanym filtrem PAUZA na pierwszej pozycji)
+           ============================================================ */
+        const FilterSystem = (function () {
+            const isMarketplace = @(isMarketplace.ToString().ToLower());
+
+            const filterGroups = [
+                {
+                    id: 'pause-status',
+                    label: 'Pauza',
+                    filters: [
+                        { key: 'is-paused', label: 'Zapauzowane', icon: 'fa-pause', attr: 'data-is-paused', value: 'true' },
+                        { key: 'is-active', label: 'Aktywne (bez pauzy)', icon: 'fa-play', attr: 'data-is-paused', value: 'false' }
+                    ]
+                },
+                {
+                    id: 'price-changes',
+                    label: 'Zmiany cen',
+                    filters: [
+                        { key: 'increase', label: 'Podwyżki', icon: 'fa-arrow-up', attr: 'data-price-change', value: 'increase' },
+                        { key: 'decrease', label: 'Obniżki', icon: 'fa-arrow-down', attr: 'data-price-change', value: 'decrease' },
+                        { key: 'gradual-increase', label: 'Stopniowa podwyżka', icon: 'fa-arrow-up-wide-short', attr: 'data-gradual-increase', value: 'true' },
+                        { key: 'gradual-decrease', label: 'Stopniowa obniżka', icon: 'fa-arrow-down-wide-short', attr: 'data-gradual-decrease', value: 'true' },
+                        { key: 'maintained', label: 'Bez zmian', icon: 'fa-equals', attr: 'data-price-change', value: 'maintained' },
+                        { key: 'blocked', label: 'Zablokowane', icon: 'fa-ban', attr: 'data-price-change', value: 'blocked' }
+                    ]
+                },
+                {
+                    id: 'marketplace-sales',
+                    label: 'Sprzedaż',
+                    showIf: isMarketplace,
+                    filters: [
+                        { key: 'sort-total', label: 'Sprzedaż Katalog', icon: 'fa-shopping-cart', attr: 'data-pop-total', isSort: true },
+                        { key: 'sort-mine', label: 'Moja Sprzedaż', icon: 'fa-chart-pie', attr: 'data-pop-mine', isSort: true },
+                        { key: 'sort-share', label: 'Udział w rynku', icon: 'fa-percent', attr: 'data-pop-share', isSort: true }
+                    ]
+                },
+                {
+                    id: 'status',
+                    label: 'Status',
+                    filters: [
+                        { key: 'TargetMet', label: 'Cel osiągnięty', icon: 'fa-check', attr: 'data-status', value: 'TargetMet' },
+                        { key: 'TargetMaintained', label: 'Cel utrzymany', icon: 'fa-check-circle', attr: 'data-status', value: 'TargetMaintained' },
+                        { key: 'LimitFloor', label: 'Limit (Min)', icon: 'fa-arrow-down', attr: 'data-limit-type', value: 'floor' },
+                        { key: 'LimitCeiling', label: 'Limit (Max)', icon: 'fa-arrow-up', attr: 'data-limit-type', value: 'ceiling' },
+                        { key: 'conflict-minmax', label: 'Konflikt Min/Max', icon: 'fa-exclamation-triangle', attr: 'data-block-reason', value: 'Konflikt Min/Max' },
+                        { key: 'Blocked', label: 'Blokada', icon: 'fa-times', attr: 'data-status', value: 'Blocked' }
+                    ]
+                },
+                {
+                    id: 'upload-status',
+                    label: 'Wgranie',
+                    filters: [
+                        { key: 'updated-yes', label: 'Wgrano', icon: 'fa-cloud-upload-alt', attr: 'data-is-updated', value: 'true' },
+                        { key: 'updated-no', label: 'Nie wgrano', icon: 'fa-clock', attr: 'data-is-updated', value: 'false' }
+                    ]
+                },
+                {
+                    id: 'data-issues',
+                    label: 'Uwagi',
+                    filters: [
+                        { key: 'missing-own', label: 'Brak Twojej oferty', icon: 'fa-store-slash', attr: 'data-missing-own-offer', value: 'true' },
+                        { key: 'no-competition', label: 'Brak konkurencji', icon: 'fa-users-slash', attr: 'data-no-competition', value: 'true' },
+                        { key: 'has-purchase', label: 'Ma cenę zakupu', icon: 'fa-tag', attr: 'data-has-purchase-price', value: 'true' },
+                        { key: 'no-purchase', label: 'Brak ceny zakupu', icon: 'fa-tag', attr: 'data-has-purchase-price', value: 'false' },
+                        { key: 'margin-warning', label: 'Ostrzeżenie narzutu', icon: 'fa-exclamation', attr: 'data-has-margin-warning', value: 'true' }
+                    ]
+                },
+                {
+                    id: 'marketplace',
+                    label: 'Allegro',
+                    showIf: isMarketplace,
+                    filters: [
+                        { key: 'guarantee', label: 'Gwarancja najniższej ceny', icon: 'fa-shield-alt', attr: 'data-has-guarantee', value: 'true' },
+                        { key: 'top-offer', label: 'Top oferta', icon: 'fa-star', attr: 'data-is-top-offer', value: 'true' },
+                        { key: 'super-price', label: 'Supercena', icon: 'fa-bolt', attr: 'data-is-super-price', value: 'true' },
+                        { key: 'campaign', label: 'Kampania', icon: 'fa-bullhorn', attr: 'data-is-campaign', value: 'true' },
+                        { key: 'subsidy', label: 'Dopłaty', icon: 'fa-hand-holding-usd', attr: 'data-is-subsidy', value: 'true' },
+                        { key: 'cheaper-own', label: 'Tańsza własna', icon: 'fa-exclamation-triangle', attr: 'data-has-cheaper-own', value: 'true' }
+                    ]
+                },
+                {
+                    id: 'interval',
+                    label: 'Interwał',
+                    showIf: '@(Model.IntervalRuleId.HasValue ? "true" : "false")' === 'true',
+                    filters: [
+                        { key: 'in-interval', label: 'W interwale', icon: 'fa-clock', attr: 'data-has-interval', value: 'true' },
+                        { key: 'no-interval', label: 'Bez interwału', icon: 'fa-clock', attr: 'data-has-interval', value: 'false' }
+                    ]
+                }
+            ];
+
+            let activeFilters = new Map();
+            let allRows = [];
+
+            function init() {
+                const tableBody = document.querySelector('#automationTable tbody');
+                if (!tableBody) return;
+
+                allRows = Array.from(tableBody.querySelectorAll('tr.main-product-row'));
+
+                // Dynamiczne filtry per flaga
+                const flagMap = new Map();
+                allRows.forEach(row => {
+                    const ids = row.getAttribute('data-flag-ids');
+                    if (!ids) return;
+                    ids.split(',').forEach(id => {
+                        const trimmed = id.trim();
+                        if (trimmed) flagMap.set(trimmed, (flagMap.get(trimmed) || 0) + 1);
+                    });
+                });
+
+                if (flagMap.size > 0) {
+                    const flagLookup = {};
+                    flags.forEach(f => {
+                        const id = (f.flagId ?? f.FlagId ?? '').toString();
+                        const name = f.flagName ?? f.FlagName ?? '';
+                        const color = f.flagColor ?? f.FlagColor ?? '#858796';
+                        if (id) flagLookup[id] = { name: name, color: color };
+                    });
+
+                    const flagFilters = [];
+                    flagMap.forEach((count, flagId) => {
+                        const info = flagLookup[flagId];
+                        if (!info) return;
+                        flagFilters.push({
+                            key: 'flag-' + flagId,
+                            label: info.name,
+                            icon: 'fa-flag',
+                            attr: 'data-flag-ids',
+                            value: flagId,
+                            color: info.color
+                        });
+                    });
+
+                    if (flagFilters.length > 0) {
+                        filterGroups.push({
+                            id: 'flags',
+                            label: 'Flagi',
+                            filters: flagFilters
+                        });
+                    }
+                }
+
+                buildFilterUI();
+                updateCounts();
+                bindEvents();
+            }
+
+            function buildFilterUI() {
+                const toolbar = document.getElementById('filterToolbar');
+                if (!toolbar) return;
+
+                toolbar.innerHTML = '';
+
+                filterGroups.forEach(group => {
+                    if (group.showIf === false) return;
+
+                    const groupEl = document.createElement('div');
+                    groupEl.className = 'filter-group';
+                    groupEl.dataset.groupId = group.id;
+
+                    const labelEl = document.createElement('span');
+                    labelEl.className = 'filter-group-label';
+                    labelEl.innerHTML = `${group.label}`;
+                    groupEl.appendChild(labelEl);
+
+                    group.filters.forEach(filter => {
+                        const count = countMatching(filter.attr, filter.value);
+
+                        const btn = document.createElement('button');
+                        btn.className = 'filter-btn';
+                        btn.dataset.filterKey = filter.key;
+                        btn.dataset.filterAttr = filter.attr;
+                        btn.dataset.filterValue = filter.value;
+                        btn.dataset.groupId = group.id;
+
+                        btn.innerHTML = `
+                            <i class="fas ${filter.icon}" style="font-size: 10px;"></i>
+                            ${filter.label}
+                            ${!filter.isSort
+                                ? `<span class="filter-count">${count}</span>`
+                                : `<span class="filter-count sort-indicator" style="display:none;"><i class="fas fa-arrow-down"></i></span>`
+                            }
+                        `;
+
+                        if (filter.color) {
+                            btn.dataset.filterColor = filter.color;
+                        }
+
+                        if (count === 0 && !filter.isSort) {
+                            btn.disabled = true;
+                            btn.style.opacity = '0.5';
+                            btn.style.cursor = 'not-allowed';
+                        }
+
+                        groupEl.appendChild(btn);
+                    });
+
+                    toolbar.appendChild(groupEl);
+                });
+
+                updateTotalCount();
+            }
+
+            function countMatching(attr, value) {
+                if (attr === 'data-flag-ids') {
+                    return allRows.filter(row => {
+                        const ids = (row.getAttribute(attr) || '').split(',').map(s => s.trim());
+                        return ids.includes(value);
+                    }).length;
+                }
+                return allRows.filter(row => row.getAttribute(attr) === value).length;
+            }
+
+            function updateCounts() {
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    if (btn.dataset.groupId === 'marketplace-sales') {
+                        const countEl = btn.querySelector('.filter-count');
+                        if (countEl) countEl.style.display = 'none';
+                        return;
+                    }
+
+                    const attr = btn.dataset.filterAttr;
+                    const value = btn.dataset.filterValue;
+                    const count = countMatching(attr, value);
+                    const countEl = btn.querySelector('.filter-count');
+                    if (countEl) countEl.textContent = count;
+                });
+            }
+
+            function updateTotalCount() {
+                if (typeof window.updateCombinedTotalCount === 'function') {
+                    window.updateCombinedTotalCount();
+                }
+            }
+
+            function bindEvents() {
+                document.getElementById('filterToolbar').addEventListener('click', function (e) {
+                    const btn = e.target.closest('.filter-btn');
+                    if (!btn || btn.disabled) return;
+
+                    const key = btn.dataset.filterKey;
+                    const group = filterGroups.find(g => g.id === btn.dataset.groupId);
+                    const filterDef = group.filters.find(f => f.key === key);
+
+                    if (filterDef.isSort) {
+                        handleSortClick(btn, filterDef);
+                    } else {
+                        const attr = btn.dataset.filterAttr;
+                        const value = btn.dataset.filterValue;
+                        toggleFilter(key, attr, value, btn);
+                    }
+                });
+
+                document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
+            }
+
+            function handleSortClick(btn, filterDef) {
+                const attr = filterDef.attr;
+                const tbody = document.querySelector('#automationTable tbody');
+                const indicator = btn.querySelector('.sort-indicator');
+
+                let currentDir = btn.getAttribute('data-sort-dir') || 'none';
+
+                document.querySelectorAll('[data-group-id="' + btn.dataset.groupId + '"]').forEach(b => {
+                    if (b !== btn) {
+                        b.classList.remove('active');
+                        b.setAttribute('data-sort-dir', 'none');
+                        const ind = b.querySelector('.sort-indicator');
+                        if (ind) ind.style.display = 'none';
+                    }
+                });
+
+                if (currentDir === 'none') {
+                    btn.setAttribute('data-sort-dir', 'desc');
+                    btn.classList.add('active');
+                    if (indicator) {
+                        indicator.innerHTML = '<i class="fas fa-arrow-down"></i>';
+                        indicator.style.display = 'inline-flex';
+                    }
+                    const sortedRows = [...allRows].sort((a, b) => {
+                        const valA = parseFloat(a.getAttribute(attr)) || 0;
+                        const valB = parseFloat(b.getAttribute(attr)) || 0;
+                        return valB - valA;
+                    });
+                    sortedRows.forEach(row => { tbody.appendChild(row); });
+                } else if (currentDir === 'desc') {
+                    btn.setAttribute('data-sort-dir', 'asc');
+                    btn.classList.add('active');
+                    if (indicator) {
+                        indicator.innerHTML = '<i class="fas fa-arrow-up"></i>';
+                        indicator.style.display = 'inline-flex';
+                    }
+                    const sortedRows = [...allRows].sort((a, b) => {
+                        const valA = parseFloat(a.getAttribute(attr)) || 0;
+                        const valB = parseFloat(b.getAttribute(attr)) || 0;
+                        return valA - valB;
+                    });
+                    sortedRows.forEach(row => { tbody.appendChild(row); });
+                } else if (currentDir === 'asc') {
+                    btn.setAttribute('data-sort-dir', 'none');
+                    btn.classList.remove('active');
+                    if (indicator) { indicator.style.display = 'none'; }
+                    allRows.forEach(row => { tbody.appendChild(row); });
+                }
+            }
+
+            function toggleFilter(key, attr, value, btn) {
+                if (activeFilters.has(key)) {
+                    activeFilters.delete(key);
+                    btn.classList.remove('active');
+                    if (btn.dataset.filterColor) {
+                        btn.style.backgroundColor = '';
+                        btn.style.borderColor = '';
+                        btn.style.color = '';
+                    }
+                } else {
+                    activeFilters.set(key, { attr, value });
+                    btn.classList.add('active');
+                    if (btn.dataset.filterColor) {
+                        btn.style.backgroundColor = btn.dataset.filterColor + 'CC';
+                        btn.style.borderColor = btn.dataset.filterColor + 'AA';
+                        btn.style.color = '#fff';
+                    }
+                }
+
+                applyFilters();
+                updateGroupIndicators();
+                updateResetButton();
+            }
+
+            function applyFilters() {
+                if (activeFilters.size === 0) {
+                    allRows.forEach(row => { row.classList.remove('filter-hidden'); });
+                } else {
+                    const filtersByAttr = new Map();
+
+                    activeFilters.forEach((filterData, key) => {
+                        if (!filtersByAttr.has(filterData.attr)) {
+                            filtersByAttr.set(filterData.attr, []);
+                        }
+                        filtersByAttr.get(filterData.attr).push(filterData.value);
+                    });
+
+                    allRows.forEach(row => {
+                        let visible = true;
+
+                        filtersByAttr.forEach((values, attr) => {
+                            if (attr === 'data-flag-ids') {
+                                const rowFlags = (row.getAttribute(attr) || '').split(',').map(s => s.trim());
+                                const hasAny = values.some(v => rowFlags.includes(v));
+                                if (!hasAny) visible = false;
+                            } else {
+                                const rowValue = row.getAttribute(attr);
+                                if (!values.includes(rowValue)) {
+                                    visible = false;
+                                }
+                            }
+                        });
+
+                        if (visible) { row.classList.remove('filter-hidden'); }
+                        else { row.classList.add('filter-hidden'); }
+                    });
+                }
+
+                updateTotalCount();
+
+                if (typeof massActions !== 'undefined') {
+                    massActions.updateVisibleButtons();
+                }
+            }
+
+            function updateGroupIndicators() {
+                document.querySelectorAll('.filter-group').forEach(group => {
+                    const hasActive = group.querySelector('.filter-btn.active');
+                    group.classList.toggle('has-active', !!hasActive);
+                });
+            }
+
+            function updateResetButton() {
+                const resetBtn = document.getElementById('resetFiltersBtn');
+                if (resetBtn) {
+                    resetBtn.style.display = activeFilters.size > 0 ? 'inline-flex' : 'none';
+                }
+            }
+
+            function resetFilters() {
+                activeFilters.clear();
+
+                document.querySelectorAll('.filter-btn.active').forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.setAttribute('data-sort-dir', 'none');
+                    const ind = btn.querySelector('.sort-indicator');
+                    if (ind) ind.style.display = 'none';
+                });
+
+                const tbody = document.querySelector('#automationTable tbody');
+                allRows.forEach(row => {
+                    row.classList.remove('filter-hidden');
+                    tbody.appendChild(row);
+                });
+
+                updateGroupIndicators();
+                updateResetButton();
+                updateTotalCount();
+            }
+
+            return {
+                init,
+                resetFilters,
+                getActiveFilters: () => Array.from(activeFilters.keys())
+            };
+        })();
+
+        $(document).ready(function () {
+            FilterSystem.init();
+        });
+    </script>
+
+
+    <script>
+        /* ============================================================
+           PAUSE SYSTEM — wstrzymywanie automatu na poziomie produktu
+           ============================================================ */
+        const PauseSystem = (function () {
+            let currentProductId = null;
+            let currentProductName = null;
+            let countdownTimer = null;
+
+            function escapeHtml(s) {
+                return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+                })[c]);
+            }
+
+            function isPauseIndefinite(iso) {
+                if (!iso) return false;
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return false;
+                const now = new Date();
+                const diffYears = (d - now) / (1000 * 60 * 60 * 24 * 365);
+                return diffYears > 5;
+            }
+
+            function formatRemaining(iso) {
+                if (!iso) return '-';
+                const target = new Date(iso);
+                if (isNaN(target.getTime())) return '-';
+                const now = new Date();
+                let diffMs = target - now;
+                if (diffMs <= 0) return 'wygasło';
+
+                const diffMinutes = Math.floor(diffMs / 60000);
+                const days = Math.floor(diffMinutes / 1440);
+                const hours = Math.floor((diffMinutes % 1440) / 60);
+                const minutes = diffMinutes % 60;
+
+                if (days > 0) return days + 'd ' + hours + 'h';
+                if (hours > 0) return hours + 'h ' + minutes + 'min';
+                if (minutes > 0) return minutes + 'min';
+                return '< 1min';
+            }
+
+            function buildDurationCards() {
+                const durations = [
+                    { hours: 1, label: '1 godzina' },
+                    { hours: 4, label: '4 godziny' },
+                    { hours: 6, label: '6 godzin' },
+                    { hours: 12, label: '12 godzin' },
+                    { hours: 24, label: '24 godziny' }
+                ];
+
+                let html = '<div class="pause-duration-grid">';
+                durations.forEach(d => {
+                    html += `
+                        <div class="pause-duration-card" data-pause-hours="${d.hours}">
+                            <div class="duration-value">${d.hours}h</div>
+                            <div class="duration-label">${d.label}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+
+                html += `
+                    <div class="pause-duration-card-indefinite" data-pause-hours="-1">
+                        <i class="fas fa-infinity indef-icon"></i>
+                        <div class="indef-text">
+                            <div class="indef-title">Do odwołania</div>
+                            <div class="indef-sub">Wstrzymane bez limitu czasu — wznów ręcznie</div>
+                        </div>
+                    </div>
+                `;
+
+                return html;
+            }
+
+            function openModal(productId, productName, isPausedNow, pausedUntilIso) {
+                currentProductId = productId;
+                currentProductName = productName;
+
+                const content = document.getElementById('pauseModalContent');
+
+                if (isPausedNow) {
+                    const indefinite = isPauseIndefinite(pausedUntilIso);
+                    const remaining = indefinite ? null : formatRemaining(pausedUntilIso);
+
+                    let infoHtml = '';
+                    if (indefinite) {
+                        infoHtml = '<strong>Wstrzymano do odwołania.</strong> Automat nie będzie zmieniał ceny dopóki nie wznowisz ręcznie.';
+                    } else {
+                        infoHtml = 'Pozostały czas wstrzymania: <strong>' + escapeHtml(remaining) + '</strong>';
+                    }
+
+                    content.innerHTML = `
+                        <div class="pause-currently-info">
+                            <i class="fas fa-pause-circle pause-currently-icon"></i>
+                            <div class="pause-currently-text">
+                                <div class="pname">${escapeHtml(productName)}</div>
+                                <div class="ptime">${infoHtml}</div>
+                            </div>
+                        </div>
+                        <button type="button" class="pause-resume-btn" data-pause-action="unpause">
+                            <i class="fas fa-play"></i> Wznów działanie automatu
+                        </button>
+                        <div class="pause-section-divider">Lub przedłuż wstrzymanie</div>
+                        <p class="pause-instructions">Wybierz nowy czas — zastąpi obecne ustawienie.</p>
+                        ${buildDurationCards()}
+                    `;
+                } else {
+                    content.innerHTML = `
+                        <div class="pause-product-name-box">${escapeHtml(productName)}</div>
+                        <p class="pause-instructions">
+                            Wybierz na jak długo chcesz wstrzymać automatyczne zmiany cen dla tego produktu.
+                            W tym czasie automat go pominie.
+                        </p>
+                        ${buildDurationCards()}
+                    `;
+                }
+
+                $('#pauseProductModal').modal('show');
+            }
+
+            function pause(durationHours) {
+                if (!currentProductId) return;
+                const token = $('input[name="__RequestVerificationToken"]').val();
+
+                $('#pauseProductModal').modal('hide');
+                if (typeof showLoading === 'function') showLoading();
+
+                $.ajax({
+                    url: '@Url.Action("PauseProduct", "PriceAutomation")',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    headers: { 'RequestVerificationToken': token },
+                    data: JSON.stringify({
+                        RuleId: currentRuleId,
+                        ProductId: parseInt(currentProductId),
+                        DurationHours: parseInt(durationHours)
+                    }),
+                    success: function (r) {
+                        if (typeof hideLoading === 'function') hideLoading();
+                        if (r && r.success) {
+                            sessionStorage.setItem('automation_scrollToProduct', currentProductId);
+                            location.reload();
+                        } else {
+                            alert('Błąd: ' + ((r && r.message) || 'Nie udało się zapisać pauzy.'));
+                        }
+                    },
+                    error: function (xhr) {
+                        if (typeof hideLoading === 'function') hideLoading();
+                        alert('Błąd komunikacji z serwerem: ' + (xhr.responseText || xhr.statusText));
+                    }
+                });
+            }
+
+            function unpause() {
+                if (!currentProductId) return;
+                const token = $('input[name="__RequestVerificationToken"]').val();
+
+                $('#pauseProductModal').modal('hide');
+                if (typeof showLoading === 'function') showLoading();
+
+                $.ajax({
+                    url: '@Url.Action("UnpauseProduct", "PriceAutomation")',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    headers: { 'RequestVerificationToken': token },
+                    data: JSON.stringify({
+                        RuleId: currentRuleId,
+                        ProductId: parseInt(currentProductId)
+                    }),
+                    success: function (r) {
+                        if (typeof hideLoading === 'function') hideLoading();
+                        if (r && r.success) {
+                            sessionStorage.setItem('automation_scrollToProduct', currentProductId);
+                            location.reload();
+                        } else {
+                            alert('Błąd: ' + ((r && r.message) || 'Nie udało się wznowić.'));
+                        }
+                    },
+                    error: function (xhr) {
+                        if (typeof hideLoading === 'function') hideLoading();
+                        alert('Błąd komunikacji z serwerem: ' + (xhr.responseText || xhr.statusText));
+                    }
+                });
+            }
+
+            function updateCountdowns() {
+                document.querySelectorAll('.pause-product-btn.is-paused').forEach(btn => {
+                    const iso = btn.getAttribute('data-paused-until');
+                    if (!iso) return;
+
+                    const target = new Date(iso);
+                    if (isNaN(target.getTime())) return;
+                    const now = new Date();
+
+                    if (target <= now) {
+                        // Pauza wygasła — reset wizualny
+                        btn.classList.remove('is-paused');
+                        btn.innerHTML = '<i class="fas fa-play"></i>';
+                        btn.title = 'Wstrzymaj automat dla tego produktu';
+                        btn.setAttribute('data-paused-until', '');
+                        const row = btn.closest('tr');
+                        if (row) {
+                            row.classList.remove('row-paused');
+                            row.setAttribute('data-is-paused', 'false');
+                        }
+                        return;
+                    }
+
+                    const txt = btn.querySelector('.pause-countdown-text');
+                    if (!txt) return;
+
+                    if (isPauseIndefinite(iso)) {
+                        txt.textContent = '∞';
+                    } else {
+                        txt.textContent = formatRemaining(iso);
+                    }
+                });
+            }
+
+            function init() {
+                // Klik na przycisk pauzy (przy produkcie)
+                document.addEventListener('click', function (e) {
+                    const btn = e.target.closest('.pause-product-btn');
+                    if (!btn) return;
+                    if (btn.style.cursor === 'not-allowed') return; // wariant bez uprawnień
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const productId = btn.dataset.productId;
+                    const productName = btn.dataset.productName;
+                    const isPausedNow = btn.classList.contains('is-paused');
+                    const pausedUntil = btn.getAttribute('data-paused-until');
+
+                    openModal(productId, productName, isPausedNow, pausedUntil);
+                });
+
+                // Delegacja: klik wewnątrz modala — karty czasu / wznów
+                document.addEventListener('click', function (e) {
+                    const card = e.target.closest('.pause-duration-card, .pause-duration-card-indefinite');
+                    if (card && document.getElementById('pauseProductModal').classList.contains('show')) {
+                        const hours = card.getAttribute('data-pause-hours');
+                        pause(hours);
+                        return;
+                    }
+
+                    const resumeBtn = e.target.closest('[data-pause-action="unpause"]');
+                    if (resumeBtn) {
+                        unpause();
+                        return;
+                    }
+                });
+
+                // Pierwsze odświeżenie + pętla co 30s
+                updateCountdowns();
+                countdownTimer = setInterval(updateCountdowns, 30000);
+            }
+
+            return { init, openModal, pause, unpause };
+        })();
+
+        $(document).ready(function () {
+            PauseSystem.init();
+        });
+    </script>
 }
