@@ -8,7 +8,7 @@
 @{
     ViewData["Title"] = $"Automat Cenowy {Model.RuleName}";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-
+    <link href="~/css/Automation.css" rel="stylesheet" asp-append-version="true" />
     var user = await UserManager.GetUserAsync(User);
     bool canEdit = user?.AccesToEditPriceAutomation ?? false;
     string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen. Skontaktuj sie z nami biuro@pricesafari.pl";
@@ -349,7 +349,7 @@
 
 <div class="Vert">
     <div class="Chart-Box-a" style="width: 100%; min-height: 400px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 8px;">
             <div style="display:flex; align-items:center; gap: 20px;">
                 <div class="kpi-title" style="margin-bottom:0;">Analiza Automatu</div>
                 <div class="period-selector-group">

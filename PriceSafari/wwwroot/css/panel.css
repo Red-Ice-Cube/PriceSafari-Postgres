@@ -250,14 +250,14 @@ p {
 .Page-Box-Container {
     display: flex;
     width: 100%;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 12px;
     flex: 1 0 0;
     box-sizing: border-box;
     height: 100%;
     min-height: 0;
 }
-
+/*
 .Page-Box-Container {
     display: flex;
     align-items: flex-start;
@@ -267,7 +267,7 @@ p {
     flex: 1;
     height: 100%;
     min-height: 0;
-}
+}*/
 
 .Horizontal {
     display: flex;
@@ -1722,7 +1722,7 @@ img.lazy-load-flex {
     }
 
 
-.Allegro-Analysis-Box {
+.Analysis-Box {
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -2095,6 +2095,370 @@ img.lazy-load-flex {
     background: rgba(247, 109, 98, 0.5);
     display: none;
 }
+
+.StatusBoxProduct {
+    display: inline-flex;
+    padding-left: 26px;
+    border-radius: 0px 24px 24px 0px;
+    height: 40px;
+    width: 110px;
+    align-items: center;
+    justify-content: flex-start;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    font-weight: 500;
+    background: #F6F6F6;
+}
+
+.StatusBoxProduct-1 {
+    color: rgba(255, 204, 0, 1);
+}
+
+.StatusBoxProduct-2 {
+    color: rgba(30, 148, 71, 1);
+}
+
+.StatusBoxProduct-3 {
+    color: rgba(189, 33, 19, 1);
+}
+
+.StatusBoxProduct-4 {
+    color: rgba(45, 45, 45, 1);
+}
+
+.scrapable-checkbox {
+    appearance: none;
+    width: 40px;
+    height: 40px;
+    background-color: rgba(189, 33, 19, 1);
+    border-radius: 24px;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    outline: none;
+}
+
+    .scrapable-checkbox.rejected {
+        background-color: rgba(255, 204, 0, 1);
+    }
+
+    .scrapable-checkbox:checked:not(.rejected) {
+        background-color: #1E9447;
+    }
+
+    .scrapable-checkbox:disabled {
+        background-color: #555555;
+        cursor: not-allowed;
+    }
+
+.dates-vertical p {
+    margin: 0;
+    padding: 2px 0;
+    font-size: 0.9em;
+}
+
+.dot {
+    height: 12px;
+    width: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.green-dot {
+    background-color: green;
+}
+
+.red-dot {
+    background-color: red;
+}
+
+.price-actions {
+    display: inline-flex;
+    gap: 8px;
+    margin-left: 10px;
+    margin-bottom: 1px;
+    vertical-align: middle;
+}
+
+    .price-actions i {
+        cursor: pointer;
+        color: #555;
+        font-size: 12px;
+    }
+
+        .price-actions i:hover {
+            color: #000;
+        }
+
+.price-edit-input {
+    width: 80px;
+    padding: 2px 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.hidden {
+    display: none;
+}
+
+.Page-Box-Container {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    width: 100%;
+}
+
+.flags-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    flex-grow: 1;
+    gap: 2px;
+    padding-right: 2px;
+}
+
+.virtual-scroll-container {
+    overflow-y: auto;
+    position: relative;
+    width: 100%;
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+}
+
+    .virtual-scroll-container .table-orders {
+        width: 100%;
+    }
+
+.virtual-spacer-top, .virtual-spacer-bottom {
+    width: 100%;
+}
+
+
+.batch-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+}
+
+    .batch-overlay.active {
+        display: flex;
+    }
+
+.batch-overlay-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 36px 48px;
+    text-align: center;
+    min-width: 360px;
+    max-width: 440px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+}
+
+.batch-overlay-title {
+    margin: 16px 0 8px;
+    font-weight: 600;
+    color: #222;
+}
+
+.batch-overlay-count {
+    font-size: 22px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 16px;
+}
+
+.batch-progress-bar {
+    height: 10px;
+    background: #e0e0e0;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.batch-progress-fill {
+    height: 100%;
+    background: #1E9447;
+    border-radius: 5px;
+    transition: width 0.3s ease;
+}
+
+.batch-overlay-hint {
+    font-size: 13px;
+    color: #888;
+    margin: 0;
+}
+
+.batch-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #e0e0e0;
+    border-top: 4px solid #1E9447;
+    border-radius: 50%;
+    animation: batchSpin 0.8s linear infinite;
+    margin: 0 auto;
+}
+
+@@keyframes batchSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.bm-dropzone {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    background: #fafafa;
+    user-select: none;
+}
+
+    .bm-dropzone:hover, .bm-dropzone.bm-dragover {
+        border-color: #1E9447;
+        background: #f0fdf4;
+    }
+
+.bm-action-btn {
+    flex: 1;
+    padding: 11px 18px;
+    border-radius: 6px;
+    border: 2px solid #ddd;
+    background: #fff;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    transition: border-color .2s, background .2s, color .2s;
+    color: #444;
+}
+
+    .bm-action-btn i {
+        margin-right: 6px;
+    }
+
+    .bm-action-btn:hover {
+        border-color: #1E9447;
+        color: #1E9447;
+        background: #f0fdf4;
+    }
+
+    .bm-action-btn.bm-action-danger:hover {
+        border-color: #bd2113;
+        color: #bd2113;
+        background: #fff5f5;
+    }
+
+    .bm-action-btn.bm-selected-enable {
+        border-color: #1E9447;
+        background: #e8f5e9;
+        color: #1E9447;
+    }
+
+    .bm-action-btn.bm-selected-disable {
+        border-color: #bd2113;
+        background: #fdecea;
+        color: #bd2113;
+    }
+
+.bm-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 13px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.bm-chip-total {
+    background: #e3f2fd;
+    color: #0d47a1;
+}
+
+.bm-chip-matched {
+    background: #e8f5e9;
+    color: #1b5e20;
+}
+
+.bm-chip-missing {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.bm-chip-skipped {
+    background: #fce4ec;
+    color: #880e4f;
+}
+
+.bm-badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.bm-badge-on {
+    background: #d4edda;
+    color: #155724;
+}
+
+.bm-badge-off {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.bm-badge-notfound {
+    background: #e0e0e0;
+    color: #616161;
+}
+
+.bm-change-enable {
+    color: #1E9447;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.bm-change-disable {
+    color: #bd2113;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.bm-tr-missing {
+    background: #fffaf5;
+}
+
+.bm-tr-notfound {
+    background: #f5f5f5;
+}
+
+.bm-limit-warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: #856404;
+    margin-bottom: 16px;
+    display: none;
+}
+
+    .bm-limit-warning i {
+        margin-right: 6px;
+    }
 
 #productImageDisplay {
     width: 350px;
@@ -5409,6 +5773,7 @@ th small {
     flex-shrink: 0;
     padding: 4px 0;
     flex-wrap: wrap;
+    margin-top:16px;
 }
 
 .chart-toolbar-left,

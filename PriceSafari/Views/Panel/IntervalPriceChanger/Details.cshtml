@@ -10,7 +10,7 @@
 @{
     ViewData["Title"] = $"Interwał: {Model.IntervalName}";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
-
+    <link href="~/css/Automation.css" rel="stylesheet" asp-append-version="true" />
     var user = await UserManager.GetUserAsync(User);
     bool canEdit = user?.AccesToEditPriceAutomation ?? false;
     string noAccessMessage = "Nie masz uprawnień aby zarządzać regułami automatyzacji cen. Skontaktuj sie z nami biuro@pricesafari.pl";
