@@ -134,7 +134,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             existingStore.StoreName = store.StoreName;
             existingStore.StoreProfile = store.StoreProfile;
-            existingStore.IsProducer = store.IsProducer;
             existingStore.StoreApiUrl = store.StoreApiUrl;
             existingStore.StoreApiKey = store.StoreApiKey;
             existingStore.StoreLogoUrl = store.StoreLogoUrl;
@@ -261,7 +260,6 @@ namespace PriceSafari.Controllers.ManagerControllers
             return RedirectToAction("Index");
         }
 
-
         [HttpPost]
         public async Task<IActionResult> TestAllegroToken(int storeId)
         {
@@ -272,13 +270,11 @@ namespace PriceSafari.Controllers.ManagerControllers
             if (string.IsNullOrEmpty(store.AllegroRefreshToken))
                 return Json(new { success = false, message = "Brak Refresh Tokena w bazie. Wklej token przez Device Flow." });
 
-            // Krok 1: Próba uzyskania tokena (odświeży jeśli trzeba)
             string? accessToken = await _allegroAuthTokenService.GetValidAccessTokenAsync(storeId);
             string tokenDiag = _allegroAuthTokenService.LastTokenDiagnostics ?? "";
 
             if (string.IsNullOrEmpty(accessToken))
             {
-                // Reload store — mogło się zmienić IsAllegroTokenActive
                 await _context.Entry(store).ReloadAsync();
 
                 return Json(new
@@ -293,7 +289,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 });
             }
 
-            // Krok 2: Test prawdziwego połączenia z API Allegro
             string apiTestResult = "Nie testowano";
             bool apiTestSuccess = false;
 
@@ -324,10 +319,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                 apiTestResult = $"Błąd połączenia: {ex.Message}";
             }
 
-            // Reload store po operacjach
             await _context.Entry(store).ReloadAsync();
 
-            // ═══ FIX: Jeśli test API przeszedł, upewnij się że IsAllegroTokenActive=true ═══
             if (apiTestSuccess && !store.IsAllegroTokenActive)
             {
                 store.IsAllegroTokenActive = true;
@@ -346,7 +339,6 @@ namespace PriceSafari.Controllers.ManagerControllers
                 hasAccessToken = !string.IsNullOrEmpty(store.AllegroApiToken)
             });
         }
-
 
         [HttpGet]
         public async Task<IActionResult> Index()
@@ -424,9 +416,9 @@ namespace PriceSafari.Controllers.ManagerControllers
                 int chunkSize = 1000;
 
                 await _context.Database.ExecuteSqlRawAsync($@"
-            DELETE FROM ""ProductFlags"" 
+            DELETE FROM ""ProductFlags""
             WHERE ""ProductFlagId"" IN (
-                SELECT PF.""ProductFlagId"" 
+                SELECT PF.""ProductFlagId""
                 FROM ""ProductFlags"" PF
                 JOIN ""Flags"" F ON PF.""FlagId"" = F.""FlagId""
                 WHERE F.""StoreId"" = {storeId}
@@ -444,25 +436,25 @@ namespace PriceSafari.Controllers.ManagerControllers
             )");
 
                 await _context.Database.ExecuteSqlRawAsync(@"
-            UPDATE ""Invoices"" 
+            UPDATE ""Invoices""
             SET ""ArchivedStoreName"" = (SELECT ""StoreName"" FROM ""Stores"" WHERE ""Stores"".""StoreId"" = ""Invoices"".""StoreId""),
-                ""StoreId"" = NULL 
+                ""StoreId"" = NULL
             WHERE ""StoreId"" = {0}", storeId);
 
                 await _context.Database.ExecuteSqlRawAsync(@"
-            DELETE FROM ""AutomationProductAssignments"" 
+            DELETE FROM ""AutomationProductAssignments""
             WHERE ""AutomationRuleId"" IN (SELECT ""Id"" FROM ""AutomationRules"" WHERE ""StoreId"" = {0})", storeId);
 
                 await DeleteInChunksAsync("AutomationRules", "StoreId", storeId);
 
                 await _context.Database.ExecuteSqlRawAsync(@"
-            DELETE FROM ""AllegroPriceBridgeItems"" 
+            DELETE FROM ""AllegroPriceBridgeItems""
             WHERE ""AllegroPriceBridgeBatchId"" IN (SELECT ""Id"" FROM ""AllegroPriceBridgeBatches"" WHERE ""StoreId"" = {0})", storeId);
 
                 await DeleteInChunksAsync("AllegroPriceBridgeBatches", "StoreId", storeId);
 
                 await _context.Database.ExecuteSqlRawAsync(@"
-            DELETE FROM ""PriceHistories"" 
+            DELETE FROM ""PriceHistories""
             WHERE ""ProductId"" IN (SELECT ""ProductId"" FROM ""Products"" WHERE ""StoreId"" = {0})", storeId);
 
                 await DeleteInChunksAsync("ProductMaps", "StoreId", storeId);

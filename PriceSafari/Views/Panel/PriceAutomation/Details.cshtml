@@ -1162,7 +1162,6 @@
 
 @await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
 
-<!-- ============ MODAL: WSTRZYMANIE AUTOMATU NA PRODUKCIE ============ -->
 <div id="pauseProductModal" class="modal fade" tabindex="-1" style="z-index:1060;">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -1175,7 +1174,6 @@
             </div>
             <div class="modal-body">
                 <div id="pauseModalContent">
-                    <!-- Wypełniane dynamicznie przez JS -->
                 </div>
             </div>
         </div>
@@ -1725,8 +1723,6 @@
             let tableRows = Array.from(tableBody.querySelectorAll('tr.main-product-row')).map(row => {
                 const nameWrap = row.querySelector('.product-name-wrap');
                 const nameEl = nameWrap ? (nameWrap.querySelector('a') || nameWrap) : null;
-
-                // Po dodaniu pause-product-btn musimy szukać ID-textu po klasie, nie nextElementSibling
                 const codeEl = row.querySelector('.d-flex.align-items-center.mt-2 > .small.text-muted');
 
                 return {
@@ -2262,9 +2258,7 @@
 
 
     <script>
-        /* ============================================================
-           FILTER SYSTEM (z dodanym filtrem PAUZA na pierwszej pozycji)
-           ============================================================ */
+
         const FilterSystem = (function () {
             const isMarketplace = @(isMarketplace.ToString().ToLower());
 
@@ -2363,7 +2357,6 @@
 
                 allRows = Array.from(tableBody.querySelectorAll('tr.main-product-row'));
 
-                // Dynamiczne filtry per flaga
                 const flagMap = new Map();
                 allRows.forEach(row => {
                     const ids = row.getAttribute('data-flag-ids');
@@ -2684,9 +2677,7 @@
 
 
     <script>
-        /* ============================================================
-           PAUSE SYSTEM — wstrzymywanie automatu na poziomie produktu
-           ============================================================ */
+  
         const PauseSystem = (function () {
             let currentProductId = null;
             let currentProductName = null;
@@ -2913,7 +2904,7 @@
                     openModal(productId, productName, isPausedNow, pausedUntil);
                 });
 
-                // Delegacja: klik wewnątrz modala — karty czasu / wznów
+           
                 document.addEventListener('click', function (e) {
                     const card = e.target.closest('.pause-duration-card, .pause-duration-card-indefinite');
                     if (card && document.getElementById('pauseProductModal').classList.contains('show')) {
@@ -2929,7 +2920,6 @@
                     }
                 });
 
-                // Pierwsze odświeżenie + pętla co 30s
                 updateCountdowns();
                 countdownTimer = setInterval(updateCountdowns, 30000);
             }

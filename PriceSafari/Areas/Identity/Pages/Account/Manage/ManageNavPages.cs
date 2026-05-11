@@ -42,5 +42,10 @@ namespace PriceSafari.Areas.Identity.Pages.Account.Manage
                 ?? System.IO.Path.GetFileNameWithoutExtension(viewContext.ActionDescriptor.DisplayName);
             return string.Equals(activePage, page, StringComparison.OrdinalIgnoreCase) ? "active" : null;
         }
+
+        public static string ViewPreferences => "ViewPreferences";
+
+        public static string ViewPreferencesNavClass(ViewContext viewContext)
+            => PageNavClass(viewContext, ViewPreferences);
     }
 }

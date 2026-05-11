@@ -36,6 +36,12 @@ public class PriceSafariUser : IdentityUser
     public DateTime? LastLoginDateTime { get; set; }
     public int LoginCount { get; set; } = 0;
 
+    [Display(Name = "Widok producenta dla porównywarek cenowych")]
+    public bool UseProducerViewForPriceComparison { get; set; } = false;
+
+    [Display(Name = "Widok producenta dla marketplace Allegro")]
+    public bool UseProducerViewForMarketplace { get; set; } = false;
+
     [Required]
     public UserStatus Status { get; set; } = UserStatus.Onboarding;
 
