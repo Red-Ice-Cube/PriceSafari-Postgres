@@ -5,10 +5,7 @@
     ViewData["Title"] = "Widok";
 }
 
-<partial name="_StatusMessage" for="StatusMessage" />
-
 <style>
-
     .Page-Box-Items {
         width: auto !important;
         flex: 1 1 auto !important;
@@ -20,7 +17,6 @@
 
     .vp-info-banner {
         background: #f8f9fc;
-        border-left: 4px solid #4e73df;
         border-radius: 6px;
         padding: 18px 22px;
         margin-bottom: 25px;
@@ -40,26 +36,6 @@
         box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.03);
         border: 1px solid #edf0f2;
         margin-bottom: 25px;
-    }
-
-    .vp-section-title {
-        font-size: 18px;
-        font-weight: 500;
-        color: #2e3035;
-        margin-bottom: 6px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .vp-section-subtitle {
-        font-size: 13px;
-        color: #858796;
-        margin-bottom: 22px;
-        padding-bottom: 18px;
-        border-bottom: 2px solid #f1f3f9;
     }
 
     .vp-cards-row {
@@ -106,9 +82,6 @@
         font-size: 17px;
         font-weight: 500;
         margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
         color: #2e3035;
     }
 
@@ -172,11 +145,34 @@
 
     .vp-save-bar {
         display: flex;
-        justify-content: flex-end;
+        justify-content: flex-start;
         align-items: center;
-        gap: 12px;
         margin-top: 10px;
     }
+
+    /* Toast */
+    .vp-toast {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background: #1cc88a;
+        color: #fff;
+        padding: 14px 22px;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 9999;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        pointer-events: none;
+    }
+
+        .vp-toast.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
 </style>
 
 <form id="view-preferences-form" method="post">
@@ -189,43 +185,34 @@
         <i class="fas fa-info-circle" style="margin-right: 8px; color: #4e73df;"></i>
         Widok jest przypisywany do <strong>Twojego konta</strong> — w każdej chwili możesz go zmienić.
         Decyduje on o tym, jak wyglądają panele produktów, jakie kolumny i metryki są pokazywane,
-        oraz jakie eksporty danych masz dostępne. Każde źródło danych (porównywarki i Allegro) może mieć swój odrębny widok.
+        oraz jakie eksporty danych masz dostępne. Wybrany widok zostanie zastosowany
+        zarówno w panelach porównywarek cenowych (Google / Ceneo), jak i w panelu Allegro.
     </div>
 
     <div class="vp-section">
-        <div class="vp-section-title">
-            <i class="fas fa-search-dollar" style="color: #4e73df;"></i>
-            Porównywarki Cenowe (Google / Ceneo)
-        </div>
-        <div class="vp-section-subtitle">
-            Wybierz widok, który będzie używany w panelach Google Shopping oraz Ceneo.
-        </div>
-
         <div class="vp-cards-row">
-            <div class="vp-card vp-retailer" id="card-pc-retailer" onclick="selectView('PriceComparison', false)">
+            <div class="vp-card vp-retailer" id="card-retailer" onclick="selectView(false)">
                 <span class="vp-badge">Aktywny</span>
-                <div class="vp-card-header">
-                    <i class="fas fa-store" style="color: #1cc88a;"></i> Widok Retailera
-                </div>
+                <div class="vp-card-header">Widok Retailera</div>
                 <div class="vp-card-text">
                     Jeżeli jesteś sklepem internetowym i konkurujesz z innymi sklepami — ten widok jest dla Ciebie.
                 </div>
                 <div class="vp-card-features">
                     <strong>Co umożliwia:</strong>
                     <ul>
-                        <li>Monitorowanie cen konkurencji</li>
+                        <li>Monitorowanie cen i ofert konkurencji</li>
                         <li>Automatyczne dostosowywanie własnych cen</li>
                         <li>Wgrywanie ceny zakupu w zakładce produkty</li>
                         <li>Analiza marży i narzutu</li>
+                        <li>Uwzględnianie prowizji oraz odznak Allegro (SUPERCENA, Smart!)</li>
+                        <li>Analiza pozycji w wyszukiwarce</li>
                     </ul>
                 </div>
             </div>
 
-            <div class="vp-card vp-producer" id="card-pc-producer" onclick="selectView('PriceComparison', true)">
+            <div class="vp-card vp-producer" id="card-producer" onclick="selectView(true)">
                 <span class="vp-badge">Aktywny</span>
-                <div class="vp-card-header">
-                    <i class="fas fa-industry" style="color: rgba(113, 96, 232, 1);"></i> Widok Producenta
-                </div>
+                <div class="vp-card-header">Widok Producenta</div>
                 <div class="vp-card-text">
                     Jesteś producentem i chcesz egzekwować własną politykę cenową — wybierz ten widok.
                 </div>
@@ -235,57 +222,9 @@
                         <li>Analiza cen sklepów względem Twoich cen referencyjnych</li>
                         <li>Wgrywanie cen MAP w zakładce produkty</li>
                         <li>Wykrywanie naruszeń polityki cenowej</li>
-                        <li>Dedykowane eksporty danych dla producentów</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="vp-section">
-        <div class="vp-section-title">
-            <i class="fas fa-shopping-bag" style="color: #ff5a00;"></i>
-            Marketplace Allegro
-        </div>
-        <div class="vp-section-subtitle">
-            Wybierz widok, który będzie używany w panelu Allegro.
-        </div>
-
-        <div class="vp-cards-row">
-            <div class="vp-card vp-retailer" id="card-mp-retailer" onclick="selectView('Marketplace', false)">
-                <span class="vp-badge">Aktywny</span>
-                <div class="vp-card-header">
-                    <i class="fas fa-store" style="color: #1cc88a;"></i> Widok Retailera
-                </div>
-                <div class="vp-card-text">
-                    Sprzedajesz na Allegro i konkurujesz z innymi sprzedawcami — ten widok jest dla Ciebie.
-                </div>
-                <div class="vp-card-features">
-                    <strong>Co umożliwia:</strong>
-                    <ul>
-                        <li>Monitorowanie ofert konkurencji na Allegro</li>
-                        <li>Automatyczna zmiana cen własnych ofert</li>
-                        <li>Uwzględnianie prowizji oraz odznak (SUPERCENA, Smart!)</li>
-                        <li>Analiza pozycji w wyszukiwarce</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="vp-card vp-producer" id="card-mp-producer" onclick="selectView('Marketplace', true)">
-                <span class="vp-badge">Aktywny</span>
-                <div class="vp-card-header">
-                    <i class="fas fa-industry" style="color: rgba(113, 96, 232, 1);"></i> Widok Producenta
-                </div>
-                <div class="vp-card-text">
-                    Jesteś producentem i chcesz kontrolować, jak Twoje produkty są sprzedawane na Allegro.
-                </div>
-                <div class="vp-card-features">
-                    <strong>Co umożliwia:</strong>
-                    <ul>
-                        <li>Analiza wszystkich sprzedawców Twoich produktów</li>
-                        <li>Wykrywanie naruszeń MAP na Allegro</li>
+                        <li>Analiza wszystkich sprzedawców Twoich produktów na Allegro</li>
                         <li>Identyfikacja nieautoryzowanej dystrybucji</li>
-                        <li>Raporty rynkowe i eksporty dla producentów</li>
+                        <li>Dedykowane eksporty i raporty rynkowe dla producentów</li>
                     </ul>
                 </div>
             </div>
@@ -293,27 +232,25 @@
     </div>
 
     <div class="vp-save-bar">
-        <button type="submit" class="Button-Page-Small-bl" style="height: 38px;">
-            <i class="fas fa-save" style="margin-right: 6px;"></i> Zapisz Zmiany
-        </button>
+        <button type="submit" class="Button-Page-Small">Zapisz</button>
     </div>
 </form>
+
+<div id="vp-toast" class="vp-toast" role="status" aria-live="polite">
+    <i class="fas fa-check-circle" style="margin-right: 8px;"></i>
+    <span id="vp-toast-text"></span>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
     <script>
-        function selectView(category, isProducer) {
-            if (category === 'PriceComparison') {
-                document.getElementById('hiddenPriceComparison').value = isProducer ? 'true' : 'false';
-                setCardActive('card-pc-retailer', !isProducer);
-                setCardActive('card-pc-producer', isProducer);
-            } else if (category === 'Marketplace') {
-                document.getElementById('hiddenMarketplace').value = isProducer ? 'true' : 'false';
-                setCardActive('card-mp-retailer', !isProducer);
-                setCardActive('card-mp-producer', isProducer);
-            }
+        function selectView(isProducer) {
+            document.getElementById('hiddenPriceComparison').value = isProducer ? 'true' : 'false';
+            document.getElementById('hiddenMarketplace').value = isProducer ? 'true' : 'false';
+            setCardActive('card-retailer', !isProducer);
+            setCardActive('card-producer', isProducer);
         }
 
         function setCardActive(cardId, active) {
@@ -323,14 +260,26 @@
             else el.classList.remove('is-active');
         }
 
+        function showToast(message) {
+            var toast = document.getElementById('vp-toast');
+            if (!toast || !message) return;
+            document.getElementById('vp-toast-text').textContent = message;
+            toast.classList.add('is-visible');
+            setTimeout(function () {
+                toast.classList.remove('is-visible');
+            }, 2800);
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             var pcIsProducer = (document.getElementById('hiddenPriceComparison').value || '').toLowerCase() === 'true';
             var mpIsProducer = (document.getElementById('hiddenMarketplace').value || '').toLowerCase() === 'true';
+            var isProducer = pcIsProducer || mpIsProducer;
+            selectView(isProducer);
 
-            setCardActive('card-pc-retailer', !pcIsProducer);
-            setCardActive('card-pc-producer', pcIsProducer);
-            setCardActive('card-mp-retailer', !mpIsProducer);
-            setCardActive('card-mp-producer', mpIsProducer);
+            var statusMsg = @Html.Raw(Json.Serialize(Model.StatusMessage ?? ""));
+            if (statusMsg && statusMsg.length > 0) {
+                showToast(statusMsg);
+            }
         });
     </script>
 }

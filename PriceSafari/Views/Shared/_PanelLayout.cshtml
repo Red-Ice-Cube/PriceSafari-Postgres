@@ -14,33 +14,13 @@
 }
 
 @{
-    bool useProducerPC = user?.UseProducerViewForPriceComparison ?? false;
-    bool useProducerMP = user?.UseProducerViewForMarketplace ?? false;
+    bool useProducerView = user?.UseProducerViewForPriceComparison ?? false;
 
-    string viewLabel;
-    string viewClass;
-    string viewTooltip;
-
-    if (useProducerPC && useProducerMP)
-    {
-        viewLabel = "Widok Producenta";
-        viewClass = "view-pill-producer";
-        viewTooltip = "Producent — Porównywarki + Allegro. Kliknij, aby zmienić.";
-    }
-    else if (!useProducerPC && !useProducerMP)
-    {
-        viewLabel = "Widok Retailera";
-        viewClass = "view-pill-retailer";
-        viewTooltip = "Retailer — Porównywarki + Allegro. Kliknij, aby zmienić.";
-    }
-    else
-    {
-        viewLabel = "Widok Mieszany";
-        viewClass = "view-pill-mixed";
-        var pcText = useProducerPC ? "Producent" : "Retailer";
-        var mpText = useProducerMP ? "Producent" : "Retailer";
-        viewTooltip = $"Porównywarki: {pcText} • Allegro: {mpText}. Kliknij, aby zmienić.";
-    }
+    string viewLabel = useProducerView ? "Widok Producenta" : "Widok Retailera";
+    string viewClass = useProducerView ? "view-pill-producer" : "view-pill-retailer";
+    string viewTooltip = useProducerView
+        ? "Widok Producenta — kliknij, aby zmienić."
+        : "Widok Retailera — kliknij, aby zmienić.";
 }
 
 <!DOCTYPE html>
@@ -258,22 +238,7 @@
         box-shadow: 0 0 5px rgba(113, 96, 232, 0.55);
         }
 
-        .view-pill-mixed {
-        background: rgba(246, 173, 85, 0.08);
-        border-color: rgba(246, 173, 85, 0.22);
-        color: rgba(246, 200, 130, 0.95);
-        }
 
-        .view-pill-mixed:hover {
-        background: rgba(246, 173, 85, 0.18);
-        border-color: rgba(246, 173, 85, 0.42);
-        color: #fff;
-        }
-
-        .view-pill-mixed .vp-dot {
-        background: #f6ad55;
-        box-shadow: 0 0 5px rgba(246, 173, 85, 0.55);
-        }
 
         .Sidebar-header {
             display: flex;
