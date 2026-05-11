@@ -305,32 +305,30 @@ namespace PriceSafari.Services.AllegroServices
                 }
             }
 
-            if (userStore.IsProducerOnAllegro)
+            // ─── SNAPSHOT MAP — robimy zawsze, niezależnie od typu sklepu ───
+            var existingExtendedByProductId = newExtendedInfos
+                .GroupBy(e => e.AllegroProductId)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            foreach (var product in storeProducts)
             {
-                var existingExtendedByProductId = newExtendedInfos
-                    .GroupBy(e => e.AllegroProductId)
-                    .ToDictionary(g => g.Key, g => g.First());
+                if (!product.AllegroMapPrice.HasValue || product.AllegroMapPrice.Value <= 0)
+                    continue;
 
-                foreach (var product in storeProducts)
+                if (existingExtendedByProductId.TryGetValue(product.AllegroProductId, out var existing))
                 {
-                    if (!product.AllegroMarginPrice.HasValue || product.AllegroMarginPrice.Value <= 0)
-                        continue;
-
-                    if (existingExtendedByProductId.TryGetValue(product.AllegroProductId, out var existing))
+                    // Mamy już rekord (bo nasz sklep ma swoją ofertę) — dopisujemy snapshot
+                    existing.AllegroMapPriceSnapshot = product.AllegroMapPrice;
+                }
+                else
+                {
+                    // Brak rekordu — tworzymy nowy tylko ze snapshotem MAP
+                    newExtendedInfos.Add(new AllegroPriceHistoryExtendedInfoClass
                     {
-                        // Mamy już rekord (bo nasz sklep ma swoją ofertę) — dopisujemy snapshot
-                        existing.AllegroMapPriceSnapshot = product.AllegroMarginPrice;
-                    }
-                    else
-                    {
-                        // Brak rekordu — tworzymy nowy tylko ze snapshotem MAP
-                        newExtendedInfos.Add(new AllegroPriceHistoryExtendedInfoClass
-                        {
-                            AllegroProductId = product.AllegroProductId,
-                            ScrapHistory = scrapeHistory,
-                            AllegroMapPriceSnapshot = product.AllegroMarginPrice
-                        });
-                    }
+                        AllegroProductId = product.AllegroProductId,
+                        ScrapHistory = scrapeHistory,
+                        AllegroMapPriceSnapshot = product.AllegroMapPrice
+                    });
                 }
             }
 

@@ -617,7 +617,6 @@ namespace PriceSafari.Controllers.MemberControllers
         }
 
 
-
         [HttpGet]
         public async Task<IActionResult> GetAllegroPricesForProducer(int? storeId)
         {
@@ -632,7 +631,6 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var storeNameLower = (store.StoreNameAllegro ?? "").ToLower().Trim();
 
-            // ── Najnowszy scrap ──
             var latestScrap = await _context.AllegroScrapeHistories
                 .AsNoTracking()
                 .Where(sh => sh.StoreId == storeId)
@@ -643,7 +641,6 @@ namespace PriceSafari.Controllers.MemberControllers
             if (latestScrap == null)
                 return Json(new { productCount = 0, myStoreName = store.StoreNameAllegro, prices = new List<object>() });
 
-            // ── Poprzedni scrap (do "świeżego naruszenia") ──
             var previousScrap = await _context.AllegroScrapeHistories
                 .AsNoTracking()
                 .Where(sh => sh.StoreId == storeId && sh.Date < latestScrap.Date)
@@ -651,7 +648,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(sh => new { sh.Id, sh.Date })
                 .FirstOrDefaultAsync();
 
-            // ── PriceValues z polami producenckimi Allegro ──
+            // PriceValues — pola producenta WYŁĄCZNIE z toru Allegro
             var pv = await _context.PriceValues.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.StoreId == storeId.Value);
 
@@ -674,7 +671,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 GreenDarkAmt = pv.AllegroProducerThresholdGreenDarkAmount
             } : new AllegroProducerSettings();
 
-            // ── Aktywne produkty ──
             var allScrapableProducts = await _context.AllegroProducts.AsNoTracking()
                 .Where(p => p.StoreId == storeId.Value && p.IsScrapable)
                 .ToListAsync();
@@ -682,7 +678,6 @@ namespace PriceSafari.Controllers.MemberControllers
             var productIds = allScrapableProducts.Select(p => p.AllegroProductId).ToList();
             var productDict = allScrapableProducts.ToDictionary(p => p.AllegroProductId);
 
-            // ── Ceny dla najnowszego scrapu ──
             var priceData = await _context.AllegroPriceHistories.AsNoTracking()
                 .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id
                            && productIds.Contains(aph.AllegroProductId))
@@ -693,12 +688,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 .Select(g => g.First())
                 .ToList();
 
-            // Lookup productId → oferty (puste gdy brak danych)
             var offersByProductId = priceData
                 .GroupBy(aph => aph.AllegroProductId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            // ── Preset konkurencji (marketplace) ──
             var activePreset = await _context.CompetitorPresets.AsNoTracking()
                 .Include(p => p.CompetitorItems)
                 .FirstOrDefaultAsync(p => p.StoreId == storeId.Value && p.NowInUse && p.Type == PresetType.Marketplace);
@@ -711,20 +704,18 @@ namespace PriceSafari.Controllers.MemberControllers
             int minDelivery = activePreset?.MinDeliveryDays ?? 0;
             int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
 
-            // ── Extended info (źródło AllegroMapPriceSnapshot) ──
             var extendedInfoDict = await _context.AllegroPriceHistoryExtendedInfos.AsNoTracking()
                 .Where(e => e.ScrapHistoryId == latestScrap.Id && productIds.Contains(e.AllegroProductId))
                 .GroupBy(e => e.AllegroProductId)
                 .Select(g => g.First())
                 .ToDictionaryAsync(e => e.AllegroProductId);
 
-            // ── Flagi ──
             var productFlagsDict = await _context.ProductFlags.AsNoTracking()
                 .Where(pf => pf.AllegroProductId.HasValue && productIds.Contains(pf.AllegroProductId.Value))
                 .GroupBy(pf => pf.AllegroProductId.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
-            // ── HISTORIA NARUSZEŃ (7 dni) ──
+            // HISTORIA NARUSZEŃ (7 dni)
             var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
             var historyScraps = await _context.AllegroScrapeHistories.AsNoTracking()
                 .Where(sh => sh.StoreId == storeId && sh.Date >= sevenDaysAgo && sh.Id != latestScrap.Id)
@@ -760,11 +751,7 @@ namespace PriceSafari.Controllers.MemberControllers
             var historyMapSnapshotLookup = historyMapSnapshots
                 .ToDictionary(e => (e.AllegroProductId, e.ScrapHistoryId), e => e.AllegroMapPriceSnapshot);
 
-            // ─── Moje ceny historyczne per scrap (dla trybu StorePrice) ───
-            // Producent z własnym kontem marki na Allegro chce porównywać konkurentów
-            // do swojej ceny — i ta cena mogła się zmieniać w czasie, więc bierzemy ją per scrap.
-            // Jeśli w jednym scrapie mam kilka ofert pod tą samą nazwą (różne IdAllegro),
-            // bierzemy najniższą — to ona definiuje moją "cenę półki" dla danego produktu.
+            // Moje ceny historyczne per scrap (StorePrice mode)
             var historyMyStorePricesByProductScrap = historyPricesRaw
                 .Where(x => x.SellerName != null && x.SellerName.ToLower().Trim() == storeNameLower)
                 .GroupBy(x => new { x.AllegroProductId, x.AllegroScrapeHistoryId })
@@ -773,14 +760,12 @@ namespace PriceSafari.Controllers.MemberControllers
                     g => g.OrderBy(x => x.Price).First().Price
                 );
 
-            // Min cena konkurencji per (productId, scrapId), już po preście
+            // Min cena konkurencji per scrap, po preście
             var historyMinCompetitorByProductScrap = new Dictionary<(int, int), decimal>();
             foreach (var ph in historyPricesRaw)
             {
-                // wyklucz nasz sklep
                 if (ph.SellerName != null && ph.SellerName.ToLower().Trim() == storeNameLower) continue;
 
-                // filtr dostawy
                 if (ph.DeliveryTime.HasValue)
                 {
                     if (ph.DeliveryTime.Value < minDelivery || ph.DeliveryTime.Value > maxDelivery) continue;
@@ -790,7 +775,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     if (!includeNoDelivery) continue;
                 }
 
-                // filtr presetu
                 if (competitorRules != null)
                 {
                     var key = (ph.SellerName ?? "").ToLower().Trim();
@@ -806,22 +790,20 @@ namespace PriceSafari.Controllers.MemberControllers
                     historyMinCompetitorByProductScrap[dictKey] = ph.Price;
             }
 
-            // ── Główna pętla — iteruje WSZYSTKIE aktywne produkty (także bez historii cen) ──
             var allPrices = productIds.Select(currentProductId =>
             {
                 var product = productDict[currentProductId];
                 var offers = offersByProductId.GetValueOrDefault(currentProductId, new List<AllegroPriceHistory>());
 
-                // Moja oferta w bieżącym scrapie
                 var myOffer = offers.FirstOrDefault(p => p.SellerName != null
                     && p.SellerName.ToLower().Trim() == storeNameLower);
 
                 extendedInfoDict.TryGetValue(currentProductId, out var extInfo);
 
-                // MAP = snapshot z extended info, fallback na AllegroMarginPrice
-                decimal? mapPrice = extInfo?.AllegroMapPriceSnapshot ?? product.AllegroMarginPrice;
+                // MAP = snapshot, fallback na bieżący AllegroMapPrice (NIE AllegroMarginPrice)
+                decimal? mapPrice = extInfo?.AllegroMapPriceSnapshot ?? product.AllegroMapPrice;
 
-                // Cena referencyjna — bieżąca
+                // Cena referencyjna — decyduje ustawienie producenta dla Allegro (osobne od Google/Ceneo)
                 decimal? referencePrice = null;
                 string referenceSource = "none";
                 if (settings.ComparisonSource == ProducerComparisonSource.MapPrice)
@@ -832,7 +814,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         referenceSource = "map";
                     }
                 }
-                else // StorePrice
+                else // StorePrice — producent też może mieć własne konto marki na Allegro
                 {
                     if (myOffer != null && myOffer.Price > 0)
                     {
@@ -841,7 +823,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                 }
 
-                // Konkurenci po filtrach (preset + delivery)
                 var filteredCompetitors = offers.Where(p =>
                 {
                     if (p.SellerName != null && p.SellerName.ToLower().Trim() == storeNameLower) return false;
@@ -864,14 +845,12 @@ namespace PriceSafari.Controllers.MemberControllers
                     return true;
                 }).ToList();
 
-                // Najtańszy konkurent
                 var bestCompetitor = filteredCompetitors
                     .Where(x => x.Price > 0)
                     .OrderBy(x => x.Price)
                     .ThenBy(x => x.SellerName)
                     .FirstOrDefault();
 
-                // Bucket producenta + delta
                 string bucket;
                 decimal? deltaAbsolute = null;
                 decimal? deltaPercent = null;
@@ -885,7 +864,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     bucket = ResolveAllegroProducerBucket(deltaAbsolute.Value, deltaPercent ?? 0m, settings);
                 }
 
-                // Liczba sklepów wzgl. ceny referencyjnej
                 int storesBelowReference = 0;
                 int storesAtReference = 0;
                 int storesAboveReference = 0;
@@ -915,7 +893,6 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                 }
 
-                // ─── HISTORIA NARUSZEŃ (7 dni) ───
                 decimal? daysOfViolation = null;
                 bool isFreshViolation = false;
                 bool isCurrentlyViolating = bucket == "producer-deep-violation"
@@ -929,21 +906,18 @@ namespace PriceSafari.Controllers.MemberControllers
                     bool prevScrapWasViolation = false;
                     bool prevScrapEvaluated = false;
 
-                    foreach (var hs in historyScraps) // już posortowane DESC
+                    foreach (var hs in historyScraps)
                     {
-                        // Cena referencyjna w tamtym momencie — w zależności od trybu
                         decimal? historicalReference;
 
                         if (settings.ComparisonSource == ProducerComparisonSource.StorePrice)
                         {
-                            // Cena mojego konta marki na Allegro mogła się zmieniać — bierzemy snapshot z tamtego scrapu
                             if (historyMyStorePricesByProductScrap.TryGetValue((currentProductId, hs.Id), out var myHistPrice))
                             {
                                 historicalReference = myHistPrice;
                             }
                             else
                             {
-                                // Brak mojej oferty w tamtym scrapie → nie umiemy ocenić naruszenia
                                 historicalReference = null;
                             }
                         }
@@ -956,7 +930,6 @@ namespace PriceSafari.Controllers.MemberControllers
                             }
                             else
                             {
-                                // Stare scrapy bez snapshotu → fallback na bieżącą referencePrice
                                 historicalReference = referencePrice;
                             }
                         }
@@ -1080,7 +1053,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             });
         }
-
 
 
 
@@ -1354,7 +1326,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
-        // ═══ ZAKTUALIZOWANA AKCJA DETAILS — zastąp istniejącą ═══
+
         [HttpGet]
         public async Task<IActionResult> Details(int storeId, int productId, int? scrapId = null)
         {
@@ -1462,13 +1434,31 @@ namespace PriceSafari.Controllers.MemberControllers
                     .FirstOrDefaultAsync();
 
                 AllegroPriceHistoryExtendedInfoClass extForProduct = null;
+                AllegroPriceHistory myOffer = null;
+
                 if (lastScrap != null)
                 {
                     extForProduct = await _context.AllegroPriceHistoryExtendedInfos.AsNoTracking()
                         .FirstOrDefaultAsync(e => e.ScrapHistoryId == lastScrap.Id && e.AllegroProductId == productId);
-                }
 
-                decimal? mapPrice = extForProduct?.AllegroMapPriceSnapshot ?? product.AllegroMarginPrice;
+                    // Moja oferta z najnowszego scrapu — potrzebna do trybu StorePrice
+                    var storeNameLower = (store.StoreNameAllegro ?? "").ToLower().Trim();
+
+                    // ZASTOSOWANA ZMIANA:
+                    var allOffers = await _context.AllegroPriceHistories.AsNoTracking()
+                        .Where(ph => ph.AllegroScrapeHistoryId == lastScrap.Id
+                                  && ph.AllegroProductId == productId
+                                  && ph.SellerName != null
+                                  && ph.Price > 0)
+                        .ToListAsync();
+
+                    myOffer = allOffers
+                        .Where(x => x.SellerName.ToLower().Trim() == storeNameLower)
+                        .OrderBy(x => x.Price)
+                        .FirstOrDefault();
+                }
+                // MAP = snapshot, fallback na bieżący AllegroMapPrice (NIE AllegroMarginPrice)
+                decimal? mapPrice = extForProduct?.AllegroMapPriceSnapshot ?? product.AllegroMapPrice;
 
                 decimal? referencePrice = null;
                 string referenceSource = "none";
@@ -1480,7 +1470,14 @@ namespace PriceSafari.Controllers.MemberControllers
                         referenceSource = "map";
                     }
                 }
-                // dla StorePrice na Allegro producent prawie nigdy nie ma własnej oferty — fallback pomijamy
+                else // StorePrice — pełna obsługa, producent może mieć własne konto marki na Allegro
+                {
+                    if (myOffer != null && myOffer.Price > 0)
+                    {
+                        referencePrice = myOffer.Price;
+                        referenceSource = "store";
+                    }
+                }
 
                 var thresholdsForChart = new
                 {
@@ -1503,6 +1500,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 ViewBag.ReferencePrice = referencePrice;
                 ViewBag.ReferenceSource = referenceSource;
                 ViewBag.MapPrice = mapPrice;
+                ViewBag.MyPrice = myOffer?.Price;
                 ViewBag.ProducerThresholdsJson = Newtonsoft.Json.JsonConvert.SerializeObject(thresholdsForChart);
                 ViewBag.ProducerSettings = producerSettings;
                 ViewBag.IsProducerOnAllegro = true;

@@ -79,9 +79,9 @@ public class StoreProcessingService
             var coOfrWithSales = relatedCoOfrs.FirstOrDefault(co => co.CeneoSalesCount.HasValue);
 
             bool hasExtendedData = coOfrWithSales != null || matchingApiData != null;
-            bool hasMarginPrice = product.MarginPrice.HasValue;
+            bool hasMapPrice = product.MapPrice.HasValue;   // ← było: MarginPrice
 
-            if ((hasExtendedData || hasMarginPrice)
+            if ((hasExtendedData || hasMapPrice)
                 && processedProductsForExtendedInfo.TryAdd(product.ProductId, true))
             {
                 extendedInfoBag.Add(new PriceHistoryExtendedInfoClass
@@ -90,7 +90,7 @@ public class StoreProcessingService
                     ScrapHistory = scrapHistory,
                     CeneoSalesCount = coOfrWithSales?.CeneoSalesCount,
                     ExtendedDataApiPrice = matchingApiData?.ExtendedDataApiPrice,
-                    MapPriceSnapshot = product.MarginPrice
+                    MapPriceSnapshot = product.MapPrice   // ← było: MarginPrice
                 });
             }
 
@@ -287,18 +287,16 @@ public class StoreProcessingService
         }));
 
         // ─── SNAPSHOTY MapPrice DLA PRODUKTÓW BEZ relatedCoOfrs ───
-        // Produkty bez powiązań z CoOfr wypadły na return w Parallel.ForEach,
-        // ale jeśli mają MarginPrice — i tak robimy snapshot.
         foreach (var product in products)
         {
-            if (product.MarginPrice.HasValue
+            if (product.MapPrice.HasValue          // ← było: MarginPrice
                 && processedProductsForExtendedInfo.TryAdd(product.ProductId, true))
             {
                 extendedInfoBag.Add(new PriceHistoryExtendedInfoClass
                 {
                     ProductId = product.ProductId,
                     ScrapHistory = scrapHistory,
-                    MapPriceSnapshot = product.MarginPrice
+                    MapPriceSnapshot = product.MapPrice    // ← było: MarginPrice
                 });
             }
         }
