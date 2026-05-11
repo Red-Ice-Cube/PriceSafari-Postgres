@@ -1,0 +1,2026 @@
+﻿@model IEnumerable<PriceSafari.Models.PriceHistoryClass>
+
+@{
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    ViewData["Title"] = "Szczegóły Produktu Allegro – Panel Producenta";
+
+    var storeId             = ViewBag.StoreId;
+    var productId           = ViewBag.ProductId;
+    var productName         = ViewBag.ProductName as string;
+    var offerId             = ViewBag.OfferId as string;
+    var ean                 = ViewBag.Ean as string;
+    var sku                 = ViewBag.AllegroSku as string;
+    var storeName           = ViewBag.StoreName as string;
+    var allegroOfferUrl     = ViewBag.AllegroOfferUrl as string;
+    var flags               = ViewBag.Flags as List<PriceSafari.Models.ViewModels.FlagViewModel> ?? new List<PriceSafari.Models.ViewModels.FlagViewModel>();
+    var productFlagIds      = ViewBag.ProductFlagIds as List<int> ?? new List<int>();
+    var automationRuleName  = ViewBag.AutomationRuleName as string;
+    var automationRuleColor = ViewBag.AutomationRuleColor as string;
+    var automationRuleIsActive = (bool)(ViewBag.AutomationRuleIsActive ?? false);
+    var automationRuleId    = ViewBag.AutomationRuleId as int?;
+
+    decimal? referencePrice = ViewBag.ReferencePrice as decimal?;
+    string referenceSource  = ViewBag.ReferenceSource as string ?? "none";
+    decimal? mapPrice       = ViewBag.MapPrice as decimal?;
+    decimal? myPrice        = ViewBag.MyPrice as decimal?;
+    bool isMapMode          = referenceSource == "map";
+
+    var producerThresholdsJson = ViewBag.ProducerThresholdsJson as string ?? "{}";
+}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+<style>
+    .offer-badge {
+        display: inline-block;
+        padding: 2px 5px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        color: white;
+        border-radius: 4px;
+        margin-left: 4px;
+        vertical-align: middle;
+    }
+
+    .badge-bpg   { background-color: #169A23; }
+    .badge-top   { background-color: #9c27b0; }
+    .badge-super { background-color: #ff9800; }
+</style>
+
+<div class="Vert" data-store-name="@storeName">
+    <div class="Page-Box">
+
+        <div class="detail-header-row">
+            <div class="detail-title-block">
+                <div class="detail-title-text">@productName</div>
+                <div class="detail-flags-row" id="detailFlagsContainer">
+                    @if (productFlagIds.Any())
+                    {
+                        @foreach (var flag in flags.Where(f => productFlagIds.Contains(f.FlagId)))
+                        {
+                            <span class="detail-flag-pill"
+                                  style="border-color: @flag.FlagColor; color: @flag.FlagColor; background-color: @(flag.FlagColor)4D; white-space: nowrap; font-size: 12px; padding: 2px 8px; border-radius: 4px; border: 1px solid;">
+                                @flag.FlagName
+                            </span>
+                        }
+                    }
+                </div>
+            </div>
+            <div class="detail-mode-switch">
+                <button type="button" id="showTableBtn" class="button-active">Ranking</button>
+                <button type="button" id="showChartBtn" class="button-inactive">Wykres</button>
+            </div>
+        </div>
+
+        <div class="form-check-orders">
+            <div class="info-row">
+                <div id="lastScrapeInfo" style="display:inline-block;"></div>
+
+                @if (!string.IsNullOrEmpty(offerId))
+                {
+                    <span class="separator">|</span>
+                    <span><strong>ID oferty</strong>&nbsp;@offerId</span>
+                }
+
+                @if (!string.IsNullOrEmpty(ean))
+                {
+                    <span class="separator">|</span>
+                    <span><strong>EAN</strong>&nbsp;@ean</span>
+                }
+
+                @if (!string.IsNullOrEmpty(sku))
+                {
+                    <span class="separator">|</span>
+                    <span><strong>SKU</strong>&nbsp;@sku</span>
+                }
+
+                <span class="separator">|</span>
+                @if (isMapMode)
+                {
+                    <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#e0e7ff;color:#3b5bdb;font-weight:600;vertical-align:middle;">
+                        <i class="fa-solid fa-bullseye"></i> Punkt odniesienia: <strong>Cena MAP</strong> @(mapPrice.HasValue ? mapPrice.Value.ToString("0.00") + " PLN" : "—")
+                    </span>
+                }
+                else if (referenceSource == "store")
+                {
+                    <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#e0f5e9;color:#2b8a3e;font-weight:600;vertical-align:middle;">
+                        <i class="fa-solid fa-store"></i> Punkt odniesienia: <strong>Cena ze sklepu</strong> @(referencePrice.HasValue ? referencePrice.Value.ToString("0.00") + " PLN" : "—")
+                    </span>
+                }
+                else
+                {
+                    <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#f1f3f5;color:#868e96;font-weight:600;vertical-align:middle;">
+                        <i class="fa-solid fa-circle-question"></i> Brak ceny referencyjnej
+                    </span>
+                }
+            </div>
+        </div>
+
+        <div id="rankingOnlyArea" class="ranking-only-section">
+            <div class="ranking-info-block">
+                <div class="price-box-column-name ranking-actions-column">
+                    <div class="store-section"></div>
+
+                    <div class="ranking-actions-row">
+                        <button type="button" class="Button-Page-Small" id="detailManageBtn">
+                            <i class="fa-solid fa-sliders"></i> Zarządzaj
+                        </button>
+                        <button type="button" class="Button-Page-Small" id="presetButton" style="white-space: nowrap;" onclick="openCompetitorsModal()">
+                            <span id="activePresetDisplay">
+                                @if (!string.IsNullOrEmpty(ViewBag.ActivePresetName as string))
+                                {
+                                    @:Presety - @ViewBag.ActivePresetName
+                                }
+                                else
+                                {
+                                    @:Presety - Widok PriceSafari
+                                }
+                            </span>
+                        </button>
+                        @if (!string.IsNullOrEmpty(allegroOfferUrl))
+                        {
+                            <a href="@allegroOfferUrl" class="Button-Page-Small" target="_blank" rel="noopener noreferrer">
+                                <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:18px; height:18px; margin-right: 5px;" /> Oferta Allegro
+                            </a>
+                        }
+
+                        @if (!string.IsNullOrEmpty(automationRuleName))
+                        {
+                            var isPaused    = ViewBag.IsAutomationPaused as bool? ?? false;
+                            var statusColor = isPaused ? "#f6c23e" : (automationRuleIsActive ? "#1cc88a" : "#e74a3b");
+                            var statusLabel = isPaused ? "Zatrzymana" : (automationRuleIsActive ? "Aktywna" : "Nieaktywna");
+                            var automationDetailsUrl = Url.Action("Details", "PriceAutomation", new { id = automationRuleId });
+
+                            <span class="detail-automation-badge-v2 automation-link-btn"
+                                  data-url="@automationDetailsUrl"
+                                  data-product-id="@productId"
+                                  style="cursor: pointer;"
+                                  title="Przejdź do konfiguracji tego automatu: @statusLabel">
+                                <span class="detail-automation-color-bar" style="background-color: @automationRuleColor;"></span>
+                                <span class="detail-automation-name">@automationRuleName</span>
+                                <span class="detail-automation-sep">|</span>
+                                <span class="detail-automation-status-dot" style="background-color: @statusColor;"></span>
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="ranking-bar-chart-wrap">
+                <canvas id="priceBarChart" width="100" height="100"></canvas>
+            </div>
+        </div>
+
+        <div id="priceTableContainer" class="Vert-table" style="display: block; margin-top:6px;">
+            <table class="table-orders" id="priceTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th id="storeHeader">Sklep</th>
+                        <th>Cena</th>
+                        <th>Delta vs ref.</th>
+                        <th>Ads</th>
+                        <th>Koszt wysyłki</th>
+                        <th>Dostawa</th>
+                        <th>Smart</th>
+                        <th id="popularityHeader">Sprzedaż</th>
+                        <th>Oferta w katalogu</th>
+                        <th>Źródło</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="trendChartContainer" class="chart-view-wrap" style="display: none;">
+            <div class="chart-toolbar">
+                <div class="chart-toolbar-left">
+                    <div class="period-selector-group">
+                        <button type="button" id="switchToPriceChartBtn" class="period-btn-custom active">
+                            <i class="fas fa-dollar-sign" style="margin-right: 4px;"></i> Cena
+                        </button>
+                        <button type="button" id="switchToSalesChartBtn" class="period-btn-custom">
+                            <i class="fas fa-chart-line" style="margin-right: 4px;"></i> Sprzedaż
+                        </button>
+                        <button type="button" id="switchToVisitsChartBtn" class="period-btn-custom">
+                            <i class="fas fa-eye" style="margin-right: 4px;"></i> Wyświetlenia
+                        </button>
+                    </div>
+
+                    <div class="period-selector-group" style="margin-left: 10px;">
+                        <button type="button" class="period-btn-custom history-btn" data-days="7">7 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="14">14 Analiz</button>
+                        <button type="button" class="period-btn-custom active history-btn" data-days="30">30 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="60">60 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="90">90 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="120">120 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="240">240 Analiz</button>
+                        <button type="button" class="period-btn-custom history-btn" data-days="360">360 Analiz</button>
+                    </div>
+                </div>
+                <div class="chart-toolbar-right">
+                    <div class="chart-slider-group">
+                        <label>Linie</label>
+                        <input type="range" id="grayAlphaRange" min="0" max="0.6" step="0.01" value="0.3">
+                    </div>
+                    <div class="chart-slider-group" id="bandIntensityGroup">
+                        <label>Progi</label>
+                        <input type="range" id="bandIntensityRange" min="0.3" max="2.5" step="0.05" value="1.0">
+                    </div>
+                    <button type="button" id="exportExcelBtn" class="Button-Page-Small" title="Eksportuj dane historii cen do pliku Excel">
+                        <i class="fas fa-file-excel" style="margin-right: 5px;"></i> Excel
+                    </button>
+                </div>
+            </div>
+
+            <div class="chart-main">
+                <div class="chart-area">
+                    <div id="trendChart"></div>
+                </div>
+                <div id="customTrendTooltip" class="chart-side-panel"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_PresetyMarketPlace.cshtml")
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
+
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loader"></div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script>
+        Chart.register(window['chartjs-plugin-annotation']);
+    </script>
+
+    <script>
+        var priceHistoryPageContext = 'details';
+        var storeId = @storeId;
+        const presetTypeContext = 1;
+
+        // Producer-specific globals (od ViewBag)
+        var producerThresholds = @Html.Raw(producerThresholdsJson);
+        var isMapMode          = @Html.Raw(isMapMode ? "true" : "false");
+        var referenceSource    = '@referenceSource';
+        var refPriceCurrent    = @(referencePrice.HasValue ? referencePrice.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null");
+        var mapPriceCurrent    = @(mapPrice.HasValue ? mapPrice.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null");
+    </script>
+    <script src="~/js/member/Presets.js"></script>
+    <script src="~/js/member/MassActions.js"></script>
+
+    <script>
+        // ─────────────────────────────────────────────────────────────────────
+        // Producer bucket helpers (klient)
+        // ─────────────────────────────────────────────────────────────────────
+        function getProducerBucketForPrice(price, ref) {
+            if (!ref || ref <= 0 || price == null) return 'producer-no-reference';
+            var d  = price - ref;
+            var dp = (d / ref) * 100;
+            var t  = producerThresholds;
+            var u  = t.useAmount;
+            var v  = u ? d : dp;
+            if (v <= -(u ? t.redDarkAmt   : t.redDarkPct))   return 'producer-deep-violation';
+            if (v <= -(u ? t.redAmt       : t.redPct))       return 'producer-violation';
+            if (v <= -(u ? t.redLightAmt  : t.redLightPct))  return 'producer-minor-below';
+            if (v <  (u ? t.greenLightAmt : t.greenLightPct)) return 'producer-equal';
+            if (v <  (u ? t.greenAmt      : t.greenPct))      return 'producer-minor-above';
+            if (v <  (u ? t.greenDarkAmt  : t.greenDarkPct))  return 'producer-above';
+            return 'producer-deep-above';
+        }
+
+        var bucketBarColors = {
+            'producer-deep-violation': 'rgba(139,0,0,0.7)',
+            'producer-violation':      'rgba(220,20,60,0.7)',
+            'producer-minor-below':    'rgba(255,99,71,0.7)',
+            'producer-equal':          'rgba(65,105,225,0.7)',
+            'producer-minor-above':    'rgba(144,238,144,0.7)',
+            'producer-above':          'rgba(34,139,34,0.7)',
+            'producer-deep-above':     'rgba(0,100,0,0.7)',
+            'producer-no-reference':   'rgba(187,187,187,0.7)'
+        };
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var detailProductId = @productId;
+
+            var detailMassActions = MassActions({
+                storeId: @storeId,
+                isAllegro: true,
+                storageKey: 'massaction_detail_allegro_@(storeId)',
+                flags: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(flags.Select(f => new { flagId = f.FlagId, flagName = f.FlagName, flagColor = f.FlagColor }))),
+
+                getAllPrices: function () {
+                    return [{
+                        productId: detailProductId,
+                        productName: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(productName))
+                    }];
+                },
+                getFilteredPrices: function () {
+                    return [{
+                        productId: detailProductId,
+                        productName: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(productName))
+                    }];
+                },
+                getProductIdentifier: function () {
+                    var eanVal = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ean ?? ""));
+                    return { label: 'EAN', value: eanVal };
+                },
+
+                showLoading: function () {
+                    var el = document.getElementById('loadingOverlay');
+                    if (el) el.style.display = 'flex';
+                },
+                hideLoading: function () {
+                    var el = document.getElementById('loadingOverlay');
+                    if (el) el.style.display = 'none';
+                },
+                showGlobalUpdate: function () {},
+                showGlobalNotification: function (msg) { alert('Błąd: ' + msg); },
+
+                onFlagsUpdated: function () { location.reload(); },
+                onAutomationsUpdated: function () { location.reload(); }
+            });
+
+            detailMassActions.init();
+
+            var manageBtn = document.getElementById('detailManageBtn');
+            if (manageBtn) {
+                manageBtn.addEventListener('click', function () {
+                    detailMassActions.clearSelection();
+                    detailMassActions.addProduct(detailProductId);
+                    detailMassActions.updateSelectionUI();
+                    $('#selectedProductsModal').modal('show');
+                });
+            }
+        });
+    </script>
+
+    <script>
+        // ─────────────────────────────────────────────────────────────────────
+        // TABELA + BAR CHART (Ranking view)
+        // ─────────────────────────────────────────────────────────────────────
+        let echartsTrendChart = null;
+        let currentTimelineData = null;
+        let originalChartData = null;
+        let producerChartData = null;
+        let producerRefByDate = {};
+        let currentChartOptions = null;
+        let lastHoverParams = null;
+        let showOnlyCheapest = false;
+        let highlightedStores = [];
+        let storeColorMap = {};
+        let lastHighlightedStore = null;
+        let hiddenStores = [];
+        let salesChartMode = 'offers';
+        let visitsChartMode = 'offers';
+        let currentHistoryLimit = 30;
+        let mainOfferId = null;
+        let bandIntensity = 1.0;
+
+        // Kolory podświetleń
+        const highlightColors = [
+            'rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)',
+            'rgba(255, 99, 132, 1)', 'rgba(0, 150, 136, 1)', 'rgba(201, 203, 207, 1)',
+            'rgba(121, 85, 72, 1)', 'rgba(139, 195, 74, 1)', 'rgba(0, 188, 212, 1)',
+            'rgba(233, 30, 99, 1)'
+        ];
+        const myMainOfferColor  = 'rgba(255, 100, 0, 1)';
+        const myOtherOfferColor = 'rgba(255, 159, 64, 0.7)';
+        const mapRefColor       = 'rgba(65, 105, 225, 1)';
+        const defaultGrayColor  = 'rgba(0, 0, 0, {alpha})';
+        const DEFAULT_MARKER_SOLID = 'rgba(34,34,34,0.9)';
+        const visitsLineColor   = 'rgba(124, 77, 255, 1)';
+        const visitsMainColor   = 'rgba(124, 77, 255, 1)';
+        const visitsOtherColor  = 'rgba(124, 77, 255, 0.45)';
+
+        const UNIFORM_LINE_WIDTH = 2.3;
+        const UNIFORM_EMPHASIS_LINE_WIDTH = 2.3;
+        let defaultGrayAlpha = 0.3;
+        const defaultCustomTooltipContent = 'Najedź na punkt na wykresie...';
+        let currentChartType = 'price';
+
+        // ── BANDS / BOUNDARIES (jak w DetailsProducer Ceneo/Google) ──
+        var BAND_DEFS = [
+            { r: 139, g: 0,   b: 0,   baseA: 0.22, label: 'Drastyczne naruszenie' },
+            { r: 220, g: 20,  b: 60,  baseA: 0.20, label: 'Naruszenie' },
+            { r: 255, g: 99,  b: 71,  baseA: 0.18, label: 'Lekko poniżej' },
+            { r: 65,  g: 105, b: 225, baseA: 0.15, label: 'Cena zgodna' },
+            { r: 144, g: 238, b: 144, baseA: 0.20, label: 'Lekko powyżej' },
+            { r: 34,  g: 139, b: 34,  baseA: 0.22, label: 'Powyżej' },
+            { r: 0,   g: 100, b: 0,   baseA: 0.20, label: 'Mocno powyżej' }
+        ];
+
+        function bandColor(idx) {
+            var d = BAND_DEFS[idx];
+            var a = Math.min(1, d.baseA * bandIntensity);
+            return 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + a.toFixed(3) + ')';
+        }
+        function boundaryLineColor(idx) {
+            var d = BAND_DEFS[idx];
+            var a = Math.min(0.9, 0.35 * bandIntensity);
+            return 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + a.toFixed(3) + ')';
+        }
+
+        function calcBoundaries(ref, t) {
+            if (!ref || ref <= 0) return null;
+            var u = t.useAmount;
+            function off(v, dir) { return u ? (dir > 0 ? v : -v) : ref * (dir > 0 ? v / 100 : -v / 100); }
+            var rdk = u ? t.redDarkAmt    : t.redDarkPct;
+            var rk  = u ? t.redAmt        : t.redPct;
+            var rlk = u ? t.redLightAmt   : t.redLightPct;
+            var glk = u ? t.greenLightAmt : t.greenLightPct;
+            var gk  = u ? t.greenAmt      : t.greenPct;
+            var gdk = u ? t.greenDarkAmt  : t.greenDarkPct;
+            return [
+                0,
+                ref + off(rdk, -1),
+                ref + off(rk,  -1),
+                ref + off(rlk, -1),
+                ref + off(glk,  1),
+                ref + off(gk,   1),
+                ref + off(gdk,  1),
+                999999
+            ];
+        }
+
+        function buildBandSeries(allDates, refPrices) {
+            var series = [];
+            for (var i = 0; i < 7; i++) {
+                (function (i) {
+                    var data = allDates.map(function (_, di) {
+                        var b = calcBoundaries(refPrices[di], producerThresholds);
+                        if (!b) return null;
+                        return i === 0 ? Math.max(0, b[1]) : Math.max(0, b[i + 1] - b[i]);
+                    });
+                    series.push({
+                        name:      '_band_' + i,
+                        type:      'line',
+                        stack:     'bands',
+                        data:      data,
+                        lineStyle: { width: 0, color: 'transparent' },
+                        itemStyle: { color: 'transparent' },
+                        areaStyle: { color: bandColor(i), opacity: 1 },
+                        symbol:    'none',
+                        silent:    true,
+                        z:         0,
+                        tooltip:   { show: false }
+                    });
+                })(i);
+            }
+            return series;
+        }
+
+        function buildBoundaryLineSeries(allDates, refPrices) {
+            var series = [];
+            var boundaryLabels = [
+                { idx: 1, bandIdx: 0 }, { idx: 2, bandIdx: 1 }, { idx: 3, bandIdx: 2 },
+                { idx: 4, bandIdx: 4 }, { idx: 5, bandIdx: 5 }, { idx: 6, bandIdx: 6 }
+            ];
+            boundaryLabels.forEach(function (bl) {
+                var data = allDates.map(function (_, di) {
+                    var b = calcBoundaries(refPrices[di], producerThresholds);
+                    return b ? b[bl.idx] : null;
+                });
+                series.push({
+                    name:      '_bline_' + bl.idx,
+                    type:      'line',
+                    data:      data,
+                    lineStyle: { width: 1, color: boundaryLineColor(bl.bandIdx), type: 'dashed' },
+                    itemStyle: { color: 'transparent' },
+                    symbol:    'none',
+                    silent:    true,
+                    z:         1,
+                    tooltip:   { show: false }
+                });
+            });
+            return series;
+        }
+
+        function buildMapRefLine(allDates, refPrices) {
+            return {
+                name: 'Cena MAP',
+                type: 'line',
+                data: refPrices.map(function (rp) { return { value: rp, source: 'map' }; }),
+                lineStyle: { color: mapRefColor, width: 2.5, type: 'dashed' },
+                itemStyle: { color: mapRefColor },
+                symbol: 'circle',
+                symbolSize: 6,
+                showSymbol: false,
+                connectNulls: false,
+                smooth: 0.30,
+                z: 5,
+                emphasis: {
+                    lineStyle: { width: 3 },
+                    itemStyle: { color: mapRefColor, borderColor: '#fff', borderWidth: 1 }
+                }
+            };
+        }
+
+        function toggleStoreHighlight(storeName) {
+            if (!echartsTrendChart || !currentTimelineData) return;
+            let sLower = storeName.toLowerCase().trim();
+            let idx = highlightedStores.indexOf(sLower);
+
+            function findNextFreeColorIndex() {
+                for (let i = 0; i < highlightColors.length; i++) {
+                    if (!Object.values(storeColorMap).includes(i)) return i;
+                }
+                return null;
+            }
+
+            if (idx >= 0) {
+                highlightedStores.splice(idx, 1);
+                delete storeColorMap[sLower];
+                if (lastHighlightedStore === sLower) {
+                    lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null;
+                }
+            } else {
+                if (sLower === "@storeName".toLowerCase().trim()) {
+                    lastHighlightedStore = sLower;
+                } else if (highlightedStores.length >= highlightColors.length) {
+                    alert(`Możesz zaznaczyć maks. ${highlightColors.length} sklepów do porównania `);
+                    return;
+                } else {
+                    let cIndex = findNextFreeColorIndex();
+                    if (cIndex === null) { alert("Brak wolnych kolorów do podświetlenia!"); return; }
+                    if (!highlightedStores.includes(sLower)) highlightedStores.push(sLower);
+                    storeColorMap[sLower] = cIndex;
+                    lastHighlightedStore = sLower;
+                }
+            }
+
+            updateEchartsStylesAndZ();
+            if (lastHoverParams) {
+                const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
+                if (updatedPanelHtml) updateCustomTooltipPanel(updatedPanelHtml);
+            }
+        }
+
+        function setCheapestMode(mode) {
+            const currentChartTypeNow = document.getElementById('switchToPriceChartBtn').classList.contains('active') ? 'price' : 'sales';
+            if (showOnlyCheapest === mode && currentChartTypeNow === 'price') return;
+            showOnlyCheapest = mode;
+            if (originalChartData) {
+                displayCurrentTrendChart();
+                if (echartsTrendChart && lastHoverParams) {
+                    setTimeout(() => {
+                        const opt = echartsTrendChart.getOption();
+                        if (opt && opt.xAxis && opt.xAxis[0].data) {
+                            const idx = opt.xAxis[0].data.indexOf(lastHoverParams[0].axisValue);
+                            if (idx > -1) {
+                                echartsTrendChart.dispatchAction({ type: 'showTip', xAxisIndex: 0, dataIndex: idx });
+                            }
+                        }
+                    }, 100);
+                }
+            }
+        }
+
+        function hideStoreFromChart(storeName) {
+            if (!echartsTrendChart || !currentTimelineData) return;
+            const storeLower = storeName.toLowerCase().trim();
+            if (!hiddenStores.includes(storeLower)) hiddenStores.push(storeLower);
+
+            const highlightedIndex = highlightedStores.indexOf(storeLower);
+            if (highlightedIndex > -1) {
+                highlightedStores.splice(highlightedIndex, 1);
+                delete storeColorMap[storeLower];
+                if (lastHighlightedStore === storeLower) {
+                    lastHighlightedStore = highlightedStores.length > 0 ? highlightedStores[highlightedStores.length - 1] : null;
+                }
+            }
+
+            updateEchartsStylesAndZ();
+            const newYAxisRange = recalculateYAxisRange();
+            if (newYAxisRange && currentChartOptions && currentChartOptions.yAxis) {
+                currentChartOptions.yAxis.min = newYAxisRange.min;
+                currentChartOptions.yAxis.max = newYAxisRange.max;
+                echartsTrendChart.setOption({ yAxis: { min: newYAxisRange.min, max: newYAxisRange.max } });
+            }
+            if (lastHoverParams) {
+                const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
+                updateCustomTooltipPanel(updatedPanelHtml || 'Najedź na punkt na wykresie...');
+            }
+        }
+
+        function setSalesChartMode(mode) {
+            if (salesChartMode === mode) return;
+            salesChartMode = mode;
+            if (originalChartData) {
+                displayCurrentTrendChart();
+                if (echartsTrendChart && lastHoverParams) {
+                    setTimeout(() => {
+                        const opt = echartsTrendChart.getOption();
+                        if (opt && opt.xAxis && opt.xAxis[0].data) {
+                            const idx = opt.xAxis[0].data.indexOf(lastHoverParams[0].axisValue);
+                            if (idx > -1) {
+                                echartsTrendChart.dispatchAction({ type: 'showTip', xAxisIndex: 0, dataIndex: idx });
+                            }
+                        }
+                    }, 100);
+                }
+            }
+        }
+
+        function setVisitsChartMode(mode) {
+            if (visitsChartMode === mode) return;
+            visitsChartMode = mode;
+            if (originalChartData) {
+                displayCurrentTrendChart();
+                if (echartsTrendChart && lastHoverParams) {
+                    setTimeout(() => {
+                        const opt = echartsTrendChart.getOption();
+                        if (opt && opt.xAxis && opt.xAxis[0].data) {
+                            const idx = opt.xAxis[0].data.indexOf(lastHoverParams[0].axisValue);
+                            if (idx > -1) {
+                                echartsTrendChart.dispatchAction({ type: 'showTip', xAxisIndex: 0, dataIndex: idx });
+                            }
+                        }
+                    }, 100);
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // RANKING — pobranie ofert, render tabeli + bar chart
+        // ─────────────────────────────────────────────────────────────────────
+        document.addEventListener("DOMContentLoaded", function () {
+            const myStoreName = "@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(storeName))";
+            const sId = @storeId;
+            const productId = @productId;
+            let barChartInstance = null;
+            const myStoreLower = myStoreName ? myStoreName.toLowerCase().trim() : '';
+            const loadingOverlay = document.getElementById('loadingOverlay');
+
+            function renderDeliveryInfo(deliveryTime) {
+                if (deliveryTime === null || deliveryTime === undefined) return '<div class="Delivery3">Brak danych</div>';
+                let text = '', className = '';
+                if (deliveryTime === 0)      { text = 'Wysyłka natychmiast'; className = 'Delivery1'; }
+                else if (deliveryTime === 1) { text = 'Jutro';               className = 'Delivery1'; }
+                else if (deliveryTime === 2) { text = 'Pojutrze';            className = 'Delivery2'; }
+                else                         { text = `Dostawa za ${deliveryTime} dni`; className = 'Delivery3'; }
+                return `<div class="${className}">${text}</div>`;
+            }
+
+            function renderShippingCost(cost) {
+                if (cost === null || cost === undefined) return '<span>-</span>';
+                if (cost === 0) return `<div class="FreeShipping">Darmowa</div>`;
+                return `<div class="PaidShipping">${cost.toFixed(2)} PLN</div>`;
+            }
+
+            // Bucket dla wiersza: w MAP mode — wszystkie oferty są oceniane vs MAP.
+            // W StorePrice mode — własne oferty traktujemy specjalnie:
+            //   * oferta będąca referencją (najtańsza nasza) → "equal"
+            //   * inne nasze → pokazujemy bucket vs cena referencyjna (czyli vs naszą najtańszą)
+            //   * konkurencja → bucket vs naszą najtańszą
+            function getRowBucket(item, isMyStore, isReferenceOffer) {
+                if (!refPriceCurrent || refPriceCurrent <= 0) return 'producer-no-reference';
+                if (isReferenceOffer) return 'producer-equal';
+                return getProducerBucketForPrice(item.price, refPriceCurrent);
+            }
+
+            function renderTable(offersData, totalPopularity, setPrice1, setPrice2, referenceOfferIdAllegro) {
+                const tbody = document.querySelector("#priceTable tbody");
+                tbody.innerHTML = '';
+
+                document.getElementById('storeHeader').textContent = `Sklep (${offersData.length})`;
+                document.getElementById('popularityHeader').textContent = `Kupiło ${totalPopularity} osb.`;
+
+                offersData.forEach(item => {
+                    const isMyStore = item.sellerName.toLowerCase().trim() === myStoreLower;
+                    const isReferenceOffer = isMyStore && !isMapMode && referenceOfferIdAllegro && item.idAllegro === referenceOfferIdAllegro;
+                    const bucket = getRowBucket(item, isMyStore, isReferenceOffer);
+
+                    // Delta vs reference
+                    let deltaHtml;
+                    let badgeBgClass = 'producer-bg-' + bucket.replace('producer-', '');
+                    if (badgeBgClass === 'producer-bg-no-reference') badgeBgClass = 'producer-bg-no-reference';
+
+                    if (refPriceCurrent && refPriceCurrent > 0 && !isReferenceOffer) {
+                        const deltaAbs = item.price - refPriceCurrent;
+                        const deltaPct = (deltaAbs / refPriceCurrent) * 100;
+                        const s  = deltaAbs >= 0 ? '+' : '';
+                        const sp = deltaPct >= 0 ? '+' : '';
+                        deltaHtml = `<span class="producer-delta-badge ${badgeBgClass}">${s}${deltaAbs.toFixed(2)} PLN (${sp}${deltaPct.toFixed(2)}%)</span>`;
+                    } else if (isReferenceOffer) {
+                        deltaHtml = `<span style="font-size:11px; color:#3b5bdb; font-weight:600;">REF</span>`;
+                    } else {
+                        deltaHtml = `<span style="color:#bbb;font-size:12px;">—</span>`;
+                    }
+
+                    const tr = document.createElement('tr');
+                    tr.className = `price-row ${bucket}`;
+
+                    const storeNameStyle = isMyStore ? 'font-weight: bold;' : '';
+                    const marketShare = (totalPopularity > 0 && item.popularity) ? (item.popularity / totalPopularity) * 100 : 0;
+                    let popularityHtml = item.popularity > 0 ? `<div style="${storeNameStyle}">${item.popularity} osb. <span style="font-size: 12px; color: #666;">(${marketShare.toFixed(2)}%)</span></div>` : '<span>-</span>';
+                    const priceStyle = item.isBestPriceGuarantee ? 'color: #169A23;' : '';
+                    const bestPriceIcon  = item.isBestPriceGuarantee ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px;">` : '';
+                    const topOfferBadge  = item.topOffer ? `<div class="TopOffer" style="display: inline-block; margin-left: 5px; vertical-align: middle;">Top oferta</div>` : '';
+                    const superPriceBadge = item.superPrice ? `<div class="SuperPrice" style="display: inline-block; margin-left: 5px; vertical-align: middle;">SUPERCENA</div>` : '';
+                    let boostHtml = (item.promoted ? '<div class="PromoInfo">Promowana</div>' : (item.sponsored ? '<div class="PromoInfo">Sponsorowana</div>' : '<span>-</span>'));
+
+                    let navigationHtml = '';
+                    if (isMyStore) {
+                        if (item.targetProductId === productId) {
+                            navigationHtml = `<strong>Oglądana</strong>`;
+                        } else if (item.targetProductId) {
+                            const detailsUrl = `/AllegroPriceHistory/Details?storeId=${sId}&productId=${item.targetProductId}`;
+                            navigationHtml = `<a href="${detailsUrl}" class="Button-Page-Small">Przejdź</a>`;
+                        }
+                    }
+
+                    let refBadge = '';
+                    if (isReferenceOffer) {
+                        refBadge = `<span style="font-size:10px;padding:1px 5px;border-radius:3px;background:#e0e7ff;color:#3b5bdb;font-weight:500;margin-left:4px;vertical-align:middle;">REF</span>`;
+                    }
+
+                    tr.innerHTML = `
+                        <td><div class="color-bar ${bucket}"></div></td>
+                        <td class="store-name" style="${storeNameStyle}">
+                            ${item.sellerName}
+                            ${item.superSeller ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 18px; height: 18px; vertical-align: middle; margin-left: 5px;">` : ''}
+                            ${(item.ratingPositivePercent != null || item.ratingCount != null) ? `<div style="font-size: 11px; color: #888; font-weight: normal; margin-top: 2px;">${item.ratingPositivePercent != null ? `Poleca: ${item.ratingPositivePercent}%` : ''}${item.ratingPositivePercent != null && item.ratingCount != null ? ' · ' : ''}${item.ratingCount != null ? `Ocen: ${item.ratingCount.toLocaleString('pl-PL')}` : ''}</div>` : ''}
+                        </td>
+                        <td class="store-price" style="${storeNameStyle} ${priceStyle}">
+                            ${item.price.toFixed(2)} PLN ${refBadge} ${bestPriceIcon} ${topOfferBadge} ${superPriceBadge}
+                        </td>
+                        <td>${deltaHtml}</td>
+                        <td>${boostHtml}</td>
+                        <td>${renderShippingCost(item.deliveryCost)}</td>
+                        <td>${renderDeliveryInfo(item.deliveryTime)}</td>
+                        <td>${item.smart ? `<div class="Smart-Allegro"><img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto;"></div>` : '<span>-</span>'}</td>
+                        <td>${popularityHtml}</td>
+                        <td>${navigationHtml}</td>
+                        <td class="data-chanel">
+                            <img src="/images/AllegroIcon.png" alt="Allegro Icon" style="width:24px; height:24px;" />
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            function drawBarChart(allOffersData, referenceOfferIdAllegro) {
+                const ctx = document.getElementById('priceBarChart');
+                if (!ctx) return;
+                if (barChartInstance) barChartInstance.destroy();
+
+                const reversedData = [...allOffersData].reverse();
+
+                const barColors = reversedData.map(item => {
+                    const isMyStore = item.sellerName.toLowerCase().trim() === myStoreLower;
+                    const isReferenceOffer = isMyStore && !isMapMode && referenceOfferIdAllegro && item.idAllegro === referenceOfferIdAllegro;
+                    if (isReferenceOffer) return bucketBarColors['producer-equal'];
+                    const bucket = getProducerBucketForPrice(item.price, refPriceCurrent);
+                    return bucketBarColors[bucket] || 'rgba(34, 34, 34, 0.4)';
+                });
+
+                const borderColors = barColors.map(c => c.replace(/[\d.]+\)$/, '1)'));
+
+                // Linia referencyjna jako annotation
+                var annotations = {};
+                if (refPriceCurrent && refPriceCurrent > 0) {
+                    annotations.refLine = {
+                        type: 'line',
+                        yMin: refPriceCurrent,
+                        yMax: refPriceCurrent,
+                        borderColor: 'rgba(65,105,225,0.8)',
+                        borderWidth: 2,
+                        borderDash: [6, 3],
+                        label: {
+                            display: true,
+                            content: (isMapMode ? 'MAP ' : 'REF ') + refPriceCurrent.toFixed(2),
+                            position: 'start',
+                            backgroundColor: 'rgba(65,105,225,0.85)',
+                            color: '#fff',
+                            font: { size: 10 }
+                        }
+                    };
+                }
+
+                barChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: reversedData.map(item => item.sellerName),
+                        datasets: [{
+                            label: 'Cena PLN',
+                            data: reversedData.map(item => item.price),
+                            backgroundColor: barColors,
+                            borderColor: borderColors,
+                            borderWidth: 2,
+                            borderRadius: 2
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: { display: false },
+                            annotation: { annotations: annotations }
+                        },
+                        scales: {
+                            y: { beginAtZero: false, ticks: { display: false } },
+                            x: { display: false }
+                        }
+                    }
+                });
+            }
+
+            function updateLastScrapeDate(dateStr) {
+                const info = document.getElementById('lastScrapeInfo');
+                if (info && dateStr) {
+                    const date = new Date(dateStr);
+                    info.innerHTML = `<p><strong>Wykonano</strong>&nbsp;${date.toLocaleDateString('pl-PL', { year: 'numeric', month: '2-digit', day: '2-digit' })}</p>`;
+                }
+            }
+
+            function showLoadingState() {
+                if (loadingOverlay) loadingOverlay.style.display = 'flex';
+                const tbody = document.querySelector("#priceTable tbody");
+                if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 40px;">Ładowanie danych...</td></tr>';
+            }
+
+            function showEmptyState() {
+                if (loadingOverlay) loadingOverlay.style.display = 'none';
+                const tbody = document.querySelector("#priceTable tbody");
+                if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 40px;">Brak ofert do wyświetlenia.</td></tr>';
+                const chartParent = document.getElementById('priceBarChart');
+                if (chartParent && chartParent.parentElement) chartParent.parentElement.innerHTML = '<div style="text-align:center; padding: 40px;">Brak danych do wykresu.</div>';
+            }
+
+            showLoadingState();
+
+            const scrapIdStr = '@(ViewBag.ScrapId != null ? ViewBag.ScrapId.ToString() : "")';
+            let fetchUrl = `/AllegroPriceHistory/GetProductPriceDetails?storeId=${sId}&productId=${productId}`;
+            if (scrapIdStr) fetchUrl += `&scrapId=${scrapIdStr}`;
+
+            fetch(fetchUrl)
+                .then(response => response.ok ? response.json() : Promise.reject('Błąd sieci'))
+                .then(result => {
+                    if (loadingOverlay) loadingOverlay.style.display = 'none';
+                    let offers = result?.data ?? [];
+
+                    mainOfferId = result?.mainOfferId || null;
+
+                    const presetDisplay = document.getElementById('activePresetDisplay');
+                    if (presetDisplay) {
+                        presetDisplay.textContent = result.activePresetName
+                            ? 'Presety - ' + result.activePresetName
+                            : 'Presety - Widok PriceSafari';
+                    }
+
+                    if (offers.length > 0) {
+                        // Sortowanie po cenie rosnąco
+                        offers.sort((a, b) => {
+                            if (a.price !== b.price) return a.price - b.price;
+                            return a.sellerName.localeCompare(b.sellerName);
+                        });
+
+                        // W StorePrice mode: identyfikujemy referencyjną ofertę (najtańsza nasza w tym katalogu)
+                        let referenceOfferIdAllegro = null;
+                        if (!isMapMode) {
+                            const myOffers = offers.filter(o => o.sellerName.toLowerCase().trim() === myStoreLower);
+                            if (myOffers.length > 0) {
+                                const cheapestMine = myOffers.reduce((a, b) => a.price < b.price ? a : b);
+                                referenceOfferIdAllegro = cheapestMine.idAllegro;
+                            }
+                        }
+
+                        renderTable(offers, result.totalProductPopularity, result.setPrice1, result.setPrice2, referenceOfferIdAllegro);
+                        drawBarChart(offers, referenceOfferIdAllegro);
+                        updateLastScrapeDate(result.lastScrapeDate);
+                    } else {
+                        showEmptyState();
+                    }
+                })
+                .catch(() => showEmptyState());
+        });
+    </script>
+
+    <script>
+        // ─────────────────────────────────────────────────────────────────────
+        // CHART (ECharts) — 3 zakładki: Cena (z pasami producenta), Sprzedaż, Wyświetlenia
+        // ─────────────────────────────────────────────────────────────────────
+        document.addEventListener("DOMContentLoaded", function () {
+            const myStoreLower = "@storeName".toLowerCase().trim();
+            const productId    = @productId;
+
+            window.updateEchartsStylesAndZ = updateEchartsStylesAndZ;
+            window.recalculateYAxisRange = recalculateYAxisRange;
+            window.generateTooltipPanelHtml = generateTooltipPanelHtml;
+            window.updateCustomTooltipPanel = updateCustomTooltipPanel;
+            window.displayCurrentTrendChart = displayCurrentTrendChart;
+
+            function updateCustomTooltipPanel(htmlContent) {
+                const panelDiv = document.getElementById('customTrendTooltip');
+                if (panelDiv) panelDiv.innerHTML = htmlContent || defaultCustomTooltipContent;
+            }
+
+            function recalculateYAxisRange() {
+                if (!currentChartOptions || !currentChartOptions.series) return null;
+                let minVal = Infinity, maxVal = -Infinity;
+                const dataType = currentChartType;
+
+                currentChartOptions.series.forEach(series => {
+                    if (series.name && (series.name.startsWith('_band_') || series.name.startsWith('_bline_'))) return;
+                    if (dataType === 'sales' && series.name === 'Sprzedaż w katalogu') return;
+                    if (!hiddenStores.includes(series.name.toLowerCase().trim())) {
+                        series.data.forEach(dp => {
+                            const v = (dp && typeof dp === 'object') ? dp.value : dp;
+                            if (v != null) {
+                                minVal = Math.min(minVal, v);
+                                maxVal = Math.max(maxVal, v);
+                            }
+                        });
+                    }
+                });
+
+                if (!isFinite(minVal)) return { min: 0, max: dataType === 'sales' ? 10 : 100 };
+                const padding = (maxVal - minVal) * 0.05 || (dataType === 'sales' ? 2 : 5);
+                return { min: dataType === 'sales' ? 0 : Math.max(0, minVal - padding), max: maxVal + padding };
+            }
+
+            // W trybie producenta MAP — w MAP nie ma "własnego" akcentowania (nasze konto jest jak każde inne).
+            // W trybie StorePrice — nasze oferty mają specjalny kolor (pomarańcz), główna jeszcze mocniejsza.
+            function getSeriesStyleAndZ(storeNameLower, offerId) {
+                if (hiddenStores.includes(storeNameLower)) {
+                    return { lineStyle: { color: 'transparent', width: 0 }, itemStyle: { color: 'transparent' }, markerColor: 'transparent', z: 0 };
+                }
+
+                const isMyStore = storeNameLower === myStoreLower;
+                const isHighlighted = highlightedStores.includes(storeNameLower);
+                const isMainOffer = !isMapMode && isMyStore && (
+                    (salesChartMode === 'combined' && currentChartType === 'sales') ||
+                    (offerId && offerId === mainOfferId)
+                );
+
+                let style = { lineStyle: { width: UNIFORM_LINE_WIDTH }, itemStyle: {}, areaStyle: null, markerColor: DEFAULT_MARKER_SOLID, z: 1 };
+
+                if (isMainOffer) {
+                    style.lineStyle.color = myMainOfferColor;
+                    style.itemStyle.color = myMainOfferColor;
+                    style.markerColor = myMainOfferColor;
+                    style.z = 5;
+                } else if (!isMapMode && isMyStore) {
+                    style.lineStyle.color = myOtherOfferColor;
+                    style.itemStyle.color = myOtherOfferColor;
+                    style.markerColor = myOtherOfferColor;
+                    style.z = 4;
+                } else if (isHighlighted) {
+                    const colorIndex = storeColorMap[storeNameLower];
+                    if (colorIndex != null) {
+                        const color = highlightColors[colorIndex];
+                        style.lineStyle.color = color;
+                        style.itemStyle.color = color;
+                        style.markerColor = color;
+                        style.z = storeNameLower === lastHighlightedStore ? 3 : 2;
+                    }
+                } else {
+                    const gray = defaultGrayColor.replace('{alpha}', defaultGrayAlpha);
+                    style.lineStyle.color = gray;
+                    style.itemStyle.color = gray;
+                }
+
+                if (currentChartType === 'sales' && (isMyStore || isHighlighted)) {
+                    style.areaStyle = { color: style.lineStyle.color, opacity: 0.2 };
+                }
+                return style;
+            }
+
+            function generateTooltipPanelHtml(params) {
+                if (!params || params.length === 0 || !params[0].axisValue) return defaultCustomTooltipContent;
+                if (currentChartType === 'visits') return generateVisitsTooltipHtml(params);
+                return currentChartType === 'price' ? generatePriceTooltipHtml(params) : generateSalesTooltipHtml(params);
+            }
+
+            function generatePriceTooltipHtml(params) {
+                const date = params[0].axisValue;
+                const formattedDate = new Date(date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                let items = [];
+                let refPriceForDate = producerRefByDate[date];
+
+                params.forEach(p => {
+                    if (p.seriesName && (p.seriesName.startsWith('_band_') || p.seriesName.startsWith('_bline_'))) return;
+                    if (p.seriesName === 'Cena MAP') {
+                        items.push({
+                            storeName: 'Cena MAP',
+                            price: p.value,
+                            _markerColor: mapRefColor,
+                            isMapRef: true
+                        });
+                        return;
+                    }
+                    if (p.data && p.data.originalOffer && !hiddenStores.includes(p.seriesName.toLowerCase().trim())) {
+                        items.push({ ...p.data.originalOffer, _markerColor: p.color });
+                    }
+                });
+
+                items.sort((a, b) => a.price - b.price);
+
+                let html = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-weight:bold;">${formattedDate}</div>
+                        <div class="period-selector-group">
+                            <button class="period-btn-custom ${!showOnlyCheapest ? 'active' : ''}" onclick="setCheapestMode(false)" style="font-size: 10px; padding: 4px 8px;">Wszystkie</button>
+                            <button class="period-btn-custom ${showOnlyCheapest ? 'active' : ''}" onclick="setCheapestMode(true)" style="font-size: 10px; padding: 4px 8px;">Najtańsze</button>
+                        </div>
+                    </div>
+                `;
+
+                if (refPriceForDate) {
+                    const refLabel = isMapMode ? 'Cena MAP' : 'Cena ze sklepu (ref.)';
+                    html += `<div style="padding:4px 0;margin-bottom:8px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;"><strong>${refLabel}:</strong><strong style="color:${mapRefColor};">${refPriceForDate.toFixed(2)} PLN</strong></div>`;
+                }
+
+                if (items.length > 0) {
+                    html += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
+                    items.forEach(item => {
+                        if (item.isMapRef) {
+                            html += `
+                                <tr style="border-bottom:1px solid #eee;">
+                                    <td style="padding:3px 2px;color:${mapRefColor};font-weight:bold;white-space:nowrap;">
+                                        <span style="display:inline-block;margin-right:5px;width:10px;height:10px;border-radius:50%;background-color:${mapRefColor};vertical-align:middle;"></span>
+                                        <i class="fa-solid fa-bullseye" style="color:${mapRefColor};margin-right:4px;"></i>
+                                        Cena MAP
+                                    </td>
+                                    <td style="padding:3px 2px;text-align:right;color:${mapRefColor};font-weight:bold;white-space:nowrap;">
+                                        ${item.price.toFixed(2)} PLN
+                                    </td>
+                                </tr>
+                            `;
+                            return;
+                        }
+
+                        const sLower = item.storeName.toLowerCase().trim();
+                        let cText = 'rgba(50,50,50,1)', fWeight = 'normal';
+
+                        if (!isMapMode && sLower === myStoreLower) {
+                            cText = item.idAllegro === mainOfferId ? myMainOfferColor : myOtherOfferColor;
+                            fWeight = 'bold';
+                        } else if (highlightedStores.includes(sLower) && storeColorMap[sLower] != null) {
+                            cText = highlightColors[storeColorMap[sLower]];
+                            fWeight = 'bold';
+                        }
+
+                        // Wartość bucketu vs cena referencyjna z tego dnia
+                        let bucketBadge = '';
+                        if (refPriceForDate && refPriceForDate > 0) {
+                            const b = getProducerBucketForPrice(item.price, refPriceForDate);
+                            const bgCls = 'producer-bg-' + b.replace('producer-', '');
+                            const da = item.price - refPriceForDate;
+                            const dp = (da / refPriceForDate) * 100;
+                            const s  = da >= 0 ? '+' : '';
+                            const sp = dp >= 0 ? '+' : '';
+                            bucketBadge = `<span class="producer-delta-badge ${bgCls}" style="font-size:9px;padding:1px 4px;margin-right:4px;">${s}${da.toFixed(2)} (${sp}${dp.toFixed(2)}%)</span>`;
+                        }
+
+                        let badges = '';
+                        if (item.isBestPriceGuarantee) badges += ` <img src="/images/TopPrice.png" title="GNC" style="height: 16px; vertical-align: middle;">`;
+                        if (item.topOffer)   badges += ` <div class="TopOffer" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Top</div>`;
+                        if (item.superPrice) badges += ` <div class="SuperPrice" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Super</div>`;
+
+                        const escName = item.storeName.replace(/'/g, "\\'");
+                        html += `
+                            <tr style="border-bottom:1px solid #eee; cursor:pointer;" onclick="event.stopPropagation(); toggleStoreHighlight('${escName}');">
+                                <td style="padding:3px 2px;color:${cText};font-weight:${fWeight};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${item.storeName}">
+                                    <span style="display:inline-block;margin-right:5px;width:10px;height:10px;border-radius:50%;background-color:${item._markerColor};vertical-align:middle;"></span>
+                                    <img src="/images/AllegroIcon.png" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"/>
+                                    ${item.storeName.length > 20 ? item.storeName.substring(0,17)+'...' : item.storeName}
+                                </td>
+                                <td style="padding:3px 2px;text-align:right;color:${cText};font-weight:${fWeight};white-space:nowrap;">
+                                    ${bucketBadge}${badges}
+                                    <span style="vertical-align:middle; margin-left: 4px;">${item.price.toFixed(2)} PLN</span>
+                                    <span title="Ukryj sklep '${escName}'" style="cursor:pointer;color:#aaa;margin-left:8px;font-weight:bold;" onmouseover="this.style.color='red'" onmouseout="this.style.color='#aaa'" onclick="event.stopPropagation();hideStoreFromChart('${escName}');">&times;</span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    html += `</table>`;
+                } else {
+                    html += `<div style="color: #666; font-style: italic;">Brak danych do wyświetlenia.</div>`;
+                }
+                return html;
+            }
+
+            function generateSalesTooltipHtml(params) {
+                const date = params[0].axisValue;
+                const formattedDate = new Date(date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                let items = [], totalSales = 0;
+
+                params.forEach(p => {
+                    if (p.seriesName === 'Sprzedaż w katalogu') {
+                        totalSales = p.value;
+                    } else if (p.data && p.data.originalOffer && !hiddenStores.includes(p.seriesName.toLowerCase().trim())) {
+                        items.push({ ...p.data.originalOffer, _markerColor: p.color });
+                    }
+                });
+
+                items.sort((a, b) => {
+                    if (b.sales !== a.sales) return b.sales - a.sales;
+                    return a.storeName.localeCompare(b.storeName);
+                });
+
+                let html = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-weight:bold;">${formattedDate}</div>
+                        <div class="period-selector-group">
+                            <button class="period-btn-custom ${salesChartMode === 'offers' ? 'active' : ''}" onclick="setSalesChartMode('offers')" style="font-size: 10px; padding: 4px 8px;">Oferty</button>
+                            <button class="period-btn-custom ${salesChartMode === 'combined' ? 'active' : ''}" onclick="setSalesChartMode('combined')" style="font-size: 10px; padding: 4px 8px;">Łącznie</button>
+                        </div>
+                    </div>
+                `;
+                html += `<div style="padding:4px 0;margin-bottom:8px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;"><strong>Sprzedaż w katalogu:</strong><strong>${totalSales} szt.</strong></div>`;
+
+                if (items.length > 0) {
+                    html += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
+                    items.forEach(item => {
+                        const sLower = item.storeName.toLowerCase().trim();
+                        let cText = 'rgba(50,50,50,1)', fWeight = 'normal';
+
+                        if (!isMapMode && sLower === myStoreLower) {
+                            cText = item.idAllegro === mainOfferId ? myMainOfferColor : myOtherOfferColor;
+                            fWeight = 'bold';
+                        } else if (highlightedStores.includes(sLower) && storeColorMap[sLower] != null) {
+                            cText = highlightColors[storeColorMap[sLower]];
+                            fWeight = 'bold';
+                        }
+
+                        let badges = '';
+                        if (item.isBestPriceGuarantee) badges += ` <img src="/images/TopPrice.png" title="GNC" style="height: 16px; vertical-align: middle;">`;
+                        if (item.topOffer)   badges += ` <div class="TopOffer" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Top</div>`;
+                        if (item.superPrice) badges += ` <div class="SuperPrice" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Super</div>`;
+
+                        const escName = item.storeName.replace(/'/g, "\\'");
+                        html += `
+                            <tr style="border-bottom:1px solid #eee; cursor:pointer;" onclick="event.stopPropagation(); toggleStoreHighlight('${escName}');">
+                                <td style="padding:3px 2px;color:${cText};font-weight:${fWeight};" title="${item.storeName}">
+                                    <span style="display:inline-block;margin-right:5px;width:10px;height:10px;border-radius:50%;background-color:${item._markerColor};vertical-align:middle;"></span>
+                                    <img src="/images/AllegroIcon.png" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"/>
+                                    ${item.storeName.substring(0,25)}
+                                </td>
+                                <td style="padding:3px 2px;text-align:right;color:${cText};font-weight:${fWeight};white-space:nowrap;">
+                                    ${badges}
+                                    <span style="vertical-align:middle; margin-left:4px;">${item.sales} szt.</span>
+                                    <span title="Ukryj sklep '${escName}'" style="cursor:pointer;color:#aaa;margin-left:8px;font-weight:bold;" onmouseover="this.style.color='red'" onmouseout="this.style.color='#aaa'" onclick="event.stopPropagation();hideStoreFromChart('${escName}');">&times;</span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    html += `</table>`;
+                } else {
+                    html += `<div style="color:#666;font-style:italic;">Brak danych o sprzedaży indywidualnej.</div>`;
+                }
+                return html;
+            }
+
+            function generateVisitsTooltipHtml(params) {
+                const date = params[0].axisValue;
+                const formattedDate = new Date(date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const dayData = originalChartData?.visitsTimeline?.find(v => v.scrapDate === date);
+                const totalVisits = dayData?.totalVisits;
+                const offersList = dayData?.offers || [];
+
+                let html = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-weight:bold;">${formattedDate}</div>
+                        <div class="period-selector-group">
+                            <button class="period-btn-custom ${visitsChartMode === 'offers' ? 'active' : ''}" onclick="setVisitsChartMode('offers')" style="font-size: 10px; padding: 4px 8px;">Oferty</button>
+                            <button class="period-btn-custom ${visitsChartMode === 'combined' ? 'active' : ''}" onclick="setVisitsChartMode('combined')" style="font-size: 10px; padding: 4px 8px;">Łącznie</button>
+                        </div>
+                    </div>
+                `;
+                html += `<div style="padding:4px 0;margin-bottom:8px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;"><strong>Wyświetlenia łącznie:</strong><strong>${totalVisits != null ? totalVisits.toLocaleString('pl-PL') : 'Brak danych'}</strong></div>`;
+
+                if (offersList.length > 0) {
+                    html += `<table style="width:100%; border-collapse:collapse; font-size: 0.85rem;">`;
+                    const sorted = [...offersList].sort((a, b) => {
+                        if (a.offerId === mainOfferId) return -1;
+                        if (b.offerId === mainOfferId) return 1;
+                        return (b.visits ?? 0) - (a.visits ?? 0);
+                    });
+                    sorted.forEach(offer => {
+                        const isMain = offer.offerId === mainOfferId;
+                        const cText = isMain ? visitsMainColor : visitsOtherColor;
+                        const fWeight = isMain ? 'bold' : 'normal';
+                        const label = isMain ? `${offer.offerId} (oglądana)` : `${offer.offerId}`;
+                        const visitsText = offer.visits != null ? offer.visits.toLocaleString('pl-PL') : '-';
+                        html += `
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:3px 2px;color:${cText};font-weight:${fWeight};">
+                                    <span style="display:inline-block;margin-right:5px;width:10px;height:10px;border-radius:50%;background-color:${cText};vertical-align:middle;"></span>
+                                    <img src="/images/AllegroIcon.png" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"/>
+                                    ${label}
+                                </td>
+                                <td style="padding:3px 2px;text-align:right;color:${cText};font-weight:${fWeight};white-space:nowrap;">
+                                    <span style="vertical-align:middle;">${visitsText}</span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    html += `</table>`;
+                } else if (totalVisits != null) {
+                    html += `<div style="color:#666;font-style:italic;">Brak danych per oferta (stare dane).</div>`;
+                } else {
+                    html += `<div style="color:#666;font-style:italic;">Brak danych o wyświetleniach.</div>`;
+                }
+                return html;
+            }
+
+            function filterTimelineData(timelineData) {
+                if (!showOnlyCheapest) return timelineData;
+                return timelineData.map(day => {
+                    const cheapest = new Map();
+                    const offers = day.offers || day.pricesByStore || [];
+                    offers.forEach(offer => {
+                        const existing = cheapest.get(offer.storeName);
+                        if (!existing || offer.price < existing.price) cheapest.set(offer.storeName, offer);
+                    });
+                    return { ...day, offers: Array.from(cheapest.values()) };
+                });
+            }
+
+            function displayCurrentTrendChart() {
+                if (!originalChartData) return;
+                if (echartsTrendChart) echartsTrendChart.dispose();
+                echartsTrendChart = echarts.init(document.getElementById('trendChart'));
+
+                // Pokaż/ukryj slider intensywności pasów (tylko dla 'price')
+                document.getElementById('bandIntensityGroup').style.display = (currentChartType === 'price') ? 'flex' : 'none';
+
+                if (currentChartType === 'visits') {
+                    drawVisitsChart();
+                } else if (currentChartType === 'price') {
+                    currentTimelineData = filterTimelineData(originalChartData.timelineData);
+                    drawPriceChartWithBands(currentTimelineData);
+                } else {
+                    currentTimelineData = originalChartData.timelineData;
+                    drawSalesChart(currentTimelineData);
+                }
+
+                echartsTrendChart.on('click', p => {
+                    if (p.seriesName && !p.seriesName.startsWith('_band_') && !p.seriesName.startsWith('_bline_')
+                        && p.seriesName !== 'Sprzedaż w katalogu' && p.seriesName !== 'Wyświetlenia oferty'
+                        && p.seriesName !== 'Wyświetlenia łącznie' && p.seriesName !== 'Cena MAP'
+                        && !p.seriesName.startsWith('Oferta ')) {
+                        toggleStoreHighlight(p.seriesName);
+                    }
+                });
+                window.addEventListener('resize', () => echartsTrendChart?.resize());
+            }
+
+            // ── PRICE CHART z pasami producenta ──
+            function drawPriceChartWithBands(timelineData) {
+                const { allDates, dataByInstance, allInstances } = processData(timelineData, 'price');
+                let seriesData = prepareSeries(dataByInstance, allDates, allInstances, 'price');
+
+                // Reference price per date (z producerChartData)
+                const refPrices = allDates.map(d => producerRefByDate[d] || null);
+
+                // Pasy progowe — jako PIERWSZE serie (z-index 0)
+                const bandSeries = buildBandSeries(allDates, refPrices);
+                const boundarySeries = buildBoundaryLineSeries(allDates, refPrices);
+                let allSeries = [].concat(bandSeries, boundarySeries, seriesData);
+
+                if (isMapMode) {
+                    allSeries.push(buildMapRefLine(allDates, refPrices));
+                }
+
+                const { min, max } = recalculateYAxisRangeFromData(seriesData.concat(refPrices.map(rp => rp != null ? { data: [{ value: rp }] } : { data: [] })), 'price');
+                currentChartOptions = getBaseChartOptions(allDates, min, max, allSeries, 'price');
+                echartsTrendChart.setOption(currentChartOptions, true);
+                updateCustomTooltipPanel(null);
+            }
+
+            function drawSalesChart(timelineData) {
+                const { allDates, dataByInstance, allInstances } = processData(timelineData, 'sales');
+                let seriesData = prepareSeries(dataByInstance, allDates, allInstances, 'sales');
+
+                const interpolatedTotals = calculateInterpolatedTotalSales(timelineData);
+                seriesData.unshift({
+                    name: 'Sprzedaż w katalogu',
+                    type: 'line',
+                    data: interpolatedTotals.map(v => ({ value: v })),
+                    smooth: 0.3,
+                    lineStyle: { color: 'rgba(34, 34, 34, 0.9)', width: 3, type: 'dashed' },
+                    itemStyle: { color: '#222' },
+                    symbol: 'none',
+                    z: 10,
+                    silent: true
+                });
+
+                const { min, max } = recalculateYAxisRangeFromData(seriesData, 'sales');
+                currentChartOptions = getBaseChartOptions(allDates, min, max, seriesData, 'sales');
+                echartsTrendChart.setOption(currentChartOptions, true);
+                updateCustomTooltipPanel(null);
+            }
+
+            function drawVisitsChart() {
+                const visitsTimeline = originalChartData.visitsTimeline;
+                if (!visitsTimeline || visitsTimeline.length === 0) {
+                    updateCustomTooltipPanel('<div style="color:#666;font-style:italic;">Brak danych o wyświetleniach.</div>');
+                    return;
+                }
+                const dates = visitsTimeline.map(v => v.scrapDate);
+                const polishMonths = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+                let series = [];
+
+                if (visitsChartMode === 'offers') {
+                    const allOfferIds = new Set();
+                    visitsTimeline.forEach(day => (day.offers || []).forEach(o => { if (o.offerId) allOfferIds.add(o.offerId); }));
+
+                    allOfferIds.forEach(offerId => {
+                        const isMain = offerId === mainOfferId;
+                        const color = isMain ? visitsMainColor : visitsOtherColor;
+                        const data = dates.map((date, i) => {
+                            const dayData = visitsTimeline[i];
+                            const offerEntry = (dayData.offers || []).find(o => o.offerId === offerId);
+                            return { value: offerEntry?.visits ?? null, _offerId: offerId };
+                        });
+                        const validCount = data.filter(d => d.value != null).length;
+                        series.push({
+                            name: `Oferta ${offerId}`,
+                            _offerId: offerId,
+                            type: 'line',
+                            data: data,
+                            smooth: 0.3,
+                            symbol: 'circle',
+                            symbolSize: validCount <= 1 ? 10 : 6,
+                            showSymbol: validCount <= 1,
+                            connectNulls: false,
+                            lineStyle: { color: color, width: isMain ? 2.5 : 2 },
+                            itemStyle: { color: color },
+                            areaStyle: isMain ? { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(124, 77, 255, 0.2)' }, { offset: 1, color: 'rgba(124, 77, 255, 0.02)' }]) } : null,
+                            emphasis: { focus: 'series', lineStyle: { width: 3 } },
+                            z: isMain ? 5 : 3
+                        });
+                    });
+
+                    if (series.length === 0) series.push(buildVisitsTotalSeries(dates, visitsTimeline));
+                } else {
+                    series.push(buildVisitsTotalSeries(dates, visitsTimeline));
+                }
+
+                let minVal = Infinity, maxVal = -Infinity;
+                series.forEach(s => s.data.forEach(d => {
+                    if (d.value != null) { minVal = Math.min(minVal, d.value); maxVal = Math.max(maxVal, d.value); }
+                }));
+                if (!isFinite(minVal)) { minVal = 0; maxVal = 100; }
+                const padding = (maxVal - minVal) * 0.1 || 10;
+                const yMin = Math.max(0, minVal - padding);
+                const yMax = maxVal + padding;
+
+                currentChartOptions = {
+                    title: { text: 'Wyświetlenia', left: 20, top: 4, textStyle: { fontSize: 13, fontWeight: 600, color: '#333' } },
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: { type: 'cross', snap: true, label: { backgroundColor: '#6a7985' } },
+                        formatter: p => {
+                            lastHoverParams = p;
+                            updateCustomTooltipPanel(generateTooltipPanelHtml(p));
+                            return '';
+                        }
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: dates,
+                        boundaryGap: false,
+                        axisLabel: {
+                            formatter: (function () {
+                                let lastDate = null;
+                                return function (value) {
+                                    try {
+                                        const [datePart, timePart] = value.split(' ');
+                                        const [year, month, day] = datePart.split('-');
+                                        if (datePart !== lastDate) {
+                                            lastDate = datePart;
+                                            return `${parseInt(day)} ${polishMonths[parseInt(month)-1]}\n${timePart}`;
+                                        }
+                                        return timePart;
+                                    } catch (e) { return value; }
+                                };
+                            })()
+                        }
+                    },
+                    yAxis: { type: 'value', min: yMin, max: yMax, scale: true, axisLabel: { show: false }, splitLine: { lineStyle: { color: '#E8E8E8', type: 'dashed' } } },
+                    grid: { left: 20, right: 20, bottom: 65, top: 40, containLabel: false },
+                    series: series,
+                    dataZoom: [
+                        {
+                            type: 'slider', xAxisIndex: 0, start: 0, end: 100, bottom: '10px', height: 25,
+                            showDetail: true, realtime: true, filterMode: 'filter',
+                            backgroundColor: 'rgba(240,240,240,0.6)', borderColor: '#ccc', fillerColor: 'rgba(180,180,180,0.4)',
+                            handleStyle: { color: '#a7a7a7', borderColor: '#747474', borderWidth: 1 },
+                            dataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#ebebeb' } },
+                            selectedDataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#dcdcdc' } },
+                            showMoveHandle: false, moveHandleIcon: 'none', moveHandleStyle: { color: 'transparent', opacity: 0 },
+                            emphasis: { fillerColor: 'rgba(180,180,180,0.6)', handleStyle: { color: '#747474', borderColor: '#505050' }, moveHandleStyle: { color: 'transparent', opacity: 0 } }
+                        },
+                        { type: 'inside', xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: true, moveOnMouseMove: true, preventDefaultMouseMove: true }
+                    ]
+                };
+
+                echartsTrendChart.setOption(currentChartOptions, true);
+                updateCustomTooltipPanel(null);
+            }
+
+            function buildVisitsTotalSeries(dates, visitsTimeline) {
+                const data = dates.map((date, i) => ({ value: visitsTimeline[i].totalVisits }));
+                const validCount = data.filter(d => d.value != null).length;
+                return {
+                    name: 'Wyświetlenia łącznie',
+                    _offerId: null,
+                    type: 'line',
+                    data: data,
+                    smooth: 0.3,
+                    symbol: 'circle',
+                    symbolSize: validCount <= 1 ? 10 : 6,
+                    showSymbol: validCount <= 1,
+                    connectNulls: false,
+                    lineStyle: { color: visitsMainColor, width: 2.5 },
+                    itemStyle: { color: visitsMainColor },
+                    areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(124, 77, 255, 0.25)' }, { offset: 1, color: 'rgba(124, 77, 255, 0.02)' }]) },
+                    emphasis: { focus: 'series', lineStyle: { width: 3 } },
+                    z: 5
+                };
+            }
+
+            function calculateInterpolatedTotalSales(timelineData) {
+                const dateCount = timelineData.length;
+                const instances = new Map();
+                timelineData.forEach((day, dateIdx) => {
+                    (day.offers || []).forEach(offer => {
+                        const key = `${offer.storeName}|${offer.idAllegro}`;
+                        if (!instances.has(key)) instances.set(key, []);
+                        instances.get(key).push({ dateIdx, sales: offer.sales || 0 });
+                    });
+                });
+
+                const totals = new Array(dateCount).fill(0);
+                instances.forEach((points) => {
+                    points.sort((a, b) => a.dateIdx - b.dateIdx);
+                    const salesByDate = new Array(dateCount).fill(null);
+                    points.forEach(p => { salesByDate[p.dateIdx] = p.sales; });
+                    for (let i = 0; i < points.length - 1; i++) {
+                        const si = points[i].dateIdx, ei = points[i + 1].dateIdx;
+                        if (ei - si <= 1) continue;
+                        const sv = points[i].sales, ev = points[i + 1].sales;
+                        for (let j = si + 1; j < ei; j++) {
+                            const ratio = (j - si) / (ei - si);
+                            salesByDate[j] = Math.round(sv + (ev - sv) * ratio);
+                        }
+                    }
+                    for (let i = 0; i < dateCount; i++) if (salesByDate[i] !== null) totals[i] += salesByDate[i];
+                });
+                return totals;
+            }
+
+            function recalculateYAxisRangeFromData(seriesData, dataType) {
+                let minVal = Infinity, maxVal = -Infinity;
+                seriesData.forEach(s => (s.data || []).forEach(d => {
+                    const v = (d && typeof d === 'object') ? d.value : d;
+                    if (v != null) { minVal = Math.min(minVal, v); maxVal = Math.max(maxVal, v); }
+                }));
+                if (!isFinite(minVal)) return { min: 0, max: dataType === 'sales' ? 10 : 100 };
+                const padding = (maxVal - minVal) * 0.05 || (dataType === 'sales' ? 2 : 5);
+                return { min: dataType === 'sales' ? 0 : Math.max(0, minVal - padding), max: maxVal + padding };
+            }
+
+            function processData(timelineData, dataType) {
+                let dates = new Set(), instances = new Set(), dataMap = {};
+
+                timelineData.forEach(entry => {
+                    dates.add(entry.scrapDate);
+                    const offersForDay = entry.offers || [];
+
+                    if (dataType === 'sales' && salesChartMode === 'combined') {
+                        const aggregatedSales = new Map();
+                        offersForDay.forEach(offer => {
+                            const storeName = offer.storeName;
+                            if (!aggregatedSales.has(storeName)) aggregatedSales.set(storeName, { ...offer, sales: 0 });
+                            aggregatedSales.get(storeName).sales += (offer.sales || 0);
+                        });
+                        aggregatedSales.forEach((aggregatedOffer, storeName) => {
+                            const id = storeName;
+                            instances.add(id);
+                            if (!dataMap[id]) dataMap[id] = {};
+                            dataMap[id][entry.scrapDate] = aggregatedOffer;
+                        });
+                    } else {
+                        offersForDay.forEach(offer => {
+                            const val = offer[dataType] ?? offer['price'];
+                            if (val == null) return;
+                            const id = `${offer.storeName}|${offer.idAllegro}|${offer.source}`;
+                            instances.add(id);
+                            if (!dataMap[id]) dataMap[id] = {};
+                            dataMap[id][entry.scrapDate] = offer;
+                        });
+                    }
+                });
+
+                const sortedInstances = Array.from(instances).sort((a, b) => {
+                    const nameA = a.split('|')[0].toLowerCase(), nameB = b.split('|')[0].toLowerCase();
+                    if (!isMapMode) {
+                        if (nameA === myStoreLower && nameB !== myStoreLower) return -1;
+                        if (nameB === myStoreLower && nameA !== myStoreLower) return 1;
+                    }
+                    return a.localeCompare(b);
+                });
+
+                return { allDates: Array.from(dates).sort(), dataByInstance: dataMap, allInstances: sortedInstances };
+            }
+
+            function prepareSeries(dataByInstance, allDates, allInstances, dataType) {
+                return allInstances.map(id => {
+                    const hasOfferId = id.includes('|');
+                    const [store, offerIdStr] = hasOfferId ? id.split('|') : [id, null];
+                    const offerId = offerIdStr ? parseInt(offerIdStr, 10) : null;
+                    const style = getSeriesStyleAndZ(store.toLowerCase().trim(), offerId);
+
+                    let validPoints = 0;
+                    const data = allDates.map(date => {
+                        const pData = dataByInstance[id]?.[date];
+                        const val = pData ? (pData[dataType] ?? pData.price) : null;
+                        if (val != null) validPoints++;
+                        return { value: val, originalOffer: pData };
+                    });
+
+                    const isSingle = validPoints === 1;
+                    return {
+                        name: store,
+                        _instanceId: id,
+                        type: 'line',
+                        data,
+                        connectNulls: false,
+                        smooth: 0.3,
+                        showSymbol: isSingle,
+                        symbol: 'circle',
+                        symbolSize: isSingle ? 10 : 6,
+                        emphasis: { focus: 'series', lineStyle: { width: UNIFORM_EMPHASIS_LINE_WIDTH } },
+                        ...style
+                    };
+                });
+            }
+
+            function getBaseChartOptions(allDates, yMin, yMax, series, dataType) {
+                const polishMonths = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+                const titleText = dataType === 'price' ? 'Cena' : 'Sprzedaż';
+
+                return {
+                    title: { text: titleText, left: 20, top: 4, textStyle: { fontSize: 13, fontWeight: 600, color: '#333' } },
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: { type: 'cross', snap: true, label: { backgroundColor: '#6a7985' } },
+                        formatter: p => {
+                            lastHoverParams = p;
+                            updateCustomTooltipPanel(generateTooltipPanelHtml(p));
+                            return '';
+                        }
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: allDates,
+                        boundaryGap: false,
+                        axisLabel: {
+                            formatter: (function () {
+                                let lastDate = null;
+                                return function (value) {
+                                    try {
+                                        const [datePart, timePart] = value.split(' ');
+                                        const [year, month, day] = datePart.split('-');
+                                        if (datePart !== lastDate) {
+                                            lastDate = datePart;
+                                            return `${parseInt(day)} ${polishMonths[parseInt(month)-1]}\n${timePart}`;
+                                        }
+                                        return timePart;
+                                    } catch (e) { return value; }
+                                };
+                            })()
+                        }
+                    },
+                    yAxis: { type: 'value', min: yMin, max: yMax, scale: true, axisLabel: { show: false }, splitLine: { lineStyle: { color: '#E8E8E8', type: 'dashed' } } },
+                    grid: { left: 20, right: 20, bottom: 65, top: 40, containLabel: false },
+                    series: series,
+                    dataZoom: [
+                        {
+                            type: 'slider', xAxisIndex: 0, start: 0, end: 100, bottom: 10, height: 25,
+                            showDetail: true, realtime: true, filterMode: 'filter',
+                            backgroundColor: 'rgba(240,240,240,0.6)', borderColor: '#ccc', fillerColor: 'rgba(180,180,180,0.4)',
+                            handleStyle: { color: '#a7a7a7', borderColor: '#747474', borderWidth: 1 },
+                            dataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#ebebeb' } },
+                            selectedDataBackground: { lineStyle: { color: 'transparent' }, areaStyle: { color: '#dcdcdc' } },
+                            showMoveHandle: false, moveHandleIcon: 'none', moveHandleStyle: { color: 'transparent', opacity: 0 },
+                            emphasis: { fillerColor: 'rgba(180,180,180,0.6)', handleStyle: { color: '#747474', borderColor: '#505050' }, moveHandleStyle: { color: 'transparent', opacity: 0 } },
+                            labelFormatter: function (value) {
+                                let dateStr = '';
+                                if (typeof value === 'number' && value >= 0 && value < allDates.length) dateStr = allDates[value];
+                                else if (typeof value === 'string') dateStr = value;
+                                else return '';
+                                try {
+                                    const datePart = dateStr.split(' ')[0];
+                                    const parts = datePart.split('-');
+                                    return `${parseInt(parts[2])} ${polishMonths[parseInt(parts[1])-1]}`;
+                                } catch (e) { return dateStr; }
+                            }
+                        },
+                        { type: 'inside', xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: true, moveOnMouseMove: true, preventDefaultMouseMove: true }
+                    ]
+                };
+            }
+
+            function updateEchartsStylesAndZ() {
+                if (!echartsTrendChart || !currentChartOptions) return;
+                if (currentChartType === 'visits') return;
+
+                const updatedSeries = currentChartOptions.series.map(s => {
+                    if (s.name && s.name.startsWith('_band_')) {
+                        var idx = parseInt(s.name.replace('_band_', ''));
+                        return Object.assign({}, s, { areaStyle: { color: bandColor(idx), opacity: 1 } });
+                    }
+                    if (s.name && s.name.startsWith('_bline_')) {
+                        var bi = parseInt(s.name.replace('_bline_', ''));
+                        var bm = { 1: 0, 2: 1, 3: 2, 4: 4, 5: 5, 6: 6 };
+                        return Object.assign({}, s, {
+                            lineStyle: { width: 1, color: boundaryLineColor(bm[bi] || 0), type: 'dashed' }
+                        });
+                    }
+                    if (s.name === 'Sprzedaż w katalogu' || s.name === 'Cena MAP') return s;
+
+                    const [store, offerIdStr] = (s._instanceId || '').split('|');
+                    if (!store) return s;
+                    const style = getSeriesStyleAndZ(store.toLowerCase().trim(), parseInt(offerIdStr, 10));
+                    const newEmphasis = { ...s.emphasis, itemStyle: { ...s.emphasis?.itemStyle, color: style.itemStyle.color, opacity: 1 } };
+                    return { ...s, ...style, emphasis: newEmphasis };
+                });
+
+                currentChartOptions.series = updatedSeries;
+                echartsTrendChart.setOption({ series: updatedSeries });
+            }
+
+            const $exportExcelBtn = $('#exportExcelBtn'), $showTableBtn = $('#showTableBtn'), $showChartBtn = $('#showChartBtn');
+            const $tableContainer = $('#priceTableContainer'), $chartContainer = $('#trendChartContainer');
+            const $rankingArea = $('#rankingOnlyArea');
+
+            $('.history-btn').on('click', function () {
+                $('.history-btn').removeClass('active');
+                $(this).addClass('active');
+                var newLimit = $(this).data('days');
+                if (currentHistoryLimit !== newLimit) {
+                    currentHistoryLimit = newLimit;
+                    originalChartData = null;
+                    producerChartData = null;
+                    producerRefByDate = {};
+                    if ($chartContainer.is(':visible')) loadTrendDataAndDrawEcharts();
+                }
+            });
+
+            function toggleMainView(showTable) {
+                $tableContainer.toggle(showTable);
+                $chartContainer.toggle(!showTable);
+
+                if (showTable) $rankingArea.css('display', 'flex');
+                else $rankingArea.hide();
+
+                $showTableBtn.toggleClass('button-active', showTable).toggleClass('button-inactive', !showTable);
+                $showChartBtn.toggleClass('button-active', !showTable).toggleClass('button-inactive', showTable);
+
+                if ($chartContainer.is(':visible')) {
+                    if (echartsTrendChart && originalChartData) echartsTrendChart.resize();
+                    else loadTrendDataAndDrawEcharts();
+                }
+            }
+
+            function switchChartType(type) {
+                if (currentChartType === type) return;
+                currentChartType = type;
+                $('#switchToPriceChartBtn').toggleClass('active', type === 'price');
+                $('#switchToSalesChartBtn').toggleClass('active', type === 'sales');
+                $('#switchToVisitsChartBtn').toggleClass('active', type === 'visits');
+                if (originalChartData) displayCurrentTrendChart();
+            }
+
+            $showTableBtn.on('click', () => toggleMainView(true));
+            $showChartBtn.on('click', () => toggleMainView(false));
+            $('#switchToPriceChartBtn').on('click', () => switchChartType('price'));
+            $('#switchToSalesChartBtn').on('click', () => switchChartType('sales'));
+            $('#switchToVisitsChartBtn').on('click', () => switchChartType('visits'));
+
+            if ($exportExcelBtn.length) {
+                $exportExcelBtn.on('click', () => originalChartData ? exportChartDataToExcel() : alert("Dane nie są załadowane."));
+            }
+
+            const grayAlphaRange = document.getElementById("grayAlphaRange");
+            if (grayAlphaRange) {
+                grayAlphaRange.addEventListener('input', e => {
+                    defaultGrayAlpha = parseFloat(e.target.value);
+                    updateEchartsStylesAndZ();
+                    if (lastHoverParams) updateCustomTooltipPanel(generateTooltipPanelHtml(lastHoverParams));
+                });
+            }
+
+            const bandIntensityRange = document.getElementById("bandIntensityRange");
+            if (bandIntensityRange) {
+                bandIntensityRange.addEventListener('input', e => {
+                    bandIntensity = parseFloat(e.target.value);
+                    updateEchartsStylesAndZ();
+                });
+            }
+
+            toggleMainView(true);
+
+            // Ładujemy DWA endpointy równolegle:
+            //   - GetPriceTrendData          → sales, visits, mainOfferId
+            //   - GetPriceTrendDataForProducer → referencePrice per scrap + thresholds + isMapMode
+            function loadTrendDataAndDrawEcharts() {
+                $('#loadingOverlay').show();
+
+                var p1 = $.ajax({
+                    url: '@Url.Action("GetPriceTrendData", "AllegroPriceHistory")',
+                    type: 'GET',
+                    data: { productId: productId, limit: currentHistoryLimit }
+                });
+                var p2 = $.ajax({
+                    url: '@Url.Action("GetPriceTrendDataForProducer", "AllegroPriceHistory")',
+                    type: 'GET',
+                    data: { productId: productId, limit: currentHistoryLimit }
+                });
+
+                Promise.all([p1, p2]).then(function (results) {
+                    var regular = results[0];
+                    var producer = results[1];
+
+                    if (regular && regular.timelineData) {
+                        originalChartData = regular;
+                        mainOfferId = regular.mainOfferId;
+                        originalChartData.timelineData.forEach(d => { d.offers = d.offers || d.pricesByStore; });
+                    }
+
+                    if (producer && producer.timelineData) {
+                        producerChartData = producer;
+                        // isMapMode i thresholds aktualizujemy z świeżych danych
+                        if (typeof producer.isMapMode !== 'undefined') isMapMode = producer.isMapMode;
+                        if (producer.producerThresholds) producerThresholds = producer.producerThresholds;
+
+                        producerRefByDate = {};
+                        producer.timelineData.forEach(function (td) {
+                            producerRefByDate[td.scrapDate] = td.referencePrice;
+                        });
+                    }
+
+                    if (originalChartData) displayCurrentTrendChart();
+                    else updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania danych.</div>');
+                }).catch(function () {
+                    updateCustomTooltipPanel('<div style="color:red;">Błąd ładowania danych.</div>');
+                }).finally(function () {
+                    $('#loadingOverlay').hide();
+                });
+            }
+
+            // ── EXCEL EXPORT ──
+            function rgbaToHex(rgba) {
+                if (typeof rgba !== 'string' || !rgba.toLowerCase().startsWith('rgba')) {
+                    if (rgba.startsWith('#')) return rgba;
+                    return null;
+                }
+                const parts = rgba.substring(rgba.indexOf('(') + 1, rgba.lastIndexOf(')')).split(/,\s*/);
+                if (parts.length < 3) return null;
+                try {
+                    const r = parseInt(parts[0], 10), g = parseInt(parts[1], 10), b = parseInt(parts[2], 10);
+                    const toHex = c => ('0' + c.toString(16)).slice(-2);
+                    return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
+                } catch (e) { return null; }
+            }
+
+            function getExcelColorForAllegroRow(storeName) {
+                if (!storeName) return null;
+                const sLower = storeName.toLowerCase().trim();
+                if (!isMapMode && sLower === myStoreLower) return rgbaToHex(myMainOfferColor) || '#FF6400';
+                if (highlightedStores.includes(sLower)) {
+                    const colorIndex = storeColorMap[sLower];
+                    if (colorIndex != null && highlightColors[colorIndex]) return rgbaToHex(highlightColors[colorIndex]);
+                }
+                return null;
+            }
+
+            async function exportChartDataToExcel() {
+                if (!originalChartData || !echartsTrendChart) { alert("Brak danych do wyeksportowania."); return; }
+                try {
+                    const workbook = new ExcelJS.Workbook();
+                    const dataType = currentChartType;
+
+                    if (dataType === 'visits') { await exportVisitsToExcel(workbook); return; }
+
+                    const ws = workbook.addWorksheet(`Historia ${dataType === 'price' ? 'Cen' : 'Sprzedaży'}`);
+                    const option = echartsTrendChart.getOption();
+                    const allDates = option.xAxis[0].data;
+
+                    let startPct = 0, endPct = 100;
+                    if (option.dataZoom && option.dataZoom.length > 0) {
+                        const sliderZoom = option.dataZoom.find(dz => dz.type === 'slider' || dz.type === 'inside');
+                        if (sliderZoom) {
+                            startPct = sliderZoom.start !== undefined ? sliderZoom.start : 0;
+                            endPct = sliderZoom.end !== undefined ? sliderZoom.end : 100;
+                        }
+                    }
+
+                    const startIndex = Math.floor(allDates.length * (startPct / 100));
+                    const endIndex = Math.ceil(allDates.length * (endPct / 100));
+                    const visDates = allDates.slice(startIndex, endIndex);
+                    if (visDates.length === 0) { alert("Wybrany zakres dat jest pusty."); return; }
+
+                    const { dataByInstance, allInstances } = processData(originalChartData.timelineData, dataType);
+                    const columns = [
+                        { header: 'Sklep', key: 's', width: 35 },
+                        { header: 'ID Oferty / Info', key: 'o', width: 20 }
+                    ];
+                    if (dataType === 'price') columns.push({ header: 'Ref. dla daty', key: 'ref', width: 14, style: { numFmt: '#,##0.00 "PLN"' } });
+
+                    visDates.forEach(date => {
+                        columns.push({
+                            header: date, key: date, width: 12,
+                            style: { numFmt: dataType === 'price' ? '#,##0.00 "PLN"' : '#,##0', alignment: { horizontal: 'right' } }
+                        });
+                    });
+
+                    ws.columns = columns;
+                    ws.getRow(1).font = { bold: true };
+                    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+
+                    // Wiersz z cenami referencyjnymi w trybie 'price'
+                    if (dataType === 'price') {
+                        const refRowData = { s: isMapMode ? 'CENA MAP (referencja)' : 'CENA REFERENCYJNA (najtańsza nasza)', o: '' };
+                        visDates.forEach(date => {
+                            const rp = producerRefByDate[date];
+                            if (rp != null) refRowData[date] = rp;
+                        });
+                        const refRow = ws.addRow(refRowData);
+                        refRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                        refRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4169E1' } };
+                        ws.addRow({});
+                    }
+
+                    allInstances.forEach(id => {
+                        const parts = id.split('|');
+                        const storeName = parts[0];
+                        const offerId = parts.length > 1 ? parts[1] : '';
+                        const source = parts.length > 2 ? parts[2] : '';
+                        if (hiddenStores.includes(storeName.toLowerCase().trim())) return;
+
+                        const rowData = { s: storeName, o: offerId + (source ? ` (${source})` : '') };
+                        let hasDataInRange = false;
+                        visDates.forEach(date => {
+                            const dataPoint = dataByInstance[id]?.[date];
+                            let cellValue = null;
+                            if (dataPoint) {
+                                if (typeof dataPoint === 'object') cellValue = dataPoint[dataType] ?? dataPoint.price;
+                                else cellValue = dataPoint;
+                            }
+                            if (cellValue !== null && cellValue !== undefined) {
+                                rowData[date] = cellValue;
+                                hasDataInRange = true;
+                            }
+                        });
+                        if (hasDataInRange) {
+                            const row = ws.addRow(rowData);
+                            const hexColor = getExcelColorForAllegroRow(storeName);
+                            if (hexColor) {
+                                const argbColor = 'FF' + hexColor.replace('#', '');
+                                row.eachCell({ includeEmpty: true }, function (cell) {
+                                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argbColor } };
+                                });
+                            }
+                        }
+                    });
+
+                    if (dataType === 'sales') {
+                        ws.addRow({});
+                        const totalsRowData = { s: 'SUMA SPRZEDAŻY CAŁKOWITEJ (KATALOG)' };
+                        visDates.forEach(date => {
+                            const dayData = originalChartData.timelineData.find(x => x.scrapDate === date);
+                            if (dayData) totalsRowData[date] = dayData.totalSales;
+                        });
+                        const r = ws.addRow(totalsRowData);
+                        r.font = { bold: true, color: { argb: 'FF000000' } };
+                        r.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCCCCC' } };
+                    }
+
+                    const buffer = await workbook.xlsx.writeBuffer();
+                    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                    const prodNameSafe = (originalChartData.productName || "Produkt").replace(/[^a-z0-9_ -]/gi, '_').substring(0, 50);
+                    const fileName = `PriceSafari_Producent_${prodNameSafe}_${dataType}_${visDates[0]}_do_${visDates[visDates.length - 1]}.xlsx`;
+
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setTimeout(() => { URL.revokeObjectURL(link.href); }, 100);
+                } catch (e) {
+                    console.error("Błąd Excel:", e);
+                    alert("Błąd tworzenia pliku Excel: " + e.message);
+                }
+            }
+
+            async function exportVisitsToExcel(workbook) {
+                try {
+                    const ws = workbook.addWorksheet('Historia Wyświetleń');
+                    const visitsTimeline = originalChartData.visitsTimeline || [];
+                    const option = echartsTrendChart.getOption();
+                    const allDates = option.xAxis[0].data;
+
+                    let startPct = 0, endPct = 100;
+                    if (option.dataZoom && option.dataZoom.length > 0) {
+                        const zoom = option.dataZoom.find(dz => dz.type === 'slider' || dz.type === 'inside');
+                        if (zoom) {
+                            startPct = zoom.start !== undefined ? zoom.start : 0;
+                            endPct = zoom.end !== undefined ? zoom.end : 100;
+                        }
+                    }
+
+                    const startIdx = Math.floor(allDates.length * (startPct / 100));
+                    const endIdx = Math.ceil(allDates.length * (endPct / 100));
+                    const visDates = allDates.slice(startIdx, endIdx);
+                    if (visDates.length === 0) { alert("Wybrany zakres dat jest pusty."); return; }
+
+                    const allOfferIds = new Set();
+                    visitsTimeline.forEach(day => (day.offers || []).forEach(o => { if (o.offerId) allOfferIds.add(o.offerId); }));
+
+                    const offerIdArray = Array.from(allOfferIds).sort((a, b) => {
+                        if (a === mainOfferId) return -1;
+                        if (b === mainOfferId) return 1;
+                        return a - b;
+                    });
+
+                    const columns = [{ header: 'Data', key: 'date', width: 22 }];
+                    offerIdArray.forEach(id => {
+                        const label = id === mainOfferId ? `Oferta ${id} (oglądana)` : `Oferta ${id}`;
+                        columns.push({ header: label, key: `o_${id}`, width: 22, style: { numFmt: '#,##0', alignment: { horizontal: 'right' } } });
+                    });
+                    columns.push({ header: 'Łącznie', key: 'total', width: 16, style: { numFmt: '#,##0', alignment: { horizontal: 'right' } } });
+
+                    ws.columns = columns;
+                    ws.getRow(1).font = { bold: true };
+                    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+
+                    offerIdArray.forEach((id, idx) => {
+                        const cell = ws.getRow(1).getCell(idx + 2);
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: id === mainOfferId ? 'FF7C4DFF' : 'FFB39DDB' } };
+                        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                    });
+
+                    const visitsMap = {};
+                    visitsTimeline.forEach(v => { visitsMap[v.scrapDate] = v; });
+
+                    visDates.forEach(date => {
+                        const dayData = visitsMap[date];
+                        const rowData = { date: date, total: dayData?.totalVisits ?? null };
+                        offerIdArray.forEach(id => {
+                            const entry = (dayData?.offers || []).find(o => o.offerId === id);
+                            rowData[`o_${id}`] = entry?.visits ?? null;
+                        });
+                        ws.addRow(rowData);
+                    });
+
+                    const buffer = await workbook.xlsx.writeBuffer();
+                    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                    const prodNameSafe = (originalChartData.productName || "Produkt").replace(/[^a-z0-9_ -]/gi, '_').substring(0, 50);
+                    const fileName = `PriceSafari_Producent_${prodNameSafe}_wyswietlenia_${visDates[0]}_do_${visDates[visDates.length - 1]}.xlsx`;
+
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setTimeout(() => { URL.revokeObjectURL(link.href); }, 100);
+                } catch (e) {
+                    console.error("Błąd Excel (visits):", e);
+                    alert("Błąd tworzenia pliku Excel: " + e.message);
+                }
+            }
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll('.automation-link-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var url = this.getAttribute('data-url');
+                    var productId = this.getAttribute('data-product-id');
+                    if (url && productId) {
+                        sessionStorage.setItem('automation_scrollToProduct', productId);
+                        window.location.href = url;
+                    }
+                });
+            });
+        });
+    </script>
+}
