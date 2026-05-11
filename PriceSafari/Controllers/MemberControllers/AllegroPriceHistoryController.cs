@@ -42,6 +42,18 @@ namespace PriceSafari.Controllers.MemberControllers
             return await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
         }
 
+
+        private async Task<bool> CurrentUserUsesProducerView()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return false;
+
+            return await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.UseProducerViewForMarketplace)
+                .FirstOrDefaultAsync();
+        }
+
         public async Task<IActionResult> Index(int? storeId)
         {
             if (storeId == null) return BadRequest("Store ID is required.");
@@ -66,18 +78,21 @@ namespace PriceSafari.Controllers.MemberControllers
                 })
                 .ToListAsync();
 
+            bool useProducerView = await CurrentUserUsesProducerView();
+
             ViewBag.StoreId = store.StoreId;
             ViewBag.StoreName = store.StoreNameAllegro;
             ViewBag.StoreLogo = store.StoreLogoUrl;
             ViewBag.LatestScrap = latestScrap;
             ViewBag.Flags = flags;
             ViewBag.IsAllegroPriceBridgeActive = store.IsAllegroPriceBridgeActive;
-            ViewBag.IsProducerOnAllegro = store.IsProducerOnAllegro;
+            ViewBag.IsProducerOnAllegro = useProducerView;   
 
-            if (store.IsProducerOnAllegro)
+            if (useProducerView)  
                 return View("~/Views/Panel/AllegroPriceHistory/IndexProducer.cshtml");
 
             return View("~/Views/Panel/AllegroPriceHistory/Index.cshtml");
+
         }
 
         //aktualizacja id w bazie dla allegro
@@ -1338,6 +1353,8 @@ namespace PriceSafari.Controllers.MemberControllers
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null) return NotFound("Store not found.");
 
+            bool useProducerView = await CurrentUserUsesProducerView();
+
             // ── Flagi dla tego produktu ──
             var allFlags = await _context.Flags
                 .Where(f => f.StoreId == storeId && f.IsMarketplace == true)
@@ -1402,7 +1419,7 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.IsAutomationPaused = isAutomationPaused;
             ViewBag.ScrapId = scrapId;
 
-            if (store.IsProducerOnAllegro)
+            if (useProducerView)
             {
                 var pvFull = await _context.PriceValues.AsNoTracking()
                     .FirstOrDefaultAsync(pv => pv.StoreId == storeId);

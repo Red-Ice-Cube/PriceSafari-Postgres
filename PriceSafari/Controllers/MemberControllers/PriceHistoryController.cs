@@ -66,68 +66,17 @@ namespace PriceSafari.Controllers.MemberControllers
             return true;
         }
 
-        //public async Task<IActionResult> Index(int? storeId)
-        //{
-        //    if (storeId == null)
-        //    {
-        //        return NotFound("Store ID not provided.");
-        //    }
+        private async Task<bool> CurrentUserUsesProducerView()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return false;
 
-        //    if (!await UserHasAccessToStore(storeId.Value))
-        //    {
-        //        return Content("Nie ma takiego sklepu");
-        //    }
+            return await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.UseProducerViewForPriceComparison)
+                .FirstOrDefaultAsync();
+        }
 
-        //    var latestScrap = await _context.ScrapHistories
-        //        .Where(sh => sh.StoreId == storeId)
-        //        .OrderByDescending(sh => sh.Date)
-        //        .FirstOrDefaultAsync();
-
-        //    if (latestScrap == null)
-        //    {
-        //        return View(new List<FlagsClass>());
-        //    }
-
-        //    var storeDetails = await _context.Stores
-        //        .Where(s => s.StoreId == storeId)
-        //        .Select(s => new
-        //        {
-        //            s.StoreName,
-        //            s.StoreLogoUrl,
-        //            s.IsStorePriceBridgeActive
-
-        //        })
-        //        .FirstOrDefaultAsync();
-
-        //    var scrapedproducts = await _context.Products
-        //        .Where(p => p.StoreId == storeId && p.IsScrapable)
-        //        .CountAsync();
-
-        //    var flags = await _context.Flags
-        //        .Where(f => f.StoreId == storeId.Value && f.IsMarketplace == false)
-        //        .Select(f => new FlagViewModel
-        //        {
-        //            FlagId = f.FlagId,
-        //            FlagName = f.FlagName,
-        //            FlagColor = f.FlagColor,
-        //            IsMarketplace = f.IsMarketplace
-        //        })
-        //        .ToListAsync();
-
-        //    ViewBag.LatestScrap = latestScrap;
-        //    ViewBag.StoreId = storeId;
-
-        //    ViewBag.IsStorePriceBridgeActive = storeDetails?.IsStorePriceBridgeActive ?? false;
-
-        //    ViewBag.StoreName = storeDetails?.StoreName;
-        //    ViewBag.StoreLogo = storeDetails?.StoreLogoUrl;
-
-        //    ViewBag.ScrapId = latestScrap.Id;
-        //    ViewBag.Flags = flags;
-        //    ViewBag.ScrapedProducts = scrapedproducts;
-
-        //    return View("~/Views/Panel/PriceHistory/Index.cshtml");
-        //}
 
 
         public async Task<IActionResult> Index(int? storeId)
@@ -154,18 +103,19 @@ namespace PriceSafari.Controllers.MemberControllers
                     s.StoreName,
                     s.StoreLogoUrl,
                     s.IsStorePriceBridgeActive,
-                    s.IsProducer
+            
                 })
                 .FirstOrDefaultAsync();
 
+            bool useProducerView = await CurrentUserUsesProducerView();
+
             if (latestScrap == null)
             {
-                // Empty view - dla obu trybów
                 ViewBag.StoreId = storeId;
                 ViewBag.StoreName = storeDetails?.StoreName;
                 ViewBag.StoreLogo = storeDetails?.StoreLogoUrl;
 
-                if (storeDetails?.IsProducer == true)
+                if (useProducerView)   // BYŁO: storeDetails?.IsProducer == true
                     return View("~/Views/Panel/PriceHistory/IndexProducer.cshtml", new List<FlagsClass>());
                 else
                     return View(new List<FlagsClass>());
@@ -194,13 +144,13 @@ namespace PriceSafari.Controllers.MemberControllers
             ViewBag.ScrapId = latestScrap.Id;
             ViewBag.Flags = flags;
             ViewBag.ScrapedProducts = scrapedproducts;
-            ViewBag.IsProducer = storeDetails?.IsProducer ?? false;
+            ViewBag.IsProducer = useProducerView;
 
-            // Rozdzielenie widoku - producent vs sklep ecommerce
-            if (storeDetails?.IsProducer == true)
+            if (useProducerView)   // BYŁO: storeDetails?.IsProducer == true
             {
                 return View("~/Views/Panel/PriceHistory/IndexProducer.cshtml");
             }
+
 
             return View("~/Views/Panel/PriceHistory/Index.cshtml");
         }
@@ -1672,17 +1622,17 @@ namespace PriceSafari.Controllers.MemberControllers
             if (!await UserHasAccessToStore(storeId))
                 return Content("Brak dostępu do sklepu lub sklep nie istnieje.");
 
-            // ── Store info (z IsProducer) ──
             var storeInfo = await _context.Stores
-                .Where(s => s.StoreId == storeId)
-                .Select(s => new { s.StoreName, s.IsProducer })
-                .FirstOrDefaultAsync();
+        .Where(s => s.StoreId == storeId)
+        .Select(s => new { s.StoreName })   // BYŁO: new { s.StoreName, s.IsProducer }
+        .FirstOrDefaultAsync();
 
             var storeName = storeInfo?.StoreName;
             if (string.IsNullOrEmpty(storeName))
                 return Content("Nie można zidentyfikować nazwy sklepu.");
 
-            bool isProducer = storeInfo?.IsProducer ?? false;
+            bool isProducer = await CurrentUserUsesProducerView();   // BYŁO: storeInfo?.IsProducer ?? false
+
 
             // ── Preset ──
             var activePreset = await _context.CompetitorPresets
@@ -2024,7 +1974,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 return View("~/Views/Panel/PriceHistory/DetailsProducer.cshtml", prices);
             }
 
-            // ── Normalny sklep ──
             return View("~/Views/Panel/PriceHistory/Details.cshtml", prices);
         }
 
@@ -2147,14 +2096,10 @@ namespace PriceSafari.Controllers.MemberControllers
                 finalFilteredHistories = rawFilteredHistories;
             }
 
-            // ════════════════════════════════════════════════════════════════
-            // ZMIANA: Agregacja per godzina (zaokrąglona w dół)
-            //         Zamiast: scrap.Date.ToString("yyyy-MM-dd")
-            //         Teraz:   scrap.Date truncated to hour → "yyyy-MM-dd HH:00"
-            // ════════════════════════════════════════════════════════════════
+    
             var timelineData = lastScraps.Select(scrap =>
             {
-                // Zaokrąglenie daty w dół do pełnej godziny
+               
                 var truncatedDate = new DateTime(
                     scrap.Date.Year, scrap.Date.Month, scrap.Date.Day,
                     scrap.Date.Hour, 0, 0, scrap.Date.Kind);
@@ -2184,13 +2129,12 @@ namespace PriceSafari.Controllers.MemberControllers
 
 
 
-
-        // ═══════════════════════════════════════════════════════════════
-        // TREND DLA PRODUCENTA – osobny endpoint z dynamiczną ceną ref.
-        // ═══════════════════════════════════════════════════════════════
         [HttpGet]
         public async Task<IActionResult> GetPriceTrendDataForProducer(int productId, int limit = 30)
         {
+            if (!await CurrentUserUsesProducerView())
+                return Forbid();
+
             var product = await _context.Products.FindAsync(productId);
             if (product == null)
                 return NotFound(new { Error = "Nie znaleziono produktu." });
@@ -2202,7 +2146,7 @@ namespace PriceSafari.Controllers.MemberControllers
             var storeInfo = await _context.Stores
                 .AsNoTracking()
                 .Where(s => s.StoreId == storeId)
-                .Select(s => new { s.StoreName, s.IsProducer })
+                 .Select(s => new { s.StoreName })
                 .FirstOrDefaultAsync();
 
             if (storeInfo == null)
