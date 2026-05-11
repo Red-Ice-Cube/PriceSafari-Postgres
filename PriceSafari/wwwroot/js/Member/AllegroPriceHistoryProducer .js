@@ -27,10 +27,10 @@
     let sortingState = {
         sortName: null, sortPrice: null, sortDeltaPercent: null,
         sortDeltaAmount: null, sortDaysViolation: null, sortStoresViolating: null,
-        sortCeneoSales: null, sortSalesTrendAmount: null, sortSalesTrendPercent: null
+        sortTotalPopularity: null
     };
 
-    let positionSlider, offerSlider, myPriceSlider;
+    let offerSlider, myPriceSlider;
 
     const BUCKETS_ORDERED = [
         { key: 'producer-no-competition', label: 'Brak konkurencji', color: 'rgba(136, 136, 136, 0.85)' },
@@ -69,15 +69,15 @@
 
     const massActions = new window.MassActions({
         storeId: storeId,
-        isAllegro: false,
-        storageKey: `selectedProducts_${storeId}`,
+        isAllegro: true,
+        storageKey: `selectedAllegroProducts_${storeId}`,
         flags: typeof flags !== 'undefined' ? flags : [],
         getAllPrices: () => allPrices,
         getFilteredPrices: () => currentlyFilteredPrices,
         getProductIdentifier: (product) => {
             switch (producerSettings.identifierForSimulation) {
-                case 'ID': return { label: 'ID', value: product.externalId ? product.externalId.toString() : null };
-                case 'ProducerCode': return { label: 'SKU', value: product.producerCode || null };
+                case 'ID': return { label: 'ID', value: product.idOnAllegro || null };
+                case 'SKU': return { label: 'SKU', value: product.allegroSku || null };
                 default: return { label: 'EAN', value: product.ean || null };
             }
         },
@@ -144,12 +144,6 @@
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
-    function getStockBadge(inStock) {
-        if (inStock === true) return '<span class="stock-available">Dostępny</span>';
-        if (inStock === false) return '<span class="stock-unavailable">Niedostępny</span>';
-        return '<span class="BD">Brak danych</span>';
-    }
-
     function getOfferText(count) {
         if (count === 1) return `${count} Oferta`;
         const lastDigit = count % 10;
@@ -158,16 +152,18 @@
         return `${count} Ofert`;
     }
 
-    positionSlider = document.getElementById('positionRangeSlider');
-    const positionRangeInput = document.getElementById('positionRange');
-    noUiSlider.create(positionSlider, {
-        start: [1, 200], connect: true, range: { 'min': 1, 'max': 200 }, step: 1,
-        format: wNumb({ decimals: 0 })
-    });
-    positionSlider.noUiSlider.on('update', function (values) {
-        positionRangeInput.textContent = values.map(v => parseInt(v) === 60 ? 'Schowany' : 'Pozycja ' + v).join(' - ');
-    });
-    positionSlider.noUiSlider.on('change', () => filterPricesAndUpdateUI());
+    function renderDeliveryInfo(deliveryTime) {
+        if (deliveryTime === null || deliveryTime === undefined) {
+            return '<div class="Delivery3">Brak danych</div>';
+        }
+        let text = '';
+        let className = '';
+        if (deliveryTime === 0) { text = 'Wysyłka natychmiast'; className = 'Delivery1'; }
+        else if (deliveryTime === 1) { text = 'Dostawa jutro'; className = 'Delivery1'; }
+        else if (deliveryTime === 2) { text = 'Dostawa pojutrze'; className = 'Delivery2'; }
+        else { text = `Dostawa za ${deliveryTime} dni`; className = 'Delivery3'; }
+        return `<div class="${className}">${text}</div>`;
+    }
 
     offerSlider = document.getElementById('offerRangeSlider');
     const offerRangeInput = document.getElementById('offerRange');
@@ -198,7 +194,7 @@
     function loadPrices() {
         showLoading();
 
-        fetch(`/PriceHistory/GetPricesForProducer?storeId=${storeId}`)
+        fetch(`/AllegroPriceHistory/GetAllegroPricesForProducer?storeId=${storeId}`)
             .then(r => r.json())
             .then(response => {
                 if (response.error) {
@@ -258,18 +254,19 @@
                 myPriceSlider.noUiSlider.updateOptions({ range: { 'min': minP, 'max': maxP } });
                 myPriceSlider.noUiSlider.set([minP, maxP]);
 
-                const storeCounts = allPrices.map(i => i.storeCount || 0);
-                const maxStoreCount = Math.max(1, ...storeCounts);
-                offerSlider.noUiSlider.updateOptions({ range: { 'min': 1, 'max': maxStoreCount } });
-                offerSlider.noUiSlider.set([1, maxStoreCount]);
+                const compCounts = allPrices.map(i => i.competitorCount || 0);
+                const maxCompCount = Math.max(1, ...compCounts);
+                offerSlider.noUiSlider.updateOptions({ range: { 'min': 1, 'max': maxCompCount } });
+                offerSlider.noUiSlider.set([1, maxCompCount]);
 
-                const positions = allPrices.map(i => i.bestCompetitorPosition).filter(p => p !== null && !isNaN(p));
-                const maxPosition = positions.length > 0 ? Math.max(...positions) : 60;
-                positionSlider.noUiSlider.updateOptions({ range: { 'min': 1, 'max': maxPosition } });
-                positionSlider.noUiSlider.set([1, maxPosition]);
+                const totalProductCountEl = document.getElementById('totalProductCount');
+                if (totalProductCountEl) totalProductCountEl.textContent = response.productCount || allPrices.length;
 
                 const totalPriceCountEl = document.getElementById('totalPriceCount');
-                if (totalPriceCountEl) totalPriceCountEl.textContent = response.priceCount;
+                if (totalPriceCountEl) {
+                    const totalOffers = allPrices.reduce((sum, p) => sum + (p.competitorCount || 0) + (p.myPrice != null ? 1 : 0), 0);
+                    totalPriceCountEl.textContent = totalOffers;
+                }
 
                 updateFlagCounts(allPrices);
                 updateNewProductCount(allPrices);
@@ -424,25 +421,25 @@
     function saveAllProducerSettings() {
         const payload = {
             StoreId: storeId,
-            IdentifierForSimulation: producerSettings.identifierForSimulation,
-            ProducerComparisonSource: producerSettings.comparisonSource,
-            ProducerUseAmount: currentMode === 'amt',
-            ProducerThresholdRedDarkPercent: thresholdsState.pct.redDark,
-            ProducerThresholdRedPercent: thresholdsState.pct.red,
-            ProducerThresholdRedLightPercent: thresholdsState.pct.redLight,
-            ProducerThresholdGreenLightPercent: thresholdsState.pct.greenLight,
-            ProducerThresholdGreenPercent: thresholdsState.pct.green,
-            ProducerThresholdGreenDarkPercent: thresholdsState.pct.greenDark,
-            ProducerThresholdRedDarkAmount: thresholdsState.amt.redDark,
-            ProducerThresholdRedAmount: thresholdsState.amt.red,
-            ProducerThresholdRedLightAmount: thresholdsState.amt.redLight,
-            ProducerThresholdGreenLightAmount: thresholdsState.amt.greenLight,
-            ProducerThresholdGreenAmount: thresholdsState.amt.green,
-            ProducerThresholdGreenDarkAmount: thresholdsState.amt.greenDark
+            AllegroIdentifierForSimulation: producerSettings.identifierForSimulation,
+            AllegroProducerComparisonSource: producerSettings.comparisonSource,
+            AllegroProducerUseAmount: currentMode === 'amt',
+            AllegroProducerThresholdRedDarkPercent: thresholdsState.pct.redDark,
+            AllegroProducerThresholdRedPercent: thresholdsState.pct.red,
+            AllegroProducerThresholdRedLightPercent: thresholdsState.pct.redLight,
+            AllegroProducerThresholdGreenLightPercent: thresholdsState.pct.greenLight,
+            AllegroProducerThresholdGreenPercent: thresholdsState.pct.green,
+            AllegroProducerThresholdGreenDarkPercent: thresholdsState.pct.greenDark,
+            AllegroProducerThresholdRedDarkAmount: thresholdsState.amt.redDark,
+            AllegroProducerThresholdRedAmount: thresholdsState.amt.red,
+            AllegroProducerThresholdRedLightAmount: thresholdsState.amt.redLight,
+            AllegroProducerThresholdGreenLightAmount: thresholdsState.amt.greenLight,
+            AllegroProducerThresholdGreenAmount: thresholdsState.amt.green,
+            AllegroProducerThresholdGreenDarkAmount: thresholdsState.amt.greenDark
         };
 
         showLoading();
-        fetch('/PriceHistory/SaveProducerSettings', {
+        fetch('/AllegroPriceHistory/SaveAllegroProducerSettings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -537,6 +534,29 @@
         if (el) el.textContent = `(${newCount})`;
     }
 
+    function updateBadgeCounts(prices) {
+        let counts = { ss: 0, sp: 0, top: 0, bpg: 0, smart: 0, promo: 0 };
+        prices.forEach(p => {
+            if (p.bestCompetitorSuperSeller) counts.ss++;
+            if (p.bestCompetitorSuperPrice) counts.sp++;
+            if (p.bestCompetitorTopOffer) counts.top++;
+            if (p.bestCompetitorIsBestPriceGuarantee) counts.bpg++;
+            if (p.bestCompetitorSmart) counts.smart++;
+            if (p.bestCompetitorPromoted || p.bestCompetitorSponsored) counts.promo++;
+        });
+
+        const setLabel = (id, text, count) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = `${text} (${count})`;
+        };
+        setLabel('label_compIsSuperSeller', 'Super Sprzedawca', counts.ss);
+        setLabel('label_compIsSuperPrice', 'Super cena', counts.sp);
+        setLabel('label_compIsTopOffer', 'Top oferta', counts.top);
+        setLabel('label_compIsBestPriceGuarantee', 'Gwar. naj. ceny', counts.bpg);
+        setLabel('label_compIsSmart', 'Smart!', counts.smart);
+        setLabel('label_compIsPromoted', 'Promowane/Sponsor.', counts.promo);
+    }
+
     function populateProducerFilter() {
         const dropdown = document.getElementById('producerFilterDropdown');
         const counts = allPrices.reduce((m, i) => { if (i.producer) m[i.producer] = (m[i.producer] || 0) + 1; return m; }, {});
@@ -550,26 +570,40 @@
         });
     }
 
+    function checkAdvancedCondition(item, name) {
+        switch (name) {
+            case 'isNew': return item.isNew === true;
+            case 'freshViolation': return item.isFreshViolation === true && item.isCurrentlyViolating === true;
+            case 'currentlyViolating': return item.isCurrentlyViolating === true;
+            case 'compIsSuperSeller': return item.bestCompetitorSuperSeller === true;
+            case 'compIsSuperPrice': return item.bestCompetitorSuperPrice === true;
+            case 'compIsTopOffer': return item.bestCompetitorTopOffer === true;
+            case 'compIsBestPriceGuarantee': return item.bestCompetitorIsBestPriceGuarantee === true;
+            case 'compIsSmart': return item.bestCompetitorSmart === true;
+            case 'compIsPromoted': return item.bestCompetitorPromoted === true || item.bestCompetitorSponsored === true;
+            case 'deliveryFast':
+                return item.bestCompetitorDeliveryTime != null && item.bestCompetitorDeliveryTime <= 1;
+            case 'deliverySlow':
+                return item.bestCompetitorDeliveryTime != null && item.bestCompetitorDeliveryTime >= 3;
+            case 'deliveryNoData':
+                return item.bestCompetitorDeliveryTime == null;
+            default: return false;
+        }
+    }
+
     function filterPricesByCategoryAndColorAndFlag(data) {
         let filtered = data;
 
         const selBuckets = Array.from(document.querySelectorAll('.bucketFilter:checked')).map(c => c.value);
         if (selBuckets.length) filtered = filtered.filter(item => selBuckets.includes(item.bucket));
 
-        const posVals = positionSlider.noUiSlider.get();
-        const posMin = parseInt(posVals[0]), posMax = parseInt(posVals[1]);
         const offVals = offerSlider.noUiSlider.get();
         const offMin = parseInt(offVals[0]), offMax = parseInt(offVals[1]);
         const priceRaw = myPriceSlider.noUiSlider.get();
         const priceMin = parseFloat(priceRaw[0].replace(' PLN', '').replace(/\s/g, '').replace(',', '.'));
         const priceMax = parseFloat(priceRaw[1].replace(' PLN', '').replace(/\s/g, '').replace(',', '.'));
 
-        filtered = filtered.filter(item => {
-            const pos = item.bestCompetitorPosition;
-            if (pos === null || pos === undefined) return true;
-            return parseInt(pos) >= posMin && parseInt(pos) <= posMax;
-        });
-        filtered = filtered.filter(item => (item.storeCount || 0) >= offMin && (item.storeCount || 0) <= offMax);
+        filtered = filtered.filter(item => (item.competitorCount || 0) >= offMin && (item.competitorCount || 0) <= offMax);
         filtered = filtered.filter(item => {
             const refP = item.referencePrice != null ? parseFloat(item.referencePrice) : 0;
             if (refP <= 0.01) return true;
@@ -590,18 +624,10 @@
             });
         }
 
-        function check(item, name) {
-            switch (name) {
-                case 'isNew': return item.isNew === true;
-                case 'freshViolation': return item.isFreshViolation === true && item.isCurrentlyViolating === true;
-                case 'currentlyViolating': return item.isCurrentlyViolating === true;
-                case 'compStockAvailable': return item.bestCompetitorInStock === true;
-                case 'compStockUnavailable': return item.bestCompetitorInStock === false;
-                default: return false;
-            }
-        }
-        if (selectedAdvancedExcludes.size > 0) filtered = filtered.filter(item => { for (const f of selectedAdvancedExcludes) if (check(item, f)) return false; return true; });
-        if (selectedAdvancedIncludes.size > 0) filtered = filtered.filter(item => { for (const f of selectedAdvancedIncludes) if (!check(item, f)) return false; return true; });
+        if (selectedAdvancedExcludes.size > 0)
+            filtered = filtered.filter(item => { for (const f of selectedAdvancedExcludes) if (checkAdvancedCondition(item, f)) return false; return true; });
+        if (selectedAdvancedIncludes.size > 0)
+            filtered = filtered.filter(item => { for (const f of selectedAdvancedIncludes) if (!checkAdvancedCondition(item, f)) return false; return true; });
 
         return filtered;
     }
@@ -621,8 +647,8 @@
                 filtered = filtered.filter(p => {
                     let id = '';
                     switch (producerSettings.identifierForSimulation) {
-                        case 'ID': id = p.externalId ? p.externalId.toString() : ''; break;
-                        case 'ProducerCode': id = p.producerCode || ''; break;
+                        case 'ID': id = p.idOnAllegro || ''; break;
+                        case 'SKU': id = p.allegroSku || ''; break;
                         default: id = p.ean || ''; break;
                     }
                     const combo = ((p.productName || '') + ' ' + id).toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
@@ -633,7 +659,7 @@
             if (storeSearch) {
                 const sanitized = storeSearch.replace(/[^a-zA-Z0-9\s.-]/g, '').toLowerCase().replace(/\s+/g, '');
                 filtered = filtered.filter(p => {
-                    const sn = (p.bestCompetitorStoreName || '').toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
+                    const sn = (p.bestCompetitorSellerName || '').toLowerCase().replace(/[^a-zA-Z0-9\s.-]/g, '').replace(/\s+/g, '');
                     return sn.includes(sanitized);
                 });
             }
@@ -653,15 +679,8 @@
                 filtered.sort((a, b) => sortingState.sortDaysViolation === 'asc' ? (a.daysOfViolation ?? Infinity) - (b.daysOfViolation ?? Infinity) : (b.daysOfViolation ?? -Infinity) - (a.daysOfViolation ?? -Infinity));
             } else if (sortingState.sortStoresViolating !== null) {
                 filtered.sort((a, b) => sortingState.sortStoresViolating === 'asc' ? (a.storesBelowReference || 0) - (b.storesBelowReference || 0) : (b.storesBelowReference || 0) - (a.storesBelowReference || 0));
-            } else if (sortingState.sortCeneoSales !== null) {
-                filtered = filtered.filter(i => i.ceneoSalesCount !== null);
-                filtered.sort((a, b) => sortingState.sortCeneoSales === 'asc' ? (b.ceneoSalesCount ?? -Infinity) - (a.ceneoSalesCount ?? -Infinity) : (a.ceneoSalesCount ?? Infinity) - (b.ceneoSalesCount ?? Infinity));
-            } else if (sortingState.sortSalesTrendAmount !== null) {
-                filtered = filtered.filter(i => i.salesDifference !== null);
-                filtered.sort((a, b) => sortingState.sortSalesTrendAmount === 'asc' ? (b.salesDifference ?? -Infinity) - (a.salesDifference ?? -Infinity) : (a.salesDifference ?? Infinity) - (b.salesDifference ?? Infinity));
-            } else if (sortingState.sortSalesTrendPercent !== null) {
-                filtered = filtered.filter(i => i.salesPercentageChange !== null);
-                filtered.sort((a, b) => sortingState.sortSalesTrendPercent === 'asc' ? (b.salesPercentageChange ?? -Infinity) - (a.salesPercentageChange ?? -Infinity) : (a.salesPercentageChange ?? Infinity) - (b.salesPercentageChange ?? Infinity));
+            } else if (sortingState.sortTotalPopularity !== null) {
+                filtered.sort((a, b) => sortingState.sortTotalPopularity === 'asc' ? (b.totalPopularity ?? -Infinity) - (a.totalPopularity ?? -Infinity) : (a.totalPopularity ?? Infinity) - (b.totalPopularity ?? Infinity));
             }
 
             const selProducer = document.getElementById('producerFilterDropdown').value;
@@ -673,10 +692,12 @@
             renderChart(filtered);
             updateBucketCountsUI(filtered);
             updateFlagCounts(filtered);
+            updateBadgeCounts(filtered);
             updateNewProductCount(filtered);
             hideLoading();
         }, 0);
     }
+
     function renderPagination(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
         const c = document.getElementById('paginationContainer');
@@ -747,11 +768,8 @@
 
         blocks.push(`
             <div class="price-box-column-offers-a">
-                <span class="data-channel">
-                    ${item.sourceGoogle ? `<img src="/images/GoogleShopping.png" alt="" style="width:15px;height:15px;" />` : ''}
-                    ${item.sourceCeneo ? `<img src="/images/Ceneo.png" alt="" style="width:15px;height:15px;" />` : ''}
-                </span>
-                <div class="offer-count-box">${getOfferText(item.storeCount || 0)}</div>
+                <span class="data-channel"><img src="/images/AllegroIcon.png" alt="Allegro" style="width:15px;height:15px;" /></span>
+                <div class="offer-count-box">${getOfferText(item.competitorCount || 0)}</div>
             </div>`);
 
         if (!item.isCurrentlyViolating) {
@@ -781,37 +799,12 @@
                 </div>`);
         }
 
-        if (item.ceneoSalesCount > 0) {
+        if (item.apiAllegroCommission != null) {
+            const formattedCommission = formatPricePL(item.apiAllegroCommission, false);
             blocks.push(`
-                <div class="price-box-column-offers-a" title="Ilość zakupionych przez ostatnie 90 dni na Ceneo">
-                    <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size:14px; color:grey;"></i></span>
-                    <div class="offer-count-box"><p>${item.ceneoSalesCount} sztuk</p></div>
-                </div>`);
-        } else {
-            blocks.push(`
-                <div class="price-box-column-offers-a">
-                    <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size:14px; color:grey;"></i></span>
-                    <div class="offer-count-box"><p>Brak sprzedaży</p></div>
-                </div>`);
-        }
-
-        if (item.salesTrendStatus && item.salesTrendStatus !== 'NoData') {
-            let trendText = 'Bez zmian';
-            if (item.salesDifference !== 0 && item.salesDifference !== null) {
-                const sign = item.salesDifference > 0 ? '+' : '';
-                const pct = item.salesPercentageChange !== null ? ` (${sign}${item.salesPercentageChange.toFixed(1)}%)` : '';
-                trendText = `${sign}${item.salesDifference}${pct}`;
-            }
-            blocks.push(`
-                <div class="price-box-column-offers-a" title="Trend sprzedaży">
-                    <span class="data-channel"><img src="/images/Flag-${item.salesTrendStatus}.svg" alt="" style="width:18px;height:18px;" /></span>
-                    <div class="offer-count-box"><p>${trendText}</p></div>
-                </div>`);
-        } else {
-            blocks.push(`
-                <div class="price-box-column-offers-a">
-                    <span class="data-channel"><i class="fas fa-chart-line" style="font-size:14px; color:grey;"></i></span>
-                    <div class="offer-count-box"><p>Brak danych</p></div>
+                <div class="price-box-column-offers-a" title="Prowizja Allegro dla Twojej oferty">
+                    <span class="data-channel"><i class="fa-solid fa-coins" style="font-size:14px; color:#888;"></i></span>
+                    <div class="offer-count-box"><p>${formattedCommission} PLN</p></div>
                 </div>`);
         }
 
@@ -820,7 +813,7 @@
 
     function buildCompetitorBox(item, storeSearchTerm) {
         const bestComp = item.bestCompetitorPrice != null ? parseFloat(item.bestCompetitorPrice) : null;
-        const highlightedStoreName = highlightMatches(item.bestCompetitorStoreName || '', storeSearchTerm);
+        const highlightedStoreName = highlightMatches(item.bestCompetitorSellerName || '', storeSearchTerm);
 
         if (bestComp == null) {
             return `
@@ -835,23 +828,21 @@
                 </div>`;
         }
 
-        const channelIcon = item.bestCompetitorIsGoogle != null
-            ? `<img src="${item.bestCompetitorIsGoogle ? '/images/GoogleShopping.png' : '/images/Ceneo.png'}" alt="" style="width:14px; height:14px; margin-right:4px;" />`
+        const superPriceBadge = item.bestCompetitorSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
+        const topOfferBadge = item.bestCompetitorTopOffer ? `<div class="TopOffer">Top oferta</div>` : '';
+        const bestPriceStyle = item.bestCompetitorIsBestPriceGuarantee ? 'color: #169A23;' : '';
+        const bestPriceIcon = item.bestCompetitorIsBestPriceGuarantee
+            ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">`
             : '';
-
-        let positionBadge = '';
-        if (item.bestCompetitorPosition != null) {
-            const positionClass = item.bestCompetitorIsGoogle ? 'Position-Google' : 'Position';
-            const positionLabel = item.bestCompetitorIsGoogle ? 'Poz. Google' : 'Poz. Ceneo';
-            positionBadge = `<span class="${positionClass}">${positionLabel} ${item.bestCompetitorPosition}</span>`;
-        }
-
-        let biddingBadge = '';
-        if (item.bestCompetitorIsBidding === true) {
-            biddingBadge = '<span class="Bidding">Bid</span>';
-        }
-
-        const stockBadge = getStockBadge(item.bestCompetitorInStock);
+        const superSellerIcon = item.bestCompetitorSuperSeller
+            ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">`
+            : '';
+        const smartBadge = item.bestCompetitorSmart
+            ? `<div class="Smart-Allegro"><img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;"></div>`
+            : '';
+        let promoText = '';
+        if (item.bestCompetitorPromoted) promoText = ` <span class="AddPromoInfoBadge">Promowane</span>`;
+        else if (item.bestCompetitorSponsored) promoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
 
         let storesDistHtml = '';
         const hasRef = item.referencePrice != null && parseFloat(item.referencePrice) > 0.01;
@@ -874,16 +865,20 @@
         return `
             <div class="price-box-column">
                 <div class="price-box-column-text">
-                    <div style="display:flex; align-items:center;">
-                        <span style="font-weight:500; font-size:17px;">${formatPricePL(bestComp)}</span>
+                    <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                        <span style="font-weight:500; font-size:17px; ${bestPriceStyle}">${formatPricePL(bestComp)}</span>
+                        ${bestPriceIcon}${superPriceBadge}${topOfferBadge}
                     </div>
-                    <div style="display:flex; align-items:center; gap:4px; color:#444; font-size:13px;">
-                        ${channelIcon}<span>${highlightedStoreName}</span>
+                    <div style="color:#444; font-size:13px;">
+                        <span>${highlightedStoreName}</span>${superSellerIcon}${promoText}
                     </div>
                     ${storesDistHtml}
                 </div>
-                <div class="price-box-column-text" style="display:flex; gap:4px; flex-wrap:wrap;">
-                    ${positionBadge}${stockBadge}${biddingBadge}
+                <div class="price-box-column-text">
+                    <div class="data-channel">
+                        ${smartBadge}
+                        ${renderDeliveryInfo(item.bestCompetitorDeliveryTime)}
+                    </div>
                 </div>
             </div>`;
     }
@@ -894,18 +889,13 @@
         const mapPrice = item.mapPrice != null ? parseFloat(item.mapPrice) : null;
 
         if (refPrice != null && refPrice > 0) {
-            const sourceLabel = item.referenceSource === 'map' ? 'Cena MAP' : 'Cena Twojego sklepu';
+            const sourceLabel = item.referenceSource === 'map' ? 'Cena MAP' : 'Cena Twojego sklepu na Allegro';
             const altLines = [];
             if (item.referenceSource === 'map' && myPrice != null && myPrice > 0) {
-                altLines.push(`<div class="ref-alt-line">Twoja oferta: <strong>${formatPricePL(myPrice)}</strong></div>`);
+                altLines.push(`<div class="ref-alt-line">Twoja oferta na Allegro: <strong>${formatPricePL(myPrice)}</strong></div>`);
             }
             if (item.referenceSource === 'store' && mapPrice != null && mapPrice > 0) {
                 altLines.push(`<div class="ref-alt-line">MAP w katalogu: <strong>${formatPricePL(mapPrice)}</strong></div>`);
-            }
-
-            let myStockBadge = '';
-            if (myPrice != null && myPrice > 0) {
-                myStockBadge = `<div style="margin-top:4px;">${getStockBadge(item.myEntryInStock)}</div>`;
             }
 
             return `
@@ -915,19 +905,17 @@
                         <div><span style="font-weight:500; font-size:17px;">${formatPricePL(refPrice)}</span></div>
                         ${altLines.join('')}
                     </div>
-                    <div class="price-box-column-text">
-                        ${myStockBadge}
-                    </div>
+                    <div class="price-box-column-text"></div>
                 </div>`;
         }
 
         let missingMsg = '';
         if (producerSettings.comparisonSource === 1) missingMsg = 'Brak ceny MAP w katalogu';
-        else missingMsg = 'Brak Twojej oferty';
+        else missingMsg = 'Brak Twojej oferty na Allegro';
 
         const altLines = [];
         if (mapPrice != null && mapPrice > 0) altLines.push(`<div class="ref-alt-line">MAP w katalogu: <strong>${formatPricePL(mapPrice)}</strong></div>`);
-        if (myPrice != null && myPrice > 0) altLines.push(`<div class="ref-alt-line">Twoja oferta: <strong>${formatPricePL(myPrice)}</strong></div>`);
+        if (myPrice != null && myPrice > 0) altLines.push(`<div class="ref-alt-line">Twoja oferta na Allegro: <strong>${formatPricePL(myPrice)}</strong></div>`);
 
         return `
             <div class="price-box-column">
@@ -1025,10 +1013,13 @@
 
             const box = document.createElement('div');
             box.className = 'price-box';
-            box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + currentScrapId + '&productId=' + item.productId;
+            box.dataset.detailsUrl = `/AllegroPriceHistory/Details?storeId=${storeId}&productId=${item.productId}&scrapId=${currentScrapId}`;
             box.dataset.productId = item.productId;
             box.dataset.productName = item.productName;
-            box.addEventListener('click', function () { window.open(this.dataset.detailsUrl, '_blank'); });
+            box.addEventListener('click', function (event) {
+                if (event.target.closest('button, a, img, .select-product-btn, .ApiBox')) return;
+                window.open(this.dataset.detailsUrl, '_blank');
+            });
 
             const priceBoxSpace = document.createElement('div');
             priceBoxSpace.className = 'price-box-space';
@@ -1038,11 +1029,7 @@
 
             const nameDiv = document.createElement('div');
             nameDiv.className = 'price-box-column-name';
-            let colorVariantHtml = '';
-            if (item.googleColor && item.googleColor.trim() !== '') {
-                colorVariantHtml = `<span style="background-color:#000;color:#fff;border-radius:5px;padding:2px 6px;font-size:12px;margin-left:6px;display:inline-block;vertical-align:middle;">${item.googleColor}</span>`;
-            }
-            nameDiv.innerHTML = highlightedName + colorVariantHtml;
+            nameDiv.innerHTML = highlightedName;
             if (item.isNew) nameDiv.insertAdjacentHTML('beforeend', '<div><span class="badge-new">NEW</span></div>');
 
             leftCol.appendChild(nameDiv);
@@ -1069,17 +1056,17 @@
             apiBox.className = 'ApiBox';
             let idVal, idLabel;
             switch (producerSettings.identifierForSimulation) {
-                case 'ID': idVal = item.externalId ? item.externalId.toString() : null; idLabel = 'ID'; break;
-                case 'ProducerCode': idVal = item.producerCode || null; idLabel = 'SKU'; break;
+                case 'ID': idVal = item.idOnAllegro || null; idLabel = 'ID'; break;
+                case 'SKU': idVal = item.allegroSku || null; idLabel = 'SKU'; break;
                 default: idVal = item.ean || null; idLabel = 'EAN'; break;
             }
             if (idVal) {
-                apiBox.innerHTML = `${idLabel} ${highlightMatches(idVal, productSearchTerm, 'highlighted-text-yellow')}`;
+                apiBox.innerHTML = `${idLabel} ${highlightMatches(idVal.toString(), productSearchTerm, 'highlighted-text-yellow')}`;
                 apiBox.style.cursor = 'pointer';
                 apiBox.title = 'Kliknij, aby skopiować';
                 apiBox.addEventListener('click', function (e) {
                     e.stopPropagation();
-                    navigator.clipboard.writeText(idVal).then(() => {
+                    navigator.clipboard.writeText(idVal.toString()).then(() => {
                         const orig = apiBox.innerHTML, origBg = apiBox.style.backgroundColor, origC = apiBox.style.color;
                         apiBox.innerHTML = 'Skopiowano!'; apiBox.style.backgroundColor = '#198754'; apiBox.style.color = 'white';
                         setTimeout(() => { apiBox.innerHTML = orig; apiBox.style.backgroundColor = origBg; apiBox.style.color = origC; }, 2000);
@@ -1101,15 +1088,6 @@
             colorBar.className = 'color-bar ' + (item.bucket || 'producer-no-reference');
             priceBoxData.appendChild(colorBar);
 
-            if (item.imgUrl) {
-                const img = document.createElement('img');
-                img.dataset.src = item.imgUrl;
-                img.alt = item.productName;
-                img.className = 'lazy-load';
-                img.style.cssText = 'width:142px; height:182px; object-fit:contain; object-position:center; margin-right:3px; margin-left:3px; background-color:#ffffff; border:1px solid #e3e3e3; border-radius:4px; padding:8px; display:block;';
-                priceBoxData.appendChild(img);
-            }
-
             const stats = document.createElement('div');
             stats.className = 'price-box-stats-container';
             stats.innerHTML = buildStatsBlocks(item);
@@ -1126,20 +1104,6 @@
 
         c.appendChild(fragment);
         renderPagination(data.length);
-
-        const lazyImgs = c.querySelectorAll('.lazy-load');
-        const obs = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    img.src = img.dataset.src;
-                    img.onload = () => img.classList.add('loaded');
-                    img.onerror = () => { img.src = '/images/no-image.png'; };
-                    observer.unobserve(img);
-                }
-            });
-        }, { rootMargin: '100px' });
-        lazyImgs.forEach(im => obs.observe(im));
 
         document.getElementById('displayedProductCount').textContent = data.length;
     }
@@ -1203,9 +1167,7 @@
             case 'sortDeltaAmount': return 'Delta PLN';
             case 'sortDaysViolation': return 'Dni naruszenia';
             case 'sortStoresViolating': return 'Liczba naruszycieli';
-            case 'sortCeneoSales': return 'Sprzedaż - ilość';
-            case 'sortSalesTrendAmount': return 'Trend - ilość';
-            case 'sortSalesTrendPercent': return 'Trend - %';
+            case 'sortTotalPopularity': return 'Sprzedaż katalogu';
             default: return '';
         }
     }
@@ -1234,18 +1196,18 @@
             else if (cur === 'asc') sortingState[id] = 'desc';
             else sortingState[id] = null;
             resetSortingStates(id);
-            localStorage.setItem('priceHistoryProducerSorting_' + storeId, JSON.stringify(sortingState));
+            localStorage.setItem('allegroProducerSorting_' + storeId, JSON.stringify(sortingState));
             filterPricesAndUpdateUI();
         });
     }
 
-    ['sortName', 'sortPrice', 'sortDeltaPercent', 'sortDeltaAmount', 'sortDaysViolation', 'sortStoresViolating',
-        'sortCeneoSales', 'sortSalesTrendAmount', 'sortSalesTrendPercent'].forEach(bindSortButton);
+    ['sortName', 'sortPrice', 'sortDeltaPercent', 'sortDeltaAmount', 'sortDaysViolation', 'sortStoresViolating', 'sortTotalPopularity']
+        .forEach(bindSortButton);
 
-    const storedSort = localStorage.getItem('priceHistoryProducerSorting_' + storeId);
+    const storedSort = localStorage.getItem('allegroProducerSorting_' + storeId);
     if (storedSort) {
         try { sortingState = { ...sortingState, ...JSON.parse(storedSort) }; updateSortButtonVisuals(); }
-        catch (e) { localStorage.removeItem('priceHistoryProducerSorting_' + storeId); }
+        catch (e) { localStorage.removeItem('allegroProducerSorting_' + storeId); }
     }
 
     const debouncedFilter = debounce(() => filterPricesAndUpdateUI(), 300);
@@ -1289,59 +1251,78 @@
 
         try {
             const wb = new ExcelJS.Workbook();
-            const ws = wb.addWorksheet('Monitoring producenta');
+            const ws = wb.addWorksheet('Monitoring Allegro');
 
             ws.columns = [
                 { header: 'EAN', key: 'ean', width: 16 },
                 { header: 'SKU', key: 'sku', width: 16 },
+                { header: 'ID Allegro', key: 'idAllegro', width: 16 },
                 { header: 'Producent', key: 'producer', width: 20 },
                 { header: 'Nazwa produktu', key: 'name', width: 40 },
+                { header: 'Link do oferty', key: 'url', width: 30 },
                 { header: 'Cena referencyjna', key: 'ref', width: 14, style: { numFmt: '0.00' } },
                 { header: 'Źródło ref.', key: 'refSource', width: 16 },
+                { header: 'MAP w katalogu', key: 'map', width: 14, style: { numFmt: '0.00' } },
+                { header: 'Moja oferta', key: 'myPrice', width: 14, style: { numFmt: '0.00' } },
                 { header: 'Najtańsza konkurencja', key: 'best', width: 14, style: { numFmt: '0.00' } },
                 { header: 'Sklep konkurenta', key: 'bestStore', width: 20 },
-                { header: 'Pozycja konkurenta', key: 'bestPos', width: 14 },
-                { header: 'Konkurent dostępny', key: 'bestStock', width: 14 },
+                { header: 'Dostawa (dni)', key: 'bestDelivery', width: 14 },
+                { header: 'Super Sprzedawca', key: 'bestSS', width: 12 },
+                { header: 'Super Cena', key: 'bestSP', width: 12 },
+                { header: 'Top Oferta', key: 'bestTop', width: 12 },
+                { header: 'Gwar. Naj. Ceny', key: 'bestBPG', width: 14 },
+                { header: 'Promowane/Sponsor.', key: 'bestPromo', width: 16 },
                 { header: 'Delta (PLN)', key: 'deltaA', width: 12, style: { numFmt: '0.00' } },
                 { header: 'Delta (%)', key: 'deltaP', width: 10, style: { numFmt: '0.00' } },
                 { header: 'Status', key: 'bucket', width: 22 },
                 { header: 'Sklepów łamiących', key: 'below', width: 14 },
                 { header: 'Sklepów zgodnych', key: 'eq', width: 14 },
                 { header: 'Sklepów powyżej', key: 'above', width: 14 },
-                { header: 'Liczba ofert łącznie', key: 'storeCount', width: 14 },
+                { header: 'Liczba konkurentów', key: 'compCount', width: 14 },
                 { header: 'Naruszenie obecne', key: 'isViolating', width: 14 },
                 { header: 'Świeże naruszenie', key: 'isFresh', width: 14 },
                 { header: 'Dni naruszenia', key: 'days', width: 14, style: { numFmt: '0.00' } },
-                { header: 'Sprzedaż Ceneo (90d)', key: 'sales', width: 14 }
+                { header: 'Prowizja Allegro', key: 'commission', width: 14, style: { numFmt: '0.00' } }
             ];
 
             ws.getRow(1).font = { bold: true };
             ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
 
             currentlyFilteredPrices.forEach(item => {
-                const stockStr = item.bestCompetitorInStock === true ? 'TAK' : (item.bestCompetitorInStock === false ? 'NIE' : 'Brak danych');
+                let promoStr = '';
+                if (item.bestCompetitorPromoted) promoStr = 'Promowane';
+                else if (item.bestCompetitorSponsored) promoStr = 'Sponsorowane';
+
                 ws.addRow({
                     ean: item.ean || '',
-                    sku: item.producerCode || '',
+                    sku: item.allegroSku || '',
+                    idAllegro: item.idOnAllegro || '',
                     producer: item.producer || '',
                     name: item.productName || '',
+                    url: item.allegroOfferUrl || '',
                     ref: item.referencePrice,
                     refSource: item.referenceSource === 'map' ? 'MAP' : (item.referenceSource === 'store' ? 'Sklep' : 'Brak'),
+                    map: item.mapPrice,
+                    myPrice: item.myPrice,
                     best: item.bestCompetitorPrice,
-                    bestStore: item.bestCompetitorStoreName || '',
-                    bestPos: item.bestCompetitorPosition,
-                    bestStock: stockStr,
+                    bestStore: item.bestCompetitorSellerName || '',
+                    bestDelivery: item.bestCompetitorDeliveryTime,
+                    bestSS: item.bestCompetitorSuperSeller ? 'TAK' : 'NIE',
+                    bestSP: item.bestCompetitorSuperPrice ? 'TAK' : 'NIE',
+                    bestTop: item.bestCompetitorTopOffer ? 'TAK' : 'NIE',
+                    bestBPG: item.bestCompetitorIsBestPriceGuarantee ? 'TAK' : 'NIE',
+                    bestPromo: promoStr,
                     deltaA: item.deltaAbsolute,
                     deltaP: item.deltaPercent,
                     bucket: BUCKET_LABELS[item.bucket] || '',
                     below: item.storesBelowReference,
                     eq: item.storesAtReference,
                     above: item.storesAboveReference,
-                    storeCount: item.storeCount,
+                    compCount: item.competitorCount,
                     isViolating: item.isCurrentlyViolating ? 'TAK' : 'NIE',
                     isFresh: item.isFreshViolation ? 'TAK' : 'NIE',
                     days: item.daysOfViolation,
-                    sales: item.ceneoSalesCount
+                    commission: item.apiAllegroCommission
                 });
             });
 
@@ -1350,7 +1331,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `Producent_${myStoreName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            a.download = `Producent_Allegro_${myStoreName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
             a.click();
             URL.revokeObjectURL(url);
 
@@ -1371,42 +1352,42 @@
     }
     function updateApiUrls(token) {
         if (!token) {
-            $('#apiUrlJsonInput').val("Wygeneruj token, aby zobaczyć link.");
-            $('#apiUrlXmlInput').val("Wygeneruj token, aby zobaczyć link.");
+            $('#allegroApiUrlJsonInput').val("Wygeneruj token, aby zobaczyć link.");
+            $('#allegroApiUrlXmlInput').val("Wygeneruj token, aby zobaczyć link.");
             return;
         }
         const baseUrl = window.location.origin;
-        const base = `${baseUrl}/DataTree/export/${storeId}?token=${token}`;
-        $('#apiUrlJsonInput').val(`${base}&format=json`);
-        $('#apiUrlXmlInput').val(`${base}&format=xml`);
+        const base = `${baseUrl}/DataTree/export-allegro/${storeId}?token=${token}`;
+        $('#allegroApiUrlJsonInput').val(`${base}&format=json`);
+        $('#allegroApiUrlXmlInput').val(`${base}&format=xml`);
     }
-    $('#apiExportModal').on('show.bs.modal', function () {
-        $('#apiTokenInput').val('Ładowanie...');
-        $.get(`/PriceHistory/GetApiExportSettings?storeId=${storeId}`, function (data) {
-            $('#enableApiExportCheckbox').prop('checked', data.isApiExportEnabled);
-            if (data.apiExportToken) { $('#apiTokenInput').val(data.apiExportToken); updateApiUrls(data.apiExportToken); }
-            else { $('#apiTokenInput').val(''); updateApiUrls(''); }
+    $('#allegroApiExportModal').on('show.bs.modal', function () {
+        $('#allegroApiTokenInput').val('Ładowanie...');
+        $.get(`/AllegroPriceHistory/GetAllegroApiExportSettings?storeId=${storeId}`, function (data) {
+            $('#enableAllegroApiExportCheckbox').prop('checked', data.isApiExportEnabled);
+            if (data.apiExportToken) { $('#allegroApiTokenInput').val(data.apiExportToken); updateApiUrls(data.apiExportToken); }
+            else { $('#allegroApiTokenInput').val(''); updateApiUrls(''); }
         });
     });
-    $('#generateTokenBtn').click(function () {
+    $('#generateAllegroTokenBtn').click(function () {
         const t = generateSecureToken();
-        $('#apiTokenInput').val(t);
+        $('#allegroApiTokenInput').val(t);
         updateApiUrls(t);
     });
-    $('#saveApiExportBtn').click(function () {
-        const e = $('#enableApiExportCheckbox').is(':checked');
-        const t = $('#apiTokenInput').val();
-        if (e && (!t || t.trim() === '')) { alert('Jeśli włączasz API, musisz wygenerować token!'); return; }
+    $('#saveAllegroApiExportBtn').click(function () {
+        const e = $('#enableAllegroApiExportCheckbox').is(':checked');
+        const t = $('#allegroApiTokenInput').val();
+        if (e && (!t || t.trim() === '' || t === 'Ładowanie...')) { alert('Jeśli włączasz API, musisz wygenerować token!'); return; }
         showLoading();
         $.ajax({
-            url: `/PriceHistory/SaveApiExportSettings?storeId=${storeId}`,
+            url: `/AllegroPriceHistory/SaveAllegroApiExportSettings?storeId=${storeId}`,
             type: 'POST', contentType: 'application/json',
             data: JSON.stringify({ isEnabled: e, token: t }),
-            success: function (resp) { hideLoading(); $('#apiExportModal').modal('hide'); showGlobalUpdate(resp.message); },
+            success: function (resp) { hideLoading(); $('#allegroApiExportModal').modal('hide'); showGlobalUpdate(resp.message); },
             error: function () { hideLoading(); showGlobalNotification('Błąd zapisu.'); }
         });
     });
-    $('.copy-btn').click(function () {
+    $(document).on('click', '#allegroApiExportModal .copy-btn', function () {
         const tid = $(this).data('target');
         const inp = document.getElementById(tid);
         if (!inp.value || inp.value.includes("Wygeneruj token")) return;

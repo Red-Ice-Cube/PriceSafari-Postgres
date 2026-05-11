@@ -1,0 +1,528 @@
+﻿@using Newtonsoft.Json
+@using PriceSafari.Models.ViewModels
+
+@{
+    ViewBag.Title = "Panel Producenta Allegro - " + ViewBag.StoreName;
+    var latestScrap = ViewBag.LatestScrap as PriceSafari.Models.AllegroScrapeHistory;
+    var storeId = ViewBag.StoreId;
+    var storeLogo = ViewBag.StoreLogo;
+    var storeName = ViewBag.StoreName;
+    var scrapDate = latestScrap?.Date.ToString("dd.MM.yyyy");
+    var flags = ViewBag.Flags as List<FlagViewModel>;
+    Layout = "~/Views/Shared/_PanelLayout.cshtml";
+}
+
+<div class="Vert">
+    <div class="Page-Box">
+        <div class="Page-Box-Container">
+
+            <!-- ===================== LEWY PANEL ===================== -->
+            <div class="Page-Box-Category">
+                <div><img src="@storeLogo" class="img-container" /></div>
+
+                <div class="side-chart-box">
+                    <canvas id="colorChart"></canvas>
+                </div>
+
+                <!-- Scrollowalna część sidebara: buckety + progi + filtry/slidery -->
+                <div class="sidebar-scroll-area">
+
+                    <!-- 9 bucketów (kolejność od góry: brak konkur > brak ref > mocno powyżej > ... > drastyczne) -->
+                    <div class="store-section" id="filters-producer">
+                        <div class="form-check">
+                            <span class="color-rect producer-rect-no-competition"></span>
+                            <input class="form-check-input bucketFilter" type="checkbox" id="bucketNoCompetition" value="producer-no-competition">
+                            <label class="form-check-label" for="bucketNoCompetition">Brak konkurencji</label>
+                        </div>
+                        <div class="form-check">
+                            <span class="color-rect producer-rect-no-reference"></span>
+                            <input class="form-check-input bucketFilter" type="checkbox" id="bucketNoReference" value="producer-no-reference">
+                            <label class="form-check-label" for="bucketNoReference">Brak ceny ref.</label>
+                        </div>
+                        <div class="form-check">
+                            <span class="color-rect producer-rect-deep-above"></span>
+                            <input class="form-check-input bucketFilter" type="checkbox" id="bucketDeepAbove" value="producer-deep-above">
+                            <label class="form-check-label" for="bucketDeepAbove">Mocno powyżej</label>
+                        </div>
+                        <div class="form-check">
+                            <span class="color-rect producer-rect-above"></span>
+                            <input class="form-check-input bucketFilter" type="checkbox" id="bucketAbove" value="producer-above">
+                            <label class="form-check-label" for="bucketAbove">Powyżej</label>
+                        </div>
+                        <div class="form-check">
+                            <span class="color-rect producer-rect-minor-above"></span>
+                            <input class="form-check-input bucketFilter" type="checkbox" id="bucketMinorAbove" value="producer-minor-above">
+                            <label class="form-check-label" for="bucketMinorAbove">Lekko powyżej</label>
+                        </div>
+                        <div class="form-check">
+                            <span class="color-rect producer-rect-equal"></span>
+                            <input class="form-check-input bucketFilter" type="checkbox" id="bucketEqual" value="producer-equal">
+                            <label class="form-check-label" for="bucketEqual">Cena zgodna</label>
+                        </div>
+                        <div class="form-check">
+                            <span class="color-rect producer-rect-minor-below"></span>
+                            <input class="form-check-input bucketFilter" type="checkbox" id="bucketMinorBelow" value="producer-minor-below">
+                            <label class="form-check-label" for="bucketMinorBelow">Lekko poniżej</label>
+                        </div>
+                        <div class="form-check">
+                            <span class="color-rect producer-rect-violation"></span>
+                            <input class="form-check-input bucketFilter" type="checkbox" id="bucketViolation" value="producer-violation">
+                            <label class="form-check-label" for="bucketViolation">Naruszenie</label>
+                        </div>
+                        <div class="form-check">
+                            <span class="color-rect producer-rect-deep-violation"></span>
+                            <input class="form-check-input bucketFilter" type="checkbox" id="bucketDeepViolation" value="producer-deep-violation">
+                            <label class="form-check-label" for="bucketDeepViolation">Drastyczne naruszenie</label>
+                        </div>
+                    </div>
+
+                    <!-- INLINE: 6 progów + tryb + zapis -->
+                    <div class="store-section producer-thresholds-section">
+                        <div class="price-range-settings">
+                            <div class="color-circle producer-circle-deep-above"></div>
+                            <div class="legendBox"><span>Mocno powyżej</span></div>
+                            <label for="thrInline_greenDark"></label>
+                            <input type="number" id="thrInline_greenDark" class="producer-threshold-input" data-level="dark" data-direction="above" step="0.5" min="0">
+                            <span class="producer-unit-label">%</span>
+                        </div>
+                        <div class="price-range-settings">
+                            <div class="color-circle producer-circle-above"></div>
+                            <div class="legendBox"><span>Powyżej</span></div>
+                            <label for="thrInline_green"></label>
+                            <input type="number" id="thrInline_green" class="producer-threshold-input" data-level="normal" data-direction="above" step="0.5" min="0">
+                            <span class="producer-unit-label">%</span>
+                        </div>
+                        <div class="price-range-settings">
+                            <div class="color-circle producer-circle-minor-above"></div>
+                            <div class="legendBox"><span>Lekko powyżej</span></div>
+                            <label for="thrInline_greenLight"></label>
+                            <input type="number" id="thrInline_greenLight" class="producer-threshold-input" data-level="light" data-direction="above" step="0.5" min="0">
+                            <span class="producer-unit-label">%</span>
+                        </div>
+                        <div class="price-range-settings">
+                            <div class="color-circle producer-circle-minor-below"></div>
+                            <div class="legendBox"><span>Lekko poniżej</span></div>
+                            <label for="thrInline_redLight"></label>
+                            <input type="number" id="thrInline_redLight" class="producer-threshold-input" data-level="light" data-direction="below" step="0.5" min="0">
+                            <span class="producer-unit-label">%</span>
+                        </div>
+                        <div class="price-range-settings">
+                            <div class="color-circle producer-circle-violation"></div>
+                            <div class="legendBox"><span>Naruszenie</span></div>
+                            <label for="thrInline_red"></label>
+                            <input type="number" id="thrInline_red" class="producer-threshold-input" data-level="normal" data-direction="below" step="0.5" min="0">
+                            <span class="producer-unit-label">%</span>
+                        </div>
+                        <div class="price-range-settings">
+                            <div class="color-circle producer-circle-deep-violation"></div>
+                            <div class="legendBox"><span>Drastyczne</span></div>
+                            <label for="thrInline_redDark"></label>
+                            <input type="number" id="thrInline_redDark" class="producer-threshold-input" data-level="dark" data-direction="below" step="0.5" min="0">
+                            <span class="producer-unit-label">%</span>
+                        </div>
+
+                        <div style="display: flex; gap: 4px; margin-top: 8px; width: 100%;">
+                            <div style="flex: 1; display: flex;">
+                                <input class="useAmountSwitch" style="margin: 0; width: 100%;" type="checkbox" id="useAmountToggle" />
+                            </div>
+                            <button class="Button-Page-Small" style="margin: 0; flex: 1; width: 100%; padding-left: 0; padding-right: 0;" id="saveProducerInlineBtn">
+                                Przelicz i zapisz
+                            </button>
+                        </div>
+
+                        <div class="error-message-row" id="errInline"></div>
+                    </div>
+
+                    <div class="filterBox">
+                        <div class="Category-Container-Select" style="margin-top:-2px;">
+                            Flagi
+                            <a asp-controller="Flags" asp-action="List" asp-route-storeId="@ViewBag.StoreId" class="link-line">+ Dodaj Flage</a>
+                        </div>
+                        <div class="store-section" id="flagContainer"></div>
+
+                        <div class="Category-Container-Select">Liczba ofert</div>
+                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css">
+                        <div class="store-section">
+                            <div class="offer-slider-container">
+                                <div id="offerRange" class="offer-range-display" style="font-size:14px; font-weight:400;"></div>
+                            </div>
+                            <div id="offerRangeSlider"></div>
+                        </div>
+
+                        <div class="Category-Container-Select">Cena referencyjna</div>
+                        <div class="store-section">
+                            <div class="position-slider-container">
+                                <div id="myPriceRange" class="position-range-display" style="font-size:14px; font-weight:400;"></div>
+                            </div>
+                            <div id="myPriceRangeSlider"></div>
+                        </div>
+
+                        <div class="Category-Container-Select">Naruszenia MAP</div>
+                        <div class="store-section">
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_freshViolation" value="freshViolation" title="Pokaż tylko świeże naruszenia">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_freshViolation" value="freshViolation" title="Ukryj świeże naruszenia">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Świeże naruszenie</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_currentlyViolating" value="currentlyViolating" title="Pokaż tylko obecne naruszenia">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_currentlyViolating" value="currentlyViolating" title="Ukryj obecne naruszenia">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Obecne naruszenie</span>
+                            </div>
+                        </div>
+
+                        <div class="Category-Container-Select">Odznaki konkurencji</div>
+                        <div class="store-section">
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_compIsSuperSeller" value="compIsSuperSeller" title="Pokaż tylko Super Sprzedawców">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_compIsSuperSeller" value="compIsSuperSeller" title="Ukryj Super Sprzedawców">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_compIsSuperSeller">Super Sprzedawca</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_compIsSuperPrice" value="compIsSuperPrice" title="Pokaż tylko z odznaką SUPERCENA">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_compIsSuperPrice" value="compIsSuperPrice" title="Ukryj z odznaką SUPERCENA">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_compIsSuperPrice">Super cena</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_compIsTopOffer" value="compIsTopOffer" title="Pokaż tylko Top Oferty">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_compIsTopOffer" value="compIsTopOffer" title="Ukryj Top Oferty">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_compIsTopOffer">Top oferta</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_compIsBestPriceGuarantee" value="compIsBestPriceGuarantee" title="Pokaż tylko z gwarancją najniższej ceny">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_compIsBestPriceGuarantee" value="compIsBestPriceGuarantee" title="Ukryj z gwarancją najniższej ceny">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_compIsBestPriceGuarantee">Gwar. naj. ceny</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_compIsSmart" value="compIsSmart" title="Pokaż tylko Smart!">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_compIsSmart" value="compIsSmart" title="Ukryj Smart!">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_compIsSmart">Smart!</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_compIsPromoted" value="compIsPromoted" title="Pokaż tylko promowane/sponsorowane">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_compIsPromoted" value="compIsPromoted" title="Ukryj promowane/sponsorowane">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_compIsPromoted">Promowane/Sponsor.</span>
+                            </div>
+                        </div>
+
+                        <div class="Category-Container-Select">Czas dostawy konkurenta</div>
+                        <div class="store-section">
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_deliveryFast" value="deliveryFast" title="Pokaż tylko z szybką dostawą (0-1 dni)">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_deliveryFast" value="deliveryFast" title="Ukryj szybką dostawę">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Szybka (0-1 dni)</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_deliverySlow" value="deliverySlow" title="Pokaż tylko z dłuższą dostawą (3+ dni)">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_deliverySlow" value="deliverySlow" title="Ukryj dłuższą dostawę">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Wolna (3+ dni)</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_deliveryNoData" value="deliveryNoData" title="Pokaż tylko bez danych o dostawie">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_deliveryNoData" value="deliveryNoData" title="Ukryj brak danych o dostawie">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Brak danych</span>
+                            </div>
+                        </div>
+
+                        <div class="Category-Container-Select">Nowe produkty</div>
+                        <div class="store-section">
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_isNew" value="isNew" title="Pokaż tylko nowe">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_isNew" value="isNew" title="Ukryj nowe">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Nowy - 7 dni <span id="count-new" style="color: #888; font-size: 0.9em; margin-left: 4px;"></span></span>
+                            </div>
+                        </div>
+
+                        <div class="Category-Container-Select">Sprzedaż Allegro - 30 dni</div>
+                        <div class="store-section">
+                            <div id="salesSortingButtons">
+                                <button id="sortTotalPopularity">Sprzedaż katalogu</button>
+                            </div>
+                        </div>
+                    </div>
+                </div><!-- /sidebar-scroll-area -->
+            </div>
+
+            <!-- ===================== PRAWY PANEL ===================== -->
+            <div class="Horizontal">
+
+                <div class="order-upper-box">
+                    <input type="text" id="productSearch" style="max-width:140px; height:34px;" placeholder="Wyszukaj produkt">
+                    <input type="text" id="storeSearch" style="max-width:140px; height:34px;" placeholder="Wyszukaj sklep">
+
+                    <select id="producerFilterDropdown" class="DropDown" style="max-width:140px; height:34px;">
+                        <option value="">Wszystkie marki</option>
+                    </select>
+
+                    <button type="button" class="Button-Page-Small" style="height: 34px; max-width: 250px; padding: 0 12px; text-align: left; display: inline-flex; align-items: center;" id="presetButton" onclick="openCompetitorsModal()">
+                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;">Presety</span>
+                    </button>
+                    <button class="Button-Page-Small" style="white-space: nowrap;" id="exportToExcelButton"><i class="fa-solid fa-floppy-disk" style="margin-top:2px;"></i>Eksport</button>
+
+                    <button type="button" class="Button-Page-Small" style="white-space: nowrap;" id="allegroApiExportSettingsBtn" data-toggle="modal" data-target="#allegroApiExportModal">
+                        <i class="fa-solid fa-code" style="margin-top:2px;"></i>Feed
+                    </button>
+
+                    <button type="button" class="Button-Page-Small" style="justify-self:flex-end; margin-right:4px;" data-toggle="modal" data-target="#infoModal">
+                        <i class="fa fa-info-circle"></i>
+                    </button>
+
+                    <div class="SimpleSpace" style="justify-content:flex-end; margin-right: 12px;">
+                        <div id="selectionContainer" class="selection-container">
+                            <span id="selectedProductsCounter" class="ProductCount" style="width:126px; height:34px;">Wybrano: 0</span>
+                            <button id="selectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Zaznacz wszystkie widoczne produkty">
+                                <i class="fa-solid fa-square-check"></i>
+                            </button>
+                            <button id="deselectAllVisibleBtn" class="Button-Page-Small" style="width:48px;" title="Odznacz wszystkie widoczne produkty">
+                                <i class="fa-solid fa-square-xmark"></i>
+                            </button>
+                            <button id="showSelectedProductsBtn" class="Button-Page-Small" style="width:100px;">Akcje</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="order-upper-box">
+                    <div id="sortingButtons">
+                        <div class="ProductCount" id="displayedProductCount"></div>
+                        <div id="paginationContainer"></div>
+
+                        <button id="sortName">A-Z</button>
+                        <button id="sortPrice">Cena ref.</button>
+                        <button id="sortDeltaPercent">Delta %</button>
+                        <button id="sortDeltaAmount">Delta PLN</button>
+                        <button id="sortDaysViolation">Dni naruszenia</button>
+                        <button id="sortStoresViolating">Liczba naruszycieli</button>
+                    </div>
+                    <div class="SimpleSpace" style="justify-content:flex-end;">
+                        <div class="buttonsContainer">
+                            <div id="priceChangeSummary" class="priceChangeSummary">
+                                <div id="summaryText"></div>
+                                <button id="openProducerSettingsBtn" class="Button-Page-Small" style="width:48px;" title="Konfiguracja monitoringu"><i class="fa fa-cog"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="Vert-table">
+                    <div id="priceContainer" class="price-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==== MODAL: Konfiguracja producenta Allegro (2 ustawienia) ==== -->
+<div class="modal fade" id="producerSettingsModal" tabindex="-1" role="dialog" aria-labelledby="producerSettingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width:600px" role="document">
+        <div class="modal-content" style="margin: 10% auto;">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="producerSettingsModalLabel">Konfiguracja monitoringu Allegro</div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 24px; line-height: 1.6;">
+                    Skonfiguruj sposób identyfikacji produktów oraz źródło ceny referencyjnej, względem której będą porównywane oferty rynkowe na Allegro.
+                </p>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="identifierForSimulationInput">Element nawigacyjny dla produktów</label>
+                    <select class="form-control" id="identifierForSimulationInput">
+                        <option value="EAN">EAN</option>
+                        <option value="ID">ID Allegro</option>
+                        <option value="SKU">Kod producenta (SKU)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="comparisonSourceInput">Źródło ceny referencyjnej</label>
+                    <select class="form-control" id="comparisonSourceInput">
+                        <option value="1">Cena MAP</option>
+                        <option value="0">Cena Twojego sklepu</option>
+                    </select>
+                    <small style="color: #888; display: block; margin-top: 6px; font-size: 12px; line-height: 1.4;">
+                        <strong>Cena MAP</strong> - Dograna cena z zakładki "produkty".<br>
+                        <strong>Cena Twojego sklepu</strong> - Znaleziona oferta marki na Allegro.
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content:space-between;">
+                <button type="button" class="Button-Page-Small" data-dismiss="modal">Anuluj</button>
+                <button type="button" class="Button-Page-Small-bl" id="saveProducerModalBtn">Zapisz</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_PresetyMarketPlace.cshtml")
+
+<!-- ==== MODAL: Info ==== -->
+<div class="modal fade" id="infoModal" tabindex="-1" role="dialog" aria-labelledby="infoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content" style="width:auto;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="infoModalLabel">Informacje</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" style="gap:10px;">
+                <div class="form-check-orders">
+                    <div>
+                        <p><strong>Wykonanie analizy:</strong> @scrapDate</p>
+                        <p><strong>Ilość produktów:</strong> <span id="totalProductCount">0</span></p>
+                        <p><strong>Ilość zebranych cen:</strong> <span id="totalPriceCount">0</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==== MODAL: API Export Allegro ==== -->
+<div class="modal fade" id="allegroApiExportModal" tabindex="-1" role="dialog" aria-labelledby="allegroApiExportModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content" style="width:620px;">
+            <div class="modal-header">
+                <div class="price-box-column-name" id="allegroApiExportModalLabel">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> Zewnętrzny Feed Danych Allegro (JSON / XML)
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; font-size: 14px; color: #666; line-height: 1.5;">
+                    Udostępnij najświeższe dane z Allegro bezpośrednio do swojego systemu ERP.
+                </p>
+                <div style="background-color: #e8f4fd; border-left: 4px solid #41C7C7; padding: 12px 15px; margin-bottom: 25px; border-radius: 4px; font-size: 13px; color: #333;">
+                    <i class="fa-solid fa-circle-info" style="color: #41C7C7; margin-right: 5px;"></i>
+                    <strong>Ważne:</strong> Plik z danymi zostanie wygenerowany dopiero po zakończeniu najbliższego procesu pobierania i analizy cen Allegro.
+                </div>
+
+                <div class="custom-switch-wrapper">
+                    <label class="switch-ui" style="margin-bottom: 0;">
+                        <input type="checkbox" id="enableAllegroApiExportCheckbox">
+                        <span class="slider"></span>
+                    </label>
+                    <label for="enableAllegroApiExportCheckbox" class="custom-switch-label">
+                        Włącz generowanie pliku feed Allegro (JSON / XML)
+                    </label>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">Twój unikalny token dostępu</label>
+                    <div class="export-input-group">
+                        <input type="text" id="allegroApiTokenInput" class="export-input" readonly>
+                        <button type="button" id="generateAllegroTokenBtn" class="export-btn export-btn-primary"><i class="fa-solid fa-arrows-rotate"></i> Generuj nowy</button>
+                        <button type="button" class="export-btn export-btn-secondary copy-btn" data-target="allegroApiTokenInput" title="Kopiuj token"><i class="fa-regular fa-copy"></i></button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">Link dostępowy (Format JSON)</label>
+                    <div class="export-input-group">
+                        <input type="text" id="allegroApiUrlJsonInput" class="export-input" readonly>
+                        <button type="button" class="export-btn export-btn-secondary copy-btn" data-target="allegroApiUrlJsonInput"><i class="fa-regular fa-copy"></i> Kopiuj</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">Link dostępowy (Format XML)</label>
+                    <div class="export-input-group">
+                        <input type="text" id="allegroApiUrlXmlInput" class="export-input" readonly>
+                        <button type="button" class="export-btn export-btn-secondary copy-btn" data-target="allegroApiUrlXmlInput"><i class="fa-regular fa-copy"></i> Kopiuj</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content:space-between;">
+                <button type="button" class="Button-Page-Small-r" data-dismiss="modal">Zamknij</button>
+                <button type="button" class="Button-Page-Small-bl" id="saveAllegroApiExportBtn">Zapisz ustawienia</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassExport.cshtml")
+@await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_MassAction.cshtml")
+
+<div id="globalNotification" style="display:none; position:fixed; width:500px; top:30px; left:50%; transform:translateX(-50%); background:#F65063; color:white; padding:24px; text-align:left; border-radius:10px; z-index:1000;"></div>
+<div id="globalUpdate" style="display:none; position:fixed; width:500px; top:30px; left:50%; transform:translateX(-50%); background:#006400; color:white; padding:24px; text-align:left; border-radius:10px; z-index:1000;"></div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wnumb/1.2.0/wNumb.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+
+    <script>
+        const storeId = @storeId;
+        const presetTypeContext = 1;
+        const scrapDateJS = "@scrapDate";
+        const myStoreNameJS = "@storeName";
+        const globalAllegroScrapId = @(latestScrap?.Id ?? 0);
+        const flags = @Html.Raw(Json.Serialize(ViewBag.Flags ?? new List<FlagViewModel>()));
+        const priceHistoryPageContext = 'producer';
+    </script>
+    <script src="~/js/member/MassActions.js"></script>
+    <script src="~/js/member/Presets.js" asp-append-version="true"></script>
+    <script src="~/js/member/AllegroPriceHistoryProducer.js" asp-append-version="true"></script>
+    <script src="~/js/member/MassExport.js" asp-append-version="true"></script>
+
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loader"></div>
+    </div>
+}
