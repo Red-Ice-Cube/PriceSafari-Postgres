@@ -34,5 +34,8 @@ namespace PriceSafari.Models
         public int? AllegroVisitsCount { get; set; }
 
         public long? IdAllegro { get; set; }
+
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal? AllegroMapPriceSnapshot { get; set; }
     }
 }

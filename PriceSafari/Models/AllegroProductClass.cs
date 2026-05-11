@@ -35,6 +35,9 @@ namespace PriceSafari.Models
         public decimal? AllegroMarginPrice { get; set; }
         public DateTime? AllegroMarginPriceUpdatedDate { get; set; }
 
+        public decimal? AllegroMapPrice { get; set; }
+        public DateTime? AllegroMapPriceUpdatedDate { get; set; }
+
         public string? AllegroEan { get; set; }
 
         public bool IsScrapable { get; set; } = false;

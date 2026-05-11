@@ -87,6 +87,10 @@ namespace PriceSafari.Models
 
         public DateTime? MarginPriceUpdatedDate { get; set; }
 
+        // Cena MAP (Minimum Advertised Price) — wgrywana ręcznie, niezależna od ceny zakupu
+        public decimal? MapPrice { get; set; }
+        public DateTime? MapPriceUpdatedDate { get; set; }
+
         [Column(TypeName = "decimal(18, 2)")]
         public decimal? GoogleXMLPrice { get; set; }
 

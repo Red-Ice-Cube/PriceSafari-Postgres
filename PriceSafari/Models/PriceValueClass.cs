@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PriceSafari.Models
 {
@@ -114,5 +115,40 @@ namespace PriceSafari.Models
 
         [Display(Name = "Próg ciemnozielony - bardzo powyżej (PLN)")]
         public decimal ProducerThresholdGreenDarkAmount { get; set; } = 50.00m;
+
+
+
+
+        // ── Allegro Producer Settings ──
+        public ProducerComparisonSource AllegroProducerComparisonSource { get; set; } = ProducerComparisonSource.MapPrice;
+        public bool AllegroProducerUseAmount { get; set; } = false;
+
+        // Progi procentowe
+        [Column(TypeName = "decimal(5, 2)")]
+        public decimal AllegroProducerThresholdRedDarkPercent { get; set; } = 20.00m;
+        [Column(TypeName = "decimal(5, 2)")]
+        public decimal AllegroProducerThresholdRedPercent { get; set; } = 10.00m;
+        [Column(TypeName = "decimal(5, 2)")]
+        public decimal AllegroProducerThresholdRedLightPercent { get; set; } = 1.00m;
+        [Column(TypeName = "decimal(5, 2)")]
+        public decimal AllegroProducerThresholdGreenLightPercent { get; set; } = 1.00m;
+        [Column(TypeName = "decimal(5, 2)")]
+        public decimal AllegroProducerThresholdGreenPercent { get; set; } = 10.00m;
+        [Column(TypeName = "decimal(5, 2)")]
+        public decimal AllegroProducerThresholdGreenDarkPercent { get; set; } = 20.00m;
+
+        // Progi kwotowe (PLN)
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal AllegroProducerThresholdRedDarkAmount { get; set; } = 50.00m;
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal AllegroProducerThresholdRedAmount { get; set; } = 20.00m;
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal AllegroProducerThresholdRedLightAmount { get; set; } = 5.00m;
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal AllegroProducerThresholdGreenLightAmount { get; set; } = 5.00m;
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal AllegroProducerThresholdGreenAmount { get; set; } = 20.00m;
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal AllegroProducerThresholdGreenDarkAmount { get; set; } = 50.00m;
     }
 }

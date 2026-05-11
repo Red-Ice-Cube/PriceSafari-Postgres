@@ -259,8 +259,6 @@ public class StoreProcessingService
                 foundOurStoreCeneo = true;
             }
 
-            // UWAGA: gdy CopyXMLPrices=true, pomijamy stary mechanizm UseGoogleXMLFeedPrice
-            // (nowy serwis CopyXmlPricesService zrobi to po pętli, mapując dynamicznie z XML)
             if (store.UseGoogleXMLFeedPrice && !store.CopyXMLPrices && !foundOurStoreGoogle && (product.GoogleXMLPrice ?? 0) > 0)
             {
                 priceHistoriesBag.Add(new PriceHistoryClass

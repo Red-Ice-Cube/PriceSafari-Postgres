@@ -305,6 +305,35 @@ namespace PriceSafari.Services.AllegroServices
                 }
             }
 
+            if (userStore.IsProducerOnAllegro)
+            {
+                var existingExtendedByProductId = newExtendedInfos
+                    .GroupBy(e => e.AllegroProductId)
+                    .ToDictionary(g => g.Key, g => g.First());
+
+                foreach (var product in storeProducts)
+                {
+                    if (!product.AllegroMarginPrice.HasValue || product.AllegroMarginPrice.Value <= 0)
+                        continue;
+
+                    if (existingExtendedByProductId.TryGetValue(product.AllegroProductId, out var existing))
+                    {
+                        // Mamy już rekord (bo nasz sklep ma swoją ofertę) — dopisujemy snapshot
+                        existing.AllegroMapPriceSnapshot = product.AllegroMarginPrice;
+                    }
+                    else
+                    {
+                        // Brak rekordu — tworzymy nowy tylko ze snapshotem MAP
+                        newExtendedInfos.Add(new AllegroPriceHistoryExtendedInfoClass
+                        {
+                            AllegroProductId = product.AllegroProductId,
+                            ScrapHistory = scrapeHistory,
+                            AllegroMapPriceSnapshot = product.AllegroMarginPrice
+                        });
+                    }
+                }
+            }
+
             if (newPriceHistories.Any())
             {
                 await _context.AllegroPriceHistories.AddRangeAsync(newPriceHistories);

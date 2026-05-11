@@ -79,6 +79,9 @@ namespace PriceSafari.Models
         [Display(Name = "Czy jest producentem?")]
         public bool IsProducer { get; set; } = false;
 
+        [Display(Name = "Czy jest producentem na Allegro?")]
+        public bool IsProducerOnAllegro { get; set; } = false;
+
         [Display(Name = "Pobieraj dane z API Allegro")]
         public bool FetchExtendedAllegroData { get; set; } = false;
 
