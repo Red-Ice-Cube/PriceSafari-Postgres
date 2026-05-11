@@ -16,7 +16,7 @@
     <div class="Page-Box">
         <div class="Page-Box-Container">
 
-            <!-- ===================== LEWY PANEL ===================== -->
+         
             <div class="Page-Box-Category">
                 <div><img src="@storeLogo" class="img-container" /></div>
 
@@ -24,10 +24,10 @@
                     <canvas id="colorChart"></canvas>
                 </div>
 
-                <!-- Scrollowalna część sidebara: buckety + progi + filtry/slidery -->
+            
                 <div class="sidebar-scroll-area">
 
-                    <!-- 9 bucketów (kolejność od góry: brak konkur > brak ref > mocno powyżej > ... > drastyczne) -->
+               
                     <div class="store-section" id="filters-producer">
                         <div class="form-check">
                             <span class="color-rect producer-rect-no-competition"></span>
@@ -76,7 +76,7 @@
                         </div>
                     </div>
 
-                    <!-- INLINE: 6 progów + tryb + zapis -->
+                
                     <div class="store-section producer-thresholds-section">
                         <div class="price-range-settings">
                             <div class="color-circle producer-circle-deep-above"></div>
@@ -288,10 +288,9 @@
                             </div>
                         </div>
                     </div>
-                </div><!-- /sidebar-scroll-area -->
+                </div>
             </div>
 
-            <!-- ===================== PRAWY PANEL ===================== -->
             <div class="Horizontal">
 
                 <div class="order-upper-box">
@@ -359,7 +358,6 @@
     </div>
 </div>
 
-<!-- ==== MODAL: Konfiguracja producenta Allegro (2 ustawienia) ==== -->
 <div class="modal fade" id="producerSettingsModal" tabindex="-1" role="dialog" aria-labelledby="producerSettingsModalLabel" aria-hidden="true">
     <div class="modal-dialog" style="max-width:600px" role="document">
         <div class="modal-content" style="margin: 10% auto;">
@@ -405,7 +403,6 @@
 
 @await Html.PartialAsync("~/Views/Shared/PartialViewsPanel/_PresetyMarketPlace.cshtml")
 
-<!-- ==== MODAL: Info ==== -->
 <div class="modal fade" id="infoModal" tabindex="-1" role="dialog" aria-labelledby="infoModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-sm" role="document">
         <div class="modal-content" style="width:auto;">
@@ -428,7 +425,7 @@
     </div>
 </div>
 
-<!-- ==== MODAL: API Export Allegro ==== -->
+
 <div class="modal fade" id="allegroApiExportModal" tabindex="-1" role="dialog" aria-labelledby="allegroApiExportModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content" style="width:620px;">

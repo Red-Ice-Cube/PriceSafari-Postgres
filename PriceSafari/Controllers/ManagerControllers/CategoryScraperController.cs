@@ -115,35 +115,35 @@ namespace PriceSafari.Controllers.ManagerControllers
             }
         }
 
-        [HttpPost]
-        public async Task<IActionResult> ScrapeCategories(int storeId)
-        {
-            var store = await _context.Stores.FindAsync(storeId);
-            if (store == null)
-            {
-                return NotFound();
-            }
+        //[HttpPost]
+        //public async Task<IActionResult> ScrapeCategories(int storeId)
+        //{
+        //    var store = await _context.Stores.FindAsync(storeId);
+        //    if (store == null)
+        //    {
+        //        return NotFound();
+        //    }
 
-            var storeProfile = store.StoreProfile;
-            string baseUrl;
+        //    var storeProfile = store.StoreProfile;
+        //    string baseUrl;
 
-            // Sprawdzamy, czy to tryb producenta
-            if (store.IsProducer)
-            {
-                // Tryb Producenta: https://www.ceneo.pl/producenci/mova
-                baseUrl = $"https://www.ceneo.pl/producenci/{storeProfile}";
-            }
-            else
-            {
-                // Tryb Standardowy: https://www.ceneo.pl/;mova-0v.htm
-                baseUrl = $"https://www.ceneo.pl/;{storeProfile}-0v.htm";
-            }
+        //    // Sprawdzamy, czy to tryb producenta
+        //    if (store.IsProducer)
+        //    {
+        //        // Tryb Producenta: https://www.ceneo.pl/producenci/mova
+        //        baseUrl = $"https://www.ceneo.pl/producenci/{storeProfile}";
+        //    }
+        //    else
+        //    {
+        //        // Tryb Standardowy: https://www.ceneo.pl/;mova-0v.htm
+        //        baseUrl = $"https://www.ceneo.pl/;{storeProfile}-0v.htm";
+        //    }
 
-            // Odpalamy rekurencję
-            await ScrapeCategories(storeId, baseUrl, 0);
+        //    // Odpalamy rekurencję
+        //    await ScrapeCategories(storeId, baseUrl, 0);
 
-            return RedirectToAction("Index", new { storeId = storeId });
-        }
+        //    return RedirectToAction("Index", new { storeId = storeId });
+        //}
 
         [HttpPost]
         [ValidateAntiForgeryToken]

@@ -13,6 +13,36 @@
     bool isPreMember = User.IsInRole("PreMember");
 }
 
+@{
+    bool useProducerPC = user?.UseProducerViewForPriceComparison ?? false;
+    bool useProducerMP = user?.UseProducerViewForMarketplace ?? false;
+
+    string viewLabel;
+    string viewClass;
+    string viewTooltip;
+
+    if (useProducerPC && useProducerMP)
+    {
+        viewLabel = "Widok Producenta";
+        viewClass = "view-pill-producer";
+        viewTooltip = "Producent — Porównywarki + Allegro. Kliknij, aby zmienić.";
+    }
+    else if (!useProducerPC && !useProducerMP)
+    {
+        viewLabel = "Widok Retailera";
+        viewClass = "view-pill-retailer";
+        viewTooltip = "Retailer — Porównywarki + Allegro. Kliknij, aby zmienić.";
+    }
+    else
+    {
+        viewLabel = "Widok Mieszany";
+        viewClass = "view-pill-mixed";
+        var pcText = useProducerPC ? "Producent" : "Retailer";
+        var mpText = useProducerMP ? "Producent" : "Retailer";
+        viewTooltip = $"Porównywarki: {pcText} • Allegro: {mpText}. Kliknij, aby zmienić.";
+    }
+}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -165,6 +195,86 @@
         }
         .topbar-logout-btn svg { width: 12px; height: 12px; flex-shrink: 0; }
 
+
+        .topbar-view-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 3px 11px;
+        border-radius: 5px;
+        font-size: 11px;
+        font-weight: 500;
+        height: 26px;
+        line-height: 1;
+        text-decoration: none;
+        transition: 0.15s ease;
+        border: 1px solid;
+        white-space: nowrap;
+        flex-shrink: 0;
+        }
+
+        .topbar-view-pill:hover {
+        text-decoration: none;
+        }
+
+        .topbar-view-pill .vp-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        }
+
+        .view-pill-retailer {
+        background: rgba(28, 200, 138, 0.08);
+        border-color: rgba(28, 200, 138, 0.20);
+        color: rgba(120, 220, 175, 0.95);
+        }
+
+        .view-pill-retailer:hover {
+        background: rgba(28, 200, 138, 0.16);
+        border-color: rgba(28, 200, 138, 0.38);
+        color: #fff;
+        }
+
+        .view-pill-retailer .vp-dot {
+        background: #1cc88a;
+        box-shadow: 0 0 5px rgba(28, 200, 138, 0.55);
+        }
+
+        .view-pill-producer {
+        background: rgba(113, 96, 232, 0.10);
+        border-color: rgba(113, 96, 232, 0.22);
+        color: rgba(170, 155, 245, 0.95);
+        }
+
+        .view-pill-producer:hover {
+        background: rgba(113, 96, 232, 0.20);
+        border-color: rgba(113, 96, 232, 0.42);
+        color: #fff;
+        }
+
+        .view-pill-producer .vp-dot {
+        background: rgba(113, 96, 232, 1);
+        box-shadow: 0 0 5px rgba(113, 96, 232, 0.55);
+        }
+
+        .view-pill-mixed {
+        background: rgba(246, 173, 85, 0.08);
+        border-color: rgba(246, 173, 85, 0.22);
+        color: rgba(246, 200, 130, 0.95);
+        }
+
+        .view-pill-mixed:hover {
+        background: rgba(246, 173, 85, 0.18);
+        border-color: rgba(246, 173, 85, 0.42);
+        color: #fff;
+        }
+
+        .view-pill-mixed .vp-dot {
+        background: #f6ad55;
+        box-shadow: 0 0 5px rgba(246, 173, 85, 0.55);
+        }
+
         .Sidebar-header {
             display: flex;
             flex-direction: column;
@@ -234,6 +344,9 @@
             height: 48px;
             flex-shrink: 0;
         }
+
+
+
     </style>
 
     <script>
@@ -271,6 +384,13 @@
         <div class="topbar-crumbs" id="topBarCrumbs"></div>
 
         <div class="topbar-right">
+            <a class="topbar-view-pill @viewClass"
+               asp-area="Identity"
+               asp-page="/Account/Manage/ViewPreferences"
+               title="@viewTooltip">
+                <span class="vp-dot"></span>
+                @viewLabel
+            </a>
             <form method="post" asp-area="Identity" asp-page="/Account/Logout" style="margin:0;padding:0;">
                 <button type="submit" class="topbar-logout-btn" title="Wyloguj">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
