@@ -2,9 +2,23 @@
 @{
     ViewData["Title"] = "Zarządzanie Produktami Allegro";
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
+
+    bool isProducerView = ViewBag.IsProducerView ?? false;
+    string priceLabel       = isProducerView ? "MAP" : "zakupu";
+    string priceLabelCap    = isProducerView ? "MAP" : "Zakupu";
+    string priceLabelShort  = isProducerView ? "MAP" : "Zakup";
+    string priceColumnName  = isProducerView ? "Cena MAP" : "Cena zakupu";
+    string priceButtonText  = isProducerView ? "Ceny MAP" : "Ceny zakupu";
+    string priceModalTitle  = isProducerView ? "Ceny MAP (Allegro)" : "Ceny zakupu (Allegro)";
+    string priceUploadBtn   = isProducerView ? "Wgraj ceny MAP" : "Wgraj ceny zakupu";
+    string priceClearBtn    = isProducerView ? "Usuń wszystkie ceny MAP" : "Usuń wszystkie ceny zakupu";
+    string priceHeadersHint = isProducerView
+        ? "MAP, CENAMAP, MAPPRICE, CENAMINIMALNA, MINIMALNACENA"
+        : "CENA, PRICE, CENAZAKUPU";
+    string priceTypeDescription = isProducerView
+        ? "Minimalna Cena Reklamowana (MAP) — narzucana przez producenta"
+        : "Cena Zakupu (Brutto) — koszt nabycia produktu";
 }
-
-
 
 <div class="Vert">
     <div class="Page-Box" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
@@ -76,7 +90,7 @@
                         <input type="text" id="productSearch" style="max-width:150px; height:34px;" placeholder="Wyszukaj produkt">
                         <div class="SimpleSpace" style="justify-content:flex-end; margin-right:12px; gap:8px;">
                             <button type="button" class="Button-Page-Small-gr" id="uploadMarginsButton">
-                                Ceny zakupu
+                                @priceButtonText
                             </button>
                             <button type="button" class="Button-Page-Small" id="openBulkMonitoringBtn">
                                 Monitoring
@@ -87,16 +101,14 @@
                     <div class="virtual-scroll-container" id="virtualScrollContainer">
                         <table class="table-orders">
                             <thead>
-                                <thead>
-                                    <tr>
-                                        <th style="width: 450px;">Produkt (<span id="displayed-count"></span>)</th>
-                                        <th style="width: 200px;">Cena zakupu</th>
-                                        <th style="width: 180px;">Oferta</th>
-                                        <th style="width: 160px;">Monitoring</th>
-                                        <th style="width: auto;">Flagi</th>
-                                    </tr>
-                                </thead>
-                       
+                                <tr>
+                                    <th style="width: 380px;">Produkt (<span id="displayed-count"></span>)</th>
+                                    <th style="width: 280px;">@priceColumnName</th>
+                                    <th style="width: 180px;">Oferta</th>
+                                    <th style="width: 160px;">Monitoring</th>
+                                    <th style="width: auto;">Flagi</th>
+                                </tr>
+                            </thead>
                             <tbody id="product-list"></tbody>
                         </table>
                     </div>
@@ -106,7 +118,6 @@
     </div>
 </div>
 
-<!-- Batch operation overlay -->
 <div class="batch-overlay" id="batchOverlay">
     <div class="batch-overlay-card">
         <div class="batch-spinner"></div>
@@ -121,7 +132,7 @@
     </div>
 </div>
 
-<!-- Bulk Monitoring Modal -->
+
 <div class="modal fade" id="bulkMonitoringModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" style="max-width:880px;" role="document">
         <div class="modal-content" style="margin:3% auto; width:840px;">
@@ -195,13 +206,13 @@
     </div>
 </div>
 
-<!-- Upload Allegro Margins Modal -->
+
 <div class="modal fade" id="uploadAllegroMarginsModal" tabindex="-1" role="dialog" aria-labelledby="uploadAllegroMarginsModalLabel" aria-hidden="true">
     <div class="modal-dialog" style="max-width:1050px" role="document">
         <div class="modal-content" style="margin:5% auto; width:850px;">
             <form asp-action="SetAllegroMargins" asp-controller="AllegroProduct" asp-route-storeId="@ViewBag.StoreId" method="post" enctype="multipart/form-data" id="uploadAllegroMarginsForm">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="uploadAllegroMarginsModalLabel">Ceny zakupu (Allegro)</h5>
+                    <h5 class="modal-title" id="uploadAllegroMarginsModalLabel">@priceModalTitle</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -216,11 +227,11 @@
                         <h6 style="margin-bottom:10px; font-weight:bold; color:#333;">Statystyki Produktów Allegro:</h6>
                         <ul class="list-unstyled" style="font-size:0.9em; line-height:1.6;">
                             <li>Całkowita liczba produktów Allegro w sklepie: <strong id="stat-allegro-total-products" class="float-right">Ładowanie...</strong></li>
-                            <li>Produkty z przypisaną ceną zakupu: <strong id="stat-allegro-products-with-purchase-price" class="float-right">Ładowanie...</strong></li>
+                            <li>Produkty z przypisaną ceną @priceLabel: <strong id="stat-allegro-products-with-purchase-price" class="float-right">Ładowanie...</strong></li>
                             <hr style="margin:5px 0;" />
                             <li>Produkty aktywne w monitoringu: <strong id="stat-allegro-active-monitoring-products" class="float-right">Ładowanie...</strong></li>
                             <li style="padding-left:15px;"><span style="font-size:0.9em;">↳ z kodem EAN:</span> <strong id="stat-allegro-active-monitoring-with-ean" class="float-right">Ładowanie...</strong></li>
-                            <li style="padding-left:15px;"><span style="font-size:0.9em;">↳ z wgraną ceną zakupu:</span> <strong id="stat-allegro-active-monitoring-with-purchase-price" class="float-right">Ładowanie...</strong></li>
+                            <li style="padding-left:15px;"><span style="font-size:0.9em;">↳ z wgraną ceną @priceLabel:</span> <strong id="stat-allegro-active-monitoring-with-purchase-price" class="float-right">Ładowanie...</strong></li>
                         </ul>
                         <hr style="border-top:1px dashed #ccc; margin:10px 0;">
                         <div>
@@ -255,7 +266,7 @@
                     <div class="alert alert-info" style="padding:10px; font-size:0.9em; border-left:4px solid #17a2b8;">
                         <strong>2. Dane Wymagane</strong>
                         <ul style="margin-bottom:0; margin-top:5px; padding-left:20px;">
-                            <li><strong>Cena Zakupu</strong> (Brutto) — Nagłówki: <code>CENA</code>, <code>PRICE</code>, <code>CENAZAKUPU</code></li>
+                            <li><strong>@priceTypeDescription</strong> — Nagłówki: <code>@priceHeadersHint.Replace(", ", "</code>, <code>")</code></li>
                         </ul>
                     </div>
 
@@ -281,23 +292,161 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="Button-Page-Small" data-dismiss="modal">Anuluj</button>
-                    <button type="button" class="Button-Page-Small-r" id="clearAllAllegroMarginsButton" style="margin-right:auto;">Usuń wszystkie ceny zakupu</button>
-                    <button type="submit" class="Button-Page-Small-b" id="submitUploadAllegroMarginsButton">Wgraj ceny zakupu</button>
+                    <button type="button" class="Button-Page-Small-r" id="clearAllAllegroMarginsButton" style="margin-right:auto;">@priceClearBtn</button>
+                    <button type="submit" class="Button-Page-Small-b" id="submitUploadAllegroMarginsButton">@priceUploadBtn</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+@section Styles {
+    <style>
+  
+        .price-field-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: #fafbfc;
+            border: 1px solid #ebeef1;
+            min-height: 38px;
+            transition: background 120ms ease, border-color 120ms ease;
+        }
+        .price-field-wrapper:hover {
+            background: #f4f6f8;
+            border-color: #dde2e7;
+        }
+
+        .price-type-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            padding: 3px 7px;
+            border-radius: 4px;
+            line-height: 1;
+            flex-shrink: 0;
+            user-select: none;
+        }
+        .price-type-badge.badge-purchase {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        .price-type-badge.badge-map {
+            background: #fff3e0;
+            color: #e65100;
+            border: 1px solid #ffe0b2;
+        }
+
+        .price-value {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-variant-numeric: tabular-nums;
+        }
+        .price-value.is-empty {
+            font-weight: 400;
+            color: #b0b8c1;
+            font-style: italic;
+        }
+
+        .price-action-bar {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .price-action-bar i {
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #6c757d;
+            transition: all 120ms ease;
+        }
+        .price-action-bar i:hover {
+            background: #fff;
+            color: #2c3e50;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+        }
+        .price-action-bar i.delete-price-btn:hover {
+            color: #c0392b;
+        }
+        .price-action-bar i.save-price-btn:hover {
+            color: #2e7d32;
+        }
+        .price-action-bar i.hidden {
+            display: none !important;
+        }
+
+        .price-edit-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: #fff;
+            border: 1px solid #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74,144,226,0.1);
+            min-height: 38px;
+        }
+        .price-edit-row.hidden,
+        .price-field-wrapper.hidden {
+            display: none !important;
+        }
+        .price-edit-row input.price-edit-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            color: #2c3e50;
+            padding: 2px 4px;
+            min-width: 0;
+        }
+        .price-edit-row input.price-edit-input::-webkit-outer-spin-button,
+        .price-edit-row input.price-edit-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+}
+
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-
     <script>
     (function () {
         'use strict';
+
+     
+        var IS_PRODUCER_VIEW = @Html.Raw(isProducerView ? "true" : "false");
+        var PRICE_FIELD      = IS_PRODUCER_VIEW ? 'allegroMapPrice' : 'allegroMarginPrice';
+        var PRICE_LABEL      = IS_PRODUCER_VIEW ? 'MAP' : 'zakupu';
+        var PRICE_BADGE_TEXT = IS_PRODUCER_VIEW ? 'MAP' : 'ZAKUP';
+        var PRICE_BADGE_CLS  = IS_PRODUCER_VIEW ? 'badge-map' : 'badge-purchase';
+
+  
+        window.PRICE_FIELD      = PRICE_FIELD;
+        window.PRICE_LABEL      = PRICE_LABEL;
+        window.IS_PRODUCER_VIEW = IS_PRODUCER_VIEW;
+
+        function getPrice(p) { return p ? p[PRICE_FIELD] : null; }
+        function setPrice(p, val) { if (p) p[PRICE_FIELD] = val; }
 
         var ROW_HEIGHT       = 100;
         var BUFFER_ROWS      = 10;
@@ -305,11 +454,13 @@
         var BATCH_CHUNK_SIZE = 1000;
         var STORE_PRODUCT_LIMIT = parseInt('@ViewBag.ProductCount') || 0;
         var SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
         function isNewProduct(product) {
-                if (!product.addedDate) return false;
-                var added = new Date(product.addedDate);
-                return (Date.now() - added.getTime()) <= SEVEN_DAYS_MS;
+            if (!product.addedDate) return false;
+            var added = new Date(product.addedDate);
+            return (Date.now() - added.getTime()) <= SEVEN_DAYS_MS;
         }
+
         var allProducts      = [];
         var filteredProducts = [];
         var flags = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Flags ?? new List<FlagViewModel>()));
@@ -318,7 +469,6 @@
         var selectedFlagsInclude = new Set();
         var selectedFlagsExclude = new Set();
         var productMap = {};
-
 
         window.getAllProducts     = function () { return allProducts; };
         window.triggerFilterRows  = function () { filterRows(); };
@@ -346,7 +496,7 @@
             document.querySelectorAll('.status-filter').forEach(function (cb) {
                 cb.addEventListener('change', filterRows);
             });
-                document.getElementById('filter-new').addEventListener('change', filterRows);
+            document.getElementById('filter-new').addEventListener('change', filterRows);
             selectAllButton.addEventListener('click',   function () { batchToggle(true); });
             deselectAllButton.addEventListener('click', function () { batchToggle(false); });
 
@@ -356,7 +506,7 @@
             fetchProducts();
         });
 
-        // ---- Virtual scroll ----
+    
         var lastRenderedStart = -1, lastRenderedEnd = -1, rafPending = false;
 
         function onScroll() {
@@ -427,26 +577,33 @@
                 ? '<a href="' + product.allegroOfferUrl + '" rel="noopener noreferrer" class="Button-Page-Small" style="width:150px;" target="_blank">Allegro</a>'
                 : '';
 
-            var hasPrice   = product.allegroMarginPrice != null && product.allegroMarginPrice.toString().trim() !== '';
-            var priceValue = hasPrice ? parseFloat(product.allegroMarginPrice).toFixed(2) : '';
+            var rawPrice   = getPrice(product);
+            var hasPrice   = rawPrice != null && rawPrice.toString().trim() !== '';
+            var priceValue = hasPrice ? parseFloat(rawPrice).toFixed(2) : '';
             var newBadgeHtml = isNewProduct(product) ? '<span class="badge-new">NEW</span>' : '';
 
-            var purchasePriceHtml =
-                '<div class="price-display-container">' +
-                    '<span class="price-text">' + (hasPrice ? priceValue.replace('.', ',') + ' PLN' : 'Brak') + '</span>' +
-                    '<span class="price-actions">' +
-                        '<i class="fas fa-plus add-price-btn '       + (hasPrice  ? 'hidden' : '') + '" title="Dodaj cenę"></i>' +
-                        '<i class="fas fa-pencil-alt edit-price-btn ' + (!hasPrice ? 'hidden' : '') + '" title="Edytuj cenę"></i>' +
-                        '<i class="fas fa-trash-alt delete-price-btn '+ (!hasPrice ? 'hidden' : '') + '" title="Usuń cenę"></i>' +
-                    '</span>' +
-                '</div>' +
-                '<div class="price-edit-container hidden">' +
-                    '<input type="number" step="0.01" class="price-edit-input" value="' + priceValue + '">' +
-                    '<span class="price-actions">' +
-                        '<i class="fas fa-check save-price-btn" title="Zapisz"></i>' +
-                        '<i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>' +
-                    '</span>' +
-                '</div>';
+            var priceDisplayHtml =
+                '<span class="price-type-badge ' + PRICE_BADGE_CLS + '" title="Cena ' + PRICE_LABEL + '">' + PRICE_BADGE_TEXT + '</span>' +
+                '<span class="price-value ' + (hasPrice ? '' : 'is-empty') + '">' +
+                    (hasPrice ? priceValue.replace('.', ',') + ' PLN' : 'Brak ceny') +
+                '</span>' +
+                '<span class="price-action-bar">' +
+                    '<i class="fas fa-plus add-price-btn '       + (hasPrice  ? 'hidden' : '') + '" title="Dodaj cenę"></i>' +
+                    '<i class="fas fa-pencil-alt edit-price-btn ' + (!hasPrice ? 'hidden' : '') + '" title="Edytuj cenę"></i>' +
+                    '<i class="fas fa-trash-alt delete-price-btn '+ (!hasPrice ? 'hidden' : '') + '" title="Usuń cenę"></i>' +
+                '</span>';
+
+            var priceEditHtml =
+                '<span class="price-type-badge ' + PRICE_BADGE_CLS + '">' + PRICE_BADGE_TEXT + '</span>' +
+                '<input type="number" step="0.01" min="0" class="price-edit-input" value="' + priceValue + '" placeholder="0,00">' +
+                '<span class="price-action-bar">' +
+                    '<i class="fas fa-check save-price-btn" title="Zapisz"></i>' +
+                    '<i class="fas fa-times cancel-edit-btn" title="Anuluj"></i>' +
+                '</span>';
+
+            var priceCellHtml =
+                '<div class="price-field-wrapper">' + priceDisplayHtml + '</div>' +
+                '<div class="price-edit-row hidden">' + priceEditHtml + '</div>';
 
             var statusInfo = getStatusInfo(product);
 
@@ -457,12 +614,10 @@
                         '<div>' + eanHtml + '</div>' +
                         '<div>' + idHtml + '</div>' +
                         '<div>' + skuHtml + '</div>' +
-                     
                         newBadgeHtml +
-
                     '</div>' +
                 '</div></td>' +
-                '<td>' + purchasePriceHtml + '</td>' +
+                '<td>' + priceCellHtml + '</td>' +
                 '<td>' + offerUrlButton + '</td>' +
                 '<td><div style="position:relative; width:130px; height:40px;">' +
                     '<input type="checkbox" class="scrapable-checkbox ' + statusInfo.checkboxClass + '" data-product-id="' + product.allegroProductId + '"' +
@@ -475,7 +630,7 @@
             return row;
         }
 
-    
+  
         function onCheckboxChange(e) {
             var checkbox = e.target;
             if (!checkbox.classList.contains('scrapable-checkbox')) return;
@@ -522,7 +677,7 @@
             if (cb) cb.className = 'scrapable-checkbox ' + statusInfo.checkboxClass;
         }
 
-                function batchToggle(turnOn) {
+        function batchToggle(turnOn) {
             var idsToSend = [];
             filteredProducts.forEach(function (p) {
                 if (turnOn && !p.isScrapable)    idsToSend.push(p.allegroProductId);
@@ -610,6 +765,7 @@
                 });
         }
 
+
         function onTableClick(e) {
             var target = e.target;
             var row = target.closest('tr.product-row');
@@ -629,16 +785,24 @@
                 updatePurchasePrice(productId, parseFloat(newPrice));
             }
             if (target.classList.contains('delete-price-btn')) {
-                if (confirm('Czy na pewno chcesz usunąć cenę zakupu dla tego produktu?'))
+                if (confirm('Czy na pewno chcesz usunąć cenę ' + PRICE_LABEL + ' dla tego produktu?'))
                     updatePurchasePrice(productId, null);
             }
         }
 
         function toggleEditMode(row, isEditing) {
             if (!row) return;
-            row.querySelector('.price-display-container').classList.toggle('hidden', isEditing);
-            row.querySelector('.price-edit-container').classList.toggle('hidden', !isEditing);
-            if (isEditing) { var inp = row.querySelector('.price-edit-input'); inp.focus(); inp.select(); }
+            var displayEl = row.querySelector('.price-field-wrapper');
+            var editEl    = row.querySelector('.price-edit-row');
+            if (!displayEl || !editEl) return;
+
+            displayEl.classList.toggle('hidden', isEditing);
+            editEl.classList.toggle('hidden', !isEditing);
+
+            if (isEditing) {
+                var inp = row.querySelector('.price-edit-input');
+                if (inp) { inp.focus(); inp.select(); }
+            }
         }
 
         function getToken() {
@@ -661,7 +825,7 @@
             .then(function (data) {
                 if (data.success) {
                     var product = productMap[parseInt(productId)];
-                    if (product) product.allegroMarginPrice = newPrice;
+                    if (product) setPrice(product, newPrice);
                     renderVirtual(true);
                 } else {
                     alert('Błąd: ' + (data.message || 'Nie udało się zaktualizować ceny.'));
@@ -670,21 +834,22 @@
             .catch(function (error) { console.error('Błąd aktualizacji ceny:', error); alert('Błąd komunikacji: ' + error.message); });
         }
 
-         function filterRows() {
-                var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
-                    .map(function (cb) { return cb.getAttribute('data-status'); });
-                var searchTerm = searchInput.value.trim().toLowerCase();
-                var filterNewOnly = document.getElementById('filter-new').checked;
 
-                var result = allProducts.filter(function (p) {
-                    var nameMatch = p.allegroProductName.toLowerCase().includes(searchTerm);
-                    var eanMatch  = (p.allegroEan || '').toLowerCase().includes(searchTerm);
-                    var idMatch   = (p.idOnAllegro || '').toLowerCase().includes(searchTerm);
-                    var skuMatch  = (p.allegroSku || '').toLowerCase().includes(searchTerm);
-                    var statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(getProductStatus(p));
-                    var newMatch = !filterNewOnly || isNewProduct(p);
-                    return (nameMatch || eanMatch || idMatch || skuMatch) && statusMatch && newMatch;
-                });
+        function filterRows() {
+            var selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
+                .map(function (cb) { return cb.getAttribute('data-status'); });
+            var searchTerm = searchInput.value.trim().toLowerCase();
+            var filterNewOnly = document.getElementById('filter-new').checked;
+
+            var result = allProducts.filter(function (p) {
+                var nameMatch = p.allegroProductName.toLowerCase().includes(searchTerm);
+                var eanMatch  = (p.allegroEan || '').toLowerCase().includes(searchTerm);
+                var idMatch   = (p.idOnAllegro || '').toLowerCase().includes(searchTerm);
+                var skuMatch  = (p.allegroSku || '').toLowerCase().includes(searchTerm);
+                var statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(getProductStatus(p));
+                var newMatch = !filterNewOnly || isNewProduct(p);
+                return (nameMatch || eanMatch || idMatch || skuMatch) && statusMatch && newMatch;
+            });
 
             var productsBeforeFlagFilter = result.slice();
 
@@ -717,7 +882,9 @@
             fetch('@Url.Action("GetAllegroProducts", "AllegroProduct")?storeId=' + storeId)
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
-                    allProducts = data;
+              
+                    var productsArray = Array.isArray(data) ? data : (data.products || []);
+                    allProducts = productsArray;
                     productMap  = {};
                     allProducts.forEach(function (p) { productMap[p.allegroProductId] = p; });
                     filterRows();
@@ -852,18 +1019,21 @@
                 });
             });
         }
-
     })();
     </script>
 
     <script>
+
     document.addEventListener('DOMContentLoaded', function () {
+        var PRICE_FIELD = window.PRICE_FIELD || 'allegroMarginPrice';
+        var PRICE_LABEL = window.PRICE_LABEL || 'zakupu';
+
         var uploadMarginsModal  = document.getElementById('uploadAllegroMarginsModal');
         var uploadMarginsForm   = document.getElementById('uploadAllegroMarginsForm');
         var uploadedFileField   = document.getElementById('uploadedAllegroFile');
         var submitUploadButton  = document.getElementById('submitUploadAllegroMarginsButton');
         var uploadClientError   = document.getElementById('uploadAllegroClientError');
-        var originalButtonText  = submitUploadButton ? submitUploadButton.innerHTML : 'Wgraj ceny zakupu';
+        var originalButtonText  = submitUploadButton ? submitUploadButton.innerHTML : 'Wgraj ceny ' + PRICE_LABEL;
         var clearAllMarginsButton = document.getElementById('clearAllAllegroMarginsButton');
         var storeIdForMargins   = @ViewBag.StoreId;
 
@@ -915,7 +1085,7 @@
 
         if (clearAllMarginsButton) {
             clearAllMarginsButton.addEventListener('click', function () {
-                if (!confirm('Jesteś pewien, że chcesz usunąć WSZYSTKIE ceny zakupu dla produktów Allegro w tym sklepie? Ta operacja jest nieodwracalna.'))
+                if (!confirm('Jesteś pewien, że chcesz usunąć WSZYSTKIE ceny ' + PRICE_LABEL + ' dla produktów Allegro w tym sklepie? Ta operacja jest nieodwracalna.'))
                     return;
 
                 this.disabled = true;
@@ -951,12 +1121,12 @@
                 .then(function (data) {
                     if (data.success) {
                         var products = typeof window.getAllProducts === 'function' ? window.getAllProducts() : [];
-                        products.forEach(function (p) { p.allegroMarginPrice = null; });
+                        products.forEach(function (p) { p[PRICE_FIELD] = null; });
                         if (typeof window.triggerFilterRows === 'function') window.triggerFilterRows();
                         $('#uploadAllegroMarginsModal').modal('hide');
-                        alert(data.message || 'Ceny zakupu zostały usunięte.');
+                        alert(data.message || 'Ceny zostały usunięte.');
                     } else {
-                        alert(data.message || 'Wystąpił błąd podczas usuwania cen zakupu.');
+                        alert(data.message || 'Wystąpił błąd podczas usuwania cen.');
                         self.disabled = false;
                         self.innerHTML = originalHTML;
                     }
@@ -991,7 +1161,7 @@
             var total = products.length;
 
             var withPrice = products.filter(function (p) {
-                return p.allegroMarginPrice != null && String(p.allegroMarginPrice).trim() !== '';
+                return p[PRICE_FIELD] != null && String(p[PRICE_FIELD]).trim() !== '';
             }).length;
 
             var activeMon = products.filter(function (p) { return p.isScrapable; });
@@ -1004,7 +1174,7 @@
             }).length;
 
             var activePrice = activeMon.filter(function (p) {
-                return p.allegroMarginPrice != null && String(p.allegroMarginPrice).trim() !== '';
+                return p[PRICE_FIELD] != null && String(p[PRICE_FIELD]).trim() !== '';
             }).length;
 
             function pct(n, d) { return d > 0 ? (n / d * 100).toFixed(1) : '0.0'; }
@@ -1026,6 +1196,7 @@
     </script>
 
     <script>
+
     (function () {
         'use strict';
 
@@ -1363,7 +1534,6 @@
         function esc(s) {
             return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         }
-
     })();
     </script>
 
@@ -1382,7 +1552,6 @@
             iframe.src = '@Url.Action("DownloadAllegroSkeleton", "AllegroProduct", new { storeId = ViewBag.StoreId })';
             document.body.appendChild(iframe);
 
-     
             setTimeout(function () {
                 btn.disabled = false;
                 btn.innerHTML = originalHTML;
@@ -1392,4 +1561,3 @@
     });
     </script>
 }
-

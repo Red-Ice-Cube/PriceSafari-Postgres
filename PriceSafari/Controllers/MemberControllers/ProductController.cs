@@ -1,5 +1,4 @@
-﻿using AngleSharp.Dom;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NPOI.HSSF.UserModel;
@@ -18,11 +17,40 @@ namespace PriceSafari.Controllers
     {
         private readonly PriceSafariContext _context;
         private readonly ILogger<ProductController> _logger;
+
         public ProductController(PriceSafariContext context, ILogger<ProductController> logger)
         {
             _context = context;
             _logger = logger;
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  HELPERS
+        // ════════════════════════════════════════════════════════════════
+
+        private async Task<bool> HasAccessToStore(int storeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
+        }
+
+        private async Task<bool> CurrentUserUsesProducerView()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return false;
+
+            // UWAGA: jeśli pole w PriceSafariUser nazywa się inaczej (np. UseProducerView
+            // jako wspólne dla marketplace i comparison), podmień tylko tę jedną nazwę.
+            return await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.UseProducerViewForPriceComparison)
+                .FirstOrDefaultAsync();
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  STORE LIST
+        // ════════════════════════════════════════════════════════════════
+
         [HttpGet]
         public async Task<IActionResult> StoreList()
         {
@@ -67,36 +95,35 @@ namespace PriceSafari.Controllers
             return View("~/Views/Panel/Product/StoreList.cshtml", storeDetails);
         }
 
+        // ════════════════════════════════════════════════════════════════
+        //  PRODUCT LIST + LISTING
+        // ════════════════════════════════════════════════════════════════
+
         [HttpGet]
         public async Task<IActionResult> ProductList(int storeId)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var userStore = await _context.UserStores
-                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
-
-            if (userStore == null)
-            {
-                return Forbid();
-            }
+            if (!await HasAccessToStore(storeId)) return Forbid();
 
             var store = await _context.Stores.FindAsync(storeId);
             if (store == null) return NotFound();
+
+            bool isProducerView = await CurrentUserUsesProducerView();
 
             ViewBag.StoreName = store.StoreName;
             ViewBag.StoreLogoUrl = store.StoreLogoUrl;
             ViewBag.ProductCount = store.ProductsToScrap;
             ViewBag.StoreId = storeId;
+            ViewBag.IsProducerView = isProducerView;
 
             var flags = await _context.Flags
-         .Where(f => !f.IsMarketplace && f.StoreId == storeId) // <--- TUTAJ POPRAWKA: dodano && f.StoreId == storeId
-         .Select(f => new FlagViewModel
-         {
-             FlagId = f.FlagId,
-             FlagName = f.FlagName,
-             FlagColor = f.FlagColor
-         })
-         .ToListAsync();
+                .Where(f => !f.IsMarketplace && f.StoreId == storeId)
+                .Select(f => new FlagViewModel
+                {
+                    FlagId = f.FlagId,
+                    FlagName = f.FlagName,
+                    FlagColor = f.FlagColor
+                })
+                .ToListAsync();
 
             ViewBag.Flags = flags;
 
@@ -106,46 +133,47 @@ namespace PriceSafari.Controllers
         [HttpGet]
         public async Task<IActionResult> GetProducts(int storeId)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!await HasAccessToStore(storeId)) return Forbid();
 
-            var userStore = await _context.UserStores
-                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
-
-            if (userStore == null)
-            {
-                return Forbid();
-            }
+            bool isProducerView = await CurrentUserUsesProducerView();
 
             var products = await _context.Products
-                  .Where(p => p.StoreId == storeId)
+                .Where(p => p.StoreId == storeId)
+                .Include(p => p.ProductFlags)
+                .Select(p => new
+                {
+                    p.ProductId,
+                    p.ProductName,
+                    p.Category,
+                    p.Producer,
+                    p.OfferUrl,
+                    p.IsScrapable,
+                    p.IsRejected,
+                    p.Url,
+                    p.Ean,
+                    p.ExternalId,
+                    p.CatalogNumber,
+                    p.MarginPrice,
+                    p.MapPrice,
+                    p.MainUrl,
+                    p.GoogleUrl,
+                    p.AddedDate,
+                    p.FoundOnGoogleDate,
+                    p.FoundOnCeneoDate,
+                    FlagIds = p.ProductFlags.Select(pf => pf.FlagId).ToList()
+                })
+                .ToListAsync();
 
-                  .Include(p => p.ProductFlags)
-                  .Select(p => new
-                  {
-                      p.ProductId,
-                      p.ProductName,
-                      p.Category,
-                      p.Producer,
-                      p.OfferUrl,
-                      p.IsScrapable,
-                      p.IsRejected,
-                      p.Url,
-                      p.Ean,
-                      p.ExternalId,        
-                      p.CatalogNumber, 
-                      p.MarginPrice,
-                      p.MainUrl,
-                      p.GoogleUrl,
-                      AddedDate = p.AddedDate,
-                      FoundOnGoogleDate = p.FoundOnGoogleDate,
-                      FoundOnCeneoDate = p.FoundOnCeneoDate,
-
-                      FlagIds = p.ProductFlags.Select(pf => pf.FlagId).ToList()
-                  })
-                  .ToListAsync();
-
-            return Json(products);
+            return Json(new
+            {
+                useProducerView = isProducerView,
+                products
+            });
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  MONITORING (scrapable) — identycznie w obu trybach
+        // ════════════════════════════════════════════════════════════════
 
         [HttpPost]
         public async Task<IActionResult> UpdateScrapableProduct(int storeId, [FromBody] int productId)
@@ -156,11 +184,7 @@ namespace PriceSafari.Controllers
 
             try
             {
-
-                var userStore = await _context.UserStores
-                    .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
-
-                if (userStore == null)
+                if (!await HasAccessToStore(storeId))
                 {
                     logs.Add("User store not found.");
                     return Json(new { success = false, message = "User store not found.", logs });
@@ -196,9 +220,7 @@ namespace PriceSafari.Controllers
             {
                 logs.Add($"Exception: {ex.Message}");
                 if (ex.InnerException != null)
-                {
                     logs.Add($"Inner Exception: {ex.InnerException.Message}");
-                }
                 return StatusCode(500, new { success = false, message = "Internal Server Error", logs });
             }
         }
@@ -206,21 +228,10 @@ namespace PriceSafari.Controllers
         [HttpPost]
         public async Task<IActionResult> UpdateMultipleScrapableProducts(int storeId, [FromBody] List<int> productIds)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var userStore = await _context.UserStores
-                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
-
-            if (userStore == null)
-            {
-                return Forbid();
-            }
+            if (!await HasAccessToStore(storeId)) return Forbid();
 
             var store = await _context.Stores.Include(s => s.Products).FirstOrDefaultAsync(s => s.StoreId == storeId);
-            if (store == null)
-            {
-                return NotFound();
-            }
+            if (store == null) return NotFound();
 
             int? currentScrapableCount = store.Products.Count(p => p.IsScrapable);
             int? availableCount = store.ProductsToScrap - currentScrapableCount;
@@ -228,21 +239,15 @@ namespace PriceSafari.Controllers
             var productsToUpdate = store.Products.Where(p => productIds.Contains(p.ProductId)).ToList();
 
             if (availableCount.HasValue && productsToUpdate.Count > availableCount.Value)
-            {
                 productsToUpdate = productsToUpdate.Take(availableCount.Value).ToList();
-            }
 
             foreach (var product in productsToUpdate)
-            {
                 product.IsScrapable = true;
-            }
 
             await _context.SaveChangesAsync();
 
             if (productsToUpdate.Count < productIds.Count)
-            {
                 return Json(new { success = true, message = $"Zaktualizowano {productsToUpdate.Count} z {productIds.Count} produktów. Przekroczono limit produktów do scrapowania." });
-            }
 
             return Json(new { success = true });
         }
@@ -250,33 +255,232 @@ namespace PriceSafari.Controllers
         [HttpPost]
         public async Task<IActionResult> ResetMultipleScrapableProducts(int storeId, [FromBody] List<int> productIds)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var userStore = await _context.UserStores
-                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
-
-            if (userStore == null)
-            {
-                return Forbid();
-            }
+            if (!await HasAccessToStore(storeId)) return Forbid();
 
             var store = await _context.Stores.Include(s => s.Products).FirstOrDefaultAsync(s => s.StoreId == storeId);
-            if (store == null)
-            {
-                return NotFound();
-            }
+            if (store == null) return NotFound();
 
             var productsToUpdate = store.Products.Where(p => productIds.Contains(p.ProductId)).ToList();
 
             foreach (var product in productsToUpdate)
-            {
                 product.IsScrapable = false;
-            }
 
             await _context.SaveChangesAsync();
-
             return Json(new { success = true });
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  CENA INLINE — dynamicznie zakup (standard) / MAP (producent)
+        // ════════════════════════════════════════════════════════════════
+
+        public class UpdatePurchasePriceViewModel
+        {
+            public int ProductId { get; set; }
+            public decimal? NewPrice { get; set; }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdatePurchasePrice(int storeId, [FromBody] UpdatePurchasePriceViewModel model)
+        {
+            if (model == null)
+                return BadRequest(new { success = false, message = "Nieprawidłowe dane." });
+
+            if (model.NewPrice.HasValue && model.NewPrice < 0)
+                return BadRequest(new { success = false, message = "Cena nie może być ujemna." });
+
+            if (!await HasAccessToStore(storeId)) return Forbid();
+
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == model.ProductId && p.StoreId == storeId);
+            if (product == null)
+                return NotFound(new { success = false, message = "Produkt nie został znaleziony." });
+
+            bool isProducerView = await CurrentUserUsesProducerView();
+            string priceLabel = isProducerView ? "MAP" : "zakupu";
+
+            try
+            {
+                bool changed = false;
+
+                if (isProducerView)
+                {
+                    if (product.MapPrice != model.NewPrice)
+                    {
+                        product.MapPrice = model.NewPrice;
+                        product.MapPriceUpdatedDate = DateTime.UtcNow;
+                        changed = true;
+                    }
+                }
+                else
+                {
+                    if (product.MarginPrice != model.NewPrice)
+                    {
+                        product.MarginPrice = model.NewPrice;
+                        product.MarginPriceUpdatedDate = DateTime.UtcNow;
+                        changed = true;
+                    }
+                }
+
+                if (changed) await _context.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "Zaktualizowano cenę {Label} dla produktu ID={ProductId} na {NewPrice}",
+                    priceLabel, model.ProductId,
+                    model.NewPrice.HasValue ? model.NewPrice.Value.ToString(CultureInfo.InvariantCulture) : "NULL");
+
+                return Json(new { success = true, message = $"Cena {priceLabel} została zaktualizowana." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Błąd podczas aktualizacji ceny {Label} dla produktu ID={ProductId}", priceLabel, model.ProductId);
+                return StatusCode(500, new { success = false, message = "Wystąpił wewnętrzny błąd serwera." });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ClearAllPurchasePrices(int storeId)
+        {
+            if (!await HasAccessToStore(storeId)) return Forbid();
+
+            var storeExists = await _context.Stores.AnyAsync(s => s.StoreId == storeId);
+            if (!storeExists)
+                return NotFound(new { success = false, message = "Sklep nie został znaleziony." });
+
+            bool isProducerView = await CurrentUserUsesProducerView();
+            string priceLabel = isProducerView ? "MAP" : "zakupu";
+
+            try
+            {
+                var productsInStore = await _context.Products
+                    .Where(p => p.StoreId == storeId)
+                    .ToListAsync();
+
+                int clearedCount = 0;
+                foreach (var product in productsInStore)
+                {
+                    if (isProducerView)
+                    {
+                        if (product.MapPrice != null)
+                        {
+                            product.MapPrice = null;
+                            product.MapPriceUpdatedDate = null;
+                            clearedCount++;
+                        }
+                    }
+                    else
+                    {
+                        if (product.MarginPrice != null)
+                        {
+                            product.MarginPrice = null;
+                            product.MarginPriceUpdatedDate = null;
+                            clearedCount++;
+                        }
+                    }
+                }
+
+                if (clearedCount > 0) await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Usunięto ceny {Label} dla {ClearedCount} produktów w StoreId={StoreId}",
+                    priceLabel, clearedCount, storeId);
+
+                var message = clearedCount > 0
+                    ? $"Pomyślnie usunięto ceny {priceLabel} dla {clearedCount} produktów."
+                    : $"Brak produktów z ustaloną ceną {priceLabel} — nic nie usunięto.";
+
+                return Json(new { success = true, message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Błąd ClearAllPurchasePrices dla StoreId={StoreId}", storeId);
+                return StatusCode(500, new { success = false, message = $"Wystąpił wewnętrzny błąd serwera podczas usuwania cen {priceLabel}." });
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  EXPORT SKELETONU — dynamicznie CENA / CENA MAP
+        // ════════════════════════════════════════════════════════════════
+
+        [HttpGet]
+        public async Task<IActionResult> DownloadProductSkeleton(int storeId)
+        {
+            if (!await HasAccessToStore(storeId)) return Forbid();
+
+            bool isProducerView = await CurrentUserUsesProducerView();
+            string priceHeader = isProducerView ? "CENA MAP" : "CENA";
+            string fileSuffix = isProducerView ? "MAP" : "Zakup";
+
+            var products = await _context.Products
+                .Include(p => p.ProductFlags)
+                    .ThenInclude(pf => pf.Flag)
+                .Where(p => p.StoreId == storeId)
+                .ToListAsync();
+
+            using var workbook = new XSSFWorkbook();
+            var sheet = workbook.CreateSheet("Produkty");
+
+            var headerRow = sheet.CreateRow(0);
+            headerRow.CreateCell(0).SetCellValue("ID");
+            headerRow.CreateCell(1).SetCellValue("EAN");
+            headerRow.CreateCell(2).SetCellValue("SKU");
+            headerRow.CreateCell(3).SetCellValue(priceHeader);
+            headerRow.CreateCell(4).SetCellValue("FLAGI");
+
+            var headerStyle = workbook.CreateCellStyle();
+            var font = workbook.CreateFont();
+            font.IsBold = true;
+            headerStyle.SetFont(font);
+            for (int i = 0; i < 5; i++) headerRow.GetCell(i).CellStyle = headerStyle;
+
+            int rowIndex = 1;
+            foreach (var product in products)
+            {
+                var row = sheet.CreateRow(rowIndex++);
+
+                if (product.ExternalId.HasValue)
+                    row.CreateCell(0).SetCellValue(product.ExternalId.Value);
+                else
+                    row.CreateCell(0).SetCellValue("");
+
+                row.CreateCell(1).SetCellValue(product.Ean ?? "");
+                row.CreateCell(2).SetCellValue(product.CatalogNumber ?? "");
+
+                decimal? priceValue = isProducerView ? product.MapPrice : product.MarginPrice;
+                if (priceValue.HasValue)
+                    row.CreateCell(3).SetCellValue((double)priceValue.Value);
+                else
+                    row.CreateCell(3).SetCellValue("");
+
+                if (product.ProductFlags != null && product.ProductFlags.Any(pf => pf.ProductId.HasValue))
+                {
+                    var flagNames = product.ProductFlags
+                        .Where(pf => pf.ProductId.HasValue && pf.Flag != null)
+                        .Select(pf => pf.Flag.FlagName)
+                        .Where(n => !string.IsNullOrEmpty(n));
+                    row.CreateCell(4).SetCellValue(string.Join(", ", flagNames));
+                }
+                else
+                {
+                    row.CreateCell(4).SetCellValue("");
+                }
+            }
+
+            sheet.SetColumnWidth(0, 20 * 256);
+            sheet.SetColumnWidth(1, 18 * 256);
+            sheet.SetColumnWidth(2, 16 * 256);
+            sheet.SetColumnWidth(3, 14 * 256);
+            sheet.SetColumnWidth(4, 30 * 256);
+
+            using var stream = new MemoryStream();
+            workbook.Write(stream);
+            var content = stream.ToArray();
+            var fileName = $"Produkty_Szkielet_{fileSuffix}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  IMPORT (Excel) — dynamicznie CENA / CENA MAP
+        // ════════════════════════════════════════════════════════════════
 
         private class ProductImportRow
         {
@@ -294,9 +498,10 @@ namespace PriceSafari.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             _logger.LogInformation("SetMargins: StoreId={StoreId}, UserId={UserId}, File={File}", storeId, userId, uploadedFile?.FileName);
 
-            var userStore = await _context.UserStores
-                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
-            if (userStore == null) return Forbid();
+            if (!await HasAccessToStore(storeId)) return Forbid();
+
+            bool isProducerView = await CurrentUserUsesProducerView();
+            string priceLabel = isProducerView ? "MAP" : "zakupu";
 
             if (uploadedFile == null || uploadedFile.Length == 0)
             {
@@ -324,15 +529,15 @@ namespace PriceSafari.Controllers
 
             try
             {
-                var importRows = await ParseProductExcelFile(uploadedFile);
+                var importRows = await ParseProductExcelFile(uploadedFile, isProducerView);
 
                 if (importRows == null || !importRows.Any())
                 {
-                    TempData["ErrorMessage"] = "Plik nie zawiera poprawnych danych.";
+                    TempData["ErrorMessage"] = $"Plik nie zawiera poprawnych danych lub nie znaleziono kolumny z ceną {priceLabel}.";
                     return RedirectToAction("ProductList", new { storeId });
                 }
 
-                // --- LOGIKA FLAG ---
+                // Flagi — znajdź istniejące lub utwórz nowe
                 var distinctFlagNames = importRows
                     .SelectMany(r => r.FlagNames)
                     .Select(f => f.Trim())
@@ -344,20 +549,16 @@ namespace PriceSafari.Controllers
                     .Where(f => f.StoreId == storeId && !f.IsMarketplace)
                     .ToListAsync();
 
-                var flagsToCreate = new List<FlagsClass>();
-                foreach (var flagName in distinctFlagNames)
-                {
-                    if (!existingFlags.Any(f => f.FlagName.Equals(flagName, StringComparison.OrdinalIgnoreCase)))
+                var flagsToCreate = distinctFlagNames
+                    .Where(name => !existingFlags.Any(f => f.FlagName.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    .Select(name => new FlagsClass
                     {
-                        flagsToCreate.Add(new FlagsClass
-                        {
-                            StoreId = storeId,
-                            FlagName = flagName,
-                            FlagColor = GenerateRandomColorProduct(),
-                            IsMarketplace = false
-                        });
-                    }
-                }
+                        StoreId = storeId,
+                        FlagName = name,
+                        FlagColor = GenerateRandomColorProduct(),
+                        IsMarketplace = false
+                    })
+                    .ToList();
 
                 if (flagsToCreate.Any())
                 {
@@ -368,7 +569,6 @@ namespace PriceSafari.Controllers
 
                 var flagMap = existingFlags.ToDictionary(f => f.FlagName.ToUpperInvariant(), f => f.FlagId);
 
-                // --- AKTUALIZACJA PRODUKTÓW ---
                 var products = await _context.Products
                     .Include(p => p.ProductFlags)
                     .Where(p => p.StoreId == storeId)
@@ -380,7 +580,6 @@ namespace PriceSafari.Controllers
                 {
                     var targets = new List<ProductClass>();
 
-                    // Priorytet 1: ExternalId
                     if (!string.IsNullOrEmpty(row.ExternalId) &&
                         int.TryParse(row.ExternalId, out var extIdInt))
                     {
@@ -388,7 +587,6 @@ namespace PriceSafari.Controllers
                         if (found != null) targets.Add(found);
                     }
 
-                    // Priorytet 2: EAN
                     if (!targets.Any() && !string.IsNullOrEmpty(row.Ean))
                     {
                         var byEan = products.Where(p => p.Ean == row.Ean).ToList();
@@ -399,11 +597,27 @@ namespace PriceSafari.Controllers
                     {
                         bool isModified = false;
 
-                        if (row.Price.HasValue && product.MarginPrice != row.Price.Value)
+                        // Cena — kierunek zależny od widoku
+                        if (row.Price.HasValue)
                         {
-                            product.MarginPrice = row.Price.Value;
-                            product.MarginPriceUpdatedDate = DateTime.UtcNow;
-                            isModified = true;
+                            if (isProducerView)
+                            {
+                                if (product.MapPrice != row.Price.Value)
+                                {
+                                    product.MapPrice = row.Price.Value;
+                                    product.MapPriceUpdatedDate = DateTime.UtcNow;
+                                    isModified = true;
+                                }
+                            }
+                            else
+                            {
+                                if (product.MarginPrice != row.Price.Value)
+                                {
+                                    product.MarginPrice = row.Price.Value;
+                                    product.MarginPriceUpdatedDate = DateTime.UtcNow;
+                                    isModified = true;
+                                }
+                            }
                         }
 
                         if (!string.IsNullOrEmpty(row.CatalogNumber) && product.CatalogNumber != row.CatalogNumber)
@@ -449,7 +663,7 @@ namespace PriceSafari.Controllers
                 }
 
                 await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = $"Zaktualizowano {updatedCount} produktów (Ceny, SKU, Flagi).";
+                TempData["SuccessMessage"] = $"Zaktualizowano {updatedCount} produktów (Ceny {priceLabel}, SKU, Flagi).";
                 return RedirectToAction("ProductList", new { storeId });
             }
             catch (Exception ex)
@@ -460,182 +674,108 @@ namespace PriceSafari.Controllers
             }
         }
 
-        private async Task<List<ProductImportRow>> ParseProductExcelFile(IFormFile file)
+        private async Task<List<ProductImportRow>> ParseProductExcelFile(IFormFile file, bool isProducerView)
         {
             var list = new List<ProductImportRow>();
 
-            using (var stream = new MemoryStream())
+            // Akceptowane nagłówki ceny zależą od trybu
+            var priceHeaderCandidates = isProducerView
+                ? new HashSet<string> { "MAP", "CENAMAP", "MAPPRICE", "CENAMINIMALNA", "MINIMALNACENA" }
+                : new HashSet<string> { "CENA", "PRICE", "CENAZAKUPU" };
+
+            using var stream = new MemoryStream();
+            await file.CopyToAsync(stream);
+            stream.Position = 0;
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            IWorkbook workbook = extension == ".xls"
+                ? (IWorkbook)new HSSFWorkbook(stream)
+                : new XSSFWorkbook(stream);
+
+            var evaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
+            var sheet = workbook.GetSheetAt(0);
+            if (sheet == null) return null;
+
+            var headerRow = sheet.GetRow(0);
+            if (headerRow == null) return null;
+
+            int eanCol = -1, priceCol = -1, externalIdCol = -1, catalogNumberCol = -1, flagCol = -1;
+
+            for (int c = headerRow.FirstCellNum; c < headerRow.LastCellNum; c++)
             {
-                await file.CopyToAsync(stream);
-                stream.Position = 0;
+                var txt = GetCellValue(headerRow.GetCell(c), evaluator)?.Trim().ToUpperInvariant().Replace(" ", "");
+                if (string.IsNullOrEmpty(txt)) continue;
 
-                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-                IWorkbook workbook = extension == ".xls"
-                    ? (IWorkbook)new HSSFWorkbook(stream)
-                    : new XSSFWorkbook(stream);
+                if (txt == "EAN" || txt == "KODEAN") eanCol = c;
+                else if (priceHeaderCandidates.Contains(txt)) priceCol = c;
+                else if (txt == "ID" || txt == "EXTERNALID" || txt == "ZEWNETRZNE_ID") externalIdCol = c;
+                else if (txt == "SKU" || txt == "SYGNATURA" || txt == "CATALOGNUMBER") catalogNumberCol = c;
+                else if (txt == "FLAGA" || txt == "FLAGI" || txt == "FLAGS") flagCol = c;
+            }
 
-                var evaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
-                var sheet = workbook.GetSheetAt(0);
-                if (sheet == null) return null;
+            if (eanCol < 0 && externalIdCol < 0)
+            {
+                _logger.LogError("Brak kolumn identyfikacyjnych (EAN lub ID)");
+                return null;
+            }
 
-                var headerRow = sheet.GetRow(0);
-                if (headerRow == null) return null;
+            for (int r = 1; r <= sheet.LastRowNum; r++)
+            {
+                var row = sheet.GetRow(r);
+                if (row == null) continue;
 
-                int eanCol = -1, priceCol = -1, externalIdCol = -1, catalogNumberCol = -1, flagCol = -1;
+                var item = new ProductImportRow();
 
-                for (int c = headerRow.FirstCellNum; c < headerRow.LastCellNum; c++)
+                if (eanCol >= 0) item.Ean = GetCellValue(row.GetCell(eanCol), evaluator)?.Trim();
+                if (externalIdCol >= 0) item.ExternalId = GetCellValue(row.GetCell(externalIdCol), evaluator)?.Trim();
+
+                if (string.IsNullOrEmpty(item.Ean) && string.IsNullOrEmpty(item.ExternalId)) continue;
+
+                if (priceCol >= 0)
                 {
-                    var txt = GetCellValue(headerRow.GetCell(c), evaluator)?.Trim().ToUpperInvariant().Replace(" ", "");
-                    if (string.IsNullOrEmpty(txt)) continue;
-
-                    if (txt == "EAN" || txt == "KODEAN") eanCol = c;
-                    else if (txt == "CENA" || txt == "PRICE" || txt == "CENAZAKUPU") priceCol = c;
-                    else if (txt == "ID" || txt == "EXTERNALID" || txt == "ZEWNETRZNE_ID") externalIdCol = c;
-                    else if (txt == "SKU" || txt == "SYGNATURA" || txt == "CATALOGNUMBER") catalogNumberCol = c;
-                    else if (txt == "FLAGA" || txt == "FLAGI" || txt == "FLAGS") flagCol = c;
+                    var priceTxt = GetCellValue(row.GetCell(priceCol), evaluator)?.Trim().Replace(",", ".");
+                    if (decimal.TryParse(priceTxt, NumberStyles.Any, CultureInfo.InvariantCulture, out var p))
+                        item.Price = p;
                 }
 
-                if (eanCol < 0 && externalIdCol < 0)
+                if (catalogNumberCol >= 0)
+                    item.CatalogNumber = GetCellValue(row.GetCell(catalogNumberCol), evaluator)?.Trim();
+
+                if (flagCol >= 0)
                 {
-                    _logger.LogError("Brak kolumn identyfikacyjnych (EAN lub ID)");
-                    return null;
-                }
-
-                for (int r = 1; r <= sheet.LastRowNum; r++)
-                {
-                    var row = sheet.GetRow(r);
-                    if (row == null) continue;
-
-                    var item = new ProductImportRow();
-
-                    if (eanCol >= 0) item.Ean = GetCellValue(row.GetCell(eanCol), evaluator)?.Trim();
-                    if (externalIdCol >= 0) item.ExternalId = GetCellValue(row.GetCell(externalIdCol), evaluator)?.Trim();
-
-                    if (string.IsNullOrEmpty(item.Ean) && string.IsNullOrEmpty(item.ExternalId)) continue;
-
-                    if (priceCol >= 0)
+                    var flagsRaw = GetCellValue(row.GetCell(flagCol), evaluator)?.Trim();
+                    if (!string.IsNullOrEmpty(flagsRaw))
                     {
-                        var priceTxt = GetCellValue(row.GetCell(priceCol), evaluator)?.Trim().Replace(",", ".");
-                        if (decimal.TryParse(priceTxt, NumberStyles.Any, CultureInfo.InvariantCulture, out var p))
-                            item.Price = p;
+                        foreach (var part in flagsRaw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                            item.FlagNames.Add(part.Trim());
                     }
-
-                    if (catalogNumberCol >= 0)
-                        item.CatalogNumber = GetCellValue(row.GetCell(catalogNumberCol), evaluator)?.Trim();
-
-                    if (flagCol >= 0)
-                    {
-                        var flagsRaw = GetCellValue(row.GetCell(flagCol), evaluator)?.Trim();
-                        if (!string.IsNullOrEmpty(flagsRaw))
-                        {
-                            foreach (var part in flagsRaw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
-                                item.FlagNames.Add(part.Trim());
-                        }
-                    }
-
-                    list.Add(item);
                 }
+
+                list.Add(item);
             }
 
             return list;
         }
 
-        [HttpGet]
-        public async Task<IActionResult> DownloadProductSkeleton(int storeId)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var userStore = await _context.UserStores.FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
-            if (userStore == null) return Forbid();
-
-            var products = await _context.Products
-                .Include(p => p.ProductFlags)
-                    .ThenInclude(pf => pf.Flag)
-                .Where(p => p.StoreId == storeId)
-                .ToListAsync();
-
-            using (var workbook = new XSSFWorkbook())
-            {
-                var sheet = workbook.CreateSheet("Produkty");
-
-                var headerRow = sheet.CreateRow(0);
-                headerRow.CreateCell(0).SetCellValue("ID");           // ExternalId
-                headerRow.CreateCell(1).SetCellValue("EAN");          // EAN
-                headerRow.CreateCell(2).SetCellValue("SKU");          // CatalogNumber
-                headerRow.CreateCell(3).SetCellValue("CENA");         // MarginPrice
-                headerRow.CreateCell(4).SetCellValue("FLAGI");        // Flagi po przecinku
-
-                var headerStyle = workbook.CreateCellStyle();
-                var font = workbook.CreateFont();
-                font.IsBold = true;
-                headerStyle.SetFont(font);
-                for (int i = 0; i < 5; i++) headerRow.GetCell(i).CellStyle = headerStyle;
-
-                int rowIndex = 1;
-                foreach (var product in products)
-                {
-                    var row = sheet.CreateRow(rowIndex++);
-
-                    // ID — ExternalId jako liczba lub pusty string
-                    if (product.ExternalId.HasValue)
-                        row.CreateCell(0).SetCellValue(product.ExternalId.Value);
-                    else
-                        row.CreateCell(0).SetCellValue("");
-
-                    row.CreateCell(1).SetCellValue(product.Ean ?? "");
-                    row.CreateCell(2).SetCellValue(product.CatalogNumber ?? "");
-
-                    if (product.MarginPrice.HasValue)
-                        row.CreateCell(3).SetCellValue((double)product.MarginPrice.Value);
-                    else
-                        row.CreateCell(3).SetCellValue("");
-
-                    if (product.ProductFlags != null && product.ProductFlags.Any(pf => pf.ProductId.HasValue))
-                    {
-                        var flagNames = product.ProductFlags
-                            .Where(pf => pf.ProductId.HasValue && pf.Flag != null)
-                            .Select(pf => pf.Flag.FlagName)
-                            .Where(n => !string.IsNullOrEmpty(n));
-                        row.CreateCell(4).SetCellValue(string.Join(", ", flagNames));
-                    }
-                    else
-                    {
-                        row.CreateCell(4).SetCellValue("");
-                    }
-                }
-
-                sheet.SetColumnWidth(0, 20 * 256);  // ID
-                sheet.SetColumnWidth(1, 18 * 256);  // EAN
-                sheet.SetColumnWidth(2, 16 * 256);  // SKU
-                sheet.SetColumnWidth(3, 14 * 256);  // CENA
-                sheet.SetColumnWidth(4, 30 * 256);  // FLAGI
-
-                using (var stream = new MemoryStream())
-                {
-                    workbook.Write(stream);
-                    var content = stream.ToArray();
-                    var fileName = $"Produkty_Szkielet_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
-                    return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
-                }
-            }
-        }
-
+        // ════════════════════════════════════════════════════════════════
+        //  HELPERS — kolory + odczyt komórek Excela
+        // ════════════════════════════════════════════════════════════════
 
         private string GenerateRandomColorProduct()
         {
             var random = new Random();
-            return String.Format("#{0:X6}", random.Next(0x1000000));
+            return string.Format("#{0:X6}", random.Next(0x1000000));
         }
-
 
         private string GetCellValue(ICell cell, IFormulaEvaluator evaluator)
         {
             if (cell == null) return null;
 
+            // Formuła z zewnętrznym odniesieniem ([file]) — używamy cached
             if (cell.CellType == CellType.Formula &&
                 !string.IsNullOrEmpty(cell.CellFormula) &&
                 cell.CellFormula.Contains("["))
             {
-
                 _logger.LogDebug("Formula external reference detected ('{Formula}'), using cached result.", cell.CellFormula);
                 return cell.CachedFormulaResultType switch
                 {
@@ -650,7 +790,6 @@ namespace PriceSafari.Controllers
             {
                 if (cell.CellType == CellType.Formula)
                 {
-
                     var eval = evaluator.Evaluate(cell);
                     if (eval != null)
                     {
@@ -683,7 +822,6 @@ namespace PriceSafari.Controllers
             }
             catch (Exception ex)
             {
-
                 _logger.LogDebug(ex, "Błąd Evaluate() dla komórki formuły '{Formula}', używam cached.", cell.CellFormula);
                 if (cell.CellType == CellType.Formula)
                 {
@@ -696,130 +834,6 @@ namespace PriceSafari.Controllers
                     };
                 }
                 return null;
-            }
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ClearAllPurchasePrices(int storeId)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            _logger.LogInformation("Attempting to clear all purchase prices for StoreId={StoreId} by UserId={UserId}", storeId, userId);
-
-            var userStore = await _context.UserStores
-                .FirstOrDefaultAsync(us => us.UserId == userId && us.StoreId == storeId);
-
-            if (userStore == null)
-            {
-                _logger.LogWarning("User {UserId} does not have access to StoreId {StoreId} for ClearAllPurchasePrices.", userId, storeId);
-                return Forbid();
-            }
-
-            var storeExists = await _context.Stores.AnyAsync(s => s.StoreId == storeId);
-            if (!storeExists)
-            {
-                _logger.LogWarning("Store with StoreId {StoreId} not found for ClearAllPurchasePrices.", storeId);
-                return NotFound(new { success = false, message = "Sklep nie został znaleziony." });
-            }
-
-            try
-            {
-
-                var productsInStore = await _context.Products
-                    .Where(p => p.StoreId == storeId)
-                    .ToListAsync();
-
-                int clearedCount = 0;
-                if (productsInStore.Any())
-                {
-                    foreach (var product in productsInStore)
-                    {
-                        if (product.MarginPrice != null)
-                        {
-                            product.MarginPrice = null;
-                            product.MarginPriceUpdatedDate = null; // <--- DODAJ TO (czyścimy datę)
-                            clearedCount++;
-                        }
-                    }
-                    await _context.SaveChangesAsync();
-                    _logger.LogInformation("Successfully cleared purchase prices for {ClearedCount} products in StoreId={StoreId}.", clearedCount, storeId);
-                    TempData["SuccessMessage"] = $"Pomyślnie usunięto ceny zakupu dla {clearedCount} produktów.";
-                    return Json(new { success = true, message = $"Pomyślnie usunięto ceny zakupu dla {clearedCount} produktów." });
-                }
-                else
-                {
-                    _logger.LogInformation("No products found in StoreId={StoreId} to clear purchase prices.", storeId);
-                    TempData["SuccessMessage"] = "Brak produktów w sklepie, nie usunięto żadnych cen zakupu.";
-                    return Json(new { success = true, message = "Brak produktów w sklepie, nie usunięto żadnych cen zakupu." });
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during ClearAllPurchasePrices for StoreId={StoreId}.", storeId);
-
-                return StatusCode(500, new { success = false, message = "Wystąpił wewnętrzny błąd serwera podczas usuwania cen zakupu." });
-            }
-        }
-
-        public class UpdatePurchasePriceViewModel
-        {
-            public int ProductId { get; set; }
-            public decimal? NewPrice { get; set; }
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdatePurchasePrice(int storeId, [FromBody] UpdatePurchasePriceViewModel model)
-        {
-            if (model == null)
-            {
-                return BadRequest(new { success = false, message = "Nieprawidłowe dane." });
-            }
-
-            if (model.NewPrice.HasValue && model.NewPrice < 0)
-            {
-                return BadRequest(new { success = false, message = "Cena nie może być ujemna." });
-            }
-
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var hasAccess = await _context.UserStores.AnyAsync(us => us.UserId == userId && us.StoreId == storeId);
-            if (!hasAccess)
-            {
-                return Forbid();
-            }
-
-            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == model.ProductId && p.StoreId == storeId);
-            if (product == null)
-            {
-                return NotFound(new { success = false, message = "Produkt nie został znaleziony." });
-            }
-
-            try
-            {
-                // --- ZMIANA TUTAJ: Sprawdzamy czy cena się zmieniła ---
-                if (product.MarginPrice != model.NewPrice)
-                {
-                    product.MarginPrice = model.NewPrice;
-                    product.MarginPriceUpdatedDate = DateTime.UtcNow; // Ustawiamy datę zmiany
-
-                    await _context.SaveChangesAsync();
-
-                    _logger.LogInformation("Zaktualizowano cenę zakupu dla produktu ID={ProductId} na {NewPrice} przez użytkownika ID={UserId}",
-                                     model.ProductId, model.NewPrice.HasValue ? model.NewPrice.Value.ToString() : "NULL", userId);
-                }
-                else
-                {
-                    _logger.LogInformation("Cena zakupu dla produktu ID={ProductId} jest taka sama. Nie zmieniono daty.", model.ProductId);
-                }
-                // -----------------------------------------------------
-
-                return Json(new { success = true, message = "Cena zakupu została zaktualizowana." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Błąd podczas aktualizacji ceny zakupu dla produktu ID={ProductId}", model.ProductId);
-                return StatusCode(500, new { success = false, message = "Wystąpił wewnętrzny błąd serwera." });
             }
         }
     }

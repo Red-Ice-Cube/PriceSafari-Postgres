@@ -27,7 +27,7 @@ namespace PriceSafari.Models
         public string? AllegroSku { get; set; }
 
 
-        // nowo dodane
+  
         public string? Producer { get; set; }
 
         public DateTime AddedDate { get; set; } = DateTime.UtcNow;
