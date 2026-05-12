@@ -932,7 +932,11 @@
         const priceMin = parseFloat(priceRaw[0].replace(' PLN', '').replace(/\s/g, '').replace(',', '.'));
         const priceMax = parseFloat(priceRaw[1].replace(' PLN', '').replace(/\s/g, '').replace(',', '.'));
 
-        filtered = filtered.filter(item => (item.competitorCount || 0) >= offMin && (item.competitorCount || 0) <= offMax);
+        filtered = filtered.filter(item => {
+            const count = item.competitorCount || 0;
+            if (count === 0) return true;
+            return count >= offMin && count <= offMax;
+        });
         filtered = filtered.filter(item => {
             const refP = item.referencePrice != null ? parseFloat(item.referencePrice) : 0;
             if (refP <= 0.01) return true;
@@ -1219,7 +1223,7 @@
                                 <i class="violation-detail-icon fa-solid fa-circle-question" style="color:#5b537a;"></i>
                                 <span>Brak ceny referencyjnej</span>
                             </div>
-                            <div class="violation-detail-meta">Nie można ocenić naruszeń bez ceny referencyjnej.</div>
+                            <div class="violation-detail-meta">Nie można ocenić naruszeń.</div>
                         </div>
                     </div>
                     <div class="price-box-column-text">
@@ -1240,11 +1244,11 @@
                 stateBadgeClass = 'violation-state-fresh';
                 stateBadgeText = 'Nowe';
                 iconClass = 'fa-solid fa-bell';
-                iconColor = '#8a5a00';
+                iconColor = '#9D4EDD';
                 barStateClass = 'fresh';
                 headerText = 'Nowe naruszenie';
-                durationText = 'Wykryte przy ostatnim scrapowaniu';
-                metaHtml = '<div class="violation-detail-meta">Wykryte po raz pierwszy.</div>';
+                durationText = 'Wykryto ostatnio';
+                metaHtml = '<div class="violation-detail-meta">Pierwsze wykrycie.</div>';
             } else {
                 stateBadgeClass = 'violation-state-active';
                 stateBadgeText = 'Aktywne';
@@ -1258,10 +1262,23 @@
                     : '<div class="violation-detail-meta">Trwa nieprzerwanie.</div>';
             }
 
+            // Obliczamy szerokość paska
             const barPercent = isFresh
                 ? 2
                 : (reachedMax ? 100 : Math.min(100, ((h || 0) / 168) * 100));
-            const remainderPercent = Math.max(0, 100 - barPercent);
+
+            // Ustalamy jednolity kolor zależny od postępu
+            let barFillColor = '#f4d03f'; // domyślnie żółty (dla pierwszego dnia/nowych)
+
+            if (!isFresh) {
+                if (barPercent >= 75) {
+                    barFillColor = '#c0392b'; // mocny czerwony (powyżej ok. 5 dni)
+                } else if (barPercent >= 35) {
+                    barFillColor = '#f39c12'; // pomarańczowy (środek cyklu)
+                } else {
+                    barFillColor = '#f4d03f'; // żółty (początek)
+                }
+            }
 
             return `
                 <div class="price-box-column">
@@ -1273,8 +1290,8 @@
                             </div>
                             <div class="violation-duration-large">${durationText}</div>
                             ${metaHtml}
-                            <div class="violation-time-bar ${barStateClass}" title="Postęp w oknie 7 dni">
-                                <div class="violation-time-bar-remainder" style="width:${remainderPercent.toFixed(1)}%;"></div>
+                            <div class="violation-time-bar" title="Postęp w oknie 7 dni">
+                                <div class="violation-time-bar-fill" style="width:${barPercent.toFixed(1)}%; background-color: ${barFillColor};"></div>
                             </div>
                         </div>
                     </div>
@@ -1633,7 +1650,7 @@
         c.appendChild(fragment);
         renderPagination(data.length);
 
-        document.getElementById('displayedProductCount').textContent = data.length;
+        document.getElementById('displayedProductCount').textContent = `${data.length} / ${allPrices.length}`;
     }
 
     // ═════════════════════════════════════════════════════════════

@@ -54,84 +54,57 @@
 
     /* Stany naruszenia — etykietki/badge */
     .violation-state-badge {
-        display: inline-block;
-        padding: 2px 8px;
         border-radius: 4px;
-        font-size: 12px;
+        padding: 2px 5px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
         font-weight: 500;
-        letter-spacing: 0.2px;
-        white-space: nowrap;
+        color: #fff;
     }
 
     .violation-state-fresh {
-        background: #fff4d6;
-        color: #8a5a00;
-        border: 1px solid #f0c674;
+        background: #7B2CBF;
+    
     }
 
     .violation-state-active {
-        background: #fbe1e1;
-        color: #8b1a1a;
-        border: 1px solid #e89595;
+        background: #8b1a1a;
+
     }
 
     .violation-state-ended {
-        background: #e7eaee;
-        color: #495057;
-        border: 1px solid #c4cbd2;
+        background: #495057;
+ 
     }
 
     .violation-state-clean {
-        background: #dff3e2;
-        color: #1e5a2a;
-        border: 1px solid #a3d4ad;
+        background: #1e5a2a;
+     
     }
 
     .violation-state-no-ref {
-        background: #f1f0fa;
-        color: #5b537a;
-        border: 1px solid #c8c2dd;
+        background: #5b537a;
+
     }
 
-    /* ═══ Pasek postępu naruszenia — gradient progresywny ═══
-           Strategia: kontener ma gradient w tle (pełna szerokość).
-           Element wewnętrzny `violation-time-bar-remainder` jest "maską"
-           niezapełnionej części od prawej strony. Im większy postęp,
-           tym wąższa maska i tym więcej czerwonej części gradientu widać.        */
     .violation-time-bar {
         position: relative;
-        height: 6px;
-        border-radius: 3px;
+        height: 8px; /* Zwiększone z 6px na 8px */
+        border-radius: 4px; /* Zwiększone proporcjonalnie */
         overflow: hidden;
         margin-top: 4px;
-        background-color: #e9ecef;
+        background-color: #e9ecef; /* Kolor pustego tła paska */
     }
 
-        /* Aktywne naruszenie: żółty → pomarańczowy → czerwony */
-        .violation-time-bar.active {
-            background-image: linear-gradient(to right, #f4d03f 0%, #f39c12 50%, #c0392b 100%);
-        }
-
-        /* Nowe naruszenie: łagodniejszy gradient — żółty → pomarańczowy */
-        .violation-time-bar.fresh {
-            background-image: linear-gradient(to right, #f4d03f 0%, #f7b500 100%);
-        }
-
-        /* Niedawno zakończone: solidny neutralny szary */
-        .violation-time-bar.ended {
-            background-color: #8d949b;
-            background-image: none;
-        }
-
-    /* Maska niezapełnionej części (od prawej) — JS ustawia width:(100-fillPercent)% */
-    .violation-time-bar-remainder {
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        background: #e9ecef;
-        transition: width 0.3s ease-out;
+    /* Wypełnienie postępu od lewej strony */
+    .violation-time-bar-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s ease-out, background-color 0.3s ease-out;
     }
+
 
     /* Drobne formatowanie pomocnicze */
     .producer-sales-line {
@@ -140,25 +113,6 @@
         gap: 4px;
     }
 
-    /* Badge "X w katalogu" przy nazwie produktu — styl spójny z normalnym widokiem */
-    .badge-catalog {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 8px;
-        font-size: 11px;
-        font-weight: 500;
-        background: #eef1f6;
-        color: #495057;
-        border-radius: 4px;
-        border: 1px solid #d6dce4;
-        cursor: pointer;
-        transition: background 0.15s ease;
-    }
-
-        .badge-catalog:hover {
-            background: #dfe5ee;
-        }
 </style>
 
 <div class="Vert">
@@ -560,7 +514,7 @@
 
                 <div class="order-upper-box">
                     <div id="sortingButtons">
-                        <div class="ProductCount" id="displayedProductCount"></div>
+                        <div class="ProductCount" id="displayedProductCount" style="width:100px;"></div>
                         <div id="paginationContainer"></div>
 
                         <!-- ═══ NOWE: przycisk Katalog ═══ -->
