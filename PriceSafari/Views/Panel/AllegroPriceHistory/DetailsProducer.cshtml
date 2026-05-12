@@ -249,7 +249,7 @@
                     </div>
                     <div class="chart-slider-group" id="bandIntensityGroup">
                         <label>Progi</label>
-                        <input type="range" id="bandIntensityRange" min="0.3" max="2.5" step="0.05" value="1.0">
+                        <input type="range" id="bandIntensityRange" min="0" max="2.5" step="0.05" value="0.7">
                     </div>
                     <button type="button" id="exportExcelBtn" class="Button-Page-Small" title="Eksportuj dane historii cen do pliku Excel">
                         <i class="fas fa-file-excel" style="margin-right: 5px;"></i> Excel
@@ -274,6 +274,8 @@
 <div id="loadingOverlay" class="loading-overlay" style="display: none;">
     <div class="loader"></div>
 </div>
+
+
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -303,7 +305,7 @@
 
     <script>
         // ─────────────────────────────────────────────────────────────────────
-        // Producer bucket helpers (klient)
+        // Producer bucket helpers (klient) + helpery kolorów badge spójne z BAND_DEFS
         // ─────────────────────────────────────────────────────────────────────
         function getProducerBucketForPrice(price, ref) {
             if (!ref || ref <= 0 || price == null) return 'producer-no-reference';
@@ -321,14 +323,48 @@
             return 'producer-deep-above';
         }
 
+        var _bucketToBandIdx = {
+            'producer-deep-violation': 0,
+            'producer-violation':      1,
+            'producer-minor-below':    2,
+            'producer-equal':          3,
+            'producer-minor-above':    4,
+            'producer-above':          5,
+            'producer-deep-above':     6
+        };
+
+        // tylko idx 4 (minor-above, light green) potrzebuje ciemnego tekstu
+        var _lightBandIdx = { 4: true };
+
+        function _bandDefRef() {
+            return (typeof BAND_DEFS !== 'undefined') ? BAND_DEFS : [
+                { r: 139, g: 0,   b: 0   }, { r: 220, g: 20,  b: 60  },
+                { r: 255, g: 99,  b: 71  }, { r: 65,  g: 105, b: 225 },
+                { r: 144, g: 238, b: 144 }, { r: 34,  g: 139, b: 34  },
+                { r: 0,   g: 100, b: 0   }
+            ];
+        }
+
+        function getBucketBadgeColors(bucket) {
+            var i = _bucketToBandIdx[bucket];
+            if (i == null) return { bg: 'rgba(187,187,187,0.85)', fg: '#fff', border: 'rgba(120,120,120,0.6)' };
+            var d = _bandDefRef()[i];
+            var isLight = !!_lightBandIdx[i];
+            return {
+                bg:     'rgba(' + d.r + ',' + d.g + ',' + d.b + ',0.92)',
+                fg:     isLight ? '#1a1a1a' : '#fff',
+                border: 'rgba(' + Math.max(0, d.r - 30) + ',' + Math.max(0, d.g - 30) + ',' + Math.max(0, d.b - 30) + ',0.85)'
+            };
+        }
+
         var bucketBarColors = {
-            'producer-deep-violation': 'rgba(139,0,0,0.7)',
-            'producer-violation':      'rgba(220,20,60,0.7)',
-            'producer-minor-below':    'rgba(255,99,71,0.7)',
-            'producer-equal':          'rgba(65,105,225,0.7)',
-            'producer-minor-above':    'rgba(144,238,144,0.7)',
-            'producer-above':          'rgba(34,139,34,0.7)',
-            'producer-deep-above':     'rgba(0,100,0,0.7)',
+            'producer-deep-violation': 'rgba(139,0,0,0.78)',
+            'producer-violation':      'rgba(220,20,60,0.78)',
+            'producer-minor-below':    'rgba(255,99,71,0.78)',
+            'producer-equal':          'rgba(65,105,225,0.78)',
+            'producer-minor-above':    'rgba(144,238,144,0.85)',
+            'producer-above':          'rgba(34,139,34,0.78)',
+            'producer-deep-above':     'rgba(0,100,0,0.82)',
             'producer-no-reference':   'rgba(187,187,187,0.7)'
         };
     </script>
@@ -391,7 +427,7 @@
 
     <script>
         // ─────────────────────────────────────────────────────────────────────
-        // TABELA + BAR CHART (Ranking view)
+        // Stan globalny
         // ─────────────────────────────────────────────────────────────────────
         let echartsTrendChart = null;
         let currentTimelineData = null;
@@ -411,15 +447,28 @@
         let mainOfferId = null;
         let bandIntensity = 1.0;
 
-        // Kolory podświetleń
+        // ── Paleta highlight'ów ──
+        // FIX: pozycja 7 zmieniona z Amber 700 (kolizja wizualna z nowym myOtherOfferColor)
+        //      na Light Green A400 (lime) — wyraźnie odróżnia się od band-green'ów
+        //      (`34,139,34` forest i `0,100,0` deep), bo to lime/jaskrawe.
         const highlightColors = [
-            'rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)',
-            'rgba(255, 99, 132, 1)', 'rgba(0, 150, 136, 1)', 'rgba(201, 203, 207, 1)',
-            'rgba(121, 85, 72, 1)', 'rgba(139, 195, 74, 1)', 'rgba(0, 188, 212, 1)',
-            'rgba(233, 30, 99, 1)'
+            'rgba(33, 150, 243, 1)',    // 1. Blue 500
+            'rgba(0, 188, 212, 1)',     // 2. Cyan 500
+            'rgba(156, 39, 176, 1)',    // 3. Purple 500
+            'rgba(233, 30, 99, 1)',     // 4. Pink 500
+            'rgba(76, 175, 80, 1)',     // 5. Green 500
+            'rgba(63, 81, 181, 1)',     // 6. Indigo 500
+            'rgba(118, 255, 3, 1)',     // 7. Light Green A400 (lime) — replaced Amber 700
+            'rgba(0, 150, 136, 1)',     // 8. Teal 500
+            'rgba(124, 77, 255, 1)',    // 9. Deep Purple A200 (violet)
+            'rgba(213, 0, 249, 1)'      // 10. Purple A400 (bright magenta)
         ];
-        const myMainOfferColor  = 'rgba(255, 100, 0, 1)';
-        const myOtherOfferColor = 'rgba(255, 159, 64, 0.7)';
+
+        // ── Nasze kolory ──
+        // FIX: myOtherOfferColor przesunięty w żółty (Amber 500) — wyraźnie różny od myMainOfferColor,
+        //      pełne alpha=1 (było 0.7, słabo widoczne)
+        const myMainOfferColor  = 'rgba(255, 100, 0, 1)';     // orange-red — main offer
+        const myOtherOfferColor = 'rgba(255, 193, 7, 1)';     // amber/yellow — nasze inne oferty
         const mapRefColor       = 'rgba(65, 105, 225, 1)';
         const defaultGrayColor  = 'rgba(0, 0, 0, {alpha})';
         const DEFAULT_MARKER_SOLID = 'rgba(34,34,34,0.9)';
@@ -433,7 +482,7 @@
         const defaultCustomTooltipContent = 'Najedź na punkt na wykresie...';
         let currentChartType = 'price';
 
-        // ── BANDS / BOUNDARIES (jak w DetailsProducer Ceneo/Google) ──
+        // BAND_DEFS: tablica stref [najgłębsze naruszenie → najgłębsze powyżej]
         var BAND_DEFS = [
             { r: 139, g: 0,   b: 0,   baseA: 0.22, label: 'Drastyczne naruszenie' },
             { r: 220, g: 20,  b: 60,  baseA: 0.20, label: 'Naruszenie' },
@@ -444,16 +493,14 @@
             { r: 0,   g: 100, b: 0,   baseA: 0.20, label: 'Mocno powyżej' }
         ];
 
-        function bandColor(idx) {
-            var d = BAND_DEFS[idx];
-            var a = Math.min(1, d.baseA * bandIntensity);
-            return 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + a.toFixed(3) + ')';
-        }
-        function boundaryLineColor(idx) {
-            var d = BAND_DEFS[idx];
-            var a = Math.min(0.9, 0.35 * bandIntensity);
-            return 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + a.toFixed(3) + ')';
-        }
+        const Z_BAND            = 0;
+        const Z_BOUNDARY        = 2;
+        const Z_NORMAL          = 5;
+        const Z_HIGHLIGHT_BASE  = 10;
+        const Z_HIGHLIGHT_STEP  = 4;
+        const Z_MAIN_OUTLINE    = 100;
+        const Z_MAIN_LINE       = 102;
+        const Z_MAP_REF         = 110;
 
         function calcBoundaries(ref, t) {
             if (!ref || ref <= 0) return null;
@@ -475,79 +522,6 @@
                 ref + off(gdk,  1),
                 999999
             ];
-        }
-
-        function buildBandSeries(allDates, refPrices) {
-            var series = [];
-            for (var i = 0; i < 7; i++) {
-                (function (i) {
-                    var data = allDates.map(function (_, di) {
-                        var b = calcBoundaries(refPrices[di], producerThresholds);
-                        if (!b) return null;
-                        return i === 0 ? Math.max(0, b[1]) : Math.max(0, b[i + 1] - b[i]);
-                    });
-                    series.push({
-                        name:      '_band_' + i,
-                        type:      'line',
-                        stack:     'bands',
-                        data:      data,
-                        lineStyle: { width: 0, color: 'transparent' },
-                        itemStyle: { color: 'transparent' },
-                        areaStyle: { color: bandColor(i), opacity: 1 },
-                        symbol:    'none',
-                        silent:    true,
-                        z:         0,
-                        tooltip:   { show: false }
-                    });
-                })(i);
-            }
-            return series;
-        }
-
-        function buildBoundaryLineSeries(allDates, refPrices) {
-            var series = [];
-            var boundaryLabels = [
-                { idx: 1, bandIdx: 0 }, { idx: 2, bandIdx: 1 }, { idx: 3, bandIdx: 2 },
-                { idx: 4, bandIdx: 4 }, { idx: 5, bandIdx: 5 }, { idx: 6, bandIdx: 6 }
-            ];
-            boundaryLabels.forEach(function (bl) {
-                var data = allDates.map(function (_, di) {
-                    var b = calcBoundaries(refPrices[di], producerThresholds);
-                    return b ? b[bl.idx] : null;
-                });
-                series.push({
-                    name:      '_bline_' + bl.idx,
-                    type:      'line',
-                    data:      data,
-                    lineStyle: { width: 1, color: boundaryLineColor(bl.bandIdx), type: 'dashed' },
-                    itemStyle: { color: 'transparent' },
-                    symbol:    'none',
-                    silent:    true,
-                    z:         1,
-                    tooltip:   { show: false }
-                });
-            });
-            return series;
-        }
-
-        function buildMapRefLine(allDates, refPrices) {
-            return {
-                name: 'Cena MAP',
-                type: 'line',
-                data: refPrices.map(function (rp) { return { value: rp, source: 'map' }; }),
-                lineStyle: { color: mapRefColor, width: 2.5, type: 'dashed' },
-                itemStyle: { color: mapRefColor },
-                symbol: 'circle',
-                symbolSize: 6,
-                showSymbol: false,
-                connectNulls: false,
-                smooth: 0.30,
-                z: 5,
-                emphasis: {
-                    lineStyle: { width: 3 },
-                    itemStyle: { color: mapRefColor, borderColor: '#fff', borderWidth: 1 }
-                }
-            };
         }
 
         function toggleStoreHighlight(storeName) {
@@ -583,7 +557,12 @@
                 }
             }
 
-            updateEchartsStylesAndZ();
+            if (currentChartType === 'price' && originalChartData) {
+                refreshPriceChartSeries();
+            } else {
+                updateEchartsStylesAndZ();
+            }
+
             if (lastHoverParams) {
                 const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
                 if (updatedPanelHtml) updateCustomTooltipPanel(updatedPanelHtml);
@@ -624,12 +603,17 @@
                 }
             }
 
-            updateEchartsStylesAndZ();
+            if (currentChartType === 'price' && originalChartData) {
+                refreshPriceChartSeries();
+            } else {
+                updateEchartsStylesAndZ();
+            }
+
             const newYAxisRange = recalculateYAxisRange();
             if (newYAxisRange && currentChartOptions && currentChartOptions.yAxis) {
                 currentChartOptions.yAxis.min = newYAxisRange.min;
                 currentChartOptions.yAxis.max = newYAxisRange.max;
-                echartsTrendChart.setOption({ yAxis: { min: newYAxisRange.min, max: newYAxisRange.max } });
+                echartsTrendChart.setOption({ yAxis: { min: newYAxisRange.min, max: newYAxisRange.max }, animation: false });
             }
             if (lastHoverParams) {
                 const updatedPanelHtml = generateTooltipPanelHtml(lastHoverParams);
@@ -923,17 +907,189 @@
 
     <script>
         // ─────────────────────────────────────────────────────────────────────
-        // CHART (ECharts) — 3 zakładki: Cena (z pasami producenta), Sprzedaż, Wyświetlenia
+        // CHART (ECharts) — nowe fixy v3:
+        //  • migotanie tła: wywalone focus:'series' z prepareSeries + explicit
+        //    emphasis.lineStyle.color + shadow. Hover = subtelne pogrubienie + shadow,
+        //    bez blur'a innych serii (które wcześniej zabierało pasy tła = miganie).
+        //  • myOtherOfferColor: amber/żółty zamiast bladego orange.
+        //  • paski tła: per-zone intensity boost dla idx 0 (deep violation) i idx 6
+        //    (deep above) — 1.75x mocniej, plus szerszy stripe.
+        //  • boundary lines: skrajne (idx 0, 6) bumpnięte z 0.5 → 0.7 alpha.
         // ─────────────────────────────────────────────────────────────────────
         document.addEventListener("DOMContentLoaded", function () {
             const myStoreLower = "@storeName".toLowerCase().trim();
             const productId    = @productId;
 
             window.updateEchartsStylesAndZ = updateEchartsStylesAndZ;
-            window.recalculateYAxisRange = recalculateYAxisRange;
+            window.recalculateYAxisRange   = recalculateYAxisRange;
             window.generateTooltipPanelHtml = generateTooltipPanelHtml;
             window.updateCustomTooltipPanel = updateCustomTooltipPanel;
             window.displayCurrentTrendChart = displayCurrentTrendChart;
+            window.refreshPriceChartSeries  = refreshPriceChartSeries;
+
+            // ─── PASKI DIAGONALNE (canvas pattern) ────────────────────────────
+            let stripePatternCache = {};
+            function invalidateStripePatterns() { stripePatternCache = {}; }
+
+            // FIX: per-zone intensity boost. idx 0 (deep violation/mocno czerwona)
+            //      i idx 6 (deep above/mocno zielona) dostają 1.75× boost na bg i stripe alpha,
+            //      plus szerszą kreskę (1.2 vs 1.0).
+            function makeStripePattern(idx) {
+                if (stripePatternCache[idx]) return stripePatternCache[idx];
+                const d = BAND_DEFS[idx];
+                const TILE = 8;
+
+                const isDeepZone = (idx === 0 || idx === 6);
+                const intensityBoost = isDeepZone ? 1.75 : 1.0;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = TILE;
+                canvas.height = TILE;
+                const ctx = canvas.getContext('2d');
+
+                // 1) Tło w kolorze pasa (boost dla deep zones)
+                const bgCap = isDeepZone ? 0.22 : 0.10;
+                const bgAlpha = Math.min(bgCap, d.baseA * 0.22 * bandIntensity * intensityBoost);
+                ctx.fillStyle = 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + bgAlpha.toFixed(3) + ')';
+                ctx.fillRect(0, 0, TILE, TILE);
+
+                // 2) Diagonalny pasek 45° (boost dla deep zones)
+                const lineCap = isDeepZone ? 0.95 : 0.85;
+                const lineAlpha = Math.min(lineCap, 0.42 * bandIntensity * intensityBoost);
+                ctx.strokeStyle = 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + lineAlpha.toFixed(3) + ')';
+                ctx.lineWidth = isDeepZone ? 1.2 : 1;
+                ctx.lineCap = 'square';
+                ctx.beginPath();
+                ctx.moveTo(0, TILE);
+                ctx.lineTo(TILE, 0);
+                ctx.stroke();
+
+                stripePatternCache[idx] = canvas;
+                return canvas;
+            }
+
+            function makeCenaZgodnaWash() {
+                const d = BAND_DEFS[3];
+                const alpha = Math.min(0.20, d.baseA * 0.55 * bandIntensity);
+                return 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + alpha.toFixed(3) + ')';
+            }
+
+            function bandFillForBandIdx(i) {
+                if (i === 3) return makeCenaZgodnaWash();
+                return { image: makeStripePattern(i), repeat: 'repeat' };
+            }
+
+            // FIX: skrajne granice (idx 0 i 6) z 0.5 → 0.7 alpha — żeby tworzyły
+            //      mocniejszą "ramę" wokół ekstremalnych stref.
+            function boundaryLineStyle(bandIdx) {
+                const d = BAND_DEFS[bandIdx];
+                const isRefBoundary = (bandIdx === 3 || bandIdx === 4);
+                const isOuterBoundary = (bandIdx === 0 || bandIdx === 6);
+
+                let alpha, width, type;
+                if (isRefBoundary) {
+                    alpha = Math.min(0.95, 0.85 * bandIntensity);
+                    width = 1.8;
+                    type  = 'solid';
+                } else if (isOuterBoundary) {
+                    alpha = Math.min(0.90, 0.70 * bandIntensity);
+                    width = 1.3;
+                    type  = [6, 4];
+                } else {
+                    alpha = Math.min(0.85, 0.60 * bandIntensity);
+                    width = 1.2;
+                    type  = [6, 4];
+                }
+                return {
+                    color: 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + alpha.toFixed(3) + ')',
+                    width: width,
+                    type:  type
+                };
+            }
+
+            function buildBandSeries(allDates, refPrices) {
+                const series = [];
+                for (let i = 0; i < 7; i++) {
+                    (function (i) {
+                        const data = allDates.map(function (_, di) {
+                            const b = calcBoundaries(refPrices[di], producerThresholds);
+                            if (!b) return null;
+                            return i === 0 ? Math.max(0, b[1]) : Math.max(0, b[i + 1] - b[i]);
+                        });
+                        series.push({
+                            name:      '_band_' + i,
+                            type:      'line',
+                            stack:     'bands',
+                            data:      data,
+                            lineStyle: { width: 0, color: 'transparent' },
+                            itemStyle: { color: 'transparent' },
+                            areaStyle: { color: bandFillForBandIdx(i), opacity: 1 },
+                            symbol:    'none',
+                            silent:    true,
+                            z:         Z_BAND,
+                            tooltip:   { show: false },
+                            // FIX: nawet jeśli ktoś gdzieś włączy emphasis.focus,
+                            //      pas tła nie znika (zostaje przy pełnej widoczności)
+                            emphasis:  { disabled: true },
+                            blur:      { areaStyle: { opacity: 1 }, lineStyle: { opacity: 0 } }
+                        });
+                    })(i);
+                }
+                return series;
+            }
+
+            function buildBoundaryLineSeries(allDates, refPrices) {
+                const series = [];
+                const boundaryLabels = [
+                    { idx: 1, bandIdx: 0 }, { idx: 2, bandIdx: 1 }, { idx: 3, bandIdx: 3 },
+                    { idx: 4, bandIdx: 4 }, { idx: 5, bandIdx: 5 }, { idx: 6, bandIdx: 6 }
+                ];
+                boundaryLabels.forEach(function (bl) {
+                    const data = allDates.map(function (_, di) {
+                        const b = calcBoundaries(refPrices[di], producerThresholds);
+                        return b ? b[bl.idx] : null;
+                    });
+                    const st = boundaryLineStyle(bl.bandIdx);
+                    series.push({
+                        name:      '_bline_' + bl.idx,
+                        type:      'line',
+                        data:      data,
+                        lineStyle: { width: st.width, color: st.color, type: st.type },
+                        itemStyle: { color: 'transparent' },
+                        symbol:    'none',
+                        silent:    true,
+                        z:         Z_BOUNDARY,
+                        tooltip:   { show: false },
+                        emphasis:  { disabled: true },
+                        blur:      { lineStyle: { opacity: 1 } }
+                    });
+                });
+                return series;
+            }
+
+            function buildMapRefLine(allDates, refPrices) {
+                return {
+                    name: 'Cena MAP',
+                    type: 'line',
+                    data: refPrices.map(function (rp) { return { value: rp, source: 'map' }; }),
+                    lineStyle: { color: mapRefColor, width: 2.5, type: 'dashed' },
+                    itemStyle: { color: mapRefColor },
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    showSymbol: false,
+                    connectNulls: false,
+                    smooth: 0.30,
+                    z: Z_MAP_REF,
+                    emphasis: {
+                        // FIX: explicit kolory + shadow zamiast focus blur
+                        focus: 'none',
+                        scale: false,
+                        lineStyle: { width: 3, color: mapRefColor, shadowColor: 'rgba(0,0,0,0.35)', shadowBlur: 6 },
+                        itemStyle: { color: mapRefColor, borderColor: '#fff', borderWidth: 1 }
+                    },
+                    blur: { lineStyle: { opacity: 1 }, areaStyle: { opacity: 1 }, itemStyle: { opacity: 1 } }
+                };
+            }
 
             function updateCustomTooltipPanel(htmlContent) {
                 const panelDiv = document.getElementById('customTrendTooltip');
@@ -946,10 +1102,10 @@
                 const dataType = currentChartType;
 
                 currentChartOptions.series.forEach(series => {
-                    if (series.name && (series.name.startsWith('_band_') || series.name.startsWith('_bline_'))) return;
+                    if (series.name && (series.name.startsWith('_band_') || series.name.startsWith('_bline_') || series.name.startsWith('_outline_'))) return;
                     if (dataType === 'sales' && series.name === 'Sprzedaż w katalogu') return;
-                    if (!hiddenStores.includes(series.name.toLowerCase().trim())) {
-                        series.data.forEach(dp => {
+                    if (!hiddenStores.includes((series.name || '').toLowerCase().trim())) {
+                        (series.data || []).forEach(dp => {
                             const v = (dp && typeof dp === 'object') ? dp.value : dp;
                             if (v != null) {
                                 minVal = Math.min(minVal, v);
@@ -964,15 +1120,23 @@
                 return { min: dataType === 'sales' ? 0 : Math.max(0, minVal - padding), max: maxVal + padding };
             }
 
-            // Traktuj nasz sklep jako "własny" zawsze poza wykresem ceny w trybie MAP.
-            // Na wykresie sprzedaży i wyświetleń nasz sklep zawsze ma swój kolor (pomarańcz).
             function getSeriesStyleAndZ(storeNameLower, offerId) {
                 if (hiddenStores.includes(storeNameLower)) {
-                    return { lineStyle: { color: 'transparent', width: 0 }, itemStyle: { color: 'transparent' }, markerColor: 'transparent', z: 0 };
+                    return {
+                        lineStyle: { color: 'transparent', width: 0 },
+                        itemStyle: { color: 'transparent' },
+                        areaStyle: null,
+                        markerColor: 'transparent',
+                        z: 0,
+                        _needsOutline: false,
+                        _showMarkers: false,
+                        _outlineZ: 0
+                    };
                 }
 
                 const isMyStore = storeNameLower === myStoreLower;
                 const isHighlighted = highlightedStores.includes(storeNameLower);
+                const highlightOrder = isHighlighted ? highlightedStores.indexOf(storeNameLower) : -1;
                 const treatMyStoreAsMine = isMyStore && (currentChartType !== 'price' || !isMapMode);
 
                 const isMainOffer = treatMyStoreAsMine && (
@@ -980,18 +1144,38 @@
                     (offerId && offerId === mainOfferId)
                 );
 
-                let style = { lineStyle: { width: UNIFORM_LINE_WIDTH }, itemStyle: {}, areaStyle: null, markerColor: DEFAULT_MARKER_SOLID, z: 1 };
+                const style = {
+                    lineStyle: { width: UNIFORM_LINE_WIDTH },
+                    itemStyle: {},
+                    areaStyle: null,
+                    markerColor: DEFAULT_MARKER_SOLID,
+                    z: Z_NORMAL,
+                    _needsOutline: false,
+                    _showMarkers: false,
+                    _outlineZ: 0
+                };
 
                 if (isMainOffer) {
                     style.lineStyle.color = myMainOfferColor;
                     style.itemStyle.color = myMainOfferColor;
                     style.markerColor = myMainOfferColor;
-                    style.z = 5;
+                    style.z = Z_MAIN_LINE;
+                    if (currentChartType === 'price') {
+                        style.lineStyle.width = 2.8;
+                        style._needsOutline = true;
+                        style._outlineZ = Z_MAIN_OUTLINE;
+                    }
                 } else if (treatMyStoreAsMine) {
+                    // FIX: nasze inne oferty → mocny żółto-amber (myOtherOfferColor)
                     style.lineStyle.color = myOtherOfferColor;
                     style.itemStyle.color = myOtherOfferColor;
                     style.markerColor = myOtherOfferColor;
-                    style.z = 4;
+                    style.z = Z_MAIN_LINE - 5;
+                    if (currentChartType === 'price') {
+                        style.lineStyle.width = 2.5;
+                        style._needsOutline = true;
+                        style._outlineZ = Z_MAIN_OUTLINE - 5;
+                    }
                 } else if (isHighlighted) {
                     const colorIndex = storeColorMap[storeNameLower];
                     if (colorIndex != null) {
@@ -999,7 +1183,13 @@
                         style.lineStyle.color = color;
                         style.itemStyle.color = color;
                         style.markerColor = color;
-                        style.z = storeNameLower === lastHighlightedStore ? 3 : 2;
+                        const baseZ = Z_HIGHLIGHT_BASE + highlightOrder * Z_HIGHLIGHT_STEP;
+                        style.z = baseZ + 2;
+                        if (currentChartType === 'price') {
+                            style.lineStyle.width = 2.6 + Math.min(highlightOrder, 8) * 0.08;
+                            style._needsOutline = true;
+                            style._outlineZ = baseZ;
+                        }
                     }
                 } else {
                     const gray = defaultGrayColor.replace('{alpha}', defaultGrayAlpha);
@@ -1011,6 +1201,32 @@
                     style.areaStyle = { color: style.lineStyle.color, opacity: 0.2 };
                 }
                 return style;
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // EMPHASIS BUILDER — wspólny helper.
+            // FIX: bez focus:'series'. Hover = lekko grubsza linia + shadow.
+            //      Inne serie zostają nieruszone → koniec migotania pasów tła.
+            // ─────────────────────────────────────────────────────────────────
+            function buildEmphasisForLine(lineStyle, itemStyle) {
+                const baseWidth = (lineStyle && lineStyle.width) || UNIFORM_LINE_WIDTH;
+                const lineColor = (lineStyle && lineStyle.color) || defaultGrayColor.replace('{alpha}', defaultGrayAlpha);
+                const itemColor = (itemStyle && itemStyle.color) || lineColor;
+                return {
+                    focus: 'none',
+                    scale: false,
+                    lineStyle: {
+                        width: baseWidth + 0.4,
+                        color: lineColor,
+                        shadowColor: 'rgba(0, 0, 0, 0.4)',
+                        shadowBlur: 6
+                    },
+                    itemStyle: {
+                        color: itemColor,
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    }
+                };
             }
 
             function generateTooltipPanelHtml(params) {
@@ -1026,7 +1242,7 @@
                 let refPriceForDate = producerRefByDate[date];
 
                 params.forEach(p => {
-                    if (p.seriesName && (p.seriesName.startsWith('_band_') || p.seriesName.startsWith('_bline_'))) return;
+                    if (p.seriesName && (p.seriesName.startsWith('_band_') || p.seriesName.startsWith('_bline_') || p.seriesName.startsWith('_outline_'))) return;
                     if (p.seriesName === 'Cena MAP') {
                         items.push({
                             storeName: 'Cena MAP',
@@ -1055,7 +1271,14 @@
 
                 if (refPriceForDate) {
                     const refLabel = isMapMode ? 'Cena MAP' : 'Cena Rynkowa';
-                    html += `<div style="padding:4px 0;margin-bottom:8px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;"><strong>${refLabel} (ref.):</strong><strong style="color:${mapRefColor};">${refPriceForDate.toFixed(2)} PLN</strong></div>`;
+                    html += `
+                        <div style="padding:4px 0;margin-bottom:8px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;align-items:center;">
+                            <strong>
+                                ${refLabel}
+                                <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:#e0e7ff;color:#3b5bdb;font-weight:500;margin-left:4px;vertical-align:middle;">REF</span>
+                            </strong>
+                            <strong style="color:#000;font-size:14px;">${refPriceForDate.toFixed(2)} PLN</strong>
+                        </div>`;
                 }
 
                 if (items.length > 0) {
@@ -1088,38 +1311,47 @@
                             fWeight = 'bold';
                         }
 
-                        // Delta versus reference for this date
-                        let bucketBadgeRow = '';
+                        let bucketBadge = '';
                         if (refPriceForDate && refPriceForDate > 0) {
                             const b = getProducerBucketForPrice(item.price, refPriceForDate);
-                            const bgCls = 'producer-bg-' + b.replace('producer-', '');
+                            const cols = getBucketBadgeColors(b);
                             const da = item.price - refPriceForDate;
                             const dp = (da / refPriceForDate) * 100;
                             const s  = da >= 0 ? '+' : '';
                             const sp = dp >= 0 ? '+' : '';
-                            bucketBadgeRow = `<div style="margin-top:2px; text-align:right;"><span class="producer-delta-badge ${bgCls}" style="font-size:9px;padding:1px 4px;">${s}${da.toFixed(2)} (${sp}${dp.toFixed(2)}%)</span></div>`;
+                            bucketBadge = `<span style="font-size:9px;padding:2px 5px;margin-top:3px;background:${cols.bg};color:${cols.fg};border:1px solid ${cols.border};border-radius:3px;font-weight:600;white-space:nowrap;">${s}${da.toFixed(2)} (${sp}${dp.toFixed(2)}%)</span>`;
                         }
 
                         let badges = '';
-                        if (item.isBestPriceGuarantee) badges += ` <img src="/images/TopPrice.png" title="GNC" style="height: 16px; vertical-align: middle;">`;
-                        if (item.topOffer)   badges += ` <div class="TopOffer" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Top</div>`;
-                        if (item.superPrice) badges += ` <div class="SuperPrice" style="display: inline-block; font-size: 0.7rem; vertical-align: middle; margin-left: 3px;">Super</div>`;
+                        if (item.isBestPriceGuarantee) badges += `<img src="/images/TopPrice.png" title="GNC" style="height:16px;vertical-align:middle;">`;
+                        if (item.topOffer)   badges += `<div class="TopOffer" style="display:inline-block;font-size:0.7rem;vertical-align:middle;">Top</div>`;
+                        if (item.superPrice) badges += `<div class="SuperPrice" style="display:inline-block;font-size:0.7rem;vertical-align:middle;">Super</div>`;
 
                         const escName = item.storeName.replace(/'/g, "\\'");
+                        const displayName = item.storeName.length > 20 ? item.storeName.substring(0,17)+'...' : item.storeName;
+
                         html += `
                             <tr style="border-bottom:1px solid #eee; cursor:pointer;" onclick="event.stopPropagation(); toggleStoreHighlight('${escName}');">
-                                <td style="padding:3px 2px;color:${cText};font-weight:${fWeight};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:top;" title="${item.storeName}">
-                                    <span style="display:inline-block;margin-right:5px;width:10px;height:10px;border-radius:50%;background-color:${item._markerColor};vertical-align:middle;"></span>
-                                    <img src="/images/AllegroIcon.png" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"/>
-                                    ${item.storeName.length > 20 ? item.storeName.substring(0,17)+'...' : item.storeName}
-                                </td>
-                                <td style="padding:3px 2px;text-align:right;color:${cText};font-weight:${fWeight};white-space:nowrap;vertical-align:top;">
-                                    <div style="display:flex; align-items:center; justify-content:flex-end;">
-                                        ${badges}
-                                        <span style="vertical-align:middle; margin-left: 4px;">${item.price.toFixed(2)} PLN</span>
-                                        <span title="Ukryj sklep '${escName}'" style="cursor:pointer;color:#aaa;margin-left:8px;font-weight:bold;" onmouseover="this.style.color='red'" onmouseout="this.style.color='#aaa'" onclick="event.stopPropagation();hideStoreFromChart('${escName}');">&times;</span>
+                                <td colspan="2" style="padding:5px 2px;">
+                                    <div style="display:flex; align-items:center; gap:8px; width:100%;">
+                                        <div style="flex:1; min-width:0; color:${cText}; font-weight:${fWeight}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${item.storeName}">
+                                            <span style="display:inline-block; margin-right:5px; width:10px; height:10px; border-radius:50%; background-color:${item._markerColor}; vertical-align:middle;"></span>
+                                            <img src="/images/AllegroIcon.png" style="width:14px; height:14px; margin-right:4px; vertical-align:middle;"/>
+                                            <span style="vertical-align:middle;">${displayName}</span>
+                                        </div>
+                                        <div style="display:flex; flex-direction:column; align-items:flex-end; white-space:nowrap; gap:2px;">
+                                            <div style="display:flex; align-items:center; gap:4px;">
+                                                ${badges}
+                                                <span style="font-size:14px; font-weight:500; color:#000;">${item.price.toFixed(2)} PLN</span>
+                                            </div>
+                                            ${bucketBadge}
+                                        </div>
+                                        <span title="Ukryj sklep '${escName}'"
+                                              style="cursor:pointer; color:#aaa; font-weight:bold; font-size:16px; line-height:1; flex-shrink:0; padding:0 2px;"
+                                              onmouseover="this.style.color='red'"
+                                              onmouseout="this.style.color='#aaa'"
+                                              onclick="event.stopPropagation(); hideStoreFromChart('${escName}');">&times;</span>
                                     </div>
-                                    ${bucketBadgeRow}
                                 </td>
                             </tr>
                         `;
@@ -1166,7 +1398,6 @@
                         const sLower = item.storeName.toLowerCase().trim();
                         let cText = 'rgba(50,50,50,1)', fWeight = 'normal';
 
-                        // Na wykresie sprzedaży nasz sklep ZAWSZE pomarańczowy (niezależnie od trybu MAP/Store)
                         if (sLower === myStoreLower) {
                             cText = item.idAllegro === mainOfferId ? myMainOfferColor : myOtherOfferColor;
                             fWeight = 'bold';
@@ -1288,6 +1519,7 @@
 
                 echartsTrendChart.on('click', p => {
                     if (p.seriesName && !p.seriesName.startsWith('_band_') && !p.seriesName.startsWith('_bline_')
+                        && !p.seriesName.startsWith('_outline_')
                         && p.seriesName !== 'Sprzedaż w katalogu' && p.seriesName !== 'Wyświetlenia oferty'
                         && p.seriesName !== 'Wyświetlenia łącznie' && p.seriesName !== 'Cena MAP'
                         && !p.seriesName.startsWith('Oferta ')) {
@@ -1297,10 +1529,6 @@
                 window.addEventListener('resize', () => echartsTrendChart?.resize());
             }
 
-            // ── PRICE CHART z pasami producenta ──
-            // Jeśli brak jakiejkolwiek ceny referencyjnej w całym oknie czasu,
-            // NIE rysujemy pasów ani linii referencyjnych — chart staje się zwykłym
-            // wykresem cen i tooltip działa bez przeszkód.
             function drawPriceChartWithBands(timelineData) {
                 const { allDates, dataByInstance, allInstances } = processData(timelineData, 'price');
                 let seriesData = prepareSeries(dataByInstance, allDates, allInstances, 'price');
@@ -1308,18 +1536,15 @@
                 const refPrices = allDates.map(d => producerRefByDate[d] || null);
                 const hasAnyRef = refPrices.some(rp => rp != null && rp > 0);
 
-                // Pokaż/ukryj slider intensywności pasów
                 const bandGroup = document.getElementById('bandIntensityGroup');
                 if (bandGroup) bandGroup.style.display = hasAnyRef ? 'flex' : 'none';
 
                 let allSeries = seriesData.slice();
                 if (hasAnyRef) {
-                    const bandSeries = buildBandSeries(allDates, refPrices);
+                    const bandSeries     = buildBandSeries(allDates, refPrices);
                     const boundarySeries = buildBoundaryLineSeries(allDates, refPrices);
                     allSeries = [].concat(bandSeries, boundarySeries, seriesData);
-                    if (isMapMode) {
-                        allSeries.push(buildMapRefLine(allDates, refPrices));
-                    }
+                    if (isMapMode) allSeries.push(buildMapRefLine(allDates, refPrices));
                 }
 
                 const refDataPoints = hasAnyRef
@@ -1329,6 +1554,31 @@
                 currentChartOptions = getBaseChartOptions(allDates, min, max, allSeries, 'price');
                 echartsTrendChart.setOption(currentChartOptions, true);
                 updateCustomTooltipPanel(null);
+            }
+
+            function refreshPriceChartSeries() {
+                if (currentChartType !== 'price' || !echartsTrendChart || !originalChartData) return;
+
+                const timelineData = filterTimelineData(originalChartData.timelineData);
+                const { allDates, dataByInstance, allInstances } = processData(timelineData, 'price');
+                const seriesData = prepareSeries(dataByInstance, allDates, allInstances, 'price');
+
+                const refPrices = allDates.map(d => producerRefByDate[d] || null);
+                const hasAnyRef = refPrices.some(rp => rp != null && rp > 0);
+
+                let allSeries = seriesData.slice();
+                if (hasAnyRef) {
+                    const bandSeries     = buildBandSeries(allDates, refPrices);
+                    const boundarySeries = buildBoundaryLineSeries(allDates, refPrices);
+                    allSeries = [].concat(bandSeries, boundarySeries, seriesData);
+                    if (isMapMode) allSeries.push(buildMapRefLine(allDates, refPrices));
+                }
+
+                currentChartOptions.series = allSeries;
+                echartsTrendChart.setOption(
+                    { series: allSeries, animation: false },
+                    { replaceMerge: ['series'] }
+                );
             }
 
             function drawSalesChart(timelineData) {
@@ -1345,7 +1595,9 @@
                     itemStyle: { color: '#222' },
                     symbol: 'none',
                     z: 10,
-                    silent: true
+                    silent: true,
+                    emphasis: { disabled: true },
+                    blur: { lineStyle: { opacity: 1 } }
                 });
 
                 const { min, max } = recalculateYAxisRangeFromData(seriesData, 'sales');
@@ -1390,7 +1642,14 @@
                             lineStyle: { color: color, width: isMain ? 2.5 : 2 },
                             itemStyle: { color: color },
                             areaStyle: isMain ? { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(124, 77, 255, 0.2)' }, { offset: 1, color: 'rgba(124, 77, 255, 0.02)' }]) } : null,
-                            emphasis: { focus: 'series', lineStyle: { width: 3 } },
+                            // FIX: bez focus:'series' też tutaj
+                            emphasis: {
+                                focus: 'none',
+                                scale: false,
+                                lineStyle: { width: (isMain ? 2.5 : 2) + 0.6, color: color, shadowColor: 'rgba(0,0,0,0.35)', shadowBlur: 6 },
+                                itemStyle: { color: color, borderColor: '#fff', borderWidth: 1 }
+                            },
+                            blur: { lineStyle: { opacity: 1 }, areaStyle: { opacity: 1 }, itemStyle: { opacity: 1 } },
                             z: isMain ? 5 : 3
                         });
                     });
@@ -1479,7 +1738,13 @@
                     lineStyle: { color: visitsMainColor, width: 2.5 },
                     itemStyle: { color: visitsMainColor },
                     areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(124, 77, 255, 0.25)' }, { offset: 1, color: 'rgba(124, 77, 255, 0.02)' }]) },
-                    emphasis: { focus: 'series', lineStyle: { width: 3 } },
+                    emphasis: {
+                        focus: 'none',
+                        scale: false,
+                        lineStyle: { width: 3.1, color: visitsMainColor, shadowColor: 'rgba(0,0,0,0.35)', shadowBlur: 6 },
+                        itemStyle: { color: visitsMainColor, borderColor: '#fff', borderWidth: 1 }
+                    },
+                    blur: { lineStyle: { opacity: 1 }, areaStyle: { opacity: 1 }, itemStyle: { opacity: 1 } },
                     z: 5
                 };
             }
@@ -1557,8 +1822,6 @@
                     }
                 });
 
-                // Na wykresie sprzedaży zawsze nasz sklep na górze (niezależnie od trybu MAP).
-                // Na wykresie ceny w trybie MAP nie wyróżniamy naszego sklepu.
                 const prioritizeMyStore = currentChartType !== 'price' || !isMapMode;
                 const sortedInstances = Array.from(instances).sort((a, b) => {
                     const nameA = a.split('|')[0].toLowerCase(), nameB = b.split('|')[0].toLowerCase();
@@ -1572,12 +1835,16 @@
                 return { allDates: Array.from(dates).sort(), dataByInstance: dataMap, allInstances: sortedInstances };
             }
 
+            // ─── prepareSeries — z fix'em emphasis (focus:'none' + shadow zamiast blur) ───
             function prepareSeries(dataByInstance, allDates, allInstances, dataType) {
-                return allInstances.map(id => {
+                const seriesList = [];
+
+                allInstances.forEach(id => {
                     const hasOfferId = id.includes('|');
                     const [store, offerIdStr] = hasOfferId ? id.split('|') : [id, null];
                     const offerId = offerIdStr ? parseInt(offerIdStr, 10) : null;
-                    const style = getSeriesStyleAndZ(store.toLowerCase().trim(), offerId);
+                    const storeLower = store.toLowerCase().trim();
+                    const style = getSeriesStyleAndZ(storeLower, offerId);
 
                     let validPoints = 0;
                     const data = allDates.map(date => {
@@ -1587,24 +1854,63 @@
                             validPoints++;
                             return { value: val, originalOffer: pData };
                         }
-                        return null;   // ← KRYTYCZNE: czysty null, nie obiekt
+                        return null;
                     });
 
                     const isSingle = validPoints === 1;
-                    return {
+                    const showMarkers = style._showMarkers || isSingle;
+
+                    if (style._needsOutline && dataType === 'price') {
+                        seriesList.push({
+                            name: '_outline_' + id,
+                            _isOutline: true,
+                            type: 'line',
+                            data: data,
+                            connectNulls: false,
+                            smooth: 0.3,
+                            symbol: 'circle',
+                            symbolSize: 0,
+                            showSymbol: false,
+                            lineStyle: {
+                                color: 'rgba(0, 0, 0, 0.88)',
+                                width: (style.lineStyle.width || UNIFORM_LINE_WIDTH) + 2.4
+                            },
+                            itemStyle: { color: 'rgba(0,0,0,0)' },
+                            areaStyle: null,
+                            z: style._outlineZ,
+                            silent: true,
+                            tooltip: { show: false },
+                            emphasis: { disabled: true },
+                            blur: { lineStyle: { opacity: 1 } }
+                        });
+                    }
+
+                    seriesList.push({
                         name: store,
                         _instanceId: id,
                         type: 'line',
                         data,
                         connectNulls: false,
                         smooth: 0.3,
-                        showSymbol: isSingle,
+                        showSymbol: showMarkers,
                         symbol: 'circle',
-                        symbolSize: isSingle ? 10 : 6,
-                        emphasis: { focus: 'series', lineStyle: { width: UNIFORM_EMPHASIS_LINE_WIDTH } },
-                        ...style
-                    };
+                        symbolSize: isSingle ? 10 : (style._showMarkers ? 5 : 6),
+                        lineStyle: style.lineStyle,
+                        itemStyle: style.itemStyle,
+                        areaStyle: style.areaStyle,
+                        z: style.z,
+                        // FIX: emphasis bez focus:'series' (zero blur'a innych) + shadow + explicit kolor
+                        emphasis: buildEmphasisForLine(style.lineStyle, style.itemStyle),
+                        // FIX: blur state ustawiony explicit na pełną widoczność — backup gdyby coś
+                        //      kiedyś focus włączyło, linie i tak nie znikną
+                        blur: {
+                            lineStyle: { opacity: 1 },
+                            areaStyle: { opacity: (style.areaStyle && style.areaStyle.opacity) || 1 },
+                            itemStyle: { opacity: 1 }
+                        }
+                    });
                 });
+                return seriesList;
             }
 
             function getBaseChartOptions(allDates, yMin, yMax, series, dataType) {
@@ -1673,33 +1979,50 @@
                 };
             }
 
+            // ─── updateEchartsStylesAndZ — rebuild emphasis bez focus:'series' ───
             function updateEchartsStylesAndZ() {
                 if (!echartsTrendChart || !currentChartOptions) return;
                 if (currentChartType === 'visits') return;
 
                 const updatedSeries = currentChartOptions.series.map(s => {
                     if (s.name && s.name.startsWith('_band_')) {
-                        var idx = parseInt(s.name.replace('_band_', ''));
-                        return Object.assign({}, s, { areaStyle: { color: bandColor(idx), opacity: 1 } });
-                    }
-                    if (s.name && s.name.startsWith('_bline_')) {
-                        var bi = parseInt(s.name.replace('_bline_', ''));
-                        var bm = { 1: 0, 2: 1, 3: 2, 4: 4, 5: 5, 6: 6 };
+                        const idx = parseInt(s.name.replace('_band_', ''));
                         return Object.assign({}, s, {
-                            lineStyle: { width: 1, color: boundaryLineColor(bm[bi] || 0), type: 'dashed' }
+                            areaStyle: { color: bandFillForBandIdx(idx), opacity: 1 }
                         });
                     }
+                    if (s.name && s.name.startsWith('_bline_')) {
+                        const bi = parseInt(s.name.replace('_bline_', ''));
+                        const bm = { 1: 0, 2: 1, 3: 3, 4: 4, 5: 5, 6: 6 };
+                        const st = boundaryLineStyle(bm[bi] || 0);
+                        return Object.assign({}, s, {
+                            lineStyle: { width: st.width, color: st.color, type: st.type }
+                        });
+                    }
+                    if (s.name && s.name.startsWith('_outline_')) return s;
                     if (s.name === 'Sprzedaż w katalogu' || s.name === 'Cena MAP') return s;
 
                     const [store, offerIdStr] = (s._instanceId || '').split('|');
                     if (!store) return s;
                     const style = getSeriesStyleAndZ(store.toLowerCase().trim(), parseInt(offerIdStr, 10));
-                    const newEmphasis = { ...s.emphasis, itemStyle: { ...s.emphasis?.itemStyle, color: style.itemStyle.color, opacity: 1 } };
-                    return { ...s, ...style, emphasis: newEmphasis };
+                    return {
+                        ...s,
+                        lineStyle: style.lineStyle,
+                        itemStyle: style.itemStyle,
+                        areaStyle: style.areaStyle,
+                        z: style.z,
+                        // FIX: rebuild emphasis z nowym kolorem (bez focus, z shadow)
+                        emphasis: buildEmphasisForLine(style.lineStyle, style.itemStyle),
+                        blur: {
+                            lineStyle: { opacity: 1 },
+                            areaStyle: { opacity: (style.areaStyle && style.areaStyle.opacity) || 1 },
+                            itemStyle: { opacity: 1 }
+                        }
+                    };
                 });
 
                 currentChartOptions.series = updatedSeries;
-                echartsTrendChart.setOption({ series: updatedSeries });
+                echartsTrendChart.setOption({ series: updatedSeries, animation: false });
             }
 
             const $exportExcelBtn = $('#exportExcelBtn'), $showTableBtn = $('#showTableBtn'), $showChartBtn = $('#showChartBtn');
@@ -1767,15 +2090,13 @@
             if (bandIntensityRange) {
                 bandIntensityRange.addEventListener('input', e => {
                     bandIntensity = parseFloat(e.target.value);
+                    invalidateStripePatterns();
                     updateEchartsStylesAndZ();
                 });
             }
 
             toggleMainView(true);
 
-            // Ładujemy DWA endpointy równolegle:
-            //   - GetPriceTrendData          → sales, visits, mainOfferId
-            //   - GetPriceTrendDataForProducer → referencePrice per scrap + thresholds + isMapMode
             function loadTrendDataAndDrawEcharts() {
                 $('#loadingOverlay').show();
 
@@ -1820,7 +2141,7 @@
                 });
             }
 
-            // ── EXCEL EXPORT ──
+            // ── EXCEL EXPORT (bez zmian funkcjonalnych) ──
             function rgbaToHex(rgba) {
                 if (typeof rgba !== 'string' || !rgba.toLowerCase().startsWith('rgba')) {
                     if (rgba.startsWith('#')) return rgba;
@@ -1838,7 +2159,6 @@
             function getExcelColorForAllegroRow(storeName) {
                 if (!storeName) return null;
                 const sLower = storeName.toLowerCase().trim();
-                // Na sprzedaży/wyświetleniach zawsze nasz sklep pomarańczowy; na cenie tylko gdy nie MAP
                 const treatMine = sLower === myStoreLower && (currentChartType !== 'price' || !isMapMode);
                 if (treatMine) return rgbaToHex(myMainOfferColor) || '#FF6400';
                 if (highlightedStores.includes(sLower)) {
