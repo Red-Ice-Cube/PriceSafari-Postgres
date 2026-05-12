@@ -12,11 +12,119 @@
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
 }
 
+<style>
+    /* ─── Box szczegółów naruszenia (renderowany przez JS między ceną konkurenta a referencyjną) ─── */
+    .violation-detail-box {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .violation-detail-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+    .violation-detail-icon {
+        font-size: 16px;
+        width: 20px;
+        text-align: center;
+    }
+
+    .violation-detail-meta {
+        font-size: 13px;
+        color: #555;
+        line-height: 1.4;
+    }
+
+    .violation-duration-large {
+        font-size: 17px;
+        font-weight: 500;
+        color: #212529;
+    }
+
+    /* Stany naruszenia — etykietki/badge */
+    .violation-state-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.2px;
+    }
+
+    .violation-state-fresh {
+        background: #fff4d6;
+        color: #8a5a00;
+        border: 1px solid #f0c674;
+    }
+
+    .violation-state-active {
+        background: #fbe1e1;
+        color: #8b1a1a;
+        border: 1px solid #e89595;
+    }
+
+    .violation-state-ended {
+        background: #e7eaee;
+        color: #495057;
+        border: 1px solid #c4cbd2;
+    }
+
+    .violation-state-clean {
+        background: #dff3e2;
+        color: #1e5a2a;
+        border: 1px solid #a3d4ad;
+    }
+
+    .violation-state-no-ref {
+        background: #f1f0fa;
+        color: #5b537a;
+        border: 1px solid #c8c2dd;
+    }
+
+    /* Drobny pasek czasu pod statusem */
+    .violation-time-bar {
+        position: relative;
+        height: 4px;
+        background: #e9ecef;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 2px;
+    }
+
+    .violation-time-bar-fill {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        background: #c83333;
+        border-radius: 2px;
+    }
+
+        .violation-time-bar-fill.fresh {
+            background: #d49a1a;
+        }
+
+        .violation-time-bar-fill.ended {
+            background: #8d949b;
+        }
+
+    /* Drobne formatowanie dla bloków sprzedaży 30 dni */
+    .producer-sales-line {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+</style>
+
 <div class="Vert">
     <div class="Page-Box">
         <div class="Page-Box-Container">
 
-         
             <div class="Page-Box-Category">
                 <div><img src="@storeLogo" class="img-container" /></div>
 
@@ -24,10 +132,8 @@
                     <canvas id="colorChart"></canvas>
                 </div>
 
-            
                 <div class="sidebar-scroll-area">
 
-               
                     <div class="store-section" id="filters-producer">
                         <div class="form-check">
                             <span class="color-rect producer-rect-no-competition"></span>
@@ -76,7 +182,6 @@
                         </div>
                     </div>
 
-                
                     <div class="store-section producer-thresholds-section">
                         <div class="price-range-settings">
                             <div class="color-circle producer-circle-deep-above"></div>
@@ -140,7 +245,7 @@
                         </div>
                         <div class="store-section" id="flagContainer"></div>
 
-                        <div class="Category-Container-Select">Liczba ofert</div>
+                        <div class="Category-Container-Select">Liczba ofert konkurencji</div>
                         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css">
                         <div class="store-section">
                             <div class="offer-slider-container">
@@ -157,16 +262,17 @@
                             <div id="myPriceRangeSlider"></div>
                         </div>
 
-                        <div class="Category-Container-Select">Naruszenia MAP</div>
+                        <!-- ═══ NOWA SEKCJA: Status naruszenia ceny ═══ -->
+                        <div class="Category-Container-Select">Status naruszenia ceny</div>
                         <div class="store-section">
                             <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
                                 <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
-                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_freshViolation" value="freshViolation" title="Pokaż tylko świeże naruszenia">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_freshViolation" value="freshViolation" title="Pokaż tylko nowe naruszenia (pierwszy scrap)">
                                 </div>
                                 <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
-                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_freshViolation" value="freshViolation" title="Ukryj świeże naruszenia">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_freshViolation" value="freshViolation" title="Ukryj nowe naruszenia">
                                 </div>
-                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Świeże naruszenie</span>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_freshViolation">Nowe naruszenie</span>
                             </div>
                             <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
                                 <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
@@ -175,7 +281,66 @@
                                 <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
                                     <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_currentlyViolating" value="currentlyViolating" title="Ukryj obecne naruszenia">
                                 </div>
-                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;">Obecne naruszenie</span>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_currentlyViolating">Obecne naruszenie</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_recentlyEnded" value="recentlyEnded" title="Pokaż tylko niedawno zakończone naruszenia">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_recentlyEnded" value="recentlyEnded" title="Ukryj niedawno zakończone">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_recentlyEnded">Niedawno zakończone</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_noViolations" value="noViolations" title="Pokaż tylko bez naruszeń (7 dni)">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_noViolations" value="noViolations" title="Ukryj bez naruszeń">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_noViolations">Bez naruszeń (7 dni)</span>
+                            </div>
+                        </div>
+
+                        <!-- ═══ NOWA SEKCJA: Czas trwania naruszenia ═══ -->
+                        <div class="Category-Container-Select">Czas trwania naruszenia</div>
+                        <div class="store-section">
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_violationLt1d" value="violationLt1d" title="Pokaż naruszenia trwające krócej niż 1 dzień">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_violationLt1d" value="violationLt1d" title="Ukryj naruszenia krócej niż 1 dzień">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_violationLt1d">Krócej niż 1 dzień</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_violation1to3d" value="violation1to3d" title="Pokaż naruszenia trwające 1-3 dni">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_violation1to3d" value="violation1to3d" title="Ukryj naruszenia 1-3 dni">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_violation1to3d">1 - 3 dni</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_violation3to7d" value="violation3to7d" title="Pokaż naruszenia trwające 3-7 dni">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_violation3to7d" value="violation3to7d" title="Ukryj naruszenia 3-7 dni">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_violation3to7d">3 - 7 dni</span>
+                            </div>
+                            <div class="flag-filter-group" style="display: flex; align-items: center; max-width: 100%; margin-top: 4px;">
+                                <div class="form-check form-check-inline check-include" style="margin-right:0px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-include" type="checkbox" id="include_violationMaxWindow" value="violationMaxWindow" title="Pokaż naruszenia trwające całe 7 dni (max okno)">
+                                </div>
+                                <div class="form-check form-check-inline check-exclude" style="margin-right:0px; padding-left:16px; flex-shrink: 0;">
+                                    <input class="form-check-input adv-filter-exclude" type="checkbox" id="exclude_violationMaxWindow" value="violationMaxWindow" title="Ukryj naruszenia całe 7 dni">
+                                </div>
+                                <span class="flag-name-count" style="font-size:14px; font-weight: 400; flex: 1; min-width: 0; margin-left: 6px;" id="label_violationMaxWindow">Pełne 7 dni (max)</span>
                             </div>
                         </div>
 
@@ -285,6 +450,8 @@
                         <div class="store-section">
                             <div id="salesSortingButtons">
                                 <button id="sortTotalPopularity">Sprzedaż katalogu</button>
+                                <button id="sortMyPopularity">Moja Sprzedaż</button>
+                                <button id="sortMarketShare">Udział %</button>
                             </div>
                         </div>
                     </div>
@@ -337,7 +504,7 @@
                         <button id="sortPrice">Cena ref.</button>
                         <button id="sortDeltaPercent">Delta %</button>
                         <button id="sortDeltaAmount">Delta PLN</button>
-                        <button id="sortDaysViolation">Dni naruszenia</button>
+                        <button id="sortViolationDuration">Czas naruszenia</button>
                         <button id="sortStoresViolating">Liczba naruszycieli</button>
                     </div>
                     <div class="SimpleSpace" style="justify-content:flex-end;">
@@ -389,7 +556,7 @@
                     </select>
                     <small style="color: #888; display: block; margin-top: 6px; font-size: 12px; line-height: 1.4;">
                         <strong>Cena MAP</strong> - Dograna cena z zakładki "produkty".<br>
-                        <strong>Cena Twojego sklepu</strong> - Znaleziona oferta marki na Allegro.
+                        <strong>Cena Twojego sklepu</strong> - Znaleziona oferta marki na Allegro (rozwiązanie tymczasowe – nie zalecane długoterminowo).
                     </small>
                 </div>
             </div>

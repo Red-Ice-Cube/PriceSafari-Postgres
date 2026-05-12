@@ -2,6 +2,7 @@
 
     let allPrices = [];
     let currentScrapId = null;
+    let latestScrapDate = null;
     let currentlyFilteredPrices = [];
     let chartInstance = null;
     let currentPage = 1;
@@ -25,9 +26,15 @@
     let selectedAdvancedExcludes = new Set();
 
     let sortingState = {
-        sortName: null, sortPrice: null, sortDeltaPercent: null,
-        sortDeltaAmount: null, sortDaysViolation: null, sortStoresViolating: null,
-        sortTotalPopularity: null
+        sortName: null,
+        sortPrice: null,
+        sortDeltaPercent: null,
+        sortDeltaAmount: null,
+        sortViolationDuration: null,
+        sortStoresViolating: null,
+        sortTotalPopularity: null,
+        sortMyPopularity: null,
+        sortMarketShare: null
     };
 
     let offerSlider, myPriceSlider;
@@ -88,11 +95,62 @@
     });
     massActions.init();
 
+    // ═════════════════════════════════════════════════════════════
+    //  HELPERS — formatowanie, czas, pluralizacja
+    // ═════════════════════════════════════════════════════════════
+
     function formatPricePL(value, includeUnit = true) {
         if (value === null || value === undefined || isNaN(parseFloat(value))) return "N/A";
         const numberValue = parseFloat(value);
         const formatted = numberValue.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return includeUnit ? formatted + ' PLN' : formatted;
+    }
+
+    function pluralizePl(n, singular, fewForm, manyForm) {
+        if (n === 1) return singular;
+        const lastTwo = Math.abs(n) % 100;
+        const lastOne = Math.abs(n) % 10;
+        if (lastTwo >= 12 && lastTwo <= 14) return manyForm;
+        if (lastOne >= 2 && lastOne <= 4) return fewForm;
+        return manyForm;
+    }
+
+    function formatViolationDuration(hours, reachedMaxWindow) {
+        if (reachedMaxWindow) return '+7 dni naruszenia';
+        if (hours == null || isNaN(hours)) return 'Brak danych';
+        if (hours >= 168) return '+7 dni naruszenia';
+        if (hours < 24) {
+            const h = Math.max(1, Math.round(hours));
+            return `${h}h naruszenia`;
+        }
+        const days = Math.floor(hours / 24);
+        const dayWord = pluralizePl(days, 'dzień', 'dni', 'dni');
+        return `${days} ${dayWord} naruszenia`;
+    }
+
+    function formatHoursAgo(hours) {
+        if (hours == null || isNaN(hours)) return 'N/A';
+        if (hours < 1) return '< 1h';
+        if (hours < 24) {
+            const h = Math.round(hours);
+            return `${h}h`;
+        }
+        const days = Math.floor(hours / 24);
+        const dayWord = pluralizePl(days, 'dzień', 'dni', 'dni');
+        return `${days} ${dayWord}`;
+    }
+
+    function formatDurationShort(hours) {
+        if (hours == null || isNaN(hours)) return 'N/A';
+        if (hours >= 168) return '7+ dni';
+        if (hours < 1) return '< 1h';
+        if (hours < 24) {
+            const h = Math.max(1, Math.round(hours));
+            return `${h}h`;
+        }
+        const days = Math.floor(hours / 24);
+        const dayWord = pluralizePl(days, 'dzień', 'dni', 'dni');
+        return `${days} ${dayWord}`;
     }
 
     function debounce(func, wait) {
@@ -165,6 +223,10 @@
         return `<div class="${className}">${text}</div>`;
     }
 
+    // ═════════════════════════════════════════════════════════════
+    //  SLIDERS INIT
+    // ═════════════════════════════════════════════════════════════
+
     offerSlider = document.getElementById('offerRangeSlider');
     const offerRangeInput = document.getElementById('offerRange');
     noUiSlider.create(offerSlider, {
@@ -191,6 +253,10 @@
     myPriceSlider.noUiSlider.on('update', (values) => myPriceRangeInput.textContent = values.join(' - '));
     myPriceSlider.noUiSlider.on('change', () => filterPricesAndUpdateUI());
 
+    // ═════════════════════════════════════════════════════════════
+    //  LOAD PRICES
+    // ═════════════════════════════════════════════════════════════
+
     function loadPrices() {
         showLoading();
 
@@ -204,6 +270,7 @@
 
                 myStoreName = response.myStoreName;
                 currentScrapId = response.latestScrapId;
+                latestScrapDate = response.latestScrapDate || null;
 
                 const ps = response.producerSettings;
                 const t = ps.thresholds || {};
@@ -283,6 +350,10 @@
     }
     window.loadPrices = loadPrices;
 
+    // ═════════════════════════════════════════════════════════════
+    //  PRODUCER THRESHOLDS — INLINE INPUTS
+    // ═════════════════════════════════════════════════════════════
+
     function populateInlineThresholdInputs() {
         const v = thresholdsState[currentMode];
         document.getElementById('thrInline_greenDark').value = v.greenDark;
@@ -349,7 +420,6 @@
             errors.push(`Powyżej: „normalny" (${v.green}) > „mocno" (${v.greenDark})`);
             isValid = false;
         }
-
         if (!isNaN(v.redLight) && !isNaN(v.red) && v.redLight > v.red) {
             document.getElementById(ids.redLight).classList.add('input-error');
             document.getElementById(ids.red).classList.add('input-error');
@@ -461,6 +531,10 @@
             });
     }
 
+    // ═════════════════════════════════════════════════════════════
+    //  FLAG COUNTS
+    // ═════════════════════════════════════════════════════════════
+
     function updateFlagCounts(prices) {
         const flagCounts = {};
         let noFlagCount = 0;
@@ -557,6 +631,51 @@
         setLabel('label_compIsPromoted', 'Promowane/Sponsor.', counts.promo);
     }
 
+    // ═════════════════════════════════════════════════════════════
+    //  NOWE: COUNTS DLA FILTRÓW NARUSZEŃ
+    // ═════════════════════════════════════════════════════════════
+
+    function updateViolationCounts(prices) {
+        let counts = {
+            fresh: 0, currentlyViolating: 0, recentlyEnded: 0, noViolations: 0,
+            lt1d: 0, d1to3: 0, d3to7: 0, maxWindow: 0
+        };
+
+        prices.forEach(p => {
+            const hasRef = p.referencePrice != null && p.referencePrice > 0;
+
+            if (p.isCurrentlyViolating) {
+                counts.currentlyViolating++;
+                if (p.isFreshViolation) counts.fresh++;
+
+                const h = p.violationDurationHours;
+                if (p.reachedMaxWindow || (h != null && h >= 168)) counts.maxWindow++;
+                else if (h != null && h >= 72) counts.d3to7++;
+                else if (h != null && h >= 24) counts.d1to3++;
+                else counts.lt1d++;
+            } else if (p.wasRecentlyViolated) {
+                counts.recentlyEnded++;
+            } else if (hasRef) {
+                counts.noViolations++;
+            }
+        });
+
+        const setLabel = (id, text, count) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = `${text} (${count})`;
+        };
+
+        setLabel('label_freshViolation', 'Nowe naruszenie', counts.fresh);
+        setLabel('label_currentlyViolating', 'Obecne naruszenie', counts.currentlyViolating);
+        setLabel('label_recentlyEnded', 'Niedawno zakończone', counts.recentlyEnded);
+        setLabel('label_noViolations', 'Bez naruszeń (7 dni)', counts.noViolations);
+
+        setLabel('label_violationLt1d', 'Krócej niż 1 dzień', counts.lt1d);
+        setLabel('label_violation1to3d', '1 - 3 dni', counts.d1to3);
+        setLabel('label_violation3to7d', '3 - 7 dni', counts.d3to7);
+        setLabel('label_violationMaxWindow', 'Pełne 7 dni (max)', counts.maxWindow);
+    }
+
     function populateProducerFilter() {
         const dropdown = document.getElementById('producerFilterDropdown');
         const counts = allPrices.reduce((m, i) => { if (i.producer) m[i.producer] = (m[i.producer] || 0) + 1; return m; }, {});
@@ -570,23 +689,53 @@
         });
     }
 
+    // ═════════════════════════════════════════════════════════════
+    //  WARUNKI FILTROWANIA — UPDATED
+    // ═════════════════════════════════════════════════════════════
+
     function checkAdvancedCondition(item, name) {
+        const h = item.violationDurationHours;
+        const hasRef = item.referencePrice != null && item.referencePrice > 0;
+
         switch (name) {
             case 'isNew': return item.isNew === true;
-            case 'freshViolation': return item.isFreshViolation === true && item.isCurrentlyViolating === true;
-            case 'currentlyViolating': return item.isCurrentlyViolating === true;
+
+            // Status naruszenia
+            case 'freshViolation':
+                return item.isFreshViolation === true && item.isCurrentlyViolating === true;
+            case 'currentlyViolating':
+                return item.isCurrentlyViolating === true;
+            case 'recentlyEnded':
+                return item.isCurrentlyViolating !== true && item.wasRecentlyViolated === true;
+            case 'noViolations':
+                return item.isCurrentlyViolating !== true && item.wasRecentlyViolated !== true && hasRef;
+
+            // Czas trwania (tylko aktywne)
+            case 'violationLt1d':
+                return item.isCurrentlyViolating === true && h != null && h < 24;
+            case 'violation1to3d':
+                return item.isCurrentlyViolating === true && h != null && h >= 24 && h < 72;
+            case 'violation3to7d':
+                return item.isCurrentlyViolating === true && h != null && h >= 72 && h < 168 && !item.reachedMaxWindow;
+            case 'violationMaxWindow':
+                return item.isCurrentlyViolating === true && (item.reachedMaxWindow === true || (h != null && h >= 168));
+
+            // Odznaki konkurenta
             case 'compIsSuperSeller': return item.bestCompetitorSuperSeller === true;
             case 'compIsSuperPrice': return item.bestCompetitorSuperPrice === true;
             case 'compIsTopOffer': return item.bestCompetitorTopOffer === true;
             case 'compIsBestPriceGuarantee': return item.bestCompetitorIsBestPriceGuarantee === true;
             case 'compIsSmart': return item.bestCompetitorSmart === true;
             case 'compIsPromoted': return item.bestCompetitorPromoted === true || item.bestCompetitorSponsored === true;
+
+            // Czas dostawy
             case 'deliveryFast':
                 return item.bestCompetitorDeliveryTime != null && item.bestCompetitorDeliveryTime <= 1;
             case 'deliverySlow':
                 return item.bestCompetitorDeliveryTime != null && item.bestCompetitorDeliveryTime >= 3;
             case 'deliveryNoData':
                 return item.bestCompetitorDeliveryTime == null;
+
             default: return false;
         }
     }
@@ -666,6 +815,7 @@
 
             filtered = filterPricesByCategoryAndColorAndFlag(filtered);
 
+            // Sortowanie
             if (sortingState.sortName !== null) {
                 filtered.sort((a, b) => sortingState.sortName === 'asc' ? a.productName.localeCompare(b.productName) : b.productName.localeCompare(a.productName));
             } else if (sortingState.sortPrice !== null) {
@@ -674,13 +824,19 @@
                 filtered.sort((a, b) => sortingState.sortDeltaPercent === 'asc' ? (b.deltaPercent ?? -Infinity) - (a.deltaPercent ?? -Infinity) : (a.deltaPercent ?? Infinity) - (b.deltaPercent ?? Infinity));
             } else if (sortingState.sortDeltaAmount !== null) {
                 filtered.sort((a, b) => sortingState.sortDeltaAmount === 'asc' ? (b.deltaAbsolute ?? -Infinity) - (a.deltaAbsolute ?? -Infinity) : (a.deltaAbsolute ?? Infinity) - (b.deltaAbsolute ?? Infinity));
-            } else if (sortingState.sortDaysViolation !== null) {
-                filtered = filtered.filter(i => i.daysOfViolation !== null && i.daysOfViolation !== undefined);
-                filtered.sort((a, b) => sortingState.sortDaysViolation === 'asc' ? (a.daysOfViolation ?? Infinity) - (b.daysOfViolation ?? Infinity) : (b.daysOfViolation ?? -Infinity) - (a.daysOfViolation ?? -Infinity));
+            } else if (sortingState.sortViolationDuration !== null) {
+                filtered = filtered.filter(i => i.violationDurationHours !== null && i.violationDurationHours !== undefined);
+                filtered.sort((a, b) => sortingState.sortViolationDuration === 'asc'
+                    ? (a.violationDurationHours ?? Infinity) - (b.violationDurationHours ?? Infinity)
+                    : (b.violationDurationHours ?? -Infinity) - (a.violationDurationHours ?? -Infinity));
             } else if (sortingState.sortStoresViolating !== null) {
                 filtered.sort((a, b) => sortingState.sortStoresViolating === 'asc' ? (a.storesBelowReference || 0) - (b.storesBelowReference || 0) : (b.storesBelowReference || 0) - (a.storesBelowReference || 0));
             } else if (sortingState.sortTotalPopularity !== null) {
                 filtered.sort((a, b) => sortingState.sortTotalPopularity === 'asc' ? (b.totalPopularity ?? -Infinity) - (a.totalPopularity ?? -Infinity) : (a.totalPopularity ?? Infinity) - (b.totalPopularity ?? Infinity));
+            } else if (sortingState.sortMyPopularity !== null) {
+                filtered.sort((a, b) => sortingState.sortMyPopularity === 'asc' ? (b.myTotalPopularity ?? -Infinity) - (a.myTotalPopularity ?? -Infinity) : (a.myTotalPopularity ?? Infinity) - (b.myTotalPopularity ?? Infinity));
+            } else if (sortingState.sortMarketShare !== null) {
+                filtered.sort((a, b) => sortingState.sortMarketShare === 'asc' ? (b.marketSharePercentage ?? -Infinity) - (a.marketSharePercentage ?? -Infinity) : (a.marketSharePercentage ?? Infinity) - (b.marketSharePercentage ?? Infinity));
             }
 
             const selProducer = document.getElementById('producerFilterDropdown').value;
@@ -693,10 +849,15 @@
             updateBucketCountsUI(filtered);
             updateFlagCounts(filtered);
             updateBadgeCounts(filtered);
+            updateViolationCounts(filtered);
             updateNewProductCount(filtered);
             hideLoading();
         }, 0);
     }
+
+    // ═════════════════════════════════════════════════════════════
+    //  PAGINACJA
+    // ═════════════════════════════════════════════════════════════
 
     function renderPagination(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -743,6 +904,10 @@
         c.appendChild(next);
     }
 
+    // ═════════════════════════════════════════════════════════════
+    //  RENDERY BOKSÓW
+    // ═════════════════════════════════════════════════════════════
+
     function createFlagsContainer(item) {
         const c = document.createElement('div');
         c.className = 'flags-container';
@@ -763,6 +928,7 @@
         return c;
     }
 
+    // STATS — RESTRUKTURA: oferty, sprzedaż katalogu, moja sprzedaż, prowizja
     function buildStatsBlocks(item) {
         const blocks = [];
 
@@ -772,32 +938,17 @@
                 <div class="offer-count-box">${getOfferText(item.competitorCount || 0)}</div>
             </div>`);
 
-        if (!item.isCurrentlyViolating) {
-            blocks.push(`
-                <div class="price-box-column-offers-a">
-                    <span class="data-channel"><i class="fa-solid fa-shield-halved" style="font-size:14px; color:#198754;"></i></span>
-                    <div class="offer-count-box"><p>Bez naruszeń</p></div>
-                </div>`);
-        } else if (item.isFreshViolation) {
-            blocks.push(`
-                <div class="price-box-column-offers-a" style="background:#fff3cd; border-color:#ffd966;">
-                    <span class="data-channel"><i class="fa-solid fa-bell" style="font-size:14px; color:#FF6347;"></i></span>
-                    <div class="offer-count-box"><p>Świeże naruszenie</p></div>
-                </div>`);
-        } else {
-            const days = item.daysOfViolation;
-            let label = 'Naruszenie';
-            if (days !== null && days !== undefined) {
-                if (days >= 7) label = `≥ 7 dni naruszenia`;
-                else if (days >= 1) label = `${Math.floor(days)} dni naruszenia`;
-                else label = '< 1 dnia naruszenia';
-            }
-            blocks.push(`
-                <div class="price-box-column-offers-a">
-                    <span class="data-channel"><i class="fa-solid fa-clock-rotate-left" style="font-size:14px; color:#DC143C;"></i></span>
-                    <div class="offer-count-box"><p>${label}</p></div>
-                </div>`);
-        }
+        blocks.push(`
+            <div class="price-box-column-offers-a" title="Łączna sprzedaż w katalogu (30 dni)">
+                <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;"></i></span>
+                <div class="offer-count-box"><p>${item.totalPopularity || 0} osb. kupiło</p></div>
+            </div>`);
+
+        blocks.push(`
+            <div class="price-box-column-offers-a" title="Sprzedaż Twojej oferty / udział w rynku">
+                <span class="data-channel"><i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;"></i></span>
+                <div class="offer-count-box"><p>${item.myTotalPopularity || 0} osb. (${(item.marketSharePercentage || 0).toFixed(2)}%)</p></div>
+            </div>`);
 
         if (item.apiAllegroCommission != null) {
             const formattedCommission = formatPricePL(item.apiAllegroCommission, false);
@@ -844,24 +995,6 @@
         if (item.bestCompetitorPromoted) promoText = ` <span class="AddPromoInfoBadge">Promowane</span>`;
         else if (item.bestCompetitorSponsored) promoText = ` <span class="AddPromoInfoBadge">Sponsorowane</span>`;
 
-        let storesDistHtml = '';
-        const hasRef = item.referencePrice != null && parseFloat(item.referencePrice) > 0.01;
-        if (hasRef) {
-            const lines = [];
-            if (item.storesBelowReference > 0) {
-                lines.push(`<div class="producer-stores-line bad"><i class="fa-solid fa-arrow-down"></i> ${item.storesBelowReference} łamie cenę ref.</div>`);
-            }
-            if (item.storesAtReference > 0) {
-                lines.push(`<div class="producer-stores-line equal"><i class="fa-solid fa-equals"></i> ${item.storesAtReference} zgodnych z ref.</div>`);
-            }
-            if (item.storesAboveReference > 0) {
-                lines.push(`<div class="producer-stores-line good"><i class="fa-solid fa-arrow-up"></i> ${item.storesAboveReference} powyżej ref.</div>`);
-            }
-            if (lines.length > 0) {
-                storesDistHtml = `<div class="producer-stores-dist">${lines.join('')}</div>`;
-            }
-        }
-
         return `
             <div class="price-box-column">
                 <div class="price-box-column-text">
@@ -872,7 +1005,6 @@
                     <div style="color:#444; font-size:13px;">
                         <span>${highlightedStoreName}</span>${superSellerIcon}${promoText}
                     </div>
-                    ${storesDistHtml}
                 </div>
                 <div class="price-box-column-text">
                     <div class="data-channel">
@@ -883,39 +1015,187 @@
             </div>`;
     }
 
+    // NOWY BOX — SZCZEGÓŁY NARUSZENIA
+    function buildViolationDetailBox(item) {
+        const hasRef = item.referencePrice != null && parseFloat(item.referencePrice) > 0;
+
+        // Brak referencji
+        if (!hasRef) {
+            return `
+                <div class="price-box-column">
+                    <div class="price-box-column-text">
+                        <div class="violation-detail-box">
+                            <div class="violation-detail-header">
+                                <i class="violation-detail-icon fa-solid fa-circle-question" style="color:#5b537a;"></i>
+                                <span>Brak ceny referencyjnej</span>
+                            </div>
+                            <div class="violation-detail-meta">Nie można ocenić naruszeń bez ceny referencyjnej.</div>
+                        </div>
+                    </div>
+                    <div class="price-box-column-text">
+                        <span class="violation-state-badge violation-state-no-ref">Brak ref.</span>
+                    </div>
+                </div>`;
+        }
+
+        // Aktywne naruszenie
+        if (item.isCurrentlyViolating) {
+            const isFresh = item.isFreshViolation === true;
+            const reachedMax = item.reachedMaxWindow === true;
+            const h = item.violationDurationHours;
+
+            let stateBadgeClass, stateBadgeText, iconClass, iconColor, barFillClass, headerText, durationText, metaHtml;
+
+            if (isFresh) {
+                stateBadgeClass = 'violation-state-fresh';
+                stateBadgeText = 'Nowe';
+                iconClass = 'fa-solid fa-bell';
+                iconColor = '#8a5a00';
+                barFillClass = 'fresh';
+                headerText = 'Nowe naruszenie';
+                durationText = 'Wykryte przy ostatnim scrapowaniu';
+                metaHtml = '<div class="violation-detail-meta">Pierwszy raz w monitorowanym oknie 7 dni.</div>';
+            } else {
+                stateBadgeClass = 'violation-state-active';
+                stateBadgeText = 'Aktywne';
+                iconClass = 'fa-solid fa-triangle-exclamation';
+                iconColor = '#8b1a1a';
+                barFillClass = '';
+                headerText = 'Trwające naruszenie';
+                durationText = formatViolationDuration(h, reachedMax);
+                metaHtml = reachedMax
+                    ? '<div class="violation-detail-meta">Naruszenie ciągłe przez całe okno analizy (≥ 7 dni).</div>'
+                    : '<div class="violation-detail-meta">Naruszenie utrzymuje się nieprzerwanie.</div>';
+            }
+
+            const barPercent = isFresh
+                ? 2
+                : (reachedMax ? 100 : Math.min(100, ((h || 0) / 168) * 100));
+
+            return `
+                <div class="price-box-column">
+                    <div class="price-box-column-text">
+                        <div class="violation-detail-box">
+                            <div class="violation-detail-header">
+                                <i class="violation-detail-icon ${iconClass}" style="color:${iconColor};"></i>
+                                <span>${headerText}</span>
+                            </div>
+                            <div class="violation-duration-large">${durationText}</div>
+                            ${metaHtml}
+                            <div class="violation-time-bar" title="Postęp w oknie 7 dni">
+                                <div class="violation-time-bar-fill ${barFillClass}" style="width:${barPercent.toFixed(1)}%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="price-box-column-text">
+                        <span class="violation-state-badge ${stateBadgeClass}">${stateBadgeText}</span>
+                    </div>
+                </div>`;
+        }
+
+        // Niedawno zakończone
+        if (item.wasRecentlyViolated) {
+            const endedAgo = formatHoursAgo(item.lastViolationEndedHoursAgo);
+            const dur = formatDurationShort(item.lastViolationDurationHours);
+
+            return `
+                <div class="price-box-column">
+                    <div class="price-box-column-text">
+                        <div class="violation-detail-box">
+                            <div class="violation-detail-header">
+                                <i class="violation-detail-icon fa-solid fa-clock-rotate-left" style="color:#495057;"></i>
+                                <span>Niedawno zakończone</span>
+                            </div>
+                            <div class="violation-detail-meta">Trwało: <strong>${dur}</strong></div>
+                            <div class="violation-detail-meta">Zakończone: <strong>${endedAgo} temu</strong></div>
+                        </div>
+                    </div>
+                    <div class="price-box-column-text">
+                        <span class="violation-state-badge violation-state-ended">Zakończone</span>
+                    </div>
+                </div>`;
+        }
+
+        // Czyste — brak naruszeń w 7 dni
+        return `
+            <div class="price-box-column">
+                <div class="price-box-column-text">
+                    <div class="violation-detail-box">
+                        <div class="violation-detail-header">
+                            <i class="violation-detail-icon fa-solid fa-shield-halved" style="color:#1e5a2a;"></i>
+                            <span>Bez naruszeń</span>
+                        </div>
+                        <div class="violation-detail-meta">Brak naruszeń ceny w ostatnich 7 dniach.</div>
+                    </div>
+                </div>
+                <div class="price-box-column-text">
+                    <span class="violation-state-badge violation-state-clean">Czysto</span>
+                </div>
+            </div>`;
+    }
+
     function buildReferenceBox(item) {
         const refPrice = item.referencePrice != null ? parseFloat(item.referencePrice) : null;
         const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
         const mapPrice = item.mapPrice != null ? parseFloat(item.mapPrice) : null;
 
+        // Ikony dla mojej oferty — Smart, Super Sprzedawca, Best Price Guarantee
+        const myBpgIcon = item.myIsBestPriceGuarantee
+            ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">`
+            : '';
+        const mySuperSellerIcon = item.myIsSuperSeller
+            ? `<img src="/images/SuperSeller.png" alt="Super Sprzedawca" title="Super Sprzedawca" style="width: 16px; height: 16px; vertical-align: middle;">`
+            : '';
+        const mySmartBadge = item.myIsSmart
+            ? `<div class="Smart-Allegro"><img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 15px; width: auto; margin-left: 2px;"></div>`
+            : '';
+        const mySmartInline = item.myIsSmart
+            ? `<img src="/images/Smart.png" alt="Smart!" title="Smart!" style="height: 13px; width: auto; vertical-align: middle; margin-left: 4px;">`
+            : '';
+        const mySuperPriceBadge = item.myIsSuperPrice ? `<div class="SuperPrice">SUPERCENA</div>` : '';
+        const myTopOfferBadge = item.myIsTopOffer ? `<div class="TopOffer">Top oferta</div>` : '';
+
         if (refPrice != null && refPrice > 0) {
             const sourceLabel = item.referenceSource === 'map' ? 'Cena MAP' : 'Cena Twojego sklepu na Allegro';
+
             const altLines = [];
             if (item.referenceSource === 'map' && myPrice != null && myPrice > 0) {
-                altLines.push(`<div class="ref-alt-line">Twoja oferta na Allegro: <strong>${formatPricePL(myPrice)}</strong></div>`);
+                altLines.push(`<div class="ref-alt-line">Twoja oferta na Allegro: <strong>${formatPricePL(myPrice)}</strong>${mySmartInline}</div>`);
             }
             if (item.referenceSource === 'store' && mapPrice != null && mapPrice > 0) {
                 altLines.push(`<div class="ref-alt-line">MAP w katalogu: <strong>${formatPricePL(mapPrice)}</strong></div>`);
             }
 
+            // Gdy źródłem jest sklep — pokazujemy dolny pasek z dostawą i smart (jak oferta)
+            const showOfferDetailsRow = item.referenceSource === 'store' && myPrice != null;
+
             return `
                 <div class="price-box-column">
                     <div class="price-box-column-text">
                         <div><span class="ref-label-small">${sourceLabel}</span></div>
-                        <div><span style="font-weight:500; font-size:17px;">${formatPricePL(refPrice)}</span></div>
+                        <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                            <span style="font-weight:500; font-size:17px;">${formatPricePL(refPrice)}</span>
+                            ${item.referenceSource === 'store' ? `${myBpgIcon}${mySuperPriceBadge}${myTopOfferBadge}` : ''}
+                        </div>
+                        ${item.referenceSource === 'store' ? `<div style="color:#444; font-size:13px;"><span>${myStoreName || ''}</span>${mySuperSellerIcon}</div>` : ''}
                         ${altLines.join('')}
                     </div>
-                    <div class="price-box-column-text"></div>
+                    <div class="price-box-column-text">
+                        ${showOfferDetailsRow
+                    ? `<div class="data-channel">${mySmartBadge}${renderDeliveryInfo(item.myDeliveryTime)}</div>`
+                    : ''}
+                    </div>
                 </div>`;
         }
 
+        // Brak referencji
         let missingMsg = '';
         if (producerSettings.comparisonSource === 1) missingMsg = 'Brak ceny MAP w katalogu';
         else missingMsg = 'Brak Twojej oferty na Allegro';
 
         const altLines = [];
         if (mapPrice != null && mapPrice > 0) altLines.push(`<div class="ref-alt-line">MAP w katalogu: <strong>${formatPricePL(mapPrice)}</strong></div>`);
-        if (myPrice != null && myPrice > 0) altLines.push(`<div class="ref-alt-line">Twoja oferta na Allegro: <strong>${formatPricePL(myPrice)}</strong></div>`);
+        if (myPrice != null && myPrice > 0) altLines.push(`<div class="ref-alt-line">Twoja oferta na Allegro: <strong>${formatPricePL(myPrice)}</strong>${mySmartInline}</div>`);
 
         return `
             <div class="price-box-column">
@@ -981,6 +1261,22 @@
         const bgClass = bgClassMap[item.bucket] || 'producer-bg-equal';
         const bucketLabel = BUCKET_BADGE_LABELS[item.bucket] || BUCKET_LABELS[item.bucket] || '';
 
+        // Rozkład sklepów
+        let storesDistHtml = '';
+        const lines = [];
+        if ((item.storesBelowReference || 0) > 0) {
+            lines.push(`<div class="producer-stores-line bad"><i class="fa-solid fa-arrow-down"></i> ${item.storesBelowReference} łamie cenę ref.</div>`);
+        }
+        if ((item.storesAtReference || 0) > 0) {
+            lines.push(`<div class="producer-stores-line equal"><i class="fa-solid fa-equals"></i> ${item.storesAtReference} zgodnych z ref.</div>`);
+        }
+        if ((item.storesAboveReference || 0) > 0) {
+            lines.push(`<div class="producer-stores-line good"><i class="fa-solid fa-arrow-up"></i> ${item.storesAboveReference} powyżej ref.</div>`);
+        }
+        if (lines.length > 0) {
+            storesDistHtml = `<div class="producer-stores-dist" style="margin-top:6px;">${lines.join('')}</div>`;
+        }
+
         return `
             <div class="price-box-column">
                 <div class="price-box-column-text">
@@ -989,12 +1285,17 @@
                         <span style="font-weight:500; font-size:17px;">${sign}${formatPricePL(Math.abs(deltaA), false)} PLN</span>
                     </div>
                     ${deltaP != null ? `<div style="font-size:13px; color:#555; margin-top:2px;">${pctSign}${deltaP.toFixed(2)}% wzgl. ceny ref.</div>` : ''}
+                    ${storesDistHtml}
                 </div>
                 <div class="price-box-column-text">
                     <span class="producer-delta-badge ${bgClass}">${bucketLabel}</span>
                 </div>
             </div>`;
     }
+
+    // ═════════════════════════════════════════════════════════════
+    //  RENDER PRICES (UPDATED — wklejony violationDetailBox)
+    // ═════════════════════════════════════════════════════════════
 
     function renderPrices(data) {
         const c = document.getElementById('priceContainer');
@@ -1093,7 +1394,9 @@
             stats.innerHTML = buildStatsBlocks(item);
             priceBoxData.appendChild(stats);
 
+            // Kolejność: konkurent → szczegóły naruszenia → cena ref. → delta
             priceBoxData.insertAdjacentHTML('beforeend', buildCompetitorBox(item, storeSearchTerm));
+            priceBoxData.insertAdjacentHTML('beforeend', buildViolationDetailBox(item));
             priceBoxData.insertAdjacentHTML('beforeend', buildReferenceBox(item));
             priceBoxData.insertAdjacentHTML('beforeend', buildDeltaBox(item));
 
@@ -1107,6 +1410,10 @@
 
         document.getElementById('displayedProductCount').textContent = data.length;
     }
+
+    // ═════════════════════════════════════════════════════════════
+    //  CHART + BUCKET COUNTS
+    // ═════════════════════════════════════════════════════════════
 
     function renderChart(data) {
         const ctx = document.getElementById('colorChart').getContext('2d');
@@ -1154,6 +1461,10 @@
         }
     }
 
+    // ═════════════════════════════════════════════════════════════
+    //  SORT BUTTONS
+    // ═════════════════════════════════════════════════════════════
+
     function resetSortingStates(except) {
         Object.keys(sortingState).forEach(k => { if (k !== except) sortingState[k] = null; });
         updateSortButtonVisuals();
@@ -1165,9 +1476,11 @@
             case 'sortPrice': return 'Cena ref.';
             case 'sortDeltaPercent': return 'Delta %';
             case 'sortDeltaAmount': return 'Delta PLN';
-            case 'sortDaysViolation': return 'Dni naruszenia';
+            case 'sortViolationDuration': return 'Czas naruszenia';
             case 'sortStoresViolating': return 'Liczba naruszycieli';
             case 'sortTotalPopularity': return 'Sprzedaż katalogu';
+            case 'sortMyPopularity': return 'Moja Sprzedaż';
+            case 'sortMarketShare': return 'Udział %';
             default: return '';
         }
     }
@@ -1201,14 +1514,29 @@
         });
     }
 
-    ['sortName', 'sortPrice', 'sortDeltaPercent', 'sortDeltaAmount', 'sortDaysViolation', 'sortStoresViolating', 'sortTotalPopularity']
+    ['sortName', 'sortPrice', 'sortDeltaPercent', 'sortDeltaAmount',
+        'sortViolationDuration', 'sortStoresViolating',
+        'sortTotalPopularity', 'sortMyPopularity', 'sortMarketShare']
         .forEach(bindSortButton);
 
     const storedSort = localStorage.getItem('allegroProducerSorting_' + storeId);
     if (storedSort) {
-        try { sortingState = { ...sortingState, ...JSON.parse(storedSort) }; updateSortButtonVisuals(); }
-        catch (e) { localStorage.removeItem('allegroProducerSorting_' + storeId); }
+        try {
+            const parsed = JSON.parse(storedSort);
+            // Filtruj tylko znane klucze — chroni przed starymi zapisami (np. sortDaysViolation)
+            const validKeys = Object.keys(sortingState);
+            const cleaned = {};
+            validKeys.forEach(k => { if (parsed[k] !== undefined) cleaned[k] = parsed[k]; });
+            sortingState = { ...sortingState, ...cleaned };
+            updateSortButtonVisuals();
+        } catch (e) {
+            localStorage.removeItem('allegroProducerSorting_' + storeId);
+        }
     }
+
+    // ═════════════════════════════════════════════════════════════
+    //  EVENT LISTENERS — SEARCH, FILTERS, ADV CHECKBOXES
+    // ═════════════════════════════════════════════════════════════
 
     const debouncedFilter = debounce(() => filterPricesAndUpdateUI(), 300);
     document.getElementById('productSearch').addEventListener('input', debouncedFilter);
@@ -1241,6 +1569,10 @@
         });
     });
 
+    // ═════════════════════════════════════════════════════════════
+    //  EKSPORT DO EXCELA
+    // ═════════════════════════════════════════════════════════════
+
     document.getElementById('exportToExcelButton').addEventListener('click', async function () {
         if (currentlyFilteredPrices.length === 0) {
             showGlobalNotification('<p>Brak danych do eksportu.</p>');
@@ -1271,6 +1603,7 @@
                 { header: 'Super Cena', key: 'bestSP', width: 12 },
                 { header: 'Top Oferta', key: 'bestTop', width: 12 },
                 { header: 'Gwar. Naj. Ceny', key: 'bestBPG', width: 14 },
+                { header: 'Smart konkurenta', key: 'bestSmart', width: 14 },
                 { header: 'Promowane/Sponsor.', key: 'bestPromo', width: 16 },
                 { header: 'Delta (PLN)', key: 'deltaA', width: 12, style: { numFmt: '0.00' } },
                 { header: 'Delta (%)', key: 'deltaP', width: 10, style: { numFmt: '0.00' } },
@@ -1280,8 +1613,16 @@
                 { header: 'Sklepów powyżej', key: 'above', width: 14 },
                 { header: 'Liczba konkurentów', key: 'compCount', width: 14 },
                 { header: 'Naruszenie obecne', key: 'isViolating', width: 14 },
-                { header: 'Świeże naruszenie', key: 'isFresh', width: 14 },
-                { header: 'Dni naruszenia', key: 'days', width: 14, style: { numFmt: '0.00' } },
+                { header: 'Nowe naruszenie', key: 'isFresh', width: 14 },
+                { header: 'Czas naruszenia (h)', key: 'violationHours', width: 18, style: { numFmt: '0.00' } },
+                { header: 'Czas naruszenia (dni)', key: 'violationDays', width: 18, style: { numFmt: '0.00' } },
+                { header: 'Pełne okno (7 dni)', key: 'reachedMax', width: 16 },
+                { header: 'Niedawno zakończone', key: 'wasRecent', width: 18 },
+                { header: 'Zakończone temu (h)', key: 'endedAgoHours', width: 18, style: { numFmt: '0.00' } },
+                { header: 'Trwało (h)', key: 'lastDurHours', width: 14, style: { numFmt: '0.00' } },
+                { header: 'Sprzedaż katalogu (30d)', key: 'totalPop', width: 18 },
+                { header: 'Moja sprzedaż (30d)', key: 'myPop', width: 18 },
+                { header: 'Udział rynkowy (%)', key: 'marketShare', width: 16, style: { numFmt: '0.00' } },
                 { header: 'Prowizja Allegro', key: 'commission', width: 14, style: { numFmt: '0.00' } }
             ];
 
@@ -1292,6 +1633,9 @@
                 let promoStr = '';
                 if (item.bestCompetitorPromoted) promoStr = 'Promowane';
                 else if (item.bestCompetitorSponsored) promoStr = 'Sponsorowane';
+
+                const hours = item.violationDurationHours;
+                const violationDays = hours != null ? Math.round((hours / 24) * 100) / 100 : null;
 
                 ws.addRow({
                     ean: item.ean || '',
@@ -1311,6 +1655,7 @@
                     bestSP: item.bestCompetitorSuperPrice ? 'TAK' : 'NIE',
                     bestTop: item.bestCompetitorTopOffer ? 'TAK' : 'NIE',
                     bestBPG: item.bestCompetitorIsBestPriceGuarantee ? 'TAK' : 'NIE',
+                    bestSmart: item.bestCompetitorSmart ? 'TAK' : 'NIE',
                     bestPromo: promoStr,
                     deltaA: item.deltaAbsolute,
                     deltaP: item.deltaPercent,
@@ -1321,7 +1666,15 @@
                     compCount: item.competitorCount,
                     isViolating: item.isCurrentlyViolating ? 'TAK' : 'NIE',
                     isFresh: item.isFreshViolation ? 'TAK' : 'NIE',
-                    days: item.daysOfViolation,
+                    violationHours: hours,
+                    violationDays: violationDays,
+                    reachedMax: item.reachedMaxWindow ? 'TAK' : 'NIE',
+                    wasRecent: item.wasRecentlyViolated ? 'TAK' : 'NIE',
+                    endedAgoHours: item.lastViolationEndedHoursAgo,
+                    lastDurHours: item.lastViolationDurationHours,
+                    totalPop: item.totalPopularity,
+                    myPop: item.myTotalPopularity,
+                    marketShare: item.marketSharePercentage,
                     commission: item.apiAllegroCommission
                 });
             });
@@ -1343,6 +1696,10 @@
             hideLoading();
         }
     });
+
+    // ═════════════════════════════════════════════════════════════
+    //  API EXPORT MODAL (FEED JSON/XML) — bez zmian
+    // ═════════════════════════════════════════════════════════════
 
     function generateSecureToken() {
         return 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -1399,6 +1756,10 @@
             setTimeout(() => $b.html(orig), 2000);
         });
     });
+
+    // ═════════════════════════════════════════════════════════════
+    //  INIT
+    // ═════════════════════════════════════════════════════════════
 
     loadPrices();
     massActions.updateSelectionUI();

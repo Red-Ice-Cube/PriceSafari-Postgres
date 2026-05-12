@@ -631,7 +631,6 @@ namespace PriceSafari.Controllers.MemberControllers
             });
         }
 
-
         [HttpGet]
         public async Task<IActionResult> GetAllegroPricesForProducer(int? storeId)
         {
@@ -646,8 +645,7 @@ namespace PriceSafari.Controllers.MemberControllers
 
             var storeNameLower = (store.StoreNameAllegro ?? "").ToLower().Trim();
 
-            var latestScrap = await _context.AllegroScrapeHistories
-                .AsNoTracking()
+            var latestScrap = await _context.AllegroScrapeHistories.AsNoTracking()
                 .Where(sh => sh.StoreId == storeId)
                 .OrderByDescending(sh => sh.Date)
                 .Select(sh => new { sh.Id, sh.Date })
@@ -656,14 +654,7 @@ namespace PriceSafari.Controllers.MemberControllers
             if (latestScrap == null)
                 return Json(new { productCount = 0, myStoreName = store.StoreNameAllegro, prices = new List<object>() });
 
-            var previousScrap = await _context.AllegroScrapeHistories
-                .AsNoTracking()
-                .Where(sh => sh.StoreId == storeId && sh.Date < latestScrap.Date)
-                .OrderByDescending(sh => sh.Date)
-                .Select(sh => new { sh.Id, sh.Date })
-                .FirstOrDefaultAsync();
-
-            // PriceValues — pola producenta WYŁĄCZNIE z toru Allegro
+            // ─── Ustawienia producenta — TYLKO ścieżka Allegro ───
             var pv = await _context.PriceValues.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.StoreId == storeId.Value);
 
@@ -693,6 +684,7 @@ namespace PriceSafari.Controllers.MemberControllers
             var productIds = allScrapableProducts.Select(p => p.AllegroProductId).ToList();
             var productDict = allScrapableProducts.ToDictionary(p => p.AllegroProductId);
 
+            // ─── Dane bieżącego scrapu + deduplikacja per (productId, offerId) ───
             var priceData = await _context.AllegroPriceHistories.AsNoTracking()
                 .Where(aph => aph.AllegroScrapeHistoryId == latestScrap.Id
                            && productIds.Contains(aph.AllegroProductId))
@@ -719,21 +711,31 @@ namespace PriceSafari.Controllers.MemberControllers
             int minDelivery = activePreset?.MinDeliveryDays ?? 0;
             int maxDelivery = activePreset?.MaxDeliveryDays ?? 31;
 
-            var extendedInfoDict = await _context.AllegroPriceHistoryExtendedInfos.AsNoTracking()
+            // Extended info — dwa lookupy: po (productId, offerId) i fallback per produkt
+            var allExtInfo = await _context.AllegroPriceHistoryExtendedInfos.AsNoTracking()
                 .Where(e => e.ScrapHistoryId == latestScrap.Id && productIds.Contains(e.AllegroProductId))
+                .ToListAsync();
+
+            var extInfoByProduct = allExtInfo
                 .GroupBy(e => e.AllegroProductId)
-                .Select(g => g.First())
-                .ToDictionaryAsync(e => e.AllegroProductId);
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var extInfoByProductAndOffer = allExtInfo
+                .Where(e => e.IdAllegro.HasValue)
+                .GroupBy(e => (e.AllegroProductId, e.IdAllegro.Value))
+                .ToDictionary(g => g.Key, g => g.First());
 
             var productFlagsDict = await _context.ProductFlags.AsNoTracking()
                 .Where(pf => pf.AllegroProductId.HasValue && productIds.Contains(pf.AllegroProductId.Value))
                 .GroupBy(pf => pf.AllegroProductId.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Select(pf => pf.FlagId).ToList());
 
-            // HISTORIA NARUSZEŃ (7 dni)
-            var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
+            // ═══ Okno historii ═══
+            var windowStart = latestScrap.Date.AddDays(-7);
+            var sevenDaysAgo = DateTime.UtcNow.AddDays(-7); // osobno — tylko dla flagi IsNew
+
             var historyScraps = await _context.AllegroScrapeHistories.AsNoTracking()
-                .Where(sh => sh.StoreId == storeId && sh.Date >= sevenDaysAgo && sh.Id != latestScrap.Id)
+                .Where(sh => sh.StoreId == storeId && sh.Date >= windowStart && sh.Id != latestScrap.Id)
                 .OrderByDescending(sh => sh.Date)
                 .Select(sh => new { sh.Id, sh.Date })
                 .ToListAsync();
@@ -747,12 +749,13 @@ namespace PriceSafari.Controllers.MemberControllers
                     .Select(ph => new {
                         ph.AllegroProductId,
                         ph.AllegroScrapeHistoryId,
+                        ph.IdAllegro,
                         ph.Price,
                         ph.SellerName,
                         ph.DeliveryTime
                     })
                     .ToListAsync()
-                : new List<dynamic>().Select(x => new { AllegroProductId = 0, AllegroScrapeHistoryId = 0, Price = 0m, SellerName = "", DeliveryTime = (int?)null }).ToList();
+                : new List<dynamic>().Select(x => new { AllegroProductId = 0, AllegroScrapeHistoryId = 0, IdAllegro = 0L, Price = 0m, SellerName = "", DeliveryTime = (int?)null }).ToList();
 
             var historyMapSnapshots = historyScrapIds.Any()
                 ? await _context.AllegroPriceHistoryExtendedInfos.AsNoTracking()
@@ -763,11 +766,28 @@ namespace PriceSafari.Controllers.MemberControllers
                     .ToListAsync()
                 : new List<dynamic>().Select(x => new { AllegroProductId = 0, ScrapHistoryId = 0, AllegroMapPriceSnapshot = (decimal?)null }).ToList();
 
+            // GroupBy — chroni przed duplikatami klucza gdy producent ma >1 ofertę
             var historyMapSnapshotLookup = historyMapSnapshots
-                .ToDictionary(e => (e.AllegroProductId, e.ScrapHistoryId), e => e.AllegroMapPriceSnapshot);
+                .GroupBy(e => (e.AllegroProductId, e.ScrapHistoryId))
+                .ToDictionary(g => g.Key, g => g.First().AllegroMapPriceSnapshot);
 
-            // Moje ceny historyczne per scrap (StorePrice mode)
-            var historyMyStorePricesByProductScrap = historyPricesRaw
+            // ═════════════════════════════════════════════════════════════
+            //  HISTORYCZNE CENY NASZYCH OFERT — per (productId, offerId, scrap)
+            //  W trybie StorePrice używamy ceny TEJ KONKRETNEJ oferty,
+            //  z którą jest powiązany rekord (po IdOnAllegro produktu).
+            //  Fallback: jeśli nasza oferta o tym IdAllegro nie istniała w tym scrapie,
+            //  bierzemy najtańszą z naszych w tym katalogu (zachowuje "ostatnie znane").
+            // ═════════════════════════════════════════════════════════════
+            var historyMyOfferPricesByProductOfferScrap = historyPricesRaw
+                .Where(x => x.SellerName != null && x.SellerName.ToLower().Trim() == storeNameLower)
+                .GroupBy(x => new { x.AllegroProductId, x.IdAllegro, x.AllegroScrapeHistoryId })
+                .ToDictionary(
+                    g => (g.Key.AllegroProductId, g.Key.IdAllegro, g.Key.AllegroScrapeHistoryId),
+                    g => g.OrderBy(x => x.Price).First().Price
+                );
+
+            // Fallback per (productId, scrap) — najtańsza nasza oferta w katalogu
+            var historyMyMinStorePricesByProductScrap = historyPricesRaw
                 .Where(x => x.SellerName != null && x.SellerName.ToLower().Trim() == storeNameLower)
                 .GroupBy(x => new { x.AllegroProductId, x.AllegroScrapeHistoryId })
                 .ToDictionary(
@@ -775,7 +795,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     g => g.OrderBy(x => x.Price).First().Price
                 );
 
-            // Min cena konkurencji per scrap, po preście
+            // Min cena konkurencji per scrap, po filtrze presetu — bez naszych ofert
             var historyMinCompetitorByProductScrap = new Dictionary<(int, int), decimal>();
             foreach (var ph in historyPricesRaw)
             {
@@ -805,20 +825,118 @@ namespace PriceSafari.Controllers.MemberControllers
                     historyMinCompetitorByProductScrap[dictKey] = ph.Price;
             }
 
+            decimal toleranceForViolation = settings.UseAmount
+                ? Math.Min(settings.RedLightAmt, settings.GreenLightAmt)
+                : Math.Min(settings.RedLightPct, settings.GreenLightPct);
+
+            // ═════════════════════════════════════════════════════════════
+            //  Funkcja sprawdzająca naruszenie w danym scrapie historycznym
+            //  W trybie StorePrice używa historycznej ceny KONKRETNEJ oferty,
+            //  którą reprezentuje bieżący rekord (po targetOfferId).
+            //  Jeśli tej oferty nie było w tamtym scrapie — fallback na najtańszą.
+            // ═════════════════════════════════════════════════════════════
+            bool WasViolatingAtScrap(int productId, long? targetOfferId, int scrapId)
+            {
+                decimal? historicalReference;
+                if (settings.ComparisonSource == ProducerComparisonSource.StorePrice)
+                {
+                    if (targetOfferId.HasValue &&
+                        historyMyOfferPricesByProductOfferScrap.TryGetValue((productId, targetOfferId.Value, scrapId), out var offerPrice))
+                    {
+                        historicalReference = offerPrice;
+                    }
+                    else if (historyMyMinStorePricesByProductScrap.TryGetValue((productId, scrapId), out var minMyPrice))
+                    {
+                        historicalReference = minMyPrice;
+                    }
+                    else
+                    {
+                        historicalReference = null;
+                    }
+                }
+                else // MapPrice
+                {
+                    if (historyMapSnapshotLookup.TryGetValue((productId, scrapId), out var histMap)
+                        && histMap.HasValue && histMap.Value > 0)
+                    {
+                        historicalReference = histMap;
+                    }
+                    else
+                    {
+                        historicalReference = null;
+                    }
+                }
+
+                if (!historicalReference.HasValue || historicalReference.Value <= 0)
+                    return false;
+
+                if (!historyMinCompetitorByProductScrap.TryGetValue((productId, scrapId), out var minComp))
+                    return false;
+
+                decimal hDelta = minComp - historicalReference.Value;
+                decimal hDiff = settings.UseAmount
+                    ? hDelta
+                    : (hDelta / historicalReference.Value) * 100m;
+
+                return hDiff < -toleranceForViolation;
+            }
+
             var allPrices = productIds.Select(currentProductId =>
             {
                 var product = productDict[currentProductId];
                 var offers = offersByProductId.GetValueOrDefault(currentProductId, new List<AllegroPriceHistory>());
 
-                var myOffer = offers.FirstOrDefault(p => p.SellerName != null
-                    && p.SellerName.ToLower().Trim() == storeNameLower);
+                // ═════════════════════════════════════════════════════════════
+                //  KAŻDY rekord = jeden konkretny produkt z AllegroProducts.
+                //  Jeśli producent ma w katalogu 2 oferty, ma 2 wpisy w AllegroProducts
+                //  (z różnymi IdOnAllegro) → 2 rekordy w odpowiedzi.
+                //  Frontend grupuje je przez MyOffersGroupKey i wybiera lidera.
+                // ═════════════════════════════════════════════════════════════
 
-                extendedInfoDict.TryGetValue(currentProductId, out var extInfo);
+                long? targetOfferId = null;
+                if (long.TryParse(product.IdOnAllegro, out var parsedId))
+                    targetOfferId = parsedId;
 
-                // MAP = snapshot, fallback na bieżący AllegroMapPrice (NIE AllegroMarginPrice)
+                // Reprezentatywna oferta TEGO REKORDU = oferta o targetOfferId,
+                // fallback: pierwsza nasza oferta w katalogu (deterministycznie po IdAllegro)
+                var myOffer = targetOfferId.HasValue
+                    ? offers.FirstOrDefault(p => p.IdAllegro == targetOfferId.Value
+                                               && p.SellerName != null
+                                               && p.SellerName.ToLower().Trim() == storeNameLower)
+                    : null;
+
+                if (myOffer == null)
+                {
+                    myOffer = offers
+                        .Where(p => p.SellerName != null && p.SellerName.ToLower().Trim() == storeNameLower)
+                        .OrderBy(p => p.IdAllegro)
+                        .FirstOrDefault();
+                }
+
+                // Wszystkie nasze oferty w tym katalogu — do MyOffersGroupKey + sumy popularity
+                var allMyOffersInGroup = offers
+                    .Where(p => p.SellerName != null && p.SellerName.ToLower().Trim() == storeNameLower)
+                    .ToList();
+
+                var myOfferIdsList = allMyOffersInGroup.Select(o => o.IdAllegro).Distinct().ToList();
+                if (targetOfferId.HasValue && !myOfferIdsList.Contains(targetOfferId.Value))
+                    myOfferIdsList.Add(targetOfferId.Value);
+
+                var myOffersGroupKey = myOfferIdsList.Any()
+                    ? string.Join(",", myOfferIdsList.OrderBy(id => id))
+                    : "";
+
+                // ═══ Extended info — preferuj rekord przypisany do MOJEJ oferty (po IdAllegro) ═══
+                AllegroPriceHistoryExtendedInfoClass extInfo = null;
+                if (myOffer != null && extInfoByProductAndOffer.TryGetValue((currentProductId, myOffer.IdAllegro), out var specific))
+                    extInfo = specific;
+                else
+                    extInfoByProduct.TryGetValue(currentProductId, out extInfo);
+
                 decimal? mapPrice = extInfo?.AllegroMapPriceSnapshot ?? product.AllegroMapPrice;
 
-                // Cena referencyjna — decyduje ustawienie producenta dla Allegro (osobne od Google/Ceneo)
+                // ─── Cena referencyjna ───
+                // W trybie StorePrice = cena TEJ KONKRETNEJ oferty (nie najtańszej z naszych)
                 decimal? referencePrice = null;
                 string referenceSource = "none";
                 if (settings.ComparisonSource == ProducerComparisonSource.MapPrice)
@@ -829,7 +947,7 @@ namespace PriceSafari.Controllers.MemberControllers
                         referenceSource = "map";
                     }
                 }
-                else // StorePrice — producent też może mieć własne konto marki na Allegro
+                else // StorePrice
                 {
                     if (myOffer != null && myOffer.Price > 0)
                     {
@@ -838,6 +956,8 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                 }
 
+                // ─── KONKURENCJA ───
+                // Filtr SellerName wyklucza WSZYSTKIE nasze oferty (każdą z naszych N ofert).
                 var filteredCompetitors = offers.Where(p =>
                 {
                     if (p.SellerName != null && p.SellerName.ToLower().Trim() == storeNameLower) return false;
@@ -886,103 +1006,122 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 if (referencePrice.HasValue && referencePrice.Value > 0)
                 {
-                    decimal tolerance = settings.UseAmount
-                        ? Math.Min(settings.RedLightAmt, settings.GreenLightAmt)
-                        : Math.Min(settings.RedLightPct, settings.GreenLightPct);
-
                     foreach (var c in filteredCompetitors.Where(x => x.Price > 0))
                     {
                         decimal compDelta = c.Price - referencePrice.Value;
                         decimal compDiff = settings.UseAmount
                             ? compDelta
-                            : (referencePrice.Value > 0 ? (compDelta / referencePrice.Value) * 100m : 0m);
+                            : (compDelta / referencePrice.Value) * 100m;
 
-                        if (compDiff < -tolerance)
+                        if (compDiff < -toleranceForViolation)
                         {
                             storesBelowReference++;
                             if (!worstViolation.HasValue || compDelta < worstViolation.Value)
                                 worstViolation = compDelta;
                         }
-                        else if (compDiff > tolerance) storesAboveReference++;
+                        else if (compDiff > toleranceForViolation) storesAboveReference++;
                         else storesAtReference++;
                     }
                 }
 
-                decimal? daysOfViolation = null;
-                bool isFreshViolation = false;
+                // ─── Status naruszenia + czas trwania ───
                 bool isCurrentlyViolating = bucket == "producer-deep-violation"
                                          || bucket == "producer-violation"
                                          || bucket == "producer-minor-below";
 
+                decimal? violationDurationHours = null;
+                bool isFreshViolation = false;
+                bool reachedMaxWindow = false;
+
+                bool wasRecentlyViolated = false;
+                decimal? lastViolationEndedHoursAgo = null;
+                decimal? lastViolationDurationHours = null;
+
                 if (isCurrentlyViolating)
                 {
-                    DateTime oldestViolationDate = latestScrap.Date;
+                    DateTime violationStartDate = latestScrap.Date;
                     bool sequenceBroken = false;
                     bool prevScrapWasViolation = false;
                     bool prevScrapEvaluated = false;
 
                     foreach (var hs in historyScraps)
                     {
-                        decimal? historicalReference;
-
-                        if (settings.ComparisonSource == ProducerComparisonSource.StorePrice)
-                        {
-                            if (historyMyStorePricesByProductScrap.TryGetValue((currentProductId, hs.Id), out var myHistPrice))
-                            {
-                                historicalReference = myHistPrice;
-                            }
-                            else
-                            {
-                                historicalReference = null;
-                            }
-                        }
-                        else // MapPrice
-                        {
-                            if (historyMapSnapshotLookup.TryGetValue((currentProductId, hs.Id), out var histMap)
-                                && histMap.HasValue && histMap.Value > 0)
-                            {
-                                historicalReference = histMap;
-                            }
-                            else
-                            {
-                                historicalReference = referencePrice;
-                            }
-                        }
-
-                        bool wasViolating = false;
-                        if (historicalReference.HasValue && historicalReference.Value > 0
-                            && historyMinCompetitorByProductScrap.TryGetValue((currentProductId, hs.Id), out var minComp))
-                        {
-                            decimal hDelta = minComp - historicalReference.Value;
-                            decimal hDiff = settings.UseAmount
-                                ? hDelta
-                                : (hDelta / historicalReference.Value) * 100m;
-                            decimal toleranceH = settings.UseAmount
-                                ? Math.Min(settings.RedLightAmt, settings.GreenLightAmt)
-                                : Math.Min(settings.RedLightPct, settings.GreenLightPct);
-                            wasViolating = hDiff < -toleranceH;
-                        }
+                        bool wasViolating = WasViolatingAtScrap(currentProductId, targetOfferId, hs.Id);
 
                         if (!prevScrapEvaluated)
                         {
                             prevScrapWasViolation = wasViolating;
                             prevScrapEvaluated = true;
                         }
+
                         if (!sequenceBroken)
                         {
-                            if (wasViolating) oldestViolationDate = hs.Date;
-                            else sequenceBroken = true;
+                            if (wasViolating)
+                                violationStartDate = hs.Date;
+                            else
+                                sequenceBroken = true;
                         }
                     }
 
                     isFreshViolation = !prevScrapWasViolation;
-                    var span = latestScrap.Date - oldestViolationDate;
-                    daysOfViolation = (decimal)Math.Round(span.TotalDays, 2);
-                    if (daysOfViolation > 7m) daysOfViolation = 7m;
+
+                    decimal hours = (decimal)(latestScrap.Date - violationStartDate).TotalHours;
+
+                    if (!sequenceBroken && historyScraps.Any())
+                    {
+                        var earliestScrap = historyScraps.Last(); // last w DESC = najstarszy
+                        if ((earliestScrap.Date - windowStart).TotalHours < 24)
+                            reachedMaxWindow = true;
+                    }
+
+                    if (hours > 168m) hours = 168m;
+                    if (reachedMaxWindow) hours = 168m;
+
+                    violationDurationHours = Math.Round(hours, 2);
+                }
+                else
+                {
+                    int? lastViolatingIdx = null;
+                    for (int i = 0; i < historyScraps.Count; i++)
+                    {
+                        if (WasViolatingAtScrap(currentProductId, targetOfferId, historyScraps[i].Id))
+                        {
+                            lastViolatingIdx = i;
+                            break;
+                        }
+                    }
+
+                    if (lastViolatingIdx.HasValue)
+                    {
+                        wasRecentlyViolated = true;
+                        var lastViolationDate = historyScraps[lastViolatingIdx.Value].Date;
+                        lastViolationEndedHoursAgo = Math.Round((decimal)(latestScrap.Date - lastViolationDate).TotalHours, 2);
+
+                        DateTime pastViolationStart = lastViolationDate;
+                        for (int i = lastViolatingIdx.Value + 1; i < historyScraps.Count; i++)
+                        {
+                            if (WasViolatingAtScrap(currentProductId, targetOfferId, historyScraps[i].Id))
+                                pastViolationStart = historyScraps[i].Date;
+                            else
+                                break;
+                        }
+                        decimal pastDurHrs = (decimal)(lastViolationDate - pastViolationStart).TotalHours;
+                        if (pastDurHrs > 168m) pastDurHrs = 168m;
+                        lastViolationDurationHours = Math.Round(pastDurHrs, 2);
+                    }
                 }
 
                 productFlagsDict.TryGetValue(currentProductId, out var flagIds);
                 flagIds ??= new List<int>();
+
+                // ─── Sprzedaż 30 dni ───
+                // Tak jak w GetAllegroPrices: myPopularity = suma wszystkich naszych ofert
+                // (każdy rekord pokazuje TAKĄ SAMĄ wartość — frontend wyświetla ją tylko na liderze)
+                int totalPopularity = offers.Sum(o => o.Popularity ?? 0);
+                int myPopularity = allMyOffersInGroup.Sum(o => o.Popularity ?? 0);
+                decimal marketSharePercentage = (totalPopularity > 0)
+                    ? Math.Round(((decimal)myPopularity / totalPopularity) * 100m, 2)
+                    : 0m;
 
                 return new
                 {
@@ -994,11 +1133,17 @@ namespace PriceSafari.Controllers.MemberControllers
                     AllegroOfferUrl = product.AllegroOfferUrl,
                     IdOnAllegro = product.IdOnAllegro,
 
+                    // Catalog grouping
+                    MyIdAllegro = myOffer?.IdAllegro ?? targetOfferId,
+                    MyOffersGroupKey = myOffersGroupKey,
+                    MyOfferCount = allMyOffersInGroup.Count,
+
                     ReferencePrice = referencePrice,
                     ReferenceSource = referenceSource,
                     MapPrice = mapPrice,
                     MyPrice = myOffer?.Price,
 
+                    // Konkurent (najtańszy nie-nasz, po filtrze presetu)
                     BestCompetitorPrice = bestCompetitor?.Price,
                     BestCompetitorSellerName = bestCompetitor?.SellerName,
                     BestCompetitorDeliveryTime = bestCompetitor?.DeliveryTime,
@@ -1008,7 +1153,18 @@ namespace PriceSafari.Controllers.MemberControllers
                     BestCompetitorIsBestPriceGuarantee = bestCompetitor?.IsBestPriceGuarantee ?? false,
                     BestCompetitorPromoted = bestCompetitor?.Promoted ?? false,
                     BestCompetitorSponsored = bestCompetitor?.Sponsored ?? false,
+                    BestCompetitorSmart = bestCompetitor?.Smart ?? false,
                     BestCompetitorIdAllegro = bestCompetitor?.IdAllegro,
+
+                    // MOJA oferta (TA KONKRETNA z IdOnAllegro)
+                    MyDeliveryTime = myOffer?.DeliveryTime,
+                    MyIsSmart = myOffer?.Smart ?? false,
+                    MyIsSuperSeller = myOffer?.SuperSeller ?? false,
+                    MyIsSuperPrice = myOffer?.SuperPrice ?? false,
+                    MyIsTopOffer = myOffer?.TopOffer ?? false,
+                    MyIsBestPriceGuarantee = myOffer?.IsBestPriceGuarantee ?? false,
+                    MyIsPromoted = myOffer?.Promoted ?? false,
+                    MyIsSponsored = myOffer?.Sponsored ?? false,
 
                     ProducerBucket = bucket,
                     DeltaAbsolute = deltaAbsolute,
@@ -1019,9 +1175,15 @@ namespace PriceSafari.Controllers.MemberControllers
                     StoresAboveReference = storesAboveReference,
                     WorstViolation = worstViolation,
 
-                    DaysOfViolation = daysOfViolation,
-                    IsFreshViolation = isFreshViolation,
+                    // Naruszenia
                     IsCurrentlyViolating = isCurrentlyViolating,
+                    IsFreshViolation = isFreshViolation,
+                    ReachedMaxWindow = reachedMaxWindow,
+                    ViolationDurationHours = violationDurationHours,
+
+                    WasRecentlyViolated = wasRecentlyViolated,
+                    LastViolationEndedHoursAgo = lastViolationEndedHoursAgo,
+                    LastViolationDurationHours = lastViolationDurationHours,
 
                     FlagIds = flagIds,
                     IsRejected = product.IsRejected,
@@ -1030,7 +1192,14 @@ namespace PriceSafari.Controllers.MemberControllers
 
                     CompetitorCount = filteredCompetitors.Count,
                     ApiAllegroPrice = extInfo?.ApiAllegroPrice,
-                    ApiAllegroCommission = extInfo?.ApiAllegroCommission
+                    ApiAllegroCommission = extInfo?.ApiAllegroCommission,
+                    AnyPromoActive = extInfo?.AnyPromoActive,
+                    IsSubsidyActive = extInfo?.IsSubsidyActive,
+
+                    // Sprzedaż 30 dni
+                    TotalPopularity = totalPopularity,
+                    MyTotalPopularity = myPopularity,
+                    MarketSharePercentage = marketSharePercentage
                 };
             }).ToList();
 
@@ -1045,6 +1214,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 prices = allPrices,
                 presetName = activePreset?.PresetName ?? "PriceSafari",
                 latestScrapId = latestScrap.Id,
+                latestScrapDate = latestScrap.Date,
                 producerSettings = new
                 {
                     comparisonSource = (int)settings.ComparisonSource,
@@ -1068,8 +1238,6 @@ namespace PriceSafari.Controllers.MemberControllers
                 }
             });
         }
-
-
 
         public class PriceSettingsViewModel
         {

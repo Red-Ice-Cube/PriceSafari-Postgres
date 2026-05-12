@@ -45,6 +45,26 @@
     .badge-bpg   { background-color: #169A23; }
     .badge-top   { background-color: #9c27b0; }
     .badge-super { background-color: #ff9800; }
+
+    .ref-info-inline {
+        vertical-align: middle;
+        font-size: 13px;
+        color: #333;
+    }
+    .ref-info-inline .ref-price-bold {
+        font-weight: 700;
+        margin-left: 4px;
+    }
+    .ref-info-inline .ref-tag {
+        font-size: 10px;
+        padding: 1px 5px;
+        border-radius: 3px;
+        background: #e0e7ff;
+        color: #3b5bdb;
+        font-weight: 500;
+        margin-left: 4px;
+        vertical-align: middle;
+    }
 </style>
 
 <div class="Vert" data-store-name="@storeName">
@@ -95,22 +115,26 @@
                 }
 
                 <span class="separator">|</span>
-                @if (isMapMode)
+                @if (isMapMode && mapPrice.HasValue && mapPrice.Value > 0)
                 {
-                    <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#e0e7ff;color:#3b5bdb;font-weight:600;vertical-align:middle;">
-                        <i class="fa-solid fa-bullseye"></i> Punkt odniesienia: <strong>Cena MAP</strong> @(mapPrice.HasValue ? mapPrice.Value.ToString("0.00") + " PLN" : "—")
+                    <span class="ref-info-inline">
+                        Punkt odniesienia: Cena MAP
+                        <span class="ref-price-bold">@mapPrice.Value.ToString("0.00") PLN</span>
+                        <span class="ref-tag">REF</span>
                     </span>
                 }
-                else if (referenceSource == "store")
+                else if (referenceSource == "store" && referencePrice.HasValue && referencePrice.Value > 0)
                 {
-                    <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#e0f5e9;color:#2b8a3e;font-weight:600;vertical-align:middle;">
-                        <i class="fa-solid fa-store"></i> Punkt odniesienia: <strong>Cena ze sklepu</strong> @(referencePrice.HasValue ? referencePrice.Value.ToString("0.00") + " PLN" : "—")
+                    <span class="ref-info-inline">
+                        Punkt odniesienia: Cena Rynkowa
+                        <span class="ref-price-bold">@referencePrice.Value.ToString("0.00") PLN</span>
+                        <span class="ref-tag">REF</span>
                     </span>
                 }
                 else
                 {
-                    <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#f1f3f5;color:#868e96;font-weight:600;vertical-align:middle;">
-                        <i class="fa-solid fa-circle-question"></i> Brak ceny referencyjnej
+                    <span class="ref-info-inline" style="color:#868e96;">
+                        Brak ceny referencyjnej
                     </span>
                 }
             </div>
@@ -678,11 +702,6 @@
                 return `<div class="PaidShipping">${cost.toFixed(2)} PLN</div>`;
             }
 
-            // Bucket dla wiersza: w MAP mode — wszystkie oferty są oceniane vs MAP.
-            // W StorePrice mode — własne oferty traktujemy specjalnie:
-            //   * oferta będąca referencją (najtańsza nasza) → "equal"
-            //   * inne nasze → pokazujemy bucket vs cena referencyjna (czyli vs naszą najtańszą)
-            //   * konkurencja → bucket vs naszą najtańszą
             function getRowBucket(item, isMyStore, isReferenceOffer) {
                 if (!refPriceCurrent || refPriceCurrent <= 0) return 'producer-no-reference';
                 if (isReferenceOffer) return 'producer-equal';
@@ -701,10 +720,8 @@
                     const isReferenceOffer = isMyStore && !isMapMode && referenceOfferIdAllegro && item.idAllegro === referenceOfferIdAllegro;
                     const bucket = getRowBucket(item, isMyStore, isReferenceOffer);
 
-                    // Delta vs reference
                     let deltaHtml;
                     let badgeBgClass = 'producer-bg-' + bucket.replace('producer-', '');
-                    if (badgeBgClass === 'producer-bg-no-reference') badgeBgClass = 'producer-bg-no-reference';
 
                     if (refPriceCurrent && refPriceCurrent > 0 && !isReferenceOffer) {
                         const deltaAbs = item.price - refPriceCurrent;
@@ -787,7 +804,6 @@
 
                 const borderColors = barColors.map(c => c.replace(/[\d.]+\)$/, '1)'));
 
-                // Linia referencyjna jako annotation
                 var annotations = {};
                 if (refPriceCurrent && refPriceCurrent > 0) {
                     annotations.refLine = {
@@ -799,7 +815,7 @@
                         borderDash: [6, 3],
                         label: {
                             display: true,
-                            content: (isMapMode ? 'MAP ' : 'REF ') + refPriceCurrent.toFixed(2),
+                            content: refPriceCurrent.toFixed(2) + ' PLN REF',
                             position: 'start',
                             backgroundColor: 'rgba(65,105,225,0.85)',
                             color: '#fff',
@@ -880,13 +896,11 @@
                     }
 
                     if (offers.length > 0) {
-                        // Sortowanie po cenie rosnąco
                         offers.sort((a, b) => {
                             if (a.price !== b.price) return a.price - b.price;
                             return a.sellerName.localeCompare(b.sellerName);
                         });
 
-                        // W StorePrice mode: identyfikujemy referencyjną ofertę (najtańsza nasza w tym katalogu)
                         let referenceOfferIdAllegro = null;
                         if (!isMapMode) {
                             const myOffers = offers.filter(o => o.sellerName.toLowerCase().trim() === myStoreLower);
@@ -950,8 +964,8 @@
                 return { min: dataType === 'sales' ? 0 : Math.max(0, minVal - padding), max: maxVal + padding };
             }
 
-            // W trybie producenta MAP — w MAP nie ma "własnego" akcentowania (nasze konto jest jak każde inne).
-            // W trybie StorePrice — nasze oferty mają specjalny kolor (pomarańcz), główna jeszcze mocniejsza.
+            // Traktuj nasz sklep jako "własny" zawsze poza wykresem ceny w trybie MAP.
+            // Na wykresie sprzedaży i wyświetleń nasz sklep zawsze ma swój kolor (pomarańcz).
             function getSeriesStyleAndZ(storeNameLower, offerId) {
                 if (hiddenStores.includes(storeNameLower)) {
                     return { lineStyle: { color: 'transparent', width: 0 }, itemStyle: { color: 'transparent' }, markerColor: 'transparent', z: 0 };
@@ -959,7 +973,9 @@
 
                 const isMyStore = storeNameLower === myStoreLower;
                 const isHighlighted = highlightedStores.includes(storeNameLower);
-                const isMainOffer = !isMapMode && isMyStore && (
+                const treatMyStoreAsMine = isMyStore && (currentChartType !== 'price' || !isMapMode);
+
+                const isMainOffer = treatMyStoreAsMine && (
                     (salesChartMode === 'combined' && currentChartType === 'sales') ||
                     (offerId && offerId === mainOfferId)
                 );
@@ -971,7 +987,7 @@
                     style.itemStyle.color = myMainOfferColor;
                     style.markerColor = myMainOfferColor;
                     style.z = 5;
-                } else if (!isMapMode && isMyStore) {
+                } else if (treatMyStoreAsMine) {
                     style.lineStyle.color = myOtherOfferColor;
                     style.itemStyle.color = myOtherOfferColor;
                     style.markerColor = myOtherOfferColor;
@@ -991,7 +1007,7 @@
                     style.itemStyle.color = gray;
                 }
 
-                if (currentChartType === 'sales' && (isMyStore || isHighlighted)) {
+                if (currentChartType === 'sales' && (treatMyStoreAsMine || isHighlighted)) {
                     style.areaStyle = { color: style.lineStyle.color, opacity: 0.2 };
                 }
                 return style;
@@ -1038,8 +1054,8 @@
                 `;
 
                 if (refPriceForDate) {
-                    const refLabel = isMapMode ? 'Cena MAP' : 'Cena ze sklepu (ref.)';
-                    html += `<div style="padding:4px 0;margin-bottom:8px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;"><strong>${refLabel}:</strong><strong style="color:${mapRefColor};">${refPriceForDate.toFixed(2)} PLN</strong></div>`;
+                    const refLabel = isMapMode ? 'Cena MAP' : 'Cena Rynkowa';
+                    html += `<div style="padding:4px 0;margin-bottom:8px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;"><strong>${refLabel} (ref.):</strong><strong style="color:${mapRefColor};">${refPriceForDate.toFixed(2)} PLN</strong></div>`;
                 }
 
                 if (items.length > 0) {
@@ -1072,8 +1088,8 @@
                             fWeight = 'bold';
                         }
 
-                        // Wartość bucketu vs cena referencyjna z tego dnia
-                        let bucketBadge = '';
+                        // Delta versus reference for this date
+                        let bucketBadgeRow = '';
                         if (refPriceForDate && refPriceForDate > 0) {
                             const b = getProducerBucketForPrice(item.price, refPriceForDate);
                             const bgCls = 'producer-bg-' + b.replace('producer-', '');
@@ -1081,7 +1097,7 @@
                             const dp = (da / refPriceForDate) * 100;
                             const s  = da >= 0 ? '+' : '';
                             const sp = dp >= 0 ? '+' : '';
-                            bucketBadge = `<span class="producer-delta-badge ${bgCls}" style="font-size:9px;padding:1px 4px;margin-right:4px;">${s}${da.toFixed(2)} (${sp}${dp.toFixed(2)}%)</span>`;
+                            bucketBadgeRow = `<div style="margin-top:2px; text-align:right;"><span class="producer-delta-badge ${bgCls}" style="font-size:9px;padding:1px 4px;">${s}${da.toFixed(2)} (${sp}${dp.toFixed(2)}%)</span></div>`;
                         }
 
                         let badges = '';
@@ -1092,15 +1108,18 @@
                         const escName = item.storeName.replace(/'/g, "\\'");
                         html += `
                             <tr style="border-bottom:1px solid #eee; cursor:pointer;" onclick="event.stopPropagation(); toggleStoreHighlight('${escName}');">
-                                <td style="padding:3px 2px;color:${cText};font-weight:${fWeight};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${item.storeName}">
+                                <td style="padding:3px 2px;color:${cText};font-weight:${fWeight};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:top;" title="${item.storeName}">
                                     <span style="display:inline-block;margin-right:5px;width:10px;height:10px;border-radius:50%;background-color:${item._markerColor};vertical-align:middle;"></span>
                                     <img src="/images/AllegroIcon.png" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"/>
                                     ${item.storeName.length > 20 ? item.storeName.substring(0,17)+'...' : item.storeName}
                                 </td>
-                                <td style="padding:3px 2px;text-align:right;color:${cText};font-weight:${fWeight};white-space:nowrap;">
-                                    ${bucketBadge}${badges}
-                                    <span style="vertical-align:middle; margin-left: 4px;">${item.price.toFixed(2)} PLN</span>
-                                    <span title="Ukryj sklep '${escName}'" style="cursor:pointer;color:#aaa;margin-left:8px;font-weight:bold;" onmouseover="this.style.color='red'" onmouseout="this.style.color='#aaa'" onclick="event.stopPropagation();hideStoreFromChart('${escName}');">&times;</span>
+                                <td style="padding:3px 2px;text-align:right;color:${cText};font-weight:${fWeight};white-space:nowrap;vertical-align:top;">
+                                    <div style="display:flex; align-items:center; justify-content:flex-end;">
+                                        ${badges}
+                                        <span style="vertical-align:middle; margin-left: 4px;">${item.price.toFixed(2)} PLN</span>
+                                        <span title="Ukryj sklep '${escName}'" style="cursor:pointer;color:#aaa;margin-left:8px;font-weight:bold;" onmouseover="this.style.color='red'" onmouseout="this.style.color='#aaa'" onclick="event.stopPropagation();hideStoreFromChart('${escName}');">&times;</span>
+                                    </div>
+                                    ${bucketBadgeRow}
                                 </td>
                             </tr>
                         `;
@@ -1147,7 +1166,8 @@
                         const sLower = item.storeName.toLowerCase().trim();
                         let cText = 'rgba(50,50,50,1)', fWeight = 'normal';
 
-                        if (!isMapMode && sLower === myStoreLower) {
+                        // Na wykresie sprzedaży nasz sklep ZAWSZE pomarańczowy (niezależnie od trybu MAP/Store)
+                        if (sLower === myStoreLower) {
                             cText = item.idAllegro === mainOfferId ? myMainOfferColor : myOtherOfferColor;
                             fWeight = 'bold';
                         } else if (highlightedStores.includes(sLower) && storeColorMap[sLower] != null) {
@@ -1254,15 +1274,14 @@
                 if (echartsTrendChart) echartsTrendChart.dispose();
                 echartsTrendChart = echarts.init(document.getElementById('trendChart'));
 
-                // Pokaż/ukryj slider intensywności pasów (tylko dla 'price')
-                document.getElementById('bandIntensityGroup').style.display = (currentChartType === 'price') ? 'flex' : 'none';
-
                 if (currentChartType === 'visits') {
+                    document.getElementById('bandIntensityGroup').style.display = 'none';
                     drawVisitsChart();
                 } else if (currentChartType === 'price') {
                     currentTimelineData = filterTimelineData(originalChartData.timelineData);
                     drawPriceChartWithBands(currentTimelineData);
                 } else {
+                    document.getElementById('bandIntensityGroup').style.display = 'none';
                     currentTimelineData = originalChartData.timelineData;
                     drawSalesChart(currentTimelineData);
                 }
@@ -1279,23 +1298,34 @@
             }
 
             // ── PRICE CHART z pasami producenta ──
+            // Jeśli brak jakiejkolwiek ceny referencyjnej w całym oknie czasu,
+            // NIE rysujemy pasów ani linii referencyjnych — chart staje się zwykłym
+            // wykresem cen i tooltip działa bez przeszkód.
             function drawPriceChartWithBands(timelineData) {
                 const { allDates, dataByInstance, allInstances } = processData(timelineData, 'price');
                 let seriesData = prepareSeries(dataByInstance, allDates, allInstances, 'price');
 
-                // Reference price per date (z producerChartData)
                 const refPrices = allDates.map(d => producerRefByDate[d] || null);
+                const hasAnyRef = refPrices.some(rp => rp != null && rp > 0);
 
-                // Pasy progowe — jako PIERWSZE serie (z-index 0)
-                const bandSeries = buildBandSeries(allDates, refPrices);
-                const boundarySeries = buildBoundaryLineSeries(allDates, refPrices);
-                let allSeries = [].concat(bandSeries, boundarySeries, seriesData);
+                // Pokaż/ukryj slider intensywności pasów
+                const bandGroup = document.getElementById('bandIntensityGroup');
+                if (bandGroup) bandGroup.style.display = hasAnyRef ? 'flex' : 'none';
 
-                if (isMapMode) {
-                    allSeries.push(buildMapRefLine(allDates, refPrices));
+                let allSeries = seriesData.slice();
+                if (hasAnyRef) {
+                    const bandSeries = buildBandSeries(allDates, refPrices);
+                    const boundarySeries = buildBoundaryLineSeries(allDates, refPrices);
+                    allSeries = [].concat(bandSeries, boundarySeries, seriesData);
+                    if (isMapMode) {
+                        allSeries.push(buildMapRefLine(allDates, refPrices));
+                    }
                 }
 
-                const { min, max } = recalculateYAxisRangeFromData(seriesData.concat(refPrices.map(rp => rp != null ? { data: [{ value: rp }] } : { data: [] })), 'price');
+                const refDataPoints = hasAnyRef
+                    ? refPrices.map(rp => rp != null ? { data: [{ value: rp }] } : { data: [] })
+                    : [];
+                const { min, max } = recalculateYAxisRangeFromData(seriesData.concat(refDataPoints), 'price');
                 currentChartOptions = getBaseChartOptions(allDates, min, max, allSeries, 'price');
                 echartsTrendChart.setOption(currentChartOptions, true);
                 updateCustomTooltipPanel(null);
@@ -1527,9 +1557,12 @@
                     }
                 });
 
+                // Na wykresie sprzedaży zawsze nasz sklep na górze (niezależnie od trybu MAP).
+                // Na wykresie ceny w trybie MAP nie wyróżniamy naszego sklepu.
+                const prioritizeMyStore = currentChartType !== 'price' || !isMapMode;
                 const sortedInstances = Array.from(instances).sort((a, b) => {
                     const nameA = a.split('|')[0].toLowerCase(), nameB = b.split('|')[0].toLowerCase();
-                    if (!isMapMode) {
+                    if (prioritizeMyStore) {
                         if (nameA === myStoreLower && nameB !== myStoreLower) return -1;
                         if (nameB === myStoreLower && nameA !== myStoreLower) return 1;
                     }
@@ -1766,7 +1799,6 @@
 
                     if (producer && producer.timelineData) {
                         producerChartData = producer;
-                        // isMapMode i thresholds aktualizujemy z świeżych danych
                         if (typeof producer.isMapMode !== 'undefined') isMapMode = producer.isMapMode;
                         if (producer.producerThresholds) producerThresholds = producer.producerThresholds;
 
@@ -1803,7 +1835,9 @@
             function getExcelColorForAllegroRow(storeName) {
                 if (!storeName) return null;
                 const sLower = storeName.toLowerCase().trim();
-                if (!isMapMode && sLower === myStoreLower) return rgbaToHex(myMainOfferColor) || '#FF6400';
+                // Na sprzedaży/wyświetleniach zawsze nasz sklep pomarańczowy; na cenie tylko gdy nie MAP
+                const treatMine = sLower === myStoreLower && (currentChartType !== 'price' || !isMapMode);
+                if (treatMine) return rgbaToHex(myMainOfferColor) || '#FF6400';
                 if (highlightedStores.includes(sLower)) {
                     const colorIndex = storeColorMap[sLower];
                     if (colorIndex != null && highlightColors[colorIndex]) return rgbaToHex(highlightColors[colorIndex]);
@@ -1855,9 +1889,8 @@
                     ws.getRow(1).font = { bold: true };
                     ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
 
-                    // Wiersz z cenami referencyjnymi w trybie 'price'
                     if (dataType === 'price') {
-                        const refRowData = { s: isMapMode ? 'CENA MAP (referencja)' : 'CENA REFERENCYJNA (najtańsza nasza)', o: '' };
+                        const refRowData = { s: isMapMode ? 'CENA MAP (referencja)' : 'CENA RYNKOWA (referencja)', o: '' };
                         visDates.forEach(date => {
                             const rp = producerRefByDate[date];
                             if (rp != null) refRowData[date] = rp;
