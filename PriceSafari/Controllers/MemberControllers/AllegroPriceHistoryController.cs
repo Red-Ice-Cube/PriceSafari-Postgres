@@ -939,30 +939,37 @@ namespace PriceSafari.Controllers.MemberControllers
                         referenceSource = "store";
                     }
                 }
-
                 // ─── KONKURENCJA ───
                 // Filtr SellerName wyklucza WSZYSTKIE nasze oferty (każdą z naszych N ofert).
                 var filteredCompetitors = offers.Where(p =>
                 {
+                    // 1. Zawsze odrzucamy nasze własne oferty
                     if (p.SellerName != null && p.SellerName.ToLower().Trim() == storeNameLower) return false;
 
-                    if (p.DeliveryTime.HasValue)
+                    // 2. Aplikujemy filtry presetu TYLKO, jeśli preset jest włączony
+                    if (activePreset != null)
                     {
-                        if (p.DeliveryTime.Value < minDelivery || p.DeliveryTime.Value > maxDelivery) return false;
-                    }
-                    else
-                    {
-                        if (!includeNoDelivery) return false;
+                        if (p.DeliveryTime.HasValue)
+                        {
+                            if (p.DeliveryTime.Value < minDelivery || p.DeliveryTime.Value > maxDelivery) return false;
+                        }
+                        else
+                        {
+                            if (!includeNoDelivery) return false;
+                        }
+
+                        if (competitorRules != null)
+                        {
+                            var key = (p.SellerName ?? "").ToLower().Trim();
+                            if (competitorRules.TryGetValue(key, out bool use)) return use;
+                            return activePreset.UseUnmarkedStores;
+                        }
                     }
 
-                    if (competitorRules != null)
-                    {
-                        var key = (p.SellerName ?? "").ToLower().Trim();
-                        if (competitorRules.TryGetValue(key, out bool use)) return use;
-                        return activePreset?.UseUnmarkedStores ?? true;
-                    }
+                    // Jeśli preset jest wyłączony (lub sklep nie był na liście reguł), akceptujemy ofertę
                     return true;
-                }).ToList();
+                
+            }).ToList();
 
                 var bestCompetitor = filteredCompetitors
                     .Where(x => x.Price > 0)

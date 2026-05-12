@@ -39,7 +39,6 @@
 
     let offerSlider, myPriceSlider;
 
-    // ═══ Catalog state ═══
     const allegroProducerCatalogStorageKey = `allegroProducerCatalogViewState_${storeId}`;
     let isCatalogViewActive = false;
     let activeCatalogGroupFilter = null;
@@ -100,10 +99,6 @@
         onAutomationsUpdated: () => loadPrices()
     });
     massActions.init();
-
-    // ═════════════════════════════════════════════════════════════
-    //  HELPERS
-    // ═════════════════════════════════════════════════════════════
 
     function formatPricePL(value, includeUnit = true) {
         if (value === null || value === undefined || isNaN(parseFloat(value))) return "N/A";
@@ -229,10 +224,6 @@
         return `<div class="${className}">${text}</div>`;
     }
 
-    // ═════════════════════════════════════════════════════════════
-    //  SLIDERS INIT
-    // ═════════════════════════════════════════════════════════════
-
     offerSlider = document.getElementById('offerRangeSlider');
     const offerRangeInput = document.getElementById('offerRange');
     noUiSlider.create(offerSlider, {
@@ -258,10 +249,6 @@
     });
     myPriceSlider.noUiSlider.on('update', (values) => myPriceRangeInput.textContent = values.join(' - '));
     myPriceSlider.noUiSlider.on('change', () => filterPricesAndUpdateUI());
-
-    // ═════════════════════════════════════════════════════════════
-    //  LOAD PRICES
-    // ═════════════════════════════════════════════════════════════
 
     function loadPrices() {
         showLoading();
@@ -341,7 +328,6 @@
                     totalPriceCountEl.textContent = totalOffers;
                 }
 
-                // ═══ Build catalog grouping map ═══
                 buildCatalogGroupInfo();
 
                 updateFlagCounts(allPrices);
@@ -358,10 +344,6 @@
             .finally(() => hideLoading());
     }
     window.loadPrices = loadPrices;
-
-    // ═════════════════════════════════════════════════════════════
-    //  CATALOG LOGIC
-    // ═════════════════════════════════════════════════════════════
 
     function buildCatalogGroupInfo() {
         catalogGroupMap.clear();
@@ -398,7 +380,6 @@
         for (const group of groups) {
             if (group.products.length <= 1) continue;
 
-            // Lider = najtańsza moja oferta w katalogu
             const withPrice = group.products.filter(p => p.myPrice != null && !p.isRejected);
             const leader = withPrice.length > 0
                 ? withPrice.reduce((best, p) => parseFloat(p.myPrice) < parseFloat(best.myPrice) ? p : best)
@@ -445,7 +426,6 @@
                 const existingIds = new Set(matchedKey.split(','));
                 const mergedKey = [...new Set([...existingIds, ...itemIds])].sort().join(',');
 
-                // Wybierz reprezentanta katalogu: ten z niższym myPrice
                 const betterItem = (item.myPrice !== null
                     && (existingItem.myPrice === null || parseFloat(item.myPrice) < parseFloat(existingItem.myPrice)))
                     ? item
@@ -466,7 +446,6 @@
         const info = catalogGroupMap.get(productId);
         if (!info) return;
 
-        // Wyłącz tryb katalogu jeśli aktywny — inaczej user nie zobaczy wszystkich wystąpień
         if (isCatalogViewActive) {
             isCatalogViewActive = false;
             localStorage.setItem(allegroProducerCatalogStorageKey, JSON.stringify(false));
@@ -527,10 +506,6 @@
             }
         }
     }
-
-    // ═════════════════════════════════════════════════════════════
-    //  PRODUCER THRESHOLDS — INLINE INPUTS
-    // ═════════════════════════════════════════════════════════════
 
     function populateInlineThresholdInputs() {
         const v = thresholdsState[currentMode];
@@ -630,7 +605,6 @@
 
         return isValid;
     }
-
     document.querySelectorAll('.producer-threshold-input').forEach(el => {
         el.addEventListener('input', validateInlineThresholds);
     });
@@ -708,10 +682,6 @@
                 showGlobalNotification('<p>Błąd zapisu ustawień. Sprawdź konsolę.</p>');
             });
     }
-
-    // ═════════════════════════════════════════════════════════════
-    //  FLAG COUNTS / BADGES / VIOLATION COUNTS
-    // ═════════════════════════════════════════════════════════════
 
     function updateFlagCounts(prices) {
         const flagCounts = {};
@@ -863,10 +833,6 @@
         });
     }
 
-    // ═════════════════════════════════════════════════════════════
-    //  WARUNKI FILTROWANIA
-    // ═════════════════════════════════════════════════════════════
-
     function checkAdvancedCondition(item, name) {
         const h = item.violationDurationHours;
         const hasRef = item.referencePrice != null && item.referencePrice > 0;
@@ -874,7 +840,6 @@
         switch (name) {
             case 'isNew': return item.isNew === true;
 
-            // Status naruszenia
             case 'freshViolation':
                 return item.isFreshViolation === true && item.isCurrentlyViolating === true;
             case 'currentlyViolating':
@@ -884,7 +849,6 @@
             case 'noViolations':
                 return item.isCurrentlyViolating !== true && item.wasRecentlyViolated !== true && hasRef;
 
-            // Czas trwania (tylko aktywne)
             case 'violationLt1d':
                 return item.isCurrentlyViolating === true && h != null && h < 24;
             case 'violation1to3d':
@@ -894,13 +858,11 @@
             case 'violationMaxWindow':
                 return item.isCurrentlyViolating === true && (item.reachedMaxWindow === true || (h != null && h >= 168));
 
-            // Katalog Allegro — NOWE
             case 'catalogMulti':
                 return catalogGroupMap.has(item.productId);
             case 'catalogLeader':
                 return catalogGroupMap.get(item.productId)?.isLeader === true;
 
-            // Odznaki konkurenta
             case 'compIsSuperSeller': return item.bestCompetitorSuperSeller === true;
             case 'compIsSuperPrice': return item.bestCompetitorSuperPrice === true;
             case 'compIsTopOffer': return item.bestCompetitorTopOffer === true;
@@ -908,7 +870,6 @@
             case 'compIsSmart': return item.bestCompetitorSmart === true;
             case 'compIsPromoted': return item.bestCompetitorPromoted === true || item.bestCompetitorSponsored === true;
 
-            // Czas dostawy
             case 'deliveryFast':
                 return item.bestCompetitorDeliveryTime != null && item.bestCompetitorDeliveryTime <= 1;
             case 'deliverySlow':
@@ -972,12 +933,10 @@
         setTimeout(() => {
             let filtered = [...allPrices];
 
-            // ═══ Catalog mode: zwija duplikaty katalogu do lidera ═══
             if (isCatalogViewActive) {
                 filtered = groupAndFilterByCatalog(filtered);
             }
 
-            // ═══ Catalog group filter: tylko produkty z konkretnej grupy ═══
             if (activeCatalogGroupFilter) {
                 filtered = filtered.filter(item => activeCatalogGroupFilter.has(item.productId));
             }
@@ -1009,7 +968,6 @@
 
             filtered = filterPricesByCategoryAndColorAndFlag(filtered);
 
-            // Sortowanie
             if (sortingState.sortName !== null) {
                 filtered.sort((a, b) => sortingState.sortName === 'asc' ? a.productName.localeCompare(b.productName) : b.productName.localeCompare(a.productName));
             } else if (sortingState.sortPrice !== null) {
@@ -1049,10 +1007,6 @@
             hideLoading();
         }, 0);
     }
-
-    // ═════════════════════════════════════════════════════════════
-    //  PAGINACJA
-    // ═════════════════════════════════════════════════════════════
 
     function renderPagination(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -1098,10 +1052,6 @@
         next.addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; filterPricesAndUpdateUI(false); } });
         c.appendChild(next);
     }
-
-    // ═════════════════════════════════════════════════════════════
-    //  RENDERY BOKSÓW
-    // ═════════════════════════════════════════════════════════════
 
     function createFlagsContainer(item) {
         const c = document.createElement('div');
@@ -1209,11 +1159,9 @@
             </div>`;
     }
 
-    // ═══ BOX SZCZEGÓŁÓW NARUSZENIA — z nowym paskiem gradientowym ═══
     function buildViolationDetailBox(item) {
         const hasRef = item.referencePrice != null && parseFloat(item.referencePrice) > 0;
 
-        // Brak referencji
         if (!hasRef) {
             return `
                 <div class="price-box-column">
@@ -1232,7 +1180,6 @@
                 </div>`;
         }
 
-        // Aktywne naruszenie
         if (item.isCurrentlyViolating) {
             const isFresh = item.isFreshViolation === true;
             const reachedMax = item.reachedMaxWindow === true;
@@ -1262,21 +1209,19 @@
                     : '<div class="violation-detail-meta">Trwa nieprzerwanie.</div>';
             }
 
-            // Obliczamy szerokość paska
             const barPercent = isFresh
                 ? 2
                 : (reachedMax ? 100 : Math.min(100, ((h || 0) / 168) * 100));
 
-            // Ustalamy jednolity kolor zależny od postępu
-            let barFillColor = '#f4d03f'; // domyślnie żółty (dla pierwszego dnia/nowych)
+            let barFillColor = '#f4d03f';
 
             if (!isFresh) {
                 if (barPercent >= 75) {
-                    barFillColor = '#c0392b'; // mocny czerwony (powyżej ok. 5 dni)
+                    barFillColor = '#c0392b';
                 } else if (barPercent >= 35) {
-                    barFillColor = '#f39c12'; // pomarańczowy (środek cyklu)
+                    barFillColor = '#f39c12';
                 } else {
-                    barFillColor = '#f4d03f'; // żółty (początek)
+                    barFillColor = '#f4d03f';
                 }
             }
 
@@ -1301,7 +1246,6 @@
                 </div>`;
         }
 
-        // Niedawno zakończone
         if (item.wasRecentlyViolated) {
             const endedAgo = formatHoursAgo(item.lastViolationEndedHoursAgo);
             const dur = formatDurationShort(item.lastViolationDurationHours);
@@ -1324,7 +1268,6 @@
                 </div>`;
         }
 
-        // Czyste — brak naruszeń w 7 dni
         return `
             <div class="price-box-column">
                 <div class="price-box-column-text">
@@ -1341,6 +1284,7 @@
                 </div>
             </div>`;
     }
+
 
     function buildReferenceBox(item) {
         const refPrice = item.referencePrice != null ? parseFloat(item.referencePrice) : null;
@@ -1497,10 +1441,6 @@
             </div>`;
     }
 
-    // ═════════════════════════════════════════════════════════════
-    //  RENDER PRICES — z badge'em katalogu + nową kolejnością boksów
-    // ═════════════════════════════════════════════════════════════
-
     function renderPrices(data) {
         const c = document.getElementById('priceContainer');
         const productSearchTerm = document.getElementById('productSearch').value.trim();
@@ -1536,7 +1476,6 @@
             nameDiv.className = 'price-box-column-name';
             nameDiv.innerHTML = highlightedName;
 
-            // ═══ Badge "X w katalogu" + "NEW" ═══
             const catalogInfo = catalogGroupMap.get(item.productId);
             if (item.isNew || catalogInfo) {
                 const badgesHtml = [];
@@ -1636,7 +1575,6 @@
             stats.innerHTML = buildStatsBlocks(item);
             priceBoxData.appendChild(stats);
 
-            // ═══ Nowa kolejność: konkurent → cena referencyjna → naruszenia → delta ═══
             priceBoxData.insertAdjacentHTML('beforeend', buildCompetitorBox(item, storeSearchTerm));
             priceBoxData.insertAdjacentHTML('beforeend', buildReferenceBox(item));
             priceBoxData.insertAdjacentHTML('beforeend', buildViolationDetailBox(item));
@@ -1652,10 +1590,6 @@
 
         document.getElementById('displayedProductCount').textContent = `${data.length} / ${allPrices.length}`;
     }
-
-    // ═════════════════════════════════════════════════════════════
-    //  CHART + BUCKET COUNTS
-    // ═════════════════════════════════════════════════════════════
 
     function renderChart(data) {
         const ctx = document.getElementById('colorChart').getContext('2d');
@@ -1702,10 +1636,6 @@
             }
         }
     }
-
-    // ═════════════════════════════════════════════════════════════
-    //  SORT BUTTONS
-    // ═════════════════════════════════════════════════════════════
 
     function resetSortingStates(except) {
         Object.keys(sortingState).forEach(k => { if (k !== except) sortingState[k] = null; });
@@ -1775,10 +1705,6 @@
         }
     }
 
-    // ═════════════════════════════════════════════════════════════
-    //  EVENT LISTENERS — SEARCH, FILTERS, ADV CHECKBOXES, CATALOG
-    // ═════════════════════════════════════════════════════════════
-
     const debouncedFilter = debounce(() => filterPricesAndUpdateUI(), 300);
     document.getElementById('productSearch').addEventListener('input', debouncedFilter);
     document.getElementById('storeSearch').addEventListener('input', debouncedFilter);
@@ -1810,7 +1736,6 @@
         });
     });
 
-    // ═══ Toggle "Katalog" ═══
     const linkOffersBtn = document.getElementById('linkOffers');
     if (linkOffersBtn) {
         linkOffersBtn.addEventListener('click', function () {
@@ -1824,10 +1749,6 @@
             filterPricesAndUpdateUI();
         });
     }
-
-    // ═════════════════════════════════════════════════════════════
-    //  EKSPORT DO EXCELA
-    // ═════════════════════════════════════════════════════════════
 
     document.getElementById('exportToExcelButton').addEventListener('click', async function () {
         if (currentlyFilteredPrices.length === 0) {
@@ -1955,10 +1876,6 @@
         }
     });
 
-    // ═════════════════════════════════════════════════════════════
-    //  API EXPORT MODAL (FEED JSON/XML)
-    // ═════════════════════════════════════════════════════════════
-
     function generateSecureToken() {
         return 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, c => {
             const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -2014,10 +1931,6 @@
             setTimeout(() => $b.html(orig), 2000);
         });
     });
-
-    // ═════════════════════════════════════════════════════════════
-    //  INIT
-    // ═════════════════════════════════════════════════════════════
 
     restoreCatalogState();
     loadPrices();
