@@ -1210,6 +1210,49 @@ namespace PriceSafari.Controllers.MemberControllers
                         bucket = ResolveProducerBucket(deltaAbsolute.Value, deltaPercent ?? 0m, settings);
                     }
 
+                    // ── OBLICZANIE POZYCJI (RZECZYWISTEJ I SYMULOWANEJ) ──
+                    string myPricePositionString = null;
+                    string simulatedPositionString = null;
+
+                    // 1. Rzeczywista pozycja Twojego sklepu
+                    var presetFilteredValidPrices = new List<PriceRowDto>(presetFilteredCompetitors);
+                    if (myPriceEntry != null) presetFilteredValidPrices.Add(myPriceEntry);
+                    var totalValidOffers = presetFilteredValidPrices.Count;
+
+                    if (myPrice.HasValue && totalValidOffers > 0)
+                    {
+                        int pricesLower = presetFilteredValidPrices.Count(vp => vp.Price.HasValue && vp.Price.Value < myPrice.Value);
+                        int pricesEqual = presetFilteredValidPrices.Count(vp => vp.Price.HasValue && vp.Price.Value == myPrice.Value);
+                        int rankStart = pricesLower + 1;
+                        int rankEnd = pricesLower + pricesEqual;
+                        myPricePositionString = (rankStart == rankEnd) ? $"{rankStart}/{totalValidOffers}" : $"{rankStart}-{rankEnd}/{totalValidOffers}";
+                    }
+                    else if (totalValidOffers > 0)
+                    {
+                        myPricePositionString = $"N/A / {totalValidOffers}";
+                    }
+
+                    // 2. Symulowana pozycja dla ceny MAP
+                    var simulatedOffersList = new List<PriceRowDto>(presetFilteredCompetitors);
+                    if (mapPrice.HasValue)
+                    {
+                        simulatedOffersList.Add(new PriceRowDto { Price = mapPrice.Value });
+                    }
+                    var totalSimulatedOffers = simulatedOffersList.Count;
+
+                    if (mapPrice.HasValue && totalSimulatedOffers > 0)
+                    {
+                        int pricesLower = simulatedOffersList.Count(vp => vp.Price.HasValue && vp.Price.Value < mapPrice.Value);
+                        int pricesEqual = simulatedOffersList.Count(vp => vp.Price.HasValue && vp.Price.Value == mapPrice.Value);
+                        int rankStart = pricesLower + 1;
+                        int rankEnd = pricesLower + pricesEqual;
+                        simulatedPositionString = (rankStart == rankEnd) ? $"{rankStart}/{totalSimulatedOffers}" : $"{rankStart}-{rankEnd}/{totalSimulatedOffers}";
+                    }
+                    else if (totalSimulatedOffers > 0)
+                    {
+                        simulatedPositionString = $"N/A / {totalSimulatedOffers}";
+                    }
+
                     int storesBelowReference = 0;
                     int storesAtReference = 0;
                     int storesAboveReference = 0;
@@ -1383,7 +1426,8 @@ namespace PriceSafari.Controllers.MemberControllers
                         ReferenceSource = referenceSource,
                         MapPrice = mapPrice,
                         MyPrice = myPrice,
-
+                        MyPricePosition = myPricePositionString,
+                        SimulatedPosition = simulatedPositionString,
                         BestCompetitorPrice = bestCompetitorPrice,
                         BestCompetitorStoreName = bestCompetitorEntry?.StoreName,
                         BestCompetitorIsGoogle = bestCompetitorEntry?.IsGoogle,

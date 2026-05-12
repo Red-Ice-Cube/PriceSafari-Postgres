@@ -2,6 +2,7 @@
 
     let allPrices = [];
     let currentScrapId = null;
+    let latestScrapDate = null;
     let currentlyFilteredPrices = [];
     let chartInstance = null;
     let currentPage = 1;
@@ -25,9 +26,15 @@
     let selectedAdvancedExcludes = new Set();
 
     let sortingState = {
-        sortName: null, sortPrice: null, sortDeltaPercent: null,
-        sortDeltaAmount: null, sortDaysViolation: null, sortStoresViolating: null,
-        sortCeneoSales: null, sortSalesTrendAmount: null, sortSalesTrendPercent: null
+        sortName: null,
+        sortPrice: null,
+        sortDeltaPercent: null,
+        sortDeltaAmount: null,
+        sortViolationDuration: null,
+        sortStoresViolating: null,
+        sortCeneoSales: null,
+        sortSalesTrendAmount: null,
+        sortSalesTrendPercent: null
     };
 
     let positionSlider, offerSlider, myPriceSlider;
@@ -93,6 +100,53 @@
         const numberValue = parseFloat(value);
         const formatted = numberValue.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return includeUnit ? formatted + ' PLN' : formatted;
+    }
+
+    function pluralizePl(n, singular, fewForm, manyForm) {
+        if (n === 1) return singular;
+        const lastTwo = Math.abs(n) % 100;
+        const lastOne = Math.abs(n) % 10;
+        if (lastTwo >= 12 && lastTwo <= 14) return manyForm;
+        if (lastOne >= 2 && lastOne <= 4) return fewForm;
+        return manyForm;
+    }
+
+    function formatViolationDuration(hours, reachedMaxWindow) {
+        if (reachedMaxWindow) return '+7 dni naruszenia';
+        if (hours == null || isNaN(hours)) return 'Brak danych';
+        if (hours >= 168) return '+7 dni naruszenia';
+        if (hours < 24) {
+            const h = Math.max(1, Math.round(hours));
+            return `${h}h naruszenia`;
+        }
+        const days = Math.floor(hours / 24);
+        const dayWord = pluralizePl(days, 'dzień', 'dni', 'dni');
+        return `${days} ${dayWord} naruszenia`;
+    }
+
+    function formatHoursAgo(hours) {
+        if (hours == null || isNaN(hours)) return 'N/A';
+        if (hours < 1) return '< 1h';
+        if (hours < 24) {
+            const h = Math.round(hours);
+            return `${h}h`;
+        }
+        const days = Math.floor(hours / 24);
+        const dayWord = pluralizePl(days, 'dzień', 'dni', 'dni');
+        return `${days} ${dayWord}`;
+    }
+
+    function formatDurationShort(hours) {
+        if (hours == null || isNaN(hours)) return 'N/A';
+        if (hours >= 168) return '7+ dni';
+        if (hours < 1) return '< 1h';
+        if (hours < 24) {
+            const h = Math.max(1, Math.round(hours));
+            return `${h}h`;
+        }
+        const days = Math.floor(hours / 24);
+        const dayWord = pluralizePl(days, 'dzień', 'dni', 'dni');
+        return `${days} ${dayWord}`;
     }
 
     function debounce(func, wait) {
@@ -208,6 +262,7 @@
 
                 myStoreName = response.myStoreName;
                 currentScrapId = response.latestScrapId;
+                latestScrapDate = response.latestScrapDate || null;
 
                 const ps = response.producerSettings;
                 const t = ps.thresholds || {};
@@ -352,7 +407,6 @@
             errors.push(`Powyżej: „normalny" (${v.green}) > „mocno" (${v.greenDark})`);
             isValid = false;
         }
-
         if (!isNaN(v.redLight) && !isNaN(v.red) && v.redLight > v.red) {
             document.getElementById(ids.redLight).classList.add('input-error');
             document.getElementById(ids.red).classList.add('input-error');
@@ -385,7 +439,6 @@
 
         return isValid;
     }
-
     document.querySelectorAll('.producer-threshold-input').forEach(el => {
         el.addEventListener('input', validateInlineThresholds);
     });
@@ -537,6 +590,77 @@
         if (el) el.textContent = `(${newCount})`;
     }
 
+    function updateViolationCounts(prices) {
+        let counts = {
+            fresh: 0, currentlyViolating: 0, recentlyEnded: 0, noViolations: 0,
+            lt1d: 0, d1to3: 0, d3to7: 0, maxWindow: 0
+        };
+
+        prices.forEach(p => {
+            const hasRef = p.referencePrice != null && p.referencePrice > 0;
+
+            if (p.isCurrentlyViolating) {
+                counts.currentlyViolating++;
+                if (p.isFreshViolation) counts.fresh++;
+
+                const h = p.violationDurationHours;
+                if (p.reachedMaxWindow || (h != null && h >= 168)) counts.maxWindow++;
+                else if (h != null && h >= 72) counts.d3to7++;
+                else if (h != null && h >= 24) counts.d1to3++;
+                else counts.lt1d++;
+            } else if (p.wasRecentlyViolated) {
+                counts.recentlyEnded++;
+            } else if (hasRef) {
+                counts.noViolations++;
+            }
+        });
+
+        const setLabel = (id, text, count) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = `${text} (${count})`;
+        };
+
+        setLabel('label_freshViolation', 'Nowe naruszenie', counts.fresh);
+        setLabel('label_currentlyViolating', 'Obecne naruszenie', counts.currentlyViolating);
+        setLabel('label_recentlyEnded', 'Niedawno zakończone', counts.recentlyEnded);
+        setLabel('label_noViolations', 'Bez naruszeń (7 dni)', counts.noViolations);
+
+        setLabel('label_violationLt1d', 'Krócej niż 1 dzień', counts.lt1d);
+        setLabel('label_violation1to3d', '1 - 3 dni', counts.d1to3);
+        setLabel('label_violation3to7d', '3 - 7 dni', counts.d3to7);
+        setLabel('label_violationMaxWindow', 'Pełne 7 dni (max)', counts.maxWindow);
+    }
+
+    function updateSourceCounts(prices) {
+        let g = 0, c = 0;
+        prices.forEach(p => {
+            if (p.sourceGoogle) g++;
+            if (p.sourceCeneo) c++;
+        });
+        const setLabel = (id, text, count) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = `${text} (${count})`;
+        };
+        setLabel('label_sourceGoogle', 'Google Shopping', g);
+        setLabel('label_sourceCeneo', 'Ceneo', c);
+    }
+
+    function updateStockCounts(prices) {
+        let a = 0, u = 0, nd = 0;
+        prices.forEach(p => {
+            if (p.bestCompetitorInStock === true) a++;
+            else if (p.bestCompetitorInStock === false) u++;
+            else nd++;
+        });
+        const setLabel = (id, text, count) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = `${text} (${count})`;
+        };
+        setLabel('label_compStockAvailable', 'Dostępny', a);
+        setLabel('label_compStockUnavailable', 'Niedostępny', u);
+        setLabel('label_compStockNoData', 'Brak danych', nd);
+    }
+
     function populateProducerFilter() {
         const dropdown = document.getElementById('producerFilterDropdown');
         const counts = allPrices.reduce((m, i) => { if (i.producer) m[i.producer] = (m[i.producer] || 0) + 1; return m; }, {});
@@ -548,6 +672,42 @@
             opt.textContent = `${p} (${counts[p]})`;
             dropdown.appendChild(opt);
         });
+    }
+
+    function checkAdvancedCondition(item, name) {
+        const h = item.violationDurationHours;
+        const hasRef = item.referencePrice != null && item.referencePrice > 0;
+
+        switch (name) {
+            case 'isNew': return item.isNew === true;
+
+            case 'freshViolation':
+                return item.isFreshViolation === true && item.isCurrentlyViolating === true;
+            case 'currentlyViolating':
+                return item.isCurrentlyViolating === true;
+            case 'recentlyEnded':
+                return item.isCurrentlyViolating !== true && item.wasRecentlyViolated === true;
+            case 'noViolations':
+                return item.isCurrentlyViolating !== true && item.wasRecentlyViolated !== true && hasRef;
+
+            case 'violationLt1d':
+                return item.isCurrentlyViolating === true && h != null && h < 24;
+            case 'violation1to3d':
+                return item.isCurrentlyViolating === true && h != null && h >= 24 && h < 72;
+            case 'violation3to7d':
+                return item.isCurrentlyViolating === true && h != null && h >= 72 && h < 168 && !item.reachedMaxWindow;
+            case 'violationMaxWindow':
+                return item.isCurrentlyViolating === true && (item.reachedMaxWindow === true || (h != null && h >= 168));
+
+            case 'sourceGoogle': return item.sourceGoogle === true;
+            case 'sourceCeneo': return item.sourceCeneo === true;
+
+            case 'compStockAvailable': return item.bestCompetitorInStock === true;
+            case 'compStockUnavailable': return item.bestCompetitorInStock === false;
+            case 'compStockNoData': return item.bestCompetitorInStock == null;
+
+            default: return false;
+        }
     }
 
     function filterPricesByCategoryAndColorAndFlag(data) {
@@ -569,7 +729,11 @@
             if (pos === null || pos === undefined) return true;
             return parseInt(pos) >= posMin && parseInt(pos) <= posMax;
         });
-        filtered = filtered.filter(item => (item.storeCount || 0) >= offMin && (item.storeCount || 0) <= offMax);
+        filtered = filtered.filter(item => {
+            const count = item.storeCount || 0;
+            if (count === 0) return true;
+            return count >= offMin && count <= offMax;
+        });
         filtered = filtered.filter(item => {
             const refP = item.referencePrice != null ? parseFloat(item.referencePrice) : 0;
             if (refP <= 0.01) return true;
@@ -590,18 +754,10 @@
             });
         }
 
-        function check(item, name) {
-            switch (name) {
-                case 'isNew': return item.isNew === true;
-                case 'freshViolation': return item.isFreshViolation === true && item.isCurrentlyViolating === true;
-                case 'currentlyViolating': return item.isCurrentlyViolating === true;
-                case 'compStockAvailable': return item.bestCompetitorInStock === true;
-                case 'compStockUnavailable': return item.bestCompetitorInStock === false;
-                default: return false;
-            }
-        }
-        if (selectedAdvancedExcludes.size > 0) filtered = filtered.filter(item => { for (const f of selectedAdvancedExcludes) if (check(item, f)) return false; return true; });
-        if (selectedAdvancedIncludes.size > 0) filtered = filtered.filter(item => { for (const f of selectedAdvancedIncludes) if (!check(item, f)) return false; return true; });
+        if (selectedAdvancedExcludes.size > 0)
+            filtered = filtered.filter(item => { for (const f of selectedAdvancedExcludes) if (checkAdvancedCondition(item, f)) return false; return true; });
+        if (selectedAdvancedIncludes.size > 0)
+            filtered = filtered.filter(item => { for (const f of selectedAdvancedIncludes) if (!checkAdvancedCondition(item, f)) return false; return true; });
 
         return filtered;
     }
@@ -648,9 +804,11 @@
                 filtered.sort((a, b) => sortingState.sortDeltaPercent === 'asc' ? (b.deltaPercent ?? -Infinity) - (a.deltaPercent ?? -Infinity) : (a.deltaPercent ?? Infinity) - (b.deltaPercent ?? Infinity));
             } else if (sortingState.sortDeltaAmount !== null) {
                 filtered.sort((a, b) => sortingState.sortDeltaAmount === 'asc' ? (b.deltaAbsolute ?? -Infinity) - (a.deltaAbsolute ?? -Infinity) : (a.deltaAbsolute ?? Infinity) - (b.deltaAbsolute ?? Infinity));
-            } else if (sortingState.sortDaysViolation !== null) {
-                filtered = filtered.filter(i => i.daysOfViolation !== null && i.daysOfViolation !== undefined);
-                filtered.sort((a, b) => sortingState.sortDaysViolation === 'asc' ? (a.daysOfViolation ?? Infinity) - (b.daysOfViolation ?? Infinity) : (b.daysOfViolation ?? -Infinity) - (a.daysOfViolation ?? -Infinity));
+            } else if (sortingState.sortViolationDuration !== null) {
+                filtered = filtered.filter(i => i.violationDurationHours !== null && i.violationDurationHours !== undefined);
+                filtered.sort((a, b) => sortingState.sortViolationDuration === 'asc'
+                    ? (a.violationDurationHours ?? Infinity) - (b.violationDurationHours ?? Infinity)
+                    : (b.violationDurationHours ?? -Infinity) - (a.violationDurationHours ?? -Infinity));
             } else if (sortingState.sortStoresViolating !== null) {
                 filtered.sort((a, b) => sortingState.sortStoresViolating === 'asc' ? (a.storesBelowReference || 0) - (b.storesBelowReference || 0) : (b.storesBelowReference || 0) - (a.storesBelowReference || 0));
             } else if (sortingState.sortCeneoSales !== null) {
@@ -673,10 +831,14 @@
             renderChart(filtered);
             updateBucketCountsUI(filtered);
             updateFlagCounts(filtered);
+            updateViolationCounts(filtered);
+            updateSourceCounts(filtered);
+            updateStockCounts(filtered);
             updateNewProductCount(filtered);
             hideLoading();
         }, 0);
     }
+
     function renderPagination(totalItems) {
         const totalPages = Math.ceil(totalItems / itemsPerPage);
         const c = document.getElementById('paginationContainer');
@@ -746,53 +908,70 @@
         const blocks = [];
 
         blocks.push(`
-            <div class="price-box-column-offers-a">
+        <div class="price-box-column-offers-a">
+            <span class="data-channel">
+                ${item.sourceGoogle ? '<img src="/images/GoogleShopping.png" alt="Google Shopping" style="width:15px;height:15px;" />' : ''}
+                ${item.sourceCeneo ? '<img src="/images/Ceneo.png" alt="Ceneo" style="width:15px;height:15px;" />' : ''}
+            </span>
+            <div class="offer-count-box">${getOfferText(item.storeCount || 0)}</div>
+        </div>`);
+
+        let positionHtml = '';
+
+        if (producerSettings.comparisonSource === 1) {
+            if (item.simulatedPosition && !item.simulatedPosition.includes("N/A / 0")) {
+                positionHtml = `
+            <div class="price-box-column-offers-a" title="Symulowana pozycja dla katalogowej ceny MAP">
                 <span class="data-channel">
-                    ${item.sourceGoogle ? `<img src="/images/GoogleShopping.png" alt="" style="width:15px;height:15px;" />` : ''}
-                    ${item.sourceCeneo ? `<img src="/images/Ceneo.png" alt="" style="width:15px;height:15px;" />` : ''}
+                    <i class="fas fa-trophy" style="font-size: 15px; color: #9D4EDD; margin-top:1px;"></i>
                 </span>
-                <div class="offer-count-box">${getOfferText(item.storeCount || 0)}</div>
-            </div>`);
-
-        if (!item.isCurrentlyViolating) {
-            blocks.push(`
-                <div class="price-box-column-offers-a">
-                    <span class="data-channel"><i class="fa-solid fa-shield-halved" style="font-size:14px; color:#198754;"></i></span>
-                    <div class="offer-count-box"><p>Bez naruszeń</p></div>
-                </div>`);
-        } else if (item.isFreshViolation) {
-            blocks.push(`
-                <div class="price-box-column-offers-a" style="background:#fff3cd; border-color:#ffd966;">
-                    <span class="data-channel"><i class="fa-solid fa-bell" style="font-size:14px; color:#FF6347;"></i></span>
-                    <div class="offer-count-box"><p>Świeże naruszenie</p></div>
-                </div>`);
-        } else {
-            const days = item.daysOfViolation;
-            let label = 'Naruszenie';
-            if (days !== null && days !== undefined) {
-                if (days >= 7) label = `≥ 7 dni naruszenia`;
-                else if (days >= 1) label = `${Math.floor(days)} dni naruszenia`;
-                else label = '< 1 dnia naruszenia';
+                <div class="offer-count-box">
+                    <p style="color: #9D4EDD; font-weight: 600;">Symulacja: ${item.simulatedPosition}</p>
+                </div>
+            </div>`;
+            } else {
+                positionHtml = `
+            <div class="price-box-column-offers-a" title="Brak ceny MAP do symulacji">
+                <span class="data-channel">
+                    <i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i>
+                </span>
+                <div class="offer-count-box"><p>Brak MAP</p></div>
+            </div>`;
             }
-            blocks.push(`
-                <div class="price-box-column-offers-a">
-                    <span class="data-channel"><i class="fa-solid fa-clock-rotate-left" style="font-size:14px; color:#DC143C;"></i></span>
-                    <div class="offer-count-box"><p>${label}</p></div>
-                </div>`);
         }
+        else {
+            if (item.myPricePosition && !item.myPricePosition.includes("N/A")) {
+                positionHtml = `
+            <div class="price-box-column-offers-a" title="Rzeczywista pozycja Twojej oferty">
+                <span class="data-channel">
+                    <i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i>
+                </span>
+                <div class="offer-count-box"><p>${item.myPricePosition}</p></div>
+            </div>`;
+            } else {
+                positionHtml = `
+            <div class="price-box-column-offers-a" title="Brak Twojej oferty">
+                <span class="data-channel">
+                    <i class="fas fa-trophy" style="font-size: 15px; color: grey; margin-top:1px;"></i>
+                </span>
+                <div class="offer-count-box"><p>Brak oferty</p></div>
+            </div>`;
+            }
+        }
+        blocks.push(positionHtml);
 
-        if (item.ceneoSalesCount > 0) {
+        if (item.ceneoSalesCount != null && item.ceneoSalesCount > 0) {
             blocks.push(`
-                <div class="price-box-column-offers-a" title="Ilość zakupionych przez ostatnie 90 dni na Ceneo">
-                    <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size:14px; color:grey;"></i></span>
-                    <div class="offer-count-box"><p>${item.ceneoSalesCount} sztuk</p></div>
-                </div>`);
+            <div class="price-box-column-offers-a" title="Sprzedaż Ceneo (90 dni)">
+                <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size:15px; color:grey; margin-top:1px;"></i></span>
+                <div class="offer-count-box"><p>${item.ceneoSalesCount} szt.</p></div>
+            </div>`);
         } else {
             blocks.push(`
-                <div class="price-box-column-offers-a">
-                    <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size:14px; color:grey;"></i></span>
-                    <div class="offer-count-box"><p>Brak sprzedaży</p></div>
-                </div>`);
+            <div class="price-box-column-offers-a" title="Sprzedaż Ceneo (90 dni)">
+                <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size:15px; color:grey; margin-top:1px;"></i></span>
+                <div class="offer-count-box"><p>Brak sprzedaży</p></div>
+            </div>`);
         }
 
         if (item.salesTrendStatus && item.salesTrendStatus !== 'NoData') {
@@ -803,16 +982,16 @@
                 trendText = `${sign}${item.salesDifference}${pct}`;
             }
             blocks.push(`
-                <div class="price-box-column-offers-a" title="Trend sprzedaży">
-                    <span class="data-channel"><img src="/images/Flag-${item.salesTrendStatus}.svg" alt="" style="width:18px;height:18px;" /></span>
-                    <div class="offer-count-box"><p>${trendText}</p></div>
-                </div>`);
+            <div class="price-box-column-offers-a" title="Trend sprzedaży">
+                <span class="data-channel"><img src="/images/Flag-${item.salesTrendStatus}.svg" alt="" style="width:18px;height:18px;" /></span>
+                <div class="offer-count-box"><p>${trendText}</p></div>
+            </div>`);
         } else {
             blocks.push(`
-                <div class="price-box-column-offers-a">
-                    <span class="data-channel"><i class="fas fa-chart-line" style="font-size:14px; color:grey;"></i></span>
-                    <div class="offer-count-box"><p>Brak danych</p></div>
-                </div>`);
+            <div class="price-box-column-offers-a" title="Trend sprzedaży">
+                <span class="data-channel"><i class="fas fa-chart-line" style="font-size:14px; color:grey;"></i></span>
+                <div class="offer-count-box"><p>Brak danych</p></div>
+            </div>`);
         }
 
         return blocks.join('');
@@ -847,29 +1026,11 @@
         }
 
         let biddingBadge = '';
-        if (item.bestCompetitorIsBidding === true) {
+        if (item.bestCompetitorIsBidding === true || item.bestCompetitorIsBidding === 'true' || item.bestCompetitorIsBidding === 'Bid') {
             biddingBadge = '<span class="Bidding">Bid</span>';
         }
 
         const stockBadge = getStockBadge(item.bestCompetitorInStock);
-
-        let storesDistHtml = '';
-        const hasRef = item.referencePrice != null && parseFloat(item.referencePrice) > 0.01;
-        if (hasRef) {
-            const lines = [];
-            if (item.storesBelowReference > 0) {
-                lines.push(`<div class="producer-stores-line bad"><i class="fa-solid fa-arrow-down"></i> ${item.storesBelowReference} łamie cenę ref.</div>`);
-            }
-            if (item.storesAtReference > 0) {
-                lines.push(`<div class="producer-stores-line equal"><i class="fa-solid fa-equals"></i> ${item.storesAtReference} zgodnych z ref.</div>`);
-            }
-            if (item.storesAboveReference > 0) {
-                lines.push(`<div class="producer-stores-line good"><i class="fa-solid fa-arrow-up"></i> ${item.storesAboveReference} powyżej ref.</div>`);
-            }
-            if (lines.length > 0) {
-                storesDistHtml = `<div class="producer-stores-dist">${lines.join('')}</div>`;
-            }
-        }
 
         return `
             <div class="price-box-column">
@@ -880,7 +1041,6 @@
                     <div style="display:flex; align-items:center; gap:4px; color:#444; font-size:13px;">
                         ${channelIcon}<span>${highlightedStoreName}</span>
                     </div>
-                    ${storesDistHtml}
                 </div>
                 <div class="price-box-column-text" style="display:flex; gap:4px; flex-wrap:wrap;">
                     ${positionBadge}${stockBadge}${biddingBadge}
@@ -895,6 +1055,7 @@
 
         if (refPrice != null && refPrice > 0) {
             const sourceLabel = item.referenceSource === 'map' ? 'Cena MAP' : 'Cena Twojego sklepu';
+
             const altLines = [];
             if (item.referenceSource === 'map' && myPrice != null && myPrice > 0) {
                 altLines.push(`<div class="ref-alt-line">Twoja oferta: <strong>${formatPricePL(myPrice)}</strong></div>`);
@@ -904,7 +1065,7 @@
             }
 
             let myStockBadge = '';
-            if (myPrice != null && myPrice > 0) {
+            if (item.referenceSource === 'store' && myPrice != null && myPrice > 0) {
                 myStockBadge = `<div style="margin-top:4px;">${getStockBadge(item.myEntryInStock)}</div>`;
             }
 
@@ -913,6 +1074,7 @@
                     <div class="price-box-column-text">
                         <div><span class="ref-label-small">${sourceLabel}</span></div>
                         <div><span style="font-weight:500; font-size:17px;">${formatPricePL(refPrice)}</span></div>
+                        ${item.referenceSource === 'store' ? `<div style="color:#444; font-size:13px;"><span>${myStoreName || ''}</span></div>` : ''}
                         ${altLines.join('')}
                     </div>
                     <div class="price-box-column-text">
@@ -937,6 +1099,125 @@
                     ${altLines.join('')}
                 </div>
                 <div class="price-box-column-text"></div>
+            </div>`;
+    }
+
+    function buildViolationDetailBox(item) {
+        const hasRef = item.referencePrice != null && parseFloat(item.referencePrice) > 0;
+
+        if (!hasRef) {
+            return `
+                <div class="price-box-column">
+                    <div class="price-box-column-text">
+                        <div class="violation-detail-box">
+                            <div class="violation-detail-header">
+                                <i class="violation-detail-icon fa-solid fa-circle-question" style="color:#5b537a;"></i>
+                                <span>Brak ceny referencyjnej</span>
+                            </div>
+                            <div class="violation-detail-meta">Nie można ocenić naruszeń.</div>
+                        </div>
+                    </div>
+                    <div class="price-box-column-text">
+                        <span class="violation-state-badge violation-state-no-ref">Brak ref.</span>
+                    </div>
+                </div>`;
+        }
+
+        if (item.isCurrentlyViolating) {
+            const isFresh = item.isFreshViolation === true;
+            const reachedMax = item.reachedMaxWindow === true;
+            const h = item.violationDurationHours;
+
+            let stateBadgeClass, stateBadgeText, iconClass, iconColor, headerText, durationText, metaHtml;
+
+            if (isFresh) {
+                stateBadgeClass = 'violation-state-fresh';
+                stateBadgeText = 'Nowe';
+                iconClass = 'fa-solid fa-bell';
+                iconColor = '#9D4EDD';
+                headerText = 'Nowe naruszenie';
+                durationText = 'Wykryto ostatnio';
+                metaHtml = '<div class="violation-detail-meta">Pierwsze wykrycie.</div>';
+            } else {
+                stateBadgeClass = 'violation-state-active';
+                stateBadgeText = 'Aktywne';
+                iconClass = 'fa-solid fa-triangle-exclamation';
+                iconColor = '#8b1a1a';
+                headerText = 'Trwające naruszenie';
+                durationText = formatViolationDuration(h, reachedMax);
+                metaHtml = reachedMax
+                    ? '<div class="violation-detail-meta">Bez przerwy ≥ 7 dni.</div>'
+                    : '<div class="violation-detail-meta">Trwa nieprzerwanie.</div>';
+            }
+
+            const barPercent = isFresh
+                ? 2
+                : (reachedMax ? 100 : Math.min(100, ((h || 0) / 168) * 100));
+
+            let barFillColor = '#f4d03f';
+            if (!isFresh) {
+                if (barPercent >= 75) barFillColor = '#c0392b';
+                else if (barPercent >= 35) barFillColor = '#f39c12';
+                else barFillColor = '#f4d03f';
+            }
+
+            return `
+                <div class="price-box-column">
+                    <div class="price-box-column-text">
+                        <div class="violation-detail-box">
+                            <div class="violation-detail-header">
+                                <i class="violation-detail-icon ${iconClass}" style="color:${iconColor};"></i>
+                                <span>${headerText}</span>
+                            </div>
+                            <div class="violation-duration-large">${durationText}</div>
+                            ${metaHtml}
+                            <div class="violation-time-bar" title="Postęp w oknie 7 dni">
+                                <div class="violation-time-bar-fill" style="width:${barPercent.toFixed(1)}%; background-color:${barFillColor};"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="price-box-column-text">
+                        <span class="violation-state-badge ${stateBadgeClass}">${stateBadgeText}</span>
+                    </div>
+                </div>`;
+        }
+
+        if (item.wasRecentlyViolated) {
+            const endedAgo = formatHoursAgo(item.lastViolationEndedHoursAgo);
+            const dur = formatDurationShort(item.lastViolationDurationHours);
+
+            return `
+                <div class="price-box-column">
+                    <div class="price-box-column-text">
+                        <div class="violation-detail-box">
+                            <div class="violation-detail-header">
+                                <i class="violation-detail-icon fa-solid fa-clock-rotate-left" style="color:#495057;"></i>
+                                <span>Niedawno zakończone</span>
+                            </div>
+                            <div class="violation-detail-meta">Trwało: <strong>${dur}</strong></div>
+                            <div class="violation-detail-meta">Zakończone: <strong>${endedAgo} temu</strong></div>
+                        </div>
+                    </div>
+                    <div class="price-box-column-text">
+                        <span class="violation-state-badge violation-state-ended">Zakończone</span>
+                    </div>
+                </div>`;
+        }
+
+        return `
+            <div class="price-box-column">
+                <div class="price-box-column-text">
+                    <div class="violation-detail-box">
+                        <div class="violation-detail-header">
+                            <i class="violation-detail-icon fa-solid fa-shield-halved" style="color:#1e5a2a;"></i>
+                            <span>Bez naruszeń</span>
+                        </div>
+                        <div class="violation-detail-meta">Brak naruszeń ceny w ostatnich 7 dniach.</div>
+                    </div>
+                </div>
+                <div class="price-box-column-text">
+                    <span class="violation-state-badge violation-state-clean">Czysto</span>
+                </div>
             </div>`;
     }
 
@@ -974,8 +1255,6 @@
         } else if (deltaA > 0) {
             arrow = '<i class="fa-solid fa-arrow-up"></i>';
             rowClass = (item.bucket === 'producer-deep-above') ? 'deep-good' : 'good';
-        } else {
-            rowClass = 'neutral';
         }
 
         const sign = deltaA > 0 ? '+' : (deltaA < 0 ? '' : '');
@@ -993,6 +1272,21 @@
         const bgClass = bgClassMap[item.bucket] || 'producer-bg-equal';
         const bucketLabel = BUCKET_BADGE_LABELS[item.bucket] || BUCKET_LABELS[item.bucket] || '';
 
+        let storesDistHtml = '';
+        const lines = [];
+        if ((item.storesBelowReference || 0) > 0) {
+            lines.push(`<div class="producer-stores-line bad"><i class="fa-solid fa-arrow-down"></i> ${item.storesBelowReference} łamie cenę ref.</div>`);
+        }
+        if ((item.storesAtReference || 0) > 0) {
+            lines.push(`<div class="producer-stores-line equal"><i class="fa-solid fa-equals"></i> ${item.storesAtReference} zgodnych z ref.</div>`);
+        }
+        if ((item.storesAboveReference || 0) > 0) {
+            lines.push(`<div class="producer-stores-line good"><i class="fa-solid fa-arrow-up"></i> ${item.storesAboveReference} powyżej ref.</div>`);
+        }
+        if (lines.length > 0) {
+            storesDistHtml = `<div class="producer-stores-dist" style="margin-top:6px;">${lines.join('')}</div>`;
+        }
+
         return `
             <div class="price-box-column">
                 <div class="price-box-column-text">
@@ -1001,6 +1295,7 @@
                         <span style="font-weight:500; font-size:17px;">${sign}${formatPricePL(Math.abs(deltaA), false)} PLN</span>
                     </div>
                     ${deltaP != null ? `<div style="font-size:13px; color:#555; margin-top:2px;">${pctSign}${deltaP.toFixed(2)}% wzgl. ceny ref.</div>` : ''}
+                    ${storesDistHtml}
                 </div>
                 <div class="price-box-column-text">
                     <span class="producer-delta-badge ${bgClass}">${bucketLabel}</span>
@@ -1025,10 +1320,13 @@
 
             const box = document.createElement('div');
             box.className = 'price-box';
-            box.dataset.detailsUrl = '/PriceHistory/Details?scrapId=' + currentScrapId + '&productId=' + item.productId;
+            box.dataset.detailsUrl = `/PriceHistory/Details?scrapId=${currentScrapId}&productId=${item.productId}`;
             box.dataset.productId = item.productId;
             box.dataset.productName = item.productName;
-            box.addEventListener('click', function () { window.open(this.dataset.detailsUrl, '_blank'); });
+            box.addEventListener('click', function (event) {
+                if (event.target.closest('button, a, img, .select-product-btn, .ApiBox')) return;
+                window.open(this.dataset.detailsUrl, '_blank');
+            });
 
             const priceBoxSpace = document.createElement('div');
             priceBoxSpace.className = 'price-box-space';
@@ -1038,12 +1336,20 @@
 
             const nameDiv = document.createElement('div');
             nameDiv.className = 'price-box-column-name';
+
             let colorVariantHtml = '';
             if (item.googleColor && item.googleColor.trim() !== '') {
                 colorVariantHtml = `<span style="background-color:#000;color:#fff;border-radius:5px;padding:2px 6px;font-size:12px;margin-left:6px;display:inline-block;vertical-align:middle;">${item.googleColor}</span>`;
             }
             nameDiv.innerHTML = highlightedName + colorVariantHtml;
-            if (item.isNew) nameDiv.insertAdjacentHTML('beforeend', '<div><span class="badge-new">NEW</span></div>');
+
+            if (item.isNew) {
+                nameDiv.insertAdjacentHTML('beforeend',
+                    `<div style="display:flex; align-items:center; gap:5px; margin-top:3px; flex-wrap:wrap;">
+                        <span class="badge-new">NEW</span>
+                    </div>`
+                );
+            }
 
             leftCol.appendChild(nameDiv);
             leftCol.appendChild(createFlagsContainer(item));
@@ -1074,12 +1380,12 @@
                 default: idVal = item.ean || null; idLabel = 'EAN'; break;
             }
             if (idVal) {
-                apiBox.innerHTML = `${idLabel} ${highlightMatches(idVal, productSearchTerm, 'highlighted-text-yellow')}`;
+                apiBox.innerHTML = `${idLabel} ${highlightMatches(idVal.toString(), productSearchTerm, 'highlighted-text-yellow')}`;
                 apiBox.style.cursor = 'pointer';
                 apiBox.title = 'Kliknij, aby skopiować';
                 apiBox.addEventListener('click', function (e) {
                     e.stopPropagation();
-                    navigator.clipboard.writeText(idVal).then(() => {
+                    navigator.clipboard.writeText(idVal.toString()).then(() => {
                         const orig = apiBox.innerHTML, origBg = apiBox.style.backgroundColor, origC = apiBox.style.color;
                         apiBox.innerHTML = 'Skopiowano!'; apiBox.style.backgroundColor = '#198754'; apiBox.style.color = 'white';
                         setTimeout(() => { apiBox.innerHTML = orig; apiBox.style.backgroundColor = origBg; apiBox.style.color = origC; }, 2000);
@@ -1117,6 +1423,7 @@
 
             priceBoxData.insertAdjacentHTML('beforeend', buildCompetitorBox(item, storeSearchTerm));
             priceBoxData.insertAdjacentHTML('beforeend', buildReferenceBox(item));
+            priceBoxData.insertAdjacentHTML('beforeend', buildViolationDetailBox(item));
             priceBoxData.insertAdjacentHTML('beforeend', buildDeltaBox(item));
 
             box.appendChild(priceBoxSpace);
@@ -1141,7 +1448,7 @@
         }, { rootMargin: '100px' });
         lazyImgs.forEach(im => obs.observe(im));
 
-        document.getElementById('displayedProductCount').textContent = data.length;
+        document.getElementById('displayedProductCount').textContent = `${data.length} / ${allPrices.length}`;
     }
 
     function renderChart(data) {
@@ -1201,7 +1508,7 @@
             case 'sortPrice': return 'Cena ref.';
             case 'sortDeltaPercent': return 'Delta %';
             case 'sortDeltaAmount': return 'Delta PLN';
-            case 'sortDaysViolation': return 'Dni naruszenia';
+            case 'sortViolationDuration': return 'Czas naruszenia';
             case 'sortStoresViolating': return 'Liczba naruszycieli';
             case 'sortCeneoSales': return 'Sprzedaż - ilość';
             case 'sortSalesTrendAmount': return 'Trend - ilość';
@@ -1239,13 +1546,23 @@
         });
     }
 
-    ['sortName', 'sortPrice', 'sortDeltaPercent', 'sortDeltaAmount', 'sortDaysViolation', 'sortStoresViolating',
-        'sortCeneoSales', 'sortSalesTrendAmount', 'sortSalesTrendPercent'].forEach(bindSortButton);
+    ['sortName', 'sortPrice', 'sortDeltaPercent', 'sortDeltaAmount',
+        'sortViolationDuration', 'sortStoresViolating',
+        'sortCeneoSales', 'sortSalesTrendAmount', 'sortSalesTrendPercent']
+        .forEach(bindSortButton);
 
     const storedSort = localStorage.getItem('priceHistoryProducerSorting_' + storeId);
     if (storedSort) {
-        try { sortingState = { ...sortingState, ...JSON.parse(storedSort) }; updateSortButtonVisuals(); }
-        catch (e) { localStorage.removeItem('priceHistoryProducerSorting_' + storeId); }
+        try {
+            const parsed = JSON.parse(storedSort);
+            const validKeys = Object.keys(sortingState);
+            const cleaned = {};
+            validKeys.forEach(k => { if (parsed[k] !== undefined) cleaned[k] = parsed[k]; });
+            sortingState = { ...sortingState, ...cleaned };
+            updateSortButtonVisuals();
+        } catch (e) {
+            localStorage.removeItem('priceHistoryProducerSorting_' + storeId);
+        }
     }
 
     const debouncedFilter = debounce(() => filterPricesAndUpdateUI(), 300);
@@ -1294,12 +1611,17 @@
             ws.columns = [
                 { header: 'EAN', key: 'ean', width: 16 },
                 { header: 'SKU', key: 'sku', width: 16 },
+                { header: 'ID', key: 'externalId', width: 14 },
                 { header: 'Producent', key: 'producer', width: 20 },
                 { header: 'Nazwa produktu', key: 'name', width: 40 },
+                { header: 'Wariant koloru', key: 'color', width: 16 },
                 { header: 'Cena referencyjna', key: 'ref', width: 14, style: { numFmt: '0.00' } },
                 { header: 'Źródło ref.', key: 'refSource', width: 16 },
+                { header: 'MAP w katalogu', key: 'map', width: 14, style: { numFmt: '0.00' } },
+                { header: 'Moja oferta', key: 'myPrice', width: 14, style: { numFmt: '0.00' } },
                 { header: 'Najtańsza konkurencja', key: 'best', width: 14, style: { numFmt: '0.00' } },
                 { header: 'Sklep konkurenta', key: 'bestStore', width: 20 },
+                { header: 'Źródło konkurenta', key: 'bestSource', width: 14 },
                 { header: 'Pozycja konkurenta', key: 'bestPos', width: 14 },
                 { header: 'Konkurent dostępny', key: 'bestStock', width: 14 },
                 { header: 'Delta (PLN)', key: 'deltaA', width: 12, style: { numFmt: '0.00' } },
@@ -1310,25 +1632,44 @@
                 { header: 'Sklepów powyżej', key: 'above', width: 14 },
                 { header: 'Liczba ofert łącznie', key: 'storeCount', width: 14 },
                 { header: 'Naruszenie obecne', key: 'isViolating', width: 14 },
-                { header: 'Świeże naruszenie', key: 'isFresh', width: 14 },
-                { header: 'Dni naruszenia', key: 'days', width: 14, style: { numFmt: '0.00' } },
-                { header: 'Sprzedaż Ceneo (90d)', key: 'sales', width: 14 }
+                { header: 'Nowe naruszenie', key: 'isFresh', width: 14 },
+                { header: 'Czas naruszenia (h)', key: 'violationHours', width: 18, style: { numFmt: '0.00' } },
+                { header: 'Czas naruszenia (dni)', key: 'violationDays', width: 18, style: { numFmt: '0.00' } },
+                { header: 'Pełne okno (7 dni)', key: 'reachedMax', width: 16 },
+                { header: 'Niedawno zakończone', key: 'wasRecent', width: 18 },
+                { header: 'Zakończone temu (h)', key: 'endedAgoHours', width: 18, style: { numFmt: '0.00' } },
+                { header: 'Trwało (h)', key: 'lastDurHours', width: 14, style: { numFmt: '0.00' } },
+                { header: 'Sprzedaż Ceneo (90d)', key: 'sales', width: 16 },
+                { header: 'Trend sprzedaży', key: 'trendStatus', width: 14 },
+                { header: 'Trend - różnica', key: 'salesDiff', width: 14 },
+                { header: 'Trend - %', key: 'salesPct', width: 12, style: { numFmt: '0.00' } }
             ];
 
             ws.getRow(1).font = { bold: true };
             ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
 
             currentlyFilteredPrices.forEach(item => {
-                const stockStr = item.bestCompetitorInStock === true ? 'TAK' : (item.bestCompetitorInStock === false ? 'NIE' : 'Brak danych');
+                const hours = item.violationDurationHours;
+                const violationDays = hours != null ? Math.round((hours / 24) * 100) / 100 : null;
+                const stockStr = item.bestCompetitorInStock === true ? 'TAK'
+                    : (item.bestCompetitorInStock === false ? 'NIE' : 'Brak danych');
+                const bestSourceStr = item.bestCompetitorIsGoogle === true ? 'Google'
+                    : (item.bestCompetitorIsGoogle === false ? 'Ceneo' : '');
+
                 ws.addRow({
                     ean: item.ean || '',
                     sku: item.producerCode || '',
+                    externalId: item.externalId || '',
                     producer: item.producer || '',
                     name: item.productName || '',
+                    color: item.googleColor || '',
                     ref: item.referencePrice,
                     refSource: item.referenceSource === 'map' ? 'MAP' : (item.referenceSource === 'store' ? 'Sklep' : 'Brak'),
+                    map: item.mapPrice,
+                    myPrice: item.myPrice,
                     best: item.bestCompetitorPrice,
                     bestStore: item.bestCompetitorStoreName || '',
+                    bestSource: bestSourceStr,
                     bestPos: item.bestCompetitorPosition,
                     bestStock: stockStr,
                     deltaA: item.deltaAbsolute,
@@ -1340,8 +1681,16 @@
                     storeCount: item.storeCount,
                     isViolating: item.isCurrentlyViolating ? 'TAK' : 'NIE',
                     isFresh: item.isFreshViolation ? 'TAK' : 'NIE',
-                    days: item.daysOfViolation,
-                    sales: item.ceneoSalesCount
+                    violationHours: hours,
+                    violationDays: violationDays,
+                    reachedMax: item.reachedMaxWindow ? 'TAK' : 'NIE',
+                    wasRecent: item.wasRecentlyViolated ? 'TAK' : 'NIE',
+                    endedAgoHours: item.lastViolationEndedHoursAgo,
+                    lastDurHours: item.lastViolationDurationHours,
+                    sales: item.ceneoSalesCount,
+                    trendStatus: item.salesTrendStatus || '',
+                    salesDiff: item.salesDifference,
+                    salesPct: item.salesPercentageChange
                 });
             });
 
@@ -1396,7 +1745,7 @@
     $('#saveApiExportBtn').click(function () {
         const e = $('#enableApiExportCheckbox').is(':checked');
         const t = $('#apiTokenInput').val();
-        if (e && (!t || t.trim() === '')) { alert('Jeśli włączasz API, musisz wygenerować token!'); return; }
+        if (e && (!t || t.trim() === '' || t === 'Ładowanie...')) { alert('Jeśli włączasz API, musisz wygenerować token!'); return; }
         showLoading();
         $.ajax({
             url: `/PriceHistory/SaveApiExportSettings?storeId=${storeId}`,
@@ -1406,7 +1755,7 @@
             error: function () { hideLoading(); showGlobalNotification('Błąd zapisu.'); }
         });
     });
-    $('.copy-btn').click(function () {
+    $(document).on('click', '#apiExportModal .copy-btn', function () {
         const tid = $(this).data('target');
         const inp = document.getElementById(tid);
         if (!inp.value || inp.value.includes("Wygeneruj token")) return;
