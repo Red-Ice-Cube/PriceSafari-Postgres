@@ -130,9 +130,9 @@
                         <table class="table-orders">
                             <thead>
                                 <tr>
-                                    <th style="width: 380px;">Produkt (<span id="displayed-count"></span>)</th>
+                                    <th style="width: 400px;">Produkt (<span id="displayed-count"></span>)</th>
                                     <th style="width: 110px;"></th>
-                                    <th style="width: 280px;">@priceColumnName</th>
+                                    <th style="width: 260px;">@priceColumnName</th>
                                     <th style="width: 180px;">Oferta</th>
                                     <th style="width: 160px;">Monitoring</th>
                                     <th style="width: auto;">Flagi</th>
@@ -296,7 +296,10 @@
                     <div class="alert alert-info" style="padding:10px; font-size:0.9em; border-left:4px solid #17a2b8;">
                         <strong>2. Dane Wymagane</strong>
                         <ul style="margin-bottom:0; margin-top:5px; padding-left:20px;">
-                            <li><strong>@priceTypeDescription</strong> — Nagłówki: <code>@priceHeadersHint.Replace(", ", "</code>, <code>")</code></li>
+                            <li><strong>@priceTypeDescription</strong></li>
+                        </ul>
+                        <ul style="margin-bottom:0; margin-top:10px; padding-left:20px; color:#555;">
+                            <li>Akceptowane nagłówki: <code>@Html.Raw(priceHeadersHint.Replace(", ", "</code>, <code>"))</code></li>
                         </ul>
                     </div>
 
