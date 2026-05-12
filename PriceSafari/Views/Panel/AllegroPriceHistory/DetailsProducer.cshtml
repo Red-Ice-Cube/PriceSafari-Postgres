@@ -1583,8 +1583,11 @@
                     const data = allDates.map(date => {
                         const pData = dataByInstance[id]?.[date];
                         const val = pData ? (pData[dataType] ?? pData.price) : null;
-                        if (val != null) validPoints++;
-                        return { value: val, originalOffer: pData };
+                        if (val != null) {
+                            validPoints++;
+                            return { value: val, originalOffer: pData };
+                        }
+                        return null;   // ← KRYTYCZNE: czysty null, nie obiekt
                     });
 
                     const isSingle = validPoints === 1;

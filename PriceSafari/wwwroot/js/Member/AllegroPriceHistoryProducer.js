@@ -39,6 +39,12 @@
 
     let offerSlider, myPriceSlider;
 
+    // ═══ Catalog state ═══
+    const allegroProducerCatalogStorageKey = `allegroProducerCatalogViewState_${storeId}`;
+    let isCatalogViewActive = false;
+    let activeCatalogGroupFilter = null;
+    let catalogGroupMap = new Map();
+
     const BUCKETS_ORDERED = [
         { key: 'producer-no-competition', label: 'Brak konkurencji', color: 'rgba(136, 136, 136, 0.85)' },
         { key: 'producer-no-reference', label: 'Brak ceny ref.', color: 'rgba(187, 187, 187, 0.85)' },
@@ -96,7 +102,7 @@
     massActions.init();
 
     // ═════════════════════════════════════════════════════════════
-    //  HELPERS — formatowanie, czas, pluralizacja
+    //  HELPERS
     // ═════════════════════════════════════════════════════════════
 
     function formatPricePL(value, includeUnit = true) {
@@ -335,6 +341,9 @@
                     totalPriceCountEl.textContent = totalOffers;
                 }
 
+                // ═══ Build catalog grouping map ═══
+                buildCatalogGroupInfo();
+
                 updateFlagCounts(allPrices);
                 updateNewProductCount(allPrices);
                 populateProducerFilter();
@@ -349,6 +358,175 @@
             .finally(() => hideLoading());
     }
     window.loadPrices = loadPrices;
+
+    // ═════════════════════════════════════════════════════════════
+    //  CATALOG LOGIC
+    // ═════════════════════════════════════════════════════════════
+
+    function buildCatalogGroupInfo() {
+        catalogGroupMap.clear();
+        const groups = [];
+
+        for (const item of allPrices) {
+            if (!item.myOffersGroupKey) continue;
+            const itemIds = new Set(item.myOffersGroupKey.split(',').filter(Boolean));
+            if (itemIds.size === 0) continue;
+
+            let matchedIndices = [];
+            for (let i = 0; i < groups.length; i++) {
+                if ([...itemIds].some(id => groups[i].mergedIds.has(id))) {
+                    matchedIndices.push(i);
+                }
+            }
+
+            if (matchedIndices.length === 0) {
+                groups.push({ mergedIds: new Set(itemIds), products: [item] });
+            } else {
+                const primary = groups[matchedIndices[0]];
+                itemIds.forEach(id => primary.mergedIds.add(id));
+                primary.products.push(item);
+
+                for (let i = matchedIndices.length - 1; i >= 1; i--) {
+                    const other = groups[matchedIndices[i]];
+                    other.mergedIds.forEach(id => primary.mergedIds.add(id));
+                    primary.products.push(...other.products);
+                    groups.splice(matchedIndices[i], 1);
+                }
+            }
+        }
+
+        for (const group of groups) {
+            if (group.products.length <= 1) continue;
+
+            // Lider = najtańsza moja oferta w katalogu
+            const withPrice = group.products.filter(p => p.myPrice != null && !p.isRejected);
+            const leader = withPrice.length > 0
+                ? withPrice.reduce((best, p) => parseFloat(p.myPrice) < parseFloat(best.myPrice) ? p : best)
+                : null;
+
+            const productIdSet = new Set(group.products.map(p => p.productId));
+
+            for (const product of group.products) {
+                catalogGroupMap.set(product.productId, {
+                    groupProductIds: productIdSet,
+                    totalInGroup: group.products.length,
+                    isLeader: leader != null && product.productId === leader.productId
+                });
+            }
+        }
+    }
+
+    function groupAndFilterByCatalog(data) {
+        const catalogGroups = new Map();
+
+        for (const item of data) {
+            if (!item.myOffersGroupKey) {
+                catalogGroups.set(`no-group-${item.productId}`, item);
+                continue;
+            }
+
+            const itemIds = new Set(item.myOffersGroupKey.split(','));
+
+            let matchedKey = null;
+            for (const [existingKey] of catalogGroups) {
+                if (existingKey.startsWith('no-group-')) continue;
+
+                const existingIds = new Set(existingKey.split(','));
+                const hasOverlap = [...itemIds].some(id => existingIds.has(id));
+
+                if (hasOverlap) {
+                    matchedKey = existingKey;
+                    break;
+                }
+            }
+
+            if (matchedKey) {
+                const existingItem = catalogGroups.get(matchedKey);
+                const existingIds = new Set(matchedKey.split(','));
+                const mergedKey = [...new Set([...existingIds, ...itemIds])].sort().join(',');
+
+                // Wybierz reprezentanta katalogu: ten z niższym myPrice
+                const betterItem = (item.myPrice !== null
+                    && (existingItem.myPrice === null || parseFloat(item.myPrice) < parseFloat(existingItem.myPrice)))
+                    ? item
+                    : existingItem;
+
+                catalogGroups.delete(matchedKey);
+                catalogGroups.set(mergedKey, betterItem);
+            } else {
+                const canonicalKey = [...itemIds].sort().join(',');
+                catalogGroups.set(canonicalKey, item);
+            }
+        }
+
+        return Array.from(catalogGroups.values());
+    }
+
+    function showCatalogGroup(productId) {
+        const info = catalogGroupMap.get(productId);
+        if (!info) return;
+
+        // Wyłącz tryb katalogu jeśli aktywny — inaczej user nie zobaczy wszystkich wystąpień
+        if (isCatalogViewActive) {
+            isCatalogViewActive = false;
+            localStorage.setItem(allegroProducerCatalogStorageKey, JSON.stringify(false));
+        }
+
+        activeCatalogGroupFilter = info.groupProductIds;
+        currentPage = 1;
+        updateCatalogButton();
+        filterPricesAndUpdateUI();
+    }
+
+    function clearCatalogGroupFilter() {
+        activeCatalogGroupFilter = null;
+        updateCatalogButton();
+        filterPricesAndUpdateUI();
+    }
+
+    function updateCatalogButton() {
+        const btn = document.getElementById('linkOffers');
+        if (!btn) return;
+
+        if (activeCatalogGroupFilter) {
+            btn.classList.remove('active');
+            btn.classList.add('catalog-group-active');
+            btn.innerHTML = 'Wybrany Katalog <i class="fa-regular fa-rectangle-xmark" style="margin-left:8px; font-size:13px;"></i>';
+        } else {
+            btn.classList.remove('catalog-group-active');
+            btn.textContent = 'Katalog';
+            btn.classList.toggle('active', isCatalogViewActive);
+        }
+    }
+
+    function updateCatalogFilterCounts(prices) {
+        let multiCount = 0;
+        let leaderCount = 0;
+        prices.forEach(item => {
+            const info = catalogGroupMap.get(item.productId);
+            if (info) {
+                multiCount++;
+                if (info.isLeader) leaderCount++;
+            }
+        });
+        const multiEl = document.getElementById('label_catalogMulti');
+        const leaderEl = document.getElementById('label_catalogLeader');
+        if (multiEl) multiEl.textContent = `Wielokrotne wys. (${multiCount})`;
+        if (leaderEl) leaderEl.textContent = `Główna oferta (${leaderCount})`;
+    }
+
+    function restoreCatalogState() {
+        const stored = localStorage.getItem(allegroProducerCatalogStorageKey);
+        if (stored !== null) {
+            try {
+                isCatalogViewActive = JSON.parse(stored);
+                const btn = document.getElementById('linkOffers');
+                if (btn && isCatalogViewActive) btn.classList.add('active');
+            } catch (e) {
+                localStorage.removeItem(allegroProducerCatalogStorageKey);
+            }
+        }
+    }
 
     // ═════════════════════════════════════════════════════════════
     //  PRODUCER THRESHOLDS — INLINE INPUTS
@@ -532,7 +710,7 @@
     }
 
     // ═════════════════════════════════════════════════════════════
-    //  FLAG COUNTS
+    //  FLAG COUNTS / BADGES / VIOLATION COUNTS
     // ═════════════════════════════════════════════════════════════
 
     function updateFlagCounts(prices) {
@@ -631,10 +809,6 @@
         setLabel('label_compIsPromoted', 'Promowane/Sponsor.', counts.promo);
     }
 
-    // ═════════════════════════════════════════════════════════════
-    //  NOWE: COUNTS DLA FILTRÓW NARUSZEŃ
-    // ═════════════════════════════════════════════════════════════
-
     function updateViolationCounts(prices) {
         let counts = {
             fresh: 0, currentlyViolating: 0, recentlyEnded: 0, noViolations: 0,
@@ -690,7 +864,7 @@
     }
 
     // ═════════════════════════════════════════════════════════════
-    //  WARUNKI FILTROWANIA — UPDATED
+    //  WARUNKI FILTROWANIA
     // ═════════════════════════════════════════════════════════════
 
     function checkAdvancedCondition(item, name) {
@@ -719,6 +893,12 @@
                 return item.isCurrentlyViolating === true && h != null && h >= 72 && h < 168 && !item.reachedMaxWindow;
             case 'violationMaxWindow':
                 return item.isCurrentlyViolating === true && (item.reachedMaxWindow === true || (h != null && h >= 168));
+
+            // Katalog Allegro — NOWE
+            case 'catalogMulti':
+                return catalogGroupMap.has(item.productId);
+            case 'catalogLeader':
+                return catalogGroupMap.get(item.productId)?.isLeader === true;
 
             // Odznaki konkurenta
             case 'compIsSuperSeller': return item.bestCompetitorSuperSeller === true;
@@ -788,6 +968,16 @@
         setTimeout(() => {
             let filtered = [...allPrices];
 
+            // ═══ Catalog mode: zwija duplikaty katalogu do lidera ═══
+            if (isCatalogViewActive) {
+                filtered = groupAndFilterByCatalog(filtered);
+            }
+
+            // ═══ Catalog group filter: tylko produkty z konkretnej grupy ═══
+            if (activeCatalogGroupFilter) {
+                filtered = filtered.filter(item => activeCatalogGroupFilter.has(item.productId));
+            }
+
             const productSearch = document.getElementById('productSearch').value.trim();
             const storeSearch = document.getElementById('storeSearch').value.trim();
 
@@ -851,6 +1041,7 @@
             updateBadgeCounts(filtered);
             updateViolationCounts(filtered);
             updateNewProductCount(filtered);
+            updateCatalogFilterCounts(filtered);
             hideLoading();
         }, 0);
     }
@@ -928,7 +1119,6 @@
         return c;
     }
 
-    // STATS — RESTRUKTURA: oferty, sprzedaż katalogu, moja sprzedaż, prowizja
     function buildStatsBlocks(item) {
         const blocks = [];
 
@@ -1015,7 +1205,7 @@
             </div>`;
     }
 
-    // NOWY BOX — SZCZEGÓŁY NARUSZENIA
+    // ═══ BOX SZCZEGÓŁÓW NARUSZENIA — z nowym paskiem gradientowym ═══
     function buildViolationDetailBox(item) {
         const hasRef = item.referencePrice != null && parseFloat(item.referencePrice) > 0;
 
@@ -1044,33 +1234,34 @@
             const reachedMax = item.reachedMaxWindow === true;
             const h = item.violationDurationHours;
 
-            let stateBadgeClass, stateBadgeText, iconClass, iconColor, barFillClass, headerText, durationText, metaHtml;
+            let stateBadgeClass, stateBadgeText, iconClass, iconColor, barStateClass, headerText, durationText, metaHtml;
 
             if (isFresh) {
                 stateBadgeClass = 'violation-state-fresh';
                 stateBadgeText = 'Nowe';
                 iconClass = 'fa-solid fa-bell';
                 iconColor = '#8a5a00';
-                barFillClass = 'fresh';
+                barStateClass = 'fresh';
                 headerText = 'Nowe naruszenie';
                 durationText = 'Wykryte przy ostatnim scrapowaniu';
-                metaHtml = '<div class="violation-detail-meta">Pierwszy raz w monitorowanym oknie 7 dni.</div>';
+                metaHtml = '<div class="violation-detail-meta">Wykryte po raz pierwszy.</div>';
             } else {
                 stateBadgeClass = 'violation-state-active';
                 stateBadgeText = 'Aktywne';
                 iconClass = 'fa-solid fa-triangle-exclamation';
                 iconColor = '#8b1a1a';
-                barFillClass = '';
+                barStateClass = 'active';
                 headerText = 'Trwające naruszenie';
                 durationText = formatViolationDuration(h, reachedMax);
                 metaHtml = reachedMax
-                    ? '<div class="violation-detail-meta">Naruszenie ciągłe przez całe okno analizy (≥ 7 dni).</div>'
-                    : '<div class="violation-detail-meta">Naruszenie utrzymuje się nieprzerwanie.</div>';
+                    ? '<div class="violation-detail-meta">Bez przerwy ≥ 7 dni.</div>'
+                    : '<div class="violation-detail-meta">Trwa nieprzerwanie.</div>';
             }
 
             const barPercent = isFresh
                 ? 2
                 : (reachedMax ? 100 : Math.min(100, ((h || 0) / 168) * 100));
+            const remainderPercent = Math.max(0, 100 - barPercent);
 
             return `
                 <div class="price-box-column">
@@ -1082,8 +1273,8 @@
                             </div>
                             <div class="violation-duration-large">${durationText}</div>
                             ${metaHtml}
-                            <div class="violation-time-bar" title="Postęp w oknie 7 dni">
-                                <div class="violation-time-bar-fill ${barFillClass}" style="width:${barPercent.toFixed(1)}%;"></div>
+                            <div class="violation-time-bar ${barStateClass}" title="Postęp w oknie 7 dni">
+                                <div class="violation-time-bar-remainder" style="width:${remainderPercent.toFixed(1)}%;"></div>
                             </div>
                         </div>
                     </div>
@@ -1139,7 +1330,6 @@
         const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : null;
         const mapPrice = item.mapPrice != null ? parseFloat(item.mapPrice) : null;
 
-        // Ikony dla mojej oferty — Smart, Super Sprzedawca, Best Price Guarantee
         const myBpgIcon = item.myIsBestPriceGuarantee
             ? `<img src="/images/TopPrice.png" alt="Gwarancja Najniższej Ceny" title="Gwarancja Najniższej Ceny" style="width: 18px; height: 18px; vertical-align: middle;">`
             : '';
@@ -1166,7 +1356,6 @@
                 altLines.push(`<div class="ref-alt-line">MAP w katalogu: <strong>${formatPricePL(mapPrice)}</strong></div>`);
             }
 
-            // Gdy źródłem jest sklep — pokazujemy dolny pasek z dostawą i smart (jak oferta)
             const showOfferDetailsRow = item.referenceSource === 'store' && myPrice != null;
 
             return `
@@ -1188,7 +1377,6 @@
                 </div>`;
         }
 
-        // Brak referencji
         let missingMsg = '';
         if (producerSettings.comparisonSource === 1) missingMsg = 'Brak ceny MAP w katalogu';
         else missingMsg = 'Brak Twojej oferty na Allegro';
@@ -1261,7 +1449,6 @@
         const bgClass = bgClassMap[item.bucket] || 'producer-bg-equal';
         const bucketLabel = BUCKET_BADGE_LABELS[item.bucket] || BUCKET_LABELS[item.bucket] || '';
 
-        // Rozkład sklepów
         let storesDistHtml = '';
         const lines = [];
         if ((item.storesBelowReference || 0) > 0) {
@@ -1294,7 +1481,7 @@
     }
 
     // ═════════════════════════════════════════════════════════════
-    //  RENDER PRICES (UPDATED — wklejony violationDetailBox)
+    //  RENDER PRICES — z badge'em katalogu + nową kolejnością boksów
     // ═════════════════════════════════════════════════════════════
 
     function renderPrices(data) {
@@ -1318,7 +1505,7 @@
             box.dataset.productId = item.productId;
             box.dataset.productName = item.productName;
             box.addEventListener('click', function (event) {
-                if (event.target.closest('button, a, img, .select-product-btn, .ApiBox')) return;
+                if (event.target.closest('button, a, img, .select-product-btn, .ApiBox, .badge-catalog')) return;
                 window.open(this.dataset.detailsUrl, '_blank');
             });
 
@@ -1331,7 +1518,45 @@
             const nameDiv = document.createElement('div');
             nameDiv.className = 'price-box-column-name';
             nameDiv.innerHTML = highlightedName;
-            if (item.isNew) nameDiv.insertAdjacentHTML('beforeend', '<div><span class="badge-new">NEW</span></div>');
+
+            // ═══ Badge "X w katalogu" + "NEW" ═══
+            const catalogInfo = catalogGroupMap.get(item.productId);
+            if (item.isNew || catalogInfo) {
+                const badgesHtml = [];
+
+                if (catalogInfo) {
+                    const count = catalogInfo.totalInGroup;
+                    const offerWord = count === 1 ? 'Oferta' : ((count >= 2 && count <= 4) ? 'Oferty' : 'Ofert');
+                    const isLeader = catalogInfo.isLeader;
+                    const leaderSuffix = isLeader
+                        ? ' | <i class="fa-solid fa-crown" style="color:#e6a817; margin:2px 0px 0px 4px;"></i>'
+                        : '';
+
+                    badgesHtml.push(
+                        `<span class="badge-catalog catalog-badge-click" data-product-id="${item.productId}" title="Pokaż wszystkie ${count} oferty w tym katalogu">
+                            ${count} ${offerWord} w katalogu${leaderSuffix}
+                        </span>`
+                    );
+                }
+
+                if (item.isNew) {
+                    badgesHtml.push('<span class="badge-new">NEW</span>');
+                }
+
+                nameDiv.insertAdjacentHTML('beforeend',
+                    `<div style="display:flex; align-items:center; gap:5px; margin-top:3px; flex-wrap:wrap;">
+                        ${badgesHtml.join('')}
+                    </div>`
+                );
+
+                const catalogBadgeEl = nameDiv.querySelector('.catalog-badge-click');
+                if (catalogBadgeEl) {
+                    catalogBadgeEl.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        showCatalogGroup(item.productId);
+                    });
+                }
+            }
 
             leftCol.appendChild(nameDiv);
             leftCol.appendChild(createFlagsContainer(item));
@@ -1394,10 +1619,10 @@
             stats.innerHTML = buildStatsBlocks(item);
             priceBoxData.appendChild(stats);
 
-            // Kolejność: konkurent → szczegóły naruszenia → cena ref. → delta
+            // ═══ Nowa kolejność: konkurent → cena referencyjna → naruszenia → delta ═══
             priceBoxData.insertAdjacentHTML('beforeend', buildCompetitorBox(item, storeSearchTerm));
-            priceBoxData.insertAdjacentHTML('beforeend', buildViolationDetailBox(item));
             priceBoxData.insertAdjacentHTML('beforeend', buildReferenceBox(item));
+            priceBoxData.insertAdjacentHTML('beforeend', buildViolationDetailBox(item));
             priceBoxData.insertAdjacentHTML('beforeend', buildDeltaBox(item));
 
             box.appendChild(priceBoxSpace);
@@ -1523,7 +1748,6 @@
     if (storedSort) {
         try {
             const parsed = JSON.parse(storedSort);
-            // Filtruj tylko znane klucze — chroni przed starymi zapisami (np. sortDaysViolation)
             const validKeys = Object.keys(sortingState);
             const cleaned = {};
             validKeys.forEach(k => { if (parsed[k] !== undefined) cleaned[k] = parsed[k]; });
@@ -1535,7 +1759,7 @@
     }
 
     // ═════════════════════════════════════════════════════════════
-    //  EVENT LISTENERS — SEARCH, FILTERS, ADV CHECKBOXES
+    //  EVENT LISTENERS — SEARCH, FILTERS, ADV CHECKBOXES, CATALOG
     // ═════════════════════════════════════════════════════════════
 
     const debouncedFilter = debounce(() => filterPricesAndUpdateUI(), 300);
@@ -1569,6 +1793,21 @@
         });
     });
 
+    // ═══ Toggle "Katalog" ═══
+    const linkOffersBtn = document.getElementById('linkOffers');
+    if (linkOffersBtn) {
+        linkOffersBtn.addEventListener('click', function () {
+            if (activeCatalogGroupFilter) {
+                clearCatalogGroupFilter();
+                return;
+            }
+            isCatalogViewActive = !isCatalogViewActive;
+            this.classList.toggle('active', isCatalogViewActive);
+            localStorage.setItem(allegroProducerCatalogStorageKey, JSON.stringify(isCatalogViewActive));
+            filterPricesAndUpdateUI();
+        });
+    }
+
     // ═════════════════════════════════════════════════════════════
     //  EKSPORT DO EXCELA
     // ═════════════════════════════════════════════════════════════
@@ -1592,6 +1831,7 @@
                 { header: 'Producent', key: 'producer', width: 20 },
                 { header: 'Nazwa produktu', key: 'name', width: 40 },
                 { header: 'Link do oferty', key: 'url', width: 30 },
+                { header: 'Liczba moich ofert w katalogu', key: 'myOfferCount', width: 18 },
                 { header: 'Cena referencyjna', key: 'ref', width: 14, style: { numFmt: '0.00' } },
                 { header: 'Źródło ref.', key: 'refSource', width: 16 },
                 { header: 'MAP w katalogu', key: 'map', width: 14, style: { numFmt: '0.00' } },
@@ -1644,6 +1884,7 @@
                     producer: item.producer || '',
                     name: item.productName || '',
                     url: item.allegroOfferUrl || '',
+                    myOfferCount: item.myOfferCount || 1,
                     ref: item.referencePrice,
                     refSource: item.referenceSource === 'map' ? 'MAP' : (item.referenceSource === 'store' ? 'Sklep' : 'Brak'),
                     map: item.mapPrice,
@@ -1698,7 +1939,7 @@
     });
 
     // ═════════════════════════════════════════════════════════════
-    //  API EXPORT MODAL (FEED JSON/XML) — bez zmian
+    //  API EXPORT MODAL (FEED JSON/XML)
     // ═════════════════════════════════════════════════════════════
 
     function generateSecureToken() {
@@ -1761,6 +2002,7 @@
     //  INIT
     // ═════════════════════════════════════════════════════════════
 
+    restoreCatalogState();
     loadPrices();
     massActions.updateSelectionUI();
 });

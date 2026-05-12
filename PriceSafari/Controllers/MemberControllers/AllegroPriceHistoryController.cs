@@ -775,8 +775,8 @@ namespace PriceSafari.Controllers.MemberControllers
             //  HISTORYCZNE CENY NASZYCH OFERT — per (productId, offerId, scrap)
             //  W trybie StorePrice używamy ceny TEJ KONKRETNEJ oferty,
             //  z którą jest powiązany rekord (po IdOnAllegro produktu).
-            //  Fallback: jeśli nasza oferta o tym IdAllegro nie istniała w tym scrapie,
-            //  bierzemy najtańszą z naszych w tym katalogu (zachowuje "ostatnie znane").
+            //  BRAK FALLBACKU — jeśli tej oferty nie było w danym scrapie,
+            //  referencja historyczna = null i scrap nie liczy się jako naruszenie.
             // ═════════════════════════════════════════════════════════════
             var historyMyOfferPricesByProductOfferScrap = historyPricesRaw
                 .Where(x => x.SellerName != null && x.SellerName.ToLower().Trim() == storeNameLower)
@@ -785,73 +785,59 @@ namespace PriceSafari.Controllers.MemberControllers
                     g => (g.Key.AllegroProductId, g.Key.IdAllegro, g.Key.AllegroScrapeHistoryId),
                     g => g.OrderBy(x => x.Price).First().Price
                 );
-
-            // Fallback per (productId, scrap) — najtańsza nasza oferta w katalogu
-            var historyMyMinStorePricesByProductScrap = historyPricesRaw
-                .Where(x => x.SellerName != null && x.SellerName.ToLower().Trim() == storeNameLower)
-                .GroupBy(x => new { x.AllegroProductId, x.AllegroScrapeHistoryId })
-                .ToDictionary(
-                    g => (g.Key.AllegroProductId, g.Key.AllegroScrapeHistoryId),
-                    g => g.OrderBy(x => x.Price).First().Price
-                );
-
             // Min cena konkurencji per scrap, po filtrze presetu — bez naszych ofert
             var historyMinCompetitorByProductScrap = new Dictionary<(int, int), decimal>();
             foreach (var ph in historyPricesRaw)
             {
                 if (ph.SellerName != null && ph.SellerName.ToLower().Trim() == storeNameLower) continue;
 
-                if (ph.DeliveryTime.HasValue)
+                // Filtry presetu — TYLKO gdy preset istnieje
+                if (activePreset != null)
                 {
-                    if (ph.DeliveryTime.Value < minDelivery || ph.DeliveryTime.Value > maxDelivery) continue;
-                }
-                else
-                {
-                    if (!includeNoDelivery) continue;
-                }
-
-                if (competitorRules != null)
-                {
-                    var key = (ph.SellerName ?? "").ToLower().Trim();
-                    if (competitorRules.TryGetValue(key, out bool use))
+                    if (ph.DeliveryTime.HasValue)
                     {
-                        if (!use) continue;
+                        if (ph.DeliveryTime.Value < minDelivery || ph.DeliveryTime.Value > maxDelivery) continue;
                     }
-                    else if (!(activePreset?.UseUnmarkedStores ?? true)) continue;
+                    else
+                    {
+                        if (!includeNoDelivery) continue;
+                    }
+
+                    if (competitorRules != null)
+                    {
+                        var key = (ph.SellerName ?? "").ToLower().Trim();
+                        if (competitorRules.TryGetValue(key, out bool use))
+                        {
+                            if (!use) continue;
+                        }
+                        else if (!activePreset.UseUnmarkedStores) continue;
+                    }
                 }
 
                 var dictKey = (ph.AllegroProductId, ph.AllegroScrapeHistoryId);
                 if (!historyMinCompetitorByProductScrap.TryGetValue(dictKey, out var existing) || ph.Price < existing)
                     historyMinCompetitorByProductScrap[dictKey] = ph.Price;
             }
+            decimal redLightThreshold = settings.UseAmount ? settings.RedLightAmt : settings.RedLightPct;
+            decimal greenLightThreshold = settings.UseAmount ? settings.GreenLightAmt : settings.GreenLightPct;
 
-            decimal toleranceForViolation = settings.UseAmount
-                ? Math.Min(settings.RedLightAmt, settings.GreenLightAmt)
-                : Math.Min(settings.RedLightPct, settings.GreenLightPct);
-
-            // ═════════════════════════════════════════════════════════════
-            //  Funkcja sprawdzająca naruszenie w danym scrapie historycznym
-            //  W trybie StorePrice używa historycznej ceny KONKRETNEJ oferty,
-            //  którą reprezentuje bieżący rekord (po targetOfferId).
-            //  Jeśli tej oferty nie było w tamtym scrapie — fallback na najtańszą.
-            // ═════════════════════════════════════════════════════════════
-            bool WasViolatingAtScrap(int productId, long? targetOfferId, int scrapId)
+            // true  → konkurent łamie próg
+            // false → mamy dane i NIE łamie  (zrywa sekwencję)
+            // null  → brak danych dla tego scrapu (nieudany scrap / brak naszej oferty) — pomiń
+            bool? WasViolatingAtScrap(int productId, long? targetOfferId, int scrapId)
             {
                 decimal? historicalReference;
                 if (settings.ComparisonSource == ProducerComparisonSource.StorePrice)
                 {
                     if (targetOfferId.HasValue &&
-                        historyMyOfferPricesByProductOfferScrap.TryGetValue((productId, targetOfferId.Value, scrapId), out var offerPrice))
+                        historyMyOfferPricesByProductOfferScrap.TryGetValue(
+                            (productId, targetOfferId.Value, scrapId), out var offerPrice))
                     {
                         historicalReference = offerPrice;
                     }
-                    else if (historyMyMinStorePricesByProductScrap.TryGetValue((productId, scrapId), out var minMyPrice))
-                    {
-                        historicalReference = minMyPrice;
-                    }
                     else
                     {
-                        historicalReference = null;
+                        return null; // naszej oferty nie było w tym scrapie → nie wiemy
                     }
                 }
                 else // MapPrice
@@ -863,22 +849,26 @@ namespace PriceSafari.Controllers.MemberControllers
                     }
                     else
                     {
-                        historicalReference = null;
+                        return null; // brak snapshotu MAP → nie wiemy
                     }
                 }
 
                 if (!historicalReference.HasValue || historicalReference.Value <= 0)
-                    return false;
+                    return null;
 
                 if (!historyMinCompetitorByProductScrap.TryGetValue((productId, scrapId), out var minComp))
+                {
+                    // mamy referencję, ale żaden konkurent nie przeszedł filtra presetu
+                    // — to twarde "brak naruszenia"
                     return false;
+                }
 
                 decimal hDelta = minComp - historicalReference.Value;
                 decimal hDiff = settings.UseAmount
                     ? hDelta
                     : (hDelta / historicalReference.Value) * 100m;
 
-                return hDiff < -toleranceForViolation;
+                return hDiff <= -redLightThreshold;
             }
 
             var allPrices = productIds.Select(currentProductId =>
@@ -1013,14 +1003,23 @@ namespace PriceSafari.Controllers.MemberControllers
                             ? compDelta
                             : (compDelta / referencePrice.Value) * 100m;
 
-                        if (compDiff < -toleranceForViolation)
+                        // Spójne z ResolveAllegroProducerBucket:
+                        //   <= -redLightThreshold → naruszenie (poniżej)
+                        //   >=  greenLightThreshold → powyżej
+                        if (compDiff <= -redLightThreshold)
                         {
                             storesBelowReference++;
                             if (!worstViolation.HasValue || compDelta < worstViolation.Value)
                                 worstViolation = compDelta;
                         }
-                        else if (compDiff > toleranceForViolation) storesAboveReference++;
-                        else storesAtReference++;
+                        else if (compDiff >= greenLightThreshold)
+                        {
+                            storesAboveReference++;
+                        }
+                        else
+                        {
+                            storesAtReference++;
+                        }
                     }
                 }
 
@@ -1043,10 +1042,13 @@ namespace PriceSafari.Controllers.MemberControllers
                     bool sequenceBroken = false;
                     bool prevScrapWasViolation = false;
                     bool prevScrapEvaluated = false;
-
                     foreach (var hs in historyScraps)
                     {
-                        bool wasViolating = WasViolatingAtScrap(currentProductId, targetOfferId, hs.Id);
+                        var result = WasViolatingAtScrap(currentProductId, targetOfferId, hs.Id);
+
+                        if (result == null) continue; // pomiń nieudane scrapy — nie zrywaj łańcucha
+
+                        bool wasViolating = result.Value;
 
                         if (!prevScrapEvaluated)
                         {
@@ -1084,7 +1086,7 @@ namespace PriceSafari.Controllers.MemberControllers
                     int? lastViolatingIdx = null;
                     for (int i = 0; i < historyScraps.Count; i++)
                     {
-                        if (WasViolatingAtScrap(currentProductId, targetOfferId, historyScraps[i].Id))
+                        if (WasViolatingAtScrap(currentProductId, targetOfferId, historyScraps[i].Id) == true)
                         {
                             lastViolatingIdx = i;
                             break;
@@ -1095,12 +1097,15 @@ namespace PriceSafari.Controllers.MemberControllers
                     {
                         wasRecentlyViolated = true;
                         var lastViolationDate = historyScraps[lastViolatingIdx.Value].Date;
-                        lastViolationEndedHoursAgo = Math.Round((decimal)(latestScrap.Date - lastViolationDate).TotalHours, 2);
+                        lastViolationEndedHoursAgo = Math.Round(
+                            (decimal)(latestScrap.Date - lastViolationDate).TotalHours, 2);
 
                         DateTime pastViolationStart = lastViolationDate;
                         for (int i = lastViolatingIdx.Value + 1; i < historyScraps.Count; i++)
                         {
-                            if (WasViolatingAtScrap(currentProductId, targetOfferId, historyScraps[i].Id))
+                            var r = WasViolatingAtScrap(currentProductId, targetOfferId, historyScraps[i].Id);
+                            if (r == null) continue;            // pomiń unknowns
+                            if (r == true)
                                 pastViolationStart = historyScraps[i].Date;
                             else
                                 break;
@@ -2222,27 +2227,34 @@ namespace PriceSafari.Controllers.MemberControllers
 
                 var filtered = scrapPrices.Where(ph =>
                 {
-                    if (isMapMode && ph.SellerName != null && ph.SellerName.ToLower().Trim() == storeNameLower)
+                    // Wykluczenie naszej oferty w MAP mode — to logika producenta, nie presetu, zostaje
+                    if (isMapMode && ph.SellerName != null
+                        && ph.SellerName.ToLower().Trim() == storeNameLower)
                         return false;
 
-                    if (ph.DeliveryTime.HasValue)
+                    // Filtry presetu — TYLKO gdy preset istnieje
+                    if (activePreset != null)
                     {
-                        if (ph.DeliveryTime.Value < minDelivery || ph.DeliveryTime.Value > maxDelivery) return false;
-                    }
-                    else
-                    {
-                        if (!includeNoDelivery) return false;
-                    }
+                        if (ph.DeliveryTime.HasValue)
+                        {
+                            if (ph.DeliveryTime.Value < minDelivery || ph.DeliveryTime.Value > maxDelivery)
+                                return false;
+                        }
+                        else
+                        {
+                            if (!includeNoDelivery) return false;
+                        }
 
-                    if (competitorRules != null)
-                    {
-                        var key = (ph.SellerName ?? "").ToLower().Trim();
-                        if (competitorRules.TryGetValue(key, out bool use)) return use;
-                        return activePreset?.UseUnmarkedStores ?? true;
+                        if (competitorRules != null)
+                        {
+                            var key = (ph.SellerName ?? "").ToLower().Trim();
+                            if (competitorRules.TryGetValue(key, out bool use)) return use;
+                            return activePreset.UseUnmarkedStores;
+                        }
                     }
                     return true;
                 })
-                .Select(ph => new
+                  .Select(ph => new
                 {
                     sellerName = ph.SellerName,
                     price = ph.Price,
