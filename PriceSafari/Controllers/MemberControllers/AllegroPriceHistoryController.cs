@@ -771,13 +771,7 @@ namespace PriceSafari.Controllers.MemberControllers
                 .GroupBy(e => (e.AllegroProductId, e.ScrapHistoryId))
                 .ToDictionary(g => g.Key, g => g.First().AllegroMapPriceSnapshot);
 
-            // ═════════════════════════════════════════════════════════════
-            //  HISTORYCZNE CENY NASZYCH OFERT — per (productId, offerId, scrap)
-            //  W trybie StorePrice używamy ceny TEJ KONKRETNEJ oferty,
-            //  z którą jest powiązany rekord (po IdOnAllegro produktu).
-            //  BRAK FALLBACKU — jeśli tej oferty nie było w danym scrapie,
-            //  referencja historyczna = null i scrap nie liczy się jako naruszenie.
-            // ═════════════════════════════════════════════════════════════
+
             var historyMyOfferPricesByProductOfferScrap = historyPricesRaw
                 .Where(x => x.SellerName != null && x.SellerName.ToLower().Trim() == storeNameLower)
                 .GroupBy(x => new { x.AllegroProductId, x.IdAllegro, x.AllegroScrapeHistoryId })
