@@ -5,6 +5,7 @@ using NPOI.SS.Formula.Functions;
 using PriceSafari.Data;
 using PriceSafari.Hubs;
 using PriceSafari.Models;
+using PriceSafari.Services.ScheduleService;
 using System.Text.Json.Serialization;
 
 namespace PriceSafari.Services.GoogleScraping
@@ -17,15 +18,18 @@ namespace PriceSafari.Services.GoogleScraping
         private readonly IHubContext<ScrapingHub> _hubContext;
         private readonly ILogger<GoogleScrapeApiController> _logger;
         private const string ApiKey = "2764udhnJUDI8392j83jfi2ijdo1949rncowp89i3rnfiiui1203kfnf9030rfpPkUjHyHt";
+        private readonly GoogleScraperService _scrapingService;
 
         public GoogleScrapeApiController(
-            PriceSafariContext context,
-            IHubContext<ScrapingHub> hubContext,
-            ILogger<GoogleScrapeApiController> logger)
+         PriceSafariContext context,
+         IHubContext<ScrapingHub> hubContext,
+         ILogger<GoogleScrapeApiController> logger,
+         GoogleScraperService scrapingService)   // <-- DODANE
         {
             _context = context;
             _hubContext = hubContext;
             _logger = logger;
+            _scrapingService = scrapingService;       // <-- DODANE
         }
 
         [HttpGet("settings")]
@@ -40,7 +44,7 @@ namespace PriceSafari.Services.GoogleScraping
                 generatorsCount = settings?.GoogleGeneratorsCount > 0 ? settings.GoogleGeneratorsCount : 2,
                 headlessMode = settings?.HeadLessForGoogleGenerators ?? true,
                 maxWorkers = settings?.SemophoreGoogle > 0 ? settings.SemophoreGoogle : 1,
-                headStartDuration = 50,
+                headStartDuration = 40,
                 batchSize = GoogleScrapeManager.BatchSize
             });
         }
@@ -181,6 +185,25 @@ namespace PriceSafari.Services.GoogleScraping
 
                     if (!anyPending)
                     {
+                        // === RETRY MECHANISM: spróbuj odpalić kolejny przebieg ===
+                        var (startedNext, resetCount, currentPass) = await _scrapingService.TryAdvanceToNextPassAsync();
+
+                        if (startedNext)
+                        {
+                            _logger.LogInformation("Uruchomiono przebieg #{Pass} z {Count} URLi do retry (przez get-task)",
+                                currentPass, resetCount);
+
+                            // Status zostaje Running — Python dalej poll'uje, niedługo dostanie nową paczkę.
+                            return Ok(new
+                            {
+                                tasks = new List<object>(),
+                                done = false,
+                                message = $"Pass #{currentPass} started: {resetCount} URLs reset for retry",
+                                shouldHibernate = false
+                            });
+                        }
+
+                        // Brak retry — kończymy proces na dobre
                         GoogleScrapeManager.FinishProcess();
 
                         await _hubContext.Clients.All.SendAsync("GoogleScrapingFinished", new

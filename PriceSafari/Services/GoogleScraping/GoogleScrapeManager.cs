@@ -91,6 +91,11 @@ namespace PriceSafari.Services.GoogleScraping
         public const int ScraperOfflineThresholdSeconds = 120;
         public const int MaxLogEntries = 300;
 
+        // ===== RETRY MECHANISM (hardcoded) =====
+        public const int MaxScrapePasses = 2;  // 1 = tylko main, 2 = main + 1 retry, 3 = main + 2 retry...
+        public static int CurrentPassNumber { get; set; } = 0;
+        public static readonly SemaphoreSlim RetryAdvanceSemaphore = new SemaphoreSlim(1, 1);
+
         public static GoogleScrapingProcessStatus CurrentStatus { get; set; } = GoogleScrapingProcessStatus.Idle;
         public static DateTime? ScrapingStartTime { get; set; }
         public static DateTime? ScrapingEndTime { get; set; }
@@ -409,7 +414,7 @@ namespace PriceSafari.Services.GoogleScraping
             CurrentStatus = GoogleScrapingProcessStatus.Running;
             ScrapingStartTime = DateTime.UtcNow;
             ScrapingEndTime = null;
-
+            CurrentPassNumber = 1;
             AssignedBatches.Clear();
             _batchCounter = 0;
 
@@ -496,7 +501,9 @@ namespace PriceSafari.Services.GoogleScraping
                 totalUrlsFailed = totals.Failed,
                 totalUrlsRejected = totals.Rejected,
                 totalPricesCollected = totals.Prices,
-                totalNukeEvents = totals.Nukes
+                totalNukeEvents = totals.Nukes,
+                currentPass = CurrentPassNumber,
+                maxPasses = MaxScrapePasses,
             };
         }
 

@@ -466,7 +466,7 @@ public class ScheduledTaskService : BackgroundService
                     ? totalProcessed / totalSeconds
                     : 0;
 
-                finishedGoogleLog.Comment += $" | Sukces. Zmielono: {stats.ScrapedUrls}/{stats.TotalUrls} produktów, odrzucono: {stats.RejectedUrls}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
+                finishedGoogleLog.Comment += $" | Sukces. Zmielono: {stats.ScrapedUrls}/{stats.TotalUrls} produktów, odrzucono: {stats.RejectedUrls}. Przebiegi: {GoogleScrapeManager.CurrentPassNumber}/{GoogleScrapeManager.MaxScrapePasses}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
 
                 context.TaskExecutionLogs.Update(finishedGoogleLog);
                 await context.SaveChangesAsync(ct);

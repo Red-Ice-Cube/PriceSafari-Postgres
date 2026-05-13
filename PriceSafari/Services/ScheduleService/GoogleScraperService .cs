@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using PriceSafari.Data;
 using PriceSafari.Hubs;
 using PriceSafari.Services.GoogleScraping;
+using SkiaSharp;
 
 namespace PriceSafari.Services.ScheduleService
 {
@@ -340,6 +341,60 @@ namespace PriceSafari.Services.ScheduleService
             await _hubContext.Clients.All.SendAsync("GoogleUpdateLogs",
                 GoogleScrapeManager.GetRecentLogs(20));
         }
+
+        public async Task<(bool startedNextPass, int resetCount, int currentPass)> TryAdvanceToNextPassAsync()
+        {
+            await GoogleScrapeManager.RetryAdvanceSemaphore.WaitAsync();
+            try
+            {
+                // Czy jest jeszcze przebieg w budżecie?
+                if (GoogleScrapeManager.CurrentPassNumber >= GoogleScrapeManager.MaxScrapePasses)
+                    return (false, 0, GoogleScrapeManager.CurrentPassNumber);
+
+                // Czy są w ogóle odrzucone do ponowienia?
+                var rejected = await _context.CoOfrs
+                    .Where(c => c.GoogleIsRejected)
+                    .ToListAsync();
+
+                if (rejected.Count == 0)
+                    return (false, 0, GoogleScrapeManager.CurrentPassNumber);
+
+                // Reset flag - produkty wracają jako "niezescrapowane".
+                // GooglePricesCount jest już 0 dla rejected, nie trzeba ruszać.
+                // CoOfrPriceHistories dla rejected też puste — nic do czyszczenia.
+                foreach (var offer in rejected)
+                {
+                    offer.GoogleIsRejected = false;
+                    offer.GoogleIsScraped = false;
+                }
+                await _context.SaveChangesAsync();
+
+                GoogleScrapeManager.CurrentPassNumber++;
+                var newPass = GoogleScrapeManager.CurrentPassNumber;
+
+                GoogleScrapeManager.AddSystemLog("INFO",
+                    $"🔄 Przebieg #{newPass}/{GoogleScrapeManager.MaxScrapePasses}: zresetowano {rejected.Count} odrzuconych URLi - retry startuje");
+
+                _logger.LogInformation("Retry pass #{Pass}/{Max}: zresetowano {Count} odrzuconych URLi",
+                    newPass, GoogleScrapeManager.MaxScrapePasses, rejected.Count);
+
+                // Broadcast do UI
+                await _hubContext.Clients.All.SendAsync("GoogleScrapingPassStarted", new
+                {
+                    currentPass = newPass,
+                    maxPasses = GoogleScrapeManager.MaxScrapePasses,
+                    urlsToRetry = rejected.Count
+                });
+                await BroadcastLogs();
+                await BroadcastDashboard();
+
+                return (true, rejected.Count, newPass);
+            }
+            finally
+            {
+                GoogleScrapeManager.RetryAdvanceSemaphore.Release();
+            }
+        }
     }
 
     public class GoogleDbStatsDto
@@ -408,14 +463,25 @@ namespace PriceSafari.Services.ScheduleService
                     var offlineCount = await scrapingService.CheckAndMarkOfflineScrapersAsync();
                     if (offlineCount > 0)
                         _logger.LogInformation("Oznaczono {Count} scraperów jako offline.", offlineCount);
-
                     if (GoogleScrapeManager.CurrentStatus == GoogleScrapingProcessStatus.Running)
                     {
                         var stats = await scrapingService.GetDatabaseStatsAsync();
                         if (stats.PendingUrls == 0 && !GoogleScrapeManager.HasActiveBatches())
                         {
-                            _logger.LogInformation("Wszystkie URLe przetworzone. Kończę proces.");
-                            GoogleScrapeManager.FinishProcess();
+                            // === RETRY: spróbuj odpalić kolejny przebieg zanim zakończymy proces ===
+                            var (startedNext, resetCount, currentPass) = await scrapingService.TryAdvanceToNextPassAsync();
+
+                            if (startedNext)
+                            {
+                                _logger.LogInformation("Monitor: uruchomiono przebieg #{Pass} z {Count} URLi do retry.",
+                                    currentPass, resetCount);
+                            }
+                            else
+                            {
+                                _logger.LogInformation("Wszystkie URLe przetworzone (przebiegi: {Pass}/{Max}). Kończę proces.",
+                                    GoogleScrapeManager.CurrentPassNumber, GoogleScrapeManager.MaxScrapePasses);
+                                GoogleScrapeManager.FinishProcess();
+                            }
                         }
                     }
                 }
@@ -429,5 +495,9 @@ namespace PriceSafari.Services.ScheduleService
 
             _logger.LogInformation("GoogleScrapingMonitorService zatrzymany.");
         }
+
+
+ 
+     
     }
 }
