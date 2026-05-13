@@ -2127,61 +2127,6 @@ int udmValue = 3)
         return RedirectToAction("ProductList", new { storeId = storeId });
     }
 
-    //[HttpGet]
-    //public async Task<IActionResult> GoogleProducts(int storeId)
-    //{
-    //    var store = await _context.Stores.FindAsync(storeId);
-    //    if (store == null) return NotFound();
-
-    //    var products = await _context.Products
-    //        .Include(p => p.GoogleCatalogs)
-    //        .Where(p => p.StoreId == storeId && p.OnGoogle)
-    //        .ToListAsync();
-
-    //    if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-    //    {
-    //        var jsonProducts = products.Select(p => {
-    //            string generatedUrl = null;
-    //            string productIdCid = ExtractProductIdFromUrl(p.GoogleUrl);
-
-    //            if (!string.IsNullOrEmpty(productIdCid))
-    //            {
-    //                string productNameForUrl = System.Net.WebUtility.UrlEncode(p.ProductNameInStoreForGoogle);
-    //                generatedUrl = $"https://www.google.com/search?q={productNameForUrl}&udm=28#oshopproduct=cid:{productIdCid},pvt:hg,pvo:3&oshop=apv";
-    //            }
-
-    //            return new
-    //            {
-    //                p.ProductId,
-    //                p.ProductNameInStoreForGoogle,
-    //                p.Url,
-    //                p.FoundOnGoogle,
-    //                p.GoogleUrl,
-    //                p.Ean,
-    //                p.ProducerCode,
-    //                p.GoogleGid,
-    //                p.GoogleColor,
-    //                p.GoogleColorCode,
-    //                p.OtherVariantEans,
-    //                GeneratedGoogleUrl = generatedUrl,
-
-    //                GoogleCatalogs = p.GoogleCatalogs?.Select(gc => new {
-    //                    gc.GoogleCid,
-    //                    gc.GoogleGid,
-    //                    gc.GoogleHid,
-    //                    gc.IsExtendedOfferByHid
-
-    //                }).ToList()
-    //            };
-    //        }).ToList();
-
-    //        return Json(jsonProducts);
-    //    }
-
-    //    ViewBag.StoreName = store.StoreName;
-    //    ViewBag.StoreId = storeId;
-    //    return View("~/Views/ManagerPanel/GoogleScraper/GoogleProducts.cshtml", products);
-    //}
 
 
 
@@ -2210,6 +2155,7 @@ int udmValue = 3)
                     p.Ean,
                     p.ProducerCode,
                     p.GoogleGid,
+                    p.GoogleHid,
                     p.GoogleColor,
                     p.GoogleColorCode,
                     p.OtherVariantEans,
@@ -2223,9 +2169,7 @@ int udmValue = 3)
                 })
                 .ToListAsync();
 
-            // 2. PRZETWARZANIE W PAMIĘCI RAM
-            // Metody C# (ExtractProductIdFromUrl, UrlEncode) nie mogą iść do bazy,
-            // więc wykonujemy je na już przefiltrowanej i lekkiej liscie.
+     
             var jsonProducts = rawData.Select(p => {
                 string generatedUrl = null;
                 string productIdCid = ExtractProductIdFromUrl(p.GoogleUrl);
@@ -2246,6 +2190,7 @@ int udmValue = 3)
                     p.Ean,
                     p.ProducerCode,
                     p.GoogleGid,
+                    p.GoogleHid,
                     p.GoogleColor,
                     p.GoogleColorCode,
                     p.OtherVariantEans,
@@ -3793,6 +3738,11 @@ int udmValue = 3)
                                     Console.WriteLine($" ├─ Nazwa       : {productState.ProductNameInStoreForGoogle}");
                                     Console.WriteLine($" ├─ URL z bazy  : {productState.CleanedUrl}");
                                     Console.WriteLine($" ├─ CID Google  : {result.FoundCid}");
+
+                                    // DODAJ TE DWIE LINIJKI:
+                                    if (!string.IsNullOrEmpty(result.FoundGid)) Console.WriteLine($" ├─ GID Google  : {result.FoundGid}");
+                                    if (!string.IsNullOrEmpty(result.FoundHid)) Console.WriteLine($" ├─ HID Google  : {result.FoundHid}");
+
                                     if (!string.IsNullOrEmpty(result.FoundColor))
                                     {
                                         Console.ForegroundColor = ConsoleColor.Magenta;
@@ -3857,7 +3807,6 @@ int udmValue = 3)
                                     matched.Hid,
                                     matched.Color,
                                     matched.ColorFilter);
-
                                 lock (_consoleLock)
                                 {
                                     Console.ForegroundColor = ConsoleColor.Magenta;
@@ -3867,6 +3816,11 @@ int udmValue = 3)
                                     Console.WriteLine($" ├─ Nazwa w bazie: {matchedState.ProductNameInStoreForGoogle}");
                                     Console.WriteLine($" ├─ URL z bazy   : {matchedState.CleanedUrl}");
                                     Console.WriteLine($" ├─ CID Google   : {matched.Cid}");
+
+                                    // DODAJ TE DWIE LINIJKI:
+                                    if (!string.IsNullOrEmpty(matched.Gid)) Console.WriteLine($" ├─ GID Google   : {matched.Gid}");
+                                    if (!string.IsNullOrEmpty(matched.Hid)) Console.WriteLine($" ├─ HID Google   : {matched.Hid}");
+
                                     if (!string.IsNullOrEmpty(matched.Color))
                                     {
                                         Console.WriteLine($" ├─ 🎨 Kolor     : {matched.Color}");
