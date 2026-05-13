@@ -44,7 +44,7 @@ namespace PriceSafari.Services.GoogleScraping
                 generatorsCount = settings?.GoogleGeneratorsCount > 0 ? settings.GoogleGeneratorsCount : 2,
                 headlessMode = settings?.HeadLessForGoogleGenerators ?? true,
                 maxWorkers = settings?.SemophoreGoogle > 0 ? settings.SemophoreGoogle : 1,
-                headStartDuration = 40,
+                headStartDuration = 25,
                 batchSize = GoogleScrapeManager.BatchSize
             });
         }
