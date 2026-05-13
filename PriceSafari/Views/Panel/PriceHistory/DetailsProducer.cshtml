@@ -41,6 +41,29 @@
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
+<style>
+    .ref-info-inline {
+        vertical-align: middle;
+        font-size: 13px;
+        color: #333;
+    }
+
+        .ref-info-inline .ref-price-bold {
+            font-weight: 700;
+            margin-left: 4px;
+        }
+
+        .ref-info-inline .ref-tag {
+            font-size: 10px;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: #e0e7ff;
+            color: #3b5bdb;
+            font-weight: 500;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+</style>
 
 <div class="Vert" data-store-name="@storeName">
     <div class="Page-Box">
@@ -81,6 +104,30 @@
                 {
                     <span class="separator">|</span>
                     <span><strong>EAN</strong>&nbsp;@ean</span>
+                }
+
+                <span class="separator">|</span>
+                @if (isMapMode && mapPrice.HasValue && mapPrice.Value > 0)
+                {
+                    <span class="ref-info-inline">
+                        Punkt odniesienia: Cena MAP
+                        <span class="ref-price-bold">@mapPrice.Value.ToString("0.00") PLN</span>
+                        <span class="ref-tag">REF</span>
+                    </span>
+                }
+                else if (referenceSource == "store" && referencePrice.HasValue && referencePrice.Value > 0)
+                {
+                    <span class="ref-info-inline">
+                        Punkt odniesienia: Cena Rynkowa
+                        <span class="ref-price-bold">@referencePrice.Value.ToString("0.00") PLN</span>
+                        <span class="ref-tag">REF</span>
+                    </span>
+                }
+                else
+                {
+                    <span class="ref-info-inline" style="color:#868e96;">
+                        Brak ceny referencyjnej
+                    </span>
                 }
             </div>
         </div>
@@ -221,19 +268,14 @@
                             <td class="store-price" style="@(isOwnStore ? "font-weight:bold;" : "")">
                                 @if (isOwnStore && referencePrice.HasValue)
                                 {
-                                    @referencePrice.Value.ToString("0.00")<text> PLN</text>
-                                    if (isMapMode)
-                                    {
-                                        <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:#e0e7ff;color:#3b5bdb;font-weight:500;margin-left:4px;vertical-align:middle;">MAP</span>
-                                    }
-                                    else
-                                    {
-                                        <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:#e0f5e9;color:#2b8a3e;font-weight:500;margin-left:4px;vertical-align:middle;">Rynek</span>
-                                    }
+                                    @referencePrice.Value.ToString("0.00")
+                                    <text> PLN</text>
+                                    <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:#e0e7ff;color:#3b5bdb;font-weight:500;margin-left:4px;vertical-align:middle;">REF</span>
                                 }
                                 else
                                 {
-                                    @item.Price.ToString("0.00")<text> PLN</text>
+                                    @item.Price.ToString("0.00")
+                                    <text> PLN</text>
                                 }
                             </td>
                             <td>
@@ -321,11 +363,11 @@
                 <div class="chart-toolbar-right">
                     <div class="chart-slider-group">
                         <label>Linie</label>
-                        <input type="range" id="grayAlphaRange" min="0" max="0.6" step="0.01" value="0.3">
+                        <input type="range" id="grayAlphaRange" min="0" max="0.6" step="0.01" value="0.15">
                     </div>
-                    <div class="chart-slider-group">
+                    <div class="chart-slider-group" id="bandIntensityGroup">
                         <label>Progi</label>
-                        <input type="range" id="bandIntensityRange" min="0.3" max="2.5" step="0.05" value="1.0">
+                        <input type="range" id="bandIntensityRange" min="0" max="2.5" step="0.05" value="0.4">
                     </div>
                     <button type="button" id="exportExcelBtn" class="Button-Page-Small" title="Eksportuj do Excela">
                         <i class="fas fa-file-excel" style="margin-right:5px;"></i> Excel
@@ -421,19 +463,20 @@
 </script>
 
 <script>
+    // ─── Bar chart (mini, w widoku Ranking) ────────────────────────────────
     var pricesData = @Html.Raw(ViewBag.PricesDataJson ?? "[]");
     var chart;
     var producerThresholds = @Html.Raw(producerThresholdsJson);
     var isMapMode = @Html.Raw(isMapMode ? "true" : "false");
 
     var bucketBarColors = {
-        'producer-deep-violation': 'rgba(139,0,0,0.7)',
-        'producer-violation':      'rgba(220,20,60,0.7)',
-        'producer-minor-below':    'rgba(255,99,71,0.7)',
-        'producer-equal':          'rgba(65,105,225,0.7)',
-        'producer-minor-above':    'rgba(144,238,144,0.7)',
-        'producer-above':          'rgba(34,139,34,0.7)',
-        'producer-deep-above':     'rgba(0,100,0,0.7)',
+        'producer-deep-violation': 'rgba(139,0,0,0.78)',
+        'producer-violation':      'rgba(220,20,60,0.78)',
+        'producer-minor-below':    'rgba(255,99,71,0.78)',
+        'producer-equal':          'rgba(65,105,225,0.78)',
+        'producer-minor-above':    'rgba(144,238,144,0.85)',
+        'producer-above':          'rgba(34,139,34,0.78)',
+        'producer-deep-above':     'rgba(0,100,0,0.82)',
         'producer-no-reference':   'rgba(187,187,187,0.7)'
     };
 
@@ -575,6 +618,8 @@
 </script>
 
 <script>
+
+
     var productId           = @ViewBag.ProductId;
     var myStoreLower        = "@storeName".toLowerCase().trim();
     var lastHoverParams     = null;
@@ -585,34 +630,50 @@
     var lastHighlightedStore  = null;
     var hiddenStores          = [];
 
-    var highlightColors = [
-        'rgba(255,128,0,1)',   'rgba(76,175,80,1)',  'rgba(153,102,255,1)',
-        'rgba(244,67,54,1)',   'rgba(0,150,136,1)',  'rgba(255,193,7,1)',
-        'rgba(0,188,212,1)',   'rgba(139,195,74,1)', 'rgba(121,85,72,1)',
-        'rgba(233,30,99,1)'
-    ];
-    var myStoreColor   = 'rgba(54,162,235,1)';
-    var mapRefColor    = 'rgba(65,105,225,1)';
 
-    /* solidny ciemny dla nieaktywnych serii (kropki w tooltipie nie tracą widoczności
-       gdy linie są mocno wyciszone) */
-    var DEFAULT_MARKER_SOLID = 'rgba(34,34,34,0.9)';
+    var highlightColors = [
+        'rgba(255,128,0,1)',    // Orange 500
+        'rgba(76,175,80,1)',    // Green 500
+        'rgba(156,39,176,1)',   // Purple 500
+        'rgba(244,67,54,1)',    // Red 500
+        'rgba(0,150,136,1)',    // Teal 500
+        'rgba(255,193,7,1)',    // Amber 500
+        'rgba(0,188,212,1)',    // Cyan 500
+        'rgba(118,255,3,1)',    // Light Green A400 (lime)
+        'rgba(121,85,72,1)',    // Brown 500
+        'rgba(233,30,99,1)'     // Pink 500
+    ];
+
+    var myStoreColor          = 'rgba(54, 162, 235, 1)';   
+    var mapRefColor           = 'rgba(65, 105, 225, 1)';   
+    var DEFAULT_MARKER_SOLID  = 'rgba(34,34,34,0.9)';    
 
     var UNIFORM_LINE_WIDTH          = 2.3;
     var UNIFORM_EMPHASIS_LINE_WIDTH = 2.3;
 
-    var defaultGrayAlpha = 0.3;
-    var bandIntensity    = 1.0;
+    var defaultGrayAlpha = 0.15;
+    var bandIntensity    = 0.4;
 
     var echartsTrendChart   = null;
     var currentTimelineData = null;
     var currentChartOptions = null;
     var trendIsMapMode      = false;
     var trendThresholds     = {};
+    var producerRefByDate   = {};   
 
     var defaultCustomTooltipContent = 'Najedź na punkt na wykresie...';
 
-    // ── Bazowe kolory pasów (RGB + bazowe alpha) ──
+ 
+    var Z_BAND            = 0;
+    var Z_BOUNDARY        = 2;
+    var Z_NORMAL          = 5;
+    var Z_HIGHLIGHT_BASE  = 10;
+    var Z_HIGHLIGHT_STEP  = 4;
+    var Z_MAIN_OUTLINE    = 100;
+    var Z_MAIN_LINE       = 102;
+    var Z_MAP_REF         = 110;
+
+
     var BAND_DEFS = [
         { r: 139, g: 0,   b: 0,   baseA: 0.22, label: 'Drastyczne naruszenie' },
         { r: 220, g: 20,  b: 60,  baseA: 0.20, label: 'Naruszenie' },
@@ -623,15 +684,121 @@
         { r: 0,   g: 100, b: 0,   baseA: 0.20, label: 'Mocno powyżej' }
     ];
 
-    function bandColor(idx) {
-        var d = BAND_DEFS[idx];
-        var a = Math.min(1, d.baseA * bandIntensity);
-        return 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + a.toFixed(3) + ')';
+  
+    var _bucketToBandIdx = {
+        'producer-deep-violation': 0,
+        'producer-violation':      1,
+        'producer-minor-below':    2,
+        'producer-equal':          3,
+        'producer-minor-above':    4,
+        'producer-above':          5,
+        'producer-deep-above':     6
+    };
+   
+    var _lightBandIdx = { 4: true };
+
+    function getBucketBadgeColors(bucket) {
+        var i = _bucketToBandIdx[bucket];
+        if (i == null) return { bg: 'rgba(187,187,187,0.85)', fg: '#fff', border: 'rgba(120,120,120,0.6)' };
+        var d = BAND_DEFS[i];
+        var isLight = !!_lightBandIdx[i];
+        return {
+            bg:     'rgba(' + d.r + ',' + d.g + ',' + d.b + ',0.92)',
+            fg:     isLight ? '#1a1a1a' : '#fff',
+            border: 'rgba(' + Math.max(0, d.r - 30) + ',' + Math.max(0, d.g - 30) + ',' + Math.max(0, d.b - 30) + ',0.85)'
+        };
     }
-    function boundaryLineColor(idx) {
+
+    function getProducerBucketForPrice(price, ref) {
+        if (!ref || ref <= 0 || price == null) return 'producer-no-reference';
+        var d  = price - ref;
+        var dp = (d / ref) * 100;
+        var t  = trendThresholds;
+        var u  = t.useAmount;
+        var v  = u ? d : dp;
+        if (v <= -(u ? t.redDarkAmt   : t.redDarkPct))   return 'producer-deep-violation';
+        if (v <= -(u ? t.redAmt       : t.redPct))       return 'producer-violation';
+        if (v <= -(u ? t.redLightAmt  : t.redLightPct))  return 'producer-minor-below';
+        if (v <  (u ? t.greenLightAmt : t.greenLightPct)) return 'producer-equal';
+        if (v <  (u ? t.greenAmt      : t.greenPct))      return 'producer-minor-above';
+        if (v <  (u ? t.greenDarkAmt  : t.greenDarkPct))  return 'producer-above';
+        return 'producer-deep-above';
+    }
+
+ 
+    var stripePatternCache = {};
+    function invalidateStripePatterns() { stripePatternCache = {}; }
+
+
+    function makeStripePattern(idx) {
+        if (stripePatternCache[idx]) return stripePatternCache[idx];
         var d = BAND_DEFS[idx];
-        var a = Math.min(0.9, 0.35 * bandIntensity);
-        return 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + a.toFixed(3) + ')';
+        var TILE = 8;
+
+        var isDeepZone = (idx === 0 || idx === 6);
+        var intensityBoost = isDeepZone ? 1.75 : 1.0;
+
+        var canvas = document.createElement('canvas');
+        canvas.width = TILE;
+        canvas.height = TILE;
+        var ctx = canvas.getContext('2d');
+
+        var bgCap = isDeepZone ? 0.22 : 0.10;
+        var bgAlpha = Math.min(bgCap, d.baseA * 0.22 * bandIntensity * intensityBoost);
+        ctx.fillStyle = 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + bgAlpha.toFixed(3) + ')';
+        ctx.fillRect(0, 0, TILE, TILE);
+
+      
+        var lineCap = isDeepZone ? 0.95 : 0.85;
+        var lineAlpha = Math.min(lineCap, 0.42 * bandIntensity * intensityBoost);
+        ctx.strokeStyle = 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + lineAlpha.toFixed(3) + ')';
+        ctx.lineWidth = isDeepZone ? 1.2 : 1;
+        ctx.lineCap = 'square';
+        ctx.beginPath();
+        ctx.moveTo(0, TILE);
+        ctx.lineTo(TILE, 0);
+        ctx.stroke();
+
+        stripePatternCache[idx] = canvas;
+        return canvas;
+    }
+
+    function makeCenaZgodnaWash() {
+        var d = BAND_DEFS[3];
+        var alpha = Math.min(0.20, d.baseA * 0.55 * bandIntensity);
+        return 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + alpha.toFixed(3) + ')';
+    }
+
+    function bandFillForBandIdx(i) {
+        if (i === 3) return makeCenaZgodnaWash();
+        return { image: makeStripePattern(i), repeat: 'repeat' };
+    }
+
+  
+    function boundaryLineStyle(bandIdx) {
+        var d = BAND_DEFS[bandIdx];
+        var isRefBoundary   = (bandIdx === 3 || bandIdx === 4);
+        var isOuterBoundary = (bandIdx === 0 || bandIdx === 6);
+
+        var alpha, width, type;
+        if (isRefBoundary) {
+            alpha = Math.min(0.95, 0.85 * bandIntensity);
+            width = 1.8;
+            type  = 'solid';
+        } else if (isOuterBoundary) {
+            alpha = Math.min(0.90, 0.70 * bandIntensity);
+            width = 1.3;
+            type  = [6, 4];
+        } else {
+            alpha = Math.min(0.85, 0.60 * bandIntensity);
+            width = 1.2;
+            type  = [6, 4];
+        }
+        return {
+            color: 'rgba(' + d.r + ',' + d.g + ',' + d.b + ',' + alpha.toFixed(3) + ')',
+            width: width,
+            type:  type
+        };
     }
 
     function calcBoundaries(ref, t) {
@@ -672,11 +839,14 @@
                     data:      data,
                     lineStyle: { width: 0, color: 'transparent' },
                     itemStyle: { color: 'transparent' },
-                    areaStyle: { color: bandColor(i), opacity: 1 },
+                    areaStyle: { color: bandFillForBandIdx(i), opacity: 1 },
                     symbol:    'none',
                     silent:    true,
-                    z:         0,
-                    tooltip:   { show: false }
+                    z:         Z_BAND,
+                    tooltip:   { show: false },
+             
+                    emphasis:  { disabled: true },
+                    blur:      { areaStyle: { opacity: 1 }, lineStyle: { opacity: 0 } }
                 });
             })(i);
         }
@@ -686,38 +856,27 @@
     function buildBoundaryLineSeries(allDates, refPrices) {
         var series = [];
         var boundaryLabels = [
-            { idx: 1, label: 'Drastyczne', bandIdx: 0 },
-            { idx: 2, label: 'Naruszenie', bandIdx: 1 },
-            { idx: 3, label: 'Poniżej',    bandIdx: 2 },
-            { idx: 4, label: 'Powyżej',    bandIdx: 4 },
-            { idx: 5, label: 'Powyżej+',   bandIdx: 5 },
-            { idx: 6, label: 'Mocno+',     bandIdx: 6 }
+            { idx: 1, bandIdx: 0 }, { idx: 2, bandIdx: 1 }, { idx: 3, bandIdx: 3 },
+            { idx: 4, bandIdx: 4 }, { idx: 5, bandIdx: 5 }, { idx: 6, bandIdx: 6 }
         ];
         boundaryLabels.forEach(function (bl) {
             var data = allDates.map(function (_, di) {
                 var b = calcBoundaries(refPrices[di], trendThresholds);
                 return b ? b[bl.idx] : null;
             });
+            var st = boundaryLineStyle(bl.bandIdx);
             series.push({
                 name:      '_bline_' + bl.idx,
                 type:      'line',
                 data:      data,
-                lineStyle: { width: 1, color: boundaryLineColor(bl.bandIdx), type: 'dashed' },
+                lineStyle: { width: st.width, color: st.color, type: st.type },
                 itemStyle: { color: 'transparent' },
                 symbol:    'none',
                 silent:    true,
-                z:         1,
+                z:         Z_BOUNDARY,
                 tooltip:   { show: false },
-                endLabel:  {
-                    show: false,
-                    formatter: bl.label,
-                    color: boundaryLineColor(bl.bandIdx),
-                    fontSize: 9,
-                    padding: [1, 4],
-                    backgroundColor: 'rgba(255,255,255,0.85)',
-                    borderRadius: 2,
-                    distance: -4
-                }
+                emphasis:  { disabled: true },
+                blur:      { lineStyle: { opacity: 1 } }
             });
         });
         return series;
@@ -735,11 +894,15 @@
             showSymbol: false,
             connectNulls: false,
             smooth: 0.30,
-            z: 5,
+            z: Z_MAP_REF,
             emphasis: {
-                lineStyle: { width: 3 },
+             
+                focus: 'none',
+                scale: false,
+                lineStyle: { width: 3, color: mapRefColor, shadowColor: 'rgba(0,0,0,0.35)', shadowBlur: 6 },
                 itemStyle: { color: mapRefColor, borderColor: '#fff', borderWidth: 1 }
-            }
+            },
+            blur: { lineStyle: { opacity: 1 }, areaStyle: { opacity: 1 }, itemStyle: { opacity: 1 } }
         };
     }
 
@@ -754,45 +917,82 @@
         return null;
     }
 
-    /**
-     * Zwraca komplet stylów dla serii sklepu:
-     * - lineStyle / itemStyle: kolor linii i kropki na wykresie (mogą być wyciszone)
-     * - markerColor: kolor kropki w tooltipie (zawsze solidny)
-     */
+
     function getSeriesStyleAndZ(sl) {
         if (hiddenStores.includes(sl)) {
             return {
-                lineStyle:   { color: 'transparent', width: 0 },
-                itemStyle:   { color: 'transparent' },
-                markerColor: 'transparent',
-                z: 0
+                lineStyle:    { color: 'transparent', width: 0 },
+                itemStyle:    { color: 'transparent' },
+                markerColor:  'transparent',
+                z:            0,
+                _needsOutline: false,
+                _outlineZ:    0
             };
         }
-        var isMy   = !trendIsMapMode && sl === myStoreLower;
-        var isH    = highlightedStores.includes(sl);
-        var isLast = sl === lastHighlightedStore;
-        var ci     = storeColorMap[sl];
 
-        var lineColor   = 'rgba(0, 0, 0, ' + defaultGrayAlpha + ')';
-        var markerColor = DEFAULT_MARKER_SOLID;
-        var z = 1;
+        var isMy = !trendIsMapMode && sl === myStoreLower;
+        var isH  = highlightedStores.includes(sl);
+        var highlightOrder = isH ? highlightedStores.indexOf(sl) : -1;
+
+        var style = {
+            lineStyle:    { width: UNIFORM_LINE_WIDTH },
+            itemStyle:    {},
+            markerColor:  DEFAULT_MARKER_SOLID,
+            z:            Z_NORMAL,
+            _needsOutline: false,
+            _outlineZ:    0
+        };
 
         if (isMy) {
-            lineColor   = myStoreColor;
-            markerColor = myStoreColor;
-            z = 3;
-        } else if (isH && ci != null) {
-            lineColor   = highlightColors[ci];
-            markerColor = highlightColors[ci];
-            z = 2;
+        
+            style.lineStyle.color = myStoreColor;
+            style.lineStyle.width = 2.8;
+            style.itemStyle.color = myStoreColor;
+            style.markerColor     = myStoreColor;
+            style.z               = Z_MAIN_LINE;
+            style._needsOutline   = true;
+            style._outlineZ       = Z_MAIN_OUTLINE;
+        } else if (isH) {
+            var colorIndex = storeColorMap[sl];
+            if (colorIndex != null) {
+                var color = highlightColors[colorIndex];
+                style.lineStyle.color = color;
+                style.lineStyle.width = 2.6 + Math.min(highlightOrder, 8) * 0.08;
+                style.itemStyle.color = color;
+                style.markerColor     = color;
+                var baseZ             = Z_HIGHLIGHT_BASE + highlightOrder * Z_HIGHLIGHT_STEP;
+                style.z               = baseZ + 2;
+                style._needsOutline   = true;
+                style._outlineZ       = baseZ;
+            }
+        } else {
+           
+            var gray = 'rgba(0, 0, 0, ' + defaultGrayAlpha + ')';
+            style.lineStyle.color = gray;
+            style.itemStyle.color = gray;
         }
-        if (isLast) z = 4;
 
+        return style;
+    }
+
+    function buildEmphasisForLine(lineStyle, itemStyle) {
+        var baseWidth = (lineStyle && lineStyle.width) || UNIFORM_LINE_WIDTH;
+        var lineColor = (lineStyle && lineStyle.color) || 'rgba(0,0,0,' + defaultGrayAlpha + ')';
+        var itemColor = (itemStyle && itemStyle.color) || lineColor;
         return {
-            lineStyle:   { color: lineColor, width: UNIFORM_LINE_WIDTH },
-            itemStyle:   { color: lineColor },
-            markerColor: markerColor,
-            z: z
+            focus: 'none',
+            scale: false,
+            lineStyle: {
+                width: baseWidth + 0.4,
+                color: lineColor,
+                shadowColor: 'rgba(0, 0, 0, 0.4)',
+                shadowBlur: 6
+            },
+            itemStyle: {
+                color: itemColor,
+                borderColor: '#fff',
+                borderWidth: 1
+            }
         };
     }
 
@@ -800,9 +1000,10 @@
         if (!currentChartOptions || !currentChartOptions.series) return null;
         var mn = Infinity, mx = -Infinity, has = false;
         currentChartOptions.series.forEach(function (s) {
-            if (s.name.startsWith('_band_') || s.name.startsWith('_bline_')) return;
+            if (!s.name) return;
+            if (s.name.startsWith('_band_') || s.name.startsWith('_bline_') || s.name.startsWith('_outline_')) return;
             if (hiddenStores.includes(s.name.toLowerCase().trim())) return;
-            s.data.forEach(function (dp) {
+            (s.data || []).forEach(function (dp) {
                 var v = (dp && typeof dp === 'object') ? dp.value : dp;
                 if (v != null) { has = true; mn = Math.min(mn, v); mx = Math.max(mx, v); }
             });
@@ -827,7 +1028,8 @@
                     : null;
             }
         }
-        updateEchartsStylesAndZ();
+        
+        rebuildChartFromCurrentState();
         var r = recalculateYAxisRange();
         if (r && currentChartOptions) {
             currentChartOptions.yAxis.min = r.min;
@@ -854,7 +1056,7 @@
             if (!trendIsMapMode && sl === myStoreLower) {
                 lastHighlightedStore = sl;
             } else if (highlightedStores.length >= highlightColors.length) {
-                alert('Maks. ' + highlightColors.length);
+                alert('Możesz zaznaczyć maks. ' + highlightColors.length + ' sklepów do porównania');
                 return;
             } else {
                 var ci = findNextFreeColorIndex();
@@ -864,51 +1066,84 @@
                 lastHighlightedStore = sl;
             }
         }
-        updateEchartsStylesAndZ();
+     
+        rebuildChartFromCurrentState();
         if (lastHoverParams) updateCustomTooltipPanel(generateTooltipPanelHtml(lastHoverParams));
     }
+
+ 
+    function rebuildChartFromCurrentState() {
+        if (!echartsTrendChart || !currentTimelineData || !currentChartOptions) return;
+
+        var existing = currentChartOptions.series || [];
+        var keepBgSeries = existing.filter(function (s) {
+            return s.name && (s.name.startsWith('_band_') || s.name.startsWith('_bline_') || s.name === 'Cena MAP');
+        });
+
+     
+        var allDates = currentChartOptions.xAxis.data;
+        var dbi = window._dbiCache || {};
+        var allInst = window._allInstCache || [];
+
+        var storeSeries = prepareStoreSeries(dbi, allDates, allInst);
+        var newSeries = keepBgSeries.concat(storeSeries);
+
+        currentChartOptions.series = newSeries;
+        echartsTrendChart.setOption(
+            { series: newSeries, animation: false },
+            { replaceMerge: ['series'] }
+        );
+    }
+
 
     function updateEchartsStylesAndZ() {
         if (!echartsTrendChart || !currentChartOptions) return;
         var upd = currentChartOptions.series.map(function (s) {
+            if (!s.name) return s;
             if (s.name.startsWith('_band_')) {
                 var idx = parseInt(s.name.replace('_band_', ''));
-                return Object.assign({}, s, { areaStyle: { color: bandColor(idx), opacity: 1 } });
+                return Object.assign({}, s, { areaStyle: { color: bandFillForBandIdx(idx), opacity: 1 } });
             }
             if (s.name.startsWith('_bline_')) {
                 var bi = parseInt(s.name.replace('_bline_', ''));
-                var bm = { 1: 0, 2: 1, 3: 2, 4: 4, 5: 5, 6: 6 };
+                var bm = { 1: 0, 2: 1, 3: 3, 4: 4, 5: 5, 6: 6 };
+                var st = boundaryLineStyle(bm[bi] || 0);
                 return Object.assign({}, s, {
-                    lineStyle: { width: 1, color: boundaryLineColor(bm[bi] || 0), type: 'dashed' },
-                    endLabel:  Object.assign({}, s.endLabel, { color: boundaryLineColor(bm[bi] || 0) })
+                    lineStyle: { width: st.width, color: st.color, type: st.type }
                 });
             }
+            if (s.name.startsWith('_outline_')) return s;
             if (s.name === 'Cena MAP') return s;
 
+       
             var sl = s.name.toLowerCase().trim();
-            var st = getSeriesStyleAndZ(sl);
-            var em = s.emphasis || {};
+            var style = getSeriesStyleAndZ(sl);
             return Object.assign({}, s, {
-                lineStyle: st.lineStyle,
-                itemStyle: st.itemStyle,
-                z:         st.z,
-                emphasis:  Object.assign({}, em, {
-                    lineStyle: Object.assign({}, em.lineStyle || {}, { width: UNIFORM_EMPHASIS_LINE_WIDTH }),
-                    itemStyle: Object.assign({}, em.itemStyle || {}, { color: st.itemStyle.color, opacity: 1 })
-                })
+                lineStyle: style.lineStyle,
+                itemStyle: style.itemStyle,
+                z: style.z,
+                emphasis: buildEmphasisForLine(style.lineStyle, style.itemStyle),
+                blur: {
+                    lineStyle: { opacity: 1 },
+                    areaStyle: { opacity: 1 },
+                    itemStyle: { opacity: 1 }
+                }
             });
         });
         currentChartOptions.series = upd;
-        echartsTrendChart.setOption({ series: upd });
+        echartsTrendChart.setOption({ series: upd, animation: false });
     }
 
     function generateTooltipPanelHtml(params) {
         if (!params || !params.length) return null;
         var date  = params[0].axisValueLabel;
+        var refPriceForDate = producerRefByDate[date];
         var items = [];
 
         params.forEach(function (p) {
-            if (p.seriesName.startsWith('_band_') || p.seriesName.startsWith('_bline_')) return;
+            if (!p.seriesName) return;
+            if (p.seriesName.startsWith('_band_') || p.seriesName.startsWith('_bline_') || p.seriesName.startsWith('_outline_')) return;
+
             var v   = (p.data && typeof p.data === 'object') ? p.data.value  : p.data;
             var src = (p.data && typeof p.data === 'object') ? (p.data.source || '') : '';
             var sn  = p.seriesName;
@@ -935,14 +1170,29 @@
         });
 
         items.sort(function (a, b) {
+            if (a.isMapRef) return -1;
+            if (b.isMapRef) return 1;
             return a.price !== b.price ? a.price - b.price : a.storeName.localeCompare(b.storeName);
         });
 
-        var h = '<div style="font-weight:bold;margin-bottom:4px;">Data: ' + date + '</div>';
+        var h = '<div style="font-weight:bold;margin-bottom:8px;">Data: ' + date + '</div>';
+
+        // Ref price prominentnie na górze
+        if (refPriceForDate) {
+            var refLabel = trendIsMapMode ? 'Cena MAP' : 'Cena Rynkowa';
+            h += '<div style="padding:4px 0;margin-bottom:8px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;align-items:center;">' +
+                    '<strong>' + refLabel +
+                        '<span style="font-size:10px;padding:1px 5px;border-radius:3px;background:#e0e7ff;color:#3b5bdb;font-weight:500;margin-left:4px;vertical-align:middle;">REF</span>' +
+                    '</strong>' +
+                    '<strong style="color:#000;font-size:14px;">' + refPriceForDate.toFixed(2) + ' PLN</strong>' +
+                 '</div>';
+        }
+
         if (!items.length) {
             h += '<div style="color:#666;font-style:italic;">Brak danych.</div>';
             return h;
         }
+
         h += '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">';
         items.forEach(function (it) {
             var sl = it.storeName.toLowerCase().trim();
@@ -954,42 +1204,68 @@
                 ct = highlightColors[it.colorIndex];
                 fw = 'bold';
             }
+
+
+            var bucketBadge = '';
+            if (it.isMyStore && !trendIsMapMode && refPriceForDate) {
+               
+                bucketBadge = '<span style="font-size:10px;padding:2px 5px;background:#e0e7ff;color:#3b5bdb;border:1px solid #b6c3ff;border-radius:3px;font-weight:600;white-space:nowrap;">REF</span>';
+            } else if (!it.isMapRef && refPriceForDate && refPriceForDate > 0) {
+                var b = getProducerBucketForPrice(it.price, refPriceForDate);
+                var cols = getBucketBadgeColors(b);
+                var da = it.price - refPriceForDate;
+                var dp = (da / refPriceForDate) * 100;
+                var s  = da >= 0 ? '+' : '';
+                var sp = dp >= 0 ? '+' : '';
+                bucketBadge = '<span style="font-size:11px;padding:2px 5px;background:' + cols.bg + ';color:' + cols.fg + ';border:1px solid ' + cols.border + ';border-radius:5px;font-weight:600;white-space:nowrap;">' + s + da.toFixed(2) + ' PLN (' + sp + dp.toFixed(2) + '%)</span>';
+            }
+
             var dn = it.storeName.length > 23 ? it.storeName.substring(0, 20) + '...' : it.storeName;
             var icon = it.isMapRef
-                ? '<i class="fa-solid fa-bullseye" style="font-size:12px;color:' + mapRefColor + ';margin-right:4px;"></i>'
+                ? '<i class="fa-solid fa-bullseye" style="font-size:12px;color:' + mapRefColor + ';margin-right:4px;vertical-align:middle;"></i>'
                 : (it.source === 'google'
                     ? '<img src="/images/GoogleShopping.png" alt="" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"/>'
                     : '<img src="/images/Ceneo.png" alt="" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"/>');
+
             var esc = it.storeName.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            var rm = it.isMapRef
-                ? ''
-                : '<span title="Ukryj" style="cursor:pointer;color:#aaa;margin-left:8px;font-weight:bold;padding:0 4px;" '
-                  + 'onmouseover="this.style.color=\'red\'" onmouseout="this.style.color=\'#aaa\'" '
-                  + 'onclick="event.stopPropagation();hideStoreFromChart(\'' + esc + '\');">&times;</span>';
+            var rm = it.isMapRef ? '' :
+                '<span title="Ukryj sklep \'' + esc + '\'" style="cursor:pointer;color:#aaa;font-weight:bold;font-size:16px;line-height:1;flex-shrink:0;padding:0 2px;" ' +
+                'onmouseover="this.style.color=\'red\'" onmouseout="this.style.color=\'#aaa\'" ' +
+                'onclick="event.stopPropagation();hideStoreFromChart(\'' + esc + '\');">&times;</span>';
             var cl = it.isMapRef ? '' : ' onclick="event.stopPropagation();toggleStoreHighlight(\'' + esc + '\');"';
 
-            h += '<tr style="border-bottom:1px solid #eee;cursor:' + (it.isMapRef ? 'default' : 'pointer') + ';"' + cl + '>'
-              +    '<td style="padding:3px 2px;color:' + ct + ';font-weight:' + fw + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + it.storeName + '">'
-              +      '<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:' + it.markerColor + ';vertical-align:middle;"></span>'
-              +      icon + dn
-              +    '</td>'
-              +    '<td style="padding:3px 2px;text-align:right;color:' + ct + ';font-weight:' + fw + ';white-space:nowrap;">'
-              +      it.price.toFixed(2) + ' PLN' + rm
-              +    '</td>'
-              +  '</tr>';
+            h += '<tr style="border-bottom:1px solid #eee;cursor:' + (it.isMapRef ? 'default' : 'pointer') + ';"' + cl + '>' +
+                    '<td colspan="2" style="padding:5px 2px;">' +
+                        '<div style="display:flex;align-items:center;gap:8px;width:100%;">' +
+                            '<div style="flex:1;min-width:0;color:' + ct + ';font-weight:' + fw + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + it.storeName + '">' +
+                                '<span style="display:inline-block;margin-right:5px;width:10px;height:10px;border-radius:50%;background-color:' + it.markerColor + ';vertical-align:middle;"></span>' +
+                                icon +
+                                '<span style="vertical-align:middle;">' + dn + '</span>' +
+                            '</div>' +
+                            '<div style="display:flex;flex-direction:column;align-items:flex-end;white-space:nowrap;gap:2px;">' +
+                                '<span style="font-size:14px;font-weight:500;color:#000;">' + it.price.toFixed(2) + ' PLN</span>' +
+                                bucketBadge +
+                            '</div>' +
+                            rm +
+                        '</div>' +
+                    '</td>' +
+                 '</tr>';
         });
         h += '</table>';
         return h;
     }
 
+
     function prepareStoreSeries(dbi, allDates, allInst) {
-        return allInst.map(function (iid) {
+        var seriesList = [];
+
+        allInst.forEach(function (iid) {
             var p   = iid.split('|');
             var sn  = p[0];
             var src = p[1];
             var sl  = sn.toLowerCase().trim();
-            var st  = getSeriesStyleAndZ(sl);
-            var vc  = 0;
+            var style = getSeriesStyleAndZ(sl);
+            var vc = 0;
 
             var data = allDates.map(function (d) {
                 var pr = (dbi[iid] && dbi[iid][d]) || null;
@@ -997,7 +1273,34 @@
                 return { value: pr, source: src, storeName: sn };
             });
 
-            return {
+            var isSingle = vc === 1;
+
+          
+            if (style._needsOutline) {
+                seriesList.push({
+                    name: '_outline_' + iid,
+                    type: 'line',
+                    data: data,
+                    connectNulls: false,
+                    smooth: 0.30,
+                    symbol: 'circle',
+                    symbolSize: 0,
+                    showSymbol: false,
+                    lineStyle: {
+                        color: 'rgba(0, 0, 0, 0.88)',
+                        width: (style.lineStyle.width || UNIFORM_LINE_WIDTH) + 2.4
+                    },
+                    itemStyle: { color: 'rgba(0,0,0,0)' },
+                    areaStyle: null,
+                    z: style._outlineZ,
+                    silent: true,
+                    tooltip: { show: false },
+                    emphasis: { disabled: true },
+                    blur: { lineStyle: { opacity: 1 } }
+                });
+            }
+
+            seriesList.push({
                 name:         sn,
                 _instanceId:  iid,
                 _source:      src,
@@ -1005,20 +1308,23 @@
                 data:         data,
                 connectNulls: false,
                 smooth:       0.30,
-                showSymbol:   vc === 1,
+                showSymbol:   isSingle,
                 symbol:       'circle',
-                symbolSize:   vc === 1 ? 10 : 6,
-                emphasis: {
-                    focus:      'series',
-                    symbolSize: vc === 1 ? 14 : 12,
-                    lineStyle:  { width: UNIFORM_EMPHASIS_LINE_WIDTH },
-                    itemStyle:  { color: st.itemStyle.color, borderColor: 'rgba(255,255,255,0.7)', borderWidth: 1, opacity: 1 }
-                },
-                lineStyle: st.lineStyle,
-                itemStyle: st.itemStyle,
-                z:         st.z
-            };
+                symbolSize:   isSingle ? 10 : 6,
+                lineStyle:    style.lineStyle,
+                itemStyle:    style.itemStyle,
+                z:            style.z,
+         
+                emphasis:     buildEmphasisForLine(style.lineStyle, style.itemStyle),
+             
+                blur: {
+                    lineStyle: { opacity: 1 },
+                    areaStyle: { opacity: 1 },
+                    itemStyle: { opacity: 1 }
+                }
+            });
         });
+        return seriesList;
     }
 
     function drawEchartsTrendChart(resp) {
@@ -1032,14 +1338,14 @@
         if (echartsTrendChart) { echartsTrendChart.dispose(); echartsTrendChart = null; }
         echartsTrendChart = echarts.init(dom);
 
-        var datesSet  = new Set();
-        var instSet   = new Set();
-        var dbi       = {};
-        var rpByDate  = {};
+        var datesSet = new Set();
+        var instSet  = new Set();
+        var dbi      = {};
+        producerRefByDate = {};
 
         td.forEach(function (e) {
             datesSet.add(e.scrapDate);
-            rpByDate[e.scrapDate] = e.referencePrice;
+            producerRefByDate[e.scrapDate] = e.referencePrice;
             e.pricesByStore.forEach(function (ps) {
                 if (!ps.storeName || !ps.source || ps.price == null) return;
                 var iid = ps.storeName + '|' + ps.source;
@@ -1061,7 +1367,15 @@
             return nA.localeCompare(nB);
         });
 
-        var refPrices = allDates.map(function (d) { return rpByDate[d] || null; });
+       
+        window._dbiCache     = dbi;
+        window._allInstCache = allInst;
+
+        var refPrices = allDates.map(function (d) { return producerRefByDate[d] || null; });
+        var hasAnyRef = refPrices.some(function (rp) { return rp != null && rp > 0; });
+
+        var bandGroup = document.getElementById('bandIntensityGroup');
+        if (bandGroup) bandGroup.style.display = hasAnyRef ? 'flex' : 'none';
 
         var gMin = Infinity, gMax = -Infinity;
         Object.values(dbi).forEach(function (dm) {
@@ -1082,12 +1396,13 @@
             gMax += pad;
         }
 
-        var allSeries = [].concat(
-            buildBandSeries(allDates, refPrices),
-            buildBoundaryLineSeries(allDates, refPrices),
-            prepareStoreSeries(dbi, allDates, allInst)
-        );
-        if (trendIsMapMode) allSeries.push(buildMapRefLine(allDates, refPrices));
+        var allSeries = prepareStoreSeries(dbi, allDates, allInst);
+        if (hasAnyRef) {
+            var bandSeries     = buildBandSeries(allDates, refPrices);
+            var boundarySeries = buildBoundaryLineSeries(allDates, refPrices);
+            allSeries = bandSeries.concat(boundarySeries, allSeries);
+            if (trendIsMapMode) allSeries.push(buildMapRefLine(allDates, refPrices));
+        }
 
         var pm = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
         function fmtDate(ds) {
@@ -1112,7 +1427,7 @@
         currentChartOptions = {
             title: {
                 text: 'Cena w czasie',
-                left: 20, // Wyjustowanie do lewej strony z drobnym marginesem
+                left: 20,
                 top: 4,
                 textStyle: { fontSize: 13, fontWeight: 600, color: '#333' }
             },
@@ -1136,12 +1451,11 @@
                 type: 'value',
                 min: gMin, max: gMax,
                 scale: true,
-                axisLabel:   { show: false }, // Wyłączone wartości liczbowe
+                axisLabel:   { show: false },
                 axisPointer: { show: true, snap: true },
                 splitLine:   { show: true, lineStyle: { color: '#E8E8E8', type: 'dashed', width: 1 } }
-                // Usunięto name, nameLocation, nameGap itd.
             },
-            grid: { left: 20, right: 20, bottom: 65, top: 40, containLabel: false }, // Zmieniony grid
+            grid: { left: 20, right: 20, bottom: 65, top: 40, containLabel: false },
             series: allSeries,
             animationEasing: 'quadraticInOut',
             animationDuration: 600,
@@ -1174,6 +1488,7 @@
             if (p && p.seriesName
                 && !p.seriesName.startsWith('_band_')
                 && !p.seriesName.startsWith('_bline_')
+                && !p.seriesName.startsWith('_outline_')
                 && p.seriesName !== 'Cena MAP') {
                 toggleStoreHighlight(p.seriesName);
             }
@@ -1204,7 +1519,7 @@
         });
     }
 
-    // ── Eventy ──
+ 
     $('.history-btn').on('click', function () {
         $('.history-btn').removeClass('active');
         $(this).addClass('active');
@@ -1220,7 +1535,6 @@
             $cBtn = $('#showChartBtn'),
             $tC   = $('#priceTableContainer'),
             $cC   = $('#trendChartContainer'),
-            $tt   = $('#customTrendTooltip'),
             $rk   = $('#rankingOnlyArea');
 
         function showRanking() {
@@ -1246,16 +1560,17 @@
         $tBtn.on('click', showRanking);
         $cBtn.on('click', showChart);
 
-        // Slider: przezroczystość linii
+        
         document.getElementById("grayAlphaRange").addEventListener("input", function (e) {
             defaultGrayAlpha = parseFloat(e.target.value);
             updateEchartsStylesAndZ();
             if (lastHoverParams) updateCustomTooltipPanel(generateTooltipPanelHtml(lastHoverParams));
         });
 
-        // Slider: intensywność pasów progowych
+
         document.getElementById("bandIntensityRange").addEventListener("input", function (e) {
             bandIntensity = parseFloat(e.target.value);
+            invalidateStripePatterns();
             updateEchartsStylesAndZ();
         });
 
@@ -1267,11 +1582,11 @@
             }
         });
 
-        // Start w trybie Ranking
+
         showRanking();
     });
 
-    // ── Excel export ──
+
     function rgbaToHex(r) {
         if (typeof r !== 'string' || !r.toLowerCase().startsWith('rgba')) return null;
         var p = r.substring(r.indexOf('(') + 1, r.lastIndexOf(')')).split(/,\s*/);
@@ -1338,6 +1653,13 @@
                 { header: 'Sklep',  key: 'store',  width: 35 },
                 { header: 'Źródło', key: 'source', width: 10 }
             ];
+
+
+            var hasRef = fd.some(function (d) { return producerRefByDate[d] != null; });
+            if (hasRef) {
+                cols.push({ header: 'Ref.', key: 'ref', width: 14, style: { numFmt: '#,##0.00 "PLN"' } });
+            }
+
             fd.forEach(function (d) {
                 cols.push({
                     header: d, key: d, width: 12,
@@ -1345,6 +1667,21 @@
                 });
             });
             ws.columns = cols;
+            ws.getRow(1).font = { bold: true };
+            ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+
+          
+            if (hasRef) {
+                var refRowData = { store: trendIsMapMode ? 'CENA MAP (referencja)' : 'CENA RYNKOWA (referencja)', source: 'REF' };
+                fd.forEach(function (d) {
+                    var rp = producerRefByDate[d];
+                    if (rp != null) refRowData[d] = rp;
+                });
+                var refRow = ws.addRow(refRowData);
+                refRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                refRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4169E1' } };
+                ws.addRow({});
+            }
 
             keys.forEach(function (sk) {
                 var inf = li[sk];
@@ -1363,7 +1700,7 @@
             var blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
             var pn   = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.ProductName ?? "Produkt"));
             var safe = pn.replace(/[^a-z0-9_]/gi, '_').substring(0, 50);
-            var fn   = 'PriceSafari_' + safe + '_' + fd[0] + '_do_' + fd[fd.length - 1] + '.xlsx';
+            var fn   = 'PriceSafari_Producent_' + safe + '_' + fd[0] + '_do_' + fd[fd.length - 1] + '.xlsx';
 
             var link = document.createElement("a");
             link.href = URL.createObjectURL(blob);

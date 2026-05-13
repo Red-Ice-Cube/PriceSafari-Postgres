@@ -1074,36 +1074,35 @@
     }
 
     function buildStatsBlocks(item) {
-        const blocks = [];
-
-        blocks.push(`
-            <div class="price-box-column-offers-a">
-                <span class="data-channel"><img src="/images/AllegroIcon.png" alt="Allegro" style="width:15px;height:15px;" /></span>
-                <div class="offer-count-box">${getOfferText(item.competitorCount || 0)}</div>
-            </div>`);
-
-        blocks.push(`
-            <div class="price-box-column-offers-a" title="Łączna sprzedaż w katalogu (30 dni)">
-                <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;"></i></span>
-                <div class="offer-count-box"><p>${item.totalPopularity || 0} osb. kupiło</p></div>
-            </div>`);
-
-        blocks.push(`
-            <div class="price-box-column-offers-a" title="Sprzedaż Twojej oferty / udział w rynku">
-                <span class="data-channel"><i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;"></i></span>
-                <div class="offer-count-box"><p>${item.myTotalPopularity || 0} osb. (${(item.marketSharePercentage || 0).toFixed(2)}%)</p></div>
-            </div>`);
-
+        let commissionText = "Brak danych";
         if (item.apiAllegroCommission != null) {
-            const formattedCommission = formatPricePL(item.apiAllegroCommission, false);
-            blocks.push(`
-                <div class="price-box-column-offers-a" title="Prowizja Allegro dla Twojej oferty">
-                    <span class="data-channel"><i class="fa-solid fa-coins" style="font-size:14px; color:#888;"></i></span>
-                    <div class="offer-count-box"><p>${formattedCommission} PLN</p></div>
-                </div>`);
+            commissionText = formatPricePL(item.apiAllegroCommission, false) + " PLN";
         }
 
-        return blocks.join('');
+        const blocks = [
+            `<div class="price-box-column-offers-a">
+                <span class="data-channel"><img src="/images/AllegroIcon.png" alt="Allegro" style="width:15px;height:15px;" /></span>
+                <div class="offer-count-box">${getOfferText(item.competitorCount || 0)}</div>
+            </div>`,
+
+            `<div class="price-box-column-offers-a" title="Łączna sprzedaż w katalogu (30 dni)">
+                <span class="data-channel"><i class="fas fa-shopping-cart" style="font-size: 15px; color: grey; margin-top:1px;"></i></span>
+                <div class="offer-count-box">${item.totalPopularity || 0} osb. kupiło</div>
+            </div>`,
+
+            `<div class="price-box-column-offers-a" title="Sprzedaż Twojej oferty / udział w rynku">
+                <span class="data-channel"><i class="fas fa-chart-pie" style="font-size: 15px; color: grey; margin-top:1px;"></i></span>
+                <div class="offer-count-box">${item.myTotalPopularity || 0} osb. (${(item.marketSharePercentage || 0).toFixed(2)}%)</div>
+            </div>`,
+
+            `<div class="price-box-column-offers-a" title="Prowizja Allegro dla Twojej oferty">
+                <span class="data-channel"><i class="fa-solid fa-coins" style="font-size:14px; color:#888;"></i></span>
+                <div class="offer-count-box">${commissionText}</div>
+            </div>`
+        ];
+
+      
+        return blocks.map(block => block.trim()).join('');
     }
 
     function buildCompetitorBox(item, storeSearchTerm) {
