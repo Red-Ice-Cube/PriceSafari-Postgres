@@ -77,6 +77,7 @@
 
 <div class="Page-Box">
     <div class="Page-Box-Container">
+
         <div class="Page-Box-Category">
             <div class="Category-Box-Title">
                 Statusy Maszyn
@@ -84,24 +85,25 @@
             <partial name="_ManageNavCol" />
         </div>
 
-        <div class="sort-container">
-            <label for="deviceNameFilter">Maszyny</label>
-            <select id="deviceNameFilter">
-                <option value="">Wszystkie</option>
-                @foreach (var name in distinctDeviceNames)
-                {
-                    <option value="@name">@name</option>
-                }
-            </select>
-        </div>
+        <div class="Horizontal" style="padding: 20px;">
 
-        <div class="Vert-table">
-            <form asp-action="ClearAll" method="post"
-                  onsubmit="return confirm('Czy na pewno chcesz usunąć wszystkie wpisy?');">
-                <button type="submit" class="Button-ClearAll">Usuń wszystkie wpisy</button>
-            </form>
+            <div class="sort-container">
+                <label for="deviceNameFilter">Maszyny</label>
+                <select id="deviceNameFilter">
+                    <option value="">Wszystkie</option>
+                    @foreach (var name in distinctDeviceNames)
+                    {
+                        <option value="@name">@name</option>
+                    }
+                </select>
+            </div>
 
-            <table class="table-orders" id="deviceTable">
+            <div class="Vert-table">
+                <form asp-action="ClearAll" method="post" onsubmit="return confirm('Czy na pewno chcesz usunąć wszystkie wpisy?');">
+                    <button type="submit" class="Button-ClearAll">Usuń wszystkie wpisy</button>
+                </form>
+
+                <table class="table-orders" id="deviceTable">
                 <thead>
                     <tr>
                         <th rowspan="2">Nazwa urządzenia</th>

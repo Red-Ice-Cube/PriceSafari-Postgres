@@ -5,6 +5,14 @@
 }
 
 <style>
+
+
+    .Vert-table {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+        padding-right: 5px; /* Delikatny odstęp dla paska przewijania */
+    }
     /* Nowoczesny styl dla tabeli i kontenera */
     .table-header-controls {
         display: flex;
@@ -46,25 +54,29 @@
     .custom-table {
         width: 100%;
         border-collapse: separate;
-        border-spacing: 0 8px; /* Odstęp między wierszami */
+        border-spacing: 0 8px; 
     }
 
-    .custom-table thead th {
-        color: #8898aa;
-        font-weight: 600;
-        text-transform: uppercase;
-        font-size: 0.85em;
-        padding: 10px 20px;
-        border-bottom: 1px solid #eee;
-    }
+        .custom-table thead th {
+            position: sticky;
+            top: 0;
+            background-color: #fff; /* Tło jest wymagane, aby przewijane wiersze nie prześwitywały */
+            z-index: 10;
+            color: #8898aa;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85em;
+            padding: 10px 20px;
+            border-bottom: 1px solid #eee;
+        }
 
     .custom-table tbody tr {
         background: #fff;
         box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-        transition: background-color 0.2s; /* Tylko zmiana koloru, bez ruchu */
+        transition: background-color 0.2s; 
     }
     
-    /* ZMIANA: Usunięto transform (podskakiwanie), zostawiono tylko zmianę tła */
+  
     .custom-table tbody tr:hover {
         background-color: #f8f9fa; 
     }
@@ -85,7 +97,7 @@
         border-bottom-right-radius: 8px;
     }
 
-    /* Dane Użytkownika */
+   
     .user-info {
         display: flex;
         flex-direction: column;
@@ -100,7 +112,7 @@
         margin-top: 2px;
     }
 
-    /* Sklepy */
+   
     .store-badge {
         display: flex;
         align-items: center;
@@ -168,7 +180,7 @@
             <partial name="_ManageNavCol" />
         </div>
 
-        <div style="flex: 1; padding: 20px;">
+        <div class="Horizontal" style="padding: 20px;">
             
             <div class="table-header-controls">
                 <div class="search-wrapper">
