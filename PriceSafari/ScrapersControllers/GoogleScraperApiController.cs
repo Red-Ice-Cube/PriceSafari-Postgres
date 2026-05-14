@@ -182,18 +182,15 @@ namespace PriceSafari.Services.GoogleScraping
                     var anyPending = await _context.CoOfrs
                         .AnyAsync(c => (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer)
                                        && !c.GoogleIsScraped);
-
                     if (!anyPending)
                     {
-                        // === RETRY MECHANISM: spróbuj odpalić kolejny przebieg ===
-                        var (startedNext, resetCount, currentPass) = await _scrapingService.TryAdvanceToNextPassAsync();
+                        var (startedNext, resetCount, currentPass, shouldFinish) = await _scrapingService.TryAdvanceToNextPassAsync();
 
                         if (startedNext)
                         {
                             _logger.LogInformation("Uruchomiono przebieg #{Pass} z {Count} URLi do retry (przez get-task)",
                                 currentPass, resetCount);
 
-                            // Status zostaje Running — Python dalej poll'uje, niedługo dostanie nową paczkę.
                             return Ok(new
                             {
                                 tasks = new List<object>(),
@@ -203,21 +200,32 @@ namespace PriceSafari.Services.GoogleScraping
                             });
                         }
 
-                        // Brak retry — kończymy proces na dobre
-                        GoogleScrapeManager.FinishProcess();
-
-                        await _hubContext.Clients.All.SendAsync("GoogleScrapingFinished", new
+                        if (shouldFinish)   // ═══ FIX: kończymy TYLKO gdy semafor potwierdził koniec
                         {
-                            endTime = GoogleScrapeManager.ScrapingEndTime,
-                            message = "Scraping completed"
-                        });
+                            GoogleScrapeManager.FinishProcess();
 
+                            await _hubContext.Clients.All.SendAsync("GoogleScrapingFinished", new
+                            {
+                                endTime = GoogleScrapeManager.ScrapingEndTime,
+                                message = "Scraping completed"
+                            });
+
+                            return Ok(new
+                            {
+                                tasks = new List<object>(),
+                                done = true,
+                                message = "Scraping completed",
+                                shouldHibernate = true
+                            });
+                        }
+
+                        // shouldFinish=false → ktoś inny właśnie wystartował retry. Każ Pythonowi pollować dalej.
                         return Ok(new
                         {
                             tasks = new List<object>(),
-                            done = true,
-                            message = "Scraping completed",
-                            shouldHibernate = true
+                            done = false,
+                            message = "Another caller advanced retry pass, polling for new batches",
+                            shouldHibernate = false
                         });
                     }
                 }

@@ -342,26 +342,36 @@ namespace PriceSafari.Services.ScheduleService
                 GoogleScrapeManager.GetRecentLogs(20));
         }
 
-        public async Task<(bool startedNextPass, int resetCount, int currentPass)> TryAdvanceToNextPassAsync()
+        public async Task<(bool startedNextPass, int resetCount, int currentPass, bool shouldFinish)> TryAdvanceToNextPassAsync()
         {
             await GoogleScrapeManager.RetryAdvanceSemaphore.WaitAsync();
             try
             {
-                // Czy jest jeszcze przebieg w budżecie?
-                if (GoogleScrapeManager.CurrentPassNumber >= GoogleScrapeManager.MaxScrapePasses)
-                    return (false, 0, GoogleScrapeManager.CurrentPassNumber);
+                // ═══ FIX: re-check pending POD semaforem ═══
+                // Inny caller mógł właśnie zaawansować pass i zresetować URL-e.
+                // Jeśli są pending, to oznacza że jest robota — NIE wolno kończyć procesu.
+                var hasPending = await _context.CoOfrs
+                    .AnyAsync(c => (!string.IsNullOrEmpty(c.GoogleOfferUrl) || c.UseGoogleHidOffer)
+                                   && !c.GoogleIsScraped);
 
-                // Czy są w ogóle odrzucone do ponowienia?
+                if (hasPending)
+                {
+                    _logger.LogDebug("TryAdvance: pending URL-e istnieją (race z innym callerem). Nie kończę procesu.");
+                    return (false, 0, GoogleScrapeManager.CurrentPassNumber, shouldFinish: false);
+                }
+
+                // Pending=0 i brak aktywnych paczek (caller już sprawdził) — można rozważyć retry/koniec.
+
+                if (GoogleScrapeManager.CurrentPassNumber >= GoogleScrapeManager.MaxScrapePasses)
+                    return (false, 0, GoogleScrapeManager.CurrentPassNumber, shouldFinish: true);
+
                 var rejected = await _context.CoOfrs
                     .Where(c => c.GoogleIsRejected)
                     .ToListAsync();
 
                 if (rejected.Count == 0)
-                    return (false, 0, GoogleScrapeManager.CurrentPassNumber);
+                    return (false, 0, GoogleScrapeManager.CurrentPassNumber, shouldFinish: true);
 
-                // Reset flag - produkty wracają jako "niezescrapowane".
-                // GooglePricesCount jest już 0 dla rejected, nie trzeba ruszać.
-                // CoOfrPriceHistories dla rejected też puste — nic do czyszczenia.
                 foreach (var offer in rejected)
                 {
                     offer.GoogleIsRejected = false;
@@ -378,7 +388,6 @@ namespace PriceSafari.Services.ScheduleService
                 _logger.LogInformation("Retry pass #{Pass}/{Max}: zresetowano {Count} odrzuconych URLi",
                     newPass, GoogleScrapeManager.MaxScrapePasses, rejected.Count);
 
-                // Broadcast do UI
                 await _hubContext.Clients.All.SendAsync("GoogleScrapingPassStarted", new
                 {
                     currentPass = newPass,
@@ -388,7 +397,7 @@ namespace PriceSafari.Services.ScheduleService
                 await BroadcastLogs();
                 await BroadcastDashboard();
 
-                return (true, rejected.Count, newPass);
+                return (true, rejected.Count, newPass, shouldFinish: false);
             }
             finally
             {
@@ -468,19 +477,22 @@ namespace PriceSafari.Services.ScheduleService
                         var stats = await scrapingService.GetDatabaseStatsAsync();
                         if (stats.PendingUrls == 0 && !GoogleScrapeManager.HasActiveBatches())
                         {
-                            // === RETRY: spróbuj odpalić kolejny przebieg zanim zakończymy proces ===
-                            var (startedNext, resetCount, currentPass) = await scrapingService.TryAdvanceToNextPassAsync();
+                            var (startedNext, resetCount, currentPass, shouldFinish) = await scrapingService.TryAdvanceToNextPassAsync();
 
                             if (startedNext)
                             {
                                 _logger.LogInformation("Monitor: uruchomiono przebieg #{Pass} z {Count} URLi do retry.",
                                     currentPass, resetCount);
                             }
-                            else
+                            else if (shouldFinish)  // ═══ FIX: kończymy TYLKO gdy semafor potwierdził że nie ma już co retry'ować
                             {
                                 _logger.LogInformation("Wszystkie URLe przetworzone (przebiegi: {Pass}/{Max}). Kończę proces.",
                                     GoogleScrapeManager.CurrentPassNumber, GoogleScrapeManager.MaxScrapePasses);
                                 GoogleScrapeManager.FinishProcess();
+                            }
+                            else
+                            {
+                                _logger.LogDebug("Monitor: ktoś inny właśnie wystartował retry, nie kończę procesu.");
                             }
                         }
                     }
