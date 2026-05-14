@@ -477,7 +477,7 @@
         function getPrice(p) { return p ? p[PRICE_FIELD] : null; }
         function setPrice(p, val) { if (p) p[PRICE_FIELD] = val; }
 
-        var ROW_HEIGHT       = 100;
+        var ROW_HEIGHT       = 150;
         var BUFFER_ROWS      = 20;
         var SEARCH_DEBOUNCE  = 250;
         var BATCH_CHUNK_SIZE = 1000;
@@ -743,7 +743,7 @@
             var tdStyle = 'height:' + ROW_HEIGHT + 'px; max-height:' + ROW_HEIGHT + 'px; overflow:hidden; vertical-align:middle;';
 
             row.innerHTML =
-                '<td style="' + tdStyle + '"><div style="width:420px; max-height: 90px; overflow: hidden;">' +
+            '<td style="' + tdStyle + '"><div style="width:420px; max-height: ' + (ROW_HEIGHT - 10) + 'px; overflow: hidden;">' +
                     '<p style="margin-bottom:4px; font-weight: 500;">' + highlightedProductName + '</p>' +
                     '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + producer + '</p>' +
                     '<p style="font-size:0.85em;color:#555;margin-bottom:2px;">' + ean + '</p>' +
@@ -812,7 +812,10 @@
             var statusBox = row.querySelector('.StatusBoxProduct');
             if (statusBox) { statusBox.className = 'StatusBoxProduct ' + statusInfo.boxClass; statusBox.textContent = statusInfo.text; }
             var cb = row.querySelector('.scrapable-checkbox');
-            if (cb) cb.className = 'scrapable-checkbox ' + statusInfo.checkboxClass;
+            if (cb) {
+                cb.className = 'scrapable-checkbox ' + statusInfo.checkboxClass;
+                cb.checked = product.isScrapable; 
+            }
         }
 
         function batchToggle(turnOn) {

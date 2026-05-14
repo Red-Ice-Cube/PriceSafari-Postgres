@@ -188,8 +188,8 @@ namespace PriceSafari.Services.GoogleScraping
 
                         if (startedNext)
                         {
-                            _logger.LogInformation("Uruchomiono przebieg #{Pass} z {Count} URLi do retry (przez get-task)",
-                                currentPass, resetCount);
+                            _logger.LogInformation("Uruchomiono przebieg #{Pass} z {Count} URLi do retry (przez get-task)",                            
+                              currentPass, resetCount);
 
                             return Ok(new
                             {
