@@ -326,6 +326,21 @@ namespace PriceSafari.Services.CeneoExternalScraping
                         {
                             _logger.LogInformation("Wszystkie URLe przetworzone. Kończę proces Ceneo External.");
                             CeneoExternalScrapeManager.FinishProcess();
+
+                            // Powiadom UI że wszystko gotowe - aktualizuje badge i resetuje timer
+                            var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<ScrapingHub>>();
+                            await hubContext.Clients.All.SendAsync("CeneoExternalScrapingFinished", new
+                            {
+                                endTime = CeneoExternalScrapeManager.ScrapingEndTime,
+                                message = "Scraping completed (detected by monitor)"
+                            }, stoppingToken);
+
+                            // Dashboard też - dla klientów które odświeżyły stronę w międzyczasie
+                            await hubContext.Clients.All.SendAsync(
+                                "CeneoExternalUpdateDashboard",
+                                CeneoExternalScrapeManager.GetDashboardSummary(),
+                                stoppingToken
+                            );
                         }
                     }
                 }
