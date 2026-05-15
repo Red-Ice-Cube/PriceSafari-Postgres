@@ -55,26 +55,30 @@
 
 
 <div style="display:flex; justify-content:center; align-items:center; gap:12px;">
-    <a asp-controller="PriceScraping" asp-action="GetUniqueScrapingUrls" class="btn btn-info mb-3" style=" background-color:orange">
+
+    <!-- Stary przycisk Ceneo -->
+    <a asp-controller="PriceScraping" asp-action="GetUniqueScrapingUrls" class="btn btn-info mb-3" style="background-color:orange">
         Scraper Ceneo
     </a>
+
+    <!-- NOWY PRZYCISK: Nowy Ceneo Scraper -->
+    <a asp-controller="CeneoExternalScraper" asp-action="Index" class="btn btn-info mb-3" style="background-color:orange; color:white;">
+        Nowy Ceneo Scraper
+    </a>
+
     <a asp-controller="GoogleScraper" asp-action="GoogleScraperPl" class="btn btn-info mb-3" style="background-color:deepskyblue">
         SCRAPER GOOGLE
     </a>
 
-    <a asp-controller="GoogleGlobalScraper"
-           asp-action="GlobalScraperEU"
-           class="btn btn-info mb-3"
-           style="background-color:darkblue">
+    <a asp-controller="GoogleGlobalScraper" asp-action="GlobalScraperEU" class="btn btn-info mb-3" style="background-color:darkblue">
         GOOGLE GLOBAL SCRAPER
     </a>
 
     <a asp-controller="AllegroScrape" asp-action="Index" class="btn btn-info mb-3" style="background-color:blueviolet">
         SCRAPER Allegro
     </a>
+
 </div>
-
-
 
 <table class="table table-bordered table-hover">
     <thead class="thead-dark">

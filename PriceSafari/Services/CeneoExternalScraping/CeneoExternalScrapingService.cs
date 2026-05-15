@@ -154,8 +154,9 @@ namespace PriceSafari.Services.CeneoExternalScraping
 
         public async Task<List<CeneoExternalUrlDto>> GetUrlsAsync()
         {
-            return await _context.CoOfrs
+            var list = await _context.CoOfrs
                 .Where(c => !string.IsNullOrEmpty(c.OfferUrl))
+                .OrderBy(c => c.Id)
                 .Select(c => new CeneoExternalUrlDto
                 {
                     Id = c.Id,
@@ -164,11 +165,19 @@ namespace PriceSafari.Services.CeneoExternalScraping
                     IsRejected = c.IsRejected,
                     PricesCount = c.PricesCount,
                     CeneoSalesCount = c.CeneoSalesCount,
-                    ProductIds = c.ProductIds ?? new List<int>()
+                    ProductIds = c.ProductIds
                 })
                 .ToListAsync();
-        }
 
+            // Defensywnie - ProductIds może być null z DB
+            foreach (var item in list)
+            {
+                if (item.ProductIds == null)
+                    item.ProductIds = new List<int>();
+            }
+
+            return list;
+        }
         public async Task<int> ResetRejectedUrlsAsync()
         {
             var rejected = await _context.CoOfrs
