@@ -308,10 +308,9 @@ public class PriceScrapingController : Controller
             {
                 ProductId = product.ProductId,
                 ProductName = product.ProductName,
-                // Category = ..., // USUNIĘTE
-
+              
                 OfferUrl = product.OfferUrl,
-                GoogleOfferUrl = product.GoogleUrl, // Mapujemy URL Google
+                GoogleOfferUrl = product.GoogleUrl, 
 
                 CoOfrId = coOfr?.Id,
                 HasApiDataEntry = storeData != null,

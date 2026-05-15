@@ -226,7 +226,6 @@
             background-color: #6f42c1; /* Fioletowy */
             border: 1px solid #59359a;
         }
-        /* ========================================== */
 
         #speedChart {
             width: 100% !important;
@@ -277,9 +276,6 @@
     <script>
         $(document).ready(function () {
 
-            // ============================================================
-            // CHART.JS SETUP
-            // ============================================================
             var ctx = document.getElementById('speedChart').getContext('2d');
 
             var gradientFill1 = ctx.createLinearGradient(0, 0, 0, ctx.canvas.clientHeight);
@@ -333,9 +329,6 @@
                 }
             });
 
-            // ============================================================
-            // SIGNALR SETUP
-            // ============================================================
             var connection = new signalR.HubConnectionBuilder().withUrl("/scrapingHub").build();
             var scrapingComplete = false;
 
@@ -475,9 +468,7 @@
                 console.error(err.toString());
             });
 
-            // ============================================================
-            // CENEO / GOOGLE C# SCRAPING FORMS
-            // ============================================================
+
             $('#captchaScrapingForm').on('submit', function (e) {
                 e.preventDefault();
                 var form = $(this);
@@ -518,13 +509,7 @@
                 });
             });
 
-        
 
-
-
-            // ============================================================
-            // COUNTERS UPDATE
-            // ============================================================
             function updateCounters() {
                 var rows = document.querySelectorAll("#scrapingTableBody tr");
                 var totalUrls = rows.length;
@@ -559,7 +544,6 @@
                 document.getElementById("scrapedUrlCountGoogle").textContent = scrapedUrlsCountGoogle;
             }
 
-            // Initial counters update
             updateCounters();
 
             console.log('[INIT] Wszystkie event handlery podpięte!');

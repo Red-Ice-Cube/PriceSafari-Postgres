@@ -79,8 +79,8 @@ namespace PriceSafari.Controllers.ManagerControllers
                     AllowAutoRedirect = true
                 };
                 using var client = new HttpClient(handler);
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; MyFeedBot/1.0)");
-
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                client.DefaultRequestHeaders.Accept.ParseAdd("application/xml, text/xml, */*");
                 try
                 {
                     var xmlContent = await client.GetStringAsync(url);

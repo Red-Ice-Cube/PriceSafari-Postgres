@@ -13,7 +13,7 @@ let mappingForField = {
     "GoogleExportedName": null, "GoogleExportedProducer": null,
     "GoogleExportedProducerCode": null,
     "GoogleXMLPrice": null,
-    "GoogleXMLPromoPrice": null, // <--- DODANE
+    "GoogleXMLPromoPrice": null,
     "GoogleDeliveryXMLPrice": null,
     "Adnotation": null
 };
@@ -24,13 +24,8 @@ existingMappings.forEach(m => {
 let xmlDoc = null;
 let proxyUrl = `/GoogleImportWizardXml/ProxyXml?storeId=${storeId}`;
 
-// Ile węzłów DOM budować na jeden "tick" – wyżej = szybciej ale bardziej zamraża UI
-// 1000 to dobry kompromis dla dużych plików: ~5x szybciej niż 200, pasek nadal się aktualizuje
 const RENDER_CHUNK = 1000;
 
-// ─────────────────────────────────────────────────────────────
-// PASEK POSTĘPU
-// ─────────────────────────────────────────────────────────────
 function showProgress(message, pct) {
     if (!progressContainer) return;
     progressContainer.style.display = 'block';
@@ -57,9 +52,6 @@ function hideProgress() {
     progressContainer.innerHTML = '';
 }
 
-// ─────────────────────────────────────────────────────────────
-// ŁADOWANIE Z SIECI
-// ─────────────────────────────────────────────────────────────
 function loadFromNetwork() {
     console.log(`Próba załadowania XML z sieci: ${proxyUrl}`);
     xmlContainer.innerHTML = '';
@@ -118,9 +110,6 @@ function readStreamWithProgress(body, totalBytes) {
     });
 }
 
-// ─────────────────────────────────────────────────────────────
-// WCZYTYWANIE PLIKU LOKALNEGO
-// ─────────────────────────────────────────────────────────────
 const processButton = document.getElementById('processXmlButton');
 if (processButton) {
     processButton.addEventListener('click', () => {
@@ -147,16 +136,28 @@ if (processButton) {
     });
 }
 
-// ─────────────────────────────────────────────────────────────
-// GŁÓWNA FUNKCJA PRZETWARZANIA
-// ─────────────────────────────────────────────────────────────
 function processXmlString(xmlStr, sourceDescription) {
     console.log(`--- Przetwarzanie XML: ${sourceDescription} ---`);
     updateProgress(`Parsowanie XML...`, 38);
 
     setTimeout(() => {
+        let cleanedXmlStr = xmlStr.trim();
+        let startIndex = cleanedXmlStr.indexOf('<');
+
+        if (startIndex === -1) {
+            hideProgress();
+            xmlContainer.innerText = `Błąd (${sourceDescription}): Zawartość nie zawiera znaku '<'. To nie jest poprawny XML.`;
+            return;
+        }
+
+        cleanedXmlStr = startIndex > 0 ? cleanedXmlStr.substring(startIndex) : cleanedXmlStr;
+
+        if (cleanedXmlStr.charCodeAt(0) === 65279) {
+            cleanedXmlStr = cleanedXmlStr.substring(1);
+        }
+
         const parser = new DOMParser();
-        xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+        xmlDoc = parser.parseFromString(cleanedXmlStr, "application/xml");
 
         if (!xmlDoc || xmlDoc.documentElement.nodeName === "parsererror") {
             const errorContent = xmlDoc?.documentElement?.textContent ?? "Nieznany błąd";
@@ -167,7 +168,6 @@ function processXmlString(xmlStr, sourceDescription) {
 
         console.log(`XML sparsowany pomyślnie.`);
 
-        // Policz wszystkie węzły żeby wiedzieć ile pracy przed nami
         const totalNodes = xmlDoc.documentElement.querySelectorAll('*').length + 1;
         console.log(`Łączna liczba węzłów do wyrenderowania: ${totalNodes}`);
         updateProgress(`Budowanie drzewa (0 / ${totalNodes} węzłów)...`, 40);
@@ -177,7 +177,6 @@ function processXmlString(xmlStr, sourceDescription) {
             const ulRoot = document.createElement("ul");
             xmlContainer.appendChild(ulRoot);
 
-            // Budujemy drzewo asynchronicznie – węzeł główny + kolejka dzieci
             buildTreeAsync(xmlDoc.documentElement, ulRoot, "", totalNodes, () => {
                 updateProgress("Stosowanie mapowań...", 97);
                 setTimeout(() => {
@@ -190,18 +189,9 @@ function processXmlString(xmlStr, sourceDescription) {
     }, 50);
 }
 
-// ─────────────────────────────────────────────────────────────
-// BUDOWANIE DRZEWA ASYNC – PEŁNE, ale w chunkach
-//
-// Zamiast rekurencji synchronicznej używamy kolejki (queue).
-// Co RENDER_CHUNK elementów oddajemy sterowanie przeglądarce przez
-// setTimeout(0) – dzięki temu pasek postępu się aktualizuje
-// i przeglądarka nie pokazuje "Strona nie odpowiada".
-// ─────────────────────────────────────────────────────────────
 function buildTreeAsync(rootNode, rootUl, rootPath, totalNodes, onDone) {
     let rendered = 0;
 
-    // Kolejka: { node, parentUl, parentPath }
     const queue = [{ node: rootNode, parentUl: rootUl, parentPath: rootPath }];
 
     function processChunk() {
@@ -216,8 +206,6 @@ function buildTreeAsync(rootNode, rootUl, rootPath, totalNodes, onDone) {
             parentUl.appendChild(li);
             rendered++;
 
-            // Jeśli węzeł ma dzieci, dodaj je do kolejki z ich docelowym <ul>
-            // Pomijamy <description> / <g:description> – długie teksty zbędne w podglądzie
             if (node.children.length > 0 && childrenUl) {
                 Array.from(node.children).forEach(child => {
                     if (child.localName === 'description') return;
@@ -239,7 +227,6 @@ function buildTreeAsync(rootNode, rootUl, rootPath, totalNodes, onDone) {
     processChunk();
 }
 
-// Tworzy <li> dla węzła i zwraca go razem z docelowym <ul> na dzieci
 function createLiShell(node, parentPath) {
     const li = document.createElement("li");
     li.classList.add("xml-node");
@@ -253,7 +240,6 @@ function createLiShell(node, parentPath) {
     b.innerText = node.nodeName + (nameAttr ? ` (name="${nameAttr}")` : "");
     li.appendChild(b);
 
-    // Atrybuty (poza "name")
     if (node.attributes && node.attributes.length > 0) {
         const ulAttrs = document.createElement("ul");
         Array.from(node.attributes).forEach(attr => {
@@ -269,7 +255,6 @@ function createLiShell(node, parentPath) {
         if (ulAttrs.children.length) li.appendChild(ulAttrs);
     }
 
-    // Węzeł liść – wartość tekstowa
     if (node.children.length === 0) {
         const textVal = node.textContent.trim();
         if (textVal) {
@@ -284,15 +269,11 @@ function createLiShell(node, parentPath) {
         return { li, childrenUl: null };
     }
 
-    // Węzeł z dziećmi – tworzymy <ul> który trafi do kolejki
     const childrenUl = document.createElement("ul");
     li.appendChild(childrenUl);
     return { li, childrenUl };
 }
 
-// ─────────────────────────────────────────────────────────────
-// KLIKNIĘCIE W WĘZEŁ DRZEWA
-// ─────────────────────────────────────────────────────────────
 document.addEventListener("click", function (e) {
     const el = e.target.closest(".xml-node");
     if (!el) return;
@@ -338,9 +319,6 @@ function clearAllHighlights() {
     });
 }
 
-// ─────────────────────────────────────────────────────────────
-// TABELA MAPOWAŃ
-// ─────────────────────────────────────────────────────────────
 function renderMappingTable() {
     const tbody = document.getElementById("mappingTable").querySelector("tbody");
     tbody.innerHTML = "";
@@ -354,7 +332,6 @@ function renderMappingTable() {
         tbody.appendChild(tr);
     }
 }
-
 
 document.getElementById("saveMapping").addEventListener("click", function () {
     const finalMappings = [];
@@ -382,20 +359,17 @@ document.getElementById("reloadMappings").addEventListener("click", function () 
         .catch(err => console.error("Błąd getGoogleMappings:", err));
 });
 
-
 function parsePrice(value) {
     if (!value) return null;
 
-  
     let clean = value.replace(/[^\d.,-]/g, '');
-
 
     if (clean.indexOf(',') > -1 && clean.indexOf('.') > -1) {
         if (clean.indexOf(',') < clean.indexOf('.')) {
-          
+
             clean = clean.replace(/,/g, '');
         } else {
-          
+
             clean = clean.replace(/\./g, '').replace(',', '.');
         }
     } else if (clean.indexOf(',') > -1) {
@@ -482,13 +456,13 @@ function extractProductsFromXml() {
                 GoogleExportedProducerCode: getVal(entries[i], "GoogleExportedProducerCode", productNodeNameWithPredicate),
                 GoogleXMLPrice: finalPrice,
                 GoogleDeliveryXMLPrice: parseFloat(parsePrice(getVal(entries[i], "GoogleDeliveryXMLPrice", productNodeNameWithPredicate))) || null,
-                OtherVariantEans: null,  // zostanie wypełnione w finishExtraction, jeśli checkbox włączony
-                Adnotation: getVal(entries[i], "Adnotation", productNodeNameWithPredicate)  // <--- DODANE
+                OtherVariantEans: null,
+                Adnotation: getVal(entries[i], "Adnotation", productNodeNameWithPredicate)
             };
 
             if (onlyEan && (!pm.GoogleEan || !pm.GoogleEan.trim())) continue;
             if (pm.Url) {
-              
+
                 if (stringToRemoveFromUrl) {
                     pm.Url = pm.Url.split(stringToRemoveFromUrl).join('');
                 }
@@ -516,7 +490,6 @@ function finishExtraction(productMaps, countUrlsWithParams) {
     hideProgress();
     document.getElementById("urlParamsInfo").textContent = "Liczba URL zawierających parametry: " + countUrlsWithParams;
 
-
     const addVariantEansCheckbox = document.getElementById("addVariantEans");
     const addVariantEans = addVariantEansCheckbox ? addVariantEansCheckbox.checked : false;
 
@@ -525,7 +498,7 @@ function finishExtraction(productMaps, countUrlsWithParams) {
         productMaps.forEach(pm => {
             if (!pm.Url) return;
             const ean = (pm.GoogleEan || "").trim();
-            if (!ean) return; // pomijamy puste EAN-y
+            if (!ean) return;
             if (!eansByUrl[pm.Url]) eansByUrl[pm.Url] = [];
             if (!eansByUrl[pm.Url].includes(ean)) eansByUrl[pm.Url].push(ean);
         });
@@ -543,7 +516,6 @@ function finishExtraction(productMaps, countUrlsWithParams) {
         const seen = {};
         productMaps = productMaps.filter(pm => { if (!pm.GoogleExportedProducerCode) return true; if (seen[pm.GoogleExportedProducerCode]) return false; seen[pm.GoogleExportedProducerCode] = true; return true; });
     }
-
 
     if (addVariantEans) {
         let productsWithVariants = 0;
@@ -590,7 +562,6 @@ document.getElementById("removeDuplicateUrls").addEventListener("change", extrac
 document.getElementById("removeDuplicateEans").addEventListener("change", extractProductsFromXml);
 document.getElementById("removeDuplicateProducerCodes").addEventListener("change", extractProductsFromXml);
 
-
 const nsResolver = prefix => ({ 'g': 'http://base.google.com/ns/1.0' })[prefix] || null;
 
 function getVal(entryNode, fieldName, productNodeName) {
@@ -636,9 +607,6 @@ function getVal(entryNode, fieldName, productNodeName) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// ZAPIS PRODUCT MAPS
-// ─────────────────────────────────────────────────────────────
 document.getElementById("saveProductMapsInDb").addEventListener("click", function () {
     const txt = document.getElementById("productMapsPreview").textContent.trim();
     if (!txt) { alert("Brak productMaps do zapisania!"); return; }
@@ -649,9 +617,6 @@ document.getElementById("saveProductMapsInDb").addEventListener("click", functio
     }).then(r => r.json()).then(d => alert("Zapisano: " + d.message)).catch(err => console.error(err));
 });
 
-// ─────────────────────────────────────────────────────────────
-// INICJALIZACJA
-// ─────────────────────────────────────────────────────────────
 renderMappingTable();
 
 const loadNetworkBtn = document.getElementById("loadFromNetworkBtn");

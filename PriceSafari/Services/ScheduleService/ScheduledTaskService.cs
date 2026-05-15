@@ -341,69 +341,146 @@ public class ScheduledTaskService : BackgroundService
         }
     }
 
+
+
+    // STARY SCRAPER CENE WBUDOWANY W C#
+
+    //private async Task RunCeneoAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
+    //{
+    //    var ceneoLog = new TaskExecutionLog
+    //    {
+    //        DeviceName = deviceName,
+    //        OperationName = "CENEO_SCRAPER",
+    //        StartTime = DateTime.Now,
+    //        Comment = $"Start scrapowania Ceneo | SessionName={task.SessionName}; Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
+    //    };
+
+    //    context.TaskExecutionLogs.Add(ceneoLog);
+    //    await context.SaveChangesAsync(ct);
+
+    //    int ceneoLogId = ceneoLog.Id;
+
+    //    try
+    //    {
+    //        var ceneoScraperService = context.GetService<CeneoScraperService>();
+
+    //        var resultDto = await ceneoScraperService.StartScrapingWithCaptchaHandlingAsync(ct);
+
+    //        var finishedLog = await context.TaskExecutionLogs.FindAsync(ceneoLogId, ct);
+    //        if (finishedLog != null)
+    //        {
+    //            finishedLog.EndTime = DateTime.Now;
+
+    //            double totalSeconds = (finishedLog.EndTime.Value - finishedLog.StartTime).TotalSeconds;
+    //            double urlsPerSecond = (totalSeconds > 0 && resultDto.TotalUrlsToScrape > 0)
+    //                ? resultDto.TotalUrlsToScrape / totalSeconds
+    //                : 0;
+
+    //            switch (resultDto.Result)
+    //            {
+    //                case CeneoScraperService.CeneoScrapingResult.Success:
+    //                    finishedLog.Comment += $" | Sukces. Zmielono {resultDto.ScrapedCount}/{resultDto.TotalUrlsToScrape} produktów. Odrzucono: {resultDto.RejectedCount}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
+    //                    break;
+    //                case CeneoScraperService.CeneoScrapingResult.NoUrlsFound:
+    //                    finishedLog.Comment += " | Brak URL do scrapowania (NoUrlsFound).";
+    //                    break;
+    //                case CeneoScraperService.CeneoScrapingResult.SettingsNotFound:
+    //                    finishedLog.Comment += " | Błąd: Brak settingsów (SettingsNotFound).";
+    //                    break;
+    //                default:
+    //                    finishedLog.Comment += $" | Wystąpił błąd: {resultDto.Message}";
+    //                    break;
+    //            }
+    //            context.TaskExecutionLogs.Update(finishedLog);
+    //            await context.SaveChangesAsync(ct);
+    //        }
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        var finishedLog = await context.TaskExecutionLogs.FindAsync(ceneoLogId, ct);
+    //        if (finishedLog != null)
+    //        {
+    //            finishedLog.EndTime = DateTime.Now;
+    //            finishedLog.Comment += $" | Wystąpił błąd (Ceneo): {ex.Message}";
+    //            context.TaskExecutionLogs.Update(finishedLog);
+    //            await context.SaveChangesAsync(ct);
+    //        }
+    //    }
+    //}
+
+
+
     private async Task RunCeneoAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {
         var ceneoLog = new TaskExecutionLog
         {
             DeviceName = deviceName,
-            OperationName = "CENEO_SCRAPER",
+            OperationName = "CENEO_EXTERNAL_SCRAPER",
             StartTime = DateTime.Now,
-            Comment = $"Start scrapowania Ceneo | SessionName={task.SessionName}; Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
+            Comment = $"Start scrapowania Ceneo External | SessionName={task.SessionName}; Sklepy: {string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))}"
         };
 
         context.TaskExecutionLogs.Add(ceneoLog);
         await context.SaveChangesAsync(ct);
-
         int ceneoLogId = ceneoLog.Id;
 
         try
         {
-            var ceneoScraperService = context.GetService<CeneoScraperService>();
+            var ceneoExternalService = context.GetService<PriceSafari.Services.CeneoExternalScraping.CeneoExternalScrapingService>();
 
-            var resultDto = await ceneoScraperService.StartScrapingWithCaptchaHandlingAsync(ct);
+            var (success, message, totalUrls) = await ceneoExternalService.StartScrapingProcessAsync();
 
-            var finishedLog = await context.TaskExecutionLogs.FindAsync(ceneoLogId, ct);
+            if (!success || totalUrls == 0)
+            {
+                var failLog = await context.TaskExecutionLogs.FindAsync(new object[] { ceneoLogId }, ct);
+                if (failLog != null)
+                {
+                    failLog.EndTime = DateTime.Now;
+                    failLog.Comment += success ? $" | {message}" : $" | Błąd startu: {message}";
+                    context.TaskExecutionLogs.Update(failLog);
+                    await context.SaveChangesAsync(ct);
+                }
+                return;
+            }
+
+            // Pętla oczekiwania — Monitor sam zakończy proces gdy nic do roboty.
+            while (PriceSafari.Services.CeneoExternalScraping.CeneoExternalScrapeManager.CurrentStatus
+                    == PriceSafari.Services.CeneoExternalScraping.CeneoExternalScrapingProcessStatus.Running
+                   && !ct.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(15), ct);
+            }
+
+            var stats = await ceneoExternalService.GetDatabaseStatsAsync();
+
+            var finishedLog = await context.TaskExecutionLogs.FindAsync(new object[] { ceneoLogId }, ct);
             if (finishedLog != null)
             {
                 finishedLog.EndTime = DateTime.Now;
-
                 double totalSeconds = (finishedLog.EndTime.Value - finishedLog.StartTime).TotalSeconds;
-                double urlsPerSecond = (totalSeconds > 0 && resultDto.TotalUrlsToScrape > 0)
-                    ? resultDto.TotalUrlsToScrape / totalSeconds
+                int totalProcessed = stats.ScrapedUrls;
+                double urlsPerSecond = (totalSeconds > 0 && totalProcessed > 0)
+                    ? totalProcessed / totalSeconds
                     : 0;
 
-                switch (resultDto.Result)
-                {
-                    case CeneoScraperService.CeneoScrapingResult.Success:
-                        finishedLog.Comment += $" | Sukces. Zmielono {resultDto.ScrapedCount}/{resultDto.TotalUrlsToScrape} produktów. Odrzucono: {resultDto.RejectedCount}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
-                        break;
-                    case CeneoScraperService.CeneoScrapingResult.NoUrlsFound:
-                        finishedLog.Comment += " | Brak URL do scrapowania (NoUrlsFound).";
-                        break;
-                    case CeneoScraperService.CeneoScrapingResult.SettingsNotFound:
-                        finishedLog.Comment += " | Błąd: Brak settingsów (SettingsNotFound).";
-                        break;
-                    default:
-                        finishedLog.Comment += $" | Wystąpił błąd: {resultDto.Message}";
-                        break;
-                }
+                finishedLog.Comment += $" | Sukces. Zmielono: {stats.ScrapedUrls}/{stats.TotalUrls} produktów, odrzucono: {stats.RejectedUrls}, zebrano cen: {stats.TotalPrices}. Średnia prędkość: {urlsPerSecond:F2} URL/sek.";
+
                 context.TaskExecutionLogs.Update(finishedLog);
                 await context.SaveChangesAsync(ct);
             }
         }
         catch (Exception ex)
         {
-            var finishedLog = await context.TaskExecutionLogs.FindAsync(ceneoLogId, ct);
-            if (finishedLog != null)
+            var errorLog = await context.TaskExecutionLogs.FindAsync(new object[] { ceneoLogId }, ct);
+            if (errorLog != null)
             {
-                finishedLog.EndTime = DateTime.Now;
-                finishedLog.Comment += $" | Wystąpił błąd (Ceneo): {ex.Message}";
-                context.TaskExecutionLogs.Update(finishedLog);
+                errorLog.EndTime = DateTime.Now;
+                errorLog.Comment += $" | Wystąpił krytyczny błąd (CENEO_EXTERNAL): {ex.Message}";
+                context.TaskExecutionLogs.Update(errorLog);
                 await context.SaveChangesAsync(ct);
             }
         }
     }
-
 
     private async Task RunGoogleAsync(PriceSafariContext context, string deviceName, ScheduleTask task, CancellationToken ct)
     {

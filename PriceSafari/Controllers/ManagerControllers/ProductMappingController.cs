@@ -294,20 +294,14 @@ namespace PriceSafari.Controllers.ManagerControllers
 
             int fixedExternalIdCount = 0;
 
-            // ====================================================================
-            // KROK 0 (OPCJONALNY): Naprawa ExternalId z ProductMap
-            // Wykonujemy PRZED scalaniem, żeby grupowanie po ExternalId w kroku 1
-            // dostało już naprawione wartości i mogło połączyć produkty
-            // które wcześniej miały zepsute ID (np. 60431 zamiast 60).
-            // ====================================================================
+
             if (fixExternalIds)
             {
                 var productMaps = await _context.ProductMaps
                     .Where(pm => pm.StoreId == storeId)
                     .ToListAsync();
 
-                // Budujemy lookup z ProductMaps wg wybranego kryterium.
-                // Klucz = url/ean, wartość = ExternalId jako int (po normalizacji)
+      
                 var idLookup = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var pm in productMaps)
@@ -330,9 +324,6 @@ namespace PriceSafari.Controllers.ManagerControllers
 
                     if (string.IsNullOrEmpty(key)) continue;
 
-                    // Last-write-wins; jeśli kilka mapów ma ten sam URL/EAN bierzemy ostatni.
-                    // Dla bezpieczeństwa moglibyśmy logować konflikty, ale zwykle to są warianty
-                    // tego samego produktu które po normalizacji ExternalId i tak dadzą tę samą wartość.
                     idLookup[key] = parsedId;
                 }
 

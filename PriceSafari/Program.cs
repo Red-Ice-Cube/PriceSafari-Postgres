@@ -93,6 +93,8 @@ public class Program
         builder.Services.AddScoped<StorePriceBridgeService>();
         builder.Services.AddHttpClient<CeneoScraper>();
         builder.Services.AddScoped<CeneoScraper>();
+        builder.Services.AddScoped<PriceSafari.Services.CeneoExternalScraping.CeneoExternalScrapingService>();
+        builder.Services.AddHostedService<PriceSafari.Services.CeneoExternalScraping.CeneoExternalScrapingMonitorService>();
         builder.Services.AddScoped<GoogleScraperService>();
         builder.Services.AddScoped<CeneoScraperService>();
         builder.Services.AddHostedService<ScraperHealthCheckService>();

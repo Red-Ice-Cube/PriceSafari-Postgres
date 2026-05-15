@@ -1,40 +1,35 @@
-﻿
+﻿using System.Collections.Concurrent;
 
-using System.Collections.Concurrent;
-
-namespace PriceSafari.ScrapersControllers
+namespace PriceSafari.Services.CeneoExternalScraping
 {
-
-    public enum ScrapingProcessStatus
+    public enum CeneoExternalScrapingProcessStatus
     {
         Idle,
         Running,
         Paused
     }
 
-    public enum ScraperLiveStatus
+    public enum CeneoExternalScraperLiveStatus
     {
         Idle,
         Busy,
         Offline,
         Stopped,
-        ResettingNetwork
-
+        SolvingCaptcha
     }
 
-    public class HybridScraperClient
+    public class CeneoExternalScraperClient
     {
         public string Name { get; set; } = string.Empty;
-        public ScraperLiveStatus Status { get; set; } = ScraperLiveStatus.Offline;
+        public CeneoExternalScraperLiveStatus Status { get; set; } = CeneoExternalScraperLiveStatus.Offline;
         public DateTime LastCheckIn { get; set; } = DateTime.MinValue;
         public int? CurrentTaskId { get; set; }
         public string? CurrentBatchId { get; set; }
-
         public string? CurrentIpAddress { get; set; }
-        public int NukeCount { get; set; } = 0;
+        public int CaptchaCount { get; set; } = 0;
     }
 
-    public class AssignedBatch
+    public class CeneoExternalAssignedBatch
     {
         public string BatchId { get; set; } = string.Empty;
         public string ScraperName { get; set; } = string.Empty;
@@ -46,21 +41,24 @@ namespace PriceSafari.ScrapersControllers
         public int ProcessedCount { get; set; }
         public int SuccessCount { get; set; }
         public int FailedCount { get; set; }
+        public int RejectedCount { get; set; }
     }
 
-    public class ScraperStats
+    public class CeneoExternalScraperStats
     {
         public string ScraperName { get; set; } = string.Empty;
         public int TotalUrlsProcessed { get; set; }
         public int TotalUrlsSuccess { get; set; }
         public int TotalUrlsFailed { get; set; }
+        public int TotalUrlsRejected { get; set; }
         public int TotalBatchesCompleted { get; set; }
         public int TotalBatchesTimedOut { get; set; }
         public int CurrentBatchNumber { get; set; }
         public DateTime? LastActivityAt { get; set; }
         public DateTime? FirstSeenAt { get; set; }
         public bool IsManuallyPaused { get; set; }
-        public int NukeCount { get; set; }
+        public int TotalPricesCollected { get; set; }
+        public int CaptchaCount { get; set; }
 
         public double SuccessRate => TotalUrlsProcessed > 0
             ? Math.Round((double)TotalUrlsSuccess / TotalUrlsProcessed * 100, 1)
@@ -69,7 +67,7 @@ namespace PriceSafari.ScrapersControllers
         public double UrlsPerMinute { get; set; }
     }
 
-    public class ScraperLogEntry
+    public class CeneoExternalScraperLogEntry
     {
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public string ScraperName { get; set; } = string.Empty;
@@ -78,24 +76,21 @@ namespace PriceSafari.ScrapersControllers
         public string? BatchId { get; set; }
     }
 
-    public static class AllegroScrapeManager
+    public static class CeneoExternalScrapeManager
     {
-
         public const int BatchSize = 100;
         public const int BatchTimeoutSeconds = 420;
-
         public const int ScraperOfflineThresholdSeconds = 180;
-        public const int MaxLogEntries = 200;
-        public static Func<List<int>, Task>? OnBatchTimedOutCallback { get; set; }
+        public const int MaxLogEntries = 300;
 
-        public static ScrapingProcessStatus CurrentStatus { get; set; } = ScrapingProcessStatus.Idle;
+        public static CeneoExternalScrapingProcessStatus CurrentStatus { get; set; } = CeneoExternalScrapingProcessStatus.Idle;
         public static DateTime? ScrapingStartTime { get; set; }
         public static DateTime? ScrapingEndTime { get; set; }
 
-        public static ConcurrentDictionary<string, HybridScraperClient> ActiveScrapers { get; } = new();
-        public static ConcurrentDictionary<string, AssignedBatch> AssignedBatches { get; } = new();
-        public static ConcurrentDictionary<string, ScraperStats> ScraperStatistics { get; } = new();
-        public static ConcurrentQueue<ScraperLogEntry> RecentLogs { get; } = new();
+        public static ConcurrentDictionary<string, CeneoExternalScraperClient> ActiveScrapers { get; } = new();
+        public static ConcurrentDictionary<string, CeneoExternalAssignedBatch> AssignedBatches { get; } = new();
+        public static ConcurrentDictionary<string, CeneoExternalScraperStats> ScraperStatistics { get; } = new();
+        public static ConcurrentQueue<CeneoExternalScraperLogEntry> RecentLogs { get; } = new();
 
         public static readonly object BatchAssignmentLock = new();
 
@@ -104,7 +99,7 @@ namespace PriceSafari.ScrapersControllers
 
         public static void AddLog(string scraperName, string level, string message, string? batchId = null)
         {
-            var entry = new ScraperLogEntry
+            var entry = new CeneoExternalScraperLogEntry
             {
                 Timestamp = DateTime.UtcNow,
                 ScraperName = scraperName,
@@ -112,51 +107,29 @@ namespace PriceSafari.ScrapersControllers
                 Message = message,
                 BatchId = batchId
             };
+
             RecentLogs.Enqueue(entry);
             while (RecentLogs.Count > MaxLogEntries) RecentLogs.TryDequeue(out _);
         }
 
         public static void AddSystemLog(string level, string message) => AddLog("SYSTEM", level, message);
 
-        public static void MarkScraperNuking(string scraperName, string? reason = null)
-        {
-            if (ActiveScrapers.TryGetValue(scraperName, out var scraper))
-            {
-                scraper.Status = ScraperLiveStatus.ResettingNetwork;
-                scraper.NukeCount++;
-            }
-            if (ScraperStatistics.TryGetValue(scraperName, out var stats))
-                stats.NukeCount++;
-
-            AddLog(scraperName, "NUKE", $"☢️ Protokół NUKE: {reason ?? "reset sieci"}");
-        }
-
-        public static void MarkScraperNukeCompleted(string scraperName, string? newIpAddress = null)
-        {
-            if (ActiveScrapers.TryGetValue(scraperName, out var scraper))
-            {
-                scraper.Status = ScraperLiveStatus.Idle;
-                if (!string.IsNullOrEmpty(newIpAddress)) scraper.CurrentIpAddress = newIpAddress;
-            }
-            AddLog(scraperName, "NUKE", $"✅ NUKE zakończony - nowe IP: {newIpAddress ?? "unknown"}");
-        }
-
-        public static HybridScraperClient RegisterScraperCheckIn(string scraperName, string? ipAddress = null)
+        public static CeneoExternalScraperClient RegisterScraperCheckIn(string scraperName, string? ipAddress = null)
         {
             var scraper = ActiveScrapers.AddOrUpdate(
                 scraperName,
-                new HybridScraperClient
+                new CeneoExternalScraperClient
                 {
                     Name = scraperName,
-                    Status = ScraperLiveStatus.Idle,
+                    Status = CeneoExternalScraperLiveStatus.Idle,
                     LastCheckIn = DateTime.UtcNow,
                     CurrentIpAddress = ipAddress
                 },
                 (key, existing) =>
                 {
-                    if (existing.Status == ScraperLiveStatus.Offline)
+                    if (existing.Status == CeneoExternalScraperLiveStatus.Offline)
                     {
-                        existing.Status = ScraperLiveStatus.Idle;
+                        existing.Status = CeneoExternalScraperLiveStatus.Idle;
                         AddLog(scraperName, "INFO", $"Scraper wrócił online (IP: {ipAddress ?? "unknown"})");
                     }
                     existing.LastCheckIn = DateTime.UtcNow;
@@ -164,13 +137,18 @@ namespace PriceSafari.ScrapersControllers
                     return existing;
                 });
 
-            ScraperStatistics.GetOrAdd(scraperName, _ => new ScraperStats { ScraperName = scraperName, FirstSeenAt = DateTime.UtcNow });
+            ScraperStatistics.GetOrAdd(scraperName, _ => new CeneoExternalScraperStats
+            {
+                ScraperName = scraperName,
+                FirstSeenAt = DateTime.UtcNow
+            });
+
             return scraper;
         }
 
         public static bool CanScraperReceiveTask(string scraperName)
         {
-            if (CurrentStatus != ScrapingProcessStatus.Running) return false;
+            if (CurrentStatus != CeneoExternalScrapingProcessStatus.Running) return false;
             if (ScraperStatistics.TryGetValue(scraperName, out var stats) && stats.IsManuallyPaused) return false;
             return true;
         }
@@ -178,15 +156,37 @@ namespace PriceSafari.ScrapersControllers
         public static void PauseScraper(string scraperName)
         {
             if (ScraperStatistics.TryGetValue(scraperName, out var stats)) stats.IsManuallyPaused = true;
-            if (ActiveScrapers.TryGetValue(scraperName, out var scraper)) scraper.Status = ScraperLiveStatus.Stopped;
+            if (ActiveScrapers.TryGetValue(scraperName, out var scraper)) scraper.Status = CeneoExternalScraperLiveStatus.Stopped;
             AddLog(scraperName, "WARNING", "Scraper zatrzymany ręcznie (hibernacja)");
         }
 
         public static void ResumeScraper(string scraperName)
         {
             if (ScraperStatistics.TryGetValue(scraperName, out var stats)) stats.IsManuallyPaused = false;
-            if (ActiveScrapers.TryGetValue(scraperName, out var scraper)) scraper.Status = ScraperLiveStatus.Idle;
+            if (ActiveScrapers.TryGetValue(scraperName, out var scraper)) scraper.Status = CeneoExternalScraperLiveStatus.Idle;
             AddLog(scraperName, "INFO", "Scraper wznowiony");
+        }
+
+        public static void MarkScraperSolvingCaptcha(string scraperName, string? reason = null)
+        {
+            if (ActiveScrapers.TryGetValue(scraperName, out var scraper))
+            {
+                scraper.Status = CeneoExternalScraperLiveStatus.SolvingCaptcha;
+                scraper.CaptchaCount++;
+            }
+            if (ScraperStatistics.TryGetValue(scraperName, out var stats))
+                stats.CaptchaCount++;
+
+            AddLog(scraperName, "WARNING", $"🧩 Rozwiązywanie CAPTCHA: {reason ?? "wykryto blokadę"}");
+        }
+
+        public static void MarkScraperCaptchaSolved(string scraperName)
+        {
+            if (ActiveScrapers.TryGetValue(scraperName, out var scraper))
+            {
+                scraper.Status = CeneoExternalScraperLiveStatus.Idle;
+            }
+            AddLog(scraperName, "SUCCESS", "✅ CAPTCHA rozwiązana - powrót do scrapowania");
         }
 
         public static List<string> MarkInactiveScrapersAsOffline()
@@ -196,14 +196,13 @@ namespace PriceSafari.ScrapersControllers
 
             foreach (var kvp in ActiveScrapers)
             {
-
                 if (kvp.Value.LastCheckIn < threshold &&
-                    kvp.Value.Status != ScraperLiveStatus.Offline &&
-                    kvp.Value.Status != ScraperLiveStatus.Stopped)
+                    kvp.Value.Status != CeneoExternalScraperLiveStatus.Offline &&
+                    kvp.Value.Status != CeneoExternalScraperLiveStatus.Stopped)
                 {
-                    kvp.Value.Status = ScraperLiveStatus.Offline;
+                    kvp.Value.Status = CeneoExternalScraperLiveStatus.Offline;
                     markedOffline.Add(kvp.Key);
-                    AddLog(kvp.Key, "WARNING", $"Scraper oznaczony jako OFFLINE (brak kontaktu > {ScraperOfflineThresholdSeconds}s)");
+                    AddLog(kvp.Key, "WARNING", $"Scraper OFFLINE (brak kontaktu > {ScraperOfflineThresholdSeconds}s)");
                 }
             }
             return markedOffline;
@@ -212,14 +211,13 @@ namespace PriceSafari.ScrapersControllers
         public static string GenerateBatchId()
         {
             var counter = Interlocked.Increment(ref _batchCounter);
-            return $"BATCH-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{counter:D4}";
+            return $"CENEO-EXT-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{counter:D4}";
         }
 
         public static HashSet<int> GetAllActiveTaskIds()
         {
             var activeIds = new HashSet<int>();
             lock (BatchAssignmentLock)
-
             {
                 foreach (var batch in AssignedBatches.Values)
                 {
@@ -234,7 +232,7 @@ namespace PriceSafari.ScrapersControllers
 
         public static void RegisterAssignedBatch(string batchId, string scraperName, List<int> taskIds)
         {
-            var batch = new AssignedBatch
+            var batch = new CeneoExternalAssignedBatch
             {
                 BatchId = batchId,
                 ScraperName = scraperName,
@@ -252,29 +250,32 @@ namespace PriceSafari.ScrapersControllers
 
             if (ActiveScrapers.TryGetValue(scraperName, out var scraper))
             {
-                scraper.Status = ScraperLiveStatus.Busy;
+                scraper.Status = CeneoExternalScraperLiveStatus.Busy;
                 scraper.CurrentBatchId = batchId;
                 scraper.CurrentTaskId = taskIds.FirstOrDefault();
             }
             AddLog(scraperName, "INFO", $"Przydzielono paczkę: {taskIds.Count} URLi", batchId);
         }
 
-        public static void CompleteBatch(string batchId, int successCount, int failedCount)
+        public static void CompleteBatch(string batchId, int successCount, int failedCount, int rejectedCount, int pricesCollected)
         {
             if (!AssignedBatches.TryGetValue(batchId, out var batch)) return;
 
             batch.IsCompleted = true;
             batch.CompletedAt = DateTime.UtcNow;
-            batch.ProcessedCount = successCount + failedCount;
+            batch.ProcessedCount = successCount + failedCount + rejectedCount;
             batch.SuccessCount = successCount;
             batch.FailedCount = failedCount;
+            batch.RejectedCount = rejectedCount;
 
             if (ScraperStatistics.TryGetValue(batch.ScraperName, out var stats))
             {
                 stats.TotalUrlsProcessed += batch.ProcessedCount;
                 stats.TotalUrlsSuccess += successCount;
                 stats.TotalUrlsFailed += failedCount;
+                stats.TotalUrlsRejected += rejectedCount;
                 stats.TotalBatchesCompleted++;
+                stats.TotalPricesCollected += pricesCollected;
                 stats.LastActivityAt = DateTime.UtcNow;
 
                 if (stats.FirstSeenAt.HasValue)
@@ -287,13 +288,15 @@ namespace PriceSafari.ScrapersControllers
 
             if (ActiveScrapers.TryGetValue(batch.ScraperName, out var scraper))
             {
-                scraper.Status = ScraperLiveStatus.Idle;
+                scraper.Status = CeneoExternalScraperLiveStatus.Idle;
                 scraper.CurrentBatchId = null;
                 scraper.CurrentTaskId = null;
             }
 
             var duration = batch.CompletedAt.Value - batch.AssignedAt;
-            AddLog(batch.ScraperName, "SUCCESS", $"Paczka ukończona: {successCount} OK, {failedCount} błędów (czas: {duration.TotalSeconds:F1}s)", batchId);
+            AddLog(batch.ScraperName, "SUCCESS",
+                $"Paczka OK: {successCount} sukces, {rejectedCount} odrz., {failedCount} błędy, {pricesCollected} cen ({duration.TotalSeconds:F0}s)",
+                batchId);
         }
 
         public static List<(string BatchId, string ScraperName, List<int> TaskIds)> FindAndMarkTimedOutBatches()
@@ -307,31 +310,29 @@ namespace PriceSafari.ScrapersControllers
                 if (!batch.IsCompleted && !batch.IsTimedOut && batch.AssignedAt < threshold)
                 {
                     batch.IsTimedOut = true;
-
                     if (ScraperStatistics.TryGetValue(batch.ScraperName, out var stats))
                         stats.TotalBatchesTimedOut++;
 
                     timedOut.Add((batch.BatchId, batch.ScraperName, batch.TaskIds));
-
-                    AddLog(batch.ScraperName, "ERROR", $"TIMEOUT! Paczka nie została ukończona w {BatchTimeoutSeconds}s. URLe wracają do puli.", batch.BatchId);
+                    AddLog(batch.ScraperName, "ERROR",
+                        $"TIMEOUT! Paczka przekroczyła {BatchTimeoutSeconds}s - URLe wracają do puli", batch.BatchId);
                 }
             }
             return timedOut;
         }
 
-        public static bool HasActiveBatches() => AssignedBatches.Values.Any(b => !b.IsCompleted && !b.IsTimedOut);
+        public static bool HasActiveBatches() =>
+            AssignedBatches.Values.Any(b => !b.IsCompleted && !b.IsTimedOut);
 
-        public static AssignedBatch? GetActiveScraperBatch(string scraperName) =>
+        public static CeneoExternalAssignedBatch? GetActiveScraperBatch(string scraperName) =>
             AssignedBatches.Values.FirstOrDefault(b => b.ScraperName == scraperName && !b.IsCompleted && !b.IsTimedOut);
 
         private static void OnCleanupTimerTick(object? state)
         {
             try
             {
-                if (CurrentStatus != ScrapingProcessStatus.Running) return;
-
+                if (CurrentStatus != CeneoExternalScrapingProcessStatus.Running) return;
                 FindAndMarkTimedOutBatches();
-
                 MarkInactiveScrapersAsOffline();
             }
             catch (Exception ex)
@@ -342,10 +343,9 @@ namespace PriceSafari.ScrapersControllers
 
         public static void ResetForNewProcess()
         {
-            CurrentStatus = ScrapingProcessStatus.Running;
+            CurrentStatus = CeneoExternalScrapingProcessStatus.Running;
             ScrapingStartTime = DateTime.UtcNow;
             ScrapingEndTime = null;
-
             AssignedBatches.Clear();
             _batchCounter = 0;
 
@@ -354,21 +354,22 @@ namespace PriceSafari.ScrapersControllers
                 stats.TotalUrlsProcessed = 0;
                 stats.TotalUrlsSuccess = 0;
                 stats.TotalUrlsFailed = 0;
+                stats.TotalUrlsRejected = 0;
                 stats.TotalBatchesCompleted = 0;
                 stats.TotalBatchesTimedOut = 0;
+                stats.TotalPricesCollected = 0;
                 stats.CurrentBatchNumber = 0;
                 stats.UrlsPerMinute = 0;
-                stats.NukeCount = 0;
-
+                stats.CaptchaCount = 0;
                 stats.FirstSeenAt = DateTime.UtcNow;
+                stats.LastActivityAt = DateTime.UtcNow;
             }
 
             foreach (var scraper in ActiveScrapers.Values)
             {
-                scraper.NukeCount = 0;
-
-                if (scraper.Status == ScraperLiveStatus.Stopped)
-                    scraper.Status = ScraperLiveStatus.Idle;
+                scraper.CaptchaCount = 0;
+                if (scraper.Status == CeneoExternalScraperLiveStatus.Stopped)
+                    scraper.Status = CeneoExternalScraperLiveStatus.Idle;
             }
 
             while (RecentLogs.TryDequeue(out _)) { }
@@ -376,12 +377,12 @@ namespace PriceSafari.ScrapersControllers
             _cleanupTimer?.Dispose();
             _cleanupTimer = new Timer(OnCleanupTimerTick, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
 
-            AddSystemLog("INFO", "Rozpoczęto nowy proces scrapowania (Timer czyszczący włączony)");
+            AddSystemLog("INFO", "🚀 Rozpoczęto nowy proces scrapowania Ceneo External (Timer czyszczący włączony)");
         }
 
         public static void FinishProcess()
         {
-            CurrentStatus = ScrapingProcessStatus.Idle;
+            CurrentStatus = CeneoExternalScrapingProcessStatus.Idle;
             ScrapingEndTime = DateTime.UtcNow;
 
             _cleanupTimer?.Dispose();
@@ -389,26 +390,30 @@ namespace PriceSafari.ScrapersControllers
 
             foreach (var scraper in ActiveScrapers.Values)
             {
-                if (scraper.Status == ScraperLiveStatus.Busy)
-                    scraper.Status = ScraperLiveStatus.Idle;
-
+                if (scraper.Status == CeneoExternalScraperLiveStatus.Busy)
+                    scraper.Status = CeneoExternalScraperLiveStatus.Idle;
                 scraper.CurrentBatchId = null;
                 scraper.CurrentTaskId = null;
             }
-            AddSystemLog("SUCCESS", "Proces scrapowania zakończony (Timer zatrzymany)");
+
+            AddSystemLog("SUCCESS", "✅ Proces scrapowania Ceneo External zakończony (Timer zatrzymany)");
         }
 
         public static object GetDashboardSummary()
         {
-            var onlineScrapers = ActiveScrapers.Values.Where(s => s.Status != ScraperLiveStatus.Offline).ToList();
+            var onlineScrapers = ActiveScrapers.Values.Where(s => s.Status != CeneoExternalScraperLiveStatus.Offline).ToList();
             var activeBatches = AssignedBatches.Values.Where(b => !b.IsCompleted && !b.IsTimedOut).ToList();
 
-            var totals = ScraperStatistics.Values.Aggregate(new { Success = 0, Failed = 0, Nukes = 0 }, (acc, s) => new
-            {
-                Success = acc.Success + s.TotalUrlsSuccess,
-                Failed = acc.Failed + s.TotalUrlsFailed,
-                Nukes = acc.Nukes + s.NukeCount
-            });
+            var totals = ScraperStatistics.Values.Aggregate(
+                new { Success = 0, Failed = 0, Rejected = 0, Prices = 0, Captchas = 0 },
+                (acc, s) => new
+                {
+                    Success = acc.Success + s.TotalUrlsSuccess,
+                    Failed = acc.Failed + s.TotalUrlsFailed,
+                    Rejected = acc.Rejected + s.TotalUrlsRejected,
+                    Prices = acc.Prices + s.TotalPricesCollected,
+                    Captchas = acc.Captchas + s.CaptchaCount
+                });
 
             return new
             {
@@ -416,14 +421,16 @@ namespace PriceSafari.ScrapersControllers
                 startTime = ScrapingStartTime,
                 endTime = ScrapingEndTime,
                 scrapersOnline = onlineScrapers.Count,
-                scrapersBusy = onlineScrapers.Count(s => s.Status == ScraperLiveStatus.Busy),
-                scrapersNuking = onlineScrapers.Count(s => s.Status == ScraperLiveStatus.ResettingNetwork),
+                scrapersBusy = onlineScrapers.Count(s => s.Status == CeneoExternalScraperLiveStatus.Busy),
+                scrapersSolvingCaptcha = onlineScrapers.Count(s => s.Status == CeneoExternalScraperLiveStatus.SolvingCaptcha),
                 activeBatchesCount = activeBatches.Count,
                 totalBatchesProcessed = AssignedBatches.Values.Count(b => b.IsCompleted),
                 totalBatchesTimedOut = AssignedBatches.Values.Count(b => b.IsTimedOut),
                 totalUrlsSuccess = totals.Success,
                 totalUrlsFailed = totals.Failed,
-                totalNukeEvents = totals.Nukes
+                totalUrlsRejected = totals.Rejected,
+                totalPricesCollected = totals.Prices,
+                totalCaptchaEvents = totals.Captchas
             };
         }
 
@@ -446,20 +453,21 @@ namespace PriceSafari.ScrapersControllers
                     totalUrlsProcessed = stats?.TotalUrlsProcessed ?? 0,
                     totalUrlsSuccess = stats?.TotalUrlsSuccess ?? 0,
                     totalUrlsFailed = stats?.TotalUrlsFailed ?? 0,
+                    totalUrlsRejected = stats?.TotalUrlsRejected ?? 0,
+                    totalPricesCollected = stats?.TotalPricesCollected ?? 0,
                     successRate = stats?.SuccessRate ?? 0,
                     urlsPerMinute = stats?.UrlsPerMinute ?? 0,
                     batchesCompleted = stats?.TotalBatchesCompleted ?? 0,
                     batchesTimedOut = stats?.TotalBatchesTimedOut ?? 0,
                     currentBatchNumber = stats?.CurrentBatchNumber ?? 0,
+                    captchaCount = stats?.CaptchaCount ?? 0,
                     activeBatchTaskCount = activeBatch?.TaskIds.Count ?? 0,
-                    activeBatchAssignedAt = activeBatch?.AssignedAt,
-                    nukeCount = stats?.NukeCount ?? 0
+                    activeBatchAssignedAt = activeBatch?.AssignedAt
                 };
             }).Cast<object>().ToList();
         }
 
-        public static List<ScraperLogEntry> GetRecentLogs(int count = 50) =>
+        public static List<CeneoExternalScraperLogEntry> GetRecentLogs(int count = 100) =>
             RecentLogs.OrderByDescending(l => l.Timestamp).Take(count).ToList();
     }
 }
-

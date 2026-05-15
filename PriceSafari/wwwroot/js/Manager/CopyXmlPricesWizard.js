@@ -12,16 +12,15 @@ try {
 let mappingForField = {
     "Key": null,
     "Price": null,
-    "PromoPrice": null, // <--- NOWE
+    "PromoPrice": null,
     "PriceWithShipping": null,
     "InStock": null
 };
 let xmlDoc = null;
-let scrapableProducts = null; // cache produktów sklepu
+let scrapableProducts = null;
 const RENDER_CHUNK = 1000;
 const proxyUrl = `/CopyXmlPricesWizard/ProxyXml?storeId=${storeId}`;
 
-// Załaduj wartości z istniejącego mapowania
 if (existingMapping) {
     if (existingMapping.keyField !== undefined) {
         const kfSel = document.getElementById("keyFieldSelector");
@@ -35,7 +34,6 @@ if (existingMapping) {
     if (existingMapping.inStockMarkerValue) document.getElementById("inStockMarker").value = existingMapping.inStockMarkerValue;
 }
 
-// ─── PROGRESS ──────────────────────────────
 function showProgress(msg, pct) {
     if (!progressContainer) return;
     progressContainer.style.display = 'block';
@@ -52,7 +50,6 @@ function updateProgress(msg, pct) {
 }
 function hideProgress() { if (progressContainer) { progressContainer.style.display = 'none'; progressContainer.innerHTML = ''; } }
 
-// ─── ŁADOWANIE XML ──────────────────────────
 function loadFromNetwork() {
     xmlContainer.innerHTML = '';
     showProgress('Pobieranie XML z sieci...', 5);
@@ -109,7 +106,6 @@ function processXmlString(xmlStr) {
     }, 50);
 }
 
-// ─── BUDOWA DRZEWA (async chunks) ──────────
 function buildTreeAsync(rootNode, rootUl, rootPath, totalNodes, onDone) {
     let rendered = 0;
     const queue = [{ node: rootNode, parentUl: rootUl, parentPath: rootPath }];
@@ -180,7 +176,6 @@ function createLi(node, parentPath) {
     return { li, childrenUl: cu };
 }
 
-// ─── KLIKI ────────────────────────────────
 document.addEventListener("click", function (e) {
     const el = e.target.closest(".xml-node");
     if (!el) return;
@@ -221,7 +216,6 @@ function applyExistingMappings() {
 function renderMappingTable() {
     const tb = document.getElementById("mappingTable").querySelector("tbody");
     tb.innerHTML = "";
-    // Dodaj tłumaczenie etykiety dla tabelki:
     const labels = { Key: "Klucz (EAN/ID)", Price: "Cena", PromoPrice: "Cena promocyjna", PriceWithShipping: "Cena z dostawą", InStock: "Dostępność" };
     for (const f in mappingForField) {
         const info = mappingForField[f];
@@ -233,7 +227,6 @@ function renderMappingTable() {
     }
 }
 
-// ─── WSPÓLNY PRODUCT NODE PATH ────────────
 function computeProductNodeXPath() {
     const paths = Object.values(mappingForField)
         .filter(m => m && m.xpath)
@@ -246,12 +239,9 @@ function computeProductNodeXPath() {
         if (parts.every(p => p.length > i && p[i] === seg)) common.push(seg);
         else break;
     }
-    // Węzeł produktu = przedostatni sensowny + jeden w dół? Nie — common bez ostatniego jeśli nie wspólny
-    // Common path kończy się na węźle produktu (np /rss/channel/item)
     return common.join('/');
 }
 
-// ─── SAVE / LOAD / TOGGLE ─────────────────
 document.getElementById("saveMapping").addEventListener("click", function () {
     if (!mappingForField.Key || !mappingForField.Key.xpath) { alert("Musisz zmapować klucz (EAN lub ID)."); return; }
     if (!mappingForField.Price || !mappingForField.Price.xpath) { alert("Musisz zmapować cenę."); return; }
@@ -309,19 +299,16 @@ document.getElementById("previewMapping").addEventListener("click", async functi
         scrapableProducts = await resp.json();
     }
 
-    const productNodePath = computeProductNodeXPath();  // np. "/rss/channel/item"
+    const productNodePath = computeProductNodeXPath();
     if (!productNodePath) { alert("Nie można ustalić węzła produktu."); return; }
 
-    // Ostatni segment (może zawierać predykat [@name=...])
     const lastSegment = productNodePath.split('/').pop();
-    const pureName = lastSegment.split('[')[0]; // np. "item"
+    const pureName = lastSegment.split('[')[0];
     const entries = xmlDoc.getElementsByTagName(pureName);
 
-    const keyField = document.getElementById("keyFieldSelector").value; // "Ean" | "ExternalId"
+    const keyField = document.getElementById("keyFieldSelector").value;
     const marker = (document.getElementById("inStockMarker").value || "").trim().toLowerCase();
 
-    // Indeksuj XML: key -> {price, priceWithShipping, inStockRaw}
-    // UWAGA: getVal oczekuje w 3. argumencie *nazwy taga produktu* (np. "item"), NIE pełnej ścieżki!
     const xmlIndex = {};
     for (let i = 0; i < entries.length; i++) {
         const keyVal = getVal(entries[i], mappingForField.Key.xpath, lastSegment);
@@ -329,7 +316,6 @@ document.getElementById("previewMapping").addEventListener("click", async functi
         const k = keyVal.trim();
         if (!k || xmlIndex[k]) continue;
 
-        // --- LOGIKA CENY Z PROMOCJĄ ---
         const parsedStandard = parsePrice(getVal(entries[i], mappingForField.Price.xpath, lastSegment));
         const parsedPromo = mappingForField.PromoPrice ? parsePrice(getVal(entries[i], mappingForField.PromoPrice.xpath, lastSegment)) : null;
 
@@ -339,10 +325,9 @@ document.getElementById("previewMapping").addEventListener("click", async functi
         } else if (parsedStandard !== null && !isNaN(parsedStandard)) {
             finalPrice = parsedStandard;
         }
-        // ------------------------------
 
         xmlIndex[k] = {
-            price: finalPrice, // używamy wyliczonej ceny finalnej
+            price: finalPrice,
             priceWithShipping: mappingForField.PriceWithShipping
                 ? parsePrice(getVal(entries[i], mappingForField.PriceWithShipping.xpath, lastSegment))
                 : null,
@@ -352,7 +337,6 @@ document.getElementById("previewMapping").addEventListener("click", async functi
         };
     }
 
-    // Match produkty
     let matched = 0, unmatched = 0, withoutKey = 0;
     const rows = [];
     scrapableProducts.forEach(p => {
@@ -436,7 +420,6 @@ document.getElementById("previewMapping").addEventListener("click", async functi
     document.getElementById("previewContainer").innerHTML = html;
 });
 
-// ─── HELPERS (getVal skopiowane z GoogleWizard) ──────
 const nsResolver = prefix => ({ 'g': 'http://base.google.com/ns/1.0' })[prefix] || null;
 
 function getVal(entryNode, xpathFull, productNodeName) {
