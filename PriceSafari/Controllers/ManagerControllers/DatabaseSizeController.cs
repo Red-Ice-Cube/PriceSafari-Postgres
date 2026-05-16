@@ -571,6 +571,49 @@ namespace PriceSafari.Controllers.ManagerControllers
             return details;
         }
         #endregion
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditScrapHistory(ScrapHistoryEditViewModel model)
+        {
+            // 1. Walidacja modelu
+            if (!ModelState.IsValid)
+            {
+                return Json(new { success = false, message = "Przekazano nieprawidłowe dane formularza." });
+            }
+
+            try
+            {
+                // 2. Wyszukanie rekordu w bazie
+                var scrapHistory = await _context.ScrapHistories.FindAsync(model.Id);
+
+                if (scrapHistory == null)
+                {
+                    return Json(new { success = false, message = "Nie znaleziono historii scrapowania o podanym ID." });
+                }
+
+                // 3. Aktualizacja daty
+                scrapHistory.Date = model.Date;
+
+                // Zapisanie zmian w bazie
+                await _context.SaveChangesAsync();
+
+                // 4. Zwrócenie odpowiedzi w formacie JSON (zgodnej z tym, czego oczekuje AJAX)
+                return Json(new
+                {
+                    success = true,
+                    id = scrapHistory.Id,
+                    newDate = scrapHistory.Date.ToString("yyyy-MM-dd HH:mm:ss"),
+                    message = "Data została pomyślnie zaktualizowana."
+                });
+            }
+            catch (Exception ex)
+            {
+                // Obsługa nieoczekiwanych błędów na serwerze
+                return Json(new { success = false, message = $"Błąd podczas zapisu w bazie: {ex.Message}" });
+            }
+        }
     }
 
     #region ViewModels
