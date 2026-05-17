@@ -1,13 +1,11 @@
 ﻿@using PriceSafari.Models.SchedulePlan
 @model PriceSafari.Models.SchedulePlan.SchedulePlan
-
 @{
     Layout = "~/Views/Shared/_PanelLayout.cshtml";
+    var allStores = ViewBag.AllStores as List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
 }
-
 @{
     ViewData["Title"] = "Kalendarz Maszyn";
-
     var days = new[]
     {
         new { Name = "Monday",    Detail = Model.Monday,    DayDetailId = Model.MondayId },
@@ -18,13 +16,11 @@
         new { Name = "Saturday",  Detail = Model.Saturday,  DayDetailId = Model.SaturdayId },
         new { Name = "Sunday",    Detail = Model.Sunday,    DayDetailId = Model.SundayId }
     };
-
     Func<DayDetail, int, int, ScheduleTask> findTask = (dd, hr, mn) =>
     {
         if (dd == null || dd.Tasks == null) return null;
         return dd.Tasks.FirstOrDefault(t => t.StartTime.Hours == hr && t.StartTime.Minutes == mn);
     };
-
     var allTasks = new List<ScheduleTask>();
     if (Model.Monday?.Tasks != null) allTasks.AddRange(Model.Monday.Tasks);
     if (Model.Tuesday?.Tasks != null) allTasks.AddRange(Model.Tuesday.Tasks);
@@ -33,7 +29,6 @@
     if (Model.Friday?.Tasks != null) allTasks.AddRange(Model.Friday.Tasks);
     if (Model.Saturday?.Tasks != null) allTasks.AddRange(Model.Saturday.Tasks);
     if (Model.Sunday?.Tasks != null) allTasks.AddRange(Model.Sunday.Tasks);
-
     var storeCounts = allTasks
         .SelectMany(t => t.TaskStores)
         .GroupBy(ts => ts.Store.StoreName)
@@ -41,12 +36,13 @@
         .OrderByDescending(x => x.Count)
         .ToList();
 }
-
 <style>
     .excel-table {
         border-collapse: collapse;
         font-family: Arial, sans-serif;
         margin-bottom: 20px;
+        margin-top: 32px;
+        width: 95%;
     }
 
         .excel-table th {
@@ -59,12 +55,14 @@
         .excel-table td {
             border: 1px solid #999;
             padding: 6px 12px;
+            vertical-align: top;
         }
 
         .excel-table caption {
             background-color: #b6d7a8;
             font-weight: bold;
             padding: 6px 12px;
+            color: #333;
         }
 
     .flag-container {
@@ -79,6 +77,7 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
+        font-size: 0.85em;
     }
 
     .flag-box {
@@ -89,6 +88,7 @@
         color: white;
         font-weight: bold;
         border-radius: 4px;
+        display: inline-block;
     }
 
     .flag-true {
@@ -99,16 +99,81 @@
         background-color: #dc3545;
     }
 
-
     .flag-auto-true {
-        background-color: #6f42c1; 
+        background-color: #6f42c1;
     }
 
     .flag-gather-true {
         background-color: #0d6efd;
     }
-</style>
 
+    @@keyframes flashGreen {
+        0% {
+            background-color: #ffecb3;
+        }
+
+        20% {
+            background-color: #8fdf82;
+            box-shadow: 0 0 15px rgba(40,167,69,0.5);
+            transform: scale(1.02);
+        }
+
+        80% {
+            background-color: #8fdf82;
+            box-shadow: 0 0 15px rgba(40,167,69,0.5);
+            transform: scale(1.02);
+        }
+
+        100% {
+            background-color: #ffecb3;
+        }
+    }
+
+    .highlight-flash {
+        animation: flashGreen 2.5s ease-in-out;
+        z-index: 10;
+        position: relative;
+    }
+    /* Pływająca wyspa akcji */
+    .floating-action-bar {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #ffffff;
+        padding: 15px 25px;
+        border-radius: 50px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        display: none;
+        align-items: center;
+        gap: 15px;
+        z-index: 9999;
+        border: 2px solid #0d6efd;
+        transition: all 0.3s ease;
+    }
+    /* ===== FIX: Modal musi być NAD pływającą wyspą (z-index: 9999) ===== */
+    .modal-backdrop {
+        z-index: 10000 !important;
+    }
+
+    .modal {
+        z-index: 10001 !important;
+    }
+        /* ===== FIX: Style dla fallback modali (gdy brak Bootstrap JS) ===== */
+        .modal.manual-show {
+            display: block !important;
+        }
+
+    .custom-modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 10000;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+</style>
 <table class="excel-table">
     <caption>Wystąpienia w ciągu 7 dni</caption>
     <thead>
@@ -138,8 +203,10 @@
         }
     </tbody>
 </table>
-
-<table class="excel-table">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0">Grafik Zadań</h4>
+</div>
+<table class="excel-table mb-5">
     <thead>
         <tr>
             <th>Godzina</th>
@@ -155,38 +222,33 @@
     <tbody>
         @for (int hour = 0; hour < 24; hour++)
         {
-
             for (int minute = 0; minute < 60; minute += 5)
             {
                 <tr>
-                    <td>@($"{hour:00}:{minute:00}")</td>
-
+                    <td style="white-space: nowrap; font-weight: bold;">@($"{hour:00}:{minute:00}")</td>
                     @foreach (var day in days)
                     {
                         var task = findTask(day.Detail, hour, minute);
-
                         if (task == null)
                         {
-
                             bool isOccupied = day.Detail?.Tasks?.Any(t =>
-                            new TimeSpan(hour, minute, 0) >= t.StartTime &&
-                            new TimeSpan(hour, minute, 0) < t.EndTime
+                                new TimeSpan(hour, minute, 0) >= t.StartTime &&
+                                new TimeSpan(hour, minute, 0) < t.EndTime
                             ) ?? false;
-
                             if (isOccupied)
                             {
-                                <td style="background:#ffecb3;">
-                                    Zajęte
+                                <td style="background:#fff3cd; color:#856404; text-align:center; vertical-align:middle;">
+                                    <small>Trwa...</small>
                                 </td>
                             }
                             else
                             {
-                                <td>
+                                <td class="text-center">
                                     <a asp-action="AddTask"
                                        asp-route-dayDetailId="@day.DayDetailId"
                                        asp-route-hour="@hour"
                                        asp-route-min="@minute"
-                                       class="btn btn-sm btn-success">
+                                       class="btn btn-sm btn-outline-success" style="opacity: 0.5;">
                                         Dodaj
                                     </a>
                                 </td>
@@ -194,74 +256,67 @@
                         }
                         else
                         {
-
-                            <td style="background:#ffecb3;">
+                            <td id="task-@task.Id" style="background:#ffecb3; transition: all 0.3s;">
+                                <div style="float: right; margin-left: 5px;">
+                                    <input type="checkbox" form="bulkActionsForm" name="taskIds" value="@task.Id"
+                                           class="task-checkbox" style="transform: scale(1.5); cursor: pointer;" title="Zaznacz" />
+                                </div>
                                 <strong>@task.SessionName</strong><br />
                                 @($"{task.StartTime:hh\\:mm} - {task.EndTime:hh\\:mm}")<br />
-                                Sklepy: @string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))<br />
-
-                                <div class="flag-container">
-                                   
-                                    <div class="flag">
-                                        Url Grupowanie: <span class="flag-box @(task.UrlEnabled ? "flag-true" : "flag-false")">@(task.UrlEnabled ? "T" : "F")</span>
+                                <span style="font-size: 0.9em; color: #555;">Sklepy: @string.Join(", ", task.TaskStores.Select(ts => ts.Store.StoreName))</span><br />
+                                <div class="flag-container mt-2">
+                                    <div class="flag" title="Url Grupowanie">
+                                        URL: <span class="flag-box @(task.UrlEnabled ? "flag-true" : "flag-false")">@(task.UrlEnabled ? "T" : "F")</span>
                                     </div>
-                                    
-                                    <div class="flag">
-                                        Ceneo Scrap: <span class="flag-box @(task.CeneoEnabled ? "flag-true" : "flag-false")">@(task.CeneoEnabled ? "T" : "F")</span>
+                                    <div class="flag" title="Ceneo Scrap">
+                                        CEN: <span class="flag-box @(task.CeneoEnabled ? "flag-true" : "flag-false")">@(task.CeneoEnabled ? "T" : "F")</span>
                                     </div>
-                                    <div class="flag">
-                                        Google Scrap: <span class="flag-box @(task.GoogleEnabled ? "flag-true" : "flag-false")">@(task.GoogleEnabled ? "T" : "F")</span>
+                                    <div class="flag" title="Google Scrap">
+                                        GOO: <span class="flag-box @(task.GoogleEnabled ? "flag-true" : "flag-false")">@(task.GoogleEnabled ? "T" : "F")</span>
                                     </div>
-
-                                    <div class="flag">
-                                        Store API Bot: <span class="flag-box @(task.ApiBotEnabled ? "flag-true" : "flag-false")">@(task.ApiBotEnabled ? "T" : "F")</span>
+                                    <div class="flag" title="Store API Bot">
+                                        API: <span class="flag-box @(task.ApiBotEnabled ? "flag-true" : "flag-false")">@(task.ApiBotEnabled ? "T" : "F")</span>
                                     </div>
-                                    <div class="flag">
-                                        Base Scal: <span class="flag-box @(task.BaseEnabled ? "flag-true" : "flag-false")">@(task.BaseEnabled ? "T" : "F")</span>
+                                    <div class="flag" title="Base Scal">
+                                        SCL: <span class="flag-box @(task.BaseEnabled ? "flag-true" : "flag-false")">@(task.BaseEnabled ? "T" : "F")</span>
                                     </div>
-
-                                 
-                                    <div class="flag">
-                                        Allegro URL Grupowanie: <span class="flag-box @(task.UrlScalAleEnabled ? "flag-true" : "flag-false")">@(task.UrlScalAleEnabled ? "T" : "F")</span>
+                                    <div class="w-100 m-0 border-bottom border-secondary opacity-25"></div>
+                                    <div class="flag" title="Allegro URL Grupowanie">
+                                        A-URL: <span class="flag-box @(task.UrlScalAleEnabled ? "flag-true" : "flag-false")">@(task.UrlScalAleEnabled ? "T" : "F")</span>
                                     </div>
-                                    <div class="flag">
-                                        Allegro Scrap: <span class="flag-box @(task.AleCrawEnabled ? "flag-true" : "flag-false")">@(task.AleCrawEnabled ? "T" : "F")</span>
+                                    <div class="flag" title="Allegro Scrap">
+                                        A-SCR: <span class="flag-box @(task.AleCrawEnabled ? "flag-true" : "flag-false")">@(task.AleCrawEnabled ? "T" : "F")</span>
                                     </div>
-                                    <div class="flag">
-                                        Allegro Api BOT: <span class="flag-box @(task.AleApiBotEnabled ? "flag-true" : "flag-false")">@(task.AleApiBotEnabled ? "T" : "F")</span>
+                                    <div class="flag" title="Allegro API Bot">
+                                        A-API: <span class="flag-box @(task.AleApiBotEnabled ? "flag-true" : "flag-false")">@(task.AleApiBotEnabled ? "T" : "F")</span>
                                     </div>
-                                    <div class="flag">
-                                        Allegro Base Scal: <span class="flag-box @(task.AleBaseEnabled ? "flag-true" : "flag-false")">@(task.AleBaseEnabled ? "T" : "F")</span>
+                                    <div class="flag" title="Allegro Base Scal">
+                                        A-SCL: <span class="flag-box @(task.AleBaseEnabled ? "flag-true" : "flag-false")">@(task.AleBaseEnabled ? "T" : "F")</span>
                                     </div>
-                                 
-
-
+                                    <div class="w-100 m-0 border-bottom border-secondary opacity-25"></div>
                                     <div class="flag" title="Automatyzacja Porównywarek">
-                                        BOT CENOWY C i G: <span class="flag-box @(task.PriceComparisonAutomationEnabled ? "flag-auto-true" : "flag-false")">@(task.PriceComparisonAutomationEnabled ? "T" : "F")</span>
+                                        BOT CEN (C/G): <span class="flag-box @(task.PriceComparisonAutomationEnabled ? "flag-auto-true" : "flag-false")">@(task.PriceComparisonAutomationEnabled ? "T" : "F")</span>
                                     </div>
                                     <div class="flag" title="Automatyzacja Marketplace">
-                                        BOT CENOWY Allegro:<span class="flag-box @(task.MarketPlaceAutomationEnabled ? "flag-auto-true" : "flag-false")">@(task.MarketPlaceAutomationEnabled ? "T" : "F")</span>
+                                        BOT CEN (ALL): <span class="flag-box @(task.MarketPlaceAutomationEnabled ? "flag-auto-true" : "flag-false")">@(task.MarketPlaceAutomationEnabled ? "T" : "F")</span>
                                     </div>
-
-
                                     <div class="flag" title="Wyszukiwanie Produktów Allegro">
-                                        Allegro Gather: <span class="flag-box @(task.AllegroGatherEnabled ? "flag-gather-true" : "flag-false")">@(task.AllegroGatherEnabled ? "T" : "F")</span>
+                                        A-GATHER: <span class="flag-box @(task.AllegroGatherEnabled ? "flag-gather-true" : "flag-false")">@(task.AllegroGatherEnabled ? "T" : "F")</span>
                                     </div>
-
                                 </div>
-
-                                <hr />
-                                <a asp-action="EditTask" asp-route-taskId="@task.Id" class="btn btn-sm btn-info">
-                                    Edytuj
-                                </a>
-
-                                <form asp-action="DeleteTask" method="post" style="display:inline;">
-                                    <input type="hidden" name="taskId" value="@task.Id" />
-                                    <button type="submit" class="btn btn-sm btn-danger"
-                                            onclick="return confirm('Czy na pewno usunąć zadanie?')">
-                                        Usuń
-                                    </button>
-                                </form>
+                                <hr class="my-2" />
+                                <div class="d-flex gap-2">
+                                    <a asp-action="EditTask" asp-route-taskId="@task.Id" class="btn btn-sm btn-info text-white">
+                                        <i class="fas fa-edit"></i> Edytuj
+                                    </a>
+                                    <form asp-action="DeleteTask" method="post" style="display:inline;">
+                                        <input type="hidden" name="taskId" value="@task.Id" />
+                                        <button type="submit" class="btn btn-sm btn-danger"
+                                                onclick="return confirm('Czy na pewno usunąć zadanie?')">
+                                            <i class="fas fa-times"></i> Usuń
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         }
                     }
@@ -270,3 +325,160 @@
         }
     </tbody>
 </table>
+<form id="bulkActionsForm" method="post">
+    <div id="floatingBar" class="floating-action-bar">
+        <div class="fw-bold text-primary me-2">
+            Zaznaczono: <span id="selectedCount" class="badge bg-primary rounded-pill" style="font-size: 1.1em;">0</span>
+        </div>
+        <!-- FIX: onclick zamiast data-bs-toggle — działa zawsze, nawet bez Bootstrap JS -->
+        <button type="button" class="btn btn-success rounded-pill px-3" onclick="openModal('addStoresModal')">
+            <i class="fas fa-plus-circle me-1"></i> Dodaj sklepy
+        </button>
+        <button type="button" class="btn btn-warning rounded-pill px-3" onclick="openModal('removeStoresModal')">
+            <i class="fas fa-minus-circle me-1"></i> Usuń sklepy
+        </button>
+        <span class="text-muted mx-1">|</span>
+        <button type="submit" form="bulkActionsForm" formaction="@Url.Action("DeleteMultipleTasks")" class="btn btn-danger rounded-pill px-3"
+                onclick="return confirm('Czy na pewno chcesz bezpowrotnie usunąć wybrane zadania?')">
+            <i class="fas fa-trash-alt me-1"></i> Usuń zadania
+        </button>
+    </div>
+</form>
+<!-- MODALE — z-index poprawiony w CSS powyżej (10001) -->
+<div class="modal fade" id="addStoresModal" tabindex="-1" aria-labelledby="addStoresModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="addStoresModalLabel"><i class="fas fa-plus-circle me-2"></i>Dodaj sklepy do zaznaczonych</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="closeModal('addStoresModal')" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Wybierz sklepy, które chcesz <strong>dodać</strong> do wszystkich zaznaczonych zadań (jeśli sklep już istnieje w zadaniu, zostanie pominięty).</p>
+                <div class="list-group">
+                    @foreach (var store in allStores)
+                    {
+                        <label class="list-group-item d-flex gap-2 align-items-center">
+                            <input class="form-check-input flex-shrink-0" type="checkbox" name="addStoreIds" value="@store.Value" form="bulkActionsForm" style="transform: scale(1.2);">
+                            <span>@store.Text</span>
+                        </label>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addStoresModal')">Anuluj</button>
+                <button type="submit" form="bulkActionsForm" formaction="@Url.Action("BulkAddStores")" class="btn btn-success">Zapisz (Dodaj)</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="removeStoresModal" tabindex="-1" aria-labelledby="removeStoresModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="removeStoresModalLabel"><i class="fas fa-minus-circle me-2"></i>Usuń sklepy z zaznaczonych</h5>
+                <button type="button" class="btn-close" onclick="closeModal('removeStoresModal')" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Wybierz sklepy, które chcesz <strong>usunąć</strong> ze wszystkich zaznaczonych zadań.</p>
+                <div class="list-group">
+                    @foreach (var store in allStores)
+                    {
+                        <label class="list-group-item d-flex gap-2 align-items-center">
+                            <input class="form-check-input flex-shrink-0" type="checkbox" name="removeStoreIds" value="@store.Value" form="bulkActionsForm" style="transform: scale(1.2);">
+                            <span>@store.Text</span>
+                        </label>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('removeStoresModal')">Anuluj</button>
+                <button type="submit" form="bulkActionsForm" formaction="@Url.Action("BulkRemoveStores")" class="btn btn-warning">Zapisz (Usuń)</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    // ===== FIX: Funkcje otwierające/zamykające modale — działają ZAWSZE =====
+    // Obsługują 2 przypadki:
+    //   1) Bootstrap JS jest załadowany → użyj natywnego API
+    //   2) Bootstrap JS brakuje         → fallback ręczny (display + backdrop)
+    function openModal(modalId) {
+        var modalEl = document.getElementById(modalId);
+        if (!modalEl) return;
+        // Próba użycia Bootstrap API (działa jeśli bootstrap.bundle.js jest załadowany)
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var existingInstance = bootstrap.Modal.getInstance(modalEl);
+            if (existingInstance) {
+                existingInstance.show();
+            } else {
+                new bootstrap.Modal(modalEl).show();
+            }
+            return;
+        }
+        // Fallback — ręczne pokazanie modala
+        modalEl.classList.add('show');
+        modalEl.classList.add('manual-show');
+        modalEl.setAttribute('aria-hidden', 'false');
+        modalEl.style.display = 'block';
+        document.body.classList.add('modal-open');
+        // Dodaj backdrop
+        var oldBackdrop = document.getElementById(modalId + '-backdrop');
+        if (oldBackdrop) oldBackdrop.remove();
+        var backdrop = document.createElement('div');
+        backdrop.id = modalId + '-backdrop';
+        backdrop.className = 'custom-modal-backdrop';
+        backdrop.onclick = function () { closeModal(modalId); };
+        document.body.appendChild(backdrop);
+    }
+    function closeModal(modalId) {
+        var modalEl = document.getElementById(modalId);
+        if (!modalEl) return;
+        // Próba użycia Bootstrap API
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var instance = bootstrap.Modal.getInstance(modalEl);
+            if (instance) {
+                instance.hide();
+                return;
+            }
+        }
+        // Fallback — ręczne ukrycie
+        modalEl.classList.remove('show');
+        modalEl.classList.remove('manual-show');
+        modalEl.setAttribute('aria-hidden', 'true');
+        modalEl.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        // Usuń backdrop
+        var backdrop = document.getElementById(modalId + '-backdrop');
+        if (backdrop) backdrop.remove();
+    }
+    document.addEventListener("DOMContentLoaded", function () {
+        // Logika Pływającej Wyspy
+        var checkboxes = document.querySelectorAll('.task-checkbox');
+        var floatingBar = document.getElementById('floatingBar');
+        var selectedCountLabel = document.getElementById('selectedCount');
+        function updateFloatingBar() {
+            var checkedCount = document.querySelectorAll('.task-checkbox:checked').length;
+            if (checkedCount > 0) {
+                selectedCountLabel.innerText = checkedCount;
+                floatingBar.style.display = 'flex';
+            } else {
+                floatingBar.style.display = 'none';
+            }
+        }
+        checkboxes.forEach(function (cb) {
+            cb.addEventListener('change', updateFloatingBar);
+        });
+        // Obsługa Scrollowania / Podświetlenia
+        var highlightTaskId = '@TempData["HighlightTaskId"]';
+        if (highlightTaskId) {
+            var element = document.getElementById('task-' + highlightTaskId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                element.classList.add('highlight-flash');
+                setTimeout(function () {
+                    element.classList.remove('highlight-flash');
+                }, 2500);
+            }
+        }
+    });
+</script>

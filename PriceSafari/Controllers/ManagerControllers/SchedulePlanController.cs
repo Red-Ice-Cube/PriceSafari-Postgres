@@ -35,6 +35,15 @@ namespace PriceSafari.Controllers
                 .Include(sp => sp.Sunday).ThenInclude(d => d.Tasks).ThenInclude(t => t.TaskStores).ThenInclude(ts => ts.Store)
                 .FirstOrDefaultAsync();
 
+
+            ViewBag.AllStores = await _context.Stores
+                .OrderBy(s => s.StoreName)
+                .Select(s => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
+                {
+                    Value = s.StoreId.ToString(),
+                    Text = s.StoreName
+                }).ToListAsync();
+
             if (plan == null)
             {
                 var newPlan = new SchedulePlan
@@ -201,6 +210,7 @@ namespace PriceSafari.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+  
                 return RedirectToAction("Index");
             }
 
@@ -266,7 +276,7 @@ namespace PriceSafari.Controllers
                 });
             }
             await _context.SaveChangesAsync();
-
+            TempData["HighlightTaskId"] = singleTask.Id;
             return RedirectToAction("Index");
         }
 
@@ -426,7 +436,7 @@ namespace PriceSafari.Controllers
             }
 
             await _context.SaveChangesAsync();
-
+            TempData["HighlightTaskId"] = task.Id;
             return RedirectToAction("Index");
         }
 
@@ -441,6 +451,82 @@ namespace PriceSafari.Controllers
             await _context.SaveChangesAsync();
 
             return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteMultipleTasks(List<int> taskIds)
+        {
+            if (taskIds != null && taskIds.Any())
+            {
+                var tasksToDelete = await _context.ScheduleTasks
+                    .Where(t => taskIds.Contains(t.Id))
+                    .ToListAsync();
+
+                if (tasksToDelete.Any())
+                {
+                    _context.ScheduleTasks.RemoveRange(tasksToDelete);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+
+        [HttpPost]
+        public async Task<IActionResult> BulkAddStores(List<int> taskIds, List<int> addStoreIds)
+        {
+            if (taskIds != null && taskIds.Any() && addStoreIds != null && addStoreIds.Any())
+            {
+                var tasks = await _context.ScheduleTasks
+                    .Include(t => t.TaskStores)
+                    .Where(t => taskIds.Contains(t.Id))
+                    .ToListAsync();
+
+                foreach (var task in tasks)
+                {
+                    foreach (var storeId in addStoreIds)
+                    {
+                        // Dodaj tylko jeśli sklep nie jest już w tym zadaniu
+                        if (!task.TaskStores.Any(ts => ts.StoreId == storeId))
+                        {
+                            _context.ScheduleTaskStores.Add(new ScheduleTaskStore
+                            {
+                                ScheduleTaskId = task.Id,
+                                StoreId = storeId
+                            });
+                        }
+                    }
+                }
+                await _context.SaveChangesAsync();
+                TempData["HighlightTaskId"] = taskIds.First(); // Podświetli pierwsze edytowane zadanie
+            }
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> BulkRemoveStores(List<int> taskIds, List<int> removeStoreIds)
+        {
+            if (taskIds != null && taskIds.Any() && removeStoreIds != null && removeStoreIds.Any())
+            {
+                var tasks = await _context.ScheduleTasks
+                    .Include(t => t.TaskStores)
+                    .Where(t => taskIds.Contains(t.Id))
+                    .ToListAsync();
+
+                foreach (var task in tasks)
+                {
+                    // Znajdź powiązania do usunięcia
+                    var relationsToRemove = task.TaskStores
+                        .Where(ts => removeStoreIds.Contains(ts.StoreId))
+                        .ToList();
+
+                    _context.ScheduleTaskStores.RemoveRange(relationsToRemove);
+                }
+                await _context.SaveChangesAsync();
+                TempData["HighlightTaskId"] = taskIds.First();
+            }
+            return RedirectToAction(nameof(Index));
         }
     }
 }
