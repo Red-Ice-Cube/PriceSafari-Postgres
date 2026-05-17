@@ -568,61 +568,58 @@
          }
      }
 
-     function startExternalScraping() {
-     var selectedProductIds = [];
-     $('.product-checkbox:checked').each(function() {
-     selectedProductIds.push(parseInt($(this).val(), 10));
-     });
+       function startExternalScraping() {
+        var selectedProductIds = [];
+        $('.product-checkbox:checked').each(function() {
+            selectedProductIds.push(parseInt($(this).val(), 10));
+        });
 
-     var mode = $('#extScrapingMode').val();
-     var maxCids = $('#extMaxCids').val();
-     var udm = $('#extSearchModeUdm').val();
+        var mode = $('#extScrapingMode').val();
+        var maxCids = $('#extMaxCids').val();
+        var udm = $('#extSearchModeUdm').val();
+        var prefix = $('#extAdHocQueryPrefix').val();
+        var appendCode = $('#extAppendProducerCode').is(':checked');
+        var compareOnly = false;  
 
-     var prefix = $('#extAdHocQueryPrefix').val();
+        addExtLog('Wysyłanie żądania do serwera... Prefix: ' + (prefix || 'BRAK'), 'info');
 
-     var appendCode = $('#extAppendProducerCode').is(':checked');
-
-     var compareOnly = $('#compareOnlyCurrentProductCode').is(':checked');
-
-     addExtLog('Wysyłanie żądania do serwera... Prefix: ' + (prefix || 'BRAK'), 'info');
-
-     $.ajax({
-     url: '@Url.Action("StartExternalScraping", "GoogleScraper")',
-     type: 'POST',
-     traditional: true,
-    data: {
-         storeId: '@storeId',
-         productIds: selectedProductIds,
-         mode: mode,
-         maxCids: maxCids,
-         udm: udm,
-         prefix: prefix,
-         appendProducerCode: appendCode,
-         compareOnlyCode: compareOnly,
-         useVariantEans: $('#extUseVariantEans').is(':checked')
-     },
-     success: function(response) {
-     if (response.success) {
-     addExtLog('SUKCES: ' + response.message, 'success');
-     refreshExtStatus();
-     $('#selectAllProducts').prop('checked', false);
-     $('.product-checkbox').prop('checked', false);
-     updateSelectionCounter();
-     } else {
-     addExtLog('BŁĄD: ' + response.message, 'error');
-     }
-     },
-     error: function(xhr, status, error) {
-     var msg = "Błąd połączenia";
-     if (xhr.responseJSON && xhr.responseJSON.message) {
-     msg = xhr.responseJSON.message;
-     } else if (xhr.responseText) {
-     msg = xhr.responseText.substring(0, 50) + "...";
-     }
-     addExtLog('BŁĄD AJAX: ' + msg, 'error');
-     }
-     });
-     }
+        $.ajax({
+            url: '@Url.Action("StartExternalScraping", "GoogleScraper")',
+            type: 'POST',
+            traditional: true,
+            data: {
+                storeId: '@storeId',
+                productIds: selectedProductIds,
+                mode: mode,
+                maxCids: maxCids,
+                udm: udm,
+                prefix: prefix,
+                appendProducerCode: appendCode,
+                compareOnlyCode: compareOnly,
+                useVariantEans: $('#extUseVariantEans').is(':checked')
+            },
+            success: function(response) {
+                if (response.success) {
+                    addExtLog('SUKCES: ' + response.message, 'success');
+                    refreshExtStatus();
+                    $('#selectAllProducts').prop('checked', false);
+                    $('.product-checkbox').prop('checked', false);
+                    updateSelectionCounter();
+                } else {
+                    addExtLog('BŁĄD: ' + response.message, 'error');
+                }
+            },
+            error: function(xhr, status, error) {
+                var msg = "Błąd połączenia";
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                } else if (xhr.responseText) {
+                    msg = xhr.responseText.substring(0, 50) + "...";
+                }
+                addExtLog('BŁĄD AJAX: ' + msg, 'error');
+            }
+        });
+    }
 
      async function stopExternalScraping() {
          try {

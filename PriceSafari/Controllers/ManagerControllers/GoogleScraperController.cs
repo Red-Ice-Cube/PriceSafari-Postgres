@@ -29,7 +29,7 @@ public class GoogleScraperController : Controller
     private static readonly ConcurrentDictionary<int, byte> _enqueuedProductIds = new();
     private static readonly TimeSpan PROCESSING_TIMEOUT = TimeSpan.FromMinutes(5);
     private static readonly ConcurrentDictionary<int, DateTime> _processingStartedAt = new();
-
+    private static readonly ConcurrentDictionary<int, Dictionary<string, int>> _eligibleProductsMapCache = new();
     public GoogleScraperController(IServiceScopeFactory scopeFactory, INetworkControlService networkControlService, PriceSafariContext context)
     {
         _scopeFactory = scopeFactory;
@@ -45,6 +45,7 @@ public class GoogleScraperController : Controller
     public class ProductProcessingState
     {
         public int ProductId { get; set; }
+        public int StoreId { get; set; }
         public string OriginalUrl { get; set; }
         public string CleanedUrl { get; set; }
         public string ProductNameInStoreForGoogle { get; set; }
@@ -161,6 +162,7 @@ public class GoogleScraperController : Controller
         public ProductProcessingState(ProductClass product, Func<string, string> cleanUrlFunc)
         {
             ProductId = product.ProductId;
+            StoreId = product.StoreId;
             OriginalUrl = product.Url;
 
             CleanedUrl = OriginalUrl;
@@ -338,8 +340,16 @@ public class GoogleScraperController : Controller
                     {
                         state.Status = ProductStatus.Pending;
                         state.IsDirty = false;
-                        _enqueuedProductIds.TryRemove(productId, out _); // Zdejmujemy też z blokady kolejki
-                        Console.WriteLine($"[EXT-API] 🧟 Reset zombie Processing dla ID {productId}");
+                        _enqueuedProductIds.TryRemove(productId, out _);
+
+                        // NOWE: re-enqueue żeby Python to złapał
+                        var retryTask = BuildRetryTask(state,
+                            new ExternalScraperResult { ErrorMessage = "Zombie Processing timeout", FinalStatus = "Error", RetryCount = 0 },
+                            1);
+                        _externalTaskQueue.Enqueue(retryTask);
+                        _enqueuedProductIds.TryAdd(productId, 1);
+
+                        Console.WriteLine($"[EXT-API] 🧟 Reset zombie Processing dla ID {productId} - re-enqueued");
                     }
                 }
             }
@@ -408,11 +418,11 @@ public class GoogleScraperController : Controller
                     }
 
                     var productsFromDb = query.ToList();
-                    var tempScraperForCleaning = new GoogleScraper();
+
 
                     foreach (var dbProduct in productsFromDb)
                     {
-                        var state = new ProductProcessingState(dbProduct, tempScraperForCleaning.CleanUrlParameters);
+                        var state = new ProductProcessingState(dbProduct, null);
 
                         if (productIds != null && productIds.Any())
                         {
@@ -1911,33 +1921,67 @@ public class GoogleScraperController : Controller
 
     private ExternalScraperTask BuildRetryTask(ProductProcessingState state, ExternalScraperResult result, int newRetryCount)
     {
-        string searchTerm = state.ProductNameInStoreForGoogle;
-        if (_externalScraperSettings.AppendProducerCode && !string.IsNullOrEmpty(state.ProducerCode))
-            searchTerm = $"{searchTerm} {state.ProducerCode}";
-        if (!string.IsNullOrEmpty(_externalScraperSettings.ProductNamePrefix))
-            searchTerm = $"{_externalScraperSettings.ProductNamePrefix} {searchTerm}";
+        string mode = _externalScraperSettings.ScrapingMode;
+        string searchTerm;
+
+        // Wyznaczanie searchTerm - dokładnie jak przy pierwszym wrzuceniu do kolejki
+        if (mode == "MatchByEan")
+        {
+            searchTerm = state.Ean;
+        }
+        else
+        {
+            searchTerm = state.ProductNameInStoreForGoogle;
+            if (_externalScraperSettings.AppendProducerCode && !string.IsNullOrEmpty(state.ProducerCode))
+                searchTerm = $"{searchTerm} {state.ProducerCode}";
+            if (!string.IsNullOrEmpty(_externalScraperSettings.ProductNamePrefix))
+                searchTerm = $"{_externalScraperSettings.ProductNamePrefix} {searchTerm}";
+        }
+
+        // Odtworzenie eligibleProductsMap z cache (dla Standard / full_process)
+        Dictionary<string, int> eligibleProductsMap = null;
+        if (mode == "Standard" || mode == "full_process")
+        {
+            _eligibleProductsMapCache.TryGetValue(state.StoreId, out eligibleProductsMap);
+        }
+
+        // Odtworzenie wariantów EAN (dla MatchByEan z włączoną flagą)
+        List<string> extraEans = new();
+        if (mode == "MatchByEan"
+            && _externalScraperSettings.UseVariantEans
+            && !string.IsNullOrWhiteSpace(state.OtherVariantEans))
+        {
+            var mainEanTrimmed = state.Ean?.Trim() ?? "";
+            extraEans = state.OtherVariantEans
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(e => e.Trim())
+                .Where(e => e.Length > 0 && !string.Equals(e, mainEanTrimmed, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
 
         return new ExternalScraperTask
         {
             TaskId = $"product_{state.ProductId}_retry{newRetryCount}_{Guid.NewGuid():N}",
             ProductId = state.ProductId,
             ProductName = state.ProductNameInStoreForGoogle,
-            SearchTerm = _externalScraperSettings.ScrapingMode == "MatchByEan" ? state.Ean : searchTerm,
+            SearchTerm = searchTerm,
             CleanedUrl = state.CleanedUrl,
             OriginalUrl = state.OriginalUrl,
             Ean = state.Ean,
             ProducerCode = state.ProducerCode,
-            Mode = _externalScraperSettings.ScrapingMode,
+            Mode = mode,
             MaxItemsToExtract = _externalScraperSettings.MaxCidsToProcess,
             UdmValue = _externalScraperSettings.SearchModeUdm,
-            StoreId = 0, // lub pobierz ze state jeśli masz w nim taką właściwość
+            StoreId = state.StoreId,                  // ← teraz prawdziwe StoreId
+            TargetCode = state.ProducerCode,
+            EligibleProductsMap = eligibleProductsMap, // ← odtworzone z cache
+            ExtraEans = extraEans,                     // ← warianty EAN
             RetryCount = newRetryCount,
             LastFailReason = result.ErrorMessage ?? result.FinalStatus,
             UseGpid = _externalScraperSettings.UseGpid,
         };
     }
-
-
 
 
     public void EnqueueTasksForExternalScrapers(int storeId, List<ProductProcessingState> products, string mode)
@@ -1959,6 +2003,10 @@ public class GoogleScraperController : Controller
                         .GroupBy(p => p.CleanedUrl, StringComparer.OrdinalIgnoreCase)
                         .ToDictionary(g => g.Key, g => g.First().ProductId, StringComparer.OrdinalIgnoreCase);
                 }
+            }
+            if (eligibleProductsMap != null)
+            {
+                _eligibleProductsMapCache[storeId] = eligibleProductsMap;
             }
 
             var pendingProducts = products
@@ -2084,28 +2132,39 @@ public class GoogleScraperController : Controller
             queueSize = _externalTaskQueue.Count
         });
     }
-
     [HttpPost]
     [Route("api/external-scraper/reset-queue")]
+    [AllowAnonymous]
     public IActionResult ResetExternalQueue()
     {
-        _externalTaskQueue.Clear();
-        _enqueuedProductIds.Clear();
-        _registeredScrapers.Clear();
-        _externalResults.Clear();
+        // Autoryzacja: dopuszczamy zarówno zalogowanego admina (z cookie sesji)
+        // jak i zewnętrznego klienta z poprawnym X-Api-Key
+        var apiKey = GetApiKeyFromHeader();
+        bool isAuthorizedScraper = ValidateApiKey(apiKey);
+        bool isAdminUser = User.Identity != null && User.Identity.IsAuthenticated;
 
-        lock (_lockMasterListInit)
+        if (!isAuthorizedScraper && !isAdminUser)
         {
-            var stuckProducts = _masterProductStateList.Values
-                .Where(p => p.Status == ProductStatus.Processing && p.ProcessingByTaskId == null)
-                .ToList();
-
-            foreach (var p in stuckProducts)
-            {
-                p.Status = ProductStatus.Pending;
-            }
+            return Unauthorized(new { error = "Unauthorized" });
         }
 
+        // 1. Kolejka i tracking zadań
+        _externalTaskQueue.Clear();
+        _enqueuedProductIds.Clear();
+        _externalResults.Clear();
+        _processingStartedAt.Clear();
+        _eligibleProductsMapCache.Clear();
+
+        // 2. Zarejestrowane scrapery (jak po restarcie aplikacji)
+        _registeredScrapers.Clear();
+
+  
+        lock (_lockMasterListInit)
+        {
+            _masterProductStateList.Clear();
+        }
+
+        // 4. Timer zapisu wsadowego
         lock (_lockTimer)
         {
             if (_batchSaveTimer != null)
@@ -2115,10 +2174,11 @@ public class GoogleScraperController : Controller
             }
         }
 
+        // 5. Flagi
         _isScrapingActive = false;
 
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] PEŁNY RESET: kolejka, scrapery, wyniki, tracking, timer.");
-        return Ok(new { message = "Pełny reset wykonany — kolejka, scrapery i wyniki wyczyszczone." });
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] PEŁNY RESET: kolejka, scrapery, master list, wyniki, tracking, timer.");
+        return Ok(new { message = "Pełny reset wykonany — stan w pamięci wyzerowany." });
     }
     #endregion
 
