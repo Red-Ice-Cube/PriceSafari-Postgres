@@ -519,7 +519,7 @@ public class GoogleScraperController : Controller
                         }
                         else if (currentStatusSnapshot == ProductStatus.NotFound)
                         {
-                            if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null || dbProduct.GoogleGid != null || dbProduct.GoogleVariant != null || dbProduct.GoogleVariantCode != null)
+                            if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null || dbProduct.GoogleGid != null || dbProduct.GoogleVariant != null || dbProduct.GoogleVariantCode != null || dbProduct.GoogleHid != null)
                             {
                                 dbProduct.FoundOnGoogle = false;
                                 dbProduct.GoogleUrl = null;
@@ -534,7 +534,7 @@ public class GoogleScraperController : Controller
                         else if (currentStatusSnapshot == ProductStatus.Error)
                         {
 
-                            if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null || dbProduct.GoogleGid != null || dbProduct.GoogleVariant != null || dbProduct.GoogleVariantCode != null)
+                            if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null || dbProduct.GoogleGid != null || dbProduct.GoogleVariant != null || dbProduct.GoogleVariantCode != null || dbProduct.GoogleHid != null)
                             {
                                 dbProduct.FoundOnGoogle = false;
                                 dbProduct.GoogleUrl = null;
@@ -1051,8 +1051,8 @@ public class GoogleScraperController : Controller
         [JsonPropertyName("foundVariant")]
         public string FoundVariant { get; set; }
 
-        [JsonPropertyName("foundVariantFilter")]
-        public string FoundVariantFilter { get; set; }
+        [JsonPropertyName("foundVariantCode")]                    // BYLO: foundVariantFilter
+        public string FoundVariantCode { get; set; }              // BYLO: FoundVariantFilter
 
         [JsonPropertyName("variantModeUsed")]
         public bool VariantModeUsed { get; set; }
@@ -1708,7 +1708,7 @@ public class GoogleScraperController : Controller
                                     result.FoundGid,
                                     result.FoundHid,
                                     result.FoundVariant,
-                                    result.FoundVariantFilter);
+                                    result.FoundVariantCode);
 
                                 lock (_consoleLock)
                                 {
@@ -1732,7 +1732,7 @@ public class GoogleScraperController : Controller
                                         Console.ForegroundColor = ConsoleColor.Magenta;
                                         Console.Write(" ├─ 🎨 PVF Code  : ");
                                         Console.ForegroundColor = ConsoleColor.DarkYellow;
-                                        Console.WriteLine(result.FoundVariantFilter);
+                                        Console.WriteLine(result.FoundVariantCode);
 
                                         Console.ForegroundColor = ConsoleColor.Green;
                                     }
