@@ -415,7 +415,7 @@
             <th>Product URL</th>
             <th>Status</th>
             <th>Google URL</th>
-            <th>Kolor</th>
+            <th>Wariant</th>
             <th>Akcja</th>
             <th>HID (Oferta)</th>
             <th>GID/CID (Katalog)</th>
@@ -520,8 +520,8 @@
                  $('#extMullvadCity').val(data.mullvadCityCode || 'waw');
                  $('#extModemUrl').val(data.modemUrl || 'http://192.168.1.1');
                  $('#extModemWait').val(data.modemRestartWaitSeconds || 50);
-                 $('#extEnableColorVariantSearch').prop('checked', data.enableColorVariantSearch === true);
-     $('#extUseVariantEans').prop('checked', data.useVariantEans === true);
+                 $('#extEnableColorVariantSearch').prop('checked', data.enableVariantSearch === true);
+                 $('#extUseVariantEans').prop('checked', data.useVariantEans === true);
                  $('#extNetworkResetMethod').trigger('change');
                  addExtLog('Ustawienia załadowane', 'success');
              }
@@ -547,8 +547,8 @@
          useGpid: $('#extUseGpid').is(':checked'),
          modemPassword: $('#extModemPassword').val() || null,
          modemRestartWaitSeconds: parseInt($('#extModemWait').val()) || 50,
-         enableColorVariantSearch: $('#extEnableColorVariantSearch').is(':checked'),
-         useVariantEans: $('#extUseVariantEans').is(':checked')
+        enableVariantSearch: $('#extEnableColorVariantSearch').is(':checked'),
+        useVariantEans: $('#extUseVariantEans').is(':checked')
          };
 
          try {
