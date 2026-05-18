@@ -145,6 +145,33 @@ namespace PriceSafari.Controllers.ManagerControllers
         //    return RedirectToAction("Index", new { storeId = storeId });
         //}
 
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> ScrapeCategories(int storeId)
+        {
+            var store = await _context.Stores.FindAsync(storeId);
+            if (store == null)
+            {
+                return NotFound();
+            }
+
+            var storeProfile = store.StoreProfile;
+
+            // Tryb Standardowy: https://www.ceneo.pl/;mova-0v.htm
+            string baseUrl = $"https://www.ceneo.pl/;{storeProfile}-0v.htm";
+
+            // Odpalamy rekurencję
+            await ScrapeCategories(storeId, baseUrl, 0);
+
+            return RedirectToAction("Index", new { storeId = storeId });
+        }
+
+
+
+
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([FromBody] CreateCategoryDto dto)
