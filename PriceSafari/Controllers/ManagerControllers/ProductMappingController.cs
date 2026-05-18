@@ -534,14 +534,14 @@ namespace PriceSafari.Controllers.ManagerControllers
                 mainProduct.GoogleHid = duplicateProduct.GoogleHid;
             }
 
-            if (string.IsNullOrEmpty(mainProduct.GoogleColor) && !string.IsNullOrEmpty(duplicateProduct.GoogleColor))
+            if (string.IsNullOrEmpty(mainProduct.GoogleVariant) && !string.IsNullOrEmpty(duplicateProduct.GoogleVariant))
             {
-                mainProduct.GoogleColor = duplicateProduct.GoogleColor;
+                mainProduct.GoogleVariant = duplicateProduct.GoogleVariant;
             }
 
-            if (string.IsNullOrEmpty(mainProduct.GoogleColorCode) && !string.IsNullOrEmpty(duplicateProduct.GoogleColorCode))
+            if (string.IsNullOrEmpty(mainProduct.GoogleVariantCode) && !string.IsNullOrEmpty(duplicateProduct.GoogleVariantCode))
             {
-                mainProduct.GoogleColorCode = duplicateProduct.GoogleColorCode;
+                mainProduct.GoogleVariantCode = duplicateProduct.GoogleVariantCode;
             }
 
             if (string.IsNullOrEmpty(mainProduct.ProducerCode) && !string.IsNullOrEmpty(duplicateProduct.ProducerCode))

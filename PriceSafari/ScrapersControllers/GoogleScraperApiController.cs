@@ -115,8 +115,8 @@ namespace PriceSafari.Services.GoogleScraping
                      collectGoogleStoreLinks = c.CollectGoogleStoreLinks,
                      googleGetTitle = c.GoogleGetTitle,
                      googleCountryCode = c.GoogleCountryCode,
-                     useColorFilter = c.UseColorFilter,
-                     googleColorCode = c.GoogleColorCode
+                     useVariantFilter = c.UseVariantFilter,
+                     googleVariantCode = c.GoogleVariantCode
                  })
                  .ToListAsync();
 
@@ -255,8 +255,8 @@ namespace PriceSafari.Services.GoogleScraping
                 collectGoogleStoreLinks = c.CollectGoogleStoreLinks,
                 googleGetTitle = c.GoogleGetTitle,
                 googleCountryCode = c.GoogleCountryCode,
-                useColorFilter = c.UseColorFilter,
-                googleColorCode = c.GoogleColorCode
+                useVariantFilter = c.UseVariantFilter,
+                googleVariantCode = c.GoogleVariantCode
             });
 
             _logger.LogInformation("Przydzielono paczkę {BatchId} ({Count} URLi) do {ScraperName}",

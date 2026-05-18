@@ -64,8 +64,8 @@ namespace PriceSafari.Models
         public string? GoogleUrl { get; set; }
         public string? GoogleGid { get; set; }
         public string? GoogleHid { get; set; }
-        public string? GoogleColor { get; set; }       
-        public string? GoogleColorCode { get; set; }   
+        public string? GoogleVariant { get; set; }       
+        public string? GoogleVariantCode { get; set; }   
 
         public string? ProductNameInStoreForGoogle { get; set; }
         public string? EanGoogle { get; set; }

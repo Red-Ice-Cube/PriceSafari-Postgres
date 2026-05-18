@@ -124,29 +124,29 @@ public class GoogleScraperController : Controller
             }
         }
 
-        private string _googleColor;
-        public string GoogleColor
+        private string _googleVariant;
+        public string GoogleVariant
         {
-            get => _googleColor;
+            get => _googleVariant;
             set
             {
-                if (_googleColor != value)
+                if (_googleVariant != value)
                 {
-                    _googleColor = value;
+                    _googleVariant = value;
                     IsDirty = true;
                 }
             }
         }
 
-        private string _googleColorCode;
-        public string GoogleColorCode
+        private string _googleVariantCode;
+        public string GoogleVariantCode
         {
-            get => _googleColorCode;
+            get => _googleVariantCode;
             set
             {
-                if (_googleColorCode != value)
+                if (_googleVariantCode != value)
                 {
-                    _googleColorCode = value;
+                    _googleVariantCode = value;
                     IsDirty = true;
                 }
             }
@@ -167,8 +167,6 @@ public class GoogleScraperController : Controller
 
             CleanedUrl = OriginalUrl;
 
-
-
             ProductNameInStoreForGoogle = product.ProductNameInStoreForGoogle;
             Ean = product.Ean;
             OtherVariantEans = product.OtherVariantEans;
@@ -180,8 +178,8 @@ public class GoogleScraperController : Controller
                 _googleUrl = product.GoogleUrl;
                 _googleGid = product.GoogleGid;
                 _googleHid = product.GoogleHid;
-                _googleColor = product.GoogleColor;
-                _googleColorCode = product.GoogleColorCode;
+                _googleVariant = product.GoogleVariant;
+                _googleVariantCode = product.GoogleVariantCode;
             }
             else if (product.FoundOnGoogle == false)
             {
@@ -228,7 +226,7 @@ public class GoogleScraperController : Controller
             }
         }
 
-        public void UpdateStatus(ProductStatus newStatus, string googleUrl = null, string cid = null, string gid = null, string hid = null, string googleColor = null, string googleColorCode = null)
+        public void UpdateStatus(ProductStatus newStatus, string googleUrl = null, string cid = null, string gid = null, string hid = null, string googleVariant = null, string googleVariantCode = null)
         {
             if (this.Status == ProductStatus.Found && (newStatus == ProductStatus.NotFound || newStatus == ProductStatus.Error))
             {
@@ -242,8 +240,8 @@ public class GoogleScraperController : Controller
                 this.Cid = cid;
                 this.GoogleGid = gid;
                 this.GoogleHid = hid;
-                this.GoogleColor = googleColor;
-                this.GoogleColorCode = googleColorCode;
+                this.GoogleVariant = googleVariant;
+                this.GoogleVariantCode = googleVariantCode;
             }
         }
 
@@ -277,8 +275,6 @@ public class GoogleScraperController : Controller
         }
     }
 
-
-
     [HttpPost("stop")]
     public IActionResult StopScraping()
     {
@@ -287,8 +283,6 @@ public class GoogleScraperController : Controller
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] ZATRZYMANIE: Kolejka zewnętrzna wyczyszczona.");
         return Ok("Zatrzymano i wyczyszczono kolejki.");
     }
-
-
 
     private async Task TimerBatchUpdateCallback(CancellationToken cancellationToken)
     {
@@ -318,9 +312,6 @@ public class GoogleScraperController : Controller
         finally { if (lockTaken) { _timerCallbackSemaphore.Release(); } }
     }
 
-
-
-
     private void CheckStuckProcessingProducts()
     {
         var now = DateTime.UtcNow;
@@ -342,7 +333,6 @@ public class GoogleScraperController : Controller
                         state.IsDirty = false;
                         _enqueuedProductIds.TryRemove(productId, out _);
 
-                        // NOWE: re-enqueue żeby Python to złapał
                         var retryTask = BuildRetryTask(state,
                             new ExternalScraperResult { ErrorMessage = "Zombie Processing timeout", FinalStatus = "Error", RetryCount = 0 },
                             1);
@@ -355,7 +345,6 @@ public class GoogleScraperController : Controller
             }
         }
     }
-
 
     private void InitializeMasterProductListIfNeeded(
      int storeId,
@@ -419,7 +408,6 @@ public class GoogleScraperController : Controller
 
                     var productsFromDb = query.ToList();
 
-
                     foreach (var dbProduct in productsFromDb)
                     {
                         var state = new ProductProcessingState(dbProduct, null);
@@ -479,8 +467,8 @@ public class GoogleScraperController : Controller
                 string currentCidSnapshot = null;
                 string currentGidSnapshot = null;
                 string currentHidSnapshot = null;
-                string currentGoogleColorSnapshot = null;
-                string currentGoogleColorCodeSnapshot = null;
+                string currentGoogleVariantSnapshot = null;
+                string currentGoogleVariantCodeSnapshot = null;
                 bool processThisProduct = false;
 
                 lock (productState)
@@ -493,8 +481,8 @@ public class GoogleScraperController : Controller
                         currentCidSnapshot = productState.Cid;
                         currentGidSnapshot = productState.GoogleGid;
                         currentHidSnapshot = productState.GoogleHid;
-                        currentGoogleColorSnapshot = productState.GoogleColor;
-                        currentGoogleColorCodeSnapshot = productState.GoogleColorCode;
+                        currentGoogleVariantSnapshot = productState.GoogleVariant;
+                        currentGoogleVariantCodeSnapshot = productState.GoogleVariantCode;
                     }
                 }
 
@@ -516,44 +504,44 @@ public class GoogleScraperController : Controller
                                 || dbProduct.GoogleUrl != currentGoogleUrlSnapshot
                                 || dbProduct.GoogleGid != currentGidSnapshot
                                 || dbProduct.GoogleHid != currentHidSnapshot
-                                || dbProduct.GoogleColor != currentGoogleColorSnapshot
-                                || dbProduct.GoogleColorCode != currentGoogleColorCodeSnapshot)
+                                || dbProduct.GoogleVariant != currentGoogleVariantSnapshot
+                                || dbProduct.GoogleVariantCode != currentGoogleVariantCodeSnapshot)
                             {
                                 dbProduct.FoundOnGoogle = true;
                                 dbProduct.GoogleUrl = currentGoogleUrlSnapshot;
                                 dbProduct.GoogleGid = currentGidSnapshot;
                                 dbProduct.GoogleHid = currentHidSnapshot;
-                                dbProduct.GoogleColor = currentGoogleColorSnapshot;
-                                dbProduct.GoogleColorCode = currentGoogleColorCodeSnapshot;
+                                dbProduct.GoogleVariant = currentGoogleVariantSnapshot;
+                                dbProduct.GoogleVariantCode = currentGoogleVariantCodeSnapshot;
                                 changedInDb = true;
                             }
 
                         }
                         else if (currentStatusSnapshot == ProductStatus.NotFound)
                         {
-                            if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null || dbProduct.GoogleGid != null || dbProduct.GoogleColor != null || dbProduct.GoogleColorCode != null)
+                            if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null || dbProduct.GoogleGid != null || dbProduct.GoogleVariant != null || dbProduct.GoogleVariantCode != null)
                             {
                                 dbProduct.FoundOnGoogle = false;
                                 dbProduct.GoogleUrl = null;
                                 dbProduct.GoogleGid = null;
                                 dbProduct.GoogleHid = null;
-                                dbProduct.GoogleColor = null;
-                                dbProduct.GoogleColorCode = null;
+                                dbProduct.GoogleVariant = null;
+                                dbProduct.GoogleVariantCode = null;
                                 changedInDb = true;
                             }
                         }
-                        
+
                         else if (currentStatusSnapshot == ProductStatus.Error)
                         {
-                         
-                            if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null || dbProduct.GoogleGid != null || dbProduct.GoogleColor != null || dbProduct.GoogleColorCode != null)
+
+                            if (dbProduct.FoundOnGoogle != false || dbProduct.GoogleUrl != null || dbProduct.GoogleGid != null || dbProduct.GoogleVariant != null || dbProduct.GoogleVariantCode != null)
                             {
                                 dbProduct.FoundOnGoogle = false;
                                 dbProduct.GoogleUrl = null;
                                 dbProduct.GoogleGid = null;
                                 dbProduct.GoogleHid = null;
-                                dbProduct.GoogleColor = null;
-                                dbProduct.GoogleColorCode = null;
+                                dbProduct.GoogleVariant = null;
+                                dbProduct.GoogleVariantCode = null;
                                 changedInDb = true;
                             }
                         }
@@ -586,9 +574,6 @@ public class GoogleScraperController : Controller
         }
     }
 
-
-
-
     [HttpGet]
     public async Task<IActionResult> ProductList(int storeId)
     {
@@ -606,8 +591,6 @@ public class GoogleScraperController : Controller
         ViewBag.StoreId = storeId;
         return View("~/Views/ManagerPanel/GoogleScraper/ProductList.cshtml", products);
     }
-
-
 
     [HttpPost]
     public async Task<IActionResult> SetOnGoogleForAll(int storeId, bool ignoreUrlRequirement)
@@ -627,9 +610,6 @@ public class GoogleScraperController : Controller
         return RedirectToAction("ProductList", new { storeId = storeId });
     }
 
-
-
-
     [HttpGet]
     public async Task<IActionResult> GoogleProducts(int storeId)
     {
@@ -640,13 +620,11 @@ public class GoogleScraperController : Controller
 
         if (isAjax)
         {
-            // 1. ZAPYTANIE DO BAZY (Tylko to co niezbędne + brak śledzenia zmian)
             var rawData = await _context.Products
-                .AsNoTracking() // 🔥 KLUCZOWE: Wyłącza śledzenie zmian, ogromny skok wydajności
+                .AsNoTracking()
                 .Where(p => p.StoreId == storeId && p.OnGoogle)
                 .Select(p => new
                 {
-                    // Wyciągamy z bazy tylko te kolumny, które są potrzebne
                     p.ProductId,
                     p.ProductNameInStoreForGoogle,
                     p.Url,
@@ -656,10 +634,9 @@ public class GoogleScraperController : Controller
                     p.ProducerCode,
                     p.GoogleGid,
                     p.GoogleHid,
-                    p.GoogleColor,
-                    p.GoogleColorCode,
+                    p.GoogleVariant,
+                    p.GoogleVariantCode,
                     p.OtherVariantEans,
-                    // EF Core sam zrobi odpowiedniego JOIN'a - nie potrzeba Include()
                     Catalogs = p.GoogleCatalogs.Select(gc => new {
                         gc.GoogleCid,
                         gc.GoogleGid,
@@ -669,7 +646,6 @@ public class GoogleScraperController : Controller
                 })
                 .ToListAsync();
 
-     
             var jsonProducts = rawData.Select(p => {
                 string generatedUrl = null;
                 string productIdCid = ExtractProductIdFromUrl(p.GoogleUrl);
@@ -691,21 +667,19 @@ public class GoogleScraperController : Controller
                     p.ProducerCode,
                     p.GoogleGid,
                     p.GoogleHid,
-                    p.GoogleColor,
-                    p.GoogleColorCode,
+                    p.GoogleVariant,
+                    p.GoogleVariantCode,
                     p.OtherVariantEans,
                     GeneratedGoogleUrl = generatedUrl,
                     GoogleCatalogs = p.Catalogs
                 };
             });
 
-            // Wysyłamy, bez .ToList() na końcu (Json() sam ziteruje IEnumerable)
             return Json(jsonProducts);
         }
 
-        // --- Zwykłe załadowanie widoku (bez AJAX) ---
         var products = await _context.Products
-            .AsNoTracking() // W widoku też nie edytujesz tych danych, wyłączamy śledzenie
+            .AsNoTracking()
             .Include(p => p.GoogleCatalogs)
             .Where(p => p.StoreId == storeId && p.OnGoogle)
             .ToListAsync();
@@ -740,9 +714,6 @@ public class GoogleScraperController : Controller
 
         return null;
     }
-
-
-
 
     [HttpPost]
     public async Task<IActionResult> ResetNotFoundProducts(int storeId)
@@ -794,8 +765,6 @@ public class GoogleScraperController : Controller
         return RedirectToAction("ProductList", new { storeId = product.StoreId });
     }
 
-
-
     [HttpPost]
     public async Task<IActionResult> ClearGoogleUrls(int storeId)
     {
@@ -823,10 +792,6 @@ public class GoogleScraperController : Controller
         return match.Success ? match.Groups[1].Value : null;
     }
 
-
-
-
-
     [HttpPost]
     public async Task<IActionResult> BulkRemoveTextFromUrls(int storeId, string textToRemove)
     {
@@ -838,8 +803,6 @@ public class GoogleScraperController : Controller
 
         try
         {
-            // Używamy ExecuteUpdateAsync dla maksymalnej wydajności - to wykona się prosto na bazie danych
-            // jako: UPDATE Products SET Url = REPLACE(Url, 'textToRemove', '') WHERE ...
             int updatedRowsCount = await _context.Products
                 .Where(p => p.StoreId == storeId && p.Url != null && p.Url.Contains(textToRemove))
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.Url, p => p.Url.Replace(textToRemove, "")));
@@ -848,14 +811,12 @@ public class GoogleScraperController : Controller
         }
         catch (Exception ex)
         {
-            // W razie błędów logujemy i wysyłamy info do widoku
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] BŁĄD BulkRemoveTextFromUrls: {ex.Message}");
             TempData["ErrorMessage"] = $"Wystąpił błąd podczas masowej aktualizacji: {ex.Message}";
         }
 
         return RedirectToAction("ProductList", new { storeId });
     }
-
 
     #region ============== ZEWNĘTRZNE SCRAPERY API ==============
 
@@ -956,9 +917,8 @@ public class GoogleScraperController : Controller
         [JsonPropertyName("searchModeUdm")]
         public int SearchModeUdm { get; set; } = 3;
 
-
-        [JsonPropertyName("enableColorVariantSearch")]
-        public bool EnableColorVariantSearch { get; set; } = false;
+        [JsonPropertyName("enableVariantSearch")]
+        public bool EnableVariantSearch { get; set; } = false;
 
         [JsonPropertyName("useVariantEans")]
         public bool UseVariantEans { get; set; } = false;
@@ -992,7 +952,6 @@ public class GoogleScraperController : Controller
 
         [JsonPropertyName("useGpid")]
         public bool UseGpid { get; set; } = false;
-
 
         [JsonPropertyName("ean")]
         public string Ean { get; set; }
@@ -1039,7 +998,6 @@ public class GoogleScraperController : Controller
         public string LastFailReason { get; set; }
 
     }
-
     public class ExternalScraperResult
     {
         [JsonPropertyName("taskId")]
@@ -1090,15 +1048,14 @@ public class GoogleScraperController : Controller
         [JsonPropertyName("foundHid")]
         public string FoundHid { get; set; }
 
-        [JsonPropertyName("foundColor")]
-        public string FoundColor { get; set; }
+        [JsonPropertyName("foundVariant")]
+        public string FoundVariant { get; set; }
 
-        [JsonPropertyName("foundColorFilter")]
-        public string FoundColorFilter { get; set; }
+        [JsonPropertyName("foundVariantFilter")]
+        public string FoundVariantFilter { get; set; }
 
-        [JsonPropertyName("colorModeUsed")]
-        public bool ColorModeUsed { get; set; }
-
+        [JsonPropertyName("variantModeUsed")]
+        public bool VariantModeUsed { get; set; }
 
         [JsonPropertyName("matchedProducts")]
         public List<MatchedProductDto> MatchedProducts { get; set; }
@@ -1147,11 +1104,11 @@ public class GoogleScraperController : Controller
         [JsonPropertyName("hid")]
         public string Hid { get; set; }
 
-        [JsonPropertyName("color")]
-        public string Color { get; set; }
+        [JsonPropertyName("variant")]
+        public string Variant { get; set; }
 
-        [JsonPropertyName("colorFilter")]
-        public string ColorFilter { get; set; }
+        [JsonPropertyName("variantCode")]
+        public string VariantCode { get; set; }
     }
 
     public class NukeReportDto
@@ -1175,18 +1132,10 @@ public class GoogleScraperController : Controller
         public string ScraperName { get; set; }
     }
 
-    #endregion
-
-    #region ============== ENDPOINTY API DLA ZEWNĘTRZNYCH SCRAPERÓW ==============
-
-
-
     private bool ValidateApiKey(string apiKey)
     {
         return !string.IsNullOrEmpty(apiKey) && apiKey == EXTERNAL_SCRAPER_API_KEY;
     }
-
-
 
     private string GetApiKeyFromHeader()
     {
@@ -1194,8 +1143,6 @@ public class GoogleScraperController : Controller
             return apiKey.ToString();
         return null;
     }
-
-  
 
     [HttpPost]
     [Route("api/external-scraper/register")]
@@ -1310,11 +1257,10 @@ public class GoogleScraperController : Controller
                 {
                     currentState.Status = ProductStatus.Processing;
                 }
-                _processingStartedAt[task.ProductId] = DateTime.UtcNow; // <--- DODANE
+                _processingStartedAt[task.ProductId] = DateTime.UtcNow;
             }
             else
             {
-                // Produkt nie istnieje w master list — pomiń
                 _enqueuedProductIds.TryRemove(task.ProductId, out _);
                 continue;
             }
@@ -1394,7 +1340,7 @@ public class GoogleScraperController : Controller
                 {
                     currentState.Status = ProductStatus.Processing;
                 }
-                _processingStartedAt[task.ProductId] = DateTime.UtcNow; // <--- DODANE
+                _processingStartedAt[task.ProductId] = DateTime.UtcNow;
             }
             else
             {
@@ -1571,7 +1517,6 @@ public class GoogleScraperController : Controller
                     searchTerm = $"{prefix} {searchTerm}";
             }
 
-            // NOWE: rozpakowanie i normalizacja wariantów EAN - tylko dla MatchByEan gdy flaga on
             List<string> extraEans = new();
             if (mode == "MatchByEan" && useVariantEans && !string.IsNullOrWhiteSpace(product.OtherVariantEans))
             {
@@ -1606,7 +1551,7 @@ public class GoogleScraperController : Controller
                 EligibleProductsMap = eligibleProductsMap,
                 TargetCode = product.ProducerCode,
                 UseGpid = _externalScraperSettings.UseGpid,
-                ExtraEans = extraEans,  // NOWE
+                ExtraEans = extraEans,
             };
 
             _externalTaskQueue.Enqueue(task);
@@ -1621,7 +1566,6 @@ public class GoogleScraperController : Controller
             queueSize = _externalTaskQueue.Count
         });
     }
-
 
     [HttpPost]
     [Route("api/external-scraper/submit-result-batch")]
@@ -1671,8 +1615,6 @@ public class GoogleScraperController : Controller
             failCount
         });
     }
-
-
 
     [HttpPost]
     [Route("api/external-scraper/report-nuke")]
@@ -1730,11 +1672,6 @@ public class GoogleScraperController : Controller
         });
     }
 
-
-
-
-
-
     private async Task ProcessExternalResultAsync(ExternalScraperResult result)
     {
         if (result == null) return;
@@ -1770,8 +1707,8 @@ public class GoogleScraperController : Controller
                                     result.FoundCid,
                                     result.FoundGid,
                                     result.FoundHid,
-                                    result.FoundColor,
-                                    result.FoundColorFilter);
+                                    result.FoundVariant,
+                                    result.FoundVariantFilter);
 
                                 lock (_consoleLock)
                                 {
@@ -1785,17 +1722,17 @@ public class GoogleScraperController : Controller
                                     if (!string.IsNullOrEmpty(result.FoundGid)) Console.WriteLine($" ├─ GID Google  : {result.FoundGid}");
                                     if (!string.IsNullOrEmpty(result.FoundHid)) Console.WriteLine($" ├─ HID Google  : {result.FoundHid}");
 
-                                    if (!string.IsNullOrEmpty(result.FoundColor))
+                                    if (!string.IsNullOrEmpty(result.FoundVariant))
                                     {
                                         Console.ForegroundColor = ConsoleColor.Magenta;
-                                        Console.Write(" ├─ 🎨 Kolor     : ");
+                                        Console.Write(" ├─ 🎨 Wariant   : ");
                                         Console.ForegroundColor = ConsoleColor.DarkYellow;
-                                        Console.WriteLine(result.FoundColor);
+                                        Console.WriteLine(result.FoundVariant);
 
                                         Console.ForegroundColor = ConsoleColor.Magenta;
                                         Console.Write(" ├─ 🎨 PVF Code  : ");
                                         Console.ForegroundColor = ConsoleColor.DarkYellow;
-                                        Console.WriteLine(result.FoundColorFilter);
+                                        Console.WriteLine(result.FoundVariantFilter);
 
                                         Console.ForegroundColor = ConsoleColor.Green;
                                     }
@@ -1815,11 +1752,7 @@ public class GoogleScraperController : Controller
 
                                 if (currentRetry < MAX_TASK_RETRIES)
                                 {
-                                    // Re-enqueue
                                     productState.Status = ProductStatus.Pending;
-                                    // Upewnij się, że masz pole IsDirty w swoim modelu ProductProcessingState. 
-                                    // Jeśli nie, możesz pominąć tę linijkę lub dodać to pole.
-                                    // productState.IsDirty = false; 
 
                                     var retryTask = BuildRetryTask(productState, result, currentRetry + 1);
                                     _externalTaskQueue.Enqueue(retryTask);
@@ -1835,7 +1768,6 @@ public class GoogleScraperController : Controller
                                 }
                                 else
                                 {
-                                    // Wyczerpano próby - zapisz jako NotFound z notatką
                                     productState.UpdateStatus(ProductStatus.NotFound);
                                     lock (_consoleLock)
                                     {
@@ -1869,8 +1801,8 @@ public class GoogleScraperController : Controller
                                     matched.Cid,
                                     matched.Gid,
                                     matched.Hid,
-                                    matched.Color,
-                                    matched.ColorFilter);
+                                    matched.Variant,
+                                    matched.VariantCode);
                                 lock (_consoleLock)
                                 {
                                     Console.ForegroundColor = ConsoleColor.Magenta;
@@ -1884,17 +1816,17 @@ public class GoogleScraperController : Controller
                                     if (!string.IsNullOrEmpty(matched.Gid)) Console.WriteLine($" ├─ GID Google   : {matched.Gid}");
                                     if (!string.IsNullOrEmpty(matched.Hid)) Console.WriteLine($" ├─ HID Google   : {matched.Hid}");
 
-                                    if (!string.IsNullOrEmpty(matched.Color))
+                                    if (!string.IsNullOrEmpty(matched.Variant))
                                     {
                                         Console.ForegroundColor = ConsoleColor.Magenta;
-                                        Console.Write(" ├─ 🎨 Kolor     : ");
+                                        Console.Write(" ├─ 🎨 Wariant     : ");
                                         Console.ForegroundColor = ConsoleColor.DarkYellow;
-                                        Console.WriteLine(matched.Color);
+                                        Console.WriteLine(matched.Variant);
 
                                         Console.ForegroundColor = ConsoleColor.Magenta;
                                         Console.Write(" ├─ 🎨 PVF Code  : ");
                                         Console.ForegroundColor = ConsoleColor.DarkYellow;
-                                        Console.WriteLine(matched.ColorFilter);
+                                        Console.WriteLine(matched.VariantCode);
 
                                         Console.ForegroundColor = ConsoleColor.Magenta;
                                     }
@@ -1918,13 +1850,11 @@ public class GoogleScraperController : Controller
         }
     }
 
-
     private ExternalScraperTask BuildRetryTask(ProductProcessingState state, ExternalScraperResult result, int newRetryCount)
     {
         string mode = _externalScraperSettings.ScrapingMode;
         string searchTerm;
 
-        // Wyznaczanie searchTerm - dokładnie jak przy pierwszym wrzuceniu do kolejki
         if (mode == "MatchByEan")
         {
             searchTerm = state.Ean;
@@ -1938,14 +1868,12 @@ public class GoogleScraperController : Controller
                 searchTerm = $"{_externalScraperSettings.ProductNamePrefix} {searchTerm}";
         }
 
-        // Odtworzenie eligibleProductsMap z cache (dla Standard / full_process)
         Dictionary<string, int> eligibleProductsMap = null;
         if (mode == "Standard" || mode == "full_process")
         {
             _eligibleProductsMapCache.TryGetValue(state.StoreId, out eligibleProductsMap);
         }
 
-        // Odtworzenie wariantów EAN (dla MatchByEan z włączoną flagą)
         List<string> extraEans = new();
         if (mode == "MatchByEan"
             && _externalScraperSettings.UseVariantEans
@@ -1973,16 +1901,15 @@ public class GoogleScraperController : Controller
             Mode = mode,
             MaxItemsToExtract = _externalScraperSettings.MaxCidsToProcess,
             UdmValue = _externalScraperSettings.SearchModeUdm,
-            StoreId = state.StoreId,                  // ← teraz prawdziwe StoreId
+            StoreId = state.StoreId,
             TargetCode = state.ProducerCode,
-            EligibleProductsMap = eligibleProductsMap, // ← odtworzone z cache
-            ExtraEans = extraEans,                     // ← warianty EAN
+            EligibleProductsMap = eligibleProductsMap,
+            ExtraEans = extraEans,
             RetryCount = newRetryCount,
             LastFailReason = result.ErrorMessage ?? result.FinalStatus,
             UseGpid = _externalScraperSettings.UseGpid,
         };
     }
-
 
     public void EnqueueTasksForExternalScrapers(int storeId, List<ProductProcessingState> products, string mode)
     {
@@ -2046,7 +1973,6 @@ public class GoogleScraperController : Controller
                         searchTerm = $"{_externalScraperSettings.ProductNamePrefix} {searchTerm}";
                 }
 
-                // NOWE: rozpakowanie i normalizacja wariantów EAN — tylko dla MatchByEan gdy flaga on
                 List<string> extraEans = new();
                 if (mode == "MatchByEan"
                     && _externalScraperSettings.UseVariantEans
@@ -2084,7 +2010,7 @@ public class GoogleScraperController : Controller
 
                     TargetCode = product.ProducerCode,
                     UseGpid = _externalScraperSettings.UseGpid,
-                    ExtraEans = extraEans,  // NOWE
+                    ExtraEans = extraEans,
                 };
 
                 _externalTaskQueue.Enqueue(task);
@@ -2096,12 +2022,6 @@ public class GoogleScraperController : Controller
             Console.ResetColor();
         }
     }
-
-    // <summary>
-
-    // Uruchamia scrapowanie z użyciem zewnętrznych scraperów
-
-    // </summary>
 
     [HttpPost]
     [Route("api/external-scraper/start-scraping")]
@@ -2137,8 +2057,6 @@ public class GoogleScraperController : Controller
     [AllowAnonymous]
     public IActionResult ResetExternalQueue()
     {
-        // Autoryzacja: dopuszczamy zarówno zalogowanego admina (z cookie sesji)
-        // jak i zewnętrznego klienta z poprawnym X-Api-Key
         var apiKey = GetApiKeyFromHeader();
         bool isAuthorizedScraper = ValidateApiKey(apiKey);
         bool isAdminUser = User.Identity != null && User.Identity.IsAuthenticated;
@@ -2148,23 +2066,19 @@ public class GoogleScraperController : Controller
             return Unauthorized(new { error = "Unauthorized" });
         }
 
-        // 1. Kolejka i tracking zadań
         _externalTaskQueue.Clear();
         _enqueuedProductIds.Clear();
         _externalResults.Clear();
         _processingStartedAt.Clear();
         _eligibleProductsMapCache.Clear();
 
-        // 2. Zarejestrowane scrapery (jak po restarcie aplikacji)
         _registeredScrapers.Clear();
 
-  
         lock (_lockMasterListInit)
         {
             _masterProductStateList.Clear();
         }
 
-        // 4. Timer zapisu wsadowego
         lock (_lockTimer)
         {
             if (_batchSaveTimer != null)
@@ -2174,13 +2088,10 @@ public class GoogleScraperController : Controller
             }
         }
 
-        // 5. Flagi
         _isScrapingActive = false;
 
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] PEŁNY RESET: kolejka, scrapery, master list, wyniki, tracking, timer.");
         return Ok(new { message = "Pełny reset wykonany — stan w pamięci wyzerowany." });
     }
     #endregion
-
 }
-

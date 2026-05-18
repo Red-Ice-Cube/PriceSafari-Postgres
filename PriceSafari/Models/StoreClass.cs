@@ -152,8 +152,8 @@ namespace PriceSafari.Models
 
 
         // nowe flagi
-        [Display(Name = "Tryb wariantów kolorystycznych")]
-        public bool UseColorVariantSearch { get; set; } = false;
+        [Display(Name = "Tryb wariantów google")]
+        public bool UseVariantSearch { get; set; } = false;
         public int IntervalLimitOfProducts { get; set; } = 0;
         public int AllegroIntervalLimitOfProducts { get; set; } = 0;
 

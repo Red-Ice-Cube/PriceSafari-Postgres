@@ -2503,8 +2503,8 @@
 
             
             let colorVariantHtml = '';
-            if (item.googleColor && item.googleColor.trim() !== '') {
-                colorVariantHtml = `<span style="background-color: #000; color: #fff; border-radius: 5px; padding: 2px 6px; font-size: 12px; margin-left: 6px; display: inline-block; vertical-align: middle;">${item.googleColor}</span>`;
+            if (item.googleVariant && item.googleVariant.trim() !== '') {
+                colorVariantHtml = `<span style="background-color: #000; color: #fff; border-radius: 5px; padding: 2px 6px; font-size: 12px; margin-left: 6px; display: inline-block; vertical-align: middle;">${item.googleVariant}</span>`;
             }
            
 

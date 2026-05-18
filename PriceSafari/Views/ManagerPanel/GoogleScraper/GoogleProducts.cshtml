@@ -275,8 +275,8 @@
                 <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="extEnableColorVariantSearch" />
                     <label class="form-check-label small">
-                        <span class="text-primary fw-bold">🎨 Szukaj wariantów kolorystycznych</span>
-                        <br /><small class="text-muted">Scrapuje każdy kolor osobno (wolniej, ale znajduje więcej ofert)</small>
+                        <span class="text-primary fw-bold"> Szukaj wariantów produktów [KOLOR, WAGA, ROZMIAR] </span>
+                        <br /><small class="text-muted">Scrapuje każdy kolor, wage, rozmia osobno (wolniej, ale znajduje więcej ofert)</small>
                     </label>
                 </div>
                 <div class="form-check">
@@ -812,11 +812,11 @@
                  let mainGoogleUrl = product.googleUrl ? `<a href="${product.googleUrl}" target="_blank" style="word-break: break-all; font-size: 0.85rem;">${product.googleUrl}</a>` : '';
 
                  let colorCellHtml = '';
-                 if (product.googleColor) {
+                 if (product.googleVariant) {
                      colorCellHtml = `
                          <div style="font-size: 0.7rem; line-height: 1.15;">
-                             <span class="badge bg-info text-dark" style="font-size: 0.7rem;">${product.googleColor}</span>
-                             ${product.googleColorCode ? `<br/><code style="font-size: 0.65rem; color: #6c757d;">${product.googleColorCode}</code>` : ''}
+                             <span class="badge bg-info text-dark" style="font-size: 0.7rem;">${product.googleVariant}</span>
+                             ${product.googleVariantCode ? `<br/><code style="font-size: 0.65rem; color: #6c757d;">${product.googleVariantCode}</code>` : ''}
                          </div>`;
                  } else {
                      colorCellHtml = '<span class="text-muted small">—</span>';

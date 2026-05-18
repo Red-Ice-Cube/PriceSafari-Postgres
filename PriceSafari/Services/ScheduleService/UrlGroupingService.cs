@@ -55,7 +55,7 @@ namespace PriceSafari.Services.ScheduleService
                         null,
                         false,
                         false,
-                        colorSourceProduct: product
+                        variantSourceProduct: product
                     );
                     coOfr.IsGoogle = true;
                     coOfrs.Add(coOfr);
@@ -148,15 +148,15 @@ namespace PriceSafari.Services.ScheduleService
         }
 
         private CoOfrClass CreateCoOfrClass(
-     List<ProductClass> productList,
-     string? offerUrl,
-     string? googleUrl,
-     string? googleGid,
-     string? googleCid,
-     string? googleHid,
-     bool isAdditional,
-     bool useHidOffer,
-     ProductClass? colorSourceProduct = null)
+         List<ProductClass> productList,
+         string? offerUrl,
+         string? googleUrl,
+         string? googleGid,
+         string? googleCid,
+         string? googleHid,
+         bool isAdditional,
+         bool useHidOffer,
+         ProductClass? variantSourceProduct = null)
         {
             // Sprawdzamy flagi konfiguracyjne ze sklepu
             bool useGPID = productList.Any(p => p.Store?.UseGPID == true);
@@ -169,15 +169,15 @@ namespace PriceSafari.Services.ScheduleService
             string googleCountryCode = productList.FirstOrDefault(p => !string.IsNullOrEmpty(p.Store?.GoogleCountryCode))?.Store?.GoogleCountryCode ?? "pl";
 
             // NOWE: Filtr kolorystyczny - propagujemy tylko jeśli sklep ma włączoną funkcję
-            // ORAZ produkt ma już wykryty kod pvf (GoogleColorCode w ProductClass)
-            bool useColorFilter = false;
-            string? googleColorCode = null;
-            if (colorSourceProduct != null
-                && colorSourceProduct.Store?.UseColorVariantSearch == true
-                && !string.IsNullOrEmpty(colorSourceProduct.GoogleColorCode))
+            // ORAZ produkt ma już wykryty kod pvf (GoogleVariantCode w ProductClass)
+            bool useVariantFilter = false;
+            string? googleVariantCode = null;
+            if (variantSourceProduct != null
+                && variantSourceProduct.Store?.UseVariantSearch == true
+                && !string.IsNullOrEmpty(variantSourceProduct   .GoogleVariantCode))
             {
-                useColorFilter = true;
-                googleColorCode = colorSourceProduct.GoogleColorCode;
+                useVariantFilter = true;
+                googleVariantCode = variantSourceProduct.GoogleVariantCode;
             }
 
             var coOfr = new CoOfrClass
@@ -199,8 +199,8 @@ namespace PriceSafari.Services.ScheduleService
                 GoogleCountryCode = googleCountryCode,
 
                 // NOWE: propagacja filtra kolorystycznego
-                UseColorFilter = useColorFilter,
-                GoogleColorCode = googleColorCode,
+                UseVariantFilter = useVariantFilter,
+                GoogleVariantCode = googleVariantCode,
 
                 ProductIds = productList.Select(p => p.ProductId).ToList(),
                 ProductIdsGoogle = (googleUrl != null || useHidOffer) ? productList.Select(p => p.ProductId).ToList() : new List<int>(),

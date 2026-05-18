@@ -1338,8 +1338,8 @@
             nameDiv.className = 'price-box-column-name';
 
             let colorVariantHtml = '';
-            if (item.googleColor && item.googleColor.trim() !== '') {
-                colorVariantHtml = `<span style="background-color:#000;color:#fff;border-radius:5px;padding:2px 6px;font-size:12px;margin-left:6px;display:inline-block;vertical-align:middle;">${item.googleColor}</span>`;
+            if (item.googleVariant && item.googleVariant.trim() !== '') {
+                colorVariantHtml = `<span style="background-color:#000;color:#fff;border-radius:5px;padding:2px 6px;font-size:12px;margin-left:6px;display:inline-block;vertical-align:middle;">${item.googleVariant}</span>`;
             }
             nameDiv.innerHTML = highlightedName + colorVariantHtml;
 
@@ -1614,7 +1614,7 @@
                 { header: 'ID', key: 'externalId', width: 14 },
                 { header: 'Producent', key: 'producer', width: 20 },
                 { header: 'Nazwa produktu', key: 'name', width: 40 },
-                { header: 'Wariant koloru', key: 'color', width: 16 },
+                { header: 'Wariant', key: 'variant', width: 16 },
                 { header: 'Cena referencyjna', key: 'ref', width: 14, style: { numFmt: '0.00' } },
                 { header: 'Źródło ref.', key: 'refSource', width: 16 },
                 { header: 'MAP w katalogu', key: 'map', width: 14, style: { numFmt: '0.00' } },
@@ -1662,7 +1662,7 @@
                     externalId: item.externalId || '',
                     producer: item.producer || '',
                     name: item.productName || '',
-                    color: item.googleColor || '',
+                    variant: item.googleVariant || '',
                     ref: item.referencePrice,
                     refSource: item.referenceSource === 'map' ? 'MAP' : (item.referenceSource === 'store' ? 'Sklep' : 'Brak'),
                     map: item.mapPrice,
