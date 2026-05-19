@@ -1640,10 +1640,12 @@
             return storeCount >= offerMin && storeCount <= offerMax;
         });
 
+ 
         filteredPrices = filteredPrices.filter(item => {
             const myPrice = item.myPrice != null ? parseFloat(item.myPrice) : 0;
 
-            if (myPrice <= 0.01) return item.isRejected === true;
+       
+            if (myPrice <= 0.01) return true;
 
             return myPrice >= priceMin && myPrice <= priceMax;
         });

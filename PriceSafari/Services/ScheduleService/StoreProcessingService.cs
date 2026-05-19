@@ -34,12 +34,13 @@ public class StoreProcessingService
 
         if (store == null || store.RemainingDays <= 0) return;
 
+        
         var storeNameVariants = new List<string>();
-        if (!string.IsNullOrWhiteSpace(store.StoreName)) storeNameVariants.Add(store.StoreName.ToLower());
-        if (!string.IsNullOrWhiteSpace(store.StoreNameGoogle)) storeNameVariants.Add(store.StoreNameGoogle.ToLower());
-        if (!string.IsNullOrWhiteSpace(store.StoreNameCeneo)) storeNameVariants.Add(store.StoreNameCeneo.ToLower());
+        if (!string.IsNullOrWhiteSpace(store.StoreName)) storeNameVariants.Add(store.StoreName.Trim().ToLower());
+        if (!string.IsNullOrWhiteSpace(store.StoreNameGoogle)) storeNameVariants.Add(store.StoreNameGoogle.Trim().ToLower());
+        if (!string.IsNullOrWhiteSpace(store.StoreNameCeneo)) storeNameVariants.Add(store.StoreNameCeneo.Trim().ToLower());
 
-        var canonicalStoreName = store.StoreName ?? "";
+        var canonicalStoreName = (store.StoreName ?? "").Trim();
 
         var products = await _context.Products.Where(p => p.StoreId == storeId).ToListAsync();
         var coOfrClasses = await _context.CoOfrs.AsNoTracking().ToListAsync();

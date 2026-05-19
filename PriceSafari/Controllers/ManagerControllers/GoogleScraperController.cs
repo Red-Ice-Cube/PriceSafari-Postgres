@@ -2093,5 +2093,53 @@ public class GoogleScraperController : Controller
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [EXT-API] PEŁNY RESET: kolejka, scrapery, master list, wyniki, tracking, timer.");
         return Ok(new { message = "Pełny reset wykonany — stan w pamięci wyzerowany." });
     }
+
+    [HttpPost]
+    public async Task<IActionResult> ClearSelectedGoogleProducts([FromBody] List<int> productIds)
+    {
+        if (productIds == null || !productIds.Any())
+        {
+            return BadRequest(new { message = "Brak wybranych produktów." });
+        }
+
+        // Pobranie zaznaczonych produktów
+        var products = await _context.Products
+            .Where(p => productIds.Contains(p.ProductId))
+            .ToListAsync();
+
+        foreach (var product in products)
+        {
+            // Czyszczenie parametrów Google
+            product.GoogleUrl = null;
+            product.GoogleGid = null;
+            product.GoogleHid = null;
+            product.GoogleVariant = null;
+            product.GoogleVariantCode = null;
+
+            // Zgodnie z prośbą: ustawienie na false (Not Found)
+            // (Jeśli chcesz, aby scraper szukał ich od nowa, zmień to na "null")
+            product.FoundOnGoogle = false;
+
+            _context.Products.Update(product);
+
+            // Aktualizacja stanu w pamięci podręcznej (aby scraper od razu "wiedział" o zmianie)
+            if (_masterProductStateList.TryGetValue(product.ProductId, out var state))
+            {
+                lock (state)
+                {
+                    state.UpdateStatus(ProductStatus.NotFound);
+                    state.GoogleUrl = null;
+                    state.GoogleGid = null;
+                    state.GoogleHid = null;
+                    state.GoogleVariant = null;
+                    state.GoogleVariantCode = null;
+                    state.IsDirty = true; // wymusi ewentualny zapis przez timer
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { message = "Pomyślnie wyczyszczono zaznaczone produkty." });
+    }
     #endregion
 }

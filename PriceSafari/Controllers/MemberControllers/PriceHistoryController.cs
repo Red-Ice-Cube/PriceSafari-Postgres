@@ -430,11 +430,11 @@ namespace PriceSafari.Controllers.MemberControllers
                        var product = productGroup.First();
                        var validPrices = productGroup.Where(x => x.Price.HasValue).ToList();
 
-                       var myPriceEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower() == storeNameLower).ToList();
+                       var myPriceEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower().Trim() == storeNameLower).ToList();
                        var myPriceEntry = myPriceEntries.OrderByDescending(x => x.IsGoogle == false).FirstOrDefault();
                        var myPrice = myPriceEntry?.Price;
 
-                       var allCompetitorEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower() != storeNameLower).ToList();
+                       var allCompetitorEntries = validPrices.Where(x => x.StoreName != null && x.StoreName.ToLower().Trim() != storeNameLower).ToList();
                        var presetFilteredCompetitorPrices = new List<PriceRowDto>();
                        var committedItem = committedLookup.GetValueOrDefault(g.Key);
                        var autoRule = automationLookup.GetValueOrDefault(g.Key);
@@ -1125,8 +1125,9 @@ namespace PriceSafari.Controllers.MemberControllers
                     var product = productGroup.First();
                     var validPrices = productGroup.Where(x => x.Price.HasValue).ToList();
 
+                    // MA BYĆ:
                     var myPriceEntry = validPrices
-                        .Where(x => x.StoreName != null && x.StoreName.ToLower() == storeNameLower)
+                        .Where(x => x.StoreName != null && x.StoreName.ToLower().Trim() == storeNameLower)
                         .OrderByDescending(x => x.IsGoogle == false)
                         .FirstOrDefault();
                     var myPrice = myPriceEntry?.Price;
@@ -1157,9 +1158,9 @@ namespace PriceSafari.Controllers.MemberControllers
                         }
                     }
 
-                    // Konkurenci po preście (Google/Ceneo: bez filtra po dostawie)
+                    // MA BYĆ:
                     var allCompetitorEntries = validPrices
-                        .Where(x => x.StoreName != null && x.StoreName.ToLower() != storeNameLower)
+                        .Where(x => x.StoreName != null && x.StoreName.ToLower().Trim() != storeNameLower)
                         .ToList();
                     var presetFilteredCompetitors = new List<PriceRowDto>();
                     if (competitorItemsDict != null)

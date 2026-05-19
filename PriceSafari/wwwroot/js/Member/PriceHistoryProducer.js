@@ -926,7 +926,7 @@
                     <i class="fas fa-trophy" style="font-size: 15px; color: #9D4EDD; margin-top:1px;"></i>
                 </span>
                 <div class="offer-count-box">
-                    <p style="color: #9D4EDD; font-weight: 600;">Symulacja: ${item.simulatedPosition}</p>
+                    <p style="color: #9D4EDD; font-weight: 400;">Sym. ${item.simulatedPosition}</p>
                 </div>
             </div>`;
             } else {
